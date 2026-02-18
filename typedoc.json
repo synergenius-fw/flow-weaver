@@ -1,0 +1,60 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./src/index.ts"],
+  "entryPointStrategy": "resolve",
+  "out": "docs/api",
+  "plugin": [],
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "includeVersion": true,
+  "readme": "README.md",
+  "navigationLinks": {
+    "Grammar": "grammar.html"
+  },
+  "sidebarLinks": {},
+  "hideGenerator": false,
+  "sort": ["source-order"],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/tests/**",
+    "**/fixtures/**",
+    "**/scripts/**",
+    "**/node_modules/**"
+  ],
+  "skipErrorChecking": true,
+  "blockTags": [
+    "@param",
+    "@returns",
+    "@example",
+    "@see",
+    "@throws",
+    "@deprecated",
+    "@default",
+    "@defaultValue",
+    "@typeParam",
+    "@remarks",
+    "@module",
+    "@step",
+    "@flowWeaver",
+    "@input",
+    "@output",
+    "@node",
+    "@connect",
+    "@label",
+    "@scopes",
+    "@pullExecution"
+  ],
+  "intentionallyNotExported": [
+    "AnnotationParser",
+    "WorkflowBuilder",
+    "ParseOptions",
+    "GenerateOptions",
+    "ExecutionInfo",
+    "ParsedParam",
+    "VariableAddress",
+    "TStatusType",
+    "TVariableIdentification",
+    "TEvent"
+  ]
+}

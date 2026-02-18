@@ -1,0 +1,64 @@
+name: Bug Report
+description: Report a bug in Flow Weaver
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Compiler
+        - CLI
+        - Parser
+        - Validator
+        - MCP Server
+        - Studio
+        - VSCode Extension
+        - Deployment
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      placeholder: Describe the bug clearly and concisely.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Create a workflow with...
+        2. Run `flow-weaver compile ...`
+        3. See error...
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow code (if applicable)
+      description: Paste the relevant annotated TypeScript.
+      render: typescript
+  - type: input
+    id: version
+    attributes:
+      label: Flow Weaver version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows

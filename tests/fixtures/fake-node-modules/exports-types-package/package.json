@@ -1,0 +1,10 @@
+{
+  "name": "exports-types-package",
+  "version": "1.0.0",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js"
+    }
+  }
+}

@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+package-lock.json
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+!tests/fixtures/**/dist/
+build/
+out/
+*.tsbuildinfo
+*.generated.ts.map
+
+# Generated files
+docs/
+.output/
+*.generated.ts
+*.benchmark.ts
+*.ast.json
+test-output/
+tests/temp/
+tests/output/
+.validation-cache.json
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.p12
+
+# Flow Weaver local config
+.flowweaver/
+
+# IDE & AI tools
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test & coverage
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+.execution-tests*
+
+# Misc
+*.tgz
+.cache/
+.temp/
+.tmp/

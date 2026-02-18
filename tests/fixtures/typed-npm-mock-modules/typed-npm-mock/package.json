@@ -1,0 +1,5 @@
+{
+  "name": "typed-npm-mock",
+  "version": "1.0.0",
+  "types": "index.d.ts"
+}

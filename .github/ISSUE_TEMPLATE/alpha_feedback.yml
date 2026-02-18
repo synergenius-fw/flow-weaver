@@ -1,0 +1,32 @@
+name: Alpha Feedback
+description: General feedback from alpha testers
+labels: ["alpha-feedback"]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your feedback
+      placeholder: What's working, what's confusing, what's missing? All feedback helps.
+    validations:
+      required: true
+  - type: dropdown
+    id: experience
+    attributes:
+      label: Overall experience so far
+      options:
+        - Great — I can see this becoming part of my workflow
+        - Promising — needs polish but the concept is solid
+        - Rough — I hit too many issues to evaluate properly
+        - Confused — I'm not sure how to get started
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: What are you building?
+      placeholder: Briefly describe the workflow or project you're using Flow Weaver for.
+  - type: textarea
+    id: comparison
+    attributes:
+      label: What were you using before?
+      placeholder: Any tools or approaches you're comparing Flow Weaver to?

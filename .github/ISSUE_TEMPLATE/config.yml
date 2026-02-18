@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Discussions
+    url: https://github.com/synergenius-fw/flow-weaver/discussions
+    about: Ask questions and share ideas in GitHub Discussions
+  - name: Documentation
+    url: https://flowweaver.ai/docs/
+    about: Check the docs before filing — your answer might already be there

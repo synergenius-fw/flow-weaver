@@ -1,0 +1,5 @@
+{
+  "name": "typings-field",
+  "version": "1.0.0",
+  "typings": "dist/index.d.ts"
+}
