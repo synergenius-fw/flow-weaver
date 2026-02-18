@@ -1,0 +1,109 @@
+{
+  "name": "@synergenius/flow-weaver",
+  "version": "0.2.0",
+  "description": "TypeScript annotation-based workflow compiler for Flow Weaver",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "default": "./dist/runtime/index.js"
+    },
+    "./built-in-nodes": {
+      "types": "./dist/built-in-nodes/index.d.ts",
+      "default": "./dist/built-in-nodes/index.js"
+    },
+    "./diagram": {
+      "types": "./dist/diagram/index.d.ts",
+      "default": "./dist/diagram/index.js"
+    },
+    "./describe": {
+      "types": "./dist/cli/commands/describe.d.ts",
+      "default": "./dist/cli/commands/describe.js"
+    }
+  },
+  "bin": {
+    "flow-weaver": "./dist/cli/flow-weaver.mjs"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rimraf dist .tsbuildinfo && tsc -p tsconfig.build.json && npm run build:cli",
+    "postbuild": "npx tsx scripts/postbuild.ts",
+    "build:cli": "npx tsx scripts/build-cli.ts",
+    "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput --incremental",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:watch": "vitest",
+    "lint": "npx eslint src",
+    "lint:fix": "npx eslint src --fix",
+    "typecheck": "tsc --noEmit -p tsconfig.build.json",
+    "docs": "typedoc && tsx scripts/generate-grammar-docs.ts",
+    "docs:serve": "npm run docs && npx http-server docs/api -c-1 -o",
+    "prepublishOnly": "npm run build",
+    "cli": "ts-node src/cli/index.ts"
+  },
+  "keywords": [
+    "flow-weaver",
+    "workflow",
+    "typescript",
+    "code-generation",
+    "compiler"
+  ],
+  "author": "Ricardo José Horta Morais",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/synergenius-fw/flow-weaver.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@inquirer/confirm": "^6",
+    "@inquirer/core": "^10",
+    "@inquirer/input": "^5",
+    "@inquirer/select": "^5",
+    "@modelcontextprotocol/sdk": "^1.25.3",
+    "chevrotain": "^11.0.3",
+    "chokidar": "^4.0.0",
+    "commander": "^11.1.0",
+    "glob": "^10.3.10",
+    "immer": "^10.2.0",
+    "js-yaml": "^4.1.0",
+    "socket.io-client": "^4.8.0",
+    "source-map": "^0.7.6",
+    "ts-morph": "^21.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.11.0",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.27.2",
+    "prettier": "^3.1.1",
+    "rimraf": "6.1.2",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typedoc": "^0.28.15",
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.16"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
