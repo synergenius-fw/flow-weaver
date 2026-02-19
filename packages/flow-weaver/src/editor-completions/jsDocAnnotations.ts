@@ -51,8 +51,8 @@ export const JSDOC_ANNOTATIONS: AnnotationCompletion[] = [
     label: '@input',
     detail: 'Define input port',
     documentation:
-      'Declares an input port for data or control flow.\nFormat: @input {Type} name - description',
-    insertText: '@input {${1:Type}} ${2:name}',
+      'Declares an input port for data or control flow.\nFormat: @input name - description',
+    insertText: '@input ${1:name}',
     insertTextFormat: 'snippet',
     kind: 'annotation',
     sortOrder: 10,
@@ -62,8 +62,8 @@ export const JSDOC_ANNOTATIONS: AnnotationCompletion[] = [
     label: '@output',
     detail: 'Define output port',
     documentation:
-      'Declares an output port for data or control flow.\nFormat: @output {Type} name - description',
-    insertText: '@output {${1:Type}} ${2:name}',
+      'Declares an output port for data or control flow.\nFormat: @output name - description',
+    insertText: '@output ${1:name}',
     insertTextFormat: 'snippet',
     kind: 'annotation',
     sortOrder: 11,
@@ -73,7 +73,7 @@ export const JSDOC_ANNOTATIONS: AnnotationCompletion[] = [
     label: '@step',
     detail: 'Define step (control flow) port',
     documentation:
-      'Declares a STEP port for control flow. Shorthand for @input {STEP} or @output {STEP}.',
+      'Declares a STEP port for control flow. Shorthand for @input name [type:STEP] or @output name [type:STEP].',
     insertText: '@step ${1:name}',
     insertTextFormat: 'snippet',
     kind: 'annotation',
