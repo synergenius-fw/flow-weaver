@@ -18,8 +18,8 @@ jobs:
       - run: npx tsc --noEmit -p tsconfig.build.json
         working-directory: packages/flow-weaver
         env:
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: '--max-old-space-size=8192'
       - run: npx vitest run
         working-directory: packages/flow-weaver
         env:
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: '--max-old-space-size=8192'
