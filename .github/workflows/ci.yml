@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: 20
       - run: rm package-lock.json && npm install
-      - run: npx vitest run --pool=forks --maxForks=1 --no-isolate
+      - run: npx vitest run --pool=forks --no-file-parallelism --no-isolate
         working-directory: packages/flow-weaver
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
