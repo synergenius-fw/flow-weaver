@@ -1,0 +1,28 @@
+{
+  "name": "flow-weaver",
+  "version": "0.1.1",
+  "description": "Flow Weaver plugin for Claude Code - skills, commands, and hooks for visual workflow development",
+  "author": {
+    "name": "Ricardo José Horta Morais (Synergenius)"
+  },
+  "license": "MIT",
+  "mcpServers": {
+    "flow-weaver": {
+      "type": "stdio",
+      "command": "${CLAUDE_PLUGIN_ROOT}/scripts/start-mcp.sh",
+      "args": []
+    }
+  },
+  "keywords": [
+    "flow-weaver",
+    "workflow",
+    "visual-programming",
+    "typescript",
+    "javascript",
+    "automation",
+    "low-code",
+    "visual-builder",
+    "persistent-memory",
+    "claude-memory"
+  ]
+}
