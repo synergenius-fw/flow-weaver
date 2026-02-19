@@ -38,9 +38,9 @@ Create a workflow file (any `.ts`, `.tsx`, `.js`, or `.jsx` file works):
 
 /**
  * @flowWeaver nodeType
- * @input {NUMBER} x
- * @input {NUMBER} y
- * @output {NUMBER} result
+ * @input x
+ * @input y
+ * @output result
  */
 function multiply(execute: boolean, x: number, y: number) {
   if (!execute) return { onSuccess: false, onFailure: false, result: 0 };
@@ -217,8 +217,8 @@ Expression nodes (`@expression`) skip the control flow boilerplate — inputs an
 ```typescript
 /**
  * @flowWeaver nodeType
- * @input {NUMBER} value
- * @output {NUMBER} result
+ * @input value
+ * @output result
  * @label Double
  * @pullExecution execute
  */

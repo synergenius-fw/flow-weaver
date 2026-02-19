@@ -1288,8 +1288,8 @@ export function scopedDemo(execute: boolean): { onSuccess: boolean; onFailure: b
  *
  * @flowWeaver nodeType
  * @label My Node
- * @input {Number} value - Input value to process
- * @output {Number} result - Processed result
+ * @input value - Input value to process
+ * @output result - Processed result
  */
 function myNode(
   execute: boolean,

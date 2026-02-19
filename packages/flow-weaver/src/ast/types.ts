@@ -148,9 +148,9 @@ export type TNodeTypeDefaultConfig = {
  * ```typescript
  * /**
  *  * @flowWeaver nodeType
- *  * @input {NUMBER} a - First operand
- *  * @input {NUMBER} b - Second operand
- *  * @output {NUMBER} result - Sum
+ *  * @input a - First operand
+ *  * @input b - Second operand
+ *  * @output result - Sum
  *  *\/
  * function add(execute: boolean, a: number, b: number): {
  *   onSuccess: boolean;

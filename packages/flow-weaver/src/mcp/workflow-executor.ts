@@ -6,6 +6,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import ts from 'typescript';
 import { compileWorkflow } from '../api/index.js';
 import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
@@ -59,13 +60,15 @@ export async function executeWorkflowFromFile(
   // In-place compilation preserves all functions in the module (node types,
   // sibling workflows), which is required for workflow composition where one
   // workflow calls another as a node type.
-  const tmpFile = path.join(
+  const tmpBase = path.join(
     os.tmpdir(),
-    `fw-exec-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`
+    `fw-exec-${Date.now()}-${Math.random().toString(36).slice(2)}`
   );
+  const tmpTsFile = `${tmpBase}.ts`;
+  const tmpFile = `${tmpBase}.mjs`;
 
   try {
-    fs.copyFileSync(resolvedPath, tmpFile);
+    fs.copyFileSync(resolvedPath, tmpTsFile);
 
     // Discover all workflows in the file
     const source = fs.readFileSync(resolvedPath, 'utf8');
@@ -73,7 +76,7 @@ export async function executeWorkflowFromFile(
 
     // Compile each workflow in-place so all function bodies are generated
     for (const wf of allWorkflows) {
-      await compileWorkflow(tmpFile, {
+      await compileWorkflow(tmpTsFile, {
         write: true,
         inPlace: true,
         parse: { workflowName: wf.functionName },
@@ -84,12 +87,21 @@ export async function executeWorkflowFromFile(
     // Inject debugger binding: replace the TypeScript-only `declare const`
     // with an actual assignment from globalThis so the executor can pass
     // a trace-capturing debugger at runtime.
-    let compiledCode = fs.readFileSync(tmpFile, 'utf8');
+    let compiledCode = fs.readFileSync(tmpTsFile, 'utf8');
     compiledCode = compiledCode.replace(
       'declare const __flowWeaverDebugger__: TDebugger | undefined;',
-      'const __flowWeaverDebugger__: TDebugger | undefined = (globalThis as any).__fw_debugger__;'
+      'const __flowWeaverDebugger__ = (globalThis as any).__fw_debugger__;'
     );
-    fs.writeFileSync(tmpFile, compiledCode, 'utf8');
+
+    // Transpile TypeScript to JavaScript so Node.js can import it directly
+    const jsOutput = ts.transpileModule(compiledCode, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ESNext,
+        esModuleInterop: true,
+      },
+    });
+    fs.writeFileSync(tmpFile, jsOutput.outputText, 'utf8');
 
     // Create debugger to capture trace events
     const trace: ExecutionTraceEvent[] = [];
@@ -143,12 +155,9 @@ export async function executeWorkflowFromFile(
     // Clean up globals
     delete (globalThis as unknown as Record<string, unknown>).__fw_debugger__;
     delete (globalThis as unknown as Record<string, unknown>).__fw_mocks__;
-    // Clean up temp file
-    try {
-      fs.unlinkSync(tmpFile);
-    } catch {
-      // Ignore cleanup errors
-    }
+    // Clean up temp files
+    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpTsFile); } catch { /* ignore */ }
   }
 }
 

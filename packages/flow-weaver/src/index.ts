@@ -23,9 +23,9 @@
  * // Define a node type
  * /**
  *  * @flowWeaver nodeType
- *  * @input {NUMBER} a - First number
- *  * @input {NUMBER} b - Second number
- *  * @output {NUMBER} result - Sum
+ *  * @input a - First number
+ *  * @input b - Second number
+ *  * @output result - Sum
  *  *\/
  * function add(execute: boolean, a: number, b: number): { onSuccess: boolean; result: number } { ... }
  *

@@ -118,7 +118,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     return {
       title: 'Unknown Output Port',
       explanation: `Port '${displayPort}' doesn't exist on node '${displayNode}'. Check the spelling or add the port to the node type.`,
-      fix: `Add @output {TYPE} ${displayPort} to the node type's JSDoc, or check the port name in the @connect annotation.`,
+      fix: `Add @output ${displayPort} to the node type's JSDoc, or check the port name in the @connect annotation.`,
       code: error.code,
     };
   },
@@ -131,7 +131,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     return {
       title: 'Unknown Input Port',
       explanation: `Port '${displayPort}' doesn't exist on node '${displayNode}'. Check the spelling or add the port to the node type.`,
-      fix: `Add @input {TYPE} ${displayPort} to the node type's JSDoc, or check the port name in the @connect annotation.`,
+      fix: `Add @input ${displayPort} to the node type's JSDoc, or check the port name in the @connect annotation.`,
       code: error.code,
     };
   },

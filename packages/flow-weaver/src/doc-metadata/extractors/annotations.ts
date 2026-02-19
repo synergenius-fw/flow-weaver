@@ -53,19 +53,19 @@ export const PORT_ANNOTATIONS: TAnnotationDoc[] = [
   {
     name: '@input',
     category: 'port',
-    syntax: '@input {Type} name [modifiers] - description',
+    syntax: '@input name [modifiers] - description',
     description:
-      'Declares an input port for data or control flow. Type in braces, name required, modifiers in brackets optional.',
-    insertText: '@input {${1:Type}} ${2:name}',
+      'Declares an input port for data or control flow. Name required, modifiers in brackets optional (e.g. [type:NUMBER]).',
+    insertText: '@input ${1:name}',
     insertTextFormat: 'snippet',
   },
   {
     name: '@output',
     category: 'port',
-    syntax: '@output {Type} name [modifiers] - description',
+    syntax: '@output name [modifiers] - description',
     description:
-      'Declares an output port for data or control flow. Type in braces, name required, modifiers in brackets optional.',
-    insertText: '@output {${1:Type}} ${2:name}',
+      'Declares an output port for data or control flow. Name required, modifiers in brackets optional (e.g. [type:NUMBER]).',
+    insertText: '@output ${1:name}',
     insertTextFormat: 'snippet',
   },
   {
@@ -73,7 +73,7 @@ export const PORT_ANNOTATIONS: TAnnotationDoc[] = [
     category: 'port',
     syntax: '@step name - description',
     description:
-      'Declares a STEP port for control flow. Shorthand for @input {STEP} or @output {STEP}.',
+      'Declares a STEP port for control flow. Shorthand for @input name [type:STEP] or @output name [type:STEP].',
     insertText: '@step ${1:name}',
     insertTextFormat: 'snippet',
   },
