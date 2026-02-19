@@ -16,8 +16,7 @@ jobs:
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
-          cache: npm
-      - run: npm install
+      - run: rm package-lock.json && npm install
       - run: npx tsc --noEmit -p tsconfig.build.json
         working-directory: packages/flow-weaver
       - run: npx vitest run
