@@ -16,6 +16,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm rebuild
       - run: npx tsc --noEmit -p tsconfig.build.json
         working-directory: packages/flow-weaver
       - run: npx vitest run
