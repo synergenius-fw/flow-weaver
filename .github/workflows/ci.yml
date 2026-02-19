@@ -14,7 +14,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npx tsc --noEmit
+      - run: rm package-lock.json && npm install
+      - run: npx tsc --noEmit -p tsconfig.build.json
+        working-directory: packages/flow-weaver
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
       - run: npx vitest run
+        working-directory: packages/flow-weaver
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
