@@ -17,8 +17,6 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
       - run: rm package-lock.json && npm install
-      - run: npm run build
-        working-directory: packages/flow-weaver
       - run: npm publish --provenance --access public
         working-directory: packages/flow-weaver
         env:
