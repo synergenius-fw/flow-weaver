@@ -8,6 +8,7 @@ dist/
 build/
 out/
 *.tsbuildinfo
+*.generated.ts.map
 
 # Environment & secrets
 .env
@@ -21,9 +22,10 @@ out/
 # Flow Weaver local config
 .flowweaver/
 
-# IDE
+# IDE & AI tools
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 *~
