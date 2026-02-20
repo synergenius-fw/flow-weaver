@@ -633,6 +633,11 @@ function layerInputExtent(layerNodes: string[], diagramNodes: Map<string, Diagra
  * Gap between layers adapts to port label extents so labels never overlap,
  * while using LAYER_GAP_X as the target center-to-center distance.
  */
+function adaptiveGapY(layerSize: number): number {
+  if (layerSize <= 2) return NODE_GAP_Y;
+  return Math.max(24, Math.round(NODE_GAP_Y * 2 / layerSize));
+}
+
 function assignLayerCoordinates(
   layers: string[][],
   diagramNodes: Map<string, DiagramNode>,
@@ -649,10 +654,11 @@ function assignLayerCoordinates(
     }
 
     const maxWidth = Math.max(...layerNodes.map(id => diagramNodes.get(id)!.width));
+    const gapY = adaptiveGapY(layerNodes.length);
     const totalHeight = layerNodes.reduce((sum, id) => {
       const n = diagramNodes.get(id)!;
       return sum + n.height + LABEL_HEIGHT + LABEL_GAP;
-    }, 0) + (layerNodes.length - 1) * NODE_GAP_Y;
+    }, 0) + (layerNodes.length - 1) * gapY;
 
     let currentY = -totalHeight / 2;
     for (const id of layerNodes) {
@@ -660,7 +666,7 @@ function assignLayerCoordinates(
       currentY += LABEL_HEIGHT + LABEL_GAP;
       node.x = currentX + (maxWidth - node.width) / 2;
       node.y = currentY;
-      currentY += node.height + NODE_GAP_Y;
+      currentY += node.height + gapY;
     }
 
     // Compute label-aware edge gap to the next layer
@@ -710,10 +716,11 @@ function assignUnpositionedNodes(
     const maxWidth = Math.max(...layerNodes.map(id => diagramNodes.get(id)!.width));
 
     if (unpositioned.length > 0) {
+      const gapY = adaptiveGapY(unpositioned.length);
       const totalHeight = unpositioned.reduce((sum, id) => {
         const n = diagramNodes.get(id)!;
         return sum + n.height + LABEL_HEIGHT + LABEL_GAP;
-      }, 0) + (unpositioned.length - 1) * NODE_GAP_Y;
+      }, 0) + (unpositioned.length - 1) * gapY;
 
       let currentY = -totalHeight / 2;
       for (const id of unpositioned) {
@@ -721,7 +728,7 @@ function assignUnpositionedNodes(
         currentY += LABEL_HEIGHT + LABEL_GAP;
         node.x = currentX + (maxWidth - node.width) / 2;
         node.y = currentY;
-        currentY += node.height + NODE_GAP_Y;
+        currentY += node.height + gapY;
       }
     }
 
@@ -1042,6 +1049,38 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
   // Create a single TrackAllocator for deterministic batch routing
   const allocator = new TrackAllocator();
 
+  // Pre-compute routing mode consistency for fan-out and fan-in:
+  // When multiple connections share the same source port (fan-out), target
+  // port (fan-in), or target node (multi-port fan-in), use the same routing
+  // mode for visual consistency. If ANY connection in the group would use
+  // curves, force ALL connections in the group to curves.
+  const srcPortKey = (pc: PendingConnection) => `srcPort:${pc.fromNodeId}.${pc.fromPortName}`;
+  const tgtPortKey = (pc: PendingConnection) => `tgtPort:${pc.toNodeId}.${pc.toPortName}`;
+  const tgtNodeKey = (pc: PendingConnection) => `tgtNode:${pc.toNodeId}`;
+  const routingGroups = new Map<string, PendingConnection[]>();
+  for (const pc of pendingConnections) {
+    for (const key of [srcPortKey(pc), tgtPortKey(pc), tgtNodeKey(pc)]) {
+      if (!routingGroups.has(key)) routingGroups.set(key, []);
+      routingGroups.get(key)!.push(pc);
+    }
+  }
+  const forceCurveKeys = new Set<string>();
+  for (const [key, group] of routingGroups) {
+    if (group.length < 2) continue;
+    const anyShort = group.some(pc => {
+      const dx = pc.targetPort.cx - pc.sourcePort.cx;
+      const dy = pc.targetPort.cy - pc.sourcePort.cy;
+      return Math.sqrt(dx * dx + dy * dy) <= ORTHOGONAL_DISTANCE_THRESHOLD;
+    });
+    if (anyShort) forceCurveKeys.add(key);
+  }
+  const forceCurveSet = new Set<PendingConnection>();
+  for (const pc of pendingConnections) {
+    if (forceCurveKeys.has(srcPortKey(pc)) || forceCurveKeys.has(tgtPortKey(pc)) || forceCurveKeys.has(tgtNodeKey(pc))) {
+      forceCurveSet.add(pc);
+    }
+  }
+
   // Compute all connection paths with routing mode selection
   const connections: DiagramConnection[] = [];
   for (const pc of pendingConnections) {
@@ -1053,9 +1092,10 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     const dx = tx - sx;
     const dy = ty - sy;
     const distance = Math.sqrt(dx * dx + dy * dy);
+    const useCurve = forceCurveSet.has(pc);
 
     let path: string;
-    if (distance > ORTHOGONAL_DISTANCE_THRESHOLD) {
+    if (!useCurve && distance > ORTHOGONAL_DISTANCE_THRESHOLD) {
       // Try orthogonal routing for long-distance connections
       const orthoPath = calculateOrthogonalPathSafe(
         [sx, sy], [tx, ty],
