@@ -25,7 +25,7 @@ All commits must include this sign-off. Unsigned commits will be rejected.
 ## License Agreement
 
 This project is licensed under a custom license based on the Elastic License 2.0 (ELv2).
-See [LICENSE](./LICENSE) for the full terms — notably: free to use for any organization,
+See [LICENSE](./LICENSE) for the full terms. Notably: free to use for any organization,
 free to host internally for organizations with 15 or fewer people, external hosting as a
 service to third parties is prohibited without a commercial license.
 
