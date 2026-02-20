@@ -5,6 +5,8 @@ import type { EventBuffer } from './event-buffer.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
 import type { AckResponse } from './types.js';
 import { executeWorkflowFromFile } from './workflow-executor.js';
+import { AgentChannel } from './agent-channel.js';
+import { storePendingRun, getPendingRun, removePendingRun, listPendingRuns } from './run-registry.js';
 
 /**
  * Unwrap editor ack responses to flatten double-nested results.
@@ -226,7 +228,8 @@ export function registerEditorTools(
     'fw_execute_workflow',
     'Run the current workflow with optional parameters and return the result. ' +
       'Includes per-node execution trace by default (STATUS_CHANGED, VARIABLE_SET events) — ' +
-      'use includeTrace: false to disable.',
+      'use includeTrace: false to disable. If the workflow pauses at a waitForAgent node, ' +
+      'returns immediately with status "waiting" and a runId — use fw_resume_workflow to continue.',
     {
       filePath: z
         .string()
@@ -253,11 +256,44 @@ export function registerEditorTools(
       // When filePath is provided, compile and execute directly (no editor needed)
       if (args.filePath) {
         try {
-          const execResult = await executeWorkflowFromFile(args.filePath, args.params, {
+          const channel = new AgentChannel();
+          const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+          const execPromise = executeWorkflowFromFile(args.filePath, args.params, {
             workflowName: args.workflowName,
             includeTrace: args.includeTrace,
+            agentChannel: channel,
           });
-          return makeToolResult(execResult);
+
+          // Race between workflow completing and workflow pausing
+          const raceResult = await Promise.race([
+            execPromise.then((r) => ({ type: 'completed' as const, result: r })),
+            channel.onPause().then((req) => ({ type: 'paused' as const, request: req })),
+          ]);
+
+          if (raceResult.type === 'paused') {
+            // Store the pending run for later resumption
+            storePendingRun({
+              runId,
+              filePath: args.filePath,
+              workflowName: args.workflowName,
+              executionPromise: execPromise,
+              agentChannel: channel,
+              request: raceResult.request,
+              createdAt: Date.now(),
+              tmpFiles: [], // executor manages its own cleanup
+            });
+
+            return makeToolResult({
+              status: 'waiting',
+              runId,
+              request: raceResult.request,
+              message: 'Workflow paused at waitForAgent node. Use fw_resume_workflow to continue.',
+            });
+          }
+
+          // Completed without pausing — return flat result for backward compatibility
+          return makeToolResult(raceResult.result);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           // Distinguish compile errors from execution errors
@@ -275,6 +311,65 @@ export function registerEditorTools(
       }
       const result = await connection.sendCommand('execute-workflow', args.params ?? {});
       return makeToolResult(unwrapAckResult(result));
+    }
+  );
+
+  mcp.tool(
+    'fw_resume_workflow',
+    'Resume a paused workflow that is waiting for agent input. ' +
+      'Use this after fw_execute_workflow returns status "waiting".',
+    {
+      runId: z.string().describe('The runId from the waiting execution result'),
+      result: z.record(z.unknown()).describe('The agent result to send back to the workflow'),
+    },
+    async (args: { runId: string; result: Record<string, unknown> }) => {
+      const run = getPendingRun(args.runId);
+      if (!run) {
+        return makeErrorResult(
+          'RUN_NOT_FOUND',
+          `No pending run found with ID "${args.runId}". It may have already completed or been cancelled.`
+        );
+      }
+
+      try {
+        // Resume the workflow by resolving the agent channel's Promise
+        run.agentChannel.resume(args.result);
+
+        // Wait for the workflow to either complete or pause again
+        const raceResult = await Promise.race([
+          run.executionPromise.then((r) => ({ type: 'completed' as const, result: r })),
+          run.agentChannel.onPause().then((req) => ({ type: 'paused' as const, request: req })),
+        ]);
+
+        if (raceResult.type === 'paused') {
+          // Workflow paused again at another waitForAgent node
+          run.request = raceResult.request;
+          return makeToolResult({
+            status: 'waiting',
+            runId: args.runId,
+            request: raceResult.request,
+            message: 'Workflow paused again at another waitForAgent node.',
+          });
+        }
+
+        // Workflow completed
+        removePendingRun(args.runId);
+        return makeToolResult({ status: 'completed', result: raceResult.result });
+      } catch (err) {
+        removePendingRun(args.runId);
+        const message = err instanceof Error ? err.message : String(err);
+        return makeErrorResult('EXECUTION_ERROR', message);
+      }
+    }
+  );
+
+  mcp.tool(
+    'fw_list_pending_runs',
+    'List workflows that are currently paused waiting for agent input.',
+    {},
+    async () => {
+      const runs = listPendingRuns();
+      return makeToolResult(runs);
     }
   );
 
