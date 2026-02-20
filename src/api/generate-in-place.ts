@@ -1341,6 +1341,26 @@ function isConnectionCoveredByMacro(conn: TConnectionAST, macros: TWorkflowMacro
       ) {
         return true;
       }
+    } else if (macro.type === 'fanOut') {
+      if (conn.from.scope || conn.to.scope) continue;
+      if (conn.from.node === macro.source.node && conn.from.port === macro.source.port) {
+        for (const target of macro.targets) {
+          const targetPort = target.port ?? macro.source.port;
+          if (conn.to.node === target.node && conn.to.port === targetPort) {
+            return true;
+          }
+        }
+      }
+    } else if (macro.type === 'fanIn') {
+      if (conn.from.scope || conn.to.scope) continue;
+      if (conn.to.node === macro.target.node && conn.to.port === macro.target.port) {
+        for (const source of macro.sources) {
+          const sourcePort = source.port ?? macro.target.port;
+          if (conn.from.node === source.node && conn.from.port === sourcePort) {
+            return true;
+          }
+        }
+      }
     }
   }
   return false;
@@ -1488,6 +1508,14 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
       } else if (macro.type === 'path') {
         const stepsStr = macro.steps.map(s => s.route ? `${s.node}:${s.route}` : s.node).join(' -> ');
         lines.push(` * @path ${stepsStr}`);
+      } else if (macro.type === 'fanOut') {
+        const src = `${macro.source.node}.${macro.source.port}`;
+        const tgts = macro.targets.map(t => t.port ? `${t.node}.${t.port}` : t.node).join(', ');
+        lines.push(` * @fanOut ${src} -> ${tgts}`);
+      } else if (macro.type === 'fanIn') {
+        const srcs = macro.sources.map(s => s.port ? `${s.node}.${s.port}` : s.node).join(', ');
+        const tgt = `${macro.target.node}.${macro.target.port}`;
+        lines.push(` * @fanIn ${srcs} -> ${tgt}`);
       }
     }
   }

@@ -17,6 +17,8 @@ export {
   ScopeTag,
   MapTag,
   PathTag,
+  FanOutTag,
+  FanInTag,
   TriggerTag,
   CancelOnTag,
   RetriesTag,
@@ -51,6 +53,10 @@ export type { MapParseResult } from './map-parser';
 // Path parser
 export { parsePathLine, getPathGrammar } from './path-parser';
 export type { PathParseResult, PathStep } from './path-parser';
+
+// Fan-out / Fan-in parser
+export { parseFanOutLine, parseFanInLine } from './fan-parser';
+export type { FanOutParseResult, FanInParseResult, PortRef } from './fan-parser';
 
 // Trigger/cancel/retries/timeout/throttle parser
 export { parseTriggerLine, parseCancelOnLine, parseRetriesLine, parseTimeoutLine, parseThrottleLine } from './trigger-cancel-parser';

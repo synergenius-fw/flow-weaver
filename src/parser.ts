@@ -1185,6 +1185,16 @@ export class AnnotationParser {
         );
       }
 
+      // Expand @fanOut macros into 1-to-N connections
+      if (config.fanOuts && config.fanOuts.length > 0) {
+        this.expandFanOutMacros(config.fanOuts, instances, connections, startPorts, exitPorts, macros, errors);
+      }
+
+      // Expand @fanIn macros into N-to-1 connections
+      if (config.fanIns && config.fanIns.length > 0) {
+        this.expandFanInMacros(config.fanIns, instances, connections, startPorts, exitPorts, macros, errors);
+      }
+
       // Include ALL available nodeTypes in the workflow AST, plus imported npm types.
       // Previously this filtered to only nodeTypes used by instances, but that caused
       // a bug: when creating a new nodeType and then adding its first instance,
@@ -1886,6 +1896,128 @@ export class AnnotationParser {
       macros.push({
         type: 'path',
         steps: steps.map(s => s.route ? { node: s.node, route: s.route } : { node: s.node }),
+      });
+    }
+  }
+
+  /**
+   * Expand @fanOut macros into 1-to-N connections.
+   */
+  private expandFanOutMacros(
+    fanOutConfigs: Array<{ source: { node: string; port: string }; targets: Array<{ node: string; port?: string }> }>,
+    instances: TNodeInstanceAST[],
+    connections: TConnectionAST[],
+    startPorts: Record<string, TPortDefinition>,
+    exitPorts: Record<string, TPortDefinition>,
+    macros: TWorkflowMacro[],
+    errors: string[],
+  ): void {
+    const instanceIds = new Set(instances.map(i => i.id));
+    instanceIds.add('Start');
+    instanceIds.add('Exit');
+
+    for (const config of fanOutConfigs) {
+      const { source, targets } = config;
+
+      // Validate source node exists
+      if (!instanceIds.has(source.node)) {
+        errors.push(`@fanOut: source node "${source.node}" does not exist`);
+        continue;
+      }
+
+      let valid = true;
+      for (const target of targets) {
+        if (!instanceIds.has(target.node)) {
+          errors.push(`@fanOut: target node "${target.node}" does not exist`);
+          valid = false;
+        }
+      }
+      if (!valid) continue;
+
+      // Create connections
+      for (const target of targets) {
+        const targetPort = target.port ?? source.port;
+        const conn: TConnectionAST = {
+          type: 'Connection',
+          from: { node: source.node, port: source.port },
+          to: { node: target.node, port: targetPort },
+        };
+        // Deduplicate
+        const exists = connections.some(
+          c => c.from.node === conn.from.node && c.from.port === conn.from.port &&
+               c.to.node === conn.to.node && c.to.port === conn.to.port
+        );
+        if (!exists) {
+          connections.push(conn);
+        }
+      }
+
+      // Store macro for round-trip preservation
+      macros.push({
+        type: 'fanOut',
+        source: { node: source.node, port: source.port },
+        targets: targets.map(t => t.port ? { node: t.node, port: t.port } : { node: t.node }),
+      });
+    }
+  }
+
+  /**
+   * Expand @fanIn macros into N-to-1 connections.
+   */
+  private expandFanInMacros(
+    fanInConfigs: Array<{ sources: Array<{ node: string; port?: string }>; target: { node: string; port: string } }>,
+    instances: TNodeInstanceAST[],
+    connections: TConnectionAST[],
+    startPorts: Record<string, TPortDefinition>,
+    exitPorts: Record<string, TPortDefinition>,
+    macros: TWorkflowMacro[],
+    errors: string[],
+  ): void {
+    const instanceIds = new Set(instances.map(i => i.id));
+    instanceIds.add('Start');
+    instanceIds.add('Exit');
+
+    for (const config of fanInConfigs) {
+      const { sources, target } = config;
+
+      // Validate target node exists
+      if (!instanceIds.has(target.node)) {
+        errors.push(`@fanIn: target node "${target.node}" does not exist`);
+        continue;
+      }
+
+      let valid = true;
+      for (const source of sources) {
+        if (!instanceIds.has(source.node)) {
+          errors.push(`@fanIn: source node "${source.node}" does not exist`);
+          valid = false;
+        }
+      }
+      if (!valid) continue;
+
+      // Create connections
+      for (const source of sources) {
+        const sourcePort = source.port ?? target.port;
+        const conn: TConnectionAST = {
+          type: 'Connection',
+          from: { node: source.node, port: sourcePort },
+          to: { node: target.node, port: target.port },
+        };
+        // Deduplicate
+        const exists = connections.some(
+          c => c.from.node === conn.from.node && c.from.port === conn.from.port &&
+               c.to.node === conn.to.node && c.to.port === conn.to.port
+        );
+        if (!exists) {
+          connections.push(conn);
+        }
+      }
+
+      // Store macro for round-trip preservation
+      macros.push({
+        type: 'fanIn',
+        sources: sources.map(s => s.port ? { node: s.node, port: s.port } : { node: s.node }),
+        target: { node: target.node, port: target.port },
       });
     }
   }

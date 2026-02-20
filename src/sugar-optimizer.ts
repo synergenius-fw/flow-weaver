@@ -94,9 +94,21 @@ export function filterStaleMacros(
   connections: TConnectionAST[],
   instances: TNodeInstanceAST[],
 ): TWorkflowMacro[] {
+  const instanceIds = new Set(instances.map(i => i.id));
+  instanceIds.add('Start');
+  instanceIds.add('Exit');
+
   return macros.filter(macro => {
-    if (macro.type !== 'path') return true;
-    return validatePathMacro(macro, connections, instances);
+    if (macro.type === 'path') return validatePathMacro(macro, connections, instances);
+    if (macro.type === 'fanOut') {
+      if (!instanceIds.has(macro.source.node)) return false;
+      return macro.targets.every(t => instanceIds.has(t.node));
+    }
+    if (macro.type === 'fanIn') {
+      if (!instanceIds.has(macro.target.node)) return false;
+      return macro.sources.every(s => instanceIds.has(s.node));
+    }
+    return true;
   });
 }
 
@@ -443,6 +455,16 @@ function buildExistingMacroCoverage(macros: TWorkflowMacro[]): Set<string> {
       for (const step of macro.steps) {
         covered.add(step.node);
       }
+    } else if (macro.type === 'fanOut') {
+      covered.add(macro.source.node);
+      for (const t of macro.targets) {
+        covered.add(t.node);
+      }
+    } else if (macro.type === 'fanIn') {
+      for (const s of macro.sources) {
+        covered.add(s.node);
+      }
+      covered.add(macro.target.node);
     }
   }
   return covered;

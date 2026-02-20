@@ -77,6 +77,16 @@ export const PathTag = createToken({
   pattern: /@path\b/,
 });
 
+export const FanOutTag = createToken({
+  name: 'FanOutTag',
+  pattern: /@fanOut\b/,
+});
+
+export const FanInTag = createToken({
+  name: 'FanInTag',
+  pattern: /@fanIn\b/,
+});
+
 export const TriggerTag = createToken({
   name: 'TriggerTag',
   pattern: /@trigger\b/,
@@ -393,6 +403,8 @@ export const allTokens = [
   ScopeTag,
   MapTag,
   PathTag,
+  FanOutTag,
+  FanInTag,
   TriggerTag,
   CancelOnTag,
   RetriesTag,

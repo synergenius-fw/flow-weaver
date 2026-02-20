@@ -67,6 +67,7 @@ const BUILTIN_IMPORT_PREFIX = '@synergenius/flow-weaver/built-in-nodes';
 const BUILT_IN_HANDLERS: Record<string, string> = {
   delay: 'delay',
   waitForEvent: 'waitForEvent',
+  waitForAgent: 'waitForAgent',
   invokeWorkflow: 'invokeWorkflow',
 };
 
@@ -99,6 +100,8 @@ function verifyBuiltInSignature(nodeType: TNodeTypeAST): boolean {
       return inputNames.includes('eventName');
     case 'invokeWorkflow':
       return inputNames.includes('functionId') && inputNames.includes('payload');
+    case 'waitForAgent':
+      return inputNames.includes('agentId') && inputNames.includes('context');
     default:
       return false;
   }
@@ -471,6 +474,23 @@ function emitNodeCall(
     return;
   }
 
+  if (builtIn === 'waitForAgent') {
+    const safeId = toValidIdentifier(nodeId);
+    const args = buildNodeArgs(nodeId, nodeType, workflow, nodeTypes);
+    const agentIdArg = args[1]; // execute=args[0], agentId=args[1]
+
+    // Map waitForAgent to step.waitForEvent with agent-scoped event name
+    lines.push(`${indent}const ${safeId}_raw = await step.waitForEvent('${nodeId}', {`);
+    lines.push(`${indent}  event: \`agent/\${${agentIdArg}}\`,`);
+    lines.push(`${indent}  timeout: '7d',`);
+    lines.push(`${indent}});`);
+    lines.push(`${indent}${safeId}_result = ${safeId}_raw`);
+    lines.push(`${indent}  ? { onSuccess: true, onFailure: false, agentResult: ${safeId}_raw.data ?? {} }`);
+    lines.push(`${indent}  : { onSuccess: false, onFailure: true, agentResult: {} };`);
+    lines.push('');
+    return;
+  }
+
   if (builtIn === 'invokeWorkflow') {
     const safeId = toValidIdentifier(nodeId);
     const args = buildNodeArgs(nodeId, nodeType, workflow, nodeTypes);
@@ -650,6 +670,10 @@ function emitPromiseAll(
       if (timeoutArg && timeoutArg !== 'undefined') waitCall += `, timeout: ${timeoutArg}`;
       waitCall += ` })`;
       stepCalls.push(waitCall);
+    } else if (builtIn === 'waitForAgent') {
+      const args = buildNodeArgs(nodeId, nt, workflow, nodeTypes);
+      const agentIdArg = args[1];
+      stepCalls.push(`${indent}  step.waitForEvent('${nodeId}', { event: \`agent/\${${agentIdArg}}\`, timeout: '7d' })`);
     } else if (builtIn === 'invokeWorkflow') {
       const args = buildNodeArgs(nodeId, nt, workflow, nodeTypes);
       const functionIdArg = args[1];

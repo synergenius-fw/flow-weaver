@@ -17,6 +17,8 @@ import {
   parseScopeLine,
   parseMapLine,
   parsePathLine,
+  parseFanOutLine,
+  parseFanInLine,
   parseTriggerLine,
   parseCancelOnLine,
   parseThrottleLine,
@@ -221,6 +223,16 @@ export interface JSDocWorkflowConfig {
   /** @path sugar macros that expand to multi-step execution routes with scope walking */
   paths?: Array<{
     steps: Array<{ node: string; route?: 'ok' | 'fail' }>;
+  }>;
+  /** @fanOut macros that expand to 1-to-N connections */
+  fanOuts?: Array<{
+    source: { node: string; port: string };
+    targets: Array<{ node: string; port?: string }>;
+  }>;
+  /** @fanIn macros that expand to N-to-1 connections */
+  fanIns?: Array<{
+    sources: Array<{ node: string; port?: string }>;
+    target: { node: string; port: string };
   }>;
   /** @trigger annotation — event name and/or cron schedule */
   trigger?: { event?: string; cron?: string };
@@ -445,6 +457,14 @@ export class JSDocParser {
 
         case 'path':
           this.parsePathTag(tag, config, warnings);
+          break;
+
+        case 'fanOut':
+          this.parseFanOutTag(tag, config, warnings);
+          break;
+
+        case 'fanIn':
+          this.parseFanInTag(tag, config, warnings);
           break;
 
         case 'trigger':
@@ -1191,6 +1211,42 @@ export class JSDocParser {
     config.paths = config.paths || [];
     config.paths.push({
       steps: result.steps,
+    });
+  }
+
+  private parseFanOutTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
+    const comment = tag.getCommentText() || '';
+    const result = parseFanOutLine(`@fanOut ${comment}`, warnings);
+    if (!result) {
+      warnings.push(`Invalid @fanOut tag format: ${comment}`);
+      return;
+    }
+    if (!result.source.port) {
+      warnings.push(`@fanOut source must specify a port: ${comment}`);
+      return;
+    }
+    config.fanOuts = config.fanOuts || [];
+    config.fanOuts.push({
+      source: { node: result.source.node, port: result.source.port },
+      targets: result.targets,
+    });
+  }
+
+  private parseFanInTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
+    const comment = tag.getCommentText() || '';
+    const result = parseFanInLine(`@fanIn ${comment}`, warnings);
+    if (!result) {
+      warnings.push(`Invalid @fanIn tag format: ${comment}`);
+      return;
+    }
+    if (!result.target.port) {
+      warnings.push(`@fanIn target must specify a port: ${comment}`);
+      return;
+    }
+    config.fanIns = config.fanIns || [];
+    config.fanIns.push({
+      sources: result.sources,
+      target: { node: result.target.node, port: result.target.port },
     });
   }
 

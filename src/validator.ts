@@ -157,6 +157,7 @@ export class WorkflowValidator {
     this.validateCycles(workflow);
     this.validateMultipleInputConnections(workflow, instanceMap);
     this.validateAnnotationSignatureConsistency(workflow);
+    this.validateScopeTopology(workflow, instanceMap);
 
     // Deduplicate cascading errors: if a node has UNKNOWN_NODE_TYPE,
     // suppress UNKNOWN_SOURCE_NODE, UNKNOWN_TARGET_NODE, and UNDEFINED_NODE
@@ -1103,6 +1104,118 @@ export class WorkflowValidator {
     // They must be on different branches (not all on the same one)
     const branches = new Set(branchInfos.map((info) => info!.branch));
     return branches.size > 1;
+  }
+
+  /**
+   * Validate inner graph topology for nodes that have scoped ports.
+   *
+   * For each scoped node instance, checks that:
+   * 1. Inner nodes (children) have their required inputs connected within the scope
+   * 2. Scoped input ports (callback returns) have connections from inner nodes
+   */
+  private validateScopeTopology(
+    workflow: TWorkflowAST,
+    instanceMap: Map<string, TNodeTypeAST>
+  ): void {
+    // Find all instances that have scoped ports
+    for (const instance of workflow.instances) {
+      const nodeType = instanceMap.get(instance.id);
+      if (!nodeType) continue;
+
+      // Collect scoped port pairs per scope name
+      const scopeNames = new Set<string>();
+      for (const portDef of Object.values(nodeType.outputs)) {
+        if (portDef.scope) scopeNames.add(portDef.scope);
+      }
+      for (const portDef of Object.values(nodeType.inputs)) {
+        if (portDef.scope) scopeNames.add(portDef.scope);
+      }
+
+      if (scopeNames.size === 0) continue;
+
+      for (const scopeName of scopeNames) {
+        // Find children in this scope
+        const childIds: string[] = [];
+        for (const child of workflow.instances) {
+          if (
+            child.parent &&
+            child.parent.id === instance.id &&
+            child.parent.scope === scopeName
+          ) {
+            childIds.push(child.id);
+          }
+        }
+
+        if (childIds.length === 0) continue;
+
+        // Collect scoped connections (connections with scope tags)
+        const scopedConnections = workflow.connections.filter(
+          (conn) =>
+            (conn.from.scope === scopeName && conn.from.node === instance.id) ||
+            (conn.to.scope === scopeName && conn.to.node === instance.id) ||
+            (conn.from.scope === scopeName && childIds.includes(conn.from.node)) ||
+            (conn.to.scope === scopeName && childIds.includes(conn.to.node))
+        );
+
+        // Check: each child's required inputs must be satisfied within the scope
+        for (const childId of childIds) {
+          const childType = instanceMap.get(childId);
+          if (!childType) continue;
+
+          for (const [portName, portConfig] of Object.entries(childType.inputs)) {
+            if (isExecutePort(portName)) continue;
+            if (portConfig.scope) continue; // Skip scoped ports on children
+            if (portConfig.optional || portConfig.default !== undefined) continue;
+
+            // Check instance expression overrides
+            const childInstance = workflow.instances.find((i) => i.id === childId);
+            const instancePortConfig = childInstance?.config?.portConfigs?.find(
+              (pc) => pc.portName === portName && (pc.direction == null || pc.direction === 'INPUT')
+            );
+            if (portConfig.expression || instancePortConfig?.expression !== undefined) continue;
+
+            // Check if connected by any connection (scoped, inter-child, or outer)
+            const isConnected = workflow.connections.some(
+              (conn) => conn.to.node === childId && conn.to.port === portName
+            );
+
+            if (!isConnected) {
+              this.errors.push({
+                type: 'error',
+                code: 'SCOPE_MISSING_REQUIRED_INPUT',
+                message: `Scoped child "${childId}" has unconnected required input "${portName}" within scope "${scopeName}" of "${instance.id}".`,
+                node: childId,
+                location: childInstance?.sourceLocation,
+              });
+            }
+          }
+        }
+
+        // Check: scoped INPUT ports should have connections from inner nodes
+        const scopedInputPorts = Object.entries(nodeType.inputs).filter(
+          ([_, portDef]) => portDef.scope === scopeName
+        );
+
+        for (const [portName] of scopedInputPorts) {
+          const hasConnection = scopedConnections.some(
+            (conn) =>
+              conn.to.node === instance.id &&
+              conn.to.port === portName &&
+              conn.to.scope === scopeName
+          );
+
+          if (!hasConnection) {
+            this.warnings.push({
+              type: 'warning',
+              code: 'SCOPE_UNUSED_INPUT',
+              message: `Scoped input port "${portName}" of "${instance.id}" (scope "${scopeName}") has no connection from inner nodes. Data will not flow back from the scope.`,
+              node: instance.id,
+              location: this.getInstanceLocation(workflow, instance.id),
+            });
+          }
+        }
+      }
+    }
   }
 
   private normalizeTypeString(type: string): string {
