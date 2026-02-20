@@ -2,6 +2,7 @@ import type { TWorkflowAST } from '../ast/types';
 import { parser } from '../parser';
 import { buildDiagramGraph } from './geometry';
 import { renderSVG } from './renderer';
+import { wrapSVGInHTML } from './html-viewer';
 import type { DiagramOptions } from './types';
 
 export type { DiagramOptions } from './types';
@@ -28,6 +29,30 @@ export function sourceToSVG(code: string, options: DiagramOptions = {}): string 
 export function fileToSVG(filePath: string, options: DiagramOptions = {}): string {
   const result = parser.parse(filePath);
   return pickAndRender(result.workflows, options);
+}
+
+/**
+ * Render a workflow AST to a self-contained interactive HTML page.
+ */
+export function workflowToHTML(ast: TWorkflowAST, options: DiagramOptions = {}): string {
+  const svg = workflowToSVG(ast, options);
+  return wrapSVGInHTML(svg, { title: options.workflowName ?? ast.name, theme: options.theme });
+}
+
+/**
+ * Parse TypeScript source code and render the first (or named) workflow to interactive HTML.
+ */
+export function sourceToHTML(code: string, options: DiagramOptions = {}): string {
+  const svg = sourceToSVG(code, options);
+  return wrapSVGInHTML(svg, { title: options.workflowName, theme: options.theme });
+}
+
+/**
+ * Parse a workflow file and render the first (or named) workflow to interactive HTML.
+ */
+export function fileToHTML(filePath: string, options: DiagramOptions = {}): string {
+  const svg = fileToSVG(filePath, options);
+  return wrapSVGInHTML(svg, { title: options.workflowName, theme: options.theme });
 }
 
 function pickAndRender(workflows: TWorkflowAST[], options: DiagramOptions): string {
