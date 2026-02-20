@@ -11,7 +11,7 @@ import {
   NODE_MIN_HEIGHT,
 } from '../../../src/diagram/geometry';
 import type { DiagramNode, DiagramPort } from '../../../src/diagram/types';
-import { createSimpleWorkflow, createParallelWorkflow, createScopedWorkflow } from '../../helpers/test-fixtures';
+import { createSimpleWorkflow, createParallelWorkflow, createScopedWorkflow, createPositionedWorkflow } from '../../helpers/test-fixtures';
 
 function makePort(name: string, direction: 'INPUT' | 'OUTPUT'): DiagramPort {
   return { name, label: name, dataType: 'NUMBER', direction, isControlFlow: false, isFailure: false, cx: 0, cy: 0 };
@@ -207,6 +207,60 @@ describe('buildDiagramGraph', () => {
     const node1 = graph.nodes.find(n => n.id === 'node1')!;
     const inputPort = node1.inputs.find(p => p.name === 'input')!;
     expect(inputPort.label).toBe('input');
+  });
+});
+
+describe('buildDiagramGraph — explicit positions', () => {
+  it('respects explicit positions when all nodes are positioned', () => {
+    const ast = createPositionedWorkflow();
+    const graph = buildDiagramGraph(ast);
+
+    const start = graph.nodes.find(n => n.id === 'Start')!;
+    const node1 = graph.nodes.find(n => n.id === 'node1')!;
+    const exit = graph.nodes.find(n => n.id === 'Exit')!;
+
+    // After normalization, relative positions should be preserved:
+    // Start(-600,0), node1(0,0), Exit(600,0) → 600px spacing
+    expect(node1.x - start.x).toBeCloseTo(600, 0);
+    expect(exit.x - node1.x).toBeCloseTo(600, 0);
+  });
+
+  it('preserves vertical alignment when all nodes share same y', () => {
+    const ast = createPositionedWorkflow();
+    const graph = buildDiagramGraph(ast);
+
+    const start = graph.nodes.find(n => n.id === 'Start')!;
+    const node1 = graph.nodes.find(n => n.id === 'node1')!;
+    const exit = graph.nodes.find(n => n.id === 'Exit')!;
+
+    // All nodes at y=0 → same y after normalization
+    expect(node1.y).toBe(start.y);
+    expect(exit.y).toBe(start.y);
+  });
+
+  it('uses auto-layout for unpositioned nodes in mixed mode', () => {
+    const ast = createSimpleWorkflow();
+    // Position only Start, leave node1 and Exit unpositioned
+    ast.ui = {
+      startNode: { x: 0, y: 0 },
+    };
+    const graph = buildDiagramGraph(ast);
+
+    // All nodes should have positive coordinates after normalization
+    for (const node of graph.nodes) {
+      expect(node.x).toBeGreaterThanOrEqual(0);
+      expect(node.y).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('preserves existing auto-layout when no positions are set', () => {
+    const ast = createSimpleWorkflow();
+    const graph = buildDiagramGraph(ast);
+
+    const start = graph.nodes.find(n => n.id === 'Start')!;
+    const exit = graph.nodes.find(n => n.id === 'Exit')!;
+    // Nodes should be ordered left-to-right
+    expect(exit.x).toBeGreaterThan(start.x);
   });
 });
 
