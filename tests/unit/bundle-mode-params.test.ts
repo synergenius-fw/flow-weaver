@@ -177,3 +177,62 @@ describe('Bundle mode calling conventions', () => {
     expect(code).not.toMatch(/multiply\(true,\s*n1_a/);
   });
 });
+
+describe('External runtime debug declarations', () => {
+  it('should include createFlowWeaverDebugClient when externalRuntimePath + non-production', () => {
+    const nodeType = makeNodeType({
+      name: 'addNumbers',
+      functionName: 'addNumbers',
+      sourceLocation: { file: MOCK_FILE, line: 1, column: 0 },
+      functionText: 'function addNumbers(execute: boolean, a: number, b: number) { return { onSuccess: true, onFailure: false, result: a + b }; }',
+    });
+    const ast = makeWorkflow([nodeType]);
+
+    const code = generateCode(ast, {
+      externalRuntimePath: '@synergenius/flow-weaver/runtime',
+      production: false,
+    }) as unknown as string;
+
+    // Should have the debug client function defined (not just imported from runtime)
+    expect(code).toContain('function createFlowWeaverDebugClient(');
+    // Should NOT try to import createFlowWeaverDebugClient from runtime
+    // (it doesn't exist there — it must be inlined)
+    expect(code).not.toMatch(/import.*createFlowWeaverDebugClient.*from/);
+  });
+
+  it('should not include debug client in production mode with externalRuntimePath', () => {
+    const nodeType = makeNodeType({
+      name: 'addNumbers',
+      functionName: 'addNumbers',
+      sourceLocation: { file: MOCK_FILE, line: 1, column: 0 },
+      functionText: 'function addNumbers(execute: boolean, a: number, b: number) { return { onSuccess: true, onFailure: false, result: a + b }; }',
+    });
+    const ast = makeWorkflow([nodeType]);
+
+    const code = generateCode(ast, {
+      externalRuntimePath: '@synergenius/flow-weaver/runtime',
+      production: true,
+    }) as unknown as string;
+
+    expect(code).not.toContain('createFlowWeaverDebugClient');
+    expect(code).not.toContain('__flowWeaverDebugger__');
+  });
+
+  it('should import TDebugger as type-only from external runtime', () => {
+    const nodeType = makeNodeType({
+      name: 'addNumbers',
+      functionName: 'addNumbers',
+      sourceLocation: { file: MOCK_FILE, line: 1, column: 0 },
+      functionText: 'function addNumbers(execute: boolean, a: number, b: number) { return { onSuccess: true, onFailure: false, result: a + b }; }',
+    });
+    const ast = makeWorkflow([nodeType]);
+
+    const code = generateCode(ast, {
+      externalRuntimePath: '@synergenius/flow-weaver/runtime',
+      production: false,
+    }) as unknown as string;
+
+    // TDebugger should be imported from external runtime (it IS exported there)
+    expect(code).toMatch(/import.*TDebugger.*from.*@synergenius\/flow-weaver\/runtime/);
+  });
+});
