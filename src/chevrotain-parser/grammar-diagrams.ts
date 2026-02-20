@@ -11,6 +11,8 @@ import { getConnectGrammar } from './connect-parser';
 import { getPositionGrammar } from './position-parser';
 import { getScopeGrammar } from './scope-parser';
 import { getPathGrammar } from './path-parser';
+import { getMapGrammar } from './map-parser';
+import { getTriggerCancelGrammar } from './trigger-cancel-parser';
 
 // =============================================================================
 // EBNF Text Generation
@@ -85,7 +87,7 @@ function itemToEBNF(item: ISerializedGastItem): string {
       if (pattern === 'BOTTOM\\b') return '"BOTTOM"';
 
       // Identifier pattern - use semantic name if available
-      if (pattern === '[a-zA-Z_$][a-zA-Z0-9_$]*') {
+      if (pattern === '[a-zA-Z_$][a-zA-Z0-9_$]*' || pattern === '[a-zA-Z_$][a-zA-Z0-9_$\\/-]*') {
         const semanticName = item.terminalLabel || 'IDENTIFIER';
         return semanticName;
       }
@@ -148,6 +150,8 @@ export interface GrammarCollection {
   position: ISerializedGast[];
   scope: ISerializedGast[];
   path: ISerializedGast[];
+  map: ISerializedGast[];
+  triggerCancel: ISerializedGast[];
 }
 
 // =============================================================================
@@ -165,6 +169,8 @@ export function getAllGrammars(): GrammarCollection {
     position: getPositionGrammar(),
     scope: getScopeGrammar(),
     path: getPathGrammar(),
+    map: getMapGrammar(),
+    triggerCancel: getTriggerCancelGrammar(),
   };
 }
 
@@ -183,6 +189,8 @@ export function generateGrammarDiagrams(): string {
     ...grammars.position,
     ...grammars.scope,
     ...grammars.path,
+    ...grammars.map,
+    ...grammars.triggerCancel,
   ];
 
   // createSyntaxDiagramsCode returns a complete HTML document

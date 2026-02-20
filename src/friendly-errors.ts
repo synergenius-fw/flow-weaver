@@ -50,6 +50,24 @@ function extractCyclePath(message: string): string | null {
 type ErrorMapper = (error: ValidatorError) => TFriendlyError;
 
 const errorMappers: Record<string, ErrorMapper> = {
+  MISSING_WORKFLOW_NAME(error) {
+    return {
+      title: 'Missing Workflow Name',
+      explanation: 'The workflow annotation is missing or has no name. Every workflow needs a name in the @flowWeaver workflow block.',
+      fix: 'Add @flowWeaver workflow to the JSDoc block above your exported workflow function.',
+      code: error.code,
+    };
+  },
+
+  MISSING_FUNCTION_NAME(error) {
+    return {
+      title: 'Missing Function Name',
+      explanation: 'The compiler found a @flowWeaver workflow annotation but the function is anonymous or not exported.',
+      fix: 'Make sure your workflow is declared as `export function myWorkflowName(...)` — not anonymous or unexported.',
+      code: error.code,
+    };
+  },
+
   MISSING_REQUIRED_INPUT(error) {
     const quoted = extractQuoted(error.message);
     const nodeName = quoted[0] || error.node || 'unknown';
@@ -206,6 +224,63 @@ const errorMappers: Record<string, ErrorMapper> = {
       title: 'Reserved Name Used',
       explanation: `'Start' and 'Exit' are reserved names. Choose a different name for your node type.`,
       fix: `Rename '${nodeName}' to something other than 'Start' or 'Exit'. These names are used internally by the workflow engine.`,
+      code: error.code,
+    };
+  },
+
+  RESERVED_INSTANCE_ID(error) {
+    const quoted = extractQuoted(error.message);
+    const instanceId = quoted[0] || error.node || 'unknown';
+    return {
+      title: 'Reserved Instance ID',
+      explanation: `Instance ID '${instanceId}' is reserved. 'Start' and 'Exit' are built-in nodes in every workflow.`,
+      fix: `Choose a different instance ID, like 'startHandler' or 'exitProcessor'.`,
+      code: error.code,
+    };
+  },
+
+  INFERRED_NODE_TYPE(error) {
+    const quoted = extractQuoted(error.message);
+    const nodeTypeName = quoted[0] || error.node || 'unknown';
+    return {
+      title: 'Inferred Node Type',
+      explanation: `Node type '${nodeTypeName}' was auto-inferred from the function signature. It works, but you lose explicit control over port names, types, and ordering.`,
+      fix: `Add /** @flowWeaver nodeType @expression */ above the function for explicit port control.`,
+      code: error.code,
+    };
+  },
+
+  UNDEFINED_NODE(error) {
+    const quoted = extractQuoted(error.message);
+    const nodeName = quoted[0] || error.node || 'unknown';
+    return {
+      title: 'Undefined Node',
+      explanation: `A connection references node '${nodeName}', but there's no @node annotation defining it.`,
+      fix: `Add a @node annotation for '${nodeName}' in the workflow JSDoc, or remove the connections that reference it.`,
+      code: error.code,
+    };
+  },
+
+  TYPE_INCOMPATIBLE(error) {
+    const types = extractTypes(error.message);
+    const source = types?.source || 'unknown';
+    const target = types?.target || 'unknown';
+    return {
+      title: 'Type Incompatible',
+      explanation: `Type mismatch: ${source} to ${target}. With @strictTypes enabled, this is an error instead of a warning.`,
+      fix: `Add a conversion node between the ports, change one of the port types, or remove @strictTypes to allow implicit coercions.`,
+      code: error.code,
+    };
+  },
+
+  UNUSUAL_TYPE_COERCION(error) {
+    const types = extractTypes(error.message);
+    const source = types?.source || 'unknown';
+    const target = types?.target || 'unknown';
+    return {
+      title: 'Unusual Type Coercion',
+      explanation: `Converting ${source} to ${target} is technically valid but semantically unusual and may produce unexpected behavior.`,
+      fix: `Add an explicit conversion node if this is intentional, or use @strictTypes to enforce type safety.`,
       code: error.code,
     };
   },
