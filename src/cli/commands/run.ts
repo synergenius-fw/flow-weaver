@@ -4,7 +4,10 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import * as readline from 'readline';
 import { executeWorkflowFromFile } from '../../mcp/workflow-executor.js';
+import type { ExecuteWorkflowResult } from '../../mcp/workflow-executor.js';
+import { AgentChannel } from '../../mcp/agent-channel.js';
 import { logger } from '../utils/logger.js';
 import { getFriendlyError } from '../../friendly-errors.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
@@ -130,12 +133,63 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
       logger.info('Running with mock data');
     }
 
-    const result = await executeWorkflowFromFile(filePath, params, {
+    const channel = new AgentChannel();
+    const execPromise = executeWorkflowFromFile(filePath, params, {
       workflowName: options.workflow,
       production: options.production ?? false,
       includeTrace,
       mocks,
+      agentChannel: channel,
     });
+
+    let result!: ExecuteWorkflowResult;
+    let execDone = false;
+
+    // Race loop: detect pauses, prompt user, resume
+    while (!execDone) {
+      const raceResult = await Promise.race([
+        execPromise.then((r) => ({ type: 'completed' as const, result: r })),
+        channel.onPause().then((req) => ({ type: 'paused' as const, request: req })),
+      ]);
+
+      if (raceResult.type === 'completed') {
+        result = raceResult.result;
+        execDone = true;
+      } else {
+        // Workflow paused at waitForAgent
+        const request = raceResult.request as { agentId?: string; context?: unknown; prompt?: string };
+
+        if (!process.stdin.isTTY) {
+          throw new Error(
+            'Workflow paused at waitForAgent but stdin is not interactive. ' +
+            'Use --mocks to provide agent responses.'
+          );
+        }
+
+        // Display prompt info to stderr (keeps stdout clean for --json)
+        const label = request.prompt || `Agent "${request.agentId}" is requesting input`;
+        if (!options.json) {
+          logger.newline();
+          logger.section('Waiting for Input');
+          logger.info(label);
+          if (request.context && Object.keys(request.context as object).length > 0) {
+            logger.log(`  Context: ${JSON.stringify(request.context, null, 2)}`);
+          }
+        }
+
+        // Prompt user for JSON response
+        const userInput = await promptForInput('Enter response (JSON): ');
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = JSON.parse(userInput);
+        } catch {
+          // If not valid JSON, wrap as { response: "..." }
+          parsed = { response: userInput };
+        }
+
+        channel.resume(parsed);
+      }
+    }
 
     if (timedOut) return; // Don't output if already timed out
 
@@ -219,4 +273,17 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
       clearTimeout(timeoutId);
     }
   }
+}
+
+function promptForInput(question: string): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stderr, // prompts to stderr, not stdout
+    });
+    rl.question(question, (answer: string) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
 }
