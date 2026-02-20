@@ -19,7 +19,7 @@ function makePort(name: string, direction: 'INPUT' | 'OUTPUT'): DiagramPort {
 
 function makeNode(id: string, inputs: DiagramPort[], outputs: DiagramPort[], isVirtual = false): DiagramNode {
   return {
-    id, label: id, color: '#334155', isVirtual,
+    id, label: id, color: '#334155', icon: '', isVirtual,
     inputs, outputs,
     x: 0, y: 0, width: NODE_MIN_WIDTH, height: NODE_MIN_HEIGHT,
   };

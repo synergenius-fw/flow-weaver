@@ -247,12 +247,18 @@ describe('Annotation Generator', () => {
         type: 'Workflow',
         name: 'testWorkflow',
         functionName: 'testWorkflow',
+        sourceFile: 'test.ts',
+        imports: [],
         nodeTypes: [
           {
             type: 'NodeType',
             name: 'triple',
             functionName: 'triple',
             expression: true,
+            hasSuccessPort: true,
+            hasFailurePort: true,
+            executeWhen: 'CONJUNCTION',
+            isAsync: false,
             defaultConfig: {
               pullExecution: { triggerPort: 'execute' },
             },

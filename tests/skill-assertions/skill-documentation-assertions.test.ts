@@ -50,7 +50,8 @@ async function generateAndWrite(
 }
 
 // Helper to load generated module
-async function loadModule(filePath: string): Promise<Record<string, unknown>> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadModule(filePath: string): Promise<Record<string, any>> {
   // Use dynamic import for TypeScript/ESM compatibility
   // Add cache-busting query param to force reload
   return import(`${filePath}?t=${Date.now()}`);

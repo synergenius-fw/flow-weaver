@@ -76,7 +76,7 @@ describe('generate npm package imports', () => {
       sourceLocation: { file: '/some/node_modules/date-fns/dist/index.d.ts', line: 1, column: 0 },
     });
     const ast = makeWorkflow([nodeType]);
-    const code = generateCode(ast) as string;
+    const code = generateCode(ast) as unknown as string;
 
     expect(code).toContain("import { format } from 'date-fns';");
   });
@@ -89,7 +89,7 @@ describe('generate npm package imports', () => {
       sourceLocation: { file: '/some/node_modules/date-fns/dist/index.d.ts', line: 1, column: 0 },
     });
     const ast = makeWorkflow([nodeType]);
-    const code = generateCode(ast) as string;
+    const code = generateCode(ast) as unknown as string;
 
     expect(code).not.toContain('.generated');
     expect(code).toContain("from 'date-fns'");
@@ -104,7 +104,7 @@ describe('generate npm package imports', () => {
       sourceLocation: { file: '/some/node_modules/date-fns/dist/index.d.ts', line: 1, column: 0 },
     });
     const ast = makeWorkflow([nodeType]);
-    const code = generateCode(ast) as string;
+    const code = generateCode(ast) as unknown as string;
 
     // Should not contain "declare function" or any inlined function body
     expect(code).not.toContain('declare function');
@@ -146,7 +146,7 @@ describe('generate npm package imports', () => {
         },
       ],
     });
-    const code = generateCode(ast) as string;
+    const code = generateCode(ast) as unknown as string;
 
     // Should have a single grouped import
     expect(code).toContain("import { fnA, fnB } from 'my-lib';");
@@ -190,7 +190,7 @@ describe('generate npm package imports', () => {
         },
       ],
     });
-    const code = generateCode(ast) as string;
+    const code = generateCode(ast) as unknown as string;
 
     // Should have both npm and relative imports
     expect(code).toContain("from 'external-pkg'");
@@ -243,7 +243,7 @@ describe('generate code with moduleFormat option', () => {
       sourceLocation: { file: '/node_modules/date-fns/dist/index.d.ts', line: 1, column: 0 },
     });
     const ast = makeWorkflow([nodeType]);
-    const code = generateCode(ast) as string;
+    const code = generateCode(ast) as unknown as string;
 
     expect(code).toContain("import { format } from 'date-fns';");
     expect(code).toContain('export async function testWorkflow');
@@ -259,7 +259,7 @@ describe('generate code with moduleFormat option', () => {
       sourceLocation: { file: '/node_modules/date-fns/dist/index.d.ts', line: 1, column: 0 },
     });
     const ast = makeWorkflow([nodeType]);
-    const code = generateCode(ast, { moduleFormat: 'cjs' }) as string;
+    const code = generateCode(ast, { moduleFormat: 'cjs' }) as unknown as string;
 
     expect(code).toContain("const { format } = require('date-fns');");
     expect(code).toContain('async function testWorkflow');
@@ -275,7 +275,7 @@ describe('generate code with moduleFormat option', () => {
       sourceLocation: { file: '/node_modules/date-fns/dist/index.d.ts', line: 1, column: 0 },
     });
     const ast = makeWorkflow([nodeType]);
-    const code = generateCode(ast, { moduleFormat: 'esm' }) as string;
+    const code = generateCode(ast, { moduleFormat: 'esm' }) as unknown as string;
 
     expect(code).toContain("import { format } from 'date-fns';");
     expect(code).toContain('export async function testWorkflow');

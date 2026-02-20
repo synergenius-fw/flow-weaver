@@ -21,7 +21,7 @@ function makeNodeType(overrides: Partial<TNodeTypeAST> = {}): TNodeTypeAST {
     outputs: overrides.outputs || {},
     hasSuccessPort: overrides.hasSuccessPort ?? false,
     hasFailurePort: overrides.hasFailurePort ?? false,
-    executeWhen: overrides.executeWhen || 'PULL_ANY',
+    executeWhen: overrides.executeWhen || ('PULL_ANY' as TNodeTypeAST['executeWhen']),
     isAsync: overrides.isAsync ?? false,
     visuals: overrides.visuals,
     ...overrides,

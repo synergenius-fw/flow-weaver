@@ -108,7 +108,7 @@ describe('Bundle mode calling conventions', () => {
     const code = generateCode(ast, {
       externalNodeTypes: { 'addNumbers': '../node-types/addnumbers.js' },
       externalRuntimePath: '../runtime/types.js',
-    }) as string;
+    }) as unknown as string;
 
     // In bundle mode, imports _impl and calls with positional args: addNumbers(n1_execute, n1_a, n1_b)
     expect(code).toMatch(/addNumbers\(n1_execute,\s*n1_a,\s*n1_b\)/);
@@ -126,7 +126,7 @@ describe('Bundle mode calling conventions', () => {
     const ast = makeWorkflow([nodeType]);
 
     // Generate in NON-bundle mode (no externalRuntimePath)
-    const code = generateCode(ast) as string;
+    const code = generateCode(ast) as unknown as string;
 
     // In non-bundle mode, should call with positional args: addNumbers(n1_execute, n1_a, n1_b)
     expect(code).toMatch(/addNumbers\(n1_execute,\s*n1_a,\s*n1_b\)/);
@@ -148,7 +148,7 @@ describe('Bundle mode calling conventions', () => {
     const code = generateCode(ast, {
       externalNodeTypes: { 'multiply': '../node-types/multiply.js' },
       externalRuntimePath: '../runtime/types.js',
-    }) as string;
+    }) as unknown as string;
 
     // Expression nodes in bundle mode import _impl which has NO execute param
     // (expression _impl preserves original function signature)
@@ -169,7 +169,7 @@ describe('Bundle mode calling conventions', () => {
     const ast = makeWorkflow([nodeType]);
 
     // Generate in NON-bundle mode
-    const code = generateCode(ast) as string;
+    const code = generateCode(ast) as unknown as string;
 
     // Expression nodes in non-bundle mode import original function (no execute)
     expect(code).toMatch(/multiply\(n1_a,\s*n1_b\)/);

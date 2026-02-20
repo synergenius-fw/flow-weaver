@@ -25,6 +25,7 @@ function createDiff(overrides: Partial<TWorkflowDiff> = {}): TWorkflowDiff {
       instancesAdded: 0,
       instancesRemoved: 0,
       instancesModified: 0,
+      instancesUIModified: 0,
       connectionsAdded: 0,
       connectionsRemoved: 0,
     },

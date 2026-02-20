@@ -1,5 +1,5 @@
 import { generateInPlace, hasInPlaceMarkers, MARKERS } from '../../src/api/generate-in-place';
-import type { TWorkflowAST, TNodeType } from '../../src/ast/types';
+import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
 import { createMultiInputNodeType, createNodeInstance } from '../helpers/test-fixtures';
 import { parser } from '../../src/parser';
 import * as fs from 'fs';
@@ -7,7 +7,7 @@ import * as path from 'path';
 import * as os from 'os';
 
 // Test-specific type for node types with extra properties used in tests
-type TestNodeType = TNodeType & {
+type TestNodeType = TNodeTypeAST & {
   code?: string;
   functionText?: string;
   ports?: Array<{
@@ -1411,7 +1411,7 @@ export function myWorkflow(execute: boolean): { onSuccess: boolean } {
         expect(parsed.nodeTypes.length).toBeGreaterThanOrEqual(1);
         const myNodeType = parsed.nodeTypes.find((nt) => nt.functionName === 'myNode');
         expect(myNodeType).toBeDefined();
-        expect(myNodeType.name).toBe('myNode');
+        expect(myNodeType!.name).toBe('myNode');
       } finally {
         if (fs.existsSync(tempFile)) {
           fs.unlinkSync(tempFile);
@@ -1545,6 +1545,7 @@ export function myWorkflow(execute: boolean) {
               hasSuccessPort: true,
               hasFailurePort: true,
               executeWhen: 'CONJUNCTION',
+              isAsync: false,
             } as TestNodeType,
           ],
           instances: [],
@@ -1604,6 +1605,7 @@ export function myWorkflow(execute: boolean) {
             hasSuccessPort: true,
             hasFailurePort: true,
             executeWhen: 'CONJUNCTION',
+            isAsync: false,
           } as TestNodeType,
         ],
         instances: [],
@@ -1658,6 +1660,7 @@ export function myWorkflow(execute: boolean) {
             hasSuccessPort: true,
             hasFailurePort: true,
             executeWhen: 'CONJUNCTION',
+            isAsync: false,
           } as TestNodeType,
         ],
         instances: [],
@@ -1784,6 +1787,7 @@ export function myWorkflow(execute: boolean) {
             hasSuccessPort: true,
             hasFailurePort: true,
             executeWhen: 'CONJUNCTION',
+            isAsync: false,
             // Function body changed: value + 10 → value + 20
             functionText: `function myNode(execute: boolean, value: number) {
   return { onSuccess: true, onFailure: false, result: value + 20 };
@@ -1842,6 +1846,7 @@ export function myWorkflow(execute: boolean) {
             hasSuccessPort: true,
             hasFailurePort: true,
             executeWhen: 'CONJUNCTION',
+            isAsync: false,
             // Same function body with slight whitespace difference
             functionText: `function myNode(execute: boolean,  value: number) {
   return { onSuccess: true, onFailure: false, result: value * 2 };

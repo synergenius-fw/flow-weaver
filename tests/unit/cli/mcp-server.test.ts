@@ -222,6 +222,7 @@ vi.mock('../../../src/mcp/workflow-executor.js', () => ({
   executeWorkflowFromFile: (...args: unknown[]) => mockExecuteWorkflowFromFile(...args),
 }));
 
+// @ts-expect-error __mockSocket is injected by vi.mock above
 import { io as mockIoFn, __mockSocket } from 'socket.io-client';
 import {
   EventBuffer,

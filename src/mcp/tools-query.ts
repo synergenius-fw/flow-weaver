@@ -183,7 +183,9 @@ export function registerQueryTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_compile',
-    'Compile a workflow to executable code. Use target=inngest for per-node step.run() durability.',
+    'Compile a workflow to executable code. Only regenerates code inside @flow-weaver-runtime ' +
+      'and @flow-weaver-body marker sections — user code outside markers is preserved. ' +
+      'Set production: true to strip debug instrumentation. Use target=inngest for per-node step.run() durability.',
     {
       filePath: z.string().describe('Path to the workflow file'),
       write: z.boolean().optional().describe('Whether to write the output file (default: true)'),

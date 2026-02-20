@@ -74,7 +74,7 @@ describe("Scoped Ports Workflow E2E", () => {
         name,
         order: port.metadata?.order ?? Infinity,
       }))
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => (a.order as number) - (b.order as number));
 
     expect(scopedOutputs[0].name).toBe("start"); // mandatory first
     expect(scopedOutputs[1].name).toBe("item"); // regular second
@@ -86,7 +86,7 @@ describe("Scoped Ports Workflow E2E", () => {
         name,
         order: port.metadata?.order ?? Infinity,
       }))
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => (a.order as number) - (b.order as number));
 
     expect(scopedInputs[0].name).toBe("success"); // mandatory first
     expect(scopedInputs[1].name).toBe("failure"); // mandatory second

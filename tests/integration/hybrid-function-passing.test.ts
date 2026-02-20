@@ -77,7 +77,7 @@ describe('Hybrid Function Passing E2E', () => {
       if (!execute) return { results: [], onSuccess: false };
 
       const { fn } = resolveFunction(params.transform);
-      const results = params.items.map((item) => fn({ text: item }));
+      const results = params.items.map((item) => fn({ text: item })) as string[];
       return { results, onSuccess: true };
     }
 
@@ -85,7 +85,7 @@ describe('Hybrid Function Passing E2E', () => {
       items: ['a', 'b'],
       transform: {
         registryId: 'string:prefixer',
-        partialArgs: { prefix: '>> ' },
+        partialArgs: { prefix: '>> ' } as Partial<{ text: string }>,
       },
     });
 
@@ -111,7 +111,7 @@ describe('Workflow-to-Workflow Function Passing', () => {
   ): { results: number[]; onSuccess: boolean } {
     if (!execute) return { results: [], onSuccess: false };
     const { fn } = resolveFunction(params.transform);
-    return { results: params.items.map(fn), onSuccess: true };
+    return { results: params.items.map(fn) as number[], onSuccess: true };
   }
 
   // Workflow A calls Workflow B with a closure
@@ -208,7 +208,7 @@ describe('Mixed Internal/External Function Resolution', () => {
 
     for (const transform of transforms) {
       const { fn } = resolveFunction(transform);
-      result = fn(result);
+      result = fn(result) as number;
     }
 
     // 5 + 1 = 6, 6 * 2 = 12, 12 * 3 = 36

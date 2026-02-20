@@ -206,7 +206,7 @@ describe("Recursive Workflow Depth Protection", () => {
     it("should include depth info in error message", () => {
       try {
         modules.infiniteLoop.infiniteLoop(true, { n: 0 });
-        fail("Should have thrown an error");
+        expect.fail("Should have thrown an error");
       } catch (e: any) {
         expect(e.message).toContain("1000");
       }
