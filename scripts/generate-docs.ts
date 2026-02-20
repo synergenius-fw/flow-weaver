@@ -126,7 +126,9 @@ const sectionGenerators: Record<string, SectionGenerator> = {
  * Returns the new content (does not write).
  */
 function processFile(content: string, filePath: string): string {
-  const lines = content.split('\n');
+  // Normalize CRLF → LF for consistent regex matching (Windows compat)
+  const normalized = content.replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
   const output: string[] = [];
   let inSection: string | null = null;
 
@@ -197,8 +199,10 @@ for (const filePath of docFiles) {
     continue;
   }
 
-  const original = fs.readFileSync(filePath, 'utf-8');
-  const updated = processFile(original, filePath);
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  const useCRLF = raw.includes('\r\n');
+  const original = raw.replace(/\r\n/g, '\n');
+  const updated = processFile(raw, filePath);
   const basename = path.basename(filePath);
 
   if (original !== updated) {
@@ -206,7 +210,7 @@ for (const filePath of docFiles) {
       console.error(`✗ ${basename} is out of date. Run "npm run generate:docs" to update.`);
       stale = true;
     } else {
-      fs.writeFileSync(filePath, updated);
+      fs.writeFileSync(filePath, useCRLF ? updated.replace(/\n/g, '\r\n') : updated);
       console.log(`✓ Updated ${basename}`);
     }
   } else {
