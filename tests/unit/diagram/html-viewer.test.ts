@@ -1,0 +1,137 @@
+import { describe, it, expect } from 'vitest';
+import { fileToHTML, sourceToHTML } from '../../../src/diagram/index';
+import { wrapSVGInHTML } from '../../../src/diagram/html-viewer';
+
+describe('html-viewer', () => {
+  describe('wrapSVGInHTML', () => {
+    it('wraps SVG in a complete HTML document', () => {
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" width="200" height="100"><rect width="200" height="100" fill="#202139"/></svg>';
+      const html = wrapSVGInHTML(svg);
+      expect(html).toContain('<!DOCTYPE html>');
+      expect(html).toContain('<html');
+      expect(html).toContain('</html>');
+      expect(html).toContain('<svg');
+    });
+
+    it('includes zoom controls', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('id="controls"');
+      expect(html).toContain('id="btn-in"');
+      expect(html).toContain('id="btn-out"');
+      expect(html).toContain('id="btn-fit"');
+      expect(html).toContain('id="zoom-label"');
+    });
+
+    it('includes info panel', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('id="info-panel"');
+      expect(html).toContain('id="info-title"');
+      expect(html).toContain('id="info-body"');
+    });
+
+    it('includes interactive JavaScript', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('<script>');
+      expect(html).toContain('fitToView');
+      expect(html).toContain('zoomBy');
+      expect(html).toContain('selectNode');
+      expect(html).toContain('deselectNode');
+    });
+
+    it('uses custom title', () => {
+      const html = wrapSVGInHTML('<svg></svg>', { title: 'My Workflow' });
+      expect(html).toContain('<title>My Workflow — Flow Weaver</title>');
+    });
+
+    it('applies dark theme by default', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('#202139'); // dark background
+    });
+
+    it('applies light theme when specified', () => {
+      const html = wrapSVGInHTML('<svg></svg>', { theme: 'light' });
+      expect(html).toContain('#f6f7ff'); // light background
+    });
+
+    it('strips SVG background pattern', () => {
+      const svg = [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" width="200" height="100">',
+        '<defs>',
+        '<pattern id="dot-grid" width="20" height="20" patternUnits="userSpaceOnUse">',
+        '<circle cx="10" cy="10" r="1.5" fill="#8e9eff" opacity="0.6"/>',
+        '</pattern>',
+        '</defs>',
+        '<rect width="200" height="100" fill="#202139"/>',
+        '<rect width="200" height="100" fill="url(#dot-grid)"/>',
+        '</svg>',
+      ].join('\n');
+      const html = wrapSVGInHTML(svg);
+      expect(html).not.toContain('dot-grid');
+    });
+
+    it('includes keyboard shortcut handlers', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain("e.key === '+'");
+      expect(html).toContain("e.key === '-'");
+      expect(html).toContain("e.key === '0'");
+      expect(html).toContain("e.key === 'Escape'");
+    });
+
+    it('includes scroll hint', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('id="scroll-hint"');
+      expect(html).toContain('scroll to zoom');
+    });
+
+    it('includes CSS hover interactions', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('.connections path:hover');
+      expect(html).toContain('.node-active');
+      expect(html).toContain('.dimmed');
+    });
+  });
+
+  describe('fileToHTML', () => {
+    it('generates interactive HTML from a workflow file', () => {
+      const html = fileToHTML('tests/fixtures/lead-processing.ts', {
+        workflowName: 'processLead',
+      });
+      expect(html).toContain('<!DOCTYPE html>');
+      expect(html).toContain('data-node-id');
+      expect(html).toContain('validator');
+      expect(html).toContain('enricher');
+      expect(html).toContain('scorer');
+      expect(html).toContain('categorizer');
+
+    });
+  });
+
+  describe('sourceToHTML', () => {
+    it('generates HTML from source code', () => {
+      const source = `
+        /** @flowWeaver nodeType
+         * @input execute
+         * @output onSuccess
+         * @output result
+         */
+        function myNode(execute: boolean): { onSuccess: boolean; result: string } {
+          return { onSuccess: true, result: 'hello' };
+        }
+
+        /** @flowWeaver workflow
+         * @node a myNode
+         * @connect Start.execute -> a.execute
+         * @connect a.result -> Exit.result
+         * @param execute
+         * @returns result
+         */
+        export function myWorkflow(execute: boolean, params: {}): { result: string } {
+          throw new Error('generated');
+        }
+      `;
+      const html = sourceToHTML(source);
+      expect(html).toContain('<!DOCTYPE html>');
+      expect(html).toContain('data-node-id');
+    });
+  });
+});
