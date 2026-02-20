@@ -11,6 +11,7 @@ import { registerTemplateTools } from './tools-template.js';
 import { registerPatternTools } from './tools-pattern.js';
 import { registerExportTools } from './tools-export.js';
 import { registerMarketplaceTools } from './tools-marketplace.js';
+import { registerDiagramTools } from './tools-diagram.js';
 import { registerResources } from './resources.js';
 
 function parseEventFilterFromEnv(): Partial<EventFilterConfig> {
@@ -74,6 +75,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   registerPatternTools(mcp);
   registerExportTools(mcp);
   registerMarketplaceTools(mcp);
+  registerDiagramTools(mcp);
   registerResources(mcp, connection, buffer);
 
   // Connect transport (only in stdio MCP mode)
