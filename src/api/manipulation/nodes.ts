@@ -112,6 +112,12 @@ export function removeNode(
           if (macro.type === 'path') {
             return !macro.steps.some(s => s.node === nodeId);
           }
+          if (macro.type === 'fanOut') {
+            return macro.source.node !== nodeId && !macro.targets.some(t => t.node === nodeId);
+          }
+          if (macro.type === 'fanIn') {
+            return macro.target.node !== nodeId && !macro.sources.some(s => s.node === nodeId);
+          }
           return true;
         });
         if (draft.macros.length === 0) {
@@ -179,6 +185,16 @@ export function renameNode(
             if (macro.childId === oldId) macro.childId = newId;
           } else if (macro.type === 'path') {
             macro.steps = macro.steps.map(s => s.node === oldId ? { ...s, node: newId } : s);
+          } else if (macro.type === 'fanOut') {
+            if (macro.source.node === oldId) macro.source.node = newId;
+            for (const t of macro.targets) {
+              if (t.node === oldId) t.node = newId;
+            }
+          } else if (macro.type === 'fanIn') {
+            if (macro.target.node === oldId) macro.target.node = newId;
+            for (const s of macro.sources) {
+              if (s.node === oldId) s.node = newId;
+            }
           }
         }
       }

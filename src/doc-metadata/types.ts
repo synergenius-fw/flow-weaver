@@ -18,6 +18,12 @@ export interface TAnnotationDoc {
   insertText: string;
   /** Insert text format ('plain' or 'snippet') */
   insertTextFormat: 'plain' | 'snippet';
+  /** EBNF grammar rule (hand-written for clarity, or auto-derived) */
+  ebnf?: string;
+  /** Usage examples (code lines) */
+  examples?: string[];
+  /** Which block types accept this tag */
+  contexts?: ('nodeType' | 'workflow' | 'pattern')[];
 }
 
 /**

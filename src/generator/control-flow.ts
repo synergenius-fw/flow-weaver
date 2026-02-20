@@ -316,6 +316,89 @@ export function detectBranchingChains(
   return chains;
 }
 
+/**
+ * Compute parallel levels from a control flow graph.
+ *
+ * Uses a modified Kahn's algorithm that tracks the "wave" (level) each node
+ * belongs to. Nodes at the same level with no direct data edges between them
+ * can execute in parallel.
+ *
+ * @param cfg - Control flow graph with nodes and edges
+ * @param branchingNodes - Set of branching node IDs to exclude from parallel groups
+ * @param scopedChildren - Set of per-port scoped child IDs to exclude from parallel groups
+ * @returns Array of groups — each inner array contains node IDs that can run in parallel
+ */
+export function computeParallelLevels(
+  cfg: ControlFlowGraph,
+  branchingNodes: Set<string>,
+  scopedChildren: Set<string>
+): string[][] {
+  const inDegree = new Map(cfg.inDegree);
+  const queue: string[] = [];
+  const nodeLevel = new Map<string, number>();
+
+  // Start with nodes at in-degree 0
+  inDegree.forEach((degree, node) => {
+    if (degree === 0) {
+      queue.push(node);
+      nodeLevel.set(node, 0);
+    }
+  });
+
+  // BFS assigning levels
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    const level = nodeLevel.get(node)!;
+    const successors = cfg.graph.get(node) || [];
+    for (const succ of successors) {
+      const newDeg = (inDegree.get(succ) || 0) - 1;
+      inDegree.set(succ, newDeg);
+      // Successor's level = max of all predecessor levels + 1
+      const currentLevel = nodeLevel.get(succ) ?? 0;
+      nodeLevel.set(succ, Math.max(currentLevel, level + 1));
+      if (newDeg === 0) {
+        queue.push(succ);
+      }
+    }
+  }
+
+  // Group nodes by level
+  const levelGroups = new Map<number, string[]>();
+  nodeLevel.forEach((level, node) => {
+    if (isStartNode(node) || isExitNode(node)) return;
+    if (!levelGroups.has(level)) {
+      levelGroups.set(level, []);
+    }
+    levelGroups.get(level)!.push(node);
+  });
+
+  // Sort levels and split groups: branching/scoped nodes become their own single-node groups
+  const sortedLevels = Array.from(levelGroups.keys()).sort((a, b) => a - b);
+  const result: string[][] = [];
+
+  for (const level of sortedLevels) {
+    const nodes = levelGroups.get(level)!;
+    const parallelGroup: string[] = [];
+    for (const node of nodes) {
+      if (branchingNodes.has(node) || scopedChildren.has(node)) {
+        // Branching and scoped nodes must run sequentially
+        if (parallelGroup.length > 0) {
+          result.push([...parallelGroup]);
+          parallelGroup.length = 0;
+        }
+        result.push([node]);
+      } else {
+        parallelGroup.push(node);
+      }
+    }
+    if (parallelGroup.length > 0) {
+      result.push(parallelGroup);
+    }
+  }
+
+  return result;
+}
+
 export function determineExecutionOrder(workflow: TWorkflowAST, nodes: TNodeTypeAST[]): string[] {
   const nodeMap = new Map<string, TNodeTypeAST>();
   nodes.forEach((node) => nodeMap.set(node.functionName, node));
