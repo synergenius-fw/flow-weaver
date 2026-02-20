@@ -8,7 +8,7 @@ This means:
 - No `@version` annotations in workflow files
 - No per-version migration scripts
 - No grammar changes needed for migration support
-- Adding a new optional annotation tag "just works" — old files parse fine, new files get the tag
+- Adding a new optional annotation tag "just works": old files parse fine, new files get the tag
 
 ---
 
