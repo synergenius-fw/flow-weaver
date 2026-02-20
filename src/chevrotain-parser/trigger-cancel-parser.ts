@@ -391,6 +391,13 @@ export function parseTimeoutLine(input: string, warnings: string[]): TimeoutPars
  * Parse a @throttle line and return structured result.
  * Returns null if the line is not a throttle declaration.
  */
+/**
+ * Get serialized grammar productions for documentation/diagrams.
+ */
+export function getTriggerCancelGrammar() {
+  return parserInstance.getSerializedGastProductions();
+}
+
 export function parseThrottleLine(input: string, warnings: string[]): ThrottleParseResult | null {
   const lexResult = JSDocLexer.tokenize(input);
 
