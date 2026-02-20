@@ -243,6 +243,11 @@ function generateRuntimeSection(
     lines.push(`import { GeneratedExecutionContext, CancellationError } from '${externalRuntimePath}';`);
     if (!production) {
       lines.push(`import type { TDebugger } from '${externalRuntimePath}';`);
+      // Declare __flowWeaverDebugger__ so body code can reference it
+      lines.push('declare const __flowWeaverDebugger__: TDebugger | undefined;');
+      // Include inline debug client (createFlowWeaverDebugClient is not exported from runtime)
+      lines.push('');
+      lines.push(generateInlineDebugClient(moduleFormat));
     }
   } else {
     // Inline runtime: embed all types and classes directly
