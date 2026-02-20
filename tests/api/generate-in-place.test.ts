@@ -1,4 +1,4 @@
-import { generateInPlace, hasInPlaceMarkers, MARKERS } from '../../src/api/generate-in-place';
+import { generateInPlace, hasInPlaceMarkers, MARKERS, type InPlaceGenerateOptions } from '../../src/api/generate-in-place';
 import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
 import { createMultiInputNodeType, createNodeInstance } from '../helpers/test-fixtures';
 import { parser } from '../../src/parser';
@@ -3066,6 +3066,102 @@ export function myPipeline(execute: boolean, params: { input: string }): { resul
       expect(reparsed.workflows[0].options?.autoConnect).toBeUndefined();
       // Connections should still exist (explicitly written)
       expect(reparsed.workflows[0].connections.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('External runtime debug declarations', () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+      // Create temp dir with fake @synergenius/flow-weaver installed
+      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-ext-runtime-'));
+      fs.mkdirSync(path.join(tempDir, 'node_modules', '@synergenius', 'flow-weaver'), { recursive: true });
+    });
+
+    afterEach(() => {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    const createSimpleAST = (): TWorkflowAST => ({
+      type: 'Workflow',
+      functionName: 'calculate',
+      name: 'calculate',
+      description: 'Test workflow',
+      sourceFile: path.join(tempDir, 'test.ts'),
+      nodeTypes: [createMultiInputNodeType('add', 'add')],
+      instances: [createNodeInstance('adder', 'add', { x: 200, y: 100 })],
+      connections: [
+        { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'adder', port: 'a' } },
+        { type: 'Connection', from: { node: 'Start', port: 'b' }, to: { node: 'adder', port: 'b' } },
+        { type: 'Connection', from: { node: 'adder', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+      ],
+      scopes: {},
+      startPorts: { a: { dataType: 'NUMBER' }, b: { dataType: 'NUMBER' } },
+      exitPorts: { result: { dataType: 'NUMBER' } },
+      imports: [],
+      ui: { startNode: { x: 0, y: 100 }, exitNode: { x: 400, y: 100 } },
+    });
+
+    it('should declare __flowWeaverDebugger__ when using external runtime in dev mode', () => {
+      const sourceCode = `/**
+ * @flowWeaver workflow
+ * @node adder add
+ */
+export async function calculate(execute: boolean, params: { a: number; b: number }) {
+  throw new Error('Not implemented');
+}`;
+
+      const ast = createSimpleAST();
+      const result = generateInPlace(sourceCode, ast, {
+        production: false,
+        sourceFile: path.join(tempDir, 'test.ts'),
+      });
+
+      // External runtime detected — should import from @synergenius/flow-weaver/runtime
+      expect(result.code).toContain("from '@synergenius/flow-weaver/runtime'");
+      // Must have a `declare const __flowWeaverDebugger__` for body to reference
+      // (the body references it but doesn't define it — it needs a module-level declare)
+      expect(result.code).toContain('declare const __flowWeaverDebugger__');
+    });
+
+    it('should define createFlowWeaverDebugClient function when using external runtime in dev mode', () => {
+      const sourceCode = `/**
+ * @flowWeaver workflow
+ * @node adder add
+ */
+export async function calculate(execute: boolean, params: { a: number; b: number }) {
+  throw new Error('Not implemented');
+}`;
+
+      const ast = createSimpleAST();
+      const result = generateInPlace(sourceCode, ast, {
+        production: false,
+        sourceFile: path.join(tempDir, 'test.ts'),
+      });
+
+      // External runtime detected — should import from @synergenius/flow-weaver/runtime
+      expect(result.code).toContain("from '@synergenius/flow-weaver/runtime'");
+      // Must define createFlowWeaverDebugClient as a function (not just import it from runtime)
+      expect(result.code).toContain('function createFlowWeaverDebugClient(');
+    });
+
+    it('should not include debug code when using external runtime in production mode', () => {
+      const sourceCode = `/**
+ * @flowWeaver workflow
+ * @node adder add
+ */
+export async function calculate(execute: boolean, params: { a: number; b: number }) {
+  throw new Error('Not implemented');
+}`;
+
+      const ast = createSimpleAST();
+      const result = generateInPlace(sourceCode, ast, {
+        production: true,
+        sourceFile: path.join(tempDir, 'test.ts'),
+      });
+
+      expect(result.code).not.toContain('createFlowWeaverDebugClient');
+      expect(result.code).not.toContain('TDebugger');
     });
   });
 });

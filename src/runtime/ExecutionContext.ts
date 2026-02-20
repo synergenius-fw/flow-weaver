@@ -23,6 +23,8 @@ export interface VariableAddress {
   portName: string;
   executionIndex: number;
   nodeTypeName?: string | undefined;
+  scope?: string | undefined;
+  side?: 'start' | 'exit' | undefined;
 }
 
 export interface ExecutionInfo {
@@ -101,6 +103,8 @@ export class GeneratedExecutionContext {
           portName: address.portName,
           executionIndex: address.executionIndex,
           key: 'default',
+          ...(address.scope !== undefined && { scope: address.scope }),
+          ...(address.side !== undefined && { side: address.side }),
         },
         value: actualValue,
       });

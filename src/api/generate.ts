@@ -206,14 +206,20 @@ export function generateCode(
     );
     addLine();
     if (!production) {
+      // Import TDebugger type from external runtime
       lines.push(
-        generateImportStatement(
-          ['TDebugger', 'createFlowWeaverDebugClient'],
-          externalRuntimePath,
-          moduleFormat
-        )
+        moduleFormat === 'cjs'
+          ? `const { TDebugger } = require('${externalRuntimePath}');`
+          : `import type { TDebugger } from '${externalRuntimePath}';`
       );
       addLine();
+      // Include inline debug client (createFlowWeaverDebugClient is not exported from runtime)
+      const inlineDebugClient = generateInlineDebugClient(moduleFormat);
+      const debugClientLines = inlineDebugClient.split('\n');
+      debugClientLines.forEach((line) => {
+        lines.push(line);
+        addLine();
+      });
     }
     lines.push('');
     addLine();
