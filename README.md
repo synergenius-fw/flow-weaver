@@ -1,5 +1,6 @@
 # @synergenius/flow-weaver
 
+[![npm version](https://img.shields.io/npm/v/@synergenius/flow-weaver.svg)](https://www.npmjs.com/package/@synergenius/flow-weaver)
 [![License: ELv2-based](https://img.shields.io/badge/License-ELv2--based-blue.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org)
 
