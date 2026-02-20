@@ -609,44 +609,26 @@ program
     }
   });
 
-// Docs command group
-const docsCmd = program.command('docs').description('Browse reference documentation');
-
-docsCmd
-  .command('list', { isDefault: true })
-  .description('List available documentation topics')
-  .option('--json', 'Output as JSON', false)
-  .option('--compact', 'Compact output', false)
-  .action(async (options) => {
-    try {
-      await docsListCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
-
-docsCmd
-  .command('read <topic>')
-  .description('Read a documentation topic')
+// Docs command: flow-weaver docs [topic] | flow-weaver docs search <query>
+program
+  .command('docs [args...]')
+  .description('Browse reference documentation')
   .option('--json', 'Output as JSON', false)
   .option('--compact', 'Return compact LLM-friendly version', false)
-  .action(async (topic: string, options) => {
+  .action(async (args: string[], options) => {
     try {
-      await docsReadCommand(topic, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
-
-docsCmd
-  .command('search <query>')
-  .description('Search across all documentation')
-  .option('--json', 'Output as JSON', false)
-  .action(async (query: string, options) => {
-    try {
-      await docsSearchCommand(query, options);
+      if (args.length === 0) {
+        await docsListCommand(options);
+      } else if (args[0] === 'search') {
+        const query = args.slice(1).join(' ');
+        if (!query) {
+          logger.error('Usage: flow-weaver docs search <query>');
+          process.exit(1);
+        }
+        await docsSearchCommand(query, options);
+      } else {
+        await docsReadCommand(args[0], options);
+      }
     } catch (error) {
       logger.error(`Command failed: ${getErrorMessage(error)}`);
       process.exit(1);
