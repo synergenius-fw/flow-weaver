@@ -106,7 +106,7 @@ export type TWorkflowAST = {
  * A sugar macro that expands to a full scope pattern or connection set.
  * Stored on the workflow AST for round-trip preservation in generateInPlace.
  */
-export type TWorkflowMacro = TMapMacro | TPathMacro;
+export type TWorkflowMacro = TMapMacro | TPathMacro | TFanOutMacro | TFanInMacro;
 
 export type TMapMacro = {
   type: 'map';
@@ -126,6 +126,22 @@ export type TPathMacro = {
   type: 'path';
   /** Ordered steps through the graph, each with optional routing suffix */
   steps: Array<{ node: string; route?: 'ok' | 'fail' }>;
+};
+
+export type TFanOutMacro = {
+  type: 'fanOut';
+  /** Single source port that fans out to multiple targets */
+  source: { node: string; port: string };
+  /** Target nodes/ports receiving the fanned-out data */
+  targets: Array<{ node: string; port?: string }>;
+};
+
+export type TFanInMacro = {
+  type: 'fanIn';
+  /** Source nodes/ports that fan in to a single target */
+  sources: Array<{ node: string; port?: string }>;
+  /** Single target port receiving all the fanned-in data */
+  target: { node: string; port: string };
 };
 
 /**

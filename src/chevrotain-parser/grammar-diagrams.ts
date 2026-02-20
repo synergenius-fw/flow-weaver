@@ -13,6 +13,7 @@ import { getScopeGrammar } from './scope-parser';
 import { getPathGrammar } from './path-parser';
 import { getMapGrammar } from './map-parser';
 import { getTriggerCancelGrammar } from './trigger-cancel-parser';
+import { getFanGrammar } from './fan-parser';
 
 // =============================================================================
 // EBNF Text Generation
@@ -151,6 +152,7 @@ export interface GrammarCollection {
   scope: ISerializedGast[];
   path: ISerializedGast[];
   map: ISerializedGast[];
+  fan: ISerializedGast[];
   triggerCancel: ISerializedGast[];
 }
 
@@ -170,6 +172,7 @@ export function getAllGrammars(): GrammarCollection {
     scope: getScopeGrammar(),
     path: getPathGrammar(),
     map: getMapGrammar(),
+    fan: getFanGrammar(),
     triggerCancel: getTriggerCancelGrammar(),
   };
 }
@@ -190,6 +193,7 @@ export function generateGrammarDiagrams(): string {
     ...grammars.scope,
     ...grammars.path,
     ...grammars.map,
+    ...grammars.fan,
     ...grammars.triggerCancel,
   ];
 

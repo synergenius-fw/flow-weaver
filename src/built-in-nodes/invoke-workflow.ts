@@ -26,6 +26,19 @@ export async function invokeWorkflow(
     return { onSuccess: false, onFailure: true, result: {} };
   }
 
-  // No mocks: original no-op behavior (always succeeds)
+  // Check local workflow registry (populated by executeWorkflowFromFile)
+  const registry = (globalThis as unknown as Record<string, unknown>).__fw_workflow_registry__ as
+    | Record<string, (...args: unknown[]) => unknown>
+    | undefined;
+  if (registry?.[functionId]) {
+    try {
+      const result = await registry[functionId](true, payload);
+      return { onSuccess: true, onFailure: false, result: (result as object) ?? {} };
+    } catch {
+      return { onSuccess: false, onFailure: true, result: {} };
+    }
+  }
+
+  // No mocks, no registry match: original no-op behavior (always succeeds)
   return { onSuccess: true, onFailure: false, result: {} };
 }

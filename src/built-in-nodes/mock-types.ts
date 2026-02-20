@@ -9,6 +9,8 @@ export interface FwMockConfig {
   events?: Record<string, object>;
   /** Mock invocation results keyed by functionId. Used by invokeWorkflow. */
   invocations?: Record<string, object>;
+  /** Mock agent results keyed by agentId. Used by waitForAgent. */
+  agents?: Record<string, object>;
   /** When true, delay nodes skip the real sleep (1ms instead of full duration). */
   fast?: boolean;
 }

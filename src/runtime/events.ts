@@ -4,7 +4,8 @@ export type TStatusType =
   | "SUCCEEDED"
   | "FAILED"
   | "CANCELLED"
-  | "PENDING";
+  | "PENDING"
+  | "WAITING_FOR_AGENT";
 
 export type TVariableIdentification = {
   nodeTypeName: string;

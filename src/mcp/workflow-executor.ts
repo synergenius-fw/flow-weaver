@@ -11,6 +11,7 @@ import ts from 'typescript';
 import { compileWorkflow } from '../api/index.js';
 import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
+import type { AgentChannel } from './agent-channel.js';
 
 /** A single trace event captured during workflow execution. */
 export interface ExecutionTraceEvent {
@@ -20,6 +21,30 @@ export interface ExecutionTraceEvent {
   timestamp: number;
   /** Additional event data. */
   data?: Record<string, unknown>;
+}
+
+/** Per-node timing from a trace summary. */
+export interface NodeTiming {
+  /** The node instance ID. */
+  nodeId: string;
+  /** Duration from RUNNING to terminal status, in milliseconds. */
+  durationMs: number;
+}
+
+/** Summary of workflow execution derived from trace events. */
+export interface TraceSummary {
+  /** Number of unique nodes that emitted STATUS_CHANGED events. */
+  totalNodes: number;
+  /** Nodes that reached SUCCEEDED status. */
+  succeeded: number;
+  /** Nodes that reached FAILED status. */
+  failed: number;
+  /** Nodes that reached CANCELLED status. */
+  cancelled: number;
+  /** Per-node timings (RUNNING → terminal status). */
+  nodeTimings: NodeTiming[];
+  /** Wall-clock duration from first to last trace event, in milliseconds. */
+  totalDurationMs: number;
 }
 
 /** Result returned after executing a workflow from a file. */
@@ -32,6 +57,8 @@ export interface ExecuteWorkflowResult {
   executionTime: number;
   /** Execution trace events, included when `includeTrace` is enabled. */
   trace?: ExecutionTraceEvent[];
+  /** Summary of trace events, included when `includeTrace` is enabled. */
+  summary?: TraceSummary;
 }
 
 /**
@@ -52,7 +79,7 @@ export interface ExecuteWorkflowResult {
 export async function executeWorkflowFromFile(
   filePath: string,
   params?: Record<string, unknown>,
-  options?: { workflowName?: string; production?: boolean; includeTrace?: boolean; mocks?: FwMockConfig }
+  options?: { workflowName?: string; production?: boolean; includeTrace?: boolean; mocks?: FwMockConfig; agentChannel?: AgentChannel }
 ): Promise<ExecuteWorkflowResult> {
   const resolvedPath = path.resolve(filePath);
   const includeTrace = options?.includeTrace !== false;
@@ -127,9 +154,23 @@ export async function executeWorkflowFromFile(
       (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = options.mocks;
     }
 
+    // Set agent channel for waitForAgent pause/resume
+    if (options?.agentChannel) {
+      (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ = options.agentChannel;
+    }
+
     // Dynamic import using file:// URL for cross-platform compatibility
     // (Windows paths like C:\... break with bare import() — "Received protocol 'c:'")
     const mod = await import(pathToFileURL(tmpFile).href);
+
+    // Register exported functions for local invokeWorkflow resolution
+    const workflowRegistry: Record<string, (...args: unknown[]) => unknown> = {};
+    for (const [key, value] of Object.entries(mod)) {
+      if (typeof value === 'function' && key !== '__esModule') {
+        workflowRegistry[key] = value as (...args: unknown[]) => unknown;
+      }
+    }
+    (globalThis as unknown as Record<string, unknown>).__fw_workflow_registry__ = workflowRegistry;
 
     // Find the target exported function
     const exportedFn = findExportedFunction(mod, options?.workflowName);
@@ -151,16 +192,69 @@ export async function executeWorkflowFromFile(
       result,
       functionName: exportedFn.name,
       executionTime,
-      ...(includeTrace && { trace }),
+      ...(includeTrace && { trace, summary: computeTraceSummary(trace) }),
     };
   } finally {
     // Clean up globals
     delete (globalThis as unknown as Record<string, unknown>).__fw_debugger__;
     delete (globalThis as unknown as Record<string, unknown>).__fw_mocks__;
+    delete (globalThis as unknown as Record<string, unknown>).__fw_workflow_registry__;
+    delete (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__;
     // Clean up temp files
     try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
     try { fs.unlinkSync(tmpTsFile); } catch { /* ignore */ }
   }
+}
+
+/** Compute a concise summary from raw trace events. */
+export function computeTraceSummary(trace: ExecutionTraceEvent[]): TraceSummary {
+  if (trace.length === 0) {
+    return { totalNodes: 0, succeeded: 0, failed: 0, cancelled: 0, nodeTimings: [], totalDurationMs: 0 };
+  }
+
+  const nodeStartTimes = new Map<string, number>();
+  const nodeFinalStatus = new Map<string, string>();
+  const nodeTimings: NodeTiming[] = [];
+
+  for (const event of trace) {
+    if (event.type !== 'STATUS_CHANGED' || !event.data) continue;
+
+    const id = event.data.id as string | undefined;
+    const status = event.data.status as string | undefined;
+    if (!id || !status) continue;
+
+    if (status === 'RUNNING') {
+      nodeStartTimes.set(id, event.timestamp);
+    }
+
+    if (status === 'SUCCEEDED' || status === 'FAILED' || status === 'CANCELLED') {
+      nodeFinalStatus.set(id, status);
+      const startTime = nodeStartTimes.get(id);
+      if (startTime !== undefined) {
+        nodeTimings.push({ nodeId: id, durationMs: event.timestamp - startTime });
+      }
+    }
+  }
+
+  let succeeded = 0;
+  let failed = 0;
+  let cancelled = 0;
+  for (const status of nodeFinalStatus.values()) {
+    if (status === 'SUCCEEDED') succeeded++;
+    else if (status === 'FAILED') failed++;
+    else if (status === 'CANCELLED') cancelled++;
+  }
+
+  const totalDurationMs = trace[trace.length - 1].timestamp - trace[0].timestamp;
+
+  return {
+    totalNodes: nodeFinalStatus.size,
+    succeeded,
+    failed,
+    cancelled,
+    nodeTimings,
+    totalDurationMs,
+  };
 }
 
 function findExportedFunction(
