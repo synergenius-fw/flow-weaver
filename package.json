@@ -30,6 +30,42 @@
     "./doc-metadata": {
       "types": "./dist/doc-metadata/index.d.ts",
       "default": "./dist/doc-metadata/index.js"
+    },
+    "./ast": {
+      "types": "./dist/ast/index.d.ts",
+      "default": "./dist/ast/index.js"
+    },
+    "./api": {
+      "types": "./dist/api/index.d.ts",
+      "default": "./dist/api/index.js"
+    },
+    "./diff": {
+      "types": "./dist/diff/index.d.ts",
+      "default": "./dist/diff/index.js"
+    },
+    "./editor": {
+      "types": "./dist/editor-completions/index.d.ts",
+      "default": "./dist/editor-completions/index.js"
+    },
+    "./browser": {
+      "types": "./dist/jsdoc-port-sync/index.d.ts",
+      "default": "./dist/jsdoc-port-sync/index.js"
+    },
+    "./generated-branding": {
+      "types": "./dist/generated-branding.d.ts",
+      "default": "./dist/generated-branding.js"
+    },
+    "./npm-packages": {
+      "types": "./dist/npm-packages.d.ts",
+      "default": "./dist/npm-packages.js"
+    },
+    "./deployment": {
+      "types": "./dist/deployment/index.d.ts",
+      "default": "./dist/deployment/index.js"
+    },
+    "./marketplace": {
+      "types": "./dist/marketplace/index.d.ts",
+      "default": "./dist/marketplace/index.js"
     }
   },
   "bin": {
