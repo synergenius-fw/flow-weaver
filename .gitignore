@@ -13,7 +13,6 @@ out/
 *.generated.ts.map
 
 # Generated files
-/docs/
 .output/
 *.generated.ts
 *.benchmark.ts
