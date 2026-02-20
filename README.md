@@ -3,9 +3,9 @@
 [![License: ELv2-based](https://img.shields.io/badge/License-ELv2--based-blue.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org)
 
-**Deterministic workflow engine designed for AI agents.** LLMs create, validate, iterate, and test workflows programmatically — humans review them visually.
+**Workflow compiler for AI agents.** LLMs create, validate, iterate, and test workflows programmatically — humans review them visually. The compiler outputs standalone TypeScript with zero runtime dependencies.
 
-Flow Weaver turns standard TypeScript functions into executable workflow graphs using JSDoc annotations. No YAML. No JSON configs. No drag-and-drop. Just TypeScript with full type safety, IDE autocomplete, and compile-time validation — in a format that AI agents can read, write, and reason about.
+Flow Weaver turns standard TypeScript functions into executable workflow graphs using JSDoc annotations. No YAML. No JSON configs. No drag-and-drop. Just TypeScript with full type safety, IDE autocomplete, and compile-time validation — in a format that AI agents can read, write, and reason about. The compiled output is plain TypeScript that runs anywhere with no dependency on Flow Weaver.
 
 ## Why Flow Weaver?
 
@@ -13,15 +13,15 @@ Flow Weaver turns standard TypeScript functions into executable workflow graphs 
 
 Flow Weaver bridges this gap. Instead of generating monolithic scripts, an AI agent builds a typed, validated workflow graph — node by node — where every connection is type-checked, every required input is enforced, and every error path is explicit.
 
-The development loop:
+The development loop — steps 1–4 run autonomously with zero human intervention:
 
 1. **AI creates** — the agent scaffolds a workflow from templates or builds one from scratch using 35+ MCP tools
 2. **Compiler validates** — 15+ validation passes catch missing connections, type mismatches, unreachable paths, and agent-specific safety issues
-3. **AI iterates** — validation errors come with friendly explanations and fix suggestions; the agent corrects and re-validates
-4. **AI tests** — deterministic mock providers enable reproducible testing of LLM workflows without real API calls
-5. **Human reviews** — the visual editor renders the workflow as an interactive graph; humans approve, tweak, or redirect
+3. **AI iterates** — validation errors include fix suggestions; the agent corrects and re-validates in a loop until the workflow compiles clean
+4. **AI tests** — deterministic mock providers enable reproducible testing without real API calls
+5. **Human reviews** — only at the end: the visual editor renders the workflow as an interactive graph for approval
 
-This isn't a framework that happens to work with AI. It's a workflow engine built from the ground up for the agent-first development loop.
+This isn't a framework that happens to work with AI. It's a compiler built from the ground up for the agent-first development loop — and the compiled code is yours, with no runtime lock-in.
 
 ## Quick Start
 
