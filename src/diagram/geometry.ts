@@ -16,15 +16,18 @@ export const PORT_PADDING_Y = 18;        // matches inputsStyle paddingTop/Botto
 export const NODE_MIN_WIDTH = 90;         // matches NODE_MIN_WIDTH in styles.ts
 export const NODE_MIN_HEIGHT = 90;        // matches NODE_MIN_HEIGHT in styles.ts
 export const BORDER_RADIUS = 6;           // matches wrapperStyle borderRadius
-export const LAYER_GAP_X = 220;
+export const LAYER_GAP_X = 300;              // target center-to-center; actual gap adapts to port labels
+export const LABEL_CLEARANCE = 42;           // breathing room between opposing port label badges
+export const MIN_EDGE_GAP = 112;             // minimum edge-to-edge gap between node boxes
 export const NODE_GAP_Y = 60;
 export const LABEL_HEIGHT = 20;           // 13px font + padding
 export const LABEL_GAP = 12;             // matches labelRootStyle bottom: calc(100% + 12px)
 
 // Scope rendering constants
-export const SCOPE_PADDING = 40;         // padding around scope area inside parent
+export const SCOPE_PADDING_X = 140;        // horizontal padding inside scope (between port columns and children)
+export const SCOPE_PADDING_Y = 40;         // vertical padding inside scope (top/bottom)
 export const SCOPE_PORT_COLUMN = 50;     // width for scoped port column on inner edges
-export const SCOPE_INNER_GAP_X = 160;    // horizontal gap between children inside scope
+export const SCOPE_INNER_GAP_X = 240;    // horizontal gap between children inside scope
 
 // Routing mode threshold — connections longer than this use orthogonal routing
 // (midpoint of original 250–350 hysteresis thresholds)
@@ -56,6 +59,22 @@ export function measureText(text: string): number {
     width += CHAR_WIDTHS[text[i]] ?? DEFAULT_CHAR_WIDTH;
   }
   return width;
+}
+
+/** Compute the full badge width for a port label (matches renderer badge layout) */
+export function portBadgeWidth(port: DiagramPort): number {
+  const abbrev = TYPE_ABBREVIATIONS[port.dataType] ?? port.dataType;
+  const typeWidth = measureText(abbrev);
+  const labelWidth = measureText(port.label);
+  const pad = 7;
+  const divGap = 4;
+  return pad + typeWidth + divGap + 1 + divGap + labelWidth + pad;
+}
+
+/** Total extent of a port label from the port dot center outward (badge + gap + dot radius) */
+function portLabelExtent(port: DiagramPort): number {
+  const badgeGap = 5;
+  return PORT_RADIUS + badgeGap + portBadgeWidth(port);
 }
 
 // ---- Dimension computation ----
@@ -366,8 +385,18 @@ function buildScopeSubGraph(
   const uiWidth = parentUI?.expandedWidth ?? parentUI?.width;
   const uiHeight = parentUI?.expandedHeight ?? parentUI?.height;
 
-  const computedWidth = SCOPE_PORT_COLUMN + SCOPE_PADDING + childrenWidth + SCOPE_PADDING + SCOPE_PORT_COLUMN;
-  const computedHeight = SCOPE_PADDING * 2 + Math.max(childrenHeight, scopeOutPortsHeight, scopeInPortsHeight);
+  // Minimum inner width so opposing scope port labels don't collide
+  const maxLeftLabelExtent = scopeOutputPorts.length > 0
+    ? Math.max(...scopeOutputPorts.map(portLabelExtent))
+    : 0;
+  const maxRightLabelExtent = scopeInputPorts.length > 0
+    ? Math.max(...scopeInputPorts.map(portLabelExtent))
+    : 0;
+  const minInnerWidth = maxLeftLabelExtent + LABEL_CLEARANCE + maxRightLabelExtent;
+
+  const contentWidth = Math.max(childrenWidth, minInnerWidth);
+  const computedWidth = SCOPE_PORT_COLUMN + SCOPE_PADDING_X + contentWidth + SCOPE_PADDING_X + SCOPE_PORT_COLUMN;
+  const computedHeight = SCOPE_PADDING_Y * 2 + Math.max(childrenHeight, scopeOutPortsHeight, scopeInPortsHeight);
 
   parentNode.width = Math.max(parentNode.width, uiWidth ?? computedWidth);
   parentNode.height = Math.max(parentNode.height, uiHeight ?? computedHeight);
@@ -389,8 +418,8 @@ function finalizeScopePositions(
   if (!children || children.length === 0 || !scopePorts) return;
 
   // Scope inner area (between the two port columns)
-  const innerLeft = parentNode.x + SCOPE_PORT_COLUMN + SCOPE_PADDING;
-  const innerRight = parentNode.x + parentNode.width - SCOPE_PORT_COLUMN - SCOPE_PADDING;
+  const innerLeft = parentNode.x + SCOPE_PORT_COLUMN + SCOPE_PADDING_X;
+  const innerRight = parentNode.x + parentNode.width - SCOPE_PORT_COLUMN - SCOPE_PADDING_X;
   const innerWidth = innerRight - innerLeft;
 
   // Compute children block width from local coordinates
@@ -399,7 +428,7 @@ function finalizeScopePositions(
 
   // Center children horizontally within the inner area
   const centerOffsetX = innerLeft + (innerWidth - childrenBlockWidth) / 2;
-  const scopeOriginY = parentNode.y + SCOPE_PADDING;
+  const scopeOriginY = parentNode.y + SCOPE_PADDING_Y;
 
   // Offset children to absolute positions
   for (const child of children) {
@@ -546,6 +575,196 @@ function portsColumnHeight(count: number): number {
   return PORT_PADDING_Y + count * PORT_SIZE + (count - 1) * PORT_GAP + PORT_PADDING_Y;
 }
 
+// ---- Position extraction ----
+
+/**
+ * Extract explicit positions from AST metadata.
+ * Returns a map of node ID → {x, y} for nodes that have both x and y defined.
+ * Sources: ast.ui.startNode, ast.ui.exitNode, instance.config.x/y
+ */
+function extractExplicitPositions(ast: TWorkflowAST): Map<string, { x: number; y: number }> {
+  const positions = new Map<string, { x: number; y: number }>();
+
+  if (ast.ui?.startNode?.x != null && ast.ui.startNode.y != null) {
+    positions.set('Start', { x: ast.ui.startNode.x, y: ast.ui.startNode.y });
+  }
+
+  if (ast.ui?.exitNode?.x != null && ast.ui.exitNode.y != null) {
+    positions.set('Exit', { x: ast.ui.exitNode.x, y: ast.ui.exitNode.y });
+  }
+
+  for (const inst of ast.instances) {
+    if (inst.config?.x != null && inst.config.y != null) {
+      positions.set(inst.id, { x: inst.config.x, y: inst.config.y });
+    }
+  }
+
+  return positions;
+}
+
+/**
+ * Compute the maximum right-side overhang for a layer (external output port labels only).
+ * Scope inner-edge port labels face inward and don't extend past the node boundary.
+ */
+function layerOutputExtent(layerNodes: string[], diagramNodes: Map<string, DiagramNode>): number {
+  let max = 0;
+  for (const id of layerNodes) {
+    const node = diagramNodes.get(id)!;
+    max = Math.max(max, maxPortLabelExtent(node.outputs));
+  }
+  return max;
+}
+
+/**
+ * Compute the maximum left-side overhang for a layer (external input port labels only).
+ * Scope inner-edge port labels face inward and don't extend past the node boundary.
+ */
+function layerInputExtent(layerNodes: string[], diagramNodes: Map<string, DiagramNode>): number {
+  let max = 0;
+  for (const id of layerNodes) {
+    const node = diagramNodes.get(id)!;
+    max = Math.max(max, maxPortLabelExtent(node.inputs));
+  }
+  return max;
+}
+
+/**
+ * Assign coordinates to nodes using auto-layout layer assignments.
+ * Gap between layers adapts to port label extents so labels never overlap,
+ * while using LAYER_GAP_X as the target center-to-center distance.
+ */
+function assignLayerCoordinates(
+  layers: string[][],
+  diagramNodes: Map<string, DiagramNode>,
+): void {
+  // Pre-compute filtered layers
+  const filtered: string[][] = layers.map(l => l.filter(id => diagramNodes.has(id)));
+
+  let currentX = 0;
+  for (let i = 0; i < filtered.length; i++) {
+    const layerNodes = filtered[i];
+    if (layerNodes.length === 0) {
+      currentX += LAYER_GAP_X;
+      continue;
+    }
+
+    const maxWidth = Math.max(...layerNodes.map(id => diagramNodes.get(id)!.width));
+    const totalHeight = layerNodes.reduce((sum, id) => {
+      const n = diagramNodes.get(id)!;
+      return sum + n.height + LABEL_HEIGHT + LABEL_GAP;
+    }, 0) + (layerNodes.length - 1) * NODE_GAP_Y;
+
+    let currentY = -totalHeight / 2;
+    for (const id of layerNodes) {
+      const node = diagramNodes.get(id)!;
+      currentY += LABEL_HEIGHT + LABEL_GAP;
+      node.x = currentX + (maxWidth - node.width) / 2;
+      node.y = currentY;
+      currentY += node.height + NODE_GAP_Y;
+    }
+
+    // Compute label-aware edge gap to the next layer
+    const nextLayerNodes = filtered[i + 1];
+    if (nextLayerNodes && nextLayerNodes.length > 0) {
+      const outputOverhang = layerOutputExtent(layerNodes, diagramNodes);
+      const inputOverhang = layerInputExtent(nextLayerNodes, diagramNodes);
+      const labelMinGap = outputOverhang + LABEL_CLEARANCE + inputOverhang;
+      const edgeGap = Math.max(labelMinGap, LAYER_GAP_X - maxWidth, MIN_EDGE_GAP);
+      currentX += maxWidth + edgeGap;
+    } else {
+      currentX += maxWidth + LAYER_GAP_X;
+    }
+  }
+}
+
+/**
+ * Hybrid positioning: apply explicit positions to positioned nodes,
+ * then auto-layout only the remaining unpositioned nodes.
+ */
+function assignUnpositionedNodes(
+  layers: string[][],
+  diagramNodes: Map<string, DiagramNode>,
+  explicitPositions: Map<string, { x: number; y: number }>,
+): void {
+  // Apply explicit positions first
+  for (const [id, pos] of explicitPositions) {
+    const node = diagramNodes.get(id);
+    if (node) {
+      node.x = pos.x;
+      node.y = pos.y;
+    }
+  }
+
+  // Auto-layout only unpositioned nodes using the same layer-based algorithm
+  const filtered: string[][] = layers.map(l => l.filter(id => diagramNodes.has(id)));
+
+  let currentX = 0;
+  for (let i = 0; i < filtered.length; i++) {
+    const layerNodes = filtered[i];
+    if (layerNodes.length === 0) {
+      currentX += LAYER_GAP_X;
+      continue;
+    }
+
+    const unpositioned = layerNodes.filter(id => !explicitPositions.has(id));
+    const maxWidth = Math.max(...layerNodes.map(id => diagramNodes.get(id)!.width));
+
+    if (unpositioned.length > 0) {
+      const totalHeight = unpositioned.reduce((sum, id) => {
+        const n = diagramNodes.get(id)!;
+        return sum + n.height + LABEL_HEIGHT + LABEL_GAP;
+      }, 0) + (unpositioned.length - 1) * NODE_GAP_Y;
+
+      let currentY = -totalHeight / 2;
+      for (const id of unpositioned) {
+        const node = diagramNodes.get(id)!;
+        currentY += LABEL_HEIGHT + LABEL_GAP;
+        node.x = currentX + (maxWidth - node.width) / 2;
+        node.y = currentY;
+        currentY += node.height + NODE_GAP_Y;
+      }
+    }
+
+    // Label-aware edge gap
+    const nextLayerNodes = filtered[i + 1];
+    if (nextLayerNodes && nextLayerNodes.length > 0) {
+      const outputOverhang = layerOutputExtent(layerNodes, diagramNodes);
+      const inputOverhang = layerInputExtent(nextLayerNodes, diagramNodes);
+      const labelMinGap = outputOverhang + LABEL_CLEARANCE + inputOverhang;
+      const edgeGap = Math.max(labelMinGap, LAYER_GAP_X - maxWidth, MIN_EDGE_GAP);
+      currentX += maxWidth + edgeGap;
+    } else {
+      currentX += maxWidth + LAYER_GAP_X;
+    }
+  }
+}
+
+/**
+ * After applying explicit positions, ensure no nodes overlap horizontally.
+ * Sorts nodes by x, then pushes any node whose left edge (minus its input
+ * label extent) intrudes into the previous node's right edge (plus its
+ * output label extent and clearance).
+ */
+function resolveHorizontalOverlaps(diagramNodes: Map<string, DiagramNode>): void {
+  const nodes = [...diagramNodes.values()].sort((a, b) => a.x - b.x);
+  for (let i = 1; i < nodes.length; i++) {
+    const prev = nodes[i - 1];
+    const curr = nodes[i];
+
+    // Only external port labels overhang the node boundary.
+    // Scope inner-edge port labels face inward and don't extend past the node box.
+    const prevRightExtent = maxPortLabelExtent(prev.outputs);
+    const currLeftExtent = maxPortLabelExtent(curr.inputs);
+
+    const minGap = Math.max(prevRightExtent + LABEL_CLEARANCE + currLeftExtent, MIN_EDGE_GAP);
+    const actualGap = curr.x - (prev.x + prev.width);
+
+    if (actualGap < minGap) {
+      curr.x = prev.x + prev.width + minGap;
+    }
+  }
+}
+
 // ---- Main orchestrator ----
 
 export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {}): DiagramGraph {
@@ -664,34 +883,31 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     buildScopeSubGraph(parentNode, parentNt, scopeName, childIds, ast, nodeTypeMap, themeName);
   }
 
-  // Layout
-  const { layers } = layoutWorkflow(ast);
+  // Layout — use explicit positions when available, auto-layout otherwise
+  const explicitPositions = extractExplicitPositions(ast);
+  const allPositioned = [...diagramNodes.keys()].every(id => explicitPositions.has(id));
+  const nonePositioned = ![...diagramNodes.keys()].some(id => explicitPositions.has(id));
 
-  // Assign coordinates
-  let currentX = 0;
-  for (const layer of layers) {
-    const layerNodes = layer.filter(id => diagramNodes.has(id));
-    if (layerNodes.length === 0) {
-      currentX += LAYER_GAP_X;
-      continue;
+  if (allPositioned) {
+    // All nodes have explicit positions — apply them
+    for (const [id, pos] of explicitPositions) {
+      const node = diagramNodes.get(id);
+      if (node) {
+        node.x = pos.x;
+        node.y = pos.y;
+      }
     }
-
-    const maxWidth = Math.max(...layerNodes.map(id => diagramNodes.get(id)!.width));
-    const totalHeight = layerNodes.reduce((sum, id) => {
-      const n = diagramNodes.get(id)!;
-      return sum + n.height + LABEL_HEIGHT + LABEL_GAP;
-    }, 0) + (layerNodes.length - 1) * NODE_GAP_Y;
-
-    let currentY = -totalHeight / 2;
-    for (const id of layerNodes) {
-      const node = diagramNodes.get(id)!;
-      currentY += LABEL_HEIGHT + LABEL_GAP;
-      node.x = currentX + (maxWidth - node.width) / 2;
-      node.y = currentY;
-      currentY += node.height + NODE_GAP_Y;
-    }
-
-    currentX += maxWidth + LAYER_GAP_X;
+    // Resolve horizontal overlaps: scope nodes may be wider than the
+    // original positions anticipated, so push downstream nodes apart.
+    resolveHorizontalOverlaps(diagramNodes);
+  } else if (nonePositioned) {
+    // No positions — full auto-layout (original behavior)
+    const { layers } = layoutWorkflow(ast);
+    assignLayerCoordinates(layers, diagramNodes);
+  } else {
+    // Mixed — explicit positions + auto-layout for remaining nodes
+    const { layers } = layoutWorkflow(ast);
+    assignUnpositionedNodes(layers, diagramNodes, explicitPositions);
   }
 
   // Compute external port positions

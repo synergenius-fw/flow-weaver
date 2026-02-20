@@ -405,6 +405,25 @@ export function createScopedWorkflow(): TWorkflowAST {
 }
 
 /**
+ * Create a workflow with explicit @position annotations on all nodes.
+ * Structure: Start(-600, 0) → node1(0, 0) → Exit(600, 0)
+ * Used to test that the diagram generator respects explicit positions.
+ */
+export function createPositionedWorkflow(): TWorkflowAST {
+  const workflow = createSimpleWorkflow();
+  workflow.ui = {
+    startNode: { x: -600, y: 0 },
+    exitNode: { x: 600, y: 0 },
+  };
+  workflow.instances[0].config = {
+    ...workflow.instances[0].config,
+    x: 0,
+    y: 0,
+  };
+  return workflow;
+}
+
+/**
  * Standard processor node type constant
  * For tests that just need a basic node type
  */
