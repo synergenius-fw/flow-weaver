@@ -118,13 +118,14 @@ program
 // Diagram command
 program
   .command('diagram <input>')
-  .description('Generate SVG diagram of a workflow')
+  .description('Generate SVG or interactive HTML diagram of a workflow')
   .option('-t, --theme <theme>', 'Color theme: dark (default), light', 'dark')
   .option('-w, --width <pixels>', 'SVG width in pixels')
   .option('-p, --padding <pixels>', 'Canvas padding in pixels')
   .option('--no-port-labels', 'Hide data type labels on ports')
   .option('--workflow-name <name>', 'Specific workflow to render')
-  .option('-o, --output <file>', 'Write SVG to file instead of stdout')
+  .option('-f, --format <format>', 'Output format: svg (default), html (interactive viewer)', 'svg')
+  .option('-o, --output <file>', 'Write output to file instead of stdout')
   .action(async (input: string, options) => {
     try {
       if (options.width) options.width = Number(options.width);
@@ -752,6 +753,7 @@ program.on('--help', () => {
   logger.log('  $ flow-weaver describe workflow.ts --node validator');
   logger.log('  $ flow-weaver diagram workflow.ts');
   logger.log('  $ flow-weaver diagram workflow.ts --theme light -o diagram.svg');
+  logger.log('  $ flow-weaver diagram workflow.ts --format html -o diagram.html');
   logger.log('  $ flow-weaver diff workflow-v1.ts workflow-v2.ts');
   logger.log('  $ flow-weaver diff workflow-v1.ts workflow-v2.ts --format json');
   logger.log("  $ flow-weaver validate '**/*.ts'");
