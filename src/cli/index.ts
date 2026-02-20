@@ -34,6 +34,7 @@ import { openapiCommand } from './commands/openapi.js';
 import { pluginInitCommand } from './commands/plugin.js';
 import { migrateCommand } from './commands/migrate.js';
 import { changelogCommand } from './commands/changelog.js';
+import { docsListCommand, docsReadCommand, docsSearchCommand } from './commands/docs.js';
 import {
   marketInitCommand,
   marketPackCommand,
@@ -608,6 +609,50 @@ program
     }
   });
 
+// Docs command group
+const docsCmd = program.command('docs').description('Browse reference documentation');
+
+docsCmd
+  .command('list', { isDefault: true })
+  .description('List available documentation topics')
+  .option('--json', 'Output as JSON', false)
+  .option('--compact', 'Compact output', false)
+  .action(async (options) => {
+    try {
+      await docsListCommand(options);
+    } catch (error) {
+      logger.error(`Command failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
+docsCmd
+  .command('read <topic>')
+  .description('Read a documentation topic')
+  .option('--json', 'Output as JSON', false)
+  .option('--compact', 'Return compact LLM-friendly version', false)
+  .action(async (topic: string, options) => {
+    try {
+      await docsReadCommand(topic, options);
+    } catch (error) {
+      logger.error(`Command failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
+docsCmd
+  .command('search <query>')
+  .description('Search across all documentation')
+  .option('--json', 'Output as JSON', false)
+  .action(async (query: string, options) => {
+    try {
+      await docsSearchCommand(query, options);
+    } catch (error) {
+      logger.error(`Command failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
 // Marketplace command group
 const marketCmd = program.command('market').description('Discover, install, and publish marketplace packages');
 
@@ -747,6 +792,13 @@ program.on('--help', () => {
   logger.log('  $ flow-weaver market install flowweaver-pack-openai');
   logger.log('  $ flow-weaver market search openai');
   logger.log('  $ flow-weaver market list');
+  logger.newline();
+  logger.section('Documentation');
+  logger.log('  $ flow-weaver docs');
+  logger.log('  $ flow-weaver docs read error-codes');
+  logger.log('  $ flow-weaver docs read scaffold --compact');
+  logger.log('  $ flow-weaver docs search "missing workflow"');
+  logger.log('  $ flow-weaver docs read error-codes --json');
   logger.newline();
   logger.section('Migration & Changelog');
   logger.log("  $ flow-weaver migrate '**/*.ts'");
