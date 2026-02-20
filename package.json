@@ -1,6 +1,6 @@
 {
   "name": "@synergenius/flow-weaver",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "TypeScript annotation-based workflow compiler for Flow Weaver",
   "private": false,
   "type": "module",
