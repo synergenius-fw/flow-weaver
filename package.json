@@ -1,7 +1,7 @@
 {
   "name": "@synergenius/flow-weaver",
   "version": "0.2.1",
-  "description": "TypeScript annotation-based workflow compiler for Flow Weaver",
+  "description": "Deterministic workflow engine for AI agents — LLMs create, validate, and iterate workflows; humans review them visually",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -65,9 +65,14 @@
   "keywords": [
     "flow-weaver",
     "workflow",
+    "ai-agent",
+    "llm",
+    "mcp",
+    "deterministic",
     "typescript",
-    "code-generation",
-    "compiler"
+    "compiler",
+    "inngest",
+    "serverless"
   ],
   "author": "Ricardo José Horta Morais",
   "license": "SEE LICENSE IN LICENSE",
