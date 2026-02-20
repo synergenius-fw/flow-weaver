@@ -393,7 +393,7 @@ function createFlowWeaverDebugClient(url: string, workflowExportName: string): D
       ws.on('open', () => {
         connected = true;
         // Send connect message
-        ws.send(JSON.stringify({
+        ws!.send(JSON.stringify({
           type: 'connect',
           sessionId,
           workflowExportName,
@@ -407,7 +407,7 @@ function createFlowWeaverDebugClient(url: string, workflowExportName: string): D
         // Flush queued events
         while (queue.length > 0) {
           const msg = queue.shift();
-          if (ws.readyState === 1) ws.send(msg);
+          if (ws!.readyState === 1) ws!.send(msg!);
         }
       });
 
@@ -423,8 +423,8 @@ function createFlowWeaverDebugClient(url: string, workflowExportName: string): D
     sendEvent: (event: unknown) => {
       const message = JSON.stringify({ type: 'event', sessionId, event });
       if (!ws) connect();
-      if (connected && ws.readyState === 1) {
-        ws.send(message);
+      if (connected && ws!.readyState === 1) {
+        ws!.send(message);
       } else {
         queue.push(message);
       }
@@ -906,7 +906,7 @@ export async function processLead(
       await ctx.setVariable({ id: 'validator', portName: 'execute', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, true);
       const validator_lead = await ctx.getVariable({ id: 'Start', portName: 'lead', executionIndex: startIdx });
       await ctx.setVariable({ id: 'validator', portName: 'lead', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validator_lead);
-      const validatorResult = validateLead(true, validator_lead);
+      const validatorResult = validateLead(true, validator_lead as RawLead);
       await ctx.setVariable({ id: 'validator', portName: 'validationResult', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.validationResult);
       await ctx.setVariable({ id: 'validator', portName: 'isValid', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.isValid);
       await ctx.setVariable({ id: 'validator', portName: 'onSuccess', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.onSuccess);
@@ -957,7 +957,7 @@ export async function processLead(
         await ctx.setVariable({ id: 'enricher', portName: 'execute', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricher_execute);
         const enricher_lead = await ctx.getVariable({ id: 'Start', portName: 'lead', executionIndex: startIdx });
         await ctx.setVariable({ id: 'enricher', portName: 'lead', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricher_lead);
-        const enricherResult = enrichLead(enricher_execute, enricher_lead);
+        const enricherResult = enrichLead(enricher_execute as boolean, enricher_lead as RawLead);
         await ctx.setVariable({ id: 'enricher', portName: 'enrichedLead', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricherResult.enrichedLead);
         await ctx.setVariable({ id: 'enricher', portName: 'onSuccess', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricherResult.onSuccess);
         await ctx.setVariable({ id: 'enricher', portName: 'onFailure', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricherResult.onFailure);
@@ -1007,7 +1007,7 @@ export async function processLead(
           await ctx.setVariable({ id: 'scorer', portName: 'execute', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorer_execute);
           const scorer_lead = await ctx.getVariable({ id: 'enricher', portName: 'enrichedLead', executionIndex: enricherIdx! });
           await ctx.setVariable({ id: 'scorer', portName: 'lead', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorer_lead);
-          const scorerResult = scoreLead(scorer_execute, scorer_lead);
+          const scorerResult = scoreLead(scorer_execute as boolean, scorer_lead as EnrichedLead);
           await ctx.setVariable({ id: 'scorer', portName: 'scoredLead', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorerResult.scoredLead);
           await ctx.setVariable({ id: 'scorer', portName: 'onSuccess', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorerResult.onSuccess);
           await ctx.setVariable({ id: 'scorer', portName: 'onFailure', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorerResult.onFailure);
@@ -1055,7 +1055,7 @@ export async function processLead(
             await ctx.setVariable({ id: 'categorizer', portName: 'execute', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizer_execute);
             const categorizer_lead = await ctx.getVariable({ id: 'scorer', portName: 'scoredLead', executionIndex: scorerIdx! });
             await ctx.setVariable({ id: 'categorizer', portName: 'lead', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizer_lead);
-            const categorizerResult = categorizeLead(categorizer_execute, categorizer_lead);
+            const categorizerResult = categorizeLead(categorizer_execute as boolean, categorizer_lead as ScoredLead);
             await ctx.setVariable({ id: 'categorizer', portName: 'processedLead', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizerResult.processedLead);
             await ctx.setVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizerResult.onSuccess);
             await ctx.setVariable({ id: 'categorizer', portName: 'onFailure', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizerResult.onFailure);
@@ -1102,7 +1102,7 @@ export async function processLead(
         await ctx.setVariable({ id: 'errorFormatter', portName: 'execute', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatter_execute);
         const errorFormatter_validationResult = await ctx.getVariable({ id: 'validator', portName: 'validationResult', executionIndex: validatorIdx! });
         await ctx.setVariable({ id: 'errorFormatter', portName: 'validationResult', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatter_validationResult);
-        const errorFormatterResult = formatError(errorFormatter_execute, errorFormatter_validationResult);
+        const errorFormatterResult = formatError(errorFormatter_execute as boolean, errorFormatter_validationResult as ValidationResult);
         await ctx.setVariable({ id: 'errorFormatter', portName: 'errorResponse', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatterResult.errorResponse);
         await ctx.setVariable({ id: 'errorFormatter', portName: 'onSuccess', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatterResult.onSuccess);
         await ctx.setVariable({ id: 'errorFormatter', portName: 'onFailure', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatterResult.onFailure);
@@ -1140,7 +1140,7 @@ export async function processLead(
     await ctx.setVariable({ id: 'Exit', portName: 'errorResponse', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_errorResponse);
 
     await ctx.setVariable({ id: 'Exit', portName: 'onFailure', executionIndex: exitIdx, nodeTypeName: 'Exit' }, false);
-    const finalResult = { onFailure: false, processedLead: exit_processedLead as unknown, onSuccess: exit_onSuccess as boolean, errorResponse: exit_errorResponse as unknown };
+    const finalResult = { onFailure: false, processedLead: exit_processedLead as ProcessedLead | undefined, onSuccess: exit_onSuccess as boolean, errorResponse: exit_errorResponse as { success: false; errors: string[]; lead: RawLead } | undefined };
 
     ctx.sendStatusChangedEvent({
       nodeTypeName: 'Exit',

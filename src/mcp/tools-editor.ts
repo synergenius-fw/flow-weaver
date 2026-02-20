@@ -224,7 +224,9 @@ export function registerEditorTools(
 
   mcp.tool(
     'fw_execute_workflow',
-    'Run the current workflow with optional parameters and return the result.',
+    'Run the current workflow with optional parameters and return the result. ' +
+      'Includes per-node execution trace by default (STATUS_CHANGED, VARIABLE_SET events) — ' +
+      'use includeTrace: false to disable.',
     {
       filePath: z
         .string()

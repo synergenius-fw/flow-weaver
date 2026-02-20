@@ -10,7 +10,7 @@ import { createProcessorNodeType, createNodeInstance } from '../helpers/test-fix
 
 function createWorkflowWithStartConnection(
   startPort: string,
-  startPorts: Record<string, { dataType: string }> = {}
+  startPorts: TWorkflowAST['startPorts'] = {}
 ): TWorkflowAST {
   return {
     type: 'Workflow',
@@ -40,7 +40,7 @@ function createWorkflowWithStartConnection(
 
 function createWorkflowWithExitConnection(
   exitPort: string,
-  exitPorts: Record<string, { dataType: string }> = {}
+  exitPorts: TWorkflowAST['exitPorts'] = {}
 ): TWorkflowAST {
   return {
     type: 'Workflow',

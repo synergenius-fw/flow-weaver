@@ -66,7 +66,7 @@ export declare function multiply(a: number, b: number): number;
     expect(parseResult.workflows).toHaveLength(1);
 
     const workflow = parseResult.workflows[0];
-    const code = generateCode(workflow) as string;
+    const code = generateCode(workflow) as unknown as string;
 
     // Should import from the package
     expect(code).toContain("import { formatDate } from 'typed-npm-mock';");
@@ -100,7 +100,7 @@ export declare function multiply(a: number, b: number): number;
     expect(nodeType!.isAsync).toBe(true);
 
     const workflow = parseResult.workflows[0];
-    const code = generateCode(workflow) as string;
+    const code = generateCode(workflow) as unknown as string;
     // Async workflow should have async keyword since it uses an async node
     expect(code).toContain('async function');
   });
@@ -145,7 +145,7 @@ export declare function multiply(a: number, b: number): number;
     expect(parseResult.errors).toHaveLength(0);
 
     const workflow = parseResult.workflows[0];
-    const code = generateCode(workflow) as string;
+    const code = generateCode(workflow) as unknown as string;
 
     // Should have both import styles
     expect(code).toContain("from 'typed-npm-mock'");
@@ -220,7 +220,7 @@ export declare function multiply(a: number, b: number): number;
     expect(parseResult.workflows).toHaveLength(1);
 
     const workflow = parseResult.workflows[0];
-    const code = generateCode(workflow) as string;
+    const code = generateCode(workflow) as unknown as string;
     expect(code).toContain("from './local-utils.generated'");
     expect(code).not.toContain("'typed-npm-mock'");
   });

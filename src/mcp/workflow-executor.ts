@@ -6,6 +6,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import { pathToFileURL } from 'url';
 import ts from 'typescript';
 import { compileWorkflow } from '../api/index.js';
 import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
@@ -126,8 +127,9 @@ export async function executeWorkflowFromFile(
       (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = options.mocks;
     }
 
-    // Dynamic import (tsx runtime supports .ts imports)
-    const mod = await import(tmpFile);
+    // Dynamic import using file:// URL for cross-platform compatibility
+    // (Windows paths like C:\... break with bare import() — "Received protocol 'c:'")
+    const mod = await import(pathToFileURL(tmpFile).href);
 
     // Find the target exported function
     const exportedFn = findExportedFunction(mod, options?.workflowName);

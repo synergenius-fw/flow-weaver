@@ -33,6 +33,7 @@ import {
   uiGetState,
   uiBatch,
 } from '../../../src/cli/commands/ui.js';
+// @ts-expect-error __mockSocket is injected by vi.mock above
 import { io as mockIoFn, __mockSocket } from 'socket.io-client';
 
 const mockSocket = __mockSocket as unknown as {

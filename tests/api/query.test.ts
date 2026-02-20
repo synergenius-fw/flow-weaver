@@ -1039,10 +1039,10 @@ describe('Query API - Disconnected Output Ports', () => {
         type: 'NodeType' as const,
         name: 'deadProc',
         functionName: 'deadProc',
-        inputs: { execute: { dataType: 'STEP' } },
+        inputs: { execute: { dataType: 'STEP' as const } },
         outputs: {
-          onSuccess: { dataType: 'STEP', isControlFlow: true },
-          onFailure: { dataType: 'STEP', failure: true, isControlFlow: true },
+          onSuccess: { dataType: 'STEP' as const, isControlFlow: true },
+          onFailure: { dataType: 'STEP' as const, failure: true, isControlFlow: true },
         },
         hasSuccessPort: true,
         hasFailurePort: true,

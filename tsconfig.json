@@ -1,7 +1,9 @@
 {
   "extends": "./tsconfig.build.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["vitest/globals"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist"]

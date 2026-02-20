@@ -265,7 +265,7 @@ describe('API Helpers', () => {
 
       try {
         assertNodeTypeExists(ast, 'missing');
-        fail('Should have thrown');
+        expect.fail('Should have thrown');
       } catch (error: any) {
         expect(error.message).toContain('testType');
         expect(error.message).toContain('anotherType');

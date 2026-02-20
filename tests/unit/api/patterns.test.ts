@@ -46,7 +46,7 @@ function makePattern(overrides?: Partial<TPatternAST>): TPatternAST {
       { type: 'NodeInstance', id: 'a', nodeType: 'process', config: {} },
       { type: 'NodeInstance', id: 'b', nodeType: 'transform', config: {} },
     ],
-    connections: [{ from: { node: 'a', port: 'onSuccess' }, to: { node: 'b', port: 'execute' } }],
+    connections: [{ type: 'Connection' as const, from: { node: 'a', port: 'onSuccess' }, to: { node: 'b', port: 'execute' } }],
     inputPorts: { data: { description: 'Input data' } },
     outputPorts: { result: { description: 'Output result' } },
     ...overrides,
@@ -219,9 +219,9 @@ describe('applyPattern', () => {
   it('produces wiring instructions for IN/OUT connections', () => {
     const pattern = makePattern({
       connections: [
-        { from: { node: 'IN', port: 'data' }, to: { node: 'a', port: 'execute' } },
-        { from: { node: 'b', port: 'onSuccess' }, to: { node: 'OUT', port: 'result' } },
-        { from: { node: 'a', port: 'onSuccess' }, to: { node: 'b', port: 'execute' } },
+        { type: 'Connection' as const, from: { node: 'IN', port: 'data' }, to: { node: 'a', port: 'execute' } },
+        { type: 'Connection' as const, from: { node: 'b', port: 'onSuccess' }, to: { node: 'OUT', port: 'result' } },
+        { type: 'Connection' as const, from: { node: 'a', port: 'onSuccess' }, to: { node: 'b', port: 'execute' } },
       ],
     });
 
@@ -258,9 +258,9 @@ describe('applyPattern', () => {
   it('WU10: produces wiringOperations as fw_modify_batch operations', () => {
     const pattern = makePattern({
       connections: [
-        { from: { node: 'IN', port: 'data' }, to: { node: 'a', port: 'execute' } },
-        { from: { node: 'b', port: 'onSuccess' }, to: { node: 'OUT', port: 'result' } },
-        { from: { node: 'a', port: 'onSuccess' }, to: { node: 'b', port: 'execute' } },
+        { type: 'Connection' as const, from: { node: 'IN', port: 'data' }, to: { node: 'a', port: 'execute' } },
+        { type: 'Connection' as const, from: { node: 'b', port: 'onSuccess' }, to: { node: 'OUT', port: 'result' } },
+        { type: 'Connection' as const, from: { node: 'a', port: 'onSuccess' }, to: { node: 'b', port: 'execute' } },
       ],
     });
 
@@ -297,8 +297,8 @@ describe('applyPattern', () => {
   it('WU10: wiringOperations should use prefix when provided', () => {
     const pattern = makePattern({
       connections: [
-        { from: { node: 'IN', port: 'data' }, to: { node: 'a', port: 'execute' } },
-        { from: { node: 'b', port: 'onSuccess' }, to: { node: 'OUT', port: 'result' } },
+        { type: 'Connection' as const, from: { node: 'IN', port: 'data' }, to: { node: 'a', port: 'execute' } },
+        { type: 'Connection' as const, from: { node: 'b', port: 'onSuccess' }, to: { node: 'OUT', port: 'result' } },
       ],
     });
 
@@ -360,8 +360,8 @@ describe('applyPattern', () => {
 
     const patternWithOnlyBoundary = makePattern({
       connections: [
-        { from: { node: 'IN', port: 'data' }, to: { node: 'a', port: 'execute' } },
-        { from: { node: 'b', port: 'onSuccess' }, to: { node: 'OUT', port: 'result' } },
+        { type: 'Connection' as const, from: { node: 'IN', port: 'data' }, to: { node: 'a', port: 'execute' } },
+        { type: 'Connection' as const, from: { node: 'b', port: 'onSuccess' }, to: { node: 'OUT', port: 'result' } },
       ],
     });
 
