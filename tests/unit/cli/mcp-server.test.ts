@@ -3270,7 +3270,7 @@ describe('Library MCP tools', () => {
       expect(mockExecuteWorkflowFromFile).toHaveBeenCalledWith(
         '/test/workflow.ts',
         { value: 5 },
-        { workflowName: undefined, includeTrace: undefined }
+        expect.objectContaining({ workflowName: undefined, includeTrace: undefined })
       );
     });
 

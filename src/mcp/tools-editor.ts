@@ -292,8 +292,8 @@ export function registerEditorTools(
             });
           }
 
-          // Completed without pausing
-          return makeToolResult({ status: 'completed', result: raceResult.result });
+          // Completed without pausing — return flat result for backward compatibility
+          return makeToolResult(raceResult.result);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           // Distinguish compile errors from execution errors
