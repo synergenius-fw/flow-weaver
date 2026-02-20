@@ -26,6 +26,10 @@
     "./describe": {
       "types": "./dist/cli/commands/describe.d.ts",
       "default": "./dist/cli/commands/describe.js"
+    },
+    "./doc-metadata": {
+      "types": "./dist/doc-metadata/index.d.ts",
+      "default": "./dist/doc-metadata/index.js"
     }
   },
   "bin": {
@@ -34,12 +38,15 @@
   "files": [
     "dist",
     "!dist/**/*.map",
+    "docs/reference",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "rimraf dist .tsbuildinfo && tsc -p tsconfig.build.json && npm run build:cli",
-    "postbuild": "npx tsx scripts/postbuild.ts",
+    "postbuild": "npx tsx scripts/postbuild.ts && npm run generate:docs",
+    "generate:docs": "tsx scripts/generate-docs.ts",
+    "generate:docs:check": "tsx scripts/generate-docs.ts --check",
     "build:cli": "npx tsx scripts/build-cli.ts",
     "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput --incremental",
     "test": "vitest run",
