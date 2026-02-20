@@ -3,25 +3,25 @@
 [![License: ELv2-based](https://img.shields.io/badge/License-ELv2--based-blue.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org)
 
-**Workflow compiler for AI agents.** LLMs create, validate, iterate, and test workflows programmatically — humans review them visually. The compiler outputs standalone TypeScript with zero runtime dependencies.
+**Workflow compiler for AI agents.** LLMs create, validate, iterate, and test workflows programmatically. Humans review them visually. Compiled output is standalone TypeScript with no runtime dependencies.
 
-Flow Weaver turns standard TypeScript functions into executable workflow graphs using JSDoc annotations. No YAML. No JSON configs. No drag-and-drop. Just TypeScript with full type safety, IDE autocomplete, and compile-time validation — in a format that AI agents can read, write, and reason about. The compiled output is plain TypeScript that runs anywhere with no dependency on Flow Weaver.
+Flow Weaver turns standard TypeScript functions into executable workflow graphs using JSDoc annotations. No YAML. No JSON configs. No drag-and-drop. Just TypeScript with full type safety, IDE autocomplete, and compile-time validation, in a format LLMs can read and write directly. Compiled output runs anywhere with no dependency on Flow Weaver.
 
 ## Why Flow Weaver?
 
-**AI agents are great at generating code. They're terrible at generating reliable systems.**
+**Agents generate code well. They don't generate reliable systems.**
 
-Flow Weaver bridges this gap. Instead of generating monolithic scripts, an AI agent builds a typed, validated workflow graph — node by node — where every connection is type-checked, every required input is enforced, and every error path is explicit.
+With Flow Weaver, an agent builds a typed workflow graph instead of a monolithic script. Every connection is type-checked, every required input is enforced, every error path is explicit.
 
-The development loop — steps 1–4 run autonomously with zero human intervention:
+The development loop (steps 1-4 are fully autonomous):
 
-1. **AI creates** — the agent scaffolds a workflow from templates or builds one from scratch using 35+ MCP tools
-2. **Compiler validates** — 15+ validation passes catch missing connections, type mismatches, unreachable paths, and agent-specific safety issues
-3. **AI iterates** — validation errors include fix suggestions; the agent corrects and re-validates in a loop until the workflow compiles clean
-4. **AI tests** — deterministic mock providers enable reproducible testing without real API calls
-5. **Human reviews** — only at the end: the visual editor renders the workflow as an interactive graph for approval
+1. **Agent creates**: scaffolds from templates or builds from scratch via 35+ MCP tools
+2. **Compiler validates**: 15+ validation passes catch missing connections, type mismatches, unreachable paths
+3. **Agent iterates**: validation errors include fix suggestions, the agent corrects and re-validates until clean
+4. **Agent tests**: deterministic mock providers for reproducible testing without real API calls
+5. **Human reviews**: visual editor renders the workflow as an interactive graph for final approval
 
-This isn't a framework that happens to work with AI. It's a compiler built from the ground up for the agent-first development loop — and the compiled code is yours, with no runtime lock-in.
+The compiled code is yours. No runtime lock-in, no framework dependency.
 
 ## Quick Start
 
@@ -76,7 +76,7 @@ The compiler fills in the function body while preserving your code outside the g
 
 ## AI-Native Development with MCP
 
-Flow Weaver ships an MCP server with 35+ tools that let Claude Code (or any MCP-compatible agent) build workflows without leaving the terminal:
+Flow Weaver includes an MCP server with 35+ tools for Claude Code (or any MCP-compatible agent):
 
 ```bash
 npx flow-weaver mcp-server    # auto-registers with Claude Code
@@ -95,11 +95,11 @@ What an AI agent can do:
 | **Reuse** | `fw_list_patterns`, `fw_apply_pattern`, `fw_extract_pattern` |
 | **Extend** | `fw_market_search`, `fw_market_install` |
 
-The agent reads validation errors, understands what's wrong, and fixes it — in a loop — until the workflow compiles clean.
+The agent reads validation errors, fixes issues, and re-validates until the workflow compiles clean.
 
 ## Agent Workflow Templates
 
-Flow Weaver has first-class support for building AI agent workflows — the kind where an LLM reasons, calls tools, and loops until done:
+Built-in templates for AI agent workflows (LLM reasoning, tool calling, looping):
 
 ```bash
 # Scaffold a tool-calling agent with memory and error handling
@@ -146,7 +146,7 @@ AGENT_LLM_NO_FALLBACK              LLM failure goes directly to Exit — add ret
 AGENT_TOOL_NO_OUTPUT_HANDLING      Tool executor outputs are all unconnected — results are discarded
 ```
 
-These aren't generic linting rules. The validator detects LLM, tool-executor, human-approval, and memory nodes via multi-signal heuristics (port signatures, annotations, naming patterns) and applies domain-specific checks.
+Not generic lint rules. The validator identifies LLM, tool-executor, human-approval, and memory nodes by port signatures, annotations, and naming patterns, then applies agent-specific checks.
 
 ## Deterministic Agent Testing
 
@@ -170,11 +170,11 @@ saveRecording(recorder.getRecording(), 'fixtures/agent-session.json');
 const replay = loadRecording('fixtures/agent-session.json');
 ```
 
-Mock human approvals, fast-forward delays, and simulate external events — all configurable via `globalThis.__fw_mock_config__`.
+Mock human approvals, fast-forward delays, and simulate external events. Configured via `globalThis.__fw_mock_config__`.
 
 ## Scoped Ports: Agent Loops Without Cycles
 
-Most workflow engines either ban loops (DAG-only) or allow arbitrary cycles (hard to reason about). Flow Weaver introduces **scoped ports** — a way to express iteration patterns without graph cycles:
+Most workflow engines either ban loops (DAG-only) or allow arbitrary cycles (hard to reason about). Flow Weaver uses **scoped ports** to express iteration without graph cycles:
 
 ```typescript
 /**
@@ -234,7 +234,7 @@ flow-weaver describe workflow.ts --format text
 flow-weaver diff workflow-v1.ts workflow-v2.ts
 ```
 
-The Flow Weaver Studio provides a full visual editor with bidirectional sync — changes in the code update the canvas, changes on the canvas update the code. 80+ plugins handle canvas rendering, state management, minimap, undo/redo, and more.
+Flow Weaver Studio is a visual editor with bidirectional sync: code changes update the canvas, canvas changes update the code. 80+ plugins handle rendering, state, minimap, undo/redo, and more.
 
 ## API
 
@@ -326,7 +326,7 @@ Every node follows a consistent contract:
 
 ```typescript
 function nodeName(
-  execute: boolean,    // Control input — should this node run?
+  execute: boolean,    // Control: should this node run?
   ...inputs            // Data inputs (typed)
 ): {
   onSuccess: boolean;  // Success control output
@@ -335,7 +335,7 @@ function nodeName(
 }
 ```
 
-Expression nodes (`@expression`) skip the control flow boilerplate — inputs and outputs map directly to the TypeScript signature.
+Expression nodes (`@expression`) skip the control flow boilerplate. Inputs and outputs map directly to the TypeScript signature.
 
 ## Marketplace
 
@@ -368,8 +368,8 @@ npm run docs          # Generate API docs
 
 Custom license based on the Elastic License 2.0. See [LICENSE](./LICENSE) for full terms.
 
-- **Free to use** — any individual or organization can install, run, and compile workflows
+- **Free to use**: install, run, and compile workflows in any organization
 - **Free to host internally** for organizations with 15 or fewer people
-- **Commercial license required** to host internally for organizations with more than 15 people — contact support@synergenius.pt
-- **External hosting prohibited** — cannot be provided as a hosted/managed service to third parties without a commercial license
-- **Output is unrestricted** — compiled workflows, generated code, and deployment artifacts are yours
+- **Commercial license required** to host internally for 16+ people (contact support@synergenius.pt)
+- **External hosting prohibited** without a commercial license
+- **Output is unrestricted**: compiled workflows, generated code, and deployment artifacts are yours
