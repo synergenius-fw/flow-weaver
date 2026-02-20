@@ -47,6 +47,7 @@
     "postbuild": "npx tsx scripts/postbuild.ts && npm run generate:docs",
     "generate:docs": "tsx scripts/generate-docs.ts",
     "generate:docs:check": "tsx scripts/generate-docs.ts --check",
+    "release": "tsx scripts/release.ts",
     "build:cli": "npx tsx scripts/build-cli.ts",
     "watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput --incremental",
     "test": "vitest run",
