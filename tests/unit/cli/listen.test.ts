@@ -44,6 +44,7 @@ vi.mock('socket.io-client', () => {
 });
 
 import { listenCommand } from '../../../src/cli/commands/listen.js';
+// @ts-expect-error __mockSocket is injected by vi.mock above
 import { io as mockIoFn, __mockSocket } from 'socket.io-client';
 
 const mockSocket = __mockSocket as unknown as {

@@ -11,6 +11,7 @@ import { parseMapLine } from '../../src/chevrotain-parser/map-parser';
 import { AnnotationParser } from '../../src/parser';
 import { generator } from '../../src/generator';
 import { annotationGenerator } from '../../src/annotation-generator';
+import type { TMapMacro } from '../../src/ast/types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -145,8 +146,8 @@ export function mapWorkflow(
     expect(workflow).toBeDefined();
     expect(workflow.macros).toBeDefined();
     expect(workflow.macros).toHaveLength(1);
-    expect(workflow.macros![0].inputPort).toBe('file');
-    expect(workflow.macros![0].outputPort).toBe('post');
+    expect((workflow.macros![0] as TMapMacro).inputPort).toBe('file');
+    expect((workflow.macros![0] as TMapMacro).outputPort).toBe('post');
   });
 });
 

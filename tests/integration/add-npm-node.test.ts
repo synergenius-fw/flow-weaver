@@ -24,6 +24,7 @@ describe('Add NPM Node Integration', () => {
       connections: [],
       startPorts: {},
       exitPorts: {},
+      imports: [],
     };
   });
 
@@ -35,10 +36,11 @@ describe('Add NPM Node Integration', () => {
         functionName: 'map',
         importSource: 'lodash',
         variant: 'FUNCTION',
-        inputs: { array: { type: 'ARRAY' } },
-        outputs: { result: { type: 'ARRAY' } },
+        inputs: { array: { dataType: 'ARRAY' } },
+        outputs: { result: { dataType: 'ARRAY' } },
         hasSuccessPort: true,
         hasFailurePort: true,
+        isAsync: false,
         executeWhen: 'CONJUNCTION',
       };
 
@@ -60,6 +62,7 @@ describe('Add NPM Node Integration', () => {
         outputs: {},
         hasSuccessPort: true,
         hasFailurePort: true,
+        isAsync: false,
         executeWhen: 'CONJUNCTION',
       };
 
@@ -83,10 +86,11 @@ describe('Add NPM Node Integration', () => {
         functionName: 'autoprefixer',
         importSource: 'autoprefixer',
         variant: 'FUNCTION',
-        inputs: { css: { type: 'STRING' } },
-        outputs: { result: { type: 'STRING' } },
+        inputs: { css: { dataType: 'STRING' } },
+        outputs: { result: { dataType: 'STRING' } },
         hasSuccessPort: true,
         hasFailurePort: true,
+        isAsync: false,
         executeWhen: 'CONJUNCTION',
       };
 
@@ -139,6 +143,7 @@ describe('Add NPM Node Integration', () => {
         outputs: {},
         hasSuccessPort: true,
         hasFailurePort: true,
+        isAsync: false,
         executeWhen: 'CONJUNCTION',
       };
 
@@ -177,14 +182,15 @@ describe('Add NPM Node Integration', () => {
         importSource: 'date-fns',
         variant: 'FUNCTION',
         inputs: {
-          date: { type: 'DATE' },
-          formatStr: { type: 'STRING' },
+          date: { dataType: 'OBJECT' },
+          formatStr: { dataType: 'STRING' },
         },
         outputs: {
-          result: { type: 'STRING' },
+          result: { dataType: 'STRING' },
         },
         hasSuccessPort: true,
         hasFailurePort: true,
+        isAsync: false,
         executeWhen: 'CONJUNCTION',
       };
 
@@ -233,6 +239,7 @@ describe('Add NPM Node Integration', () => {
         outputs: {},
         hasSuccessPort: true,
         hasFailurePort: true,
+        isAsync: false,
         executeWhen: 'CONJUNCTION',
       };
 
@@ -279,6 +286,7 @@ describe('Add NPM Node Integration', () => {
         outputs: {},
         hasSuccessPort: true,
         hasFailurePort: true,
+        isAsync: false,
         executeWhen: 'CONJUNCTION',
       };
 
@@ -342,9 +350,10 @@ export async function testWorkflow(execute: boolean, params: {}) {
         importSource: 'autoprefixer',
         variant: 'FUNCTION',
         inputs: {},
-        outputs: { result: { type: 'ANY' } },
+        outputs: { result: { dataType: 'ANY' } },
         hasSuccessPort: true,
         hasFailurePort: true,
+        isAsync: false,
         executeWhen: 'CONJUNCTION',
       };
 

@@ -119,7 +119,7 @@ describe("Duplicate Exit Connections", () => {
         type: "NodeType",
         name: "compare",
         functionName: "compare",
-        variant: "EXPRESSION",
+        variant: "FUNCTION",
         expression: true,
         inputs: { a: { dataType: "OBJECT" }, b: { dataType: "OBJECT" } },
         outputs: {

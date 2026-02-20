@@ -14,6 +14,7 @@ import type {
   TNodeTypeAST,
   TNodeInstanceAST,
   TConnectionAST,
+  TDataType,
 } from '../../src/ast/types';
 
 describe('Large Workflows', () => {
@@ -181,7 +182,7 @@ describe('Large Workflows', () => {
     }
 
     // Build exit ports dynamically
-    const exitPorts: Record<string, { dataType: string; isControlFlow?: boolean }> = {
+    const exitPorts: Record<string, { dataType: TDataType; isControlFlow?: boolean }> = {
       onSuccess: { dataType: 'STEP', isControlFlow: true },
       onFailure: { dataType: 'STEP', isControlFlow: true },
     };

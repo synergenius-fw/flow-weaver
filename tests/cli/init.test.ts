@@ -18,6 +18,7 @@ import {
   initCommand,
   resolveInitConfig,
 } from '../../src/cli/commands/init';
+import type { TModuleFormat } from '../../src/ast/types';
 
 const INIT_TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-init-${process.pid}`);
 
@@ -41,7 +42,7 @@ const _projectFilesCache = new Map<string, Record<string, string>>();
 function cachedGenerateProjectFiles(name: string, template: string, format?: string): Record<string, string> {
   const key = `${name}:${template}:${format ?? ''}`;
   if (!_projectFilesCache.has(key)) {
-    _projectFilesCache.set(key, generateProjectFiles(name, template, format));
+    _projectFilesCache.set(key, generateProjectFiles(name, template, format as TModuleFormat));
   }
   return _projectFilesCache.get(key)!;
 }

@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { generateScopeFunctionClosure } from '../../src/generator/scope-function-generator';
-import type { TWorkflowAST, TNodeTypeAST, TNodeInstance } from '../../src/ast/types';
+import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST } from '../../src/ast/types';
 
 function makeForEachAsyncNodeType(): TNodeTypeAST {
   return {
@@ -182,7 +182,7 @@ describe('Scope function async detection', () => {
     const workflow = createWorkflowWithAsyncChild();
     const childInstances = workflow.instances.filter(
       (i) => i.parent?.scope === 'processItem'
-    ) as TNodeInstance[];
+    ) as TNodeInstanceAST[];
 
     // When isAsync=true, scope function should be async
     const code = generateScopeFunctionClosure(
@@ -204,7 +204,7 @@ describe('Scope function async detection', () => {
     const workflow = createWorkflowWithSyncChild();
     const childInstances = workflow.instances.filter(
       (i) => i.parent?.scope === 'processItem'
-    ) as TNodeInstance[];
+    ) as TNodeInstanceAST[];
 
     // When isAsync=false, scope function should be sync
     const code = generateScopeFunctionClosure(
@@ -228,7 +228,7 @@ describe('Scope function async detection', () => {
     const workflow = createWorkflowWithAsyncChild();
     const childInstances = workflow.instances.filter(
       (i) => i.parent?.scope === 'processItem'
-    ) as TNodeInstance[];
+    ) as TNodeInstanceAST[];
 
     const code = generateScopeFunctionClosure(
       'processItem',
@@ -249,7 +249,7 @@ describe('Scope function async detection', () => {
     const workflow = createWorkflowWithSyncChild();
     const childInstances = workflow.instances.filter(
       (i) => i.parent?.scope === 'processItem'
-    ) as TNodeInstance[];
+    ) as TNodeInstanceAST[];
 
     const code = generateScopeFunctionClosure(
       'processItem',
