@@ -56,7 +56,7 @@ export interface DiagramConnection {
 export interface DiagramGraph {
   nodes: DiagramNode[];
   connections: DiagramConnection[];
-  bounds: { width: number; height: number };
+  bounds: { width: number; height: number; originX?: number; originY?: number };
   workflowName: string;
 }
 

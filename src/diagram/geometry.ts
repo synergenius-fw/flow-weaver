@@ -1136,7 +1136,9 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     }
   }
 
-  // Extend bounds to include connection paths (orthogonal routes can go outside node area)
+  // Extend bounds to include connection paths (routes can go outside node area)
+  let originX = 0;
+  let originY = 0;
   let normalizedMaxY = (maxY - minY) + padding * 2;
   let normalizedMaxX = (maxX - minX) + padding * 2;
   const allConns = [...connections];
@@ -1147,12 +1149,17 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     const extent = pathExtent(conn.path);
     if (extent.maxY + padding > normalizedMaxY) normalizedMaxY = extent.maxY + padding;
     if (extent.maxX + padding > normalizedMaxX) normalizedMaxX = extent.maxX + padding;
+    if (extent.minY - padding < originY) originY = extent.minY - padding;
+    if (extent.minX - padding < originX) originX = extent.minX - padding;
   }
+  // Expand dimensions to cover the shifted origin
+  normalizedMaxX -= originX;
+  normalizedMaxY -= originY;
 
   return {
     nodes,
     connections,
-    bounds: { width: normalizedMaxX, height: normalizedMaxY },
+    bounds: { width: normalizedMaxX, height: normalizedMaxY, originX, originY },
     workflowName: ast.name,
   };
 }
@@ -1209,17 +1216,21 @@ function resolveDefaultIcon(nt: TNodeTypeAST | undefined): string {
   return 'code';
 }
 
-/** Extract max X/Y extent from an SVG path string (for bounds calculation) */
-function pathExtent(path: string): { maxX: number; maxY: number } {
-  let maxX = -Infinity;
-  let maxY = -Infinity;
+/** Extract min/max X/Y extent from an SVG path string (for bounds calculation) */
+function pathExtent(path: string): { minX: number; minY: number; maxX: number; maxY: number } {
+  let minX = Infinity, minY = Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
   const pattern = /(-?[\d.]+),(-?[\d.]+)/g;
   let m;
   while ((m = pattern.exec(path)) !== null) {
-    maxX = Math.max(maxX, parseFloat(m[1]));
-    maxY = Math.max(maxY, parseFloat(m[2]));
+    const x = parseFloat(m[1]);
+    const y = parseFloat(m[2]);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
   }
-  return { maxX, maxY };
+  return { minX, minY, maxX, maxY };
 }
 
 /** Estimate the maximum port label badge extent beyond the node edge */
