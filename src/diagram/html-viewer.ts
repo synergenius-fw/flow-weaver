@@ -82,7 +82,7 @@ body {
 body.node-active .connections path.dimmed { opacity: 0.15; }
 
 /* Node hover glow */
-.nodes > g:hover rect:first-of-type { filter: brightness(1.08); }
+.nodes g[data-node-id]:hover > rect:first-of-type { filter: brightness(1.08); }
 
 /* Zoom controls */
 #controls {
@@ -277,27 +277,38 @@ body.node-active .connections path.dimmed { opacity: 0.15; }
 
   // ---- Port label visibility via JS (since CSS sibling selectors can't reach .labels group) ----
   var labelEls = content.querySelectorAll('.labels g[data-port-label]');
-  var nodeEls = content.querySelectorAll('.nodes > g[data-node-id]');
+  var nodeEls = content.querySelectorAll('.nodes g[data-node-id]');
+
+  function showLabelsFor(id) {
+    labelEls.forEach(function(lbl) {
+      var portId = lbl.getAttribute('data-port-label') || '';
+      if (portId.indexOf(id + '.') === 0) {
+        lbl.style.opacity = '1';
+        lbl.style.pointerEvents = 'auto';
+      }
+    });
+  }
+  function hideLabelsFor(id) {
+    labelEls.forEach(function(lbl) {
+      var portId = lbl.getAttribute('data-port-label') || '';
+      if (portId.indexOf(id + '.') === 0) {
+        lbl.style.opacity = '0';
+        lbl.style.pointerEvents = 'none';
+      }
+    });
+  }
 
   nodeEls.forEach(function(nodeG) {
     var nodeId = nodeG.getAttribute('data-node-id');
+    var parentNodeG = nodeG.parentElement ? nodeG.parentElement.closest('g[data-node-id]') : null;
+    var parentId = parentNodeG ? parentNodeG.getAttribute('data-node-id') : null;
     nodeG.addEventListener('mouseenter', function() {
-      labelEls.forEach(function(lbl) {
-        var portId = lbl.getAttribute('data-port-label') || '';
-        if (portId.indexOf(nodeId + '.') === 0) {
-          lbl.style.opacity = '1';
-          lbl.style.pointerEvents = 'auto';
-        }
-      });
+      if (parentId) hideLabelsFor(parentId);
+      showLabelsFor(nodeId);
     });
     nodeG.addEventListener('mouseleave', function() {
-      labelEls.forEach(function(lbl) {
-        var portId = lbl.getAttribute('data-port-label') || '';
-        if (portId.indexOf(nodeId + '.') === 0) {
-          lbl.style.opacity = '0';
-          lbl.style.pointerEvents = 'none';
-        }
-      });
+      hideLabelsFor(nodeId);
+      if (parentId) showLabelsFor(parentId);
     });
   });
 
