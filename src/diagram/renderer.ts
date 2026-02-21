@@ -22,7 +22,9 @@ export function renderSVG(graph: DiagramGraph, options: DiagramOptions = {}): st
   const theme = getTheme(themeName);
   const showPortLabels = options.showPortLabels ?? true;
 
-  let { width: vbWidth, height: vbHeight } = graph.bounds;
+  let { width: vbWidth, height: vbHeight, originX: vbX, originY: vbY } = graph.bounds;
+  vbX = vbX ?? 0;
+  vbY = vbY ?? 0;
 
   // Ensure minimum bounds
   vbWidth = Math.max(vbWidth, 200);
@@ -38,7 +40,7 @@ export function renderSVG(graph: DiagramGraph, options: DiagramOptions = {}): st
 
   // SVG open
   parts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbWidth} ${vbHeight}" width="${svgWidth}" height="${svgHeight}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbX} ${vbY} ${vbWidth} ${vbHeight}" width="${svgWidth}" height="${svgHeight}">`,
   );
 
   // Styles
