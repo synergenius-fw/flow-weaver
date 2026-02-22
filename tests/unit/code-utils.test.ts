@@ -405,4 +405,54 @@ describe("Code Generation Utilities", () => {
       expect(returnStr).toContain("result: undefined");
     });
   });
+
+  describe("__fw_current_node_id__ global tag", () => {
+    it("should emit __fw_current_node_id__ assignment before node execution", () => {
+      const node = createNodeType();
+      const workflow = createWorkflow();
+      const lines: string[] = [];
+
+      generateNodeWithExecutionContext(node, workflow, lines, true, "  ");
+
+      const code = lines.join("\n");
+      expect(code).toContain("__fw_current_node_id__");
+    });
+
+    it("should set __fw_current_node_id__ to the node instance id", () => {
+      const node = createNodeType();
+      const workflow = createWorkflow({
+        instances: [{ type: "NodeInstance", id: "myCustomNode", nodeType: "testNode" }],
+        connections: [
+          { type: "Connection", from: { node: "Start", port: "input" }, to: { node: "myCustomNode", port: "input1" } },
+        ],
+      });
+      const lines: string[] = [];
+
+      generateNodeWithExecutionContext(node, workflow, lines, true, "  ");
+
+      const code = lines.join("\n");
+      // The node name used by generateNodeWithExecutionContext is the nodeType name
+      expect(code).toContain("__fw_current_node_id__ = 'testNode'");
+    });
+
+    it("should emit __fw_current_node_id__ after addExecution and before sendStatusChangedEvent", () => {
+      const node = createNodeType();
+      const workflow = createWorkflow();
+      const lines: string[] = [];
+
+      generateNodeWithExecutionContext(node, workflow, lines, true, "  ");
+
+      const code = lines.join("\n");
+      const addExecIdx = code.indexOf("addExecution");
+      const nodeIdIdx = code.indexOf("__fw_current_node_id__");
+      const statusIdx = code.indexOf("sendStatusChangedEvent");
+
+      expect(addExecIdx).toBeGreaterThan(-1);
+      expect(nodeIdIdx).toBeGreaterThan(-1);
+      expect(statusIdx).toBeGreaterThan(-1);
+      // Order: addExecution → __fw_current_node_id__ → sendStatusChangedEvent
+      expect(nodeIdIdx).toBeGreaterThan(addExecIdx);
+      expect(statusIdx).toBeGreaterThan(nodeIdIdx);
+    });
+  });
 });
