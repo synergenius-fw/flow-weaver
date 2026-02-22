@@ -896,7 +896,7 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
   const nonePositioned = ![...diagramNodes.keys()].some(id => explicitPositions.has(id));
 
   if (allPositioned) {
-    // All nodes have explicit positions — apply them
+    // All nodes have explicit positions — apply them as-is
     for (const [id, pos] of explicitPositions) {
       const node = diagramNodes.get(id);
       if (node) {
@@ -904,9 +904,6 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
         node.y = pos.y;
       }
     }
-    // Resolve horizontal overlaps: scope nodes may be wider than the
-    // original positions anticipated, so push downstream nodes apart.
-    resolveHorizontalOverlaps(diagramNodes);
   } else if (nonePositioned) {
     // No positions — full auto-layout (original behavior)
     const { layers } = layoutWorkflow(ast);
