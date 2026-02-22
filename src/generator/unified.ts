@@ -1261,6 +1261,7 @@ function generateBranchingNodeCode(
 
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
+  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
   lines.push(`${indent}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${functionName}',`);
   lines.push(`${indent}  id: '${instanceId}',`);
@@ -1701,6 +1702,7 @@ function generatePullNodeWithContext(
   lines.push(`${indent}  }`);
   lines.push(`${indent}  ${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}  ${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
+  lines.push(`${indent}  if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
   lines.push(`${indent}  ${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);
@@ -1974,6 +1976,7 @@ function generateNodeCallWithContext(
   const varDecl = useConst ? 'const ' : '';
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${varDecl}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
+  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
   lines.push(`${indent}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${functionName}',`);
   lines.push(`${indent}  id: '${instanceId}',`);

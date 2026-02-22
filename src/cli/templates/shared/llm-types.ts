@@ -16,6 +16,7 @@ interface LLMResponse {
   content: string | null;
   toolCalls: LLMToolCall[];
   finishReason: 'stop' | 'tool_calls' | 'length' | 'error';
+  usage?: { promptTokens: number; completionTokens: number };
 }
 
 interface LLMToolCall {
@@ -58,6 +59,7 @@ interface LLMResponse {
   content: string | null;
   toolCalls: LLMToolCall[];
   finishReason: 'stop' | 'tool_calls' | 'length' | 'error';
+  usage?: { promptTokens: number; completionTokens: number };
 }
 
 interface LLMProvider {
@@ -72,6 +74,7 @@ export const LLM_MOCK_PROVIDER = `const createMockProvider = (): LLMProvider => 
       content: \`[Mock response to: \${lastMessage.content.slice(0, 50)}...]\`,
       toolCalls: [],
       finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 20 },
     };
   },
 });
@@ -93,6 +96,7 @@ export const LLM_MOCK_PROVIDER_WITH_TOOLS = `const createMockProvider = (): LLMP
           },
         ],
         finishReason: 'tool_calls',
+        usage: { promptTokens: 15, completionTokens: 30 },
       };
     }
 
@@ -100,6 +104,7 @@ export const LLM_MOCK_PROVIDER_WITH_TOOLS = `const createMockProvider = (): LLMP
       content: '[Mock answer] ' + last.content,
       toolCalls: [],
       finishReason: 'stop',
+      usage: { promptTokens: 10, completionTokens: 20 },
     };
   },
 });
