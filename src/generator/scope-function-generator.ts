@@ -220,6 +220,7 @@ export function generateScopeFunctionClosure(
       lines.push(`    // Execute: ${child.id} (${child.nodeType})`);
       lines.push(`    scopedCtx.checkAborted('${child.id}');`);
       lines.push(`    const ${safeChildId}Idx = scopedCtx.addExecution('${child.id}');`);
+      lines.push(`    if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${child.id}';`);
       lines.push(`    scopedCtx.sendStatusChangedEvent({`);
       lines.push(`      nodeTypeName: '${child.nodeType}',`);
       lines.push(`      id: '${child.id}',`);
