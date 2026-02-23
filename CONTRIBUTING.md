@@ -24,7 +24,7 @@ All commits must include this sign-off. Unsigned commits will be rejected.
 
 ## License Agreement
 
-This project is licensed under a custom license based on the Elastic License 2.0 (ELv2).
+This project is licensed under the Flow Weaver Library License.
 See [LICENSE](./LICENSE) for the full terms. Notably: free to use for any organization,
 free to host internally for organizations with 15 or fewer people, external hosting as a
 service to third parties is prohibited without a commercial license.
@@ -33,7 +33,7 @@ By contributing, you agree that:
 
 1. Your contribution is your original work (or you have the right to submit it).
 2. You grant the project maintainer (Ricardo Jose Horta Morais / Synergenius) a perpetual, worldwide, non-exclusive, royalty-free license to use, reproduce, modify, sublicense, and distribute your contribution under any license terms, including commercial licenses.
-3. This grant allows the maintainer to offer the project under dual licensing (ELv2 and a commercial license) without requiring further permission from you.
+3. This grant allows the maintainer to offer the project under dual licensing (Flow Weaver Library License and a commercial license) without requiring further permission from you.
 
 ## Getting Started
 
