@@ -1,7 +1,7 @@
 # @synergenius/flow-weaver
 
 [![npm version](https://img.shields.io/npm/v/@synergenius/flow-weaver.svg)](https://www.npmjs.com/package/@synergenius/flow-weaver)
-[![License: ELv2-based](https://img.shields.io/badge/License-ELv2--based-blue.svg)](./LICENSE)
+[![License: Flow Weaver Library License](https://img.shields.io/badge/License-Flow%20Weaver%20Library-blue.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org)
 
 **Workflow compiler for AI agents.** LLMs create, validate, iterate, and test workflows programmatically. Humans review them visually. Compiled output is standalone TypeScript with no runtime dependencies.
@@ -367,7 +367,7 @@ npm run docs          # Generate API docs
 
 ## License
 
-Custom license based on the Elastic License 2.0. See [LICENSE](./LICENSE) for full terms.
+Licensed under the Flow Weaver Library License. See [LICENSE](./LICENSE) for full terms.
 
 - **Free to use**: install, run, and compile workflows in any organization
 - **Free to host internally** for organizations with 15 or fewer people
