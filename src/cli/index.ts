@@ -34,6 +34,7 @@ import { openapiCommand } from './commands/openapi.js';
 import { pluginInitCommand } from './commands/plugin.js';
 import { migrateCommand } from './commands/migrate.js';
 import { changelogCommand } from './commands/changelog.js';
+import { stripCommand } from './commands/strip.js';
 import { docsListCommand, docsReadCommand, docsSearchCommand } from './commands/docs.js';
 import {
   marketInitCommand,
@@ -92,6 +93,22 @@ program
   .action(async (input: string, options) => {
     try {
       await compileCommand(input, options);
+    } catch (error) {
+      logger.error(`Command failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
+// Strip command
+program
+  .command('strip <input>')
+  .description('Remove generated code from compiled workflow files')
+  .option('-o, --output <path>', 'Output directory (default: in-place)')
+  .option('--dry-run', 'Preview without writing', false)
+  .option('--verbose', 'Verbose output', false)
+  .action(async (input: string, options) => {
+    try {
+      await stripCommand(input, options);
     } catch (error) {
       logger.error(`Command failed: ${getErrorMessage(error)}`);
       process.exit(1);

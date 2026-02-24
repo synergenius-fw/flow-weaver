@@ -88,7 +88,7 @@ function getCommits(rangeArg: string): CommitEntry[] {
 
   const entries: CommitEntry[] = [];
 
-  for (const line of logOutput.split('\n')) {
+  for (const line of logOutput.split(/\r?\n/)) {
     if (!line.trim()) continue;
 
     const spaceIdx = line.indexOf(' ');
@@ -101,7 +101,7 @@ function getCommits(rangeArg: string): CommitEntry[] {
       const filesOutput = execSync(`git diff-tree --no-commit-id --name-only -r ${hash}`, {
         encoding: 'utf8',
       }).trim();
-      files = filesOutput ? filesOutput.split('\n') : [];
+      files = filesOutput ? filesOutput.split(/\r?\n/) : [];
     } catch {
       files = [];
     }

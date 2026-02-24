@@ -93,7 +93,7 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
   };
 
   process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  if (process.platform !== 'win32') process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   try {
     await server.start();
