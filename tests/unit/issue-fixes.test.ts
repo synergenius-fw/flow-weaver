@@ -341,6 +341,8 @@ describe('validateMockConfig', () => {
       errors: [],
       warnings: [],
       ast: { instances: [] } as unknown as TWorkflowAST,
+      availableWorkflows: [],
+      allWorkflows: [],
     });
 
     await validateMockConfig(
@@ -364,6 +366,8 @@ describe('validateMockConfig', () => {
           { type: 'NodeInstance', id: 'n1', nodeType: 'fetchData' },
         ],
       } as unknown as TWorkflowAST,
+      availableWorkflows: [],
+      allWorkflows: [],
     });
 
     await validateMockConfig(
@@ -386,6 +390,8 @@ describe('validateMockConfig', () => {
           { type: 'NodeInstance', id: 'call1', nodeType: 'invokeWorkflow' },
         ],
       } as unknown as TWorkflowAST,
+      availableWorkflows: [],
+      allWorkflows: [],
     });
 
     await validateMockConfig(
@@ -417,6 +423,8 @@ describe('validateMockConfig', () => {
       errors: ['Some parse error'],
       warnings: [],
       ast: null as unknown as TWorkflowAST,
+      availableWorkflows: [],
+      allWorkflows: [],
     });
 
     await validateMockConfig(
@@ -439,6 +447,8 @@ describe('validateMockConfig', () => {
           { type: 'NodeInstance', id: 'i', nodeType: 'invokeWorkflow' },
         ],
       } as unknown as TWorkflowAST,
+      availableWorkflows: [],
+      allWorkflows: [],
     });
 
     await validateMockConfig(
@@ -511,7 +521,7 @@ describe('MCP progressive streaming (onEvent → progress notifications)', () =>
   });
 
   it('should not create onEvent when no progressToken', () => {
-    const extra = { _meta: {}, sendNotification: vi.fn() };
+    const extra = { _meta: {} as Record<string, unknown>, sendNotification: vi.fn() };
 
     const progressToken = extra._meta?.progressToken;
     const onEvent = progressToken
