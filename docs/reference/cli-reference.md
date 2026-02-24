@@ -1,7 +1,7 @@
 ---
 name: CLI Reference
 description: Complete reference for all Flow Weaver CLI commands, flags, and options
-keywords: [cli, commands, compile, validate, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, plugin, grammar, changelog, openapi, pattern, create, templates]
+keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, plugin, grammar, changelog, openapi, pattern, create, templates]
 ---
 
 # CLI Reference
@@ -14,6 +14,7 @@ Complete reference for all `flow-weaver` CLI commands.
 |---------|-------------|
 | `compile` | Compile workflow files to TypeScript |
 | `validate` | Validate without compiling |
+| `strip` | Remove generated code from compiled files |
 | `describe` | Output workflow structure (JSON/text/mermaid) |
 | `run` | Execute a workflow directly |
 | `watch` | Recompile on file changes |
@@ -104,6 +105,29 @@ flow-weaver validate <input> [options]
 flow-weaver validate my-workflow.ts
 flow-weaver validate '**/*.ts' --verbose
 flow-weaver validate workflow.ts --json --strict
+```
+
+---
+
+### strip
+
+Remove generated code from compiled workflow files. Deletes the runtime section and replaces each workflow body with a `throw new Error('Not implemented')` placeholder. Useful for committing clean source files to version control.
+
+```bash
+flow-weaver strip <input> [options]
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-o, --output <path>` | Output directory | in-place |
+| `--dry-run` | Preview without writing | `false` |
+| `--verbose` | Verbose output | `false` |
+
+**Examples:**
+```bash
+flow-weaver strip my-workflow.ts
+flow-weaver strip '**/*.ts' --dry-run
+flow-weaver strip my-workflow.ts -o cleaned/
 ```
 
 ---

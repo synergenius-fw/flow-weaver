@@ -301,7 +301,7 @@ async function runInngestDevMode(
 
   const stopServer = (): void => {
     if (serverProcess && !serverProcess.killed) {
-      serverProcess.kill('SIGTERM');
+      serverProcess.kill();
       serverProcess = null;
     }
   };
@@ -364,7 +364,7 @@ async function runInngestDevMode(
   };
 
   process.on('SIGINT', cleanup);
-  process.on('SIGTERM', cleanup);
+  if (process.platform !== 'win32') process.on('SIGTERM', cleanup);
 
   // Keep process alive
   await new Promise(() => {});
@@ -444,7 +444,7 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
   };
 
   process.on('SIGINT', cleanup);
-  process.on('SIGTERM', cleanup);
+  if (process.platform !== 'win32') process.on('SIGTERM', cleanup);
 
   // Keep process alive
   await new Promise(() => {

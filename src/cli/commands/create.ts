@@ -44,7 +44,7 @@ function insertIntoFile(filePath: string, content: string, line?: number): void 
   }
 
   const existingContent = fs.readFileSync(filePath, 'utf8');
-  const lines = existingContent.split('\n');
+  const lines = existingContent.split(/\r?\n/);
 
   if (line !== undefined && line > 0) {
     // Insert AFTER specific line (1-indexed)

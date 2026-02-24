@@ -2531,7 +2531,7 @@ export class AnnotationParser {
         if (missingLines.length === 0) return null;
 
         // Find the insertion point: just before the closing */
-        const lines = content.split('\n');
+        const lines = content.split(/\r?\n/);
         let jsDocEndLine = -1;
         for (let i = fnStartLine - 1; i >= 0; i--) {
           if (lines[i].includes('*/')) {
@@ -2551,7 +2551,7 @@ export class AnnotationParser {
       }
 
       // No @flowWeaver JSDoc — check if user just typed "/**" on the cursor line
-      const lines = content.split('\n');
+      const lines = content.split(/\r?\n/);
       const cursorLineText = lines[cursorLine] || '';
       if (/^\s*\/\*\*\s*$/.test(cursorLineText)) {
         // User typed "/**" — generate only the continuation lines after it
