@@ -21,6 +21,7 @@ import {
   TrueKeyword,
   FalseKeyword,
   OverKeyword,
+  AsKeyword,
   MinimizedKeyword,
   Integer,
   StringLiteral,
@@ -228,6 +229,7 @@ class PortParser extends CstParser {
         { ALT: () => this.CONSUME(Asterisk) },
         // Keywords that can appear in description text
         { ALT: () => this.CONSUME(OverKeyword) },
+        { ALT: () => this.CONSUME(AsKeyword) },
         { ALT: () => this.CONSUME(TopKeyword) },
         { ALT: () => this.CONSUME(BottomKeyword) },
         { ALT: () => this.CONSUME(TrueKeyword) },
