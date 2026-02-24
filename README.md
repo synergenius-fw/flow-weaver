@@ -218,7 +218,7 @@ flow-weaver export workflow.ts --target cloudflare --output deploy/
 flow-weaver serve ./workflows --port 3000 --swagger
 ```
 
-Inngest compilation wraps each node in `step.run()` for individual durability, parallelizes independent nodes with `Promise.all()`, and generates typed Zod event schemas.
+Both the default TypeScript target and Inngest target parallelize independent nodes with `Promise.all()`. Inngest additionally wraps each node in `step.run()` for individual durability and generates typed Zod event schemas.
 
 ## Visual Human-in-the-Loop
 
@@ -319,6 +319,7 @@ flow-weaver listen                   # Stream editor events
 |------|---------|
 | `delay` | Sleep for a duration (ms, s, m, h, d). Mockable for fast testing. |
 | `waitForEvent` | Wait for an external event with optional field matching and timeout. Maps to Inngest `step.waitForEvent()` for zero-cost durable pauses. |
+| `waitForAgent` | Pause execution and wait for an external agent to provide a result. Supports multi-step human-in-the-loop and agent delegation patterns. |
 | `invokeWorkflow` | Invoke another workflow by ID with payload and timeout. Maps to Inngest `step.invoke()`. |
 
 ## STEP Port Architecture

@@ -69,14 +69,19 @@ function getPullExecutionConfig(
  * 2. **Start Node**: Store workflow parameters as Start node outputs
  * 3. **Control Flow Graph**: Build CFG from connections, perform topological sort
  * 4. **Branch Detection**: Identify branching nodes (with onSuccess/onFailure) and their regions
- * 5. **Code Generation**: For each node in execution order:
+ * 5. **Parallel Detection**: For async workflows, compute parallel levels from the CFG
+ *    and group independent nodes at the same topological depth into Promise.all() blocks
+ * 6. **Code Generation**: For each node in execution order:
  *    - Regular nodes: Generate direct execution with variable storage
+ *    - Parallel groups: Wrap 2+ independent nodes in `await Promise.all([...])`
  *    - Branching nodes: Generate if/else blocks for success/failure paths
  *    - Scoped children: Generate scope function closures (for forEach, etc.)
  *    - Pull nodes: Generate lazy executors registered with context
- * 6. **Exit Node**: Collect outputs and return result object
+ * 7. **Exit Node**: Collect outputs and return result object
  *
  * ## Key Concepts:
+ * - **Parallel Execution**: Independent async nodes at the same topological level run concurrently
+ *   via Promise.all(). Sync workflows skip this since there's no event loop concurrency.
  * - **Branching Nodes**: Nodes with both onSuccess and onFailure ports create conditional branches
  * - **Per-Port Scoped Children**: Children of forEach-like nodes execute via closure functions
  * - **Pull Execution**: Nodes marked for lazy evaluation only run when outputs are consumed
@@ -653,6 +658,10 @@ export function generateControlFlowWithExecutionContext(
           : { enabled: false, triggerPort: 'execute' };
       const isPullNode = pullConfig.enabled;
 
+      // Parallel group nodes are NOT included here because they always execute —
+      // they sit outside branches, aren't lazy (pull), and aren't scoped children.
+      // The await Promise.all(...) guarantees their Idx variables are assigned
+      // before any downstream node reads them, so no undefined check is needed.
       const needsUndefinedCheck =
         !isStartNode(sourceNode) &&
         (nodesInBranches.has(sourceNode) ||
@@ -2003,7 +2012,35 @@ function generateNodeCallWithContext(
   const resultVar = `${safeId}Result`;
   const awaitKeyword = nodeType.isAsync ? 'await ' : '';
 
-  if (nodeType.expression) {
+  if (nodeType.variant === 'COERCION') {
+    // Coercion node: inline JS expression instead of function call
+    const coerceExprMap: Record<string, string> = {
+      __fw_toString: 'String',
+      __fw_toNumber: 'Number',
+      __fw_toBoolean: 'Boolean',
+      __fw_toJSON: 'JSON.stringify',
+      __fw_parseJSON: 'JSON.parse',
+    };
+    const coerceExpr = coerceExprMap[functionName] || 'String';
+    // args[0] is the value input (execute is skipped for expression nodes)
+    const valueArg = args[0] || 'undefined';
+    lines.push(
+      `${indent}  const ${resultVar} = ${coerceExpr}(${valueArg});`
+    );
+
+    // Set the single result output port
+    lines.push(
+      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'result', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar});`
+    );
+
+    // Auto-set onSuccess/onFailure
+    lines.push(
+      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'onSuccess', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, true);`
+    );
+    lines.push(
+      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'onFailure', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, false);`
+    );
+  } else if (nodeType.expression) {
     // Expression node: call without execute, map raw return to output ports
     // _impl returns data only; onSuccess/onFailure are auto-set in the workflow body
     lines.push(

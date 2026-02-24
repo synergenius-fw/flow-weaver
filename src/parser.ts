@@ -28,6 +28,7 @@ import { resolvePackageTypesPath } from './resolve-package-types';
 import { getPackageExports } from './npm-packages';
 import { getSharedProject } from './shared-project';
 import { LRUCache } from './utils/lru-cache';
+import { COERCION_NODE_TYPES, COERCE_TYPE_MAP } from './built-in-nodes/coercion-types';
 
 export interface ParseResult {
   workflows: TWorkflowAST[];
@@ -1195,6 +1196,11 @@ export class AnnotationParser {
         this.expandFanInMacros(config.fanIns, instances, connections, startPorts, exitPorts, macros, errors);
       }
 
+      // Expand @coerce macros into synthetic coercion nodes + connections
+      if (config.coercions && config.coercions.length > 0) {
+        this.expandCoerceMacros(config.coercions, instances, connections, startPorts, exitPorts, macros, errors);
+      }
+
       // Include ALL available nodeTypes in the workflow AST, plus imported npm types.
       // Previously this filtered to only nodeTypes used by instances, but that caused
       // a bug: when creating a new nodeType and then adding its first instance,
@@ -1208,6 +1214,15 @@ export class AnnotationParser {
       // Use allAvailableNodeTypes (includes synthetic MAP_ITERATOR types from @map macros)
       const dedupedAvailableTypes = allAvailableNodeTypes.filter((nt) => !importedNames.has(nt.name));
       const workflowNodeTypes = [...dedupedAvailableTypes, ...importedNpmNodeTypes];
+
+      // Inject synthetic coercion node types for any __fw_ instances
+      for (const inst of instances) {
+        if (inst.nodeType.startsWith('__fw_') && COERCION_NODE_TYPES[inst.nodeType]) {
+          if (!workflowNodeTypes.some(nt => nt.functionName === inst.nodeType)) {
+            workflowNodeTypes.push(COERCION_NODE_TYPES[inst.nodeType]);
+          }
+        }
+      }
 
       // Extract Start/Exit positions from config.positions
       const ui: { startNode?: { x: number; y: number }; exitNode?: { x: number; y: number } } = {};
@@ -2018,6 +2033,83 @@ export class AnnotationParser {
         type: 'fanIn',
         sources: sources.map(s => s.port ? { node: s.node, port: s.port } : { node: s.node }),
         target: { node: target.node, port: target.port },
+      });
+    }
+  }
+
+  /**
+   * Expand @coerce macros into synthetic coercion node instances + connections.
+   */
+  private expandCoerceMacros(
+    coerceConfigs: Array<{
+      instanceId: string;
+      source: { node: string; port: string };
+      target: { node: string; port: string };
+      targetType: 'string' | 'number' | 'boolean' | 'json' | 'object';
+    }>,
+    instances: TNodeInstanceAST[],
+    connections: TConnectionAST[],
+    startPorts: Record<string, TPortDefinition>,
+    exitPorts: Record<string, TPortDefinition>,
+    macros: TWorkflowMacro[],
+    errors: string[],
+  ): void {
+    const instanceIds = new Set(instances.map(i => i.id));
+    instanceIds.add('Start');
+    instanceIds.add('Exit');
+
+    for (const config of coerceConfigs) {
+      const { instanceId, source, target, targetType } = config;
+
+      // Validate source and target nodes exist
+      if (!instanceIds.has(source.node)) {
+        errors.push(`@coerce: source node "${source.node}" does not exist`);
+        continue;
+      }
+      if (!instanceIds.has(target.node)) {
+        errors.push(`@coerce: target node "${target.node}" does not exist`);
+        continue;
+      }
+
+      // Check for duplicate instance ID
+      if (instanceIds.has(instanceId)) {
+        errors.push(`@coerce: instance ID "${instanceId}" already exists`);
+        continue;
+      }
+
+      const nodeTypeName = COERCE_TYPE_MAP[targetType];
+      if (!nodeTypeName) {
+        errors.push(`@coerce: unknown target type "${targetType}"`);
+        continue;
+      }
+
+      // Add synthetic instance
+      instances.push({
+        type: 'NodeInstance',
+        id: instanceId,
+        nodeType: nodeTypeName,
+      });
+      instanceIds.add(instanceId);
+
+      // Add connections: source -> coercion.value, coercion.result -> target
+      connections.push({
+        type: 'Connection',
+        from: { node: source.node, port: source.port },
+        to: { node: instanceId, port: 'value' },
+      });
+      connections.push({
+        type: 'Connection',
+        from: { node: instanceId, port: 'result' },
+        to: { node: target.node, port: target.port },
+      });
+
+      // Store macro for round-trip preservation
+      macros.push({
+        type: 'coerce',
+        instanceId,
+        source: { node: source.node, port: source.port },
+        target: { node: target.node, port: target.port },
+        targetType,
       });
     }
   }

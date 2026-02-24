@@ -412,6 +412,8 @@ function generateStepRunCall(
 
 /**
  * Generate an inline call for an expression node (no step.run wrapper).
+ * Coercion nodes (variant === 'COERCION') emit inline JS expressions
+ * (e.g. String(value)) instead of function calls.
  */
 function generateExpressionCall(
   instanceId: string,
@@ -422,6 +424,20 @@ function generateExpressionCall(
 ): string {
   const args = buildNodeArgs(instanceId, nodeType, workflow, nodeTypes);
   const safeId = toValidIdentifier(instanceId);
+
+  if (nodeType.variant === 'COERCION') {
+    const coerceExprMap: Record<string, string> = {
+      __fw_toString: 'String',
+      __fw_toNumber: 'Number',
+      __fw_toBoolean: 'Boolean',
+      __fw_toJSON: 'JSON.stringify',
+      __fw_parseJSON: 'JSON.parse',
+    };
+    const coerceExpr = coerceExprMap[nodeType.functionName] || 'String';
+    const valueArg = args[0] || 'undefined';
+    return `${indent}${safeId}_result = ${coerceExpr}(${valueArg});`;
+  }
+
   const fnCall = `${nodeType.functionName}(${args.join(', ')})`;
   const awaitPrefix = nodeType.isAsync ? 'await ' : '';
 
@@ -683,6 +699,18 @@ function emitPromiseAll(
       if (timeoutArg && timeoutArg !== 'undefined') invokeCall += `, timeout: ${timeoutArg}`;
       invokeCall += ` })`;
       stepCalls.push(invokeCall);
+    } else if (nt.variant === 'COERCION') {
+      const coerceExprMap: Record<string, string> = {
+        __fw_toString: 'String',
+        __fw_toNumber: 'Number',
+        __fw_toBoolean: 'Boolean',
+        __fw_toJSON: 'JSON.stringify',
+        __fw_parseJSON: 'JSON.parse',
+      };
+      const coerceExpr = coerceExprMap[nt.functionName] || 'String';
+      const args = buildNodeArgs(nodeId, nt, workflow, nodeTypes);
+      const valueArg = args[0] || 'undefined';
+      stepCalls.push(`${indent}  Promise.resolve(${coerceExpr}(${valueArg}))`);
     } else if (nt.expression) {
       const args = buildNodeArgs(nodeId, nt, workflow, nodeTypes);
       const fnCall = `${nt.functionName}(${args.join(', ')})`;
