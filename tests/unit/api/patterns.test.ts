@@ -252,7 +252,7 @@ describe('applyPattern', () => {
       targetNodeTypes: new Set(),
     });
 
-    expect(result.modifiedContent).toContain('@position a 100 200');
+    expect(result.modifiedContent).toContain('@node a process [position: 100 200]');
   });
 
   it('WU10: produces wiringOperations as fw_modify_batch operations', () => {
@@ -670,7 +670,7 @@ describe('extractPattern', () => {
       nodeIds: ['a', 'b'],
     });
 
-    expect(result.patternCode).toContain('@position a 100 200');
+    expect(result.patternCode).toContain('@node a process [position: 100 200]');
   });
 
   it('generates valid pattern annotation block', () => {

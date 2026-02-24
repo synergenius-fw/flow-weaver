@@ -216,6 +216,11 @@ export const SizePrefix = createToken({
   pattern: /size:/,
 });
 
+export const PositionPrefix = createToken({
+  name: 'PositionPrefix',
+  pattern: /position:/,
+});
+
 export const ColorPrefix = createToken({
   name: 'ColorPrefix',
   pattern: /color:/,
@@ -439,6 +444,7 @@ export const allTokens = [
   MergeStrategyPrefix,
   PullExecutionPrefix,
   SizePrefix,
+  PositionPrefix,
   ColorPrefix,
   IconPrefix,
   TagsPrefix,

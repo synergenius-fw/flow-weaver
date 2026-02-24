@@ -1463,15 +1463,37 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
     lines.push(` * @fwImport ${npmType.name} ${actualFunctionName} from "${npmType.importSource}"`);
   }
 
-  // Add node instances — skip synthetic MAP_ITERATOR instances, strip parent from macro children
+  // Auto-position: compute default positions for nodes without explicit positions.
+  // Must happen before instance tags are generated so [position:] can be emitted.
+  const autoPositions = computeAutoPositions(ast);
+
+  // Add node instances — skip synthetic MAP_ITERATOR instances, strip parent from macro children.
+  // Merge auto-computed positions into instance config (without mutating the AST).
   for (const instance of ast.instances) {
     if (macroInstanceIds.has(instance.id)) continue;
-    if (macroChildIds.has(instance.id) && instance.parent) {
+
+    // Merge auto-position into config if not already set
+    let inst = instance;
+    if (inst.config?.x === undefined || inst.config?.y === undefined) {
+      const autoPos = autoPositions.get(inst.id);
+      if (autoPos) {
+        inst = {
+          ...inst,
+          config: {
+            ...inst.config,
+            x: inst.config?.x ?? autoPos.x,
+            y: inst.config?.y ?? autoPos.y,
+          },
+        };
+      }
+    }
+
+    if (macroChildIds.has(inst.id) && inst.parent) {
       // Write child @node without parent scope — @map handles it
-      const stripped = { ...instance, parent: undefined };
+      const stripped = { ...inst, parent: undefined };
       lines.push(generateNodeInstanceTag(stripped));
     } else {
-      lines.push(generateNodeInstanceTag(instance));
+      lines.push(generateNodeInstanceTag(inst));
     }
   }
 
@@ -1523,30 +1545,14 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
     }
   }
 
-  // Auto-position: compute default positions for nodes without explicit positions.
-  // Uses a left-to-right layout with topological ordering when connections are available.
-  const autoPositions = computeAutoPositions(ast);
-
-  // Add positions - Start node
+  // Add positions - Start node (virtual, standalone @position)
   const startX = ast.ui?.startNode?.x ?? autoPositions.get('Start')?.x;
   const startY = ast.ui?.startNode?.y ?? autoPositions.get('Start')?.y;
   if (startX !== undefined && startY !== undefined) {
     lines.push(` * @position Start ${Math.round(startX)} ${Math.round(startY)}`);
   }
 
-  // Add positions - instances (use explicit position if available, otherwise auto-computed)
-  for (const instance of ast.instances) {
-    const explicitX = instance.config?.x;
-    const explicitY = instance.config?.y;
-    const autoPos = autoPositions.get(instance.id);
-    const x = explicitX ?? autoPos?.x;
-    const y = explicitY ?? autoPos?.y;
-    if (x !== undefined && y !== undefined) {
-      lines.push(` * @position ${instance.id} ${Math.round(x)} ${Math.round(y)}`);
-    }
-  }
-
-  // Add positions - Exit node
+  // Add positions - Exit node (virtual, standalone @position)
   const exitX = ast.ui?.exitNode?.x ?? autoPositions.get('Exit')?.x;
   const exitY = ast.ui?.exitNode?.y ?? autoPositions.get('Exit')?.y;
   if (exitX !== undefined && exitY !== undefined) {

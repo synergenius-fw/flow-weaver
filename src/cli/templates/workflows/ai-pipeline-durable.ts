@@ -293,15 +293,11 @@ async function saveResult(
  * @flowWeaver workflow
  * @trigger event="pipeline/start"
  * @retries 3
- * @node fetch fetchData
- * @node extract extractInfo
- * @node validate validateResult
- * @node save saveResult
+ * @node fetch fetchData [position: -280 0]
+ * @node extract extractInfo [position: -40 0]
+ * @node validate validateResult [position: 200 0]
+ * @node save saveResult [position: 440 0]
  * @position Start -500 0
- * @position fetch -280 0
- * @position extract -40 0
- * @position validate 200 0
- * @position save 440 0
  * @position Exit 680 0
  * @connect Start.execute -> fetch.execute
  * @connect Start.url -> fetch.url

@@ -124,13 +124,10 @@ function formatResponse(
 
 /**
  * @flowWeaver workflow
- * @node validator validateRequest
- * @node processor processPayload
- * @node responder formatResponse
+ * @node validator validateRequest [position: -180 0]
+ * @node processor processPayload [position: 90 -60]
+ * @node responder formatResponse [position: 270 0]
  * @position Start -450 0
- * @position validator -180 0
- * @position processor 90 -60
- * @position responder 270 0
  * @position Exit 450 0
  * @connect Start.execute -> validator.execute
  * @connect Start.headers -> validator.headers
