@@ -192,6 +192,8 @@ export interface JSDocWorkflowConfig {
     tags?: TNodeTagAST[];
     width?: number;
     height?: number;
+    x?: number;
+    y?: number;
     sourceLocation?: { line: number; column: number };
   }>;
   connections?: Array<{
@@ -1056,6 +1058,7 @@ export class JSDocParser {
       minimized,
       pullExecution,
       size,
+      position,
       color,
       icon,
       tags,
@@ -1110,6 +1113,7 @@ export class JSDocParser {
       ...(icon && { icon }),
       ...(tags && tags.length > 0 && { tags }),
       ...(size && { width: size.width, height: size.height }),
+      ...(position && { x: position.x, y: position.y }),
       sourceLocation: { line, column: 0 },
     });
   }
@@ -1130,6 +1134,13 @@ export class JSDocParser {
 
     const { nodeId, x, y } = result;
     config.positions![nodeId] = { x, y };
+
+    // Emit deprecation warning for non-virtual nodes
+    if (nodeId !== 'Start' && nodeId !== 'Exit') {
+      warnings.push(
+        `Deprecated: @position ${nodeId} — use [position: ${x} ${y}] on the @node declaration instead.`
+      );
+    }
   }
 
   /**

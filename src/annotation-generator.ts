@@ -349,12 +349,7 @@ export class AnnotationGenerator {
       lines.push(` * @position Start ${Math.round(workflow.ui.startNode.x)} ${Math.round(workflow.ui.startNode.y)}`);
     }
 
-    // Add instance positions
-    workflow.instances.forEach((instance) => {
-      if (instance.config?.x !== undefined && instance.config?.y !== undefined) {
-        lines.push(` * @position ${instance.id} ${Math.round(instance.config.x)} ${Math.round(instance.config.y)}`);
-      }
-    });
+    // Instance positions are now emitted as [position: x y] on @node lines
 
     // Add Exit node position if present
     if (workflow.ui?.exitNode?.x !== undefined && workflow.ui?.exitNode?.y !== undefined) {
@@ -722,7 +717,13 @@ export function generateNodeInstanceTag(instance: TNodeInstanceAST): string {
     sizeAttr = ` [size: ${Math.round(instance.config.width)} ${Math.round(instance.config.height)}]`;
   }
 
-  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${sizeAttr}`;
+  // Generate [position: x y] attribute if present
+  let positionAttr = '';
+  if (instance.config?.x !== undefined && instance.config?.y !== undefined) {
+    positionAttr = ` [position: ${Math.round(instance.config.x)} ${Math.round(instance.config.y)}]`;
+  }
+
+  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${sizeAttr}${positionAttr}`;
 }
 
 export const annotationGenerator = new AnnotationGenerator();

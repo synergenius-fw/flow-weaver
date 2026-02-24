@@ -124,10 +124,14 @@ export function applyPattern(options: ApplyPatternOptions): ApplyPatternResult {
     }
   }
 
-  // ── Build @node declarations ────────────────────────────────────────
-  const nodeDeclarations = pattern.instances.map(
-    (inst) => ` * @node ${nodePrefix}${inst.id} ${inst.nodeType}`
-  );
+  // ── Build @node declarations (with inline [position:] when present) ──
+  const nodeDeclarations = pattern.instances.map((inst) => {
+    const posAttr =
+      inst.config?.x !== undefined && inst.config?.y !== undefined
+        ? ` [position: ${inst.config.x} ${inst.config.y}]`
+        : '';
+    return ` * @node ${nodePrefix}${inst.id} ${inst.nodeType}${posAttr}`;
+  });
 
   // ── Build @connect declarations + wiring instructions ───────────────
   const connectDeclarations: string[] = [];
@@ -173,11 +177,6 @@ export function applyPattern(options: ApplyPatternOptions): ApplyPatternResult {
     }
   }
 
-  // ── Build @position declarations ────────────────────────────────────
-  const positionDeclarations = pattern.instances
-    .filter((inst) => inst.config?.x !== undefined && inst.config?.y !== undefined)
-    .map((inst) => ` * @position ${nodePrefix}${inst.id} ${inst.config!.x} ${inst.config!.y}`);
-
   // ── Generate node type functions (only non-conflicting) ─────────────
   const nodeTypesAdded: string[] = [];
   const nodeTypeFunctions: string[] = [];
@@ -193,7 +192,6 @@ export function applyPattern(options: ApplyPatternOptions): ApplyPatternResult {
     `// --- Pattern: ${pattern.name} ${prefix ? `(prefix: ${prefix})` : ''} ---`,
     ...nodeDeclarations,
     ...connectDeclarations,
-    ...positionDeclarations,
   ];
 
   // ── Insert into target content ──────────────────────────────────────
@@ -376,9 +374,13 @@ export function extractPattern(options: ExtractPatternOptions): ExtractPatternRe
   lines.push(` * @flowWeaver pattern`);
   lines.push(` * @name ${patternName}`);
 
-  // Node declarations
+  // Node declarations (with inline [position:] when present)
   for (const inst of extractedInstances) {
-    lines.push(` * @node ${inst.id} ${inst.nodeType}`);
+    const posAttr =
+      inst.config?.x !== undefined && inst.config?.y !== undefined
+        ? ` [position: ${inst.config.x} ${inst.config.y}]`
+        : '';
+    lines.push(` * @node ${inst.id} ${inst.nodeType}${posAttr}`);
   }
 
   // Internal connections
@@ -410,13 +412,6 @@ export function extractPattern(options: ExtractPatternOptions): ExtractPatternRe
   }
   for (const port of [...new Set(outputPorts)]) {
     lines.push(` * @port OUT.${port}`);
-  }
-
-  // Positions
-  for (const inst of extractedInstances) {
-    if (inst.config?.x !== undefined && inst.config?.y !== undefined) {
-      lines.push(` * @position ${inst.id} ${inst.config.x} ${inst.config.y}`);
-    }
   }
 
   lines.push(' */');

@@ -155,11 +155,9 @@ Answer:\`;
  * RAG Pipeline for knowledge-based Q&A
  *
  * @flowWeaver workflow
- * @node retriever retrieve
- * @node generator generate
+ * @node retriever retrieve [position: -50 0]
+ * @node generator generate [position: 200 0]
  * @position Start -300 0
- * @position retriever -50 0
- * @position generator 200 0
  * @position Exit 400 0
  * @connect Start.execute -> retriever.execute
  * @connect Start.question -> retriever.query

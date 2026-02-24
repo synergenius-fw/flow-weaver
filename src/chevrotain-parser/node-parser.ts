@@ -18,6 +18,7 @@ import {
   MinimizedKeyword,
   PullExecutionPrefix,
   SizePrefix,
+  PositionPrefix,
   ColorPrefix,
   IconPrefix,
   TagsPrefix,
@@ -50,6 +51,7 @@ export interface NodeParseResult {
   minimized?: boolean;
   pullExecution?: string; // triggerPort name, not boolean
   size?: { width: number; height: number };
+  position?: { x: number; y: number };
   color?: string;
   icon?: string;
   tags?: Array<{ label: string; tooltip?: string }>;
@@ -102,6 +104,7 @@ class NodeParser extends CstParser {
           { ALT: () => this.SUBRULE(this.minimizedAttr) },
           { ALT: () => this.SUBRULE(this.pullExecutionAttr) },
           { ALT: () => this.SUBRULE(this.sizeAttr) },
+          { ALT: () => this.SUBRULE(this.positionAttr) },
           { ALT: () => this.SUBRULE(this.colorAttr) },
           { ALT: () => this.SUBRULE(this.iconAttr) },
           { ALT: () => this.SUBRULE(this.tagsAttr) },
@@ -205,6 +208,13 @@ class NodeParser extends CstParser {
     this.CONSUME2(Integer, { LABEL: 'heightValue' });
   });
 
+  // position: x y
+  private positionAttr = this.RULE('positionAttr', () => {
+    this.CONSUME(PositionPrefix);
+    this.CONSUME(Integer, { LABEL: 'xValue' });
+    this.CONSUME2(Integer, { LABEL: 'yValue' });
+  });
+
   // color: "value"
   private colorAttr = this.RULE('colorAttr', () => {
     this.CONSUME(ColorPrefix);
@@ -274,6 +284,7 @@ interface AttributeBracketContext {
   minimizedAttr?: CstNode[];
   pullExecutionAttr?: CstNode[];
   sizeAttr?: CstNode[];
+  positionAttr?: CstNode[];
   colorAttr?: CstNode[];
   iconAttr?: CstNode[];
   tagsAttr?: CstNode[];
@@ -325,6 +336,11 @@ interface SizeAttrContext {
   heightValue: CstNodeWithImage[];
 }
 
+interface PositionAttrContext {
+  xValue: CstNodeWithImage[];
+  yValue: CstNodeWithImage[];
+}
+
 interface ColorAttrContext {
   colorValue: CstNodeWithImage[];
 }
@@ -360,6 +376,7 @@ class NodeVisitor extends BaseVisitor {
     let minimized: boolean | undefined;
     let pullExecution: string | undefined;
     let size: { width: number; height: number } | undefined;
+    let position: { x: number; y: number } | undefined;
     let color: string | undefined;
     let icon: string | undefined;
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
@@ -378,6 +395,7 @@ class NodeVisitor extends BaseVisitor {
         if (attrs.minimized) minimized = attrs.minimized;
         if (attrs.pullExecution) pullExecution = attrs.pullExecution;
         if (attrs.size) size = attrs.size;
+        if (attrs.position) position = attrs.position;
         if (attrs.color) color = attrs.color;
         if (attrs.icon) icon = attrs.icon;
         if (attrs.tags) tags = [...(tags || []), ...attrs.tags];
@@ -395,6 +413,7 @@ class NodeVisitor extends BaseVisitor {
       ...(minimized && { minimized }),
       ...(pullExecution && { pullExecution }),
       ...(size && { size }),
+      ...(position && { position }),
       ...(color && { color }),
       ...(icon && { icon }),
       ...(tags && { tags }),
@@ -415,6 +434,7 @@ class NodeVisitor extends BaseVisitor {
     minimized?: boolean;
     pullExecution?: string;
     size?: { width: number; height: number };
+    position?: { x: number; y: number };
     color?: string;
     icon?: string;
     tags?: Array<{ label: string; tooltip?: string }>;
@@ -426,6 +446,7 @@ class NodeVisitor extends BaseVisitor {
     let minimized: boolean | undefined;
     let pullExecution: string | undefined;
     let size: { width: number; height: number } | undefined;
+    let position: { x: number; y: number } | undefined;
     let color: string | undefined;
     let icon: string | undefined;
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
@@ -473,6 +494,12 @@ class NodeVisitor extends BaseVisitor {
       }
     }
 
+    if (ctx.positionAttr) {
+      for (const attr of ctx.positionAttr) {
+        position = this.visit(attr);
+      }
+    }
+
     if (ctx.colorAttr) {
       for (const attr of ctx.colorAttr) {
         color = this.visit(attr);
@@ -500,6 +527,7 @@ class NodeVisitor extends BaseVisitor {
       minimized,
       pullExecution,
       size,
+      position,
       color,
       icon,
       tags,
@@ -591,6 +619,12 @@ class NodeVisitor extends BaseVisitor {
     const width = parseInt(ctx.widthValue[0].image, 10);
     const height = parseInt(ctx.heightValue[0].image, 10);
     return { width, height };
+  }
+
+  positionAttr(ctx: PositionAttrContext): { x: number; y: number } {
+    const x = parseInt(ctx.xValue[0].image, 10);
+    const y = parseInt(ctx.yValue[0].image, 10);
+    return { x, y };
   }
 
   colorAttr(ctx: ColorAttrContext): string {

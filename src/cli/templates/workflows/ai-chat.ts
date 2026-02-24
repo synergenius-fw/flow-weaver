@@ -137,13 +137,10 @@ async function chat(
  * Stateful chat with conversation memory
  *
  * @flowWeaver workflow
- * @node mem memory
- * @node respond chat
- * @node saveMem memory
+ * @node mem memory [position: -150 0]
+ * @node respond chat [position: 50 0]
+ * @node saveMem memory [position: 250 0]
  * @position Start -350 0
- * @position mem -150 0
- * @position respond 50 0
- * @position saveMem 250 0
  * @position Exit 450 0
  * @connect Start.execute -> mem.execute
  * @connect Start.conversationId -> mem.conversationId

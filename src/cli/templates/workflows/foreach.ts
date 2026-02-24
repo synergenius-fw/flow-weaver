@@ -105,13 +105,10 @@ function aggregateResults(
 
 /**
  * @flowWeaver workflow
- * @node iterator forEachItem [size: 300 200]
- * @node processor processItem iterator.processItem
- * @node aggregator aggregateResults
+ * @node iterator forEachItem [size: 300 200] [position: -90 0]
+ * @node processor processItem iterator.processItem [position: 90 0]
+ * @node aggregator aggregateResults [position: 270 0]
  * @position Start -450 0
- * @position iterator -90 0
- * @position processor 90 0
- * @position aggregator 270 0
  * @position Exit 450 0
  * @connect Start.execute -> iterator.execute
  * @connect Start.items -> iterator.items

@@ -225,10 +225,12 @@ export const JSDOC_ANNOTATIONS: AnnotationCompletion[] = [
   },
   {
     label: '@position',
-    detail: 'Set node position',
+    detail: 'Set Start/Exit position',
     documentation:
-      'Sets the visual position of a node in the editor.\nFormat: @position nodeId x y',
-    insertText: '@position ${1:nodeId} ${2:x} ${3:y}',
+      'Sets the visual position of a virtual node (Start or Exit) in the editor.\n' +
+      'For regular nodes, use [position: x y] on the @node declaration instead.\n' +
+      'Format: @position Start x y',
+    insertText: '@position ${1|Start,Exit|} ${2:x} ${3:y}',
     insertTextFormat: 'snippet',
     kind: 'annotation',
     sortOrder: 32,

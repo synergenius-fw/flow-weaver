@@ -254,13 +254,10 @@ async function act(
  * ReAct Agent — iterative Thought→Action→Observation loop
  *
  * @flowWeaver workflow
- * @node loop reactLoop [size: 450 250]
- * @node thinking think loop.step
- * @node acting act loop.step
+ * @node loop reactLoop [size: 450 250] [position: -150 0]
+ * @node thinking think loop.step [position: -80 30]
+ * @node acting act loop.step [position: 130 30]
  * @position Start -400 0
- * @position loop -150 0
- * @position thinking -80 30
- * @position acting 130 30
  * @position Exit 350 0
  * @connect Start.execute -> loop.execute
  * @connect Start.task -> loop.task

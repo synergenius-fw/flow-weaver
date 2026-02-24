@@ -1117,6 +1117,7 @@ export class AnnotationParser {
           ...(parent && { parent }),
           config: {
             ...(inst.label && { label: inst.label }),
+            ...(inst.x !== undefined && inst.y !== undefined && { x: inst.x, y: inst.y }),
             ...(position && { x: position.x, y: position.y }),
             ...(portConfigs && portConfigs.length > 0 && { portConfigs }),
             ...(inst.pullExecution && { pullExecution: inst.pullExecution }),

@@ -32,8 +32,8 @@ flow-weaver pattern extract <source-file> --nodes a,b,c -o <output-file> [--name
  * @flowWeaver pattern
  * @name validateTransform
  * @description Validates input then transforms it
- * @node v inputValidator
- * @node t dataTransformer
+ * @node v inputValidator [position: -90 0]
+ * @node t dataTransformer [position: 90 0]
  * @connect IN.data -> v.input
  * @connect v.valid -> t.input
  * @connect t.output -> OUT.result
@@ -41,8 +41,6 @@ flow-weaver pattern extract <source-file> --nodes a,b,c -o <output-file> [--name
  * @port IN.data - Raw input data
  * @port OUT.result - Transformed data
  * @port OUT.error - Validation errors
- * @position v -90 0
- * @position t 90 0
  */
 function patternPlaceholder() {}
 

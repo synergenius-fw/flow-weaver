@@ -294,13 +294,10 @@ async function executeTools(
  * AI Agent that uses tools to accomplish tasks
  *
  * @flowWeaver workflow
- * @node loop agentLoop [size: 450 350]
- * @node llm callLLM loop.iteration
- * @node tools executeTools loop.iteration
+ * @node loop agentLoop [size: 450 350] [position: -180 0]
+ * @node llm callLLM loop.iteration [position: -40 100]
+ * @node tools executeTools loop.iteration [position: 120 200]
  * @position Start -450 0
- * @position loop -180 0
- * @position llm -40 100
- * @position tools 120 200
  * @position Exit 360 0
  * @connect Start.execute -> loop.execute
  * @connect Start.userMessage -> loop.userMessage
