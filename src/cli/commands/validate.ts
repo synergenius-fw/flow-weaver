@@ -194,6 +194,9 @@ export async function validateCommand(input: string, options: ValidateOptions = 
                   msg += ` (connection: ${err.connection.from.node}:${err.connection.from.port} -> ${err.connection.to.node}:${err.connection.to.port})`;
                 }
                 logger.error(msg);
+                if (err.docUrl) {
+                  logger.info(`    See: ${err.docUrl}`);
+                }
               }
             });
           }
@@ -218,6 +221,9 @@ export async function validateCommand(input: string, options: ValidateOptions = 
                   msg += ` (node: ${warn.node})`;
                 }
                 logger.warn(msg);
+                if (warn.docUrl) {
+                  logger.info(`    See: ${warn.docUrl}`);
+                }
               }
             });
           }

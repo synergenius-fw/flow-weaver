@@ -5,7 +5,6 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import * as os from 'os';
 import { pathToFileURL } from 'url';
 import ts from 'typescript';
 import { compileWorkflow } from '../api/index.js';
@@ -88,10 +87,13 @@ export async function executeWorkflowFromFile(
   // In-place compilation preserves all functions in the module (node types,
   // sibling workflows), which is required for workflow composition where one
   // workflow calls another as a node type.
-  const tmpBase = path.join(
-    os.tmpdir(),
-    `fw-exec-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
+  //
+  // Temp files are written in the source file's directory (not os.tmpdir())
+  // so that ESM module resolution can walk up to the project's node_modules.
+  // On Windows, os.tmpdir() is disconnected from the project tree, causing
+  // bare import specifiers (e.g. 'zod', 'openai') to fail with MODULE_NOT_FOUND.
+  const tmpId = `fw-exec-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const tmpBase = path.join(path.dirname(resolvedPath), tmpId);
   const tmpTsFile = `${tmpBase}.ts`;
   const tmpFile = `${tmpBase}.mjs`;
 

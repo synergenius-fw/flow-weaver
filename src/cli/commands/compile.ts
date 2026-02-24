@@ -186,6 +186,9 @@ export async function compileCommand(input: string, options: CompileOptions = {}
                   msg += ` (node: ${err.node})`;
                 }
                 logger.error(msg);
+                if (err.docUrl) {
+                  logger.info(`    See: ${err.docUrl}`);
+                }
               }
             });
             errorCount++;

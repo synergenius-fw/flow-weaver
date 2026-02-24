@@ -1,4 +1,4 @@
-import { getMockConfig } from './mock-types.js';
+import { getMockConfig, lookupMock } from './mock-types.js';
 
 /**
  * @flowWeaver nodeType
@@ -17,8 +17,8 @@ export async function waitForEvent(
 
   const mocks = getMockConfig();
   if (mocks) {
-    // Mock mode active — look up event data by name
-    const mockData = mocks.events?.[eventName];
+    // Mock mode — look up event data by name (supports instance-qualified keys)
+    const mockData = lookupMock(mocks.events, eventName);
     if (mockData !== undefined) {
       return { onSuccess: true, onFailure: false, eventData: mockData };
     }

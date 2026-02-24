@@ -12,6 +12,7 @@ import { logger } from '../utils/logger.js';
 import { getFriendlyError } from '../../friendly-errors.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
+import { parseWorkflow } from '../../api/index.js';
 
 export interface RunOptions {
   /** Specific workflow name to run (if file contains multiple workflows) */
@@ -108,6 +109,11 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
     } catch {
       throw new Error(`Failed to parse mocks file: ${options.mocksFile}`);
     }
+  }
+
+  // Validate mock config against workflow when mocks are provided
+  if (mocks && !options.json) {
+    await validateMockConfig(mocks, filePath, options.workflow);
   }
 
   // Set up timeout if specified
@@ -302,6 +308,49 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
+  }
+}
+
+const VALID_MOCK_KEYS = new Set(['events', 'invocations', 'agents', 'fast']);
+const BUILT_IN_NODE_TYPES = new Set(['delay', 'waitForEvent', 'invokeWorkflow', 'waitForAgent']);
+
+const MOCK_SECTION_TO_NODE: Record<string, string> = {
+  events: 'waitForEvent',
+  invocations: 'invokeWorkflow',
+  agents: 'waitForAgent',
+};
+
+export async function validateMockConfig(
+  mocks: FwMockConfig,
+  filePath: string,
+  workflowName?: string
+): Promise<void> {
+  // Check for unknown top-level keys (catches typos like "invocation" instead of "invocations")
+  for (const key of Object.keys(mocks)) {
+    if (!VALID_MOCK_KEYS.has(key)) {
+      logger.warn(`Mock config has unknown key "${key}". Valid keys: ${[...VALID_MOCK_KEYS].join(', ')}`);
+    }
+  }
+
+  // Quick-parse the workflow to check which built-in node types are used
+  try {
+    const result = await parseWorkflow(filePath, { workflowName });
+    if (result.errors.length > 0 || !result.ast?.instances) return;
+
+    const usedNodeTypes = new Set(result.ast.instances.map((i) => i.nodeType));
+
+    for (const [section, nodeType] of Object.entries(MOCK_SECTION_TO_NODE)) {
+      const mockSection = mocks[section as keyof FwMockConfig];
+      if (mockSection && typeof mockSection === 'object' && Object.keys(mockSection).length > 0) {
+        if (!usedNodeTypes.has(nodeType)) {
+          logger.warn(
+            `Mock config has "${section}" entries but workflow has no ${nodeType} nodes`
+          );
+        }
+      }
+    }
+  } catch {
+    // Parsing failed — skip validation, the execution will report the real error
   }
 }
 

@@ -19,6 +19,21 @@ import { checkTypeCompatibilityFromStrings } from './type-checker.js';
 // Re-export TValidationError for convenience
 export type { TValidationError } from './ast/types';
 
+const DOCS_BASE = 'https://docs.flowweaver.dev/reference';
+
+/** Map error codes to the documentation page that explains how to fix them. */
+const ERROR_DOC_URLS: Record<string, string> = {
+  UNKNOWN_NODE_TYPE: `${DOCS_BASE}/concepts#node-registration`,
+  UNKNOWN_SOURCE_PORT: `${DOCS_BASE}/concepts#port-architecture`,
+  UNKNOWN_TARGET_PORT: `${DOCS_BASE}/concepts#port-architecture`,
+  TYPE_MISMATCH: `${DOCS_BASE}/compilation#type-compatibility`,
+  UNREACHABLE_NODE: `${DOCS_BASE}/concepts#graph-structure`,
+  MISSING_START_CONNECTION: `${DOCS_BASE}/concepts#start-and-exit`,
+  MISSING_EXIT_CONNECTION: `${DOCS_BASE}/concepts#start-and-exit`,
+  INFERRED_NODE_TYPE: `${DOCS_BASE}/node-conversion`,
+  DUPLICATE_CONNECTION: `${DOCS_BASE}/concepts#connections`,
+};
+
 export class WorkflowValidator {
   private errors: TValidationError[] = [];
   private warnings: TValidationError[] = [];
@@ -188,6 +203,13 @@ export class WorkflowValidator {
         }
         return true;
       });
+    }
+
+    // Attach doc URLs to diagnostics that have mapped error codes
+    for (const diag of [...this.errors, ...this.warnings]) {
+      if (!diag.docUrl && ERROR_DOC_URLS[diag.code]) {
+        diag.docUrl = ERROR_DOC_URLS[diag.code];
+      }
     }
 
     return {
