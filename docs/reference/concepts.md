@@ -137,7 +137,7 @@ Expression nodes are pure functions where:
   - Object return `{ a, b }` -> one port per property
 - Best for: transformers, math, utilities, data mapping, async fetchers, API calls
 
-> **Start with expression mode.** Only switch to normal mode when you need explicit branching (`onSuccess`/`onFailure` routing), custom error-with-data patterns, or void returns with side effects.
+> **Start with expression mode.** Only switch to normal mode when you need to return data alongside a failure (error-with-data patterns) or for void side-effect functions. Expression nodes handle success/failure branching automatically — throw to trigger the `onFailure` path.
 
 #### Async Expression Example
 
@@ -157,7 +157,7 @@ async function fetchUser(userId: string): Promise<User> {
 
 ### Node Type (Normal Mode)
 
-Use normal mode when you need explicit `try/catch -> onFailure` error handling or `void` returns.
+Use normal mode when you need to return error data alongside the failure signal, or for `void` side-effect functions.
 
 ```typescript
 /**
@@ -196,7 +196,7 @@ export function workflowName(
 }
 ```
 
-> STEP connections (`execute`, `onSuccess`, `onFailure`) are auto-wired for expression nodes in linear data flows. Add them explicitly only for branching or normal mode nodes.
+> STEP connections (`execute`, `onSuccess`, `onFailure`) are auto-wired for expression nodes. Add explicit STEP connections only for normal mode nodes or to override the automatic wiring.
 
 ### Importing External Functions
 

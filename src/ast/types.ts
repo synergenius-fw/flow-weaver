@@ -220,7 +220,7 @@ export type TNodeTypeAST = {
   /** Multiple scopes this node creates */
   scopes?: string[];
   /** Variant identifier (set by app layer) */
-  variant?: 'FUNCTION' | 'WORKFLOW' | 'IMPORTED_WORKFLOW' | 'MAP_ITERATOR' | 'COERCION';
+  variant?: 'FUNCTION' | 'WORKFLOW' | 'IMPORTED_WORKFLOW' | 'MAP_ITERATOR' | 'COERCION' | 'STUB';
   /** File path for external node types */
   path?: string;
   /** Function reference for function-based node types */
