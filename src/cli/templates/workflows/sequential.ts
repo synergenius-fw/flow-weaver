@@ -34,7 +34,7 @@ function generateDefaultTemplate(
   returnType: string
 ): string {
   return `
-// Use @expression for pure functions, normal mode for branching
+// Use @expression for most functions, normal mode only for error-with-data or void side-effects
 
 /**
  * Validates input data

@@ -36,6 +36,8 @@ export interface FunctionLike {
   getDeclarationKind?(): 'const' | 'let' | 'var' | undefined;
   /** Returns the underlying ts-morph Node for type resolution (e.g., Symbol.getTypeAtLocation). */
   getTypeResolutionNode(): Node;
+  /** Whether this is an ambient declaration (declare function) with no implementation body. */
+  isAmbient?(): boolean;
 }
 
 function wrapFunctionDeclaration(fn: FunctionDeclaration): FunctionLike {
@@ -49,6 +51,7 @@ function wrapFunctionDeclaration(fn: FunctionDeclaration): FunctionLike {
     getText: (inc?: boolean) => fn.getText(inc),
     getSourceFile: () => fn.getSourceFile(),
     getTypeResolutionNode: () => fn,
+    isAmbient: () => !fn.hasBody(),
   };
 }
 

@@ -273,18 +273,24 @@ export class JSDocParser {
     const jsdocs = func.getJsDocs();
     if (jsdocs.length === 0) return null;
 
-    // Find the JSDoc block that contains @flowWeaver nodeType
+    // Find the JSDoc block that contains @flowWeaver nodeType (or @flowWeaver node shorthand)
     let jsdoc = null;
     let flowWeaverTag = null;
+    let isNodeShorthand = false;
 
     for (const doc of jsdocs) {
       const tags = doc.getTags();
       const tag = tags.find(
-        (t) => t.getTagName() === 'flowWeaver' && t.getCommentText()?.trim() === 'nodeType'
+        (t) => {
+          if (t.getTagName() !== 'flowWeaver') return false;
+          const comment = t.getCommentText()?.trim();
+          return comment === 'nodeType' || comment === 'node';
+        }
       );
       if (tag) {
         jsdoc = doc;
         flowWeaverTag = tag;
+        isNodeShorthand = flowWeaverTag.getCommentText()?.trim() === 'node';
         break;
       }
     }
@@ -297,6 +303,11 @@ export class JSDocParser {
       inputs: {},
       outputs: {},
     };
+
+    // @flowWeaver node implies expression mode (auto-detect from signature)
+    if (isNodeShorthand) {
+      config.expression = true;
+    }
 
     // Extract description from JSDoc comment text (before tags)
     const descriptionText = jsdoc.getDescription();

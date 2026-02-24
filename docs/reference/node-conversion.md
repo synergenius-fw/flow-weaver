@@ -10,15 +10,12 @@ keywords: [conversion, expression mode, normal mode, function, transform, nodeTy
 Is it a pure function that returns a value?
   YES -> expression mode (@expression)
   NO  |
-Does it need to route onSuccess/onFailure to different nodes?
-  YES -> normal mode
-  NO  |
 Does it need to return error data alongside the failure signal?
   YES -> normal mode
   NO  -> expression mode (@expression)
 ```
 
-**Default to expression mode** unless the function has explicit success/failure branching logic.
+**Default to expression mode.** Expression nodes handle success/failure branching via throw. Only use normal mode when you need to return data on the failure path, or for void side-effects.
 
 ---
 
@@ -280,7 +277,7 @@ When no `--mode` is specified:
 - **Expression** (default): function returns a value (non-void), whether sync or async
 - **Normal**: void return, or user explicitly requests normal mode
 
-**Default to expression mode** unless the function has explicit success/failure branching logic. If the function simply takes inputs and returns outputs -- even async ones with `await` -- expression mode is the right choice.
+**Default to expression mode.** Expression nodes support failure branching via throw. Only switch to normal mode for error-with-data patterns or void side-effects.
 
 The compiler fully supports async expression nodes -- `await`, async detection, try/catch wrapping, and onSuccess/onFailure are all handled automatically.
 

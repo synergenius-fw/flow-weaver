@@ -18,7 +18,7 @@ export const aggregatorTemplate: WorkflowTemplate = {
       : "{ onSuccess: boolean; onFailure: boolean; aggregated: any }";
 
     return `
-// Use @expression for pure functions, normal mode for branching
+// Use @expression for most functions, normal mode only for error-with-data or void side-effects
 
 /**
  * Fetches data from source A
