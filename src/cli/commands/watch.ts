@@ -75,7 +75,7 @@ export async function watchCommand(input: string, options: WatchOptions = {}): P
   };
 
   process.on('SIGINT', cleanup);
-  process.on('SIGTERM', cleanup);
+  if (process.platform !== 'win32') process.on('SIGTERM', cleanup);
 
   // Keep process alive
   await new Promise(() => {

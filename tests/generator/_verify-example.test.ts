@@ -1,4 +1,6 @@
 import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { describe, it, expect } from 'vitest';
 import { parser } from '../../src/parser';
 import { generateInngestFunction } from '../../src/generator/inngest';
@@ -31,6 +33,6 @@ describe('example-inngest-approval', () => {
     expect(code).toContain('limit: 20');
 
     // Write for manual inspection
-    writeFileSync('/tmp/fw-inngest-output.ts', code);
+    writeFileSync(join(tmpdir(), 'fw-inngest-output.ts'), code);
   });
 });

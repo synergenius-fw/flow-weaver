@@ -518,7 +518,7 @@ export function generateCode(
   if (sourceMapGenerator && ast.sourceFile) {
     try {
       const sourceContent = fs.readFileSync(ast.sourceFile, 'utf-8');
-      const sourceLines = sourceContent.split('\n');
+      const sourceLines = sourceContent.split(/\r?\n/);
       const exportLineIndex = sourceLines.findIndex(
         (line: string) => line.includes(`export`) && line.includes(`function ${ast.functionName}`)
       );
