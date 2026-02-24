@@ -478,6 +478,7 @@ program
   .option('--params-file <path>', 'Path to JSON file with input parameters')
   .option('-p, --production', 'Production mode (no trace events)', false)
   .option('-t, --trace', 'Include execution trace events')
+  .option('-s, --stream', 'Stream trace events in real-time')
   .option('--json', 'Output result as JSON', false)
   .option('--timeout <ms>', 'Execution timeout in milliseconds', parseInt)
   .option('--mocks <json>', 'Mock config for built-in nodes (events, invocations, fast) as JSON')

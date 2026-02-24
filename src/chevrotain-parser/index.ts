@@ -19,6 +19,7 @@ export {
   PathTag,
   FanOutTag,
   FanInTag,
+  CoerceTag,
   TriggerTag,
   CancelOnTag,
   RetriesTag,
@@ -57,6 +58,10 @@ export type { PathParseResult, PathStep } from './path-parser';
 // Fan-out / Fan-in parser
 export { parseFanOutLine, parseFanInLine } from './fan-parser';
 export type { FanOutParseResult, FanInParseResult, PortRef } from './fan-parser';
+
+// Coerce parser
+export { parseCoerceLine } from './coerce-parser';
+export type { CoerceParseResult } from './coerce-parser';
 
 // Trigger/cancel/retries/timeout/throttle parser
 export { parseTriggerLine, parseCancelOnLine, parseRetriesLine, parseTimeoutLine, parseThrottleLine } from './trigger-cancel-parser';

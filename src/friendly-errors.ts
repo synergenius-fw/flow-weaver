@@ -30,14 +30,50 @@ function extractQuoted(message: string): string[] {
 }
 
 function extractTypes(message: string): { source: string; target: string } | null {
-  // Match patterns like "from STRING to NUMBER" or "(STRING) ... (NUMBER)"
+  // New format: "from TypeName (ENUM) to TypeName (ENUM)" — extract the structural types
+  const structuralMatch = message.match(/from (.+?) \(\w+\) to (.+?) \(\w+\)/);
+  if (structuralMatch) return { source: structuralMatch[1], target: structuralMatch[2] };
+
+  // Legacy format: "from ENUM to ENUM"
   const fromToMatch = message.match(/from (\w+) to (\w+)/i);
   if (fromToMatch) return { source: fromToMatch[1], target: fromToMatch[2] };
 
+  // Parenthetical format with structural types: "(TypeName (ENUM)) ... (TypeName (ENUM))"
+  const structuralParenMatch = message.match(/\((.+?) \(\w+\)\) .* \((.+?) \(\w+\)\)/);
+  if (structuralParenMatch) return { source: structuralParenMatch[1], target: structuralParenMatch[2] };
+
+  // Simple parenthetical format: "(ENUM) ... (ENUM)"
   const parenMatch = message.match(/\((\w+)\) .* \((\w+)\)/);
   if (parenMatch) return { source: parenMatch[1], target: parenMatch[2] };
 
   return null;
+}
+
+const COERCE_TARGET_TYPES: Record<string, string> = {
+  STRING: 'string',
+  NUMBER: 'number',
+  BOOLEAN: 'boolean',
+  OBJECT: 'object',
+};
+
+/**
+ * Build a concrete @coerce suggestion from error message context.
+ * Returns null if not enough info is available.
+ */
+function buildCoerceSuggestion(quoted: string[], targetType: string): string | null {
+  // We need at least a source node.port and target node.port from the error message
+  // Validator messages typically include connection endpoints in quoted values
+  if (quoted.length < 2) return null;
+
+  // Look for port references (node.port patterns)
+  const portRefPattern = /^[\w]+\.[\w]+$/;
+  const portRefs = quoted.filter(q => portRefPattern.test(q));
+  if (portRefs.length < 2) return null;
+
+  const coerceType = COERCE_TARGET_TYPES[targetType.toUpperCase()] || targetType.toLowerCase();
+  if (!['string', 'number', 'boolean', 'json', 'object'].includes(coerceType)) return null;
+
+  return `@coerce c1 ${portRefs[0]} -> ${portRefs[1]} as ${coerceType}`;
 }
 
 function extractCyclePath(message: string): string | null {
@@ -158,10 +194,14 @@ const errorMappers: Record<string, ErrorMapper> = {
     const types = extractTypes(error.message);
     const source = types?.source || 'unknown';
     const target = types?.target || 'unknown';
+    const quoted = extractQuoted(error.message);
+    const coerceSuggestion = buildCoerceSuggestion(quoted, target);
     return {
       title: 'Type Mismatch',
       explanation: `Type mismatch: you're connecting a ${source} to a ${target}. The value will be automatically converted, but this might cause unexpected behavior.`,
-      fix: `Add a conversion node between the two ports, or change one of the port types to match. You can also use @strictTypes to turn this into an error.`,
+      fix: coerceSuggestion
+        ? `Add an explicit coercion: \`${coerceSuggestion}\`, change one of the port types, or use @strictTypes to turn this into an error.`
+        : `Add a @coerce annotation between the two ports, change one of the port types, or use @strictTypes to turn this into an error.`,
       code: error.code,
     };
   },
@@ -265,10 +305,14 @@ const errorMappers: Record<string, ErrorMapper> = {
     const types = extractTypes(error.message);
     const source = types?.source || 'unknown';
     const target = types?.target || 'unknown';
+    const quoted = extractQuoted(error.message);
+    const coerceSuggestion = buildCoerceSuggestion(quoted, target);
     return {
       title: 'Type Incompatible',
       explanation: `Type mismatch: ${source} to ${target}. With @strictTypes enabled, this is an error instead of a warning.`,
-      fix: `Add a conversion node between the ports, change one of the port types, or remove @strictTypes to allow implicit coercions.`,
+      fix: coerceSuggestion
+        ? `Add an explicit coercion: \`${coerceSuggestion}\`, change one of the port types, or remove @strictTypes to allow implicit coercions.`
+        : `Add a @coerce annotation between the ports, change one of the port types, or remove @strictTypes to allow implicit coercions.`,
       code: error.code,
     };
   },
@@ -277,10 +321,14 @@ const errorMappers: Record<string, ErrorMapper> = {
     const types = extractTypes(error.message);
     const source = types?.source || 'unknown';
     const target = types?.target || 'unknown';
+    const quoted = extractQuoted(error.message);
+    const coerceSuggestion = buildCoerceSuggestion(quoted, target);
     return {
       title: 'Unusual Type Coercion',
       explanation: `Converting ${source} to ${target} is technically valid but semantically unusual and may produce unexpected behavior.`,
-      fix: `Add an explicit conversion node if this is intentional, or use @strictTypes to enforce type safety.`,
+      fix: coerceSuggestion
+        ? `If intentional, add an explicit coercion: \`${coerceSuggestion}\`, or use @strictTypes to enforce type safety.`
+        : `If intentional, add an explicit @coerce annotation, or use @strictTypes to enforce type safety.`,
       code: error.code,
     };
   },
@@ -304,6 +352,89 @@ const errorMappers: Record<string, ErrorMapper> = {
       title: 'Scope Mismatch',
       explanation: `The forEach loop '${scopeName}' has mismatched inner connections. Each loop body needs matching start/end connections.`,
       fix: `Check that all scoped nodes inside '${scopeName}' have proper connections from the scope's output ports to input ports.`,
+      code: error.code,
+    };
+  },
+
+  SCOPE_MISSING_REQUIRED_INPUT(error) {
+    const quoted = extractQuoted(error.message);
+    const childId = quoted[0] || error.node || 'unknown';
+    const portName = quoted[1] || 'unknown';
+    const scopeName = quoted[2] || 'unknown';
+    const parentId = quoted[3] || 'unknown';
+    return {
+      title: 'Scope Child Missing Input',
+      explanation: `Child node '${childId}' inside scope '${scopeName}' of '${parentId}' has a required input '${portName}' with no connection.`,
+      fix: `Connect the parent's scoped output to '${childId}.${portName}' within the scope, or mark the port as optional.`,
+      code: error.code,
+    };
+  },
+
+  SCOPE_UNUSED_INPUT(error) {
+    const quoted = extractQuoted(error.message);
+    const portName = quoted[0] || 'unknown';
+    const parentId = quoted[1] || error.node || 'unknown';
+    const scopeName = quoted[2] || 'unknown';
+    return {
+      title: 'Scope Input Unused',
+      explanation: `Scoped input '${portName}' on '${parentId}' expects data back from inner nodes, but nothing connects to it within scope '${scopeName}'.`,
+      fix: `Connect an inner node's output to '${parentId}.${portName}:${scopeName}' to return data from the scope.`,
+      code: error.code,
+    };
+  },
+
+  SCOPE_WRONG_SCOPE_NAME(error) {
+    const quoted = extractQuoted(error.message);
+    const portRef = quoted[0] || 'unknown';
+    const nodeName = quoted[2] || 'unknown';
+    return {
+      title: 'Invalid Scope Qualifier',
+      explanation: `A connection at '${portRef}' uses an invalid scope name. Node '${nodeName}' doesn't define that scope.`,
+      fix: `Check the scope names defined on the node type. Fix the :scopeName qualifier in the @connect annotation to match an existing scope.`,
+      code: error.code,
+    };
+  },
+
+  SCOPE_CONNECTION_OUTSIDE(error) {
+    const quoted = extractQuoted(error.message);
+    return {
+      title: 'Scope Connection Leak',
+      explanation: `A scoped connection references a node that is outside the scope boundary. Scoped connections must stay within the scope.`,
+      fix: `Move the target node inside the scope (declare it with the scope parent in @node), or remove the scope qualifier from the connection.`,
+      code: error.code,
+    };
+  },
+
+  SCOPE_PORT_TYPE_MISMATCH(error) {
+    const quoted = extractQuoted(error.message);
+    return {
+      title: 'Scope Port Type Mismatch',
+      explanation: `Type mismatch within scope '${quoted[0] || 'unknown'}'. The parent's scoped port and the child's port have incompatible types.`,
+      fix: `Change one of the port types to match, or add a transformation node inside the scope.`,
+      code: error.code,
+    };
+  },
+
+  SCOPE_UNKNOWN_PORT(error) {
+    const quoted = extractQuoted(error.message);
+    const portName = quoted[0] || 'unknown';
+    return {
+      title: 'Unknown Scoped Port',
+      explanation: `Port '${portName}' is referenced in a scoped connection but doesn't exist as a scoped port on that node, or belongs to a different scope.`,
+      fix: `Add the port as a scoped port with @output ${portName} scope:scopeName, or fix the port name in the @connect annotation.`,
+      code: error.code,
+    };
+  },
+
+  SCOPE_ORPHANED_CHILD(error) {
+    const quoted = extractQuoted(error.message);
+    const childId = quoted[0] || error.node || 'unknown';
+    const scopeName = quoted[1] || 'unknown';
+    const parentId = quoted[2] || 'unknown';
+    return {
+      title: 'Orphaned Scope Child',
+      explanation: `Node '${childId}' is declared inside scope '${scopeName}' of '${parentId}' but has no scoped connections. It won't receive data from or return data to the scope.`,
+      fix: `Connect the parent's scoped output ports to '${childId}' inputs, and connect '${childId}' outputs back to the parent's scoped input ports.`,
       code: error.code,
     };
   },
@@ -449,10 +580,14 @@ const errorMappers: Record<string, ErrorMapper> = {
     const types = extractTypes(error.message);
     const source = types?.source || 'unknown';
     const target = types?.target || 'unknown';
+    const quoted = extractQuoted(error.message);
+    const coerceSuggestion = buildCoerceSuggestion(quoted, target);
     return {
       title: 'Lossy Type Conversion',
       explanation: `Converting ${source} to ${target} may lose data or produce unexpected results (e.g., NaN, truncation).`,
-      fix: `Add an explicit conversion node, or use @strictTypes on the workflow to enforce type safety and catch these at validation time.`,
+      fix: coerceSuggestion
+        ? `Add an explicit coercion: \`${coerceSuggestion}\`, or use @strictTypes to enforce type safety.`
+        : `Add an explicit conversion with @coerce, or use @strictTypes to enforce type safety.`,
       code: error.code,
     };
   },

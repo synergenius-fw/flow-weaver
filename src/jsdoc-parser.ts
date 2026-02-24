@@ -19,6 +19,7 @@ import {
   parsePathLine,
   parseFanOutLine,
   parseFanInLine,
+  parseCoerceLine,
   parseTriggerLine,
   parseCancelOnLine,
   parseThrottleLine,
@@ -233,6 +234,13 @@ export interface JSDocWorkflowConfig {
   fanIns?: Array<{
     sources: Array<{ node: string; port?: string }>;
     target: { node: string; port: string };
+  }>;
+  /** @coerce macros that expand to synthetic coercion nodes + connections */
+  coercions?: Array<{
+    instanceId: string;
+    source: { node: string; port: string };
+    target: { node: string; port: string };
+    targetType: 'string' | 'number' | 'boolean' | 'json' | 'object';
   }>;
   /** @trigger annotation — event name and/or cron schedule */
   trigger?: { event?: string; cron?: string };
@@ -465,6 +473,10 @@ export class JSDocParser {
 
         case 'fanIn':
           this.parseFanInTag(tag, config, warnings);
+          break;
+
+        case 'coerce':
+          this.parseCoerceTag(tag, config, warnings);
           break;
 
         case 'trigger':
@@ -1247,6 +1259,22 @@ export class JSDocParser {
     config.fanIns.push({
       sources: result.sources,
       target: { node: result.target.node, port: result.target.port },
+    });
+  }
+
+  private parseCoerceTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
+    const comment = tag.getCommentText() || '';
+    const result = parseCoerceLine(`@coerce ${comment}`, warnings);
+    if (!result) {
+      warnings.push(`Invalid @coerce tag format: ${comment}`);
+      return;
+    }
+    config.coercions = config.coercions || [];
+    config.coercions.push({
+      instanceId: result.instanceId,
+      source: result.source,
+      target: result.target,
+      targetType: result.targetType,
     });
   }
 

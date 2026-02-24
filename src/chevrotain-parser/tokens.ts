@@ -87,6 +87,11 @@ export const FanInTag = createToken({
   pattern: /@fanIn\b/,
 });
 
+export const CoerceTag = createToken({
+  name: 'CoerceTag',
+  pattern: /@coerce\b/,
+});
+
 export const TriggerTag = createToken({
   name: 'TriggerTag',
   pattern: /@trigger\b/,
@@ -115,6 +120,11 @@ export const ThrottleTag = createToken({
 export const OverKeyword = createToken({
   name: 'OverKeyword',
   pattern: /over\b/,
+});
+
+export const AsKeyword = createToken({
+  name: 'AsKeyword',
+  pattern: /as\b/,
 });
 
 export const ParamTag = createToken({
@@ -405,6 +415,7 @@ export const allTokens = [
   PathTag,
   FanOutTag,
   FanInTag,
+  CoerceTag,
   TriggerTag,
   CancelOnTag,
   RetriesTag,
@@ -440,6 +451,7 @@ export const allTokens = [
 
   // Keywords (before Identifier)
   OverKeyword,
+  AsKeyword,
   MinimizedKeyword,
   TopKeyword,
   BottomKeyword,

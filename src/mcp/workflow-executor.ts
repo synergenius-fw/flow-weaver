@@ -79,7 +79,7 @@ export interface ExecuteWorkflowResult {
 export async function executeWorkflowFromFile(
   filePath: string,
   params?: Record<string, unknown>,
-  options?: { workflowName?: string; production?: boolean; includeTrace?: boolean; mocks?: FwMockConfig; agentChannel?: AgentChannel }
+  options?: { workflowName?: string; production?: boolean; includeTrace?: boolean; mocks?: FwMockConfig; agentChannel?: AgentChannel; onEvent?: (event: ExecutionTraceEvent) => void }
 ): Promise<ExecuteWorkflowResult> {
   const resolvedPath = path.resolve(filePath);
   const includeTrace = options?.includeTrace !== false;
@@ -136,11 +136,13 @@ export async function executeWorkflowFromFile(
     const debugger_ = includeTrace
       ? {
           sendEvent: (event: Record<string, unknown>) => {
-            trace.push({
+            const traceEvent: ExecutionTraceEvent = {
               type: (event.type as string) || 'UNKNOWN',
               timestamp: Date.now(),
               data: event,
-            });
+            };
+            trace.push(traceEvent);
+            options?.onEvent?.(traceEvent);
           },
           innerFlowInvocation: false,
         }

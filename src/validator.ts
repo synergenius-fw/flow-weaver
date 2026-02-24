@@ -14,6 +14,7 @@ import {
 } from './constants';
 import { findClosestMatches } from './utils/string-distance.js';
 import { parseFunctionSignature } from './jsdoc-port-sync/signature-parser.js';
+import { checkTypeCompatibilityFromStrings } from './type-checker.js';
 
 // Re-export TValidationError for convenience
 export type { TValidationError } from './ast/types';
@@ -443,13 +444,15 @@ export class WorkflowValidator {
 
       const sourceType = sourcePortDef.dataType;
       const targetType = targetPortDef.dataType;
+      const sourceTsType = sourcePortDef.tsType;
+      const targetTsType = targetPortDef.tsType;
 
       // Validate STEP port connections - STEP must connect to STEP only
       if (sourceType === 'STEP' && targetType !== 'STEP') {
         this.errors.push({
           type: 'error',
           code: 'STEP_PORT_TYPE_MISMATCH',
-          message: `STEP port "${fromPort}" on node "${fromNode}" cannot connect to non-STEP port "${toPort}" (${targetType}) on node "${toNode}"`,
+          message: `STEP port "${fromPort}" on node "${fromNode}" cannot connect to non-STEP port "${toPort}" (${this.formatType(targetType, targetTsType)}) on node "${toNode}"`,
           connection: conn,
           location: connLocation,
         });
@@ -459,7 +462,7 @@ export class WorkflowValidator {
         this.errors.push({
           type: 'error',
           code: 'STEP_PORT_TYPE_MISMATCH',
-          message: `Non-STEP port "${fromPort}" (${sourceType}) on node "${fromNode}" cannot connect to STEP port "${toPort}" on node "${toNode}"`,
+          message: `Non-STEP port "${fromPort}" (${this.formatType(sourceType, sourceTsType)}) on node "${fromNode}" cannot connect to STEP port "${toPort}" on node "${toNode}"`,
           connection: conn,
           location: connLocation,
         });
@@ -474,15 +477,20 @@ export class WorkflowValidator {
       if (sourceType === targetType) {
         // For OBJECT types, check if tsType differs (structural mismatch)
         if (sourceType === 'OBJECT' && sourcePortDef.tsType && targetPortDef.tsType) {
-          // If both have tsType and they differ (after normalization), warn about potential mismatch
-          if (this.normalizeTypeString(sourcePortDef.tsType) !== this.normalizeTypeString(targetPortDef.tsType)) {
-            this.warnings.push({
-              type: 'warning',
-              code: 'OBJECT_TYPE_MISMATCH',
-              message: `Structural type mismatch: ${fromNode}.${fromPort} outputs "${sourcePortDef.tsType}" but ${toNode}.${toPort} expects "${targetPortDef.tsType}". Verify the object shapes are compatible.`,
-              connection: conn,
-              location: connLocation,
-            });
+          const normalizedSource = this.normalizeTypeString(sourcePortDef.tsType);
+          const normalizedTarget = this.normalizeTypeString(targetPortDef.tsType);
+          if (normalizedSource !== normalizedTarget) {
+            // Use string-based compatibility check to suppress false positives (e.g. when one side is 'any')
+            const compat = checkTypeCompatibilityFromStrings(sourcePortDef.tsType, targetPortDef.tsType);
+            if (!compat.isCompatible) {
+              this.warnings.push({
+                type: 'warning',
+                code: 'OBJECT_TYPE_MISMATCH',
+                message: `Structural type mismatch: ${fromNode}.${fromPort} outputs "${sourcePortDef.tsType}" but ${toNode}.${toPort} expects "${targetPortDef.tsType}". Verify the object shapes are compatible.`,
+                connection: conn,
+                location: connLocation,
+              });
+            }
           }
         }
         return;
@@ -519,7 +527,7 @@ export class WorkflowValidator {
             {
               type: 'warning',
               code: 'LOSSY_TYPE_COERCION',
-              message: `Lossy type coercion from ${sourceType} to ${targetType} in connection ${fromNode}.${fromPort} → ${toNode}.${toPort}. ${reason}. Add @strictTypes to your workflow annotation to enforce type safety.`,
+              message: `Lossy type coercion from ${this.formatType(sourceType, sourceTsType)} to ${this.formatType(targetType, targetTsType)} in connection ${fromNode}.${fromPort} → ${toNode}.${toPort}. ${reason}. Add @strictTypes to your workflow annotation to enforce type safety.`,
               connection: conn,
               location: connLocation,
             },
@@ -547,7 +555,7 @@ export class WorkflowValidator {
             {
               type: 'warning',
               code: 'UNUSUAL_TYPE_COERCION',
-              message: `Unusual type coercion from ${sourceType} to ${targetType} in connection ${fromNode}.${fromPort} → ${toNode}.${toPort}. ${reason}.`,
+              message: `Unusual type coercion from ${this.formatType(sourceType, sourceTsType)} to ${this.formatType(targetType, targetTsType)} in connection ${fromNode}.${fromPort} → ${toNode}.${toPort}. ${reason}.`,
               connection: conn,
               location: connLocation,
             },
@@ -562,7 +570,7 @@ export class WorkflowValidator {
         {
           type: 'warning',
           code: 'TYPE_MISMATCH',
-          message: `Type mismatch in connection ${fromNode}.${fromPort} (${sourceType}) → ${toNode}.${toPort} (${targetType}). Runtime coercion will be attempted.`,
+          message: `Type mismatch in connection ${fromNode}.${fromPort} (${this.formatType(sourceType, sourceTsType)}) → ${toNode}.${toPort} (${this.formatType(targetType, targetTsType)}). Runtime coercion will be attempted.`,
           connection: conn,
           location: connLocation,
         },
@@ -1133,6 +1141,32 @@ export class WorkflowValidator {
 
       if (scopeNames.size === 0) continue;
 
+      // Check: connections with scope qualifiers must reference valid scope names on this instance
+      for (const conn of workflow.connections) {
+        if (conn.from.scope && conn.from.node === instance.id) {
+          if (!scopeNames.has(conn.from.scope)) {
+            this.errors.push({
+              type: 'error',
+              code: 'SCOPE_WRONG_SCOPE_NAME',
+              message: `Connection from "${instance.id}.${conn.from.port}" uses scope qualifier ":${conn.from.scope}" but node "${instance.id}" does not define scope "${conn.from.scope}". Available scopes: ${[...scopeNames].join(', ')}.`,
+              connection: conn,
+              location: this.getConnectionLocation(conn),
+            });
+          }
+        }
+        if (conn.to.scope && conn.to.node === instance.id) {
+          if (!scopeNames.has(conn.to.scope)) {
+            this.errors.push({
+              type: 'error',
+              code: 'SCOPE_WRONG_SCOPE_NAME',
+              message: `Connection to "${instance.id}.${conn.to.port}" uses scope qualifier ":${conn.to.scope}" but node "${instance.id}" does not define scope "${conn.to.scope}". Available scopes: ${[...scopeNames].join(', ')}.`,
+              connection: conn,
+              location: this.getConnectionLocation(conn),
+            });
+          }
+        }
+      }
+
       for (const scopeName of scopeNames) {
         // Find children in this scope
         const childIds: string[] = [];
@@ -1156,6 +1190,120 @@ export class WorkflowValidator {
             (conn.from.scope === scopeName && childIds.includes(conn.from.node)) ||
             (conn.to.scope === scopeName && childIds.includes(conn.to.node))
         );
+
+        // Check: scoped connections reference actual scoped ports on the parent
+        for (const conn of scopedConnections) {
+          if (conn.from.node === instance.id && conn.from.scope === scopeName) {
+            const portDef = nodeType.outputs[conn.from.port];
+            if (!portDef) {
+              const availablePorts = Object.entries(nodeType.outputs)
+                .filter(([, p]) => p.scope === scopeName)
+                .map(([n]) => n);
+              this.errors.push({
+                type: 'error',
+                code: 'SCOPE_UNKNOWN_PORT',
+                message: `Scoped connection references non-existent output port "${conn.from.port}" on "${instance.id}" in scope "${scopeName}". Available scoped outputs: ${availablePorts.join(', ') || 'none'}.`,
+                connection: conn,
+                location: this.getConnectionLocation(conn),
+              });
+            } else if (portDef.scope !== scopeName) {
+              this.errors.push({
+                type: 'error',
+                code: 'SCOPE_UNKNOWN_PORT',
+                message: `Output port "${conn.from.port}" on "${instance.id}" is not a scoped port of scope "${scopeName}"${portDef.scope ? ` (it belongs to scope "${portDef.scope}")` : ' (it is an unscoped port)'}.`,
+                connection: conn,
+                location: this.getConnectionLocation(conn),
+              });
+            }
+          }
+          if (conn.to.node === instance.id && conn.to.scope === scopeName) {
+            const portDef = nodeType.inputs[conn.to.port];
+            if (!portDef) {
+              const availablePorts = Object.entries(nodeType.inputs)
+                .filter(([, p]) => p.scope === scopeName)
+                .map(([n]) => n);
+              this.errors.push({
+                type: 'error',
+                code: 'SCOPE_UNKNOWN_PORT',
+                message: `Scoped connection references non-existent input port "${conn.to.port}" on "${instance.id}" in scope "${scopeName}". Available scoped inputs: ${availablePorts.join(', ') || 'none'}.`,
+                connection: conn,
+                location: this.getConnectionLocation(conn),
+              });
+            } else if (portDef.scope !== scopeName) {
+              this.errors.push({
+                type: 'error',
+                code: 'SCOPE_UNKNOWN_PORT',
+                message: `Input port "${conn.to.port}" on "${instance.id}" is not a scoped port of scope "${scopeName}"${portDef.scope ? ` (it belongs to scope "${portDef.scope}")` : ' (it is an unscoped port)'}.`,
+                connection: conn,
+                location: this.getConnectionLocation(conn),
+              });
+            }
+          }
+        }
+
+        // Check: scoped connections must stay within the scope boundary
+        for (const conn of scopedConnections) {
+          if (conn.from.scope === scopeName && childIds.includes(conn.from.node)) {
+            if (conn.to.node !== instance.id && !childIds.includes(conn.to.node)) {
+              this.errors.push({
+                type: 'error',
+                code: 'SCOPE_CONNECTION_OUTSIDE',
+                message: `Scoped connection from "${conn.from.node}.${conn.from.port}" targets "${conn.to.node}" which is not inside scope "${scopeName}" of "${instance.id}".`,
+                connection: conn,
+                location: this.getConnectionLocation(conn),
+              });
+            }
+          }
+          if (conn.to.scope === scopeName && childIds.includes(conn.to.node)) {
+            if (conn.from.node !== instance.id && !childIds.includes(conn.from.node)) {
+              this.errors.push({
+                type: 'error',
+                code: 'SCOPE_CONNECTION_OUTSIDE',
+                message: `Scoped connection to "${conn.to.node}.${conn.to.port}" sources from "${conn.from.node}" which is not inside scope "${scopeName}" of "${instance.id}".`,
+                connection: conn,
+                location: this.getConnectionLocation(conn),
+              });
+            }
+          }
+        }
+
+        // Check: type compatibility for scoped connections between parent and children
+        for (const conn of scopedConnections) {
+          // Parent scoped output -> child input
+          if (conn.from.node === instance.id && conn.from.scope === scopeName) {
+            const parentPort = nodeType.outputs[conn.from.port];
+            const childType = instanceMap.get(conn.to.node);
+            const childPort = childType?.inputs[conn.to.port];
+            if (parentPort && childPort && parentPort.dataType !== 'STEP' && childPort.dataType !== 'STEP') {
+              if (parentPort.dataType !== childPort.dataType && parentPort.dataType !== 'ANY' && childPort.dataType !== 'ANY') {
+                this.warnings.push({
+                  type: 'warning',
+                  code: 'SCOPE_PORT_TYPE_MISMATCH',
+                  message: `Type mismatch in scope "${scopeName}": "${instance.id}.${conn.from.port}" outputs ${this.formatType(parentPort.dataType, parentPort.tsType)} but "${conn.to.node}.${conn.to.port}" expects ${this.formatType(childPort.dataType, childPort.tsType)}.`,
+                  connection: conn,
+                  location: this.getConnectionLocation(conn),
+                });
+              }
+            }
+          }
+          // Child output -> parent scoped input
+          if (conn.to.node === instance.id && conn.to.scope === scopeName) {
+            const parentPort = nodeType.inputs[conn.to.port];
+            const childType = instanceMap.get(conn.from.node);
+            const childPort = childType?.outputs[conn.from.port];
+            if (parentPort && childPort && parentPort.dataType !== 'STEP' && childPort.dataType !== 'STEP') {
+              if (parentPort.dataType !== childPort.dataType && parentPort.dataType !== 'ANY' && childPort.dataType !== 'ANY') {
+                this.warnings.push({
+                  type: 'warning',
+                  code: 'SCOPE_PORT_TYPE_MISMATCH',
+                  message: `Type mismatch in scope "${scopeName}": "${conn.from.node}.${conn.from.port}" outputs ${this.formatType(childPort.dataType, childPort.tsType)} but "${instance.id}.${conn.to.port}" expects ${this.formatType(parentPort.dataType, parentPort.tsType)}.`,
+                  connection: conn,
+                  location: this.getConnectionLocation(conn),
+                });
+              }
+            }
+          }
+        }
 
         // Check: each child's required inputs must be satisfied within the scope
         for (const childId of childIds) {
@@ -1214,8 +1362,44 @@ export class WorkflowValidator {
             });
           }
         }
+
+        // Check: each child should have at least one scoped connection to/from the parent
+        for (const childId of childIds) {
+          const hasConnectionFromParent = scopedConnections.some(
+            (conn) =>
+              conn.from.node === instance.id &&
+              conn.from.scope === scopeName &&
+              conn.to.node === childId
+          );
+          const hasConnectionToParent = scopedConnections.some(
+            (conn) =>
+              conn.to.node === instance.id &&
+              conn.to.scope === scopeName &&
+              conn.from.node === childId
+          );
+          if (!hasConnectionFromParent && !hasConnectionToParent) {
+            this.warnings.push({
+              type: 'warning',
+              code: 'SCOPE_ORPHANED_CHILD',
+              message: `Child node "${childId}" is declared inside scope "${scopeName}" of "${instance.id}" but has no scoped connections to or from the parent. It is disconnected from the scope's data flow.`,
+              node: childId,
+              location: this.getInstanceLocation(workflow, childId),
+            });
+          }
+        }
       }
     }
+  }
+
+  /**
+   * Format a type for display in error messages.
+   * Prefers the structural TypeScript type when available, falling back to the enum name.
+   */
+  private formatType(dataType: string, tsType?: string): string {
+    if (tsType) {
+      return `${tsType} (${dataType})`;
+    }
+    return dataType;
   }
 
   private normalizeTypeString(type: string): string {

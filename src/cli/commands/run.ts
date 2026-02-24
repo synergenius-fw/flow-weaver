@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
 import { executeWorkflowFromFile } from '../../mcp/workflow-executor.js';
-import type { ExecuteWorkflowResult } from '../../mcp/workflow-executor.js';
+import type { ExecuteWorkflowResult, ExecutionTraceEvent } from '../../mcp/workflow-executor.js';
 import { AgentChannel } from '../../mcp/agent-channel.js';
 import { logger } from '../utils/logger.js';
 import { getFriendlyError } from '../../friendly-errors.js';
@@ -24,6 +24,8 @@ export interface RunOptions {
   production?: boolean;
   /** Include execution trace events */
   trace?: boolean;
+  /** Stream trace events in real-time */
+  stream?: boolean;
   /** Output result as JSON (for scripting) */
   json?: boolean;
   /** Execution timeout in milliseconds */
@@ -127,11 +129,38 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
     // - If --production is set, no trace (unless --trace explicitly set)
     // - If --trace is set, include trace
     // - Default: include trace in dev mode
-    const includeTrace = options.trace ?? !options.production;
+    const includeTrace = options.stream || options.trace || !options.production;
 
     if (!options.json && mocks) {
       logger.info('Running with mock data');
     }
+
+    // Build onEvent callback for real-time streaming
+    const nodeStartTimes = new Map<string, number>();
+    const onEvent = options.stream && !options.json
+      ? (event: ExecutionTraceEvent) => {
+          if (event.type === 'STATUS_CHANGED' && event.data) {
+            const nodeId = event.data.id as string | undefined;
+            const status = event.data.status as string | undefined;
+            if (!nodeId || !status) return;
+
+            if (status === 'RUNNING') {
+              nodeStartTimes.set(nodeId, event.timestamp);
+              logger.log(`  [STATUS_CHANGED] ${nodeId}: → RUNNING`);
+            } else {
+              const startTime = nodeStartTimes.get(nodeId);
+              const duration = startTime ? ` (${event.timestamp - startTime}ms)` : '';
+              logger.log(`  [STATUS_CHANGED] ${nodeId}: → ${status}${duration}`);
+            }
+          } else if (event.type === 'VARIABLE_SET' && event.data) {
+            const nodeId = event.data.nodeId as string | undefined;
+            const varName = event.data.name as string | undefined;
+            if (nodeId && varName) {
+              logger.log(`  [VARIABLE_SET] ${nodeId}.${varName}`);
+            }
+          }
+        }
+      : undefined;
 
     const channel = new AgentChannel();
     const execPromise = executeWorkflowFromFile(filePath, params, {
@@ -140,6 +169,7 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
       includeTrace,
       mocks,
       agentChannel: channel,
+      onEvent,
     });
 
     let result!: ExecuteWorkflowResult;
