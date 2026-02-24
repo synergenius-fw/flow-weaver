@@ -182,6 +182,9 @@ export async function validateCommand(input: string, options: ValidateOptions = 
                 const loc = err.location ? `[line ${err.location.line}] ` : '';
                 logger.error(`  ${loc}${friendly.title}: ${friendly.explanation}`);
                 logger.info(`    How to fix: ${friendly.fix}`);
+                if (err.docUrl) {
+                  logger.info(`    See: ${err.docUrl}`);
+                }
               } else {
                 let msg = `  - ${err.message}`;
                 if (err.location) {
@@ -212,6 +215,9 @@ export async function validateCommand(input: string, options: ValidateOptions = 
                 const loc = warn.location ? `[line ${warn.location.line}] ` : '';
                 logger.warn(`  ${loc}${friendly.title}: ${friendly.explanation}`);
                 logger.info(`    How to fix: ${friendly.fix}`);
+                if (warn.docUrl) {
+                  logger.info(`    See: ${warn.docUrl}`);
+                }
               } else {
                 let msg = `  - ${warn.message}`;
                 if (warn.location) {
