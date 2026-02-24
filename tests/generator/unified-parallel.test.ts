@@ -338,6 +338,224 @@ export async function branchParallel(execute: boolean, params: { num: number }):
     }
   });
 
+  it('should wrap 3+ independent nodes in a single Promise.all', async () => {
+    const source = `
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output doubled - number
+ */
+export async function doubleIt(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, doubled: value * 2 };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output tripled - number
+ */
+export async function tripleIt(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, tripled: value * 3 };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output quadrupled - number
+ */
+export async function quadrupleIt(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, quadrupled: value * 4 };
+}
+
+/**
+ * @flowWeaver workflow
+ * @param num - number
+ * @returns {number} doubled - Doubled value
+ * @returns {number} tripled - Tripled value
+ * @returns {number} quadrupled - Quadrupled value
+ * @node d doubleIt
+ * @node t tripleIt
+ * @node q quadrupleIt
+ * @connect Start.num -> d.value
+ * @connect Start.num -> t.value
+ * @connect Start.num -> q.value
+ * @connect d.doubled -> Exit.doubled
+ * @connect t.tripled -> Exit.tripled
+ * @connect q.quadrupled -> Exit.quadrupled
+ */
+export async function parallelThreeNodes(execute: boolean, params: { num: number }): Promise<{
+  onSuccess: boolean; onFailure: boolean; doubled: number; tripled: number; quadrupled: number;
+}> {
+  // @flow-weaver-body
+  // @end-flow-weaver-body
+}
+    `.trim();
+
+    const testFile = path.join(global.testHelpers.outputDir, 'parallel-three-nodes.ts');
+    fs.writeFileSync(testFile, source);
+
+    try {
+      const code = await global.testHelpers.generateFast(testFile, 'parallelThreeNodes');
+      // All three nodes should be inside a single Promise.all
+      expect(code).toContain('Promise.all([');
+      expect(code).toMatch(/Promise\.all\(\[[\s\S]*?doubleIt[\s\S]*?tripleIt[\s\S]*?quadrupleIt[\s\S]*?\]\)/);
+      // There should be exactly one Promise.all block
+      const promiseAllCount = (code.match(/Promise\.all\(\[/g) || []).length;
+      expect(promiseAllCount).toBe(1);
+    } finally {
+      global.testHelpers.cleanupOutput('parallel-three-nodes.ts');
+    }
+  });
+
+  it('should emit two Promise.all blocks for a diamond with multiple parallel levels', async () => {
+    const source = `
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output result - number
+ */
+export async function addOne(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, result: value + 1 };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output result - number
+ */
+export async function addTwo(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, result: value + 2 };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output result - number
+ */
+export async function mulTwo(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, result: value * 2 };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output result - number
+ */
+export async function mulThree(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, result: value * 3 };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input a - number
+ * @input b - number
+ * @output sum - number
+ */
+export async function sumTwo(execute: boolean, a: number, b: number) {
+  return { onSuccess: true, onFailure: false, sum: a + b };
+}
+
+/**
+ * @flowWeaver workflow
+ * @param num - number
+ * @returns {number} sum - Final sum
+ * @node a addOne
+ * @node b addTwo
+ * @node c mulTwo
+ * @node d mulThree
+ * @node e sumTwo
+ * @connect Start.num -> a.value
+ * @connect Start.num -> b.value
+ * @connect a.result -> c.value
+ * @connect b.result -> d.value
+ * @connect c.result -> e.a
+ * @connect d.result -> e.b
+ * @connect e.sum -> Exit.sum
+ */
+export async function diamondParallel(execute: boolean, params: { num: number }): Promise<{
+  onSuccess: boolean; onFailure: boolean; sum: number;
+}> {
+  // @flow-weaver-body
+  // @end-flow-weaver-body
+}
+    `.trim();
+
+    const testFile = path.join(global.testHelpers.outputDir, 'diamond-parallel.ts');
+    fs.writeFileSync(testFile, source);
+
+    try {
+      const code = await global.testHelpers.generateFast(testFile, 'diamondParallel');
+      // Two separate parallel levels: [a,b] and [c,d]
+      const promiseAllCount = (code.match(/Promise\.all\(\[/g) || []).length;
+      expect(promiseAllCount).toBe(2);
+
+      // The final node (sumTwo / e) should come after both Promise.all blocks
+      const funcBody = code.substring(code.indexOf('function diamondParallel'));
+      const lastPromiseAllIdx = funcBody.lastIndexOf('Promise.all([');
+      const sumTwoCallIdx = funcBody.indexOf('sumTwo(');
+      expect(sumTwoCallIdx).toBeGreaterThan(lastPromiseAllIdx);
+    } finally {
+      global.testHelpers.cleanupOutput('diamond-parallel.ts');
+    }
+  });
+
+  it('should not emit Promise.all for synchronous workflows', async () => {
+    const source = `
+/**
+ * @flowWeaver nodeType
+ * @expression
+ * @input value - number
+ * @output doubled - number
+ */
+export function syncDouble(value: number): number {
+  return value * 2;
+}
+
+/**
+ * @flowWeaver nodeType
+ * @expression
+ * @input value - number
+ * @output tripled - number
+ */
+export function syncTriple(value: number): number {
+  return value * 3;
+}
+
+/**
+ * @flowWeaver workflow
+ * @param num - number
+ * @returns {number} doubled - Doubled value
+ * @returns {number} tripled - Tripled value
+ * @node d syncDouble
+ * @node t syncTriple
+ * @connect Start.num -> d.value
+ * @connect Start.num -> t.value
+ * @connect d.doubled -> Exit.doubled
+ * @connect t.tripled -> Exit.tripled
+ */
+export function syncParallel(execute: boolean, params: { num: number }): {
+  onSuccess: boolean; onFailure: boolean; doubled: number; tripled: number;
+} {
+  // @flow-weaver-body
+  // @end-flow-weaver-body
+}
+    `.trim();
+
+    const testFile = path.join(global.testHelpers.outputDir, 'sync-no-parallel.ts');
+    fs.writeFileSync(testFile, source);
+
+    try {
+      const code = await global.testHelpers.generateFast(testFile, 'syncParallel');
+      // Sync workflows must not use Promise.all since there's no event loop concurrency
+      expect(code).not.toContain('Promise.all');
+      // Both nodes should still be called
+      expect(code).toContain('syncDouble(');
+      expect(code).toContain('syncTriple(');
+    } finally {
+      global.testHelpers.cleanupOutput('sync-no-parallel.ts');
+    }
+  });
+
   it('should correctly execute a workflow with parallel nodes', async () => {
     const source = `
 /**

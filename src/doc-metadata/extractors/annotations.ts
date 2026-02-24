@@ -291,6 +291,24 @@ portRef        ::= IDENTIFIER [ "." IDENTIFIER ]`,
     contexts: ['workflow'],
   },
   {
+    name: '@coerce',
+    category: 'workflow',
+    syntax: '@coerce instanceId source.port -> target.port as TargetType',
+    description:
+      'Inserts an explicit type coercion node between two ports. Expands to a synthetic expression node that performs the conversion inline (e.g. String(), Number()). Works with @strictTypes since both connections are type-safe through the ANY input.',
+    insertText: '@coerce ${1:id} ${2:source}.${3:port} -> ${4:target}.${5:port} as ${6|string,number,boolean,json,object|}',
+    insertTextFormat: 'snippet',
+    ebnf: `coerceTag      ::= "@coerce" IDENTIFIER portRef "->" portRef "as" targetType
+
+targetType     ::= "string" | "number" | "boolean" | "json" | "object"`,
+    examples: [
+      '@coerce c1 fetch.count -> calc.amount as number',
+      '@coerce toStr llm.response -> logger.message as string',
+      '@coerce parse api.body -> transform.data as object',
+    ],
+    contexts: ['workflow'],
+  },
+  {
     name: '@autoConnect',
     category: 'workflow',
     syntax: '@autoConnect',

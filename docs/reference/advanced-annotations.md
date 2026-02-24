@@ -1,7 +1,7 @@
 ---
 name: Advanced Annotations
-description: Pull execution, execution strategies, merge strategies, auto-connect, strict types, path and map sugar, node attributes, and multi-workflow files
-keywords: [pullExecution, executeWhen, mergeStrategy, autoConnect, strictTypes, path, map, sugar, attributes, expr, portOrder, portLabel, minimized, multi-workflow, CONJUNCTION, DISJUNCTION, FIRST, LAST, COLLECT, MERGE, CONCAT]
+description: Pull execution, execution strategies, merge strategies, auto-connect, strict types, path, map, fan-out, fan-in, node attributes, and multi-workflow files
+keywords: [pullExecution, executeWhen, mergeStrategy, autoConnect, strictTypes, path, map, fanOut, fanIn, sugar, attributes, expr, portOrder, portLabel, minimized, multi-workflow, CONJUNCTION, DISJUNCTION, FIRST, LAST, COLLECT, MERGE, CONCAT]
 ---
 
 # Advanced Annotations
@@ -175,6 +175,75 @@ This is equivalent to manually writing:
 ```
 
 **Important:** If any explicit `@connect` annotations are present, `@autoConnect` is disabled. It's all-or-nothing.
+
+---
+
+## Fan-Out / Fan-In (`@fanOut`, `@fanIn`)
+
+Fan macros reduce boilerplate when broadcasting a single output to many targets, or merging many sources into a single input. Both expand to individual `@connect` lines during compilation.
+
+### `@fanOut` — One to Many
+
+Broadcasts a single output port to multiple targets:
+
+```typescript
+/**
+ * @flowWeaver workflow
+ * @node a processA
+ * @node b processB
+ * @node c processC
+ *
+ * @fanOut Start.data -> a, b, c
+ * @connect a.result -> Exit.resultA
+ * @connect b.result -> Exit.resultB
+ * @connect c.result -> Exit.resultC
+ */
+```
+
+This expands to:
+```
+@connect Start.data -> a.data
+@connect Start.data -> b.data
+@connect Start.data -> c.data
+```
+
+You can specify explicit target ports when the names don't match the source:
+
+```
+@fanOut Start.data -> a.input1, b.input2, c.rawData
+```
+
+Without an explicit port, the target port defaults to the source port name.
+
+### `@fanIn` — Many to One
+
+Merges multiple output ports into a single target:
+
+```typescript
+/**
+ * @flowWeaver workflow
+ * @node a processA
+ * @node b processB
+ * @node c processC
+ * @node agg aggregate
+ *
+ * @fanIn a.result, b.result, c.result -> agg.items
+ * @connect agg.merged -> Exit.result
+ */
+```
+
+This expands to:
+```
+@connect a.result -> agg.items
+@connect b.result -> agg.items
+@connect c.result -> agg.items
+```
+
+The target port should have a `[mergeStrategy:COLLECT]` (or another merge strategy) to combine multiple inputs — otherwise the validator will flag `MULTIPLE_CONNECTIONS_TO_INPUT`.
+
+### Round-Trip Preservation
+
+Both macros are preserved through parse-regenerate round-trips. The compiler stores the original macro and regenerates the annotation rather than expanding to individual `@connect` lines.
 
 ---
 

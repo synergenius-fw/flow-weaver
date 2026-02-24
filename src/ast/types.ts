@@ -106,7 +106,7 @@ export type TWorkflowAST = {
  * A sugar macro that expands to a full scope pattern or connection set.
  * Stored on the workflow AST for round-trip preservation in generateInPlace.
  */
-export type TWorkflowMacro = TMapMacro | TPathMacro | TFanOutMacro | TFanInMacro;
+export type TWorkflowMacro = TMapMacro | TPathMacro | TFanOutMacro | TFanInMacro | TCoerceMacro;
 
 export type TMapMacro = {
   type: 'map';
@@ -142,6 +142,20 @@ export type TFanInMacro = {
   sources: Array<{ node: string; port?: string }>;
   /** Single target port receiving all the fanned-in data */
   target: { node: string; port: string };
+};
+
+export type TCoerceTargetType = 'string' | 'number' | 'boolean' | 'json' | 'object';
+
+export type TCoerceMacro = {
+  type: 'coerce';
+  /** Instance ID for the synthetic coercion node */
+  instanceId: string;
+  /** Source port in "node.port" format */
+  source: { node: string; port: string };
+  /** Target port in "node.port" format */
+  target: { node: string; port: string };
+  /** Coercion target type */
+  targetType: TCoerceTargetType;
 };
 
 /**
@@ -206,7 +220,7 @@ export type TNodeTypeAST = {
   /** Multiple scopes this node creates */
   scopes?: string[];
   /** Variant identifier (set by app layer) */
-  variant?: 'FUNCTION' | 'WORKFLOW' | 'IMPORTED_WORKFLOW' | 'MAP_ITERATOR';
+  variant?: 'FUNCTION' | 'WORKFLOW' | 'IMPORTED_WORKFLOW' | 'MAP_ITERATOR' | 'COERCION';
   /** File path for external node types */
   path?: string;
   /** Function reference for function-based node types */

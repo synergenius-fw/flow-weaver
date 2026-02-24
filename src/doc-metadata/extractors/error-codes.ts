@@ -256,6 +256,57 @@ export const VALIDATION_CODES: TValidationCodeDoc[] = [
     category: 'data-flow',
   },
 
+  // ── Scope ───────────────────────────────────────────────────────────
+  {
+    code: 'SCOPE_MISSING_REQUIRED_INPUT',
+    severity: 'error',
+    title: 'Scope Child Missing Input',
+    description: 'Required input port on a scoped child has no connection',
+    category: 'graph',
+  },
+  {
+    code: 'SCOPE_UNUSED_INPUT',
+    severity: 'warning',
+    title: 'Scope Input Unused',
+    description: 'Scoped input port has no connection from inner nodes',
+    category: 'graph',
+  },
+  {
+    code: 'SCOPE_WRONG_SCOPE_NAME',
+    severity: 'error',
+    title: 'Invalid Scope Qualifier',
+    description: 'Connection uses a scope name not defined on the node',
+    category: 'graph',
+  },
+  {
+    code: 'SCOPE_CONNECTION_OUTSIDE',
+    severity: 'error',
+    title: 'Scope Connection Leak',
+    description: 'Scoped connection references a node outside the scope',
+    category: 'graph',
+  },
+  {
+    code: 'SCOPE_PORT_TYPE_MISMATCH',
+    severity: 'warning',
+    title: 'Scope Port Type Mismatch',
+    description: 'Type mismatch between scoped port and connected child port',
+    category: 'type',
+  },
+  {
+    code: 'SCOPE_UNKNOWN_PORT',
+    severity: 'error',
+    title: 'Unknown Scoped Port',
+    description: 'Connection references a port that is not a scoped port of the specified scope',
+    category: 'connection',
+  },
+  {
+    code: 'SCOPE_ORPHANED_CHILD',
+    severity: 'warning',
+    title: 'Orphaned Scope Child',
+    description: 'Child node in scope has no scoped connections to parent',
+    category: 'graph',
+  },
+
   // ── Agent ───────────────────────────────────────────────────────────
   {
     code: 'AGENT_LLM_MISSING_ERROR_HANDLER',

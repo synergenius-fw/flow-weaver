@@ -37,6 +37,10 @@ export class AnnotationGenerator {
       if (nodeType.variant === 'MAP_ITERATOR') {
         return;
       }
+      // Skip synthetic COERCION node types — they're generated from @coerce macros
+      if (nodeType.variant === 'COERCION') {
+        return;
+      }
       lines.push(
         ...this.generateNodeTypeAnnotation(
           nodeType,
@@ -192,16 +196,19 @@ export class AnnotationGenerator {
   ): string[] {
     const lines: string[] = [];
 
-    // Build macro coverage sets for filtering (@map-specific)
+    // Build macro coverage sets for filtering (@map and @coerce)
     const macroInstanceIds = new Set<string>();
     const macroChildIds = new Set<string>();
     const macroScopeNames = new Set<string>();
+    const coerceInstanceIds = new Set<string>();
     if (workflow.macros && workflow.macros.length > 0) {
       for (const macro of workflow.macros) {
         if (macro.type === 'map') {
           macroInstanceIds.add(macro.instanceId);
           macroChildIds.add(macro.childId);
           macroScopeNames.add(`${macro.instanceId}.iterate`);
+        } else if (macro.type === 'coerce') {
+          coerceInstanceIds.add(macro.instanceId);
         }
       }
     }
@@ -270,9 +277,10 @@ export class AnnotationGenerator {
       lines.push(` * @description ${workflow.description}`);
     }
 
-    // Add node instances — skip synthetic MAP_ITERATOR instances, strip parent from macro children
+    // Add node instances — skip synthetic MAP_ITERATOR/COERCION instances, strip parent from macro children
     workflow.instances.forEach((instance) => {
       if (macroInstanceIds.has(instance.id)) return;
+      if (coerceInstanceIds.has(instance.id)) return;
       if (macroChildIds.has(instance.id) && instance.parent) {
         const stripped = { ...instance, parent: undefined };
         lines.push(generateNodeInstanceTag(stripped));
@@ -325,6 +333,10 @@ export class AnnotationGenerator {
           const srcs = macro.sources.map(s => s.port ? `${s.node}.${s.port}` : s.node).join(', ');
           const tgt = `${macro.target.node}.${macro.target.port}`;
           lines.push(` * @fanIn ${srcs} -> ${tgt}`);
+        } else if (macro.type === 'coerce') {
+          const src = `${macro.source.node}.${macro.source.port}`;
+          const tgt = `${macro.target.node}.${macro.target.port}`;
+          lines.push(` * @coerce ${macro.instanceId} ${src} -> ${tgt} as ${macro.targetType}`);
         }
       }
     }
@@ -584,6 +596,12 @@ function isConnectionCoveredByMacroStatic(conn: TConnectionAST, macros: TWorkflo
             return true;
           }
         }
+      }
+    } else if (macro.type === 'coerce') {
+      if (conn.from.scope || conn.to.scope) continue;
+      // Connections to/from the synthetic coercion instance are covered
+      if (conn.to.node === macro.instanceId || conn.from.node === macro.instanceId) {
+        return true;
       }
     }
   }
