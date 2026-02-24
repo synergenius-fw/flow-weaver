@@ -23,3 +23,36 @@ export function getMockConfig(): FwMockConfig | undefined {
     | FwMockConfig
     | undefined;
 }
+
+/**
+ * Look up a mock value from a section, supporting instance-qualified keys.
+ *
+ * Checks "instanceId:key" first (for per-node targeting), then falls back
+ * to plain "key". The instance ID comes from __fw_current_node_id__ which
+ * the generated code sets before each node invocation.
+ *
+ * @example
+ * ```json
+ * {
+ *   "invocations": {
+ *     "retryCall:api/process": { "status": "ok" },
+ *     "api/process": { "status": "default" }
+ *   }
+ * }
+ * ```
+ * When the node "retryCall" invokes "api/process", it gets `{ status: "ok" }`.
+ * Any other node invoking "api/process" gets `{ status: "default" }`.
+ */
+export function lookupMock<T>(section: Record<string, T> | undefined, key: string): T | undefined {
+  if (!section) return undefined;
+
+  const nodeId = (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__ as
+    | string
+    | undefined;
+  if (nodeId) {
+    const qualified = section[`${nodeId}:${key}`];
+    if (qualified !== undefined) return qualified;
+  }
+
+  return section[key];
+}

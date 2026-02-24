@@ -593,6 +593,9 @@ function replaceWorkflowFunctionBody(
 
   // Find the closing brace
   const closeBraceIdx = functionNode.body.end - 1;
+  if (closeBraceIdx <= openBraceIdx) {
+    return { code: source, changed: false };
+  }
 
   const before = source.slice(0, openBraceIdx + 1);
   const after = source.slice(closeBraceIdx);

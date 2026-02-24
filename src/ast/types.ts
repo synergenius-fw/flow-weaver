@@ -658,6 +658,8 @@ export type TValidationError = {
   node?: string;
   connection?: TConnectionAST;
   location?: TSourceLocation;
+  /** Reference to documentation explaining this error and how to fix it. */
+  docUrl?: string;
 };
 
 export type TAnalysisResult = {

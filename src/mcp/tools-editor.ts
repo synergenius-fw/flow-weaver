@@ -252,17 +252,37 @@ export function registerEditorTools(
       workflowName?: string;
       params?: Record<string, unknown>;
       includeTrace?: boolean;
-    }) => {
+    }, extra) => {
       // When filePath is provided, compile and execute directly (no editor needed)
       if (args.filePath) {
         try {
           const channel = new AgentChannel();
           const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+          // Send progress notifications for trace events when client supports it
+          const progressToken = extra._meta?.progressToken;
+          let eventCount = 0;
+          const onEvent = progressToken
+            ? (event: { type: string; timestamp: number; data?: Record<string, unknown> }) => {
+                eventCount++;
+                extra.sendNotification({
+                  method: 'notifications/progress' as const,
+                  params: {
+                    progressToken,
+                    progress: eventCount,
+                    message: event.type === 'STATUS_CHANGED'
+                      ? `${event.data?.id ?? ''}: ${event.data?.status ?? ''}`
+                      : event.type,
+                  },
+                }).catch(() => { /* client may have disconnected */ });
+              }
+            : undefined;
+
           const execPromise = executeWorkflowFromFile(args.filePath, args.params, {
             workflowName: args.workflowName,
             includeTrace: args.includeTrace,
             agentChannel: channel,
+            onEvent,
           });
 
           // Race between workflow completing and workflow pausing

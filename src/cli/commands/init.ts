@@ -329,12 +329,15 @@ export function generateProjectFiles(
 
   const gitignore = `node_modules/\ndist/\n.tsbuildinfo\n`;
 
+  const configYaml = `defaultFileType: ts\n`;
+
   return {
     'package.json': packageJson,
     'tsconfig.json': tsconfigJson,
     [`src/${workflowFile}`]: workflowCode,
     'src/main.ts': mainTs,
     '.gitignore': gitignore,
+    '.flowweaver/config.yaml': configYaml,
   };
 }
 

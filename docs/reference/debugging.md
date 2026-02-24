@@ -169,6 +169,39 @@ flow-weaver describe src/workflows/my-workflow.ts --format mermaid     # diagram
 flow-weaver describe src/workflows/my-workflow.ts --node fetcher1      # focus on a node
 ```
 
+### flow-weaver run --stream vs --trace
+
+Both flags give you execution trace data, but in different ways:
+
+**`--stream`** writes events to stderr in real-time as nodes execute. Each STATUS_CHANGED event prints the node ID, new status, and duration. Use this for live debugging during development — you can watch the workflow progress node by node.
+
+```bash
+flow-weaver run workflow.ts --stream
+# Output (to stderr):
+#   [STATUS_CHANGED] fetcher: → RUNNING
+#   [STATUS_CHANGED] fetcher: → SUCCEEDED (142ms)
+#   [STATUS_CHANGED] processor: → RUNNING
+#   [VARIABLE_SET] processor.result
+#   [STATUS_CHANGED] processor: → SUCCEEDED (38ms)
+```
+
+**`--trace`** collects all ExecutionTraceEvent objects during execution and includes them in the output after completion. Use this for post-mortem analysis or programmatic consumption (e.g., in CI or with `--json`).
+
+```bash
+flow-weaver run workflow.ts --trace
+# Shows: "12 events captured" + first 5 events as summary
+
+flow-weaver run workflow.ts --trace --json | jq '.traceCount'
+# Outputs: 12
+```
+
+**Combining both**: `--stream --trace` gives you real-time output during execution AND the collected trace array in the result. Useful when you want to watch progress live but also capture the full event log.
+
+**When to use which**:
+- Debugging interactively → `--stream`
+- CI pipeline or scripted analysis → `--trace --json`
+- Both → `--stream --trace`
+
 ### Diagnostic Strategy
 
 1. **flow-weaver validate** -- Get all errors and warnings. Fix errors first.

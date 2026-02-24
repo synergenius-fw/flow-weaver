@@ -180,12 +180,18 @@ export async function compileCommand(input: string, options: CompileOptions = {}
                 const loc = err.location ? `[line ${err.location.line}] ` : '';
                 logger.error(`  ${loc}${friendly.title}: ${friendly.explanation}`);
                 logger.info(`    How to fix: ${friendly.fix}`);
+                if (err.docUrl) {
+                  logger.info(`    See: ${err.docUrl}`);
+                }
               } else {
                 let msg = `  - ${err.message}`;
                 if (err.node) {
                   msg += ` (node: ${err.node})`;
                 }
                 logger.error(msg);
+                if (err.docUrl) {
+                  logger.info(`    See: ${err.docUrl}`);
+                }
               }
             });
             errorCount++;
