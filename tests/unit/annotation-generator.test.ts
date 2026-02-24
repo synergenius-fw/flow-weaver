@@ -223,6 +223,46 @@ describe('Annotation Generator', () => {
       expect(parsed?.tags).toEqual([{ label: 'beta' }]);
     });
 
+    it('should emit [position: x y] on @node when position is set', () => {
+      const instance: TNodeInstanceAST = {
+        type: 'NodeInstance',
+        id: 'myNode',
+        nodeType: 'MyType',
+        config: { x: 270, y: 0 },
+      };
+
+      const generated = generateNodeInstanceTag(instance);
+      expect(generated).toContain('[position: 270 0]');
+      expect(generated).not.toContain('@position');
+    });
+
+    it('should round-trip [position:] on @node', () => {
+      const instance: TNodeInstanceAST = {
+        type: 'NodeInstance',
+        id: 'validator',
+        nodeType: 'Validator',
+        config: { x: 100, y: -50 },
+      };
+
+      const generated = generateNodeInstanceTag(instance);
+      expect(generated).toContain('[position: 100 -50]');
+
+      const parsed = parseNodeLine(generated.replace(' * ', ''), w);
+      expect(parsed?.position).toEqual({ x: 100, y: -50 });
+    });
+
+    it('should not emit [position:] when position is not set', () => {
+      const instance: TNodeInstanceAST = {
+        type: 'NodeInstance',
+        id: 'myNode',
+        nodeType: 'MyType',
+        config: {},
+      };
+
+      const generated = generateNodeInstanceTag(instance);
+      expect(generated).not.toContain('position');
+    });
+
     it('should preserve pullExecution on instance after round-trip', () => {
       const instance: TNodeInstanceAST = {
         type: 'NodeInstance',

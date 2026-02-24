@@ -190,17 +190,12 @@ function scoreContent(
 
 /**
  * @flowWeaver workflow
- * @node sent analyzeSentiment
- * @node read analyzeReadability
- * @node kw extractKeywords
- * @node merge mergeResults
- * @node scorer scoreContent
+ * @node sent analyzeSentiment [position: -150 -150]
+ * @node read analyzeReadability [position: -150 0]
+ * @node kw extractKeywords [position: -150 150]
+ * @node merge mergeResults [position: 100 0]
+ * @node scorer scoreContent [position: 300 0]
  * @position Start -400 0
- * @position sent -150 -150
- * @position read -150 0
- * @position kw -150 150
- * @position merge 100 0
- * @position scorer 300 0
  * @position Exit 500 0
  * @connect Start.execute -> sent.execute
  * @connect Start.execute -> read.execute

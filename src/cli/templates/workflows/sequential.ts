@@ -95,13 +95,10 @@ function outputResult(data: any): { result: any } {
 
 /**
  * @flowWeaver workflow
- * @node validator validateData
- * @node transformer transformData
- * @node outputter outputResult
+ * @node validator validateData [position: -300 0]
+ * @node transformer transformData [position: 0 0]
+ * @node outputter outputResult [position: 300 0]
  * @position Start -600 0
- * @position validator -300 0
- * @position transformer 0 0
- * @position outputter 300 0
  * @position Exit 600 0
  * @path Start -> validator -> transformer -> outputter -> Exit
  * @connect validator.onFailure -> Exit.onFailure
@@ -153,12 +150,14 @@ function ${name}(${inputPortName}: any): { ${outputPortName}: any } {
   });
 
   // Generate workflow annotations
-  const nodeAnnotations = nodeNames.map((name, i) => ` * @node step${i} ${name}`).join('\n');
   const spacing = 300;
   const startX = -(nodeNames.length * (spacing / 2) + spacing / 2);
+  const nodeAnnotations = nodeNames.map((name, i) => {
+    const x = startX + (i + 1) * spacing;
+    return ` * @node step${i} ${name} [position: ${x} 0]`;
+  }).join('\n');
   const positionAnnotations = [
     ` * @position Start ${startX} 0`,
-    ...nodeNames.map((_, i) => ` * @position step${i} ${startX + (i + 1) * spacing} 0`),
     ` * @position Exit ${startX + (nodeNames.length + 1) * spacing} 0`,
   ].join('\n');
 

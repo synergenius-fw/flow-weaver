@@ -84,15 +84,12 @@ function double(execute: boolean, value: number) {
 
 /**
  * @flowWeaver workflow
- * @node forEach forEach
- * @node processItem processItem forEach.iteration
- * @node double double forEach.iteration
+ * @node forEach forEach [position: 270 0]
+ * @node processItem processItem forEach.iteration [position: 540 0]
+ * @node double double forEach.iteration [position: 810 0]
  * @path Start -> forEach -> Exit
  * @path Start -> forEach:fail -> Exit
  * @position Start 0 0
- * @position forEach 270 0
- * @position processItem 540 0
- * @position double 810 0
  * @position Exit 1080 0
  * @connect forEach.start:iteration -> processItem.execute
  * @connect forEach.item:iteration -> processItem.item

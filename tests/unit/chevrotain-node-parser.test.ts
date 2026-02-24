@@ -68,6 +68,38 @@ describe('Chevrotain Node Parser', () => {
       });
     });
 
+    it('should parse @node with position', () => {
+      const result = parseNodeLine('@node n1 Type [position: 100 200]', w);
+      expect(result).toEqual({
+        instanceId: 'n1',
+        nodeType: 'Type',
+        position: { x: 100, y: 200 },
+      });
+    });
+
+    it('should parse @node with negative position', () => {
+      const result = parseNodeLine('@node n1 Type [position: -50 -100]', w);
+      expect(result).toEqual({
+        instanceId: 'n1',
+        nodeType: 'Type',
+        position: { x: -50, y: -100 },
+      });
+    });
+
+    it('should parse @node with position combined with other attributes', () => {
+      const result = parseNodeLine(
+        '@node n1 Type [label: "My Node"] [size: 200 150] [position: 270 0]',
+        w
+      );
+      expect(result).toEqual({
+        instanceId: 'n1',
+        nodeType: 'Type',
+        label: 'My Node',
+        size: { width: 200, height: 150 },
+        position: { x: 270, y: 0 },
+      });
+    });
+
     it('should parse @node with pullExecution triggerPort', () => {
       const result = parseNodeLine('@node adder1 adder [pullExecution: result]', w);
       expect(result).toEqual({

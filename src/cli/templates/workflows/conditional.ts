@@ -109,13 +109,10 @@ function handleFailure(
 
 /**
  * @flowWeaver workflow
- * @node router evaluateCondition
- * @node successHandler handleSuccess
- * @node failureHandler handleFailure
+ * @node router evaluateCondition [position: -180 0]
+ * @node successHandler handleSuccess [position: 90 -90]
+ * @node failureHandler handleFailure [position: 90 90]
  * @position Start -450 0
- * @position router -180 0
- * @position successHandler 90 -90
- * @position failureHandler 90 90
  * @position Exit 360 0
  * @connect Start.execute -> router.execute
  * @connect Start.data -> router.data

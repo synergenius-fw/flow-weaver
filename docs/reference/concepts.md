@@ -41,13 +41,11 @@ function uppercase(text: string): string {
  * @flowWeaver workflow
  * @param name - Name to greet
  * @returns result - Uppercased greeting
- * @node greeter greet
- * @node transform uppercase
+ * @node greeter greet [position: 180 0]
+ * @node transform uppercase [position: 360 0]
  * @connect Start.name -> greeter.name
  * @connect greeter.message -> transform.text
  * @connect transform.result -> Exit.result
- * @position greeter 180 0
- * @position transform 360 0
  */
 export function greetingWorkflow(
   execute: boolean,
@@ -186,10 +184,9 @@ function nodeName(
  * @flowWeaver workflow
  * @param inputPort - Description
  * @returns outputPort - Description
- * @node instanceId nodeTypeName
+ * @node instanceId nodeTypeName [position: 180 0]
  * @connect Start.inputPort -> instanceId.input
  * @connect instanceId.output -> Exit.outputPort
- * @position instanceId 180 0
  */
 export function workflowName(
   execute: boolean,
@@ -355,7 +352,11 @@ See `flow-weaver docs export-interface` for full scope documentation.
 
 ## Node Positioning
 
-Syntax: `@position nodeId x y` (values in pixels, 90px grid)
+Instance nodes use a bracket attribute on the `@node` line: `@node id Type [position: x y]`
+
+The standalone `@position nodeId x y` syntax is reserved for Start and Exit virtual nodes, which have no `@node` line.
+
+Values are in pixels on a 90px grid.
 
 Default layout:
 

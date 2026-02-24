@@ -305,15 +305,11 @@ async function respond(
  * @flowWeaver workflow
  * @trigger event="agent/request"
  * @retries 3
- * @node cls classify
- * @node tools executeTool
- * @node approval approvalGate
- * @node resp respond
+ * @node cls classify [position: -280 0]
+ * @node tools executeTool [position: -40 0]
+ * @node approval approvalGate [position: 200 0]
+ * @node resp respond [position: 440 0]
  * @position Start -500 0
- * @position cls -280 0
- * @position tools -40 0
- * @position approval 200 0
- * @position resp 440 0
  * @position Exit 680 0
  * @connect Start.execute -> cls.execute
  * @connect Start.userMessage -> cls.userMessage
