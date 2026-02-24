@@ -481,7 +481,7 @@ program
   .option('-s, --stream', 'Stream trace events in real-time')
   .option('--json', 'Output result as JSON', false)
   .option('--timeout <ms>', 'Execution timeout in milliseconds', parseInt)
-  .option('--mocks <json>', 'Mock config for built-in nodes (events, invocations, fast) as JSON')
+  .option('--mocks <json>', 'Mock config for built-in nodes (events, invocations, agents, fast) as JSON')
   .option('--mocks-file <path>', 'Path to JSON file with mock config for built-in nodes')
   .action(async (input: string, options) => {
     try {

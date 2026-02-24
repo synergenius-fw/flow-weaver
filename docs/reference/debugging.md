@@ -250,7 +250,7 @@ Scoped ports use direction inversion: scoped OUTPUTS = data parent sends to chil
 
 ## Mock System for Built-in Nodes
 
-When testing workflows that use `delay`, `waitForEvent`, or `invokeWorkflow`, use mocks to avoid real side effects:
+When testing workflows that use `delay`, `waitForEvent`, `invokeWorkflow`, or `waitForAgent`, use mocks to avoid real side effects:
 
 ```bash
 flow-weaver run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
@@ -261,6 +261,9 @@ Mock config structure:
 - `fast: true` — Skip real sleep in `delay` nodes (1ms instead)
 - `events: { "event-name": data }` — Mock event data for `waitForEvent`
 - `invocations: { "function-id": result }` — Mock results for `invokeWorkflow`
+- `agents: { "agent-id": result }` — Mock results for `waitForAgent`
+
+Use `--timeout <ms>` as a safeguard when running workflows that may block on unresolved `waitForAgent` or `waitForEvent` nodes. In non-interactive environments (piped stdin), `waitForAgent` will fail fast with an error if no mock is provided.
 
 See `built-in-nodes` for full documentation on mock configuration and testing patterns.
 

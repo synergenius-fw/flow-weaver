@@ -127,6 +127,8 @@ interface FwMockConfig {
   events?: Record<string, object>;
   /** Mock invocation results keyed by functionId. Used by invokeWorkflow. */
   invocations?: Record<string, object>;
+  /** Mock agent results keyed by agentId. Used by waitForAgent. */
+  agents?: Record<string, object>;
   /** When true, delay nodes skip the real sleep (1ms instead of full duration). */
   fast?: boolean;
 }
@@ -156,6 +158,9 @@ flow-weaver run workflow.ts --mocks-file mocks.json
   },
   "invocations": {
     "my-service/payment-processor": { "transactionId": "tx-123", "success": true }
+  },
+  "agents": {
+    "human-reviewer": { "approved": true, "note": "Looks good" }
   }
 }
 ```
@@ -172,6 +177,9 @@ Set mocks on `globalThis` before running the workflow:
   },
   invocations: {
     'my-service/sub-workflow': { result: 'success' }
+  },
+  agents: {
+    'human-reviewer': { approved: true }
   }
 };
 

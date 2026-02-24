@@ -21,6 +21,10 @@ export async function waitForAgent(
   if (mockResult !== undefined) {
     return { onSuccess: true, onFailure: false, agentResult: mockResult };
   }
+  // Mocks section exists but key not found — fail like waitForEvent/invokeWorkflow
+  if (mocks?.agents) {
+    return { onSuccess: false, onFailure: true, agentResult: {} };
+  }
 
   // 2. Check agent channel (set by executor for pause/resume)
   const channel = (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ as
