@@ -814,17 +814,12 @@ function formatError(
 
 /**
  * @flowWeaver workflow
- * @node validator validateLead
- * @node enricher enrichLead
- * @node scorer scoreLead
- * @node categorizer categorizeLead
- * @node errorFormatter formatError
+ * @node validator validateLead [position: 40 80]
+ * @node enricher enrichLead [position: 208 -48]
+ * @node scorer scoreLead [position: 400 -50]
+ * @node categorizer categorizeLead [position: 600 -50]
+ * @node errorFormatter formatError [position: 408 136]
  * @position Start -168 -24
- * @position validator 40 80
- * @position enricher 208 -48
- * @position scorer 400 -50
- * @position categorizer 600 -50
- * @position errorFormatter 408 136
  * @position Exit 864 64
  * @connect Start.lead -> validator.lead
  * @connect validator.onSuccess -> enricher.execute

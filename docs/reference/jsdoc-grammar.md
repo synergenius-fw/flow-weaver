@@ -212,7 +212,7 @@ attributeBracket ::= "[" nodeAttr { "," nodeAttr } "]"
 
 nodeAttr       ::= labelAttr | exprAttr | portOrderAttr | portLabelAttr
                  | minimizedAttr | pullExecutionAttr | sizeAttr
-                 | colorAttr | iconAttr | tagsAttr
+                 | colorAttr | iconAttr | tagsAttr | positionAttr
 
 labelAttr      ::= "label:" STRING
 exprAttr       ::= "expr:" IDENTIFIER "=" STRING { "," IDENTIFIER "=" STRING }
@@ -225,6 +225,7 @@ colorAttr      ::= "color:" STRING
 iconAttr       ::= "icon:" STRING
 tagsAttr       ::= "tags:" tagEntry { "," tagEntry }
 tagEntry       ::= STRING [ STRING ]
+positionAttr   ::= "position:" INTEGER INTEGER
 ```
 
 Multiple attribute brackets are allowed (zero or more). Attributes can be split across brackets or combined in one.
@@ -242,7 +243,8 @@ Multiple attribute brackets are allowed (zero or more). Attributes can be split 
 @node myAdd Add [size: 200 150]
 @node myAdd Add [color: "#ff0000", icon: "math-plus"]
 @node myAdd Add [tags: "math" "Math operation", "transform"]
-@node myAdd Add [label: "hi"] [color: "#f00"]
+@node myAdd Add [position: 180 0]
+@node myAdd Add [label: "hi"] [color: "#f00"] [position: 360 0]
 ```
 
 ## @connect
@@ -286,6 +288,8 @@ Declare a complete execution route through the graph with scope walking for data
 
 ## @position
 
+Standalone `@position` is reserved for Start and Exit virtual nodes, which have no `@node` line. For instance nodes, use the `[position: x y]` bracket attribute on `@node` instead.
+
 ```
 positionTag    ::= "@position" IDENTIFIER INTEGER INTEGER
 ```
@@ -293,7 +297,8 @@ positionTag    ::= "@position" IDENTIFIER INTEGER INTEGER
 **Examples:**
 
 ```
-@position myAdd 100 200
+@position Start -450 0
+@position Exit 450 0
 ```
 
 ## @scope

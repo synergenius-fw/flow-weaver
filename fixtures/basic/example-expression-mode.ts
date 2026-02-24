@@ -476,14 +476,11 @@ function getLength(text: string): number {
 
 /**
  * @flowWeaver workflow
- * @node upper toUpperCase
- * @node concat concatenate
- * @node len getLength
+ * @node upper toUpperCase [position: 180 0]
+ * @node concat concatenate [position: 360 0]
+ * @node len getLength [position: 360 150]
  * @path Start -> upper -> concat -> Exit
  * @path Start -> upper -> len -> Exit
- * @position upper 180 0
- * @position concat 360 0
- * @position len 360 150
  * @connect Start.text -> upper.text
  * @connect upper.result -> concat.a
  * @connect Start.suffix -> concat.b

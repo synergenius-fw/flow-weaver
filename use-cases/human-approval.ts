@@ -275,10 +275,10 @@ function finalizeDecision(
  * prompt until the reviewer provides valid input, then finalizes the outcome.
  *
  * @flowWeaver workflow
- * @node val validateRequest
- * @node retry retryUntilValid [expr: maxAttempts="10"]
- * @node prompt promptReviewer retry.attempt
- * @node fin finalizeDecision
+ * @node val validateRequest [position: -250 0]
+ * @node retry retryUntilValid [expr: maxAttempts="10"] [position: 0 0]
+ * @node prompt promptReviewer retry.attempt [position: 0 0]
+ * @node fin finalizeDecision [position: 250 0]
  * @connect Start.execute -> val.execute
  * @connect Start.requesterId -> val.requesterId
  * @connect Start.item -> val.item
@@ -307,10 +307,6 @@ function finalizeDecision(
  * @connect val.reason -> Exit.reason
  * @connect retry.onFailure -> Exit.onFailure
  * @position Start -500 0
- * @position val -250 0
- * @position retry 0 0
- * @position prompt 0 0
- * @position fin 250 0
  * @position Exit 500 0
  * @param execute [order:0] - Execute
  * @param requesterId [order:1] - Requester's user ID

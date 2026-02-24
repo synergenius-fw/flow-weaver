@@ -175,7 +175,7 @@ flow-weaver validate my-workflow.ts
 
 # Step 3: Wire the Workflow
 
-Below the node type functions, add the workflow export. The `@flowWeaver workflow` JSDoc block declares node instances with `@node`, connects ports with `@connect`, and defines positions with `@position`.
+Below the node type functions, add the workflow export. The `@flowWeaver workflow` JSDoc block declares node instances with `@node` (including optional `[position: x y]` bracket attributes), and connects ports with `@connect`.
 
 ```typescript
 /**
@@ -184,9 +184,9 @@ Below the node type functions, add the workflow export. The `@flowWeaver workflo
  * @param record - Raw input record
  * @returns score - Computed score
  * @returns summary - Human-readable summary
- * @node validator validateRecord
- * @node enricher enrichRecord
- * @node scorer scoreRecord
+ * @node validator validateRecord [position: -180 0]
+ * @node enricher enrichRecord [position: 0 0]
+ * @node scorer scoreRecord [position: 180 0]
  * @connect Start.record -> validator.record
  * @connect validator.onSuccess -> enricher.execute
  * @connect validator.validated -> enricher.record
@@ -196,9 +196,6 @@ Below the node type functions, add the workflow export. The `@flowWeaver workflo
  * @connect scorer.summary -> Exit.summary
  * @connect scorer.onSuccess -> Exit.onSuccess
  * @connect scorer.onFailure -> Exit.onFailure
- * @position validator -180 0
- * @position enricher 0 0
- * @position scorer 180 0
  */
 export function processRecord(
   execute: boolean,
@@ -210,7 +207,7 @@ export function processRecord(
 
 Key points:
 
-- `@node validator validateRecord` creates an instance named `validator` of node type `validateRecord`.
+- `@node validator validateRecord [position: -180 0]` creates an instance named `validator` of node type `validateRecord`, positioned at (-180, 0).
 - `@connect validator.onSuccess -> enricher.execute` chains the success STEP port of the validator to the execute STEP port of the enricher, so the enricher only runs when validation passes.
 - `Start` and `Exit` are reserved pseudo-nodes. `Start` ports come from `@param` tags, `Exit` ports come from `@returns` tags.
 - The function body is a placeholder -- the compiler generates the real execution code.
@@ -439,9 +436,9 @@ function scoreRecord(
  * @param record - Raw input record
  * @returns score - Computed score
  * @returns summary - Human-readable summary
- * @node validator validateRecord
- * @node enricher enrichRecord
- * @node scorer scoreRecord
+ * @node validator validateRecord [position: -180 0]
+ * @node enricher enrichRecord [position: 0 0]
+ * @node scorer scoreRecord [position: 180 0]
  * @connect Start.record -> validator.record
  * @connect validator.onSuccess -> enricher.execute
  * @connect validator.validated -> enricher.record
@@ -451,9 +448,6 @@ function scoreRecord(
  * @connect scorer.summary -> Exit.summary
  * @connect scorer.onSuccess -> Exit.onSuccess
  * @connect scorer.onFailure -> Exit.onFailure
- * @position validator -180 0
- * @position enricher 0 0
- * @position scorer 180 0
  */
 export function processRecord(
   execute: boolean,

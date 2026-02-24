@@ -112,10 +112,9 @@ Add node instances with `@node` and connections with `@connect`:
 ```typescript
 /**
  * @flowWeaver workflow
- * @node adder addNumbers
+ * @node adder addNumbers [position: 180 0]
  * @connect Start.a -> adder.a
  * @connect adder.result -> Exit.result
- * @position adder 180 0
  */
 ```
 
@@ -133,7 +132,7 @@ After everything is connected:
 
 1. Run multiple test scenarios
 2. If not returning values, check return type
-3. Verify node positioning with `@position nodeId x y` (in pixels)
+3. Verify node positioning with `[position: x y]` on `@node` lines (in pixels)
 4. Inspect the compiled source file for errors (compilation modifies the file in-place)
 
 Final validation:
