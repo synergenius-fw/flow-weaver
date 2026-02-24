@@ -55,16 +55,15 @@ flow-weaver validate <file>
 
 ### Phase 3: Create the Nodes
 
-**Start with `@expression` mode for all nodes.** Only switch to normal mode when you need explicit branching (quality gates, conditional routing, error-with-data patterns).
+**Start with `@expression` mode for all nodes.** Only switch to normal mode when you need to return error data alongside the failure signal, or for void side-effects.
 
 Create nodes by adding `@flowWeaver nodeType` annotated functions.
 
 Create at most 3 nodes at a time, test each.
 
 Default to expression mode. Use normal mode only for:
-- **Quality gates** -- routing to different paths based on success/failure
-- **Conditional routing** -- explicit `onSuccess`/`onFailure` branching
-- **Error-with-data patterns** -- returning error details alongside the failure signal
+- **Error-with-data patterns** -- returning structured error details alongside the failure signal
+- **Void side-effects** -- functions with no return value that need explicit control flow
 
 **Expression mode (recommended for most nodes):**
 
@@ -82,7 +81,7 @@ function addNumbers(a: number, b: number): number {
 }
 ```
 
-> Use `@expression` for most nodes. Only use normal mode when you need custom failure handling or void returns.
+> Use `@expression` for most nodes. Expression nodes support failure branching via throw. Only use normal mode for error-with-data patterns or void returns.
 
 **Normal mode (for custom error handling):**
 
@@ -147,7 +146,7 @@ flow-weaver describe <file>  # Get workflow structure as JSON
 
 ### 1. Missing STEP Connections (Normal Mode) or Adding Unnecessary Ones (Expression Mode)
 
-**Normal mode nodes** need explicit STEP wiring: `@connect Start.execute -> firstNode.execute`. Without this, no node will run. **Expression mode** nodes auto-wire STEP connections from data flow -- you only need data connections for linear pipelines. Add explicit STEP connections only for branching (e.g., routing `onFailure` to a different node).
+**Normal mode nodes** need explicit STEP wiring: `@connect Start.execute -> firstNode.execute`. Without this, no node will run. **Expression mode** nodes auto-wire STEP connections from data flow -- you only need data connections for linear pipelines. Add explicit STEP connections when you need to route `onFailure` to a specific node (both expression and normal mode nodes support this).
 
 ### 2. Wrapping Node Inputs in Object
 
@@ -173,13 +172,13 @@ Always run `flow-weaver validate` after adding nodes/connections. Don't batch 10
 
 ### 6. Using Normal Mode When Expression Mode Works
 
-If the function returns a value and doesn't need custom error handling, use `@expression`. It's simpler and less error-prone. Expression mode eliminates the `execute` parameter, the `if (!execute)` guard, and the `onSuccess`/`onFailure` boilerplate. The compiler handles all of it.
+If the function returns a value, use `@expression`. It's simpler and less error-prone. Expression mode eliminates the `execute` parameter, the `if (!execute)` guard, and the `onSuccess`/`onFailure` boilerplate. The compiler wraps the call in try/catch, so throwing triggers the `onFailure` path automatically.
 
 **Rule of thumb:** If you are writing `if (!execute) return ...` and a `try/catch` that just returns `{ onSuccess: false, onFailure: true }`, you should be using expression mode instead.
 
 ### 7. Defaulting to Normal Mode
 
 Normal mode adds boilerplate that expression mode handles automatically. Default to `@expression` for every node. Only reach for normal mode when the function needs to:
-- Route to different downstream nodes on success vs. failure
-- Return error data (not just signal failure)
+- Return error data alongside the failure signal (not just signal failure)
+- Perform void side-effects with no return value
 - Perform void side-effects with explicit control flow
