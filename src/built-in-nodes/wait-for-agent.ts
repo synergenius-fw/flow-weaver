@@ -1,4 +1,4 @@
-import { getMockConfig } from './mock-types.js';
+import { getMockConfig, lookupMock } from './mock-types.js';
 
 /**
  * @flowWeaver nodeType
@@ -15,10 +15,11 @@ export async function waitForAgent(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, agentResult: {} };
 
-  // 1. Check mocks first
+  // 1. Check mocks first (supports instance-qualified keys)
   const mocks = getMockConfig();
-  if (mocks?.agents?.[agentId]) {
-    return { onSuccess: true, onFailure: false, agentResult: mocks.agents[agentId] };
+  const mockResult = lookupMock(mocks?.agents, agentId);
+  if (mockResult !== undefined) {
+    return { onSuccess: true, onFailure: false, agentResult: mockResult };
   }
 
   // 2. Check agent channel (set by executor for pause/resume)

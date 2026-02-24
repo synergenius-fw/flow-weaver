@@ -215,11 +215,24 @@ Use `@fwImport` to turn npm package functions or local module exports into node 
  */
 ```
 
-- First identifier: node type name (convention: `npm/pkg/fn` or `local/path/fn`)
-- Second identifier: exported function name
-- String: package name or relative path
+**Syntax**: `@fwImport <nodeTypeName> <functionName> from "<package-or-path>"`
 
-Imported functions become expression nodes. Port types are inferred from `.d.ts` files when available.
+- **Node type name** (first identifier): used in `@node` declarations. Convention: `npm/pkg/fn` for packages, `local/path/fn` for local modules.
+- **Function name** (second identifier): the actual exported function name to import.
+- **Source** (quoted string): npm package name or relative path to a local module.
+
+**Prefix semantics**:
+- `npm/` — resolves to a bare package specifier. The package must be installed in `node_modules`. At compile time, the compiler generates an `import { fn } from "package"` statement in the output.
+- `local/` — resolves to a relative import from the workflow file's directory. Generates `import { fn } from "./path"`.
+
+**Type inference**: port types are inferred from the function's TypeScript signature (from `.d.ts` files for npm packages, or from the source for local modules). If type information isn't available, ports default to `ANY`.
+
+**What happens at compile time**: the compiler parses the `@fwImport` annotation, resolves the function signature, creates a virtual node type with inferred ports, and emits the corresponding import statement in the generated code. The imported function is called as an expression node — no `execute` parameter, no STEP ports.
+
+**Common errors**:
+- Package not installed: `npm install <package>` before compiling.
+- Wrong export name: check the package's exports with your IDE or `npm info <package>`.
+- No type information: install `@types/<package>` for community type definitions.
 
 ## Mandatory Signatures
 
@@ -244,6 +257,33 @@ export function myWorkflow(execute: boolean, params: { inputA: Type }): {...}
 - Return: `{ onSuccess: boolean, onFailure: boolean, ...outputs }`
 
 > **Key difference:** Nodes use direct params, workflows use `params` object.
+
+## Node Registration
+
+Every node used in a workflow must be explicitly declared with `@node`. The compiler builds a static directed graph from annotations at compile time, so it needs to know about every node before code generation begins. This is different from normal function calls where you just invoke a function directly.
+
+Built-in nodes (`delay`, `waitForEvent`, `invokeWorkflow`, `waitForAgent`) are exported from the library but still need explicit declaration in your workflow file. The compiler validates all `@node` references against the set of available node types — functions annotated with `@flowWeaver nodeType` in the same file or imported via `@fwImport`.
+
+To use a built-in node, define or import the function and annotate it:
+
+```typescript
+import { waitForEvent } from '@synergenius/flow-weaver/built-in-nodes';
+
+/**
+ * @flowWeaver nodeType
+ * @input eventName - Event to wait for
+ * @output eventData - Received event payload
+ */
+// (function body provided by the library)
+
+/**
+ * @flowWeaver workflow
+ * @node wait waitForEvent
+ * @connect Start.eventName -> wait.eventName
+ * @connect wait.eventData -> Exit.data
+ */
+export function myWorkflow(execute: boolean, params: { eventName: string }) { ... }
+```
 
 ## Port Types
 

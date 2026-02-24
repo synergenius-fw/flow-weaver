@@ -74,9 +74,11 @@ export class AnnotationGenerator {
     // Generate JSDoc comment block (only when no functionText)
     lines.push("/**");
 
-    // Add description if present
+    // Add description if present (handle multi-line descriptions)
     if (includeComments && nodeType.description) {
-      lines.push(` * ${nodeType.description}`);
+      for (const descLine of nodeType.description.split('\n')) {
+        lines.push(` * ${descLine}`);
+      }
       lines.push(` *`);
     }
 

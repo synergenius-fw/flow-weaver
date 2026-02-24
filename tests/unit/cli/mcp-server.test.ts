@@ -59,7 +59,11 @@ vi.mock('socket.io-client', () => {
 });
 
 // ─── Mock @modelcontextprotocol/sdk ──────────────────────────────────────────
-const mockToolHandlers = new Map<string, (args: unknown) => Promise<unknown>>();
+const mockExtra = {
+  _meta: {},
+  sendNotification: () => Promise.resolve(),
+};
+const mockToolHandlers = new Map<string, (args: unknown, extra?: unknown) => Promise<unknown>>();
 const mockResourceHandlers = new Map<string, () => Promise<unknown>>();
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
@@ -71,10 +75,10 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
       name: string,
       description: string,
       schema: Record<string, unknown>,
-      handler: (args: unknown) => Promise<unknown>
+      handler: (args: unknown, extra?: unknown) => Promise<unknown>
     ): void {
       this.registeredTools.push({ name, description, schema });
-      mockToolHandlers.set(name, handler);
+      mockToolHandlers.set(name, (args: unknown) => handler(args, mockExtra));
     }
 
     resource(

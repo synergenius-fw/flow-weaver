@@ -1,4 +1,4 @@
-import { getMockConfig } from './mock-types.js';
+import { getMockConfig, lookupMock } from './mock-types.js';
 
 /**
  * @flowWeaver nodeType
@@ -17,8 +17,8 @@ export async function invokeWorkflow(
 
   const mocks = getMockConfig();
   if (mocks) {
-    // Mock mode active — look up result by functionId
-    const mockResult = mocks.invocations?.[functionId];
+    // Mock mode — look up result by functionId (supports instance-qualified keys)
+    const mockResult = lookupMock(mocks.invocations, functionId);
     if (mockResult !== undefined) {
       return { onSuccess: true, onFailure: false, result: mockResult };
     }
