@@ -781,7 +781,7 @@ export class AnnotationParser {
       const config = jsdocParser.parseNodeType(fn, warnings);
       if (!config) {
         const jsdocText = fn.getJsDocs().map((d) => d.getFullText()).join('');
-        if (jsdocText.includes('@flowWeaver') && jsdocText.includes('nodeType')) {
+        if (jsdocText.includes('@flowWeaver nodeType')) {
           warnings.push(
             `Function "${fn.getName() || 'anonymous'}" has @flowWeaver annotation but could not be parsed. ` +
             `Check for special characters (---) or malformed JSDoc syntax.`
@@ -1037,7 +1037,7 @@ export class AnnotationParser {
       const config = jsdocParser.parseWorkflow(fn, warnings);
       if (!config) {
         const jsdocText = fn.getJsDocs().map((d) => d.getFullText()).join('');
-        if (jsdocText.includes('@flowWeaver') && jsdocText.includes('workflow')) {
+        if (jsdocText.includes('@flowWeaver workflow')) {
           warnings.push(
             `Function "${fn.getName() || 'anonymous'}" has @flowWeaver annotation but could not be parsed. ` +
             `Check for special characters (---) or malformed JSDoc syntax.`
@@ -1290,7 +1290,7 @@ export class AnnotationParser {
       const config = jsdocParser.parsePattern(fn, warnings);
       if (!config) {
         const jsdocText = fn.getJsDocs().map((d) => d.getFullText()).join('');
-        if (jsdocText.includes('@flowWeaver') && jsdocText.includes('pattern')) {
+        if (jsdocText.includes('@flowWeaver pattern')) {
           warnings.push(
             `Function "${fn.getName() || 'anonymous'}" has @flowWeaver annotation but could not be parsed. ` +
             `Check for special characters (---) or malformed JSDoc syntax.`
