@@ -30,6 +30,9 @@ async function waitForAgent(
   if (mocks?.agents?.[agentId]) {
     return { onSuccess: true, onFailure: false, agentResult: mocks.agents[agentId] };
   }
+  if (mocks?.agents) {
+    return { onSuccess: false, onFailure: true, agentResult: {} };
+  }
 
   const channel = (globalThis as any).__fw_agent_channel__;
   if (channel) {

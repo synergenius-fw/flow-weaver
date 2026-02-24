@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { delay } from '../../src/built-in-nodes/delay';
 import { waitForEvent } from '../../src/built-in-nodes/wait-for-event';
 import { invokeWorkflow } from '../../src/built-in-nodes/invoke-workflow';
+import { waitForAgent } from '../../src/built-in-nodes/wait-for-agent';
 
 afterEach(() => {
   delete (globalThis as unknown as Record<string, unknown>).__fw_mocks__;
@@ -169,6 +170,67 @@ describe('invokeWorkflow with mocks', () => {
       onSuccess: false,
       onFailure: false,
       result: {},
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// waitForAgent
+// ---------------------------------------------------------------------------
+
+describe('waitForAgent with mocks', () => {
+  it('returns mock result when agentId matches', async () => {
+    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+      agents: { 'human-reviewer': { approved: true, note: 'LGTM' } },
+    };
+    const result = await waitForAgent(true, 'human-reviewer', { data: 'test' });
+    expect(result).toEqual({
+      onSuccess: true,
+      onFailure: false,
+      agentResult: { approved: true, note: 'LGTM' },
+    });
+  });
+
+  it('returns onFailure when agentId not found in mocks', async () => {
+    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+      agents: { 'other-agent': { data: 'x' } },
+    };
+    const result = await waitForAgent(true, 'human-reviewer', {});
+    expect(result).toEqual({
+      onSuccess: false,
+      onFailure: true,
+      agentResult: {},
+    });
+  });
+
+  it('returns onFailure when mocks active with empty agents', async () => {
+    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = { agents: {} };
+    const result = await waitForAgent(true, 'human-reviewer', {});
+    expect(result).toEqual({
+      onSuccess: false,
+      onFailure: true,
+      agentResult: {},
+    });
+  });
+
+  it('uses original no-op behavior when no mocks', async () => {
+    const result = await waitForAgent(true, 'human-reviewer', {});
+    expect(result).toEqual({
+      onSuccess: true,
+      onFailure: false,
+      agentResult: {},
+    });
+  });
+
+  it('returns inactive when execute=false', async () => {
+    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+      agents: { 'human-reviewer': { approved: true } },
+    };
+    const result = await waitForAgent(false, 'human-reviewer', {});
+    expect(result).toEqual({
+      onSuccess: false,
+      onFailure: false,
+      agentResult: {},
     });
   });
 });
