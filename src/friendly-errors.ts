@@ -602,6 +602,108 @@ const errorMappers: Record<string, ErrorMapper> = {
       code: error.code,
     };
   },
+
+  // ── Annotation validation rules ──────────────────────────────────────
+
+  DUPLICATE_INSTANCE_ID(error) {
+    const quoted = extractQuoted(error.message);
+    const instanceId = quoted[0] || error.node || 'unknown';
+    return {
+      title: 'Duplicate Instance ID',
+      explanation: `Two @node declarations use the same ID '${instanceId}'. Each node instance needs a unique ID within its workflow.`,
+      fix: `Rename one of the '${instanceId}' instances to give it a unique ID.`,
+      code: error.code,
+    };
+  },
+
+  DUPLICATE_CONNECTION(error) {
+    return {
+      title: 'Duplicate Connection',
+      explanation: `The same connection is declared twice. ${error.message}`,
+      fix: `Remove the duplicate @connect annotation.`,
+      code: error.code,
+    };
+  },
+
+  INVALID_COLOR(error) {
+    const quoted = extractQuoted(error.message);
+    const color = quoted[1] || quoted[0] || 'unknown';
+    return {
+      title: 'Invalid Color',
+      explanation: `Color '${color}' is not a recognized node color. Check the spelling or use a valid color name.`,
+      fix: `Use one of the valid colors: blue, purple, cyan, orange, pink, green, red, yellow, teal.`,
+      code: error.code,
+    };
+  },
+
+  INVALID_ICON(error) {
+    const quoted = extractQuoted(error.message);
+    const icon = quoted[1] || quoted[0] || 'unknown';
+    return {
+      title: 'Invalid Icon',
+      explanation: `Icon '${icon}' is not a recognized node icon. Check the spelling.`,
+      fix: `Use a valid icon name from the icon set (e.g., database, code, flow, psychology, send).`,
+      code: error.code,
+    };
+  },
+
+  INVALID_PORT_TYPE(error) {
+    const quoted = extractQuoted(error.message);
+    const portName = quoted[0] || 'unknown';
+    const typeName = quoted[2] || quoted[1] || 'unknown';
+    return {
+      title: 'Invalid Port Type',
+      explanation: `Port '${portName}' has an unrecognized type '${typeName}'.`,
+      fix: `Use a valid port type: STRING, NUMBER, BOOLEAN, ARRAY, OBJECT, FUNCTION, ANY, or STEP.`,
+      code: error.code,
+    };
+  },
+
+  INVALID_PORT_CONFIG_REF(error) {
+    const quoted = extractQuoted(error.message);
+    const instanceId = quoted[0] || error.node || 'unknown';
+    const portName = quoted[1] || 'unknown';
+    return {
+      title: 'Invalid Port Config Reference',
+      explanation: `Instance '${instanceId}' references port '${portName}' in a portOrder or portLabel annotation, but this port doesn't exist on the node type.`,
+      fix: `Check the port name spelling, or remove the port configuration if the port was renamed or removed.`,
+      code: error.code,
+    };
+  },
+
+  INVALID_EXECUTE_WHEN(error) {
+    const quoted = extractQuoted(error.message);
+    const value = quoted[1] || quoted[0] || 'unknown';
+    return {
+      title: 'Invalid Execution Strategy',
+      explanation: `@executeWhen value '${value}' is not recognized.`,
+      fix: `Use one of: CONJUNCTION (all inputs), DISJUNCTION (any input), or CUSTOM (custom logic).`,
+      code: error.code,
+    };
+  },
+
+  SCOPE_EMPTY(error) {
+    const quoted = extractQuoted(error.message);
+    const scopeName = quoted[0] || 'unknown';
+    const nodeName = quoted[1] || error.node || 'unknown';
+    return {
+      title: 'Empty Scope',
+      explanation: `Scope '${scopeName}' on node '${nodeName}' has no child nodes declared inside it. The scope won't iterate over anything.`,
+      fix: `Add child nodes to the scope with @scope ${scopeName} [childId1, childId2], or remove the scope if it's not needed.`,
+      code: error.code,
+    };
+  },
+
+  SCOPE_INCONSISTENT(error) {
+    const quoted = extractQuoted(error.message);
+    const instanceId = quoted[0] || error.node || 'unknown';
+    return {
+      title: 'Scope Conflict',
+      explanation: `Instance '${instanceId}' is assigned to multiple scopes. A node can only belong to one scope at a time.`,
+      fix: `Remove '${instanceId}' from one of the conflicting @scope declarations.`,
+      code: error.code,
+    };
+  },
 };
 
 // ── Public API ─────────────────────────────────────────────────────────

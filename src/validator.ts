@@ -11,10 +11,14 @@ import {
   isExitNode,
   isExecutePort,
   isReservedNodeName,
+  VALID_NODE_COLORS,
+  EXECUTION_STRATEGIES,
 } from './constants';
 import { findClosestMatches } from './utils/string-distance.js';
 import { parseFunctionSignature } from './jsdoc-port-sync/signature-parser.js';
 import { checkTypeCompatibilityFromStrings } from './type-checker.js';
+import { isValidPortType } from './type-mappings.js';
+import { VALID_NODE_ICONS } from './diagram/theme.js';
 
 // Re-export TValidationError for convenience
 export type { TValidationError } from './ast/types';
@@ -176,11 +180,13 @@ export class WorkflowValidator {
     // Structural validation
     this.validateStructure(workflow);
     this.validateDuplicateNodeNames(workflow);
+    this.validateDuplicateInstanceIds(workflow);
     this.validateMutableBindings(workflow);
 
     // Connection and node validation
     this.validateReservedNames(workflow, nodeTypeMap);
     this.validateConnections(workflow, instanceMap);
+    this.validateDuplicateConnections(workflow);
     this.validateNodeReferences(workflow, instanceMap);
     this.validateTypeCompatibility(workflow, instanceMap);
     this.validateRequiredInputs(workflow, instanceMap);
@@ -190,6 +196,10 @@ export class WorkflowValidator {
     this.validateCycles(workflow);
     this.validateMultipleInputConnections(workflow, instanceMap);
     this.validateAnnotationSignatureConsistency(workflow);
+    this.validateVisualAnnotations(workflow, instanceMap);
+    this.validatePortTypes(workflow);
+    this.validatePortConfigReferences(workflow, instanceMap);
+    this.validateExecuteWhen(workflow);
     this.validateScopeTopology(workflow, instanceMap);
 
     // Deduplicate cascading errors: if a node has UNKNOWN_NODE_TYPE,
@@ -1194,6 +1204,26 @@ export class WorkflowValidator {
     workflow: TWorkflowAST,
     instanceMap: Map<string, TNodeTypeAST>
   ): void {
+    // P: Scope consistency - check if any instance appears in multiple scope arrays
+    if (workflow.scopes) {
+      const instanceToScope = new Map<string, string>();
+      for (const [scopeKey, childIds] of Object.entries(workflow.scopes)) {
+        for (const childId of childIds) {
+          const existing = instanceToScope.get(childId);
+          if (existing && existing !== scopeKey) {
+            this.errors.push({
+              type: 'error',
+              code: 'SCOPE_INCONSISTENT',
+              message: `Instance "${childId}" appears in multiple scopes: "${existing}" and "${scopeKey}". A node can only belong to one scope.`,
+              node: childId,
+              location: this.getInstanceLocation(workflow, childId),
+            });
+          }
+          instanceToScope.set(childId, scopeKey);
+        }
+      }
+    }
+
     // Find all instances that have scoped ports
     for (const instance of workflow.instances) {
       const nodeType = instanceMap.get(instance.id);
@@ -1249,7 +1279,17 @@ export class WorkflowValidator {
           }
         }
 
-        if (childIds.length === 0) continue;
+        // O: Empty scope warning
+        if (childIds.length === 0) {
+          this.warnings.push({
+            type: 'warning',
+            code: 'SCOPE_EMPTY',
+            message: `Scope "${scopeName}" on node "${instance.id}" has no child nodes.`,
+            node: instance.id,
+            location: this.getInstanceLocation(workflow, instance.id),
+          });
+          continue;
+        }
 
         // Collect scoped connections (connections with scope tags)
         const scopedConnections = workflow.connections.filter(
@@ -1456,6 +1496,189 @@ export class WorkflowValidator {
             });
           }
         }
+      }
+    }
+  }
+
+  // ── H: Duplicate instance IDs ──────────────────────────────────────────
+
+  private validateDuplicateInstanceIds(workflow: TWorkflowAST): void {
+    const seen = new Set<string>();
+    for (const instance of workflow.instances) {
+      if (seen.has(instance.id)) {
+        this.errors.push({
+          type: 'error',
+          code: 'DUPLICATE_INSTANCE_ID',
+          message: `Duplicate instance ID "${instance.id}" in workflow. Each @node must have a unique ID.`,
+          node: instance.id,
+          location: instance.sourceLocation,
+        });
+      }
+      seen.add(instance.id);
+    }
+  }
+
+  // ── I: Duplicate connections ──────────────────────────────────────────
+
+  private validateDuplicateConnections(workflow: TWorkflowAST): void {
+    const seen = new Set<string>();
+    for (const conn of workflow.connections) {
+      const key = `${conn.from.node}.${conn.from.port}->${conn.to.node}.${conn.to.port}`;
+      if (seen.has(key)) {
+        this.errors.push({
+          type: 'error',
+          code: 'DUPLICATE_CONNECTION',
+          message: `Duplicate connection: ${key}`,
+          connection: conn,
+          location: this.getConnectionLocation(conn),
+        });
+      }
+      seen.add(key);
+    }
+  }
+
+  // ── J+K: Visual annotation validation ────────────────────────────────
+
+  private validateVisualAnnotations(
+    workflow: TWorkflowAST,
+    instanceMap: Map<string, TNodeTypeAST>
+  ): void {
+    const validColors = VALID_NODE_COLORS as readonly string[];
+    const validIcons = VALID_NODE_ICONS as readonly string[];
+
+    // Check node type colors and icons (stored in visuals)
+    for (const nodeType of workflow.nodeTypes) {
+      const color = nodeType.visuals?.color;
+      const icon = nodeType.visuals?.icon;
+      if (color && !validColors.includes(color)) {
+        const suggestions = findClosestMatches(color, [...validColors]);
+        const hint = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
+        this.warnings.push({
+          type: 'warning',
+          code: 'INVALID_COLOR',
+          message: `Node type "${nodeType.functionName}" has invalid color "${color}".${hint} Valid colors: ${validColors.join(', ')}.`,
+          node: nodeType.functionName,
+          location: nodeType.sourceLocation,
+        });
+      }
+      if (icon && !validIcons.includes(icon)) {
+        const suggestions = findClosestMatches(icon, [...validIcons]);
+        const hint = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
+        this.warnings.push({
+          type: 'warning',
+          code: 'INVALID_ICON',
+          message: `Node type "${nodeType.functionName}" has invalid icon "${icon}".${hint}`,
+          node: nodeType.functionName,
+          location: nodeType.sourceLocation,
+        });
+      }
+    }
+
+    // Check instance-level color and icon overrides
+    for (const instance of workflow.instances) {
+      if (instance.config?.color && !validColors.includes(instance.config.color)) {
+        const suggestions = findClosestMatches(instance.config.color, [...validColors]);
+        const hint = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
+        this.warnings.push({
+          type: 'warning',
+          code: 'INVALID_COLOR',
+          message: `Instance "${instance.id}" has invalid color "${instance.config.color}".${hint} Valid colors: ${validColors.join(', ')}.`,
+          node: instance.id,
+          location: instance.sourceLocation,
+        });
+      }
+      if (instance.config?.icon && !validIcons.includes(instance.config.icon)) {
+        const suggestions = findClosestMatches(instance.config.icon, [...validIcons]);
+        const hint = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
+        this.warnings.push({
+          type: 'warning',
+          code: 'INVALID_ICON',
+          message: `Instance "${instance.id}" has invalid icon "${instance.config.icon}".${hint}`,
+          node: instance.id,
+          location: instance.sourceLocation,
+        });
+      }
+    }
+  }
+
+  // ── L: Port type validation ──────────────────────────────────────────
+
+  private validatePortTypes(workflow: TWorkflowAST): void {
+    for (const nodeType of workflow.nodeTypes) {
+      for (const [portName, portDef] of Object.entries(nodeType.inputs)) {
+        if (!isValidPortType(portDef.dataType)) {
+          this.warnings.push({
+            type: 'warning',
+            code: 'INVALID_PORT_TYPE',
+            message: `Port "${portName}" on node type "${nodeType.functionName}" has invalid type "${portDef.dataType}".`,
+            node: nodeType.functionName,
+            location: nodeType.sourceLocation,
+          });
+        }
+      }
+      for (const [portName, portDef] of Object.entries(nodeType.outputs)) {
+        if (!isValidPortType(portDef.dataType)) {
+          this.warnings.push({
+            type: 'warning',
+            code: 'INVALID_PORT_TYPE',
+            message: `Port "${portName}" on node type "${nodeType.functionName}" has invalid type "${portDef.dataType}".`,
+            node: nodeType.functionName,
+            location: nodeType.sourceLocation,
+          });
+        }
+      }
+    }
+  }
+
+  // ── M: portOrder/portLabel reference validation ──────────────────────
+
+  private validatePortConfigReferences(
+    workflow: TWorkflowAST,
+    instanceMap: Map<string, TNodeTypeAST>
+  ): void {
+    for (const instance of workflow.instances) {
+      const portConfigs = instance.config?.portConfigs;
+      if (!portConfigs) continue;
+
+      const nodeType = instanceMap.get(instance.id);
+      if (!nodeType) continue;
+
+      const allPorts = new Set([
+        ...Object.keys(nodeType.inputs),
+        ...Object.keys(nodeType.outputs),
+      ]);
+
+      for (const pc of portConfigs) {
+        if (!allPorts.has(pc.portName)) {
+          const suggestions = findClosestMatches(pc.portName, [...allPorts]);
+          const hint = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
+          this.warnings.push({
+            type: 'warning',
+            code: 'INVALID_PORT_CONFIG_REF',
+            message: `Instance "${instance.id}" references port "${pc.portName}" in portConfig, but this port does not exist on node type "${instance.nodeType}".${hint}`,
+            node: instance.id,
+            location: instance.sourceLocation,
+          });
+        }
+      }
+    }
+  }
+
+  // ── N: @executeWhen value validation ─────────────────────────────────
+
+  private validateExecuteWhen(workflow: TWorkflowAST): void {
+    const validStrategies = Object.values(EXECUTION_STRATEGIES) as string[];
+    for (const nodeType of workflow.nodeTypes) {
+      if (nodeType.executeWhen && !validStrategies.includes(nodeType.executeWhen)) {
+        const suggestions = findClosestMatches(nodeType.executeWhen, validStrategies);
+        const hint = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
+        this.warnings.push({
+          type: 'warning',
+          code: 'INVALID_EXECUTE_WHEN',
+          message: `Node type "${nodeType.functionName}" has invalid @executeWhen value "${nodeType.executeWhen}".${hint} Valid values: ${validStrategies.join(', ')}.`,
+          node: nodeType.functionName,
+          location: nodeType.sourceLocation,
+        });
       }
     }
   }

@@ -41,6 +41,9 @@ export const NODE_VARIANT_COLORS: Record<string, { border: string; darkBorder: s
   orange: { border: '#e3732d', darkBorder: '#ff8133' },   // orange-shade-2 / orange-dark-shade-1
   pink:   { border: '#e349c2', darkBorder: '#ff52da' },   // pink-shade-2 / pink-dark-shade-1
   green:  { border: '#0ec850', darkBorder: '#10e15a' },   // green-shade-2 / green-dark-shade-1
+  red:    { border: '#e34646', darkBorder: '#ff4f4f' },   // red-shade-2 / red-dark-shade-1
+  yellow: { border: '#e3a82b', darkBorder: '#ffbd30' },   // yellow-shade-2 / yellow-dark-shade-1
+  teal:   { border: '#3db0a8', darkBorder: '#4dc7be' },   // teal-shade-2 / teal-dark-shade-1
 };
 
 // ---- Theme palettes (exact values from token system) ----
@@ -203,6 +206,9 @@ export const NODE_ICON_PATHS: Record<string, string> = {
   description: 'M319-249.52h322v-62.63H319v62.63Zm0-170h322v-62.63H319v62.63Zm-96.85 345.5q-27.6 0-47.86-20.27-20.27-20.26-20.27-47.86v-675.7q0-27.7 20.27-48.03 20.26-20.34 47.86-20.34h361.48l222.59 222.59v521.48q0 27.6-20.34 47.86-20.33 20.27-48.03 20.27h-515.7Zm326.7-557.83v-186h-326.7v675.7h515.7v-489.7h-189Zm-326.7-186v186-186 675.7-675.7Z',
   attachFile: 'M737.33-324.39q0 105.46-74.69 177.91-74.69 72.46-180.26 72.46-105.58 0-180.35-72.46-74.77-72.45-74.77-177.85v-383.82q0-74.63 53.41-126.35 53.42-51.72 127.75-51.72 74.34 0 127.69 51.72 53.35 51.72 53.35 126.35v363.82q0 43.66-31.56 74.62-31.55 30.97-75.81 30.97-44.26 0-75.61-30.64t-31.35-74.95v-370h66.46v370q0 16.05 11.97 27.59t29.2 11.54q17.24 0 28.74-11.5 11.5-11.51 11.5-27.63v-363.58q.24-47.35-33.38-79.6-33.62-32.25-81.35-32.25-47.74 0-81.14 32.19-33.41 32.19-33.41 79.42v383.82q.24 77.83 55.57 130.96 55.33 53.13 133.62 53.13 77.86 0 133.03-53.16 55.17-53.17 54.93-130.93v-396.93h66.46v396.87Z',
 };
+
+/** All valid icon names (keys of NODE_ICON_PATHS) */
+export const VALID_NODE_ICONS = Object.keys(NODE_ICON_PATHS) as ReadonlyArray<string>;
 
 // ---- Helpers ----
 

@@ -127,6 +127,14 @@ const ANNOTATION_VALUES: Record<string, FlowWeaverCompletion[]> = {
       kind: 'value',
       sortOrder: 7,
     },
+    {
+      label: 'cyan',
+      detail: 'Cyan node color',
+      insertText: 'cyan',
+      insertTextFormat: 'plain',
+      kind: 'value',
+      sortOrder: 8,
+    },
   ],
 };
 
