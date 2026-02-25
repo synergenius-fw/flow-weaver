@@ -19,15 +19,16 @@ Permitted:
   Create derivative works                   Anyone            Must retain license key checks
   Host internally                           Orgs <= 15        All members count toward limit
   Embed in internal toolchains              Anyone            No visual workflow authoring UI
+  Use inside a larger product                Anyone            If flow-weaver is not the primary value
 
 Requires commercial license:
 
   Use                                       Notes
   ----------------------------------------  ----------------------------------
   Host internally                           Orgs > 15 people
-  Build visual workflow authoring tools     Any graphical create/edit/design UI
+  Build visual workflow authoring tools     Standalone products for workflow authoring
   Offer as a hosted or managed service      To third parties, at any scale
-  Sell products built on the software       Where value derives from the software
+  Sell products built on the software       Where flow-weaver is the primary value
 
 Never permitted:
 
@@ -56,14 +57,20 @@ You may not provide the software to third parties as a hosted or managed
 service, where the service provides users with access to any of the features or
 functionality of the software.
 
-You may not use the software to build, distribute, or offer any product, tool,
-or service that provides a graphical or visual interface for creating, editing,
-designing, or composing workflows. This restriction applies whether the product
-is hosted, distributed, sold, or offered free of charge.
+You may not use the software to build, distribute, or offer any standalone
+product or service whose primary purpose is providing a graphical or visual
+interface for creating, editing, designing, or composing workflows. This
+restriction applies whether the product is hosted, distributed, sold, or offered
+free of charge. It does not apply to products that use the software internally
+without exposing its workflow authoring capabilities to end users through a
+graphical interface.
 
-You may not sell the software or any product whose value is substantially derived
-from the functionality of the software, without a separate commercial license
-from the licensor.
+You may not sell the software or any product that provides, as its primary
+function, capabilities supplied by the software (including workflow compilation,
+parsing, validation, code generation, or diagram generation), without a separate
+commercial license from the licensor. This does not restrict the sale of products
+that merely incorporate the software as one component among many, where the
+product's primary value comes from functionality independent of the software.
 
 You may not move, change, disable, or circumvent the license key functionality
 in the software, and you may not remove or obscure any functionality in the
