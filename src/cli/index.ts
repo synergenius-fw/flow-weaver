@@ -35,6 +35,8 @@ import { pluginInitCommand } from './commands/plugin.js';
 import { migrateCommand } from './commands/migrate.js';
 import { changelogCommand } from './commands/changelog.js';
 import { docsListCommand, docsReadCommand, docsSearchCommand } from './commands/docs.js';
+import { statusCommand } from './commands/status.js';
+import { implementCommand } from './commands/implement.js';
 import {
   marketInitCommand,
   marketPackCommand,
@@ -589,6 +591,36 @@ program
   .action(async (glob: string, options) => {
     try {
       await migrateCommand(glob, options);
+    } catch (error) {
+      logger.error(`Command failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
+// Status command
+program
+  .command('status <input>')
+  .description('Report implementation progress for stub workflows')
+  .option('-w, --workflow-name <name>', 'Specific workflow name')
+  .option('--json', 'Output as JSON', false)
+  .action(async (input: string, options) => {
+    try {
+      await statusCommand(input, options);
+    } catch (error) {
+      logger.error(`Command failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
+// Implement command
+program
+  .command('implement <input> <node>')
+  .description('Replace a stub node with a real function skeleton')
+  .option('-w, --workflow-name <name>', 'Specific workflow name')
+  .option('-p, --preview', 'Preview the generated code without writing', false)
+  .action(async (input: string, node: string, options) => {
+    try {
+      await implementCommand(input, node, options);
     } catch (error) {
       logger.error(`Command failed: ${getErrorMessage(error)}`);
       process.exit(1);

@@ -41,6 +41,10 @@ export class AnnotationGenerator {
       if (nodeType.variant === 'COERCION') {
         return;
       }
+      // Skip inferred stubs — they have no @flowWeaver annotation and were auto-detected
+      if (nodeType.variant === 'STUB' && nodeType.inferred) {
+        return;
+      }
       lines.push(
         ...this.generateNodeTypeAnnotation(
           nodeType,
@@ -82,8 +86,13 @@ export class AnnotationGenerator {
       lines.push(` *`);
     }
 
-    // @flowWeaver nodeType marker
-    lines.push(" * @flowWeaver nodeType");
+    // @flowWeaver marker: use 'node' shorthand for stubs and expression nodes
+    const isStub = nodeType.variant === 'STUB';
+    if (isStub || nodeType.expression) {
+      lines.push(" * @flowWeaver node");
+    } else {
+      lines.push(" * @flowWeaver nodeType");
+    }
 
     // Add label if present
     if (includeMetadata && nodeType.label) {
@@ -166,29 +175,7 @@ export class AnnotationGenerator {
     return `{ ${props.join(", ")} }`;
   }
   private generateFunctionSignature(nodeType: TNodeTypeAST): string[] {
-    const lines: string[] = [];
-
-    // Build parameters (excluding execute which will be first)
-    const params: string[] = ["execute: boolean"];
-    Object.entries(nodeType.inputs).forEach(([name, port]) => {
-      if (isExecutePort(name)) return;
-      const optional = port.optional ? "?" : "";
-      const defaultVal = port.default !== undefined ? ` = ${JSON.stringify(port.default)}` : "";
-      params.push(`${name}${optional}: ${this.mapDataTypeToTS(port.dataType)}${defaultVal}`);
-    });
-
-    // Build return type (including onSuccess/onFailure)
-    const returns: string[] = ["onSuccess: boolean", "onFailure: boolean"];
-    Object.entries(nodeType.outputs).forEach(([name, port]) => {
-      if (isSuccessPort(name) || isFailurePort(name)) return;
-      returns.push(`${name}: ${this.mapDataTypeToTS(port.dataType)}`);
-    });
-
-    lines.push(`function ${nodeType.functionName}(${params.join(", ")}) {`);
-    lines.push(`  if (!execute) return { onSuccess: false, onFailure: false };`);
-    lines.push(`  return { onSuccess: true, onFailure: false };`);
-    lines.push(`}`);
-    return lines;
+    return generateFunctionSignature(nodeType);
   }
   private generateWorkflowAnnotation(
     workflow: TWorkflowAST,
@@ -402,6 +389,13 @@ export class AnnotationGenerator {
   }
   private generateWorkflowFunctionSignature(workflow: TWorkflowAST): string[] {
     const lines: string[] = [];
+
+    // Stub workflows use const declaration format
+    if (workflow.stub) {
+      lines.push(`export const ${workflow.functionName} = 'flowWeaver:draft';`);
+      return lines;
+    }
+
     const startPorts = workflow.startPorts || {};
     const exitPorts = workflow.exitPorts || {};
 
@@ -724,6 +718,64 @@ export function generateNodeInstanceTag(instance: TNodeInstanceAST): string {
   }
 
   return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${sizeAttr}${positionAttr}`;
+}
+
+/**
+ * Generate a TypeScript function signature from a node type definition.
+ * Handles three modes: stub (declare function), expression (pure function), normal (execute/onSuccess/onFailure).
+ */
+export function generateFunctionSignature(nodeType: TNodeTypeAST): string[] {
+  const lines: string[] = [];
+  const isStub = nodeType.variant === 'STUB';
+  const isExpression = isStub || nodeType.expression;
+
+  if (isExpression) {
+    const params: string[] = [];
+    Object.entries(nodeType.inputs).forEach(([name, port]) => {
+      if (isExecutePort(name)) return;
+      const optional = port.optional ? "?" : "";
+      params.push(`${name}${optional}: ${mapToTypeScript(port.dataType as TDataType)}`);
+    });
+
+    const returns: string[] = [];
+    Object.entries(nodeType.outputs).forEach(([name, port]) => {
+      if (isSuccessPort(name) || isFailurePort(name)) return;
+      returns.push(`${name}: ${mapToTypeScript(port.dataType as TDataType)}`);
+    });
+
+    const returnType = returns.length === 1
+      ? mapToTypeScript((Object.entries(nodeType.outputs).find(([n]) => !isSuccessPort(n) && !isFailurePort(n))?.[1].dataType || 'ANY') as TDataType)
+      : `{ ${returns.join("; ")} }`;
+
+    if (isStub) {
+      lines.push(`declare function ${nodeType.functionName}(${params.join(", ")}): ${returnType};`);
+    } else {
+      lines.push(`function ${nodeType.functionName}(${params.join(", ")}): ${returnType} {`);
+      lines.push(`  // TODO: implement`);
+      lines.push(`  throw new Error('Not implemented');`);
+      lines.push(`}`);
+    }
+  } else {
+    const params: string[] = ["execute: boolean"];
+    Object.entries(nodeType.inputs).forEach(([name, port]) => {
+      if (isExecutePort(name)) return;
+      const optional = port.optional ? "?" : "";
+      const defaultVal = port.default !== undefined ? ` = ${JSON.stringify(port.default)}` : "";
+      params.push(`${name}${optional}: ${mapToTypeScript(port.dataType as TDataType)}${defaultVal}`);
+    });
+
+    const returns: string[] = ["onSuccess: boolean", "onFailure: boolean"];
+    Object.entries(nodeType.outputs).forEach(([name, port]) => {
+      if (isSuccessPort(name) || isFailurePort(name)) return;
+      returns.push(`${name}: ${mapToTypeScript(port.dataType as TDataType)}`);
+    });
+
+    lines.push(`function ${nodeType.functionName}(${params.join(", ")}) {`);
+    lines.push(`  if (!execute) return { onSuccess: false, onFailure: false };`);
+    lines.push(`  return { onSuccess: true, onFailure: false };`);
+    lines.push(`}`);
+  }
+  return lines;
 }
 
 export const annotationGenerator = new AnnotationGenerator();

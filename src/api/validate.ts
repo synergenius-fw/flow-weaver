@@ -22,18 +22,18 @@ export interface ValidationResult {
  * Agent rules are always applied automatically.
  *
  * @param ast - The workflow AST to validate
- * @param customRules - Optional array of additional custom validation rules
+ * @param options - Validation options: custom rules and/or draft mode
  * @returns ValidationResult with errors and warnings
  */
 export function validateWorkflow(
   ast: TWorkflowAST,
-  customRules?: TValidationRule[],
+  options?: { customRules?: TValidationRule[]; mode?: 'strict' | 'draft' },
 ): ValidationResult {
   // Use the consolidated validator
-  const result = validator.validate(ast);
+  const result = validator.validate(ast, { mode: options?.mode });
 
   // Apply agent-specific rules + any custom rules
-  const allRules = [...getAgentValidationRules(), ...(customRules || [])];
+  const allRules = [...getAgentValidationRules(), ...(options?.customRules || [])];
   for (const rule of allRules) {
     const ruleResults = rule.validate(ast);
     for (const err of ruleResults) {

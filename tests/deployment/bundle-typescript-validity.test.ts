@@ -16,7 +16,16 @@ import { execSync } from 'child_process';
 import { parseWorkflow } from '../../src/api/parse';
 import { generateCode } from '../../src/api/generate';
 
-const TSC_PATH = path.resolve(__dirname, '../../node_modules/.bin/tsc');
+// Resolve tsc via Node module resolution — works in worktrees where
+// node_modules may live in a parent directory rather than __dirname/../../
+const TSC_PATH = (() => {
+  try {
+    const tsPath = require.resolve('typescript/bin/tsc');
+    return tsPath;
+  } catch {
+    return path.resolve(__dirname, '../../node_modules/.bin/tsc');
+  }
+})();
 
 const tempDir = path.join(os.tmpdir(), `fw-code-validity-${process.pid}`);
 

@@ -54,6 +54,11 @@ export interface GenerateOptions extends Partial<ASTGenerateOptions> {
    * @example { 'add': '../node-types/add.js', 'greet': '../node-types/greet.js' }
    */
   externalNodeTypes?: Record<string, string>;
+  /**
+   * Allow generation even when stub nodes exist. Stub nodes will emit
+   * a throw statement at runtime. Default: false (refuse to generate with stubs).
+   */
+  generateStubs?: boolean;
 }
 
 // ============================================================================
@@ -135,7 +140,18 @@ export function generateCode(
     externalRuntimePath,
     constants = [],
     externalNodeTypes = {},
+    generateStubs = false,
   } = options || {};
+
+  // Check for stub nodes — refuse to generate unless explicitly allowed
+  const stubNodeTypes = ast.nodeTypes.filter((nt) => nt.variant === 'STUB');
+  if (stubNodeTypes.length > 0 && !generateStubs) {
+    const stubNames = stubNodeTypes.map((nt) => nt.functionName).join(', ');
+    throw new Error(
+      `Cannot generate code: workflow has ${stubNodeTypes.length} stub node(s) without implementation: ${stubNames}. ` +
+      `Implement them or pass { generateStubs: true } to emit placeholder throws.`
+    );
+  }
 
   // Determine if workflow should be async based on node composition
   const { shouldBeAsync, warning } = validateWorkflowAsync(ast, ast.nodeTypes);
@@ -518,7 +534,7 @@ export function generateCode(
   if (sourceMapGenerator && ast.sourceFile) {
     try {
       const sourceContent = fs.readFileSync(ast.sourceFile, 'utf-8');
-      const sourceLines = sourceContent.split('\n');
+      const sourceLines = sourceContent.split(/\r?\n/);
       const exportLineIndex = sourceLines.findIndex(
         (line: string) => line.includes(`export`) && line.includes(`function ${ast.functionName}`)
       );

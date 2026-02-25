@@ -98,6 +98,8 @@ export type TWorkflowAST = {
   availableFunctionNames?: string[];
   /** Sugar macros (@map, @filter) that expand to full scope patterns. Stored for round-trip preservation. */
   macros?: TWorkflowMacro[];
+  /** Whether this workflow was defined as a stub (const declaration, no function body). */
+  stub?: boolean;
   /** Reserved for plugin extensibility */
   metadata?: TWorkflowMetadata;
 };
@@ -220,7 +222,7 @@ export type TNodeTypeAST = {
   /** Multiple scopes this node creates */
   scopes?: string[];
   /** Variant identifier (set by app layer) */
-  variant?: 'FUNCTION' | 'WORKFLOW' | 'IMPORTED_WORKFLOW' | 'MAP_ITERATOR' | 'COERCION';
+  variant?: 'FUNCTION' | 'WORKFLOW' | 'IMPORTED_WORKFLOW' | 'MAP_ITERATOR' | 'COERCION' | 'STUB';
   /** File path for external node types */
   path?: string;
   /** Function reference for function-based node types */

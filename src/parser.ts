@@ -822,6 +822,13 @@ export class AnnotationParser {
         }
       }
 
+      // Ambient declarations (declare function) are stub nodes — interface only, no implementation.
+      // Force expression mode so ports are inferred from the TypeScript signature.
+      const isStub = fn.isAmbient?.() ?? false;
+      if (isStub) {
+        config.expression = true;
+      }
+
       // Auto-infer ports for @expression nodes when @input/@output are missing.
       // If the function has @expression but no explicit port annotations, infer
       // data ports from the TypeScript function signature (same logic as unannotated functions).
@@ -880,11 +887,10 @@ export class AnnotationParser {
       assignImplicitPortOrders(inputs);
       assignImplicitPortOrders(outputs);
 
-      // Get function text (JSDoc comment + function)
-      // getText() returns just the function, so we need to prepend the JSDoc
+      // Get function text (JSDoc comment + function). Stubs have no body to capture.
       const jsDocs = fn.getJsDocs();
       const jsDocText = jsDocs.map((doc: JSDoc) => doc.getText()).join('\n');
-      const functionText = jsDocText ? `${jsDocText}\n${fn.getText()}` : fn.getText();
+      const functionText = isStub ? undefined : (jsDocText ? `${jsDocText}\n${fn.getText()}` : fn.getText());
 
       // Detect async keyword on function declaration
       const isAsync = fn.isAsync();
@@ -922,7 +928,7 @@ export class AnnotationParser {
         type: 'NodeType',
         name: nodeTypeName,
         functionName,
-        variant: 'FUNCTION',
+        variant: isStub ? 'STUB' : 'FUNCTION',
         inputs,
         outputs,
         hasSuccessPort: RESERVED_PORT_NAMES.ON_SUCCESS in outputs,
@@ -2531,7 +2537,7 @@ export class AnnotationParser {
         if (missingLines.length === 0) return null;
 
         // Find the insertion point: just before the closing */
-        const lines = content.split('\n');
+        const lines = content.split(/\r?\n/);
         let jsDocEndLine = -1;
         for (let i = fnStartLine - 1; i >= 0; i--) {
           if (lines[i].includes('*/')) {
@@ -2551,7 +2557,7 @@ export class AnnotationParser {
       }
 
       // No @flowWeaver JSDoc — check if user just typed "/**" on the cursor line
-      const lines = content.split('\n');
+      const lines = content.split(/\r?\n/);
       const cursorLineText = lines[cursorLine] || '';
       if (/^\s*\/\*\*\s*$/.test(cursorLineText)) {
         // User typed "/**" — generate only the continuation lines after it
