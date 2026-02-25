@@ -1,4 +1,4 @@
-import { fileToHTML } from '../src/diagram/index.js';
+import { fileToHTML, fileToSVG } from '../src/diagram/index.js';
 import { writeFileSync } from 'fs';
 
 const file = process.argv[2];
@@ -9,6 +9,11 @@ if (!file) {
   process.exit(1);
 }
 
-const html = fileToHTML(file);
-writeFileSync(out, html);
+if (out.endsWith('.svg')) {
+  const svg = fileToSVG(file);
+  writeFileSync(out, svg);
+} else {
+  const html = fileToHTML(file);
+  writeFileSync(out, html);
+}
 console.log(`Written to ${out}`);

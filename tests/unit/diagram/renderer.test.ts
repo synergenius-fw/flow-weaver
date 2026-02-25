@@ -118,9 +118,14 @@ describe('renderSVG', () => {
     expect(svg).toContain('width="800"');
   });
 
-  it('does not include watermark or drop shadow', () => {
+  it('includes subtle Flow Weaver watermark', () => {
     const svg = renderSVG(simpleGraph());
-    expect(svg).not.toContain('class="watermark"');
+    expect(svg).toContain('Flow Weaver</text>');
+    expect(svg).toContain('opacity="0.25"');
+  });
+
+  it('does not include drop shadow filter', () => {
+    const svg = renderSVG(simpleGraph());
     expect(svg).not.toContain('filter id="shadow"');
   });
 });

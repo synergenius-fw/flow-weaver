@@ -104,6 +104,15 @@ export function renderSVG(graph: DiagramGraph, options: DiagramOptions = {}): st
   }
   parts.push(`</g>`);
 
+  // Watermark (logo + text)
+  const wmX = vbX + vbWidth - 16;
+  const wmY = vbY + vbHeight - 14;
+  const wmBrand = themeName === 'dark' ? '#8e9eff' : '#5468ff';
+  parts.push(`<g opacity="0.5">`);
+  parts.push(`  <svg x="${wmX - 118}" y="${wmY - 18}" width="22" height="22" viewBox="0 0 256 256" fill="none"><path d="M80 128C134 128 122 49 176 49" stroke="${wmBrand}" stroke-width="14" stroke-linecap="round"/><path d="M80 128C134 128 122 207 176 207" stroke="${wmBrand}" stroke-width="14" stroke-linecap="round"/><rect x="28" y="102" width="52" height="52" rx="10" stroke="${wmBrand}" stroke-width="14"/><rect x="176" y="23" width="52" height="52" rx="10" stroke="${wmBrand}" stroke-width="14"/><rect x="176" y="181" width="52" height="52" rx="10" stroke="${wmBrand}" stroke-width="14"/></svg>`);
+  parts.push(`  <text x="${wmX}" y="${wmY}" text-anchor="end" font-size="14" font-weight="700" fill="${wmBrand}" font-family="Montserrat, 'Segoe UI', Roboto, sans-serif">Flow Weaver</text>`);
+  parts.push(`</g>`);
+
   parts.push(`</svg>`);
   return parts.join('\n');
 }
