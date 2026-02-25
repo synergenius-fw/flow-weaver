@@ -121,7 +121,7 @@ describe('renderSVG', () => {
   it('includes subtle Flow Weaver watermark', () => {
     const svg = renderSVG(simpleGraph());
     expect(svg).toContain('Flow Weaver</text>');
-    expect(svg).toContain('opacity="0.25"');
+    expect(svg).toContain('opacity="0.5"');
   });
 
   it('does not include drop shadow filter', () => {
