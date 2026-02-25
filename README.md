@@ -6,21 +6,21 @@
 
 **Build AI agent workflows visually. Ship them as your own code.**
 
-Design agent workflows in the Studio, in TypeScript, or let AI build them for you. Everything compiles to standalone functions you deploy anywhere — no runtime dependency on Flow Weaver.
+Design agent workflows in the Studio, in TypeScript, or let AI build them for you. Everything compiles to standalone functions you deploy anywhere, no runtime dependency on Flow Weaver.
 
 ## Three Ways to Build
 
-**Studio** — Drag, drop, connect. The visual editor renders your workflow as an interactive graph with bidirectional sync: canvas changes write code, code changes update the canvas. 80+ plugins handle rendering, state, minimap, undo/redo, and more.
+**Studio.** Drag, drop, connect. The visual editor renders your workflow as an interactive graph with bidirectional sync: canvas changes write code, code changes update the canvas. 80+ plugins handle rendering, state, minimap, undo/redo, and more.
 
-**TypeScript** — Annotate plain functions with JSDoc tags. The compiler turns them into executable workflow graphs with full type safety, IDE autocomplete, and compile-time validation. No YAML, no JSON configs.
+**TypeScript.** Annotate plain functions with JSDoc tags. The compiler turns them into executable workflow graphs with full type safety, IDE autocomplete, and compile-time validation. No YAML, no JSON configs.
 
-**AI Agents** — Connect Claude Code, Cursor, or OpenClaw and they scaffold, validate, and ship workflows using 30+ MCP tools. The agent reads validation errors, fixes issues, and re-validates until the workflow compiles clean. The development loop (steps 1-4 are fully autonomous):
+**AI Agents.** Connect Claude Code, Cursor, or OpenClaw and they scaffold, validate, and ship workflows using 30+ MCP tools. The agent reads validation errors, fixes issues, and re-validates until the workflow compiles clean. The development loop (steps 1-4 are fully autonomous):
 
-1. **Agent creates** — scaffolds from templates, builds from a model, or writes from scratch
-2. **Compiler validates** — 15+ validation passes catch missing connections, type mismatches, unreachable paths
-3. **Agent iterates** — validation errors include fix suggestions, the agent corrects and re-validates
-4. **Agent tests** — deterministic mock providers for reproducible testing without real API calls
-5. **Human reviews** — visual editor or SVG diagram for final approval
+1. **Agent creates**: scaffolds from templates, builds from a model, or writes from scratch
+2. **Compiler validates**: 15+ validation passes catch missing connections, type mismatches, unreachable paths
+3. **Agent iterates**: validation errors include fix suggestions, the agent corrects and re-validates
+4. **Agent tests**: deterministic mock providers for reproducible testing without real API calls
+5. **Human reviews**: visual editor or SVG diagram for final approval
 
 ## Quick Start
 
@@ -89,7 +89,7 @@ npx flow-weaver mcp-server    # auto-registers with Claude Code
 
 ## Model-Driven Workflows
 
-Design first, implement later. An agent (or a human) describes the workflow shape — nodes, ports, execution path — and the compiler generates a structurally valid skeleton with `declare function` stubs:
+Design first, implement later. Describe the workflow shape (nodes, ports, execution path) and the compiler generates a valid skeleton with `declare function` stubs:
 
 ```bash
 # Via MCP: fw_create_model with nodes, inputs/outputs, and execution path
@@ -98,7 +98,7 @@ npx flow-weaver status my-workflow.ts      # shows stub vs implemented progress
 npx flow-weaver implement my-workflow.ts processData   # scaffolds a node body
 ```
 
-The graph is valid before any node has a real implementation. Developers fill in node bodies incrementally, checking `status` to track progress. This separates architecture from implementation — the architect defines the shape, developers fill in the logic.
+The graph is valid before any node has a real implementation. Fill in node bodies incrementally, check `status` to track progress. Architecture and implementation stay separate: the architect defines the shape, developers fill in the logic.
 
 ## Agent Workflow Templates
 
@@ -142,14 +142,14 @@ npx flow-weaver create workflow ai-agent-durable durable-agent.ts
 The validator understands AI agent patterns and enforces safety rules:
 
 ```
-AGENT_LLM_MISSING_ERROR_HANDLER    LLM node's onFailure is unconnected — add error handling
-AGENT_UNGUARDED_TOOL_EXECUTOR      Tool executor has no human-approval upstream — add a gate
-AGENT_MISSING_MEMORY_IN_LOOP       Agent loop has LLM but no memory — conversations will be stateless
-AGENT_LLM_NO_FALLBACK              LLM failure goes directly to Exit — add retry or fallback logic
-AGENT_TOOL_NO_OUTPUT_HANDLING      Tool executor outputs are all unconnected — results are discarded
+AGENT_LLM_MISSING_ERROR_HANDLER    LLM node's onFailure is unconnected, add error handling
+AGENT_UNGUARDED_TOOL_EXECUTOR      Tool executor has no human-approval upstream, add a gate
+AGENT_MISSING_MEMORY_IN_LOOP       Agent loop has LLM but no memory, conversations will be stateless
+AGENT_LLM_NO_FALLBACK              LLM failure goes directly to Exit, add retry or fallback logic
+AGENT_TOOL_NO_OUTPUT_HANDLING      Tool executor outputs are all unconnected, results are discarded
 ```
 
-Not generic lint rules. The validator identifies LLM, tool-executor, human-approval, and memory nodes by port signatures, annotations, and naming patterns, then applies agent-specific checks.
+These aren't generic lint rules. The validator identifies LLM, tool-executor, human-approval, and memory nodes by port signatures, annotations, and naming patterns, then applies agent-specific checks.
 
 ## Deterministic Agent Testing
 
@@ -192,7 +192,7 @@ Most workflow engines either ban loops (DAG-only) or allow arbitrary cycles (har
  */
 ```
 
-The scope's output ports become callback parameters, and input ports become return values. This enables agent reasoning loops, ForEach over collections, map/reduce patterns, and nested sub-workflows — all while keeping the graph acyclic and statically analyzable.
+The scope's output ports become callback parameters, and input ports become return values. Agent reasoning loops, ForEach over collections, map/reduce patterns, nested sub-workflows: all work while keeping the graph acyclic and statically analyzable.
 
 ## Diagram Generation
 
