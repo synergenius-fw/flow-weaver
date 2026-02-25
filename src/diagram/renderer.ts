@@ -126,12 +126,12 @@ function renderConnection(parts: string[], conn: DiagramConnection, gradIndex: n
   );
 }
 
-function renderScopeConnection(parts: string[], conn: DiagramConnection, allConnections: DiagramConnection[]): void {
+function renderScopeConnection(parts: string[], conn: DiagramConnection, allConnections: DiagramConnection[], parentNodeId: string): void {
   const gradIndex = allConnections.indexOf(conn);
   if (gradIndex < 0) return;
   const dashAttr = conn.isStepConnection ? '' : ' stroke-dasharray="8 4"';
   parts.push(
-    `    <path d="${conn.path}" fill="none" stroke="url(#conn-grad-${gradIndex})" stroke-width="2.5"${dashAttr} stroke-linecap="round" data-source="${escapeXml(conn.fromNode)}.${escapeXml(conn.fromPort)}:output" data-target="${escapeXml(conn.toNode)}.${escapeXml(conn.toPort)}:input"/>`,
+    `    <path d="${conn.path}" fill="none" stroke="url(#conn-grad-${gradIndex})" stroke-width="2.5"${dashAttr} stroke-linecap="round" data-source="${escapeXml(conn.fromNode)}.${escapeXml(conn.fromPort)}:output" data-target="${escapeXml(conn.toNode)}.${escapeXml(conn.toPort)}:input" data-scope="${escapeXml(parentNodeId)}"/>`,
   );
 }
 
@@ -202,7 +202,7 @@ function renderScopedContent(
 
   // Scope connections (before ports so ports appear on top)
   for (const conn of node.scopeConnections ?? []) {
-    renderScopeConnection(parts, conn, allConnections);
+    renderScopeConnection(parts, conn, allConnections, node.id);
   }
 
   // Scope port dots (before children so dots sit on top of connections)
