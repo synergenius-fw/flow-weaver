@@ -5,7 +5,8 @@
  */
 
 import { CstParser, type CstNode } from 'chevrotain';
-import { JSDocLexer, ConnectTag, Identifier, Arrow, Dot, Colon, allTokens } from './tokens';
+import { JSDocLexer, ConnectTag, Identifier, Arrow, Dot, Colon, AsKeyword, allTokens } from './tokens';
+import type { TCoerceTargetType } from '../ast/types';
 
 // =============================================================================
 // Parser Result Types
@@ -20,6 +21,10 @@ export interface PortReference {
 export interface ConnectParseResult {
   source: PortReference;
   target: PortReference;
+  /** Explicit type coercion (from `as <type>` suffix) */
+  coerce?: TCoerceTargetType;
+  /** Set when `as <type>` uses an unrecognized type (cleared after warning is emitted) */
+  invalidCoerceType?: string;
 }
 
 // =============================================================================
@@ -32,12 +37,16 @@ class ConnectParser extends CstParser {
     this.performSelfAnalysis();
   }
 
-  // Entry rule for connect line
+  // Entry rule for connect line: @connect A.port -> B.port [as type]
   public connectLine = this.RULE('connectLine', () => {
     this.CONSUME(ConnectTag);
     this.SUBRULE(this.portRef, { LABEL: 'sourceRef' });
     this.CONSUME(Arrow);
     this.SUBRULE2(this.portRef, { LABEL: 'targetRef' });
+    this.OPTION(() => {
+      this.CONSUME(AsKeyword);
+      this.CONSUME(Identifier, { LABEL: 'coerceType' });
+    });
   });
 
   // node.port or node.port:scope
@@ -72,6 +81,7 @@ interface CstNodeWithImage {
 interface ConnectLineContext {
   sourceRef: CstNode[];
   targetRef: CstNode[];
+  coerceType?: CstNodeWithImage[];
 }
 
 interface PortRefContext {
@@ -89,7 +99,17 @@ class ConnectVisitor extends BaseVisitor {
   connectLine(ctx: ConnectLineContext): ConnectParseResult {
     const source = this.visit(ctx.sourceRef);
     const target = this.visit(ctx.targetRef);
-    return { source, target };
+    const result: ConnectParseResult = { source, target };
+    if (ctx.coerceType?.[0]) {
+      const validTypes = new Set(['string', 'number', 'boolean', 'json', 'object']);
+      const raw = ctx.coerceType[0].image;
+      if (validTypes.has(raw)) {
+        result.coerce = raw as TCoerceTargetType;
+      } else {
+        result.invalidCoerceType = raw;
+      }
+    }
+    return result;
   }
 
   portRef(ctx: PortRefContext): PortReference {
@@ -141,7 +161,16 @@ export function parseConnectLine(input: string, warnings: string[]): ConnectPars
     return null;
   }
 
-  return visitorInstance.visit(cst);
+  const result: ConnectParseResult = visitorInstance.visit(cst);
+
+  if (result.invalidCoerceType) {
+    warnings.push(
+      `Invalid coerce type "${result.invalidCoerceType}" in @connect. Valid types: string, number, boolean, json, object`
+    );
+    delete result.invalidCoerceType;
+  }
+
+  return result;
 }
 
 /**
