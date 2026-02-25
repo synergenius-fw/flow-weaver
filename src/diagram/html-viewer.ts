@@ -493,7 +493,7 @@ path[data-source].port-hover { opacity: 1; }
   var connIndex = [];
   content.querySelectorAll('path[data-source]').forEach(function(p) {
     var src = p.getAttribute('data-source'), tgt = p.getAttribute('data-target');
-    connIndex.push({ el: p, src: src, tgt: tgt, srcNode: src.split('.')[0], tgtNode: tgt.split('.')[0] });
+    connIndex.push({ el: p, src: src, tgt: tgt, srcNode: src.split('.')[0], tgtNode: tgt.split('.')[0], scopeOf: p.getAttribute('data-scope') || null });
   });
 
   // Snapshot of original port positions for reset
@@ -535,9 +535,18 @@ path[data-source].port-hover { opacity: 1; }
     off.dx += dx; off.dy += dy;
     var tr = 'translate(' + off.dx + ',' + off.dy + ')';
 
-    // Move node group
+    // Move node group (if nested inside a scoped parent, subtract parent offset)
     var nodeG = content.querySelector('.nodes [data-node-id="' + CSS.escape(nodeId) + '"]');
-    if (nodeG) nodeG.setAttribute('transform', tr);
+    if (nodeG) {
+      var parentNodeG = nodeG.parentElement ? nodeG.parentElement.closest('[data-node-id]') : null;
+      if (parentNodeG) {
+        var parentId = parentNodeG.getAttribute('data-node-id');
+        var parentOff = nodeOffsets[parentId] || { dx: 0, dy: 0 };
+        nodeG.setAttribute('transform', 'translate(' + (off.dx - parentOff.dx) + ',' + (off.dy - parentOff.dy) + ')');
+      } else {
+        nodeG.setAttribute('transform', tr);
+      }
+    }
 
     // Move label
     var labelG = content.querySelector('[data-label-for="' + CSS.escape(nodeId) + '"]');
@@ -584,11 +593,20 @@ path[data-source].port-hover { opacity: 1; }
       });
     }
 
-    // Recalculate affected connection paths
+    // Recalculate affected connection paths (skip scope connections when parent is dragged — they move with the group transform)
     connIndex.forEach(function(c) {
+      if (c.scopeOf === nodeId) return;
       if (c.srcNode === nodeId || c.tgtNode === nodeId) {
         var sp = portPositions[c.src], tp = portPositions[c.tgt];
-        if (sp && tp) c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
+        if (sp && tp) {
+          if (c.scopeOf) {
+            // Scope connection paths live inside the parent group; use parent-local coords
+            var pOff = nodeOffsets[c.scopeOf] || { dx: 0, dy: 0 };
+            c.el.setAttribute('d', computeConnectionPath(sp.cx - pOff.dx, sp.cy - pOff.dy, tp.cx - pOff.dx, tp.cy - pOff.dy));
+          } else {
+            c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
+          }
+        }
       }
       if (nodeG) {
         var children = nodeG.querySelectorAll(':scope > g[data-node-id]');
@@ -596,7 +614,14 @@ path[data-source].port-hover { opacity: 1; }
           var childId = childG.getAttribute('data-node-id');
           if (c.srcNode === childId || c.tgtNode === childId) {
             var sp = portPositions[c.src], tp = portPositions[c.tgt];
-            if (sp && tp) c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
+            if (sp && tp) {
+              if (c.scopeOf) {
+                var pOff = nodeOffsets[c.scopeOf] || { dx: 0, dy: 0 };
+                c.el.setAttribute('d', computeConnectionPath(sp.cx - pOff.dx, sp.cy - pOff.dy, tp.cx - pOff.dx, tp.cy - pOff.dy));
+              } else {
+                c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
+              }
+            }
           }
         });
       }
