@@ -76,10 +76,10 @@ body {
 .nodes > g:hover ~ .show-port-labels .port-label,
 .nodes > g:hover ~ .show-port-labels .port-type-label { opacity: 1; }
 
-/* Connection hover & dimming */
-.connections path { transition: opacity 0.2s ease, stroke-width 0.15s ease; }
-.connections path:hover { stroke-width: 4; cursor: pointer; }
-body.node-active .connections path.dimmed { opacity: 0.15; }
+/* Connection hover & dimming (attribute selector covers both main and scope connections) */
+path[data-source] { transition: opacity 0.2s ease, stroke-width 0.15s ease; }
+path[data-source]:hover { stroke-width: 4; cursor: pointer; }
+body.node-active path[data-source].dimmed { opacity: 0.15; }
 
 /* Node hover glow */
 .nodes g[data-node-id]:hover > rect:first-of-type { filter: brightness(1.08); }
@@ -283,7 +283,7 @@ body.node-active .connections path.dimmed { opacity: 0.15; }
 
   // Build adjacency: portId → array of connected portIds
   var portConnections = {};
-  content.querySelectorAll('.connections path').forEach(function(p) {
+  content.querySelectorAll('path[data-source]').forEach(function(p) {
     var src = p.getAttribute('data-source');
     var tgt = p.getAttribute('data-target');
     if (!src || !tgt) return;
@@ -380,7 +380,7 @@ body.node-active .connections path.dimmed { opacity: 0.15; }
     });
 
     // Connected paths
-    var allPaths = content.querySelectorAll('.connections path');
+    var allPaths = content.querySelectorAll('path[data-source]');
     var connectedPaths = [];
     var connectedNodes = new Set();
     allPaths.forEach(function(p) {
