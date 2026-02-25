@@ -36,40 +36,79 @@ export function fileToSVG(filePath: string, options: DiagramOptions = {}): strin
  */
 export function workflowToHTML(ast: TWorkflowAST, options: DiagramOptions = {}): string {
   const svg = workflowToSVG(ast, options);
-  return wrapSVGInHTML(svg, { title: options.workflowName ?? ast.name, theme: options.theme });
+  return wrapSVGInHTML(svg, { title: options.workflowName ?? ast.name, theme: options.theme, nodeSources: buildNodeSourceMap(ast) });
 }
 
 /**
  * Parse TypeScript source code and render the first (or named) workflow to interactive HTML.
  */
 export function sourceToHTML(code: string, options: DiagramOptions = {}): string {
-  const svg = sourceToSVG(code, options);
-  return wrapSVGInHTML(svg, { title: options.workflowName, theme: options.theme });
+  const result = parser.parseFromString(code);
+  const ast = pickWorkflow(result.workflows, options);
+  const svg = workflowToSVG(ast, options);
+  return wrapSVGInHTML(svg, { title: options.workflowName ?? ast.name, theme: options.theme, nodeSources: buildNodeSourceMap(ast) });
 }
 
 /**
  * Parse a workflow file and render the first (or named) workflow to interactive HTML.
  */
 export function fileToHTML(filePath: string, options: DiagramOptions = {}): string {
-  const svg = fileToSVG(filePath, options);
-  return wrapSVGInHTML(svg, { title: options.workflowName, theme: options.theme });
+  const result = parser.parse(filePath);
+  const ast = pickWorkflow(result.workflows, options);
+  const svg = workflowToSVG(ast, options);
+  return wrapSVGInHTML(svg, { title: options.workflowName ?? ast.name, theme: options.theme, nodeSources: buildNodeSourceMap(ast) });
 }
 
-function pickAndRender(workflows: TWorkflowAST[], options: DiagramOptions): string {
+type PortInfo = { type: string; tsType?: string };
+type NodeSourceInfo = { description?: string; source?: string; ports?: Record<string, PortInfo> };
+
+function buildNodeSourceMap(ast: TWorkflowAST): Record<string, NodeSourceInfo> {
+  const typeMap = new Map(ast.nodeTypes.map(nt => [nt.functionName, nt]));
+  const map: Record<string, NodeSourceInfo> = {};
+  for (const inst of ast.instances) {
+    const nt = typeMap.get(inst.nodeType);
+    if (!nt) continue;
+    const ports: Record<string, PortInfo> = {};
+    for (const [name, def] of Object.entries(nt.inputs ?? {})) {
+      ports[name] = { type: def.dataType, tsType: def.tsType };
+    }
+    for (const [name, def] of Object.entries(nt.outputs ?? {})) {
+      ports[name] = { type: def.dataType, tsType: def.tsType };
+    }
+    map[inst.id] = { description: nt.description, source: nt.functionText, ports };
+  }
+  // Virtual Start/Exit nodes get their port types from the workflow definition
+  const startPorts: Record<string, PortInfo> = {};
+  for (const [name, def] of Object.entries(ast.startPorts ?? {})) {
+    startPorts[name] = { type: def.dataType, tsType: def.tsType };
+  }
+  if (Object.keys(startPorts).length) {
+    map['Start'] = { description: ast.description, ports: startPorts };
+  }
+  const exitPorts: Record<string, PortInfo> = {};
+  for (const [name, def] of Object.entries(ast.exitPorts ?? {})) {
+    exitPorts[name] = { type: def.dataType, tsType: def.tsType };
+  }
+  if (Object.keys(exitPorts).length) {
+    map['Exit'] = { ports: exitPorts };
+  }
+  return map;
+}
+
+function pickWorkflow(workflows: TWorkflowAST[], options: DiagramOptions): TWorkflowAST {
   if (workflows.length === 0) {
     throw new Error('No workflows found in source code');
   }
-
-  let workflow: TWorkflowAST;
   if (options.workflowName) {
     const found = workflows.find(w => w.name === options.workflowName);
     if (!found) {
       throw new Error(`Workflow "${options.workflowName}" not found. Available: ${workflows.map(w => w.name).join(', ')}`);
     }
-    workflow = found;
-  } else {
-    workflow = workflows[0];
+    return found;
   }
+  return workflows[0];
+}
 
-  return workflowToSVG(workflow, options);
+function pickAndRender(workflows: TWorkflowAST[], options: DiagramOptions): string {
+  return workflowToSVG(pickWorkflow(workflows, options), options);
 }
