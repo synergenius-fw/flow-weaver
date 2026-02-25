@@ -3,6 +3,7 @@
  * Uses pure functions directly for fast testing, with CLI smoke tests for wiring
  */
 
+import { vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -285,6 +286,275 @@ describe('patternListCommand', () => {
     await expect(patternListCommand(MOCK_NONEXISTENT_PATH, {})).rejects.toThrow(
       `Path not found: ${MOCK_NONEXISTENT_PATH}`
     );
+  });
+
+  it('should list patterns from a single file in JSON mode', async () => {
+    const { patternListCommand } = await import('../../src/cli/commands/pattern');
+    const testFile = path.join(tempDir, 'list-json.ts');
+    fs.writeFileSync(testFile, TEST_PATTERN);
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    const origError = console.error;
+    const origWarn = console.warn;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    console.error = vi.fn();
+    console.warn = vi.fn();
+
+    try {
+      await patternListCommand(testFile, { json: true });
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+      console.warn = origWarn;
+    }
+
+    expect(logs.length).toBeGreaterThan(0);
+    const output = JSON.parse(logs.join(''));
+    expect(Array.isArray(output)).toBe(true);
+    expect(output.length).toBe(1);
+    expect(output[0].name).toBe('validateTransform');
+  });
+
+  it('should list patterns from a directory', async () => {
+    const { patternListCommand } = await import('../../src/cli/commands/pattern');
+    const dir = path.join(tempDir, 'list-dir');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'pattern-a.ts'), TEST_PATTERN);
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    const origError = console.error;
+    const origWarn = console.warn;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    console.error = vi.fn();
+    console.warn = vi.fn();
+
+    try {
+      await patternListCommand(dir, { json: true });
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+      console.warn = origWarn;
+    }
+
+    const output = JSON.parse(logs.join(''));
+    expect(output.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should show human-readable output when json is false', async () => {
+    const { patternListCommand } = await import('../../src/cli/commands/pattern');
+    const testFile = path.join(tempDir, 'list-human.ts');
+    fs.writeFileSync(testFile, TEST_PATTERN);
+
+    const logs: string[] = [];
+    const errors: string[] = [];
+    const warns: string[] = [];
+    const origLog = console.log;
+    const origError = console.error;
+    const origWarn = console.warn;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    console.error = (...args: unknown[]) => errors.push(args.map(String).join(' '));
+    console.warn = (...args: unknown[]) => warns.push(args.map(String).join(' '));
+
+    try {
+      await patternListCommand(testFile, { json: false });
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+      console.warn = origWarn;
+    }
+
+    const allOutput = [...logs, ...errors, ...warns].join(' ');
+    expect(allOutput).toContain('validateTransform');
+  });
+
+  it('should report no patterns for a non-pattern file', async () => {
+    const { patternListCommand } = await import('../../src/cli/commands/pattern');
+    const testFile = path.join(tempDir, 'list-no-patterns.ts');
+    fs.writeFileSync(testFile, TARGET_WORKFLOW);
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    const origError = console.error;
+    const origWarn = console.warn;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    console.error = vi.fn();
+    console.warn = vi.fn();
+
+    try {
+      await patternListCommand(testFile, { json: true });
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+      console.warn = origWarn;
+    }
+
+    const output = JSON.parse(logs.join(''));
+    expect(output).toEqual([]);
+  });
+});
+
+describe('patternApplyCommand', () => {
+  it('should apply a pattern in preview mode', async () => {
+    const { patternApplyCommand } = await import('../../src/cli/commands/pattern');
+    const patternFile = path.join(tempDir, 'apply-pattern.ts');
+    const targetFile = path.join(tempDir, 'apply-target.ts');
+
+    fs.writeFileSync(patternFile, TEST_PATTERN);
+    fs.writeFileSync(targetFile, TARGET_WORKFLOW);
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    const origError = console.error;
+    const origWarn = console.warn;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    console.error = vi.fn();
+    console.warn = vi.fn();
+
+    try {
+      await patternApplyCommand(patternFile, targetFile, { preview: true });
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+      console.warn = origWarn;
+    }
+
+    // Preview should output modified content without writing to disk
+    const output = logs.join('\n');
+    expect(output).toContain('Pattern: validateTransform');
+
+    // Target file should be unchanged (preview mode)
+    const targetContent = fs.readFileSync(targetFile, 'utf8');
+    expect(targetContent).toBe(TARGET_WORKFLOW);
+  });
+
+  it('should throw when pattern file has no patterns', async () => {
+    const { patternApplyCommand } = await import('../../src/cli/commands/pattern');
+    const noPatternFile = path.join(tempDir, 'apply-no-pattern.ts');
+    const targetFile = path.join(tempDir, 'apply-target-2.ts');
+
+    fs.writeFileSync(noPatternFile, TARGET_WORKFLOW);
+    fs.writeFileSync(targetFile, TARGET_WORKFLOW);
+
+    await expect(
+      patternApplyCommand(noPatternFile, targetFile, { preview: true })
+    ).rejects.toThrow('No patterns found');
+  });
+
+  it('should throw when named pattern does not exist', async () => {
+    const { patternApplyCommand } = await import('../../src/cli/commands/pattern');
+    const patternFile = path.join(tempDir, 'apply-named-missing.ts');
+    const targetFile = path.join(tempDir, 'apply-target-3.ts');
+
+    fs.writeFileSync(patternFile, TEST_PATTERN);
+    fs.writeFileSync(targetFile, TARGET_WORKFLOW);
+
+    await expect(
+      patternApplyCommand(patternFile, targetFile, { preview: true, name: 'nonexistent' })
+    ).rejects.toThrow('Pattern "nonexistent" not found');
+  });
+
+  it('should write to target file when not in preview mode', async () => {
+    const { patternApplyCommand } = await import('../../src/cli/commands/pattern');
+    const patternFile = path.join(tempDir, 'apply-write-pattern.ts');
+    const targetFile = path.join(tempDir, 'apply-write-target.ts');
+
+    fs.writeFileSync(patternFile, TEST_PATTERN);
+    fs.writeFileSync(targetFile, TARGET_WORKFLOW);
+
+    const origLog = console.log;
+    const origError = console.error;
+    const origWarn = console.warn;
+    console.log = vi.fn();
+    console.error = vi.fn();
+    console.warn = vi.fn();
+
+    try {
+      await patternApplyCommand(patternFile, targetFile, { preview: false });
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+      console.warn = origWarn;
+    }
+
+    const modified = fs.readFileSync(targetFile, 'utf8');
+    expect(modified).toContain('Pattern: validateTransform');
+  });
+});
+
+describe('patternExtractCommand', () => {
+  it('should extract a pattern in preview mode', async () => {
+    const { patternExtractCommand } = await import('../../src/cli/commands/pattern');
+    const sourceFile = path.join(tempDir, 'extract-source.ts');
+    fs.writeFileSync(sourceFile, EXTRACT_SOURCE);
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    const origError = console.error;
+    const origWarn = console.warn;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    console.error = vi.fn();
+    console.warn = vi.fn();
+
+    try {
+      await patternExtractCommand(sourceFile, {
+        nodes: 'val,trans',
+        output: '/tmp/unused.ts',
+        preview: true,
+      });
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+      console.warn = origWarn;
+    }
+
+    const output = logs.join('\n');
+    expect(output).toContain('@flowWeaver pattern');
+  });
+
+  it('should write extracted pattern to output file', async () => {
+    const { patternExtractCommand } = await import('../../src/cli/commands/pattern');
+    const sourceFile = path.join(tempDir, 'extract-write-source.ts');
+    const outputFile = path.join(tempDir, 'extract-output.ts');
+    fs.writeFileSync(sourceFile, EXTRACT_SOURCE);
+
+    const origLog = console.log;
+    const origError = console.error;
+    const origWarn = console.warn;
+    console.log = vi.fn();
+    console.error = vi.fn();
+    console.warn = vi.fn();
+
+    try {
+      await patternExtractCommand(sourceFile, {
+        nodes: 'val,trans',
+        output: outputFile,
+        name: 'myExtracted',
+      });
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+      console.warn = origWarn;
+    }
+
+    expect(fs.existsSync(outputFile)).toBe(true);
+    const content = fs.readFileSync(outputFile, 'utf8');
+    expect(content).toContain('@flowWeaver pattern');
+    expect(content).toContain('myExtracted');
+  });
+
+  it('should throw when source has no workflows', async () => {
+    const { patternExtractCommand } = await import('../../src/cli/commands/pattern');
+    const noWfFile = path.join(tempDir, 'extract-no-wf.ts');
+    fs.writeFileSync(noWfFile, '// no workflows here\nexport const x = 1;\n');
+
+    await expect(
+      patternExtractCommand(noWfFile, {
+        nodes: 'a,b',
+        output: '/tmp/unused.ts',
+      })
+    ).rejects.toThrow('No workflows found');
   });
 });
 

@@ -3,6 +3,7 @@
  * Uses pure functions directly for fast testing, with CLI smoke tests for wiring
  */
 
+import { vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -15,6 +16,7 @@ import {
 } from '../../src/cli/templates/index';
 import { parser } from '../../src/parser';
 import { validator } from '../../src/validator';
+import { createWorkflowCommand, createNodeCommand } from '../../src/cli/commands/create';
 
 const TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-create-${process.pid}`);
 
@@ -316,6 +318,294 @@ function existingFunction() {}
         expect(t.description).toBeDefined();
         expect(t.description.length).toBeGreaterThan(10);
       }
+    });
+  });
+
+  // ── createWorkflowCommand ────────────────────────────────────────────────
+
+  describe('createWorkflowCommand', () => {
+    let origExit: typeof process.exit;
+
+    beforeEach(() => {
+      origExit = process.exit;
+      process.exit = vi.fn() as never;
+    });
+
+    afterEach(() => {
+      process.exit = origExit;
+    });
+
+    it('should create a workflow file from a known template', async () => {
+      const outFile = path.join(TEMP_DIR, 'cmd-sequential.ts');
+
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = vi.fn();
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createWorkflowCommand('sequential', outFile);
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      expect(fs.existsSync(outFile)).toBe(true);
+      const content = fs.readFileSync(outFile, 'utf8');
+      expect(content).toContain('@flowWeaver workflow');
+      expect(content).toContain('cmdSequential');
+    });
+
+    it('should use --name override for the function name', async () => {
+      const outFile = path.join(TEMP_DIR, 'cmd-named.ts');
+
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = vi.fn();
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createWorkflowCommand('sequential', outFile, { name: 'customWorkflowName' });
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      const content = fs.readFileSync(outFile, 'utf8');
+      expect(content).toContain('function customWorkflowName');
+    });
+
+    it('should output code in preview mode without writing file', async () => {
+      const outFile = path.join(TEMP_DIR, 'cmd-preview.ts');
+      const logs: string[] = [];
+
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createWorkflowCommand('sequential', outFile, { preview: true });
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      // File should NOT exist in preview mode
+      expect(fs.existsSync(outFile)).toBe(false);
+
+      // Code should be logged to stdout
+      const output = logs.join('\n');
+      expect(output).toContain('@flowWeaver workflow');
+    });
+
+    it('should call process.exit(1) for unknown template', async () => {
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = vi.fn();
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createWorkflowCommand('nonexistent-template', '/tmp/test.ts');
+      } catch {
+        // process.exit is mocked so code continues past exit(1) and may throw
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it('should insert at specific line when --line is provided', async () => {
+      const outFile = path.join(TEMP_DIR, 'cmd-insert-line.ts');
+      fs.writeFileSync(outFile, '// Line 1\n// Line 2\n// Line 3\n');
+
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = vi.fn();
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createWorkflowCommand('sequential', outFile, { line: 2 });
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      const content = fs.readFileSync(outFile, 'utf8');
+      const lines = content.split('\n');
+      // First two lines should be the original header lines
+      expect(lines[0]).toBe('// Line 1');
+      expect(lines[1]).toBe('// Line 2');
+      // Template content should follow
+      expect(content).toContain('@flowWeaver');
+    });
+
+    it('should apply config from --config JSON', async () => {
+      const outFile = path.join(TEMP_DIR, 'cmd-config.ts');
+
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = vi.fn();
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createWorkflowCommand('ai-agent', outFile, {
+          provider: 'openai',
+          model: 'gpt-4-turbo',
+        });
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      const content = fs.readFileSync(outFile, 'utf8');
+      expect(content).toContain('api.openai.com');
+      expect(content).toContain('gpt-4-turbo');
+    });
+
+    it('should call process.exit(1) for invalid --config JSON', async () => {
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = vi.fn();
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createWorkflowCommand('sequential', '/tmp/test.ts', { config: '{invalid json' });
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+  });
+
+  // ── createNodeCommand ──────────────────────────────────────────────────────
+
+  describe('createNodeCommand', () => {
+    let origExit: typeof process.exit;
+
+    beforeEach(() => {
+      origExit = process.exit;
+      process.exit = vi.fn() as never;
+    });
+
+    afterEach(() => {
+      process.exit = origExit;
+    });
+
+    it('should create a node type file using transformer template', async () => {
+      const outFile = path.join(TEMP_DIR, 'cmd-node-default.ts');
+
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = vi.fn();
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createNodeCommand('myCustomNode', outFile, { template: 'transformer' });
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      expect(fs.existsSync(outFile)).toBe(true);
+      const content = fs.readFileSync(outFile, 'utf8');
+      expect(content).toContain('@flowWeaver nodeType');
+      expect(content).toContain('myCustomNode');
+    });
+
+    it('should output code in preview mode without writing', async () => {
+      const outFile = path.join(TEMP_DIR, 'cmd-node-preview.ts');
+      const logs: string[] = [];
+
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createNodeCommand('previewNode', outFile, { preview: true, template: 'validator' });
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      expect(fs.existsSync(outFile)).toBe(false);
+      expect(logs.join('\n')).toContain('@flowWeaver nodeType');
+    });
+
+    it('should call process.exit(1) for unknown node template', async () => {
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = vi.fn();
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createNodeCommand('test', '/tmp/test.ts', { template: 'fake-template' });
+      } catch {
+        // process.exit is mocked so code continues past exit(1) and may throw
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it('should generate a validator node template', async () => {
+      const outFile = path.join(TEMP_DIR, 'cmd-node-validator.ts');
+
+      const origLog = console.log;
+      const origError = console.error;
+      const origWarn = console.warn;
+      console.log = vi.fn();
+      console.error = vi.fn();
+      console.warn = vi.fn();
+
+      try {
+        await createNodeCommand('dataValidator', outFile, { template: 'validator' });
+      } finally {
+        console.log = origLog;
+        console.error = origError;
+        console.warn = origWarn;
+      }
+
+      const content = fs.readFileSync(outFile, 'utf8');
+      expect(content).toContain('@flowWeaver nodeType');
+      expect(content).toContain('dataValidator');
     });
   });
 });
