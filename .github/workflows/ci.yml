@@ -9,6 +9,8 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,6 +19,28 @@ jobs:
       - run: npm install
       - run: npm run typecheck
       - run: npm run build
-      - run: npx vitest run
+
+      # Run tests with JSON reporter (for test count badge) and coverage (for Codecov)
+      - run: npx vitest run --reporter=default --reporter=json --outputFile=test-results.json --coverage
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
+
+      # Upload coverage to Codecov (tokenless for public repos)
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/lcov.info
+          fail_ci_if_error: false
+
+      # Commit test count badge JSON to repo (main branch only)
+      - name: Update test count badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          PASSED=$(jq '.numPassedTests' test-results.json)
+          mkdir -p .github/badges
+          echo "{\"schemaVersion\":1,\"label\":\"tests\",\"message\":\"${PASSED} passed\",\"color\":\"brightgreen\"}" > .github/badges/test-count.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/badges/test-count.json
+          git diff --cached --quiet || git commit -m "Update test count badge [skip ci]" && git push
