@@ -93,8 +93,57 @@ describe('html-viewer', () => {
     it('builds port adjacency from all connection paths via attribute selector', () => {
       const html = wrapSVGInHTML('<svg></svg>');
       expect(html).toContain("querySelectorAll('path[data-source]')");
-      // Must not use the old .connections-only selector
       expect(html).not.toContain("querySelectorAll('.connections path')");
+    });
+
+    it('includes port-click highlighting CSS', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('path[data-source].highlighted');
+      expect(html).toContain('.port-selected');
+      expect(html).toContain('.port-active');
+    });
+
+    it('includes port-click JS with selectPort and deselectPort', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('selectPort');
+      expect(html).toContain('deselectPort');
+      expect(html).toContain('selectedPortId');
+    });
+
+    it('includes node selection glow animation', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('select-pop');
+      expect(html).toContain('.node-glow');
+      expect(html).toContain('addNodeGlow');
+      expect(html).toContain('removeNodeGlow');
+    });
+
+    it('includes port hover connection dimming', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('body.port-hovered');
+      expect(html).toContain("classList.add('dimmed')");
+      expect(html).toContain("classList.remove('dimmed')");
+    });
+
+    it('includes node drag CSS with grab cursor', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('g[data-node-id] { cursor: grab; }');
+      expect(html).toContain('g[data-node-id]:active { cursor: grabbing; }');
+    });
+
+    it('includes moveNode function and connection path computation', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('moveNode');
+      expect(html).toContain('computeConnectionPath');
+      expect(html).toContain('draggedNodeId');
+      expect(html).toContain('nodeOffsets');
+    });
+
+    it('includes branding badge with link to flowweaver.ai', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('id="branding"');
+      expect(html).toContain('href="https://flowweaver.ai"');
+      expect(html).toContain('Flow Weaver');
     });
   });
 
