@@ -165,6 +165,21 @@ describe('html-viewer', () => {
       expect(html).toContain('resetLayout');
       expect(html).toContain('origPortPositions');
     });
+
+    it('embeds node source data when provided', () => {
+      const html = wrapSVGInHTML('<svg></svg>', {
+        nodeSources: { myNode: { description: 'A test node', source: 'function myNode() {}' } },
+      });
+      expect(html).toContain('nodeSources');
+      expect(html).toContain('A test node');
+      expect(html).toContain('function myNode()');
+    });
+
+    it('shows source code section in selectNode', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('src.source');
+      expect(html).toContain('node-desc');
+    });
   });
 
   describe('fileToHTML', () => {
@@ -178,7 +193,14 @@ describe('html-viewer', () => {
       expect(html).toContain('enricher');
       expect(html).toContain('scorer');
       expect(html).toContain('categorizer');
+    });
 
+    it('includes node source code from parsed workflow', () => {
+      const html = fileToHTML('tests/fixtures/lead-processing.ts', {
+        workflowName: 'processLead',
+      });
+      expect(html).toContain('nodeSources');
+      expect(html).toContain('function validate');
     });
   });
 
