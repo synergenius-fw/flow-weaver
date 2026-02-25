@@ -1319,4 +1319,396 @@ describe('tools-pattern', () => {
       expect(data.files[0].error).toContain('migration crash');
     });
   });
+
+  // ── fw_modify_batch multi-op sequences ────────────────────────────────
+
+  describe('fw_modify_batch multi-op sequences', () => {
+    function callBatch(args: Record<string, unknown>) {
+      const handler = toolHandlers.get('fw_modify_batch')!;
+      expect(handler).toBeDefined();
+      return handler(args);
+    }
+
+    function setupMultiOpMocks() {
+      const wfFile = path.join(tmpDir, 'multi-op.ts');
+      fs.writeFileSync(wfFile, '// source');
+
+      const ast = {
+        name: 'wf',
+        nodeTypes: [
+          {
+            name: 'TypeA',
+            functionName: 'typeA',
+            inputs: { x: { dataType: 'STRING' }, execute: { dataType: 'STEP' } },
+            outputs: { y: { dataType: 'NUMBER' }, onSuccess: { dataType: 'STEP' } },
+          },
+        ],
+        instances: [
+          { id: 'step1', nodeType: 'TypeA', config: { x: 100, y: 50 } },
+        ],
+        connections: [
+          { from: { node: 'Start', port: 'execute' }, to: { node: 'step1', port: 'execute' } },
+        ],
+        options: {},
+      };
+
+      mockParseWorkflow.mockResolvedValue({
+        errors: [],
+        warnings: [],
+        ast,
+      });
+
+      mockValidateWorkflow.mockReturnValue({ valid: true, errors: [], warnings: [] });
+      mockDescribeWorkflow.mockReturnValue({});
+      mockFormatDescribeOutput.mockReturnValue('Workflow: wf');
+
+      return { wfFile, ast };
+    }
+
+    it('addNode then addConnection in sequence', async () => {
+      const { wfFile, ast } = setupMultiOpMocks();
+
+      const astWithNewNode = {
+        ...ast,
+        instances: [...ast.instances, { id: 'step2', nodeType: 'TypeA', config: { x: 280, y: 0 } }],
+      };
+      const astWithConnection = {
+        ...astWithNewNode,
+        connections: [...astWithNewNode.connections, { from: { node: 'step1', port: 'onSuccess' }, to: { node: 'step2', port: 'execute' } }],
+      };
+
+      mockManipAddNode.mockReturnValue(astWithNewNode);
+      mockManipAddConnection.mockReturnValue(astWithConnection);
+      mockGenerateInPlace.mockReturnValue({ hasChanges: true, code: '// multi-op output' });
+
+      const result = parseResult(
+        await callBatch({
+          filePath: wfFile,
+          operations: [
+            { operation: 'addNode', params: { nodeId: 'step2', nodeType: 'TypeA' } },
+            { operation: 'addConnection', params: { from: 'step1.onSuccess', to: 'step2.execute' } },
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(true);
+      const data = result.data as { operationsApplied: number; hasChanges: boolean };
+      expect(data.operationsApplied).toBe(2);
+      expect(data.hasChanges).toBe(true);
+
+      // Verify both operations were called
+      expect(mockManipAddNode).toHaveBeenCalledTimes(1);
+      expect(mockManipAddConnection).toHaveBeenCalledTimes(1);
+    });
+
+    it('addNode then removeNode in sequence', async () => {
+      const { wfFile, ast } = setupMultiOpMocks();
+
+      const astWithNewNode = {
+        ...ast,
+        instances: [...ast.instances, { id: 'step2', nodeType: 'TypeA' }],
+      };
+      const astAfterRemove = {
+        ...ast,
+        instances: ast.instances.filter((i: { id: string }) => i.id !== 'step1'),
+        connections: [],
+      };
+
+      mockManipAddNode.mockReturnValue(astWithNewNode);
+      mockManipRemoveNode.mockReturnValue(astAfterRemove);
+      mockGenerateInPlace.mockReturnValue({ hasChanges: true, code: '// result' });
+
+      const result = parseResult(
+        await callBatch({
+          filePath: wfFile,
+          operations: [
+            { operation: 'addNode', params: { nodeId: 'step2', nodeType: 'TypeA' } },
+            { operation: 'removeNode', params: { nodeId: 'step1' } },
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(true);
+      const data = result.data as { operationsApplied: number };
+      expect(data.operationsApplied).toBe(2);
+    });
+
+    it('setNodePosition then setNodeLabel in sequence', async () => {
+      const { wfFile, ast } = setupMultiOpMocks();
+
+      mockManipSetNodePosition.mockReturnValue(ast);
+      mockManipSetNodeLabel.mockReturnValue(ast);
+      mockGenerateInPlace.mockReturnValue({ hasChanges: true, code: '// result' });
+
+      const result = parseResult(
+        await callBatch({
+          filePath: wfFile,
+          operations: [
+            { operation: 'setNodePosition', params: { nodeId: 'step1', x: 200, y: 100 } },
+            { operation: 'setNodeLabel', params: { nodeId: 'step1', label: 'My Step' } },
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockManipSetNodePosition).toHaveBeenCalledTimes(1);
+      expect(mockManipSetNodeLabel).toHaveBeenCalledTimes(1);
+    });
+
+    it('collects warnings from multiple operations', async () => {
+      const { wfFile, ast } = setupMultiOpMocks();
+
+      // First addNode for unknown type generates a warning
+      // Second addNode also for unknown type
+      const mod1 = { ...ast, instances: [...ast.instances, { id: 'a', nodeType: 'X' }] };
+      const mod2 = { ...mod1, instances: [...mod1.instances, { id: 'b', nodeType: 'Y' }] };
+
+      mockManipAddNode.mockReturnValueOnce(mod1).mockReturnValueOnce(mod2);
+      mockGenerateInPlace.mockReturnValue({ hasChanges: true, code: '// out' });
+
+      const result = parseResult(
+        await callBatch({
+          filePath: wfFile,
+          operations: [
+            { operation: 'addNode', params: { nodeId: 'a', nodeType: 'X' } },
+            { operation: 'addNode', params: { nodeId: 'b', nodeType: 'Y' } },
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(true);
+      const data = result.data as { warnings?: string[] };
+      expect(data.warnings).toBeDefined();
+      expect(data.warnings!.length).toBeGreaterThanOrEqual(2);
+      expect(data.warnings!.some((w: string) => w.includes('X'))).toBe(true);
+      expect(data.warnings!.some((w: string) => w.includes('Y'))).toBe(true);
+    });
+
+    it('stops on first operation failure mid-sequence', async () => {
+      const { wfFile } = setupMultiOpMocks();
+
+      mockManipAddNode.mockImplementation(() => {
+        throw new Error('node type collision');
+      });
+
+      const result = parseResult(
+        await callBatch({
+          filePath: wfFile,
+          operations: [
+            { operation: 'addNode', params: { nodeId: 'step2', nodeType: 'TypeA' } },
+            { operation: 'setNodeLabel', params: { nodeId: 'step2', label: 'Label' } },
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(false);
+      expect((result.error as { code: string }).code).toBe('MODIFY_ERROR');
+      expect((result.error as { message: string }).message).toContain('Operation 0');
+      // Second operation should not have been attempted
+      expect(mockManipSetNodeLabel).not.toHaveBeenCalled();
+    });
+
+    it('handles removeConnection with newlyIsolatedNodes in batch', async () => {
+      const { wfFile, ast } = setupMultiOpMocks();
+
+      const disconnectedAST = { ...ast, connections: [] };
+      mockManipRemoveConnection.mockReturnValue(disconnectedAST);
+      mockFindIsolatedNodes.mockReturnValue(['step1']);
+      mockGenerateInPlace.mockReturnValue({ hasChanges: true, code: '// out' });
+
+      const result = parseResult(
+        await callBatch({
+          filePath: wfFile,
+          operations: [
+            { operation: 'removeConnection', params: { from: 'Start.execute', to: 'step1.execute' } },
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(true);
+      const data = result.data as { newlyIsolatedNodes?: string[] };
+      expect(data.newlyIsolatedNodes).toEqual(['step1']);
+    });
+
+    it('batch post-modify validation failure adds warning but still succeeds', async () => {
+      const { wfFile, ast } = setupMultiOpMocks();
+
+      mockManipAddNode.mockReturnValue(ast);
+      mockGenerateInPlace.mockReturnValue({ hasChanges: true, code: '// out' });
+
+      // Make second parse call (validation) fail
+      mockParseWorkflow
+        .mockResolvedValueOnce({ errors: [], warnings: [], ast })
+        .mockRejectedValueOnce(new Error('validation crash'));
+
+      const result = parseResult(
+        await callBatch({
+          filePath: wfFile,
+          operations: [
+            { operation: 'addNode', params: { nodeId: 'step2', nodeType: 'TypeA' } },
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(true);
+      const data = result.data as { warnings?: string[] };
+      expect(data.warnings).toBeDefined();
+      expect(data.warnings!.some((w: string) => w.includes('Post-modify validation failed'))).toBe(true);
+    });
+  });
+
+  // ── fw_extract_pattern with file output ─────────────────────────────────
+
+  describe('fw_extract_pattern with file output', () => {
+    function callExtract(args: Record<string, unknown>) {
+      const handler = toolHandlers.get('fw_extract_pattern')!;
+      expect(handler).toBeDefined();
+      return handler(args);
+    }
+
+    it('returns all metadata fields when writing to file', async () => {
+      const outFile = path.join(tmpDir, 'full-extract.ts');
+      mockParseWorkflow.mockResolvedValue({
+        errors: [],
+        ast: { name: 'wf', nodeTypes: [], instances: [], connections: [] },
+      });
+      mockAnnotationParserParse.mockReturnValue({ nodeTypes: [] });
+      mockExtractPattern.mockReturnValue({
+        patternName: 'FullPattern',
+        patternCode: '// full pattern',
+        nodes: ['a', 'b', 'c'],
+        inputPorts: [{ nodeId: 'a', port: 'execute' }],
+        outputPorts: [{ nodeId: 'c', port: 'result' }],
+        internalConnectionCount: 3,
+      });
+
+      const result = parseResult(
+        await callExtract({
+          sourceFile: '/tmp/wf.ts',
+          nodes: 'a, b, c',
+          outputFile: outFile,
+        }),
+      );
+
+      expect(result.success).toBe(true);
+      const data = result.data as {
+        filePath: string;
+        patternName: string;
+        nodes: string[];
+        inputPorts: unknown[];
+        outputPorts: unknown[];
+        internalConnectionCount: number;
+      };
+      expect(data.patternName).toBe('FullPattern');
+      expect(data.nodes).toEqual(['a', 'b', 'c']);
+      expect(data.inputPorts).toHaveLength(1);
+      expect(data.outputPorts).toHaveLength(1);
+      expect(data.internalConnectionCount).toBe(3);
+      expect(fs.existsSync(outFile)).toBe(true);
+    });
+  });
+
+  // ── fw_migrate with actual changes ──────────────────────────────────────
+
+  describe('fw_migrate with changes', () => {
+    function callMigrate(args: Record<string, unknown>) {
+      const handler = toolHandlers.get('fw_migrate')!;
+      expect(handler).toBeDefined();
+      return handler(args);
+    }
+
+    it('reports migration status correctly for mixed results', async () => {
+      const file1 = path.join(tmpDir, 'migrated.ts');
+      const file2 = path.join(tmpDir, 'current.ts');
+      const file3 = path.join(tmpDir, 'error.ts');
+      fs.writeFileSync(file1, '// old');
+      fs.writeFileSync(file2, '// current');
+      fs.writeFileSync(file3, '// error');
+
+      mockGlobSync.mockReturnValue([file1, file2, file3]);
+
+      mockParseWorkflow
+        .mockResolvedValueOnce({ errors: [], ast: { name: 'wf1' }, allWorkflows: [] })
+        .mockResolvedValueOnce({ errors: [], ast: { name: 'wf2' }, allWorkflows: [] })
+        .mockResolvedValueOnce({ errors: ['Syntax error'], ast: null });
+
+      mockApplyMigrations
+        .mockReturnValueOnce({ name: 'wf1-migrated' })
+        .mockReturnValueOnce({ name: 'wf2' });
+
+      mockGenerateInPlace
+        .mockReturnValueOnce({ hasChanges: true, code: '// new syntax' })
+        .mockReturnValueOnce({ hasChanges: false, code: '// current' });
+
+      mockGetRegisteredMigrations.mockReturnValue(['mig-v1', 'mig-v2']);
+
+      const result = parseResult(await callMigrate({ glob: '*.ts' }));
+      expect(result.success).toBe(true);
+      const data = result.data as {
+        summary: { migrated: number; current: number; errors: number; total: number };
+        registeredMigrations: string[];
+        files: Array<{ file: string; status: string }>;
+      };
+      expect(data.summary.migrated).toBe(1);
+      expect(data.summary.current).toBe(1);
+      expect(data.summary.errors).toBe(1);
+      expect(data.summary.total).toBe(3);
+      expect(data.registeredMigrations).toEqual(['mig-v1', 'mig-v2']);
+    });
+  });
+
+  // ── fw_modify_batch validation failure mid-sequence ─────────────────────
+
+  describe('fw_modify_batch validation failure scenarios', () => {
+    function callBatch(args: Record<string, unknown>) {
+      const handler = toolHandlers.get('fw_modify_batch')!;
+      expect(handler).toBeDefined();
+      return handler(args);
+    }
+
+    it('pre-validates second operation and rejects without applying first', async () => {
+      const wfFile = path.join(tmpDir, 'val-fail.ts');
+      fs.writeFileSync(wfFile, '// source');
+
+      mockParseWorkflow.mockResolvedValue({
+        errors: [],
+        warnings: [],
+        ast: { name: 'wf', nodeTypes: [], instances: [], connections: [], options: {} },
+      });
+
+      const result = parseResult(
+        await callBatch({
+          filePath: wfFile,
+          operations: [
+            { operation: 'setNodePosition', params: { nodeId: 'a', x: 0, y: 0 } },
+            { operation: 'renameNode', params: {} }, // missing oldId and newId
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(false);
+      expect((result.error as { code: string }).code).toBe('INVALID_PARAMS');
+      expect((result.error as { message: string }).message).toContain('Operation 1');
+      // No manipulations should have been called
+      expect(mockManipSetNodePosition).not.toHaveBeenCalled();
+    });
+
+    it('rejects unknown operation in batch pre-validation', async () => {
+      const wfFile = path.join(tmpDir, 'unknown-op.ts');
+      fs.writeFileSync(wfFile, '// source');
+
+      const result = parseResult(
+        await callBatch({
+          filePath: wfFile,
+          operations: [
+            { operation: 'teleportNode', params: { x: 10 } },
+          ],
+        }),
+      );
+
+      expect(result.success).toBe(false);
+      expect((result.error as { code: string }).code).toBe('INVALID_PARAMS');
+      expect((result.error as { message: string }).message).toContain('Unknown operation');
+    });
+  });
 });

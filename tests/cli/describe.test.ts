@@ -444,6 +444,198 @@ describe('describe command', () => {
     });
   });
 
+  describe('formatDescribeOutput with focused node', () => {
+    it('should output JSON for focused node', () => {
+      const result = describeWorkflow(ast, { node: 'validator' }) as FocusedNodeOutput;
+      const formatted = formatDescribeOutput(ast, result, 'json');
+
+      const parsed = JSON.parse(formatted);
+      expect(parsed.focusNode).toBe('validator');
+      expect(parsed.node.id).toBe('validator');
+    });
+
+    it('should output text for focused node with incoming/outgoing connections', () => {
+      const result = describeWorkflow(ast, { node: 'validator' }) as FocusedNodeOutput;
+      const formatted = formatDescribeOutput(ast, result, 'text');
+
+      expect(formatted).toContain('Node: validator');
+      expect(formatted).toContain('Inputs:');
+      expect(formatted).toContain('Outputs:');
+    });
+
+    it('should still output mermaid diagram even when focusing on a node', () => {
+      const result = describeWorkflow(ast, { node: 'validator' }) as FocusedNodeOutput;
+      const formatted = formatDescribeOutput(ast, result, 'mermaid');
+
+      // Mermaid output is the full graph, not node-specific
+      expect(formatted).toContain('graph LR');
+      expect(formatted).toContain('-->');
+    });
+  });
+
+  describe('formatTextOutput edge cases', () => {
+    it('should show (none) for nodes with no inputs or outputs', () => {
+      // Create a node type with empty inputs/outputs
+      const emptyNodeType = {
+        type: 'NodeType',
+        name: 'empty',
+        functionName: 'empty',
+        expression: false,
+        inputs: {},
+        outputs: {},
+        hasSuccessPort: false,
+        hasFailurePort: false,
+        isAsync: false,
+        executeWhen: 'CONJUNCTION' as const,
+      };
+
+      const emptyAST = {
+        ...ast,
+        nodeTypes: [emptyNodeType],
+        instances: [{ id: 'e1', nodeType: 'empty', config: {} }],
+        connections: [],
+      } as unknown as TWorkflowAST;
+
+      const output = describeWorkflow(emptyAST) as DescribeOutput;
+      const text = formatDescribeOutput(emptyAST, output, 'text');
+
+      // Node with no inputs/outputs should still render
+      expect(text).toContain('e1');
+    });
+
+    it('should show description when workflow has one', () => {
+      const output = describeWorkflow(ast) as DescribeOutput;
+      const text = formatDescribeOutput(ast, output, 'text');
+
+      expect(text).toContain('Workflow: processLead');
+      expect(text).toContain('Validation:');
+    });
+
+    it('should show validation counts in text format', () => {
+      const output = describeWorkflow(ast) as DescribeOutput;
+      const text = formatDescribeOutput(ast, output, 'text');
+
+      expect(text).toMatch(/Validation: \d+ errors, \d+ warnings/);
+    });
+  });
+
+  describe('describeCommand error paths', () => {
+    let originalExit: typeof process.exit;
+    let originalLog: typeof console.log;
+    let originalError: typeof console.error;
+
+    beforeEach(() => {
+      originalExit = process.exit;
+      originalLog = console.log;
+      originalError = console.error;
+      process.exit = vi.fn() as never;
+      console.log = vi.fn();
+      console.error = vi.fn();
+    });
+
+    afterEach(() => {
+      process.exit = originalExit;
+      console.log = originalLog;
+      console.error = originalError;
+    });
+
+    it('should exit with error for non-existent file', async () => {
+      await describeCommand('/nonexistent/file.ts', {});
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it('should exit with error for non-existent node focus', async () => {
+      const tmpDir = path.join(os.tmpdir(), `fw-describe-err-${Date.now()}`);
+      fs.mkdirSync(tmpDir, { recursive: true });
+
+      const content = `
+/** @flowWeaver nodeType
+ * @input execute
+ * @output onSuccess
+ */
+function proc(execute: boolean): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+
+/** @flowWeaver workflow
+ * @node p proc
+ * @connect p.onSuccess -> Exit.onSuccess
+ */
+export function testWf(execute: boolean): { onSuccess: boolean; onFailure: boolean } {
+  throw new Error("Not implemented");
+}
+`;
+      const filePath = path.join(tmpDir, 'workflow.ts');
+      fs.writeFileSync(filePath, content);
+
+      await describeCommand(filePath, { node: 'nonExistentNode' });
+      expect(process.exit).toHaveBeenCalledWith(1);
+
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should handle mermaid format via describeCommand', async () => {
+      const tmpDir = path.join(os.tmpdir(), `fw-describe-mermaid-${Date.now()}`);
+      fs.mkdirSync(tmpDir, { recursive: true });
+
+      const content = `
+/** @flowWeaver nodeType
+ * @input execute
+ * @output onSuccess
+ */
+function proc(execute: boolean): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+
+/** @flowWeaver workflow
+ * @node p proc
+ * @connect p.onSuccess -> Exit.onSuccess
+ */
+export function mermaidWf(execute: boolean): { onSuccess: boolean; onFailure: boolean } {
+  throw new Error("Not implemented");
+}
+`;
+      const filePath = path.join(tmpDir, 'workflow.ts');
+      fs.writeFileSync(filePath, content);
+
+      await describeCommand(filePath, { format: 'mermaid' });
+      // Should not exit with error
+      expect(process.exit).not.toHaveBeenCalled();
+
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should handle text format via describeCommand', async () => {
+      const tmpDir = path.join(os.tmpdir(), `fw-describe-text-${Date.now()}`);
+      fs.mkdirSync(tmpDir, { recursive: true });
+
+      const content = `
+/** @flowWeaver nodeType
+ * @input execute
+ * @output onSuccess
+ */
+function proc(execute: boolean): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+
+/** @flowWeaver workflow
+ * @node p proc
+ * @connect p.onSuccess -> Exit.onSuccess
+ */
+export function textWf(execute: boolean): { onSuccess: boolean; onFailure: boolean } {
+  throw new Error("Not implemented");
+}
+`;
+      const filePath = path.join(tmpDir, 'workflow.ts');
+      fs.writeFileSync(filePath, content);
+
+      await describeCommand(filePath, { format: 'text' });
+      expect(process.exit).not.toHaveBeenCalled();
+
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+  });
+
   describe('describeCommand read-only by default', () => {
     const tmpDir = path.join(os.tmpdir(), `fw-describe-test-${process.pid}`);
     let originalExit: typeof process.exit;

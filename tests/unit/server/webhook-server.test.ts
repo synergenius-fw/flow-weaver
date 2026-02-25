@@ -10,6 +10,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+
+// Mock executeWorkflowFromFile to avoid real compilation
+const mockExecuteWorkflowFromFile = vi.fn();
+vi.mock('../../../src/mcp/workflow-executor.js', () => ({
+  executeWorkflowFromFile: (...a: unknown[]) => mockExecuteWorkflowFromFile(...a),
+}));
+
 import { WebhookServer } from '../../../src/server/webhook-server.js';
 import { WorkflowRegistry } from '../../../src/server/workflow-registry.js';
 
@@ -250,5 +257,327 @@ describe('WebhookServer config options', () => {
     });
 
     expect(server.getServerInfo().port).toBe(3501);
+  });
+});
+
+// ── Mocked Fastify start/stop lifecycle ──────────────────────────────────────
+
+describe('WebhookServer start/stop with mock Fastify', () => {
+  let routeHandlers: Map<string, { method: string; handler: Function }>;
+  let mockFastifyInstance: Record<string, unknown>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    routeHandlers = new Map();
+
+    mockFastifyInstance = {
+      register: vi.fn().mockResolvedValue(undefined),
+      get: vi.fn((path: string, handler: Function) => {
+        routeHandlers.set(`GET:${path}`, { method: 'GET', handler });
+      }),
+      post: vi.fn((path: string, handler: Function) => {
+        routeHandlers.set(`POST:${path}`, { method: 'POST', handler });
+      }),
+      listen: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+  });
+
+  function createServerWithMockFastify(overrides: Record<string, unknown> = {}) {
+    // We need to mock the dynamic import of fastify inside start()
+    // Instead, we'll use a more direct approach: mock the 'fastify' module
+    vi.doMock('fastify', () => ({
+      default: () => mockFastifyInstance,
+    }));
+
+    // Mock @fastify/cors to succeed
+    vi.doMock('@fastify/cors', () => ({
+      default: vi.fn(),
+    }));
+
+    return new WebhookServer({
+      port: 4000,
+      host: '127.0.0.1',
+      workflowDir: WEBHOOK_TEMP_DIR,
+      watchEnabled: false,
+      corsOrigin: '*',
+      production: false,
+      precompile: false,
+      ...overrides,
+    });
+  }
+
+  it('start() sets up health, list, and execute routes', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    expect(mockFastifyInstance.get).toHaveBeenCalled();
+    expect(mockFastifyInstance.post).toHaveBeenCalled();
+
+    // Verify health route was registered
+    const getArgs = (mockFastifyInstance.get as ReturnType<typeof vi.fn>).mock.calls;
+    const getPaths = getArgs.map((c: unknown[]) => c[0]);
+    expect(getPaths).toContain('/health');
+    expect(getPaths).toContain('/workflows');
+
+    // Verify execute route
+    const postArgs = (mockFastifyInstance.post as ReturnType<typeof vi.fn>).mock.calls;
+    const postPaths = postArgs.map((c: unknown[]) => c[0]);
+    expect(postPaths).toContain('/workflows/:name');
+
+    // Verify listen was called
+    expect(mockFastifyInstance.listen).toHaveBeenCalledWith({
+      port: 4000,
+      host: '127.0.0.1',
+    });
+
+    await server.stop();
+  });
+
+  it('start() registers CORS', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    expect(mockFastifyInstance.register).toHaveBeenCalled();
+
+    await server.stop();
+  });
+
+  it('start() sets up swagger routes when swaggerEnabled is true', async () => {
+    const server = createServerWithMockFastify({ swaggerEnabled: true });
+    await server.start();
+
+    const getArgs = (mockFastifyInstance.get as ReturnType<typeof vi.fn>).mock.calls;
+    const getPaths = getArgs.map((c: unknown[]) => c[0]);
+    expect(getPaths).toContain('/openapi.json');
+    expect(getPaths).toContain('/docs');
+
+    await server.stop();
+  });
+
+  it('start() does not set up swagger routes when swaggerEnabled is false', async () => {
+    const server = createServerWithMockFastify({ swaggerEnabled: false });
+    await server.start();
+
+    const getArgs = (mockFastifyInstance.get as ReturnType<typeof vi.fn>).mock.calls;
+    const getPaths = getArgs.map((c: unknown[]) => c[0]);
+    expect(getPaths).not.toContain('/openapi.json');
+    expect(getPaths).not.toContain('/docs');
+
+    await server.stop();
+  });
+
+  it('stop() closes the fastify instance', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+    await server.stop();
+
+    expect(mockFastifyInstance.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('health route returns status and workflow count', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    const healthHandler = routeHandlers.get('GET:/health')?.handler;
+    expect(healthHandler).toBeDefined();
+
+    const result = await healthHandler!();
+    expect(result.status).toBe('ok');
+    expect(result.timestamp).toBeDefined();
+    expect(typeof result.workflows).toBe('number');
+    expect(typeof result.uptime).toBe('number');
+
+    await server.stop();
+  });
+
+  it('list route returns workflow metadata', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    const listHandler = routeHandlers.get('GET:/workflows')?.handler;
+    expect(listHandler).toBeDefined();
+
+    const result = await listHandler!();
+    expect(typeof result.count).toBe('number');
+    expect(Array.isArray(result.workflows)).toBe(true);
+
+    await server.stop();
+  });
+
+  it('execute route returns 404 for unknown workflow', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    const executeHandler = routeHandlers.get('POST:/workflows/:name')?.handler;
+    expect(executeHandler).toBeDefined();
+
+    const mockReply = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      type: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+    };
+
+    const result = await executeHandler!(
+      { params: { name: 'nonexistent' }, body: {}, query: {} },
+      mockReply,
+    );
+
+    expect(mockReply.status).toHaveBeenCalledWith(404);
+    expect(result.success).toBe(false);
+    expect(result.error.message).toContain('nonexistent');
+
+    await server.stop();
+  });
+
+  it('execute route calls executeWorkflowFromFile for a known workflow', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    const executeHandler = routeHandlers.get('POST:/workflows/:name')?.handler;
+    expect(executeHandler).toBeDefined();
+
+    mockExecuteWorkflowFromFile.mockResolvedValue({
+      functionName: 'doubler',
+      executionTime: 42,
+      result: { doubled: 10 },
+    });
+
+    const mockReply = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      type: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+    };
+
+    const result = await executeHandler!(
+      { params: { name: 'doubler' }, body: { value: 5 }, query: {} },
+      mockReply,
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.workflow).toBe('doubler');
+    expect(result.executionTime).toBe(42);
+    expect(result.result).toEqual({ doubled: 10 });
+
+    await server.stop();
+  });
+
+  it('execute route includes trace when query trace=true', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    const executeHandler = routeHandlers.get('POST:/workflows/:name')?.handler;
+
+    mockExecuteWorkflowFromFile.mockResolvedValue({
+      functionName: 'doubler',
+      executionTime: 10,
+      result: {},
+      trace: [{ type: 'NODE_STARTED', timestamp: 1000 }],
+    });
+
+    const mockReply = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      type: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+    };
+
+    const result = await executeHandler!(
+      { params: { name: 'doubler' }, body: {}, query: { trace: 'true' } },
+      mockReply,
+    );
+
+    expect(result.trace).toBeDefined();
+    expect(result.trace[0].type).toBe('NODE_STARTED');
+
+    await server.stop();
+  });
+
+  it('execute route returns 500 when executeWorkflowFromFile throws', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    const executeHandler = routeHandlers.get('POST:/workflows/:name')?.handler;
+
+    mockExecuteWorkflowFromFile.mockRejectedValue(new Error('compile error'));
+
+    const mockReply = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      type: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+    };
+
+    const result = await executeHandler!(
+      { params: { name: 'doubler' }, body: {}, query: {} },
+      mockReply,
+    );
+
+    expect(mockReply.status).toHaveBeenCalledWith(500);
+    expect(result.success).toBe(false);
+    expect(result.error.message).toBe('compile error');
+    expect(result.error.stack).toBeDefined();
+
+    await server.stop();
+  });
+
+  it('execute route handles non-Error throws', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    const executeHandler = routeHandlers.get('POST:/workflows/:name')?.handler;
+
+    mockExecuteWorkflowFromFile.mockRejectedValue('string error');
+
+    const mockReply = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      type: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+    };
+
+    const result = await executeHandler!(
+      { params: { name: 'doubler' }, body: {}, query: {} },
+      mockReply,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error.message).toBe('string error');
+    expect(result.error.stack).toBeUndefined();
+
+    await server.stop();
+  });
+
+  it('execute route uses empty object when body is missing', async () => {
+    const server = createServerWithMockFastify();
+    await server.start();
+
+    const executeHandler = routeHandlers.get('POST:/workflows/:name')?.handler;
+
+    mockExecuteWorkflowFromFile.mockResolvedValue({
+      functionName: 'doubler',
+      executionTime: 5,
+      result: {},
+    });
+
+    const mockReply = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      type: vi.fn().mockReturnThis(),
+      header: vi.fn().mockReturnThis(),
+    };
+
+    const result = await executeHandler!(
+      { params: { name: 'doubler' }, body: undefined, query: {} },
+      mockReply,
+    );
+
+    expect(result.success).toBe(true);
+    // The second arg to executeWorkflowFromFile should be {} (fallback)
+    expect(mockExecuteWorkflowFromFile.mock.calls[0][1]).toEqual({});
+
+    await server.stop();
   });
 });
