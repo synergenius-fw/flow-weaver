@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
+import type { TWorkflowAST, TNodeTypeAST, TDataType } from '../../src/ast/types';
 import { validator } from '../../src/validator';
 import { generateCode } from '../../src/api/generate';
 import { AnnotationGenerator, generateFunctionSignature } from '../../src/annotation-generator';
@@ -9,11 +9,11 @@ import { AnnotationGenerator, generateFunctionSignature } from '../../src/annota
 function makeStubNodeType(name: string, inputs: Record<string, string>, outputs: Record<string, string>): TNodeTypeAST {
   const inputPorts: TNodeTypeAST['inputs'] = {};
   for (const [pName, dt] of Object.entries(inputs)) {
-    inputPorts[pName] = { dataType: dt };
+    inputPorts[pName] = { dataType: dt as TDataType };
   }
   const outputPorts: TNodeTypeAST['outputs'] = {};
   for (const [pName, dt] of Object.entries(outputs)) {
-    outputPorts[pName] = { dataType: dt };
+    outputPorts[pName] = { dataType: dt as TDataType };
   }
   return {
     type: 'NodeType',

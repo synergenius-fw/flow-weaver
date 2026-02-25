@@ -7,8 +7,12 @@
 import type { JSDocTag, Type, Symbol as TsMorphSymbol } from 'ts-morph';
 import type { FunctionLike } from './function-like';
 import type { TDataType, TPortConfig, TMergeStrategy, TNodeTagAST } from './ast/types';
-import { isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort } from './constants';
+import {
+  isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort,
+  KNOWN_NODETYPE_TAGS, KNOWN_WORKFLOW_TAGS, KNOWN_PATTERN_TAGS, STANDARD_JSDOC_TAGS,
+} from './constants';
 import { inferDataTypeFromTS } from './type-mappings';
+import { findClosestMatches } from './utils/string-distance';
 import {
   parsePortLine,
   parseNodeLine,
@@ -334,11 +338,11 @@ export class JSDocParser {
           break;
 
         case 'color':
-          config.color = comment.trim();
+          config.color = comment.trim().replace(/^["']|["']$/g, '');
           break;
 
         case 'icon':
-          config.icon = comment.trim();
+          config.icon = comment.trim().replace(/^["']|["']$/g, '');
           break;
 
         case 'tag':
@@ -382,6 +386,18 @@ export class JSDocParser {
 
         case 'step':
           this.parseStepTag(tag, config, func, warnings);
+          break;
+
+        default:
+          // D: Context validation - tags that belong to other block types
+          if (tagName === 'param' || tagName === 'returns' || tagName === 'return') {
+            warnings.push(`@${tagName} is for workflows, not node types. Use @input/@output instead.`);
+          } else if (!KNOWN_NODETYPE_TAGS.has(tagName) && !STANDARD_JSDOC_TAGS.has(tagName)) {
+            // C: Unknown tag detection with suggestions
+            const suggestions = findClosestMatches(tagName, [...KNOWN_NODETYPE_TAGS]);
+            const hint = suggestions.length > 0 ? ` Did you mean @${suggestions[0]}?` : '';
+            warnings.push(`Unknown annotation @${tagName} in nodeType block.${hint}`);
+          }
           break;
       }
     });
@@ -525,6 +541,20 @@ export class JSDocParser {
         case 'returns':
           this.parseReturnTag(tag, config, func, warnings);
           break;
+
+        default:
+          // D: Context validation - tags that belong to other block types
+          if (tagName === 'color' || tagName === 'icon' || tagName === 'tag') {
+            warnings.push(`@${tagName} is for node types, not workflows. Use it on @flowWeaver nodeType instead.`);
+          } else if (tagName === 'input' || tagName === 'output' || tagName === 'step') {
+            warnings.push(`@${tagName} is for node types, not workflows. Use @param/@returns for workflows.`);
+          } else if (!KNOWN_WORKFLOW_TAGS.has(tagName) && !STANDARD_JSDOC_TAGS.has(tagName)) {
+            // C: Unknown tag detection with suggestions
+            const suggestions = findClosestMatches(tagName, [...KNOWN_WORKFLOW_TAGS]);
+            const hint = suggestions.length > 0 ? ` Did you mean @${suggestions[0]}?` : '';
+            warnings.push(`Unknown annotation @${tagName} in workflow block.${hint}`);
+          }
+          break;
       }
     });
 
@@ -593,6 +623,14 @@ export class JSDocParser {
 
         case 'port':
           this.parsePatternPortTag(tag, config, warnings);
+          break;
+
+        default:
+          if (!KNOWN_PATTERN_TAGS.has(tagName) && !STANDARD_JSDOC_TAGS.has(tagName)) {
+            const suggestions = findClosestMatches(tagName, [...KNOWN_PATTERN_TAGS]);
+            const hint = suggestions.length > 0 ? ` Did you mean @${suggestions[0]}?` : '';
+            warnings.push(`Unknown annotation @${tagName} in pattern block.${hint}`);
+          }
           break;
       }
     });
@@ -728,6 +766,10 @@ export class JSDocParser {
     // Check for STEP ports: execute OR scoped mandatory ports (success, failure with scope)
     const isScopedStepInput = scope && isScopedMandatoryPort(name);
     if (isExecutePort(name) || isScopedStepInput) {
+      // E: Warn if user explicitly specified a non-STEP type on a reserved port
+      if (result.dataType && result.dataType !== 'STEP') {
+        warnings.push(`Port "${name}" is a reserved control port; type will always be STEP.`);
+      }
       type = 'STEP';
     } else if (scope) {
       // For scoped INPUT ports, look up type from the scope callback's return type
@@ -784,6 +826,11 @@ export class JSDocParser {
       label = undefined;
     }
 
+    // B: Duplicate port detection
+    if (config.inputs!.hasOwnProperty(name)) {
+      warnings.push(`Duplicate @input "${name}". The second declaration will overwrite the first.`);
+    }
+
     config.inputs![name] = {
       type,
       defaultValue: defaultValue ? this.parseDefaultValue(defaultValue) : undefined,
@@ -822,6 +869,10 @@ export class JSDocParser {
     // Check for STEP ports: onSuccess/onFailure OR scoped mandatory ports (start with scope)
     const isScopedStepOutput = scope && isScopedMandatoryPort(name);
     if (isSuccessPort(name) || isFailurePort(name) || isScopedStepOutput) {
+      // E: Warn if user explicitly specified a non-STEP type on a reserved port
+      if (result.dataType && result.dataType !== 'STEP') {
+        warnings.push(`Port "${name}" is a reserved control port; type will always be STEP.`);
+      }
       type = 'STEP';
     } else if (scope) {
       // For scoped OUTPUT ports, look up type from the scope callback parameter
@@ -870,6 +921,11 @@ export class JSDocParser {
       } else {
         type = 'ANY';
       }
+    }
+
+    // B: Duplicate port detection
+    if (config.outputs!.hasOwnProperty(name)) {
+      warnings.push(`Duplicate @output "${name}". The second declaration will overwrite the first.`);
     }
 
     config.outputs![name] = {
@@ -949,10 +1005,19 @@ export class JSDocParser {
       const fieldMatch = returnTypeText.match(new RegExp(`${name}\\s*:\\s*([^;},]+)`));
       if (fieldMatch) {
         type = inferDataTypeFromTS(fieldMatch[1].trim());
+      } else {
+        // G: Type inference fallback to ANY
+        warnings.push(`Could not infer type for @returns "${name}", defaulting to ANY.`);
       }
     }
 
     config.returnPorts = config.returnPorts || {};
+
+    // B: Duplicate port detection
+    if (config.returnPorts.hasOwnProperty(name)) {
+      warnings.push(`Duplicate @returns "${name}". The second declaration will overwrite the first.`);
+    }
+
     config.returnPorts[name] = {
       dataType: type,
       label: description?.trim(),
@@ -1008,11 +1073,21 @@ export class JSDocParser {
         const fieldMatch = paramTypeText.match(new RegExp(`${name}\\s*:\\s*([^;},]+)`));
         if (fieldMatch) {
           type = inferDataTypeFromTS(fieldMatch[1].trim());
+        } else {
+          // F: @param doesn't match any field in the params object
+          // G: Type inference fallback to ANY
+          warnings.push(`@param "${name}" does not match any field in the params object. Type defaults to ANY.`);
         }
       }
     }
 
     config.startPorts = config.startPorts || {};
+
+    // B: Duplicate port detection
+    if (config.startPorts.hasOwnProperty(name)) {
+      warnings.push(`Duplicate @param "${name}". The second declaration will overwrite the first.`);
+    }
+
     config.startPorts[name] = {
       dataType: type,
       label: description?.trim(),

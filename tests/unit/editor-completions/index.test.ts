@@ -317,9 +317,10 @@ describe('getFlowWeaverCompletions', () => {
 
     it('should return @color values', () => {
       const result = getFlowWeaverCompletions(' * @color ', 10, true);
-      expect(result.length).toBe(8);
+      expect(result.length).toBe(9);
       expect(result.some((c) => c.label === 'purple')).toBe(true);
       expect(result.some((c) => c.label === 'blue')).toBe(true);
+      expect(result.some((c) => c.label === 'cyan')).toBe(true);
     });
 
     it('should filter @color values by prefix', () => {
