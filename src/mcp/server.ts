@@ -13,6 +13,7 @@ import { registerExportTools } from './tools-export.js';
 import { registerMarketplaceTools } from './tools-marketplace.js';
 import { registerDiagramTools } from './tools-diagram.js';
 import { registerDocsTools } from './tools-docs.js';
+import { registerModelTools } from './tools-model.js';
 import { registerResources } from './resources.js';
 
 function parseEventFilterFromEnv(): Partial<EventFilterConfig> {
@@ -78,6 +79,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   registerMarketplaceTools(mcp);
   registerDiagramTools(mcp);
   registerDocsTools(mcp);
+  registerModelTools(mcp);
   registerResources(mcp, connection, buffer);
 
   // Connect transport (only in stdio MCP mode)

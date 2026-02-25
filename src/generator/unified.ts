@@ -2012,7 +2012,12 @@ function generateNodeCallWithContext(
   const resultVar = `${safeId}Result`;
   const awaitKeyword = nodeType.isAsync ? 'await ' : '';
 
-  if (nodeType.variant === 'COERCION') {
+  if (nodeType.variant === 'STUB') {
+    // Stub node: emit a runtime throw. The workflow was generated with generateStubs: true.
+    lines.push(
+      `${indent}  throw new Error('Node "${instanceId}" uses stub type "${functionName}" which has no implementation.');`
+    );
+  } else if (nodeType.variant === 'COERCION') {
     // Coercion node: inline JS expression instead of function call
     const coerceExprMap: Record<string, string> = {
       __fw_toString: 'String',

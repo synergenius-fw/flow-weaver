@@ -32,12 +32,14 @@ const ERROR_DOC_URLS: Record<string, string> = {
   MISSING_EXIT_CONNECTION: `${DOCS_BASE}/concepts#start-and-exit`,
   INFERRED_NODE_TYPE: `${DOCS_BASE}/node-conversion`,
   DUPLICATE_CONNECTION: `${DOCS_BASE}/concepts#connections`,
+  STUB_NODE: `${DOCS_BASE}/model-driven#stub-nodes`,
 };
 
 export class WorkflowValidator {
   private errors: TValidationError[] = [];
   private warnings: TValidationError[] = [];
   private strictMode = false;
+  private draftMode = false;
 
   /** Look up instance sourceLocation by instance ID */
   private getInstanceLocation(
@@ -94,7 +96,7 @@ export class WorkflowValidator {
     return errors;
   }
 
-  validate(workflow: TWorkflowAST, options?: { strictMode?: boolean }): {
+  validate(workflow: TWorkflowAST, options?: { strictMode?: boolean; mode?: 'strict' | 'draft' }): {
     valid: boolean;
     errors: TValidationError[];
     warnings: TValidationError[];
@@ -102,6 +104,7 @@ export class WorkflowValidator {
     this.errors = [];
     this.warnings = [];
     this.strictMode = options?.strictMode ?? false;
+    this.draftMode = options?.mode === 'draft';
     const nodeTypeMap = new Map<string, TNodeTypeAST>();
     // Map by both functionName and name to support npm nodes (name='npm/pkg/func', functionName='func')
     workflow.nodeTypes.forEach((nodeType) => {
@@ -145,11 +148,25 @@ export class WorkflowValidator {
     workflow.instances.forEach((instance) => {
       // Check both name (for npm nodes like 'npm/pkg/func') and functionName (for local nodes)
       const nodeType = workflow.nodeTypes.find((nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType);
-      if (nodeType?.inferred) {
+      if (nodeType?.inferred && nodeType.variant !== 'STUB') {
         this.warnings.push({
           type: 'warning',
           code: 'INFERRED_NODE_TYPE',
           message: `Node type "${instance.nodeType}" was auto-inferred from function signature (expression mode). Add @flowWeaver nodeType for explicit port control.`,
+          node: instance.id,
+          location: instance.sourceLocation,
+        });
+      }
+    });
+
+    // Stub node diagnostics: always emit as errors, draft mode reclassifies at the end
+    workflow.instances.forEach((instance) => {
+      const nodeType = workflow.nodeTypes.find((nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType);
+      if (nodeType?.variant === 'STUB') {
+        this.errors.push({
+          type: 'error',
+          code: 'STUB_NODE',
+          message: `Node "${instance.id}" uses stub type "${instance.nodeType}" which has no implementation. Use draft mode to validate structure, or implement the node.`,
           node: instance.id,
           location: instance.sourceLocation,
         });
@@ -203,6 +220,36 @@ export class WorkflowValidator {
         }
         return true;
       });
+    }
+
+    // Draft mode post-processing: reclassify stub-related errors as warnings
+    if (this.draftMode) {
+      const stubTypeNames = new Set(
+        workflow.nodeTypes.filter((nt) => nt.variant === 'STUB').map((nt) => nt.functionName)
+      );
+      // Also index by name for npm-style nodes
+      workflow.nodeTypes.filter((nt) => nt.variant === 'STUB').forEach((nt) => {
+        stubTypeNames.add(nt.name);
+      });
+      const stubInstanceIds = new Set(
+        workflow.instances
+          .filter((inst) => stubTypeNames.has(inst.nodeType))
+          .map((inst) => inst.id)
+      );
+
+      const promoted: TValidationError[] = [];
+      this.errors = this.errors.filter((err) => {
+        if (err.code === 'STUB_NODE') {
+          promoted.push({ ...err, type: 'warning' });
+          return false;
+        }
+        if (err.code === 'MISSING_REQUIRED_INPUT' && err.node && stubInstanceIds.has(err.node)) {
+          promoted.push({ ...err, type: 'warning' });
+          return false;
+        }
+        return true;
+      });
+      this.warnings.push(...promoted);
     }
 
     // Attach doc URLs to diagnostics that have mapped error codes
