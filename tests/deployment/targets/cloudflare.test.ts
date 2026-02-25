@@ -1,0 +1,913 @@
+/**
+ * Cloudflare Workers export target tests.
+ *
+ * Covers: generate (basic + docs), generateMultiWorkflow, generateNodeTypeService,
+ * generateBundle, deploy instructions, and handler content assertions.
+ */
+
+import { describe, it, expect } from 'vitest';
+import { CloudflareTarget } from '../../../src/deployment/targets/cloudflare.js';
+import type {
+  ExportOptions,
+  CompiledWorkflow,
+  NodeTypeInfo,
+  NodeTypeExportOptions,
+  BundleWorkflow,
+  BundleNodeType,
+} from '../../../src/deployment/targets/base.js';
+
+// ── Fixtures ──────────────────────────────────────────────────────────
+
+const baseOptions: ExportOptions = {
+  sourceFile: '/path/to/workflow.ts',
+  workflowName: 'processOrder',
+  displayName: 'process-order',
+  outputDir: '/tmp/cf-output',
+  description: 'Processes incoming orders',
+};
+
+const multiWorkflows: CompiledWorkflow[] = [
+  {
+    name: 'validate-input',
+    functionName: 'validateInput',
+    description: 'Validates user input',
+    code: 'export function validateInput() {}',
+  },
+  {
+    name: 'send-email',
+    functionName: 'sendEmail',
+    description: 'Sends notification emails',
+    code: 'export function sendEmail() {}',
+  },
+];
+
+const nodeTypes: NodeTypeInfo[] = [
+  {
+    name: 'FetchData',
+    functionName: 'fetchData',
+    description: 'Fetches data from an API',
+    inputs: {
+      url: { dataType: 'STRING', label: 'URL' },
+      headers: { dataType: 'OBJECT', label: 'Headers', optional: true },
+    },
+    outputs: {
+      data: { dataType: 'OBJECT', label: 'Response data' },
+      status: { dataType: 'NUMBER', label: 'HTTP status' },
+    },
+    code: 'export function fetchData() {}',
+  },
+  {
+    name: 'TransformData',
+    functionName: 'transformData',
+    description: 'Transforms data',
+    inputs: {
+      execute: { dataType: 'STEP' },
+      input: { dataType: 'ANY', label: 'Input' },
+    },
+    outputs: {
+      onSuccess: { dataType: 'STEP' },
+      result: { dataType: 'ANY', label: 'Result' },
+    },
+    code: 'export function transformData() {}',
+  },
+];
+
+const nodeTypeExportOptions: NodeTypeExportOptions = {
+  sourceFile: '/path/to/node-types.ts',
+  serviceName: 'data-service',
+  outputDir: '/tmp/cf-nt-output',
+};
+
+const bundleWorkflows: BundleWorkflow[] = [
+  {
+    name: 'process-order',
+    functionName: 'processOrder',
+    description: 'Process an order',
+    expose: true,
+    code: 'export function processOrder() {}',
+  },
+  {
+    name: 'internal-helper',
+    functionName: 'internalHelper',
+    description: 'Internal helper, not exposed',
+    expose: false,
+    code: 'export function internalHelper() {}',
+  },
+];
+
+const bundleNodeTypes: BundleNodeType[] = [
+  {
+    name: 'Validator',
+    functionName: 'validator',
+    description: 'Validates input',
+    expose: true,
+    code: 'export function validator() {}',
+    inputs: { value: { dataType: 'ANY' } },
+    outputs: { valid: { dataType: 'BOOLEAN' } },
+  },
+  {
+    name: 'Logger',
+    functionName: 'logger',
+    description: 'Logs data (internal)',
+    expose: false,
+    code: 'export function logger() {}',
+    inputs: { message: { dataType: 'STRING' } },
+    outputs: {},
+  },
+];
+
+// ── Tests ─────────────────────────────────────────────────────────────
+
+describe('CloudflareTarget', () => {
+  const target = new CloudflareTarget();
+
+  // ── Single workflow generate ──
+
+  describe('generate (basic)', () => {
+    it('should produce a handler that uses Cloudflare fetch API', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts');
+      expect(handler).toBeDefined();
+      expect(handler!.content).toContain('async fetch(request: Request');
+      expect(handler!.content).toContain('ExportedHandler');
+      expect(handler!.content).toContain("import { processOrder } from './workflow.js'");
+      expect(handler!.content).toContain('processOrder(true, body)');
+    });
+
+    it('should reject non-POST with 405', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("request.method !== 'POST'");
+      expect(handler.content).toContain('METHOD_NOT_ALLOWED');
+      expect(handler.content).toContain('405');
+    });
+
+    it('should include request ID from cf-ray header', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("request.headers.get('cf-ray')");
+      expect(handler.content).toContain('X-Request-Id');
+    });
+
+    it('should include a generated-by header comment', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('Generated by Flow Weaver');
+      expect(handler.content).toContain('export --target cloudflare');
+    });
+
+    it('should set correct file types on each artifact', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const types = artifacts.files.map((f) => ({ path: f.relativePath, type: f.type }));
+      expect(types).toContainEqual({ path: 'index.ts', type: 'handler' });
+      expect(types).toContainEqual({ path: 'wrangler.toml', type: 'config' });
+      expect(types).toContainEqual({ path: 'package.json', type: 'package' });
+      expect(types).toContainEqual({ path: 'tsconfig.json', type: 'config' });
+    });
+
+    it('should NOT generate openapi.ts when includeDocs is false', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts');
+      expect(openapi).toBeUndefined();
+    });
+
+    it('should generate a README', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const readme = artifacts.files.find((f) => f.relativePath === 'README.md');
+      expect(readme).toBeDefined();
+      expect(readme!.content).toContain('Cloudflare Workers');
+    });
+  });
+
+  describe('generate (with docs)', () => {
+    const docsOptions = { ...baseOptions, includeDocs: true };
+
+    it('should include openapi.ts when docs are enabled', async () => {
+      const artifacts = await target.generate(docsOptions);
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts');
+      expect(openapi).toBeDefined();
+      expect(openapi!.content).toContain('openApiSpec');
+      expect(openapi!.content).toContain('3.0.3');
+    });
+
+    it('should add /docs and /openapi.json routes to handler', async () => {
+      const artifacts = await target.generate(docsOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("path === '/openapi.json'");
+      expect(handler.content).toContain("path === '/docs'");
+      expect(handler.content).toContain('swagger-ui');
+    });
+
+    it('should import openapi spec in docs handler', async () => {
+      const artifacts = await target.generate(docsOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("import { openApiSpec } from './openapi.js'");
+    });
+  });
+
+  // ── Multi-workflow ──
+
+  describe('generateMultiWorkflow', () => {
+    it('should produce a handler with per-workflow imports', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain(
+        "import { validateInput } from './workflows/validate-input.js'"
+      );
+      expect(handler.content).toContain(
+        "import { sendEmail } from './workflows/send-email.js'"
+      );
+    });
+
+    it('should map workflow names to function handlers', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("'validate-input': validateInput");
+      expect(handler.content).toContain("'send-email': sendEmail");
+    });
+
+    it('should route requests via /api/{workflowName}', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('workflowMatch');
+      expect(handler.content).toContain('path.match(');
+    });
+
+    it('should include /api/functions, /api/docs, and /api/openapi.json routes', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("path === '/api/functions'");
+      expect(handler.content).toContain("path === '/api/docs'");
+      expect(handler.content).toContain("path === '/api/openapi.json'");
+    });
+
+    it('should generate consolidated OpenAPI spec', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      expect(openapi.content).toContain('validate-input');
+      expect(openapi.content).toContain('send-email');
+    });
+
+    it('should import function registry and builtin functions', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("import { functionRegistry } from './runtime/function-registry.js'");
+      expect(handler.content).toContain("import './runtime/builtin-functions.js'");
+    });
+
+    it('should produce workflow content files', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const wfFiles = artifacts.files.filter((f) => f.relativePath.startsWith('workflows/'));
+      expect(wfFiles.length).toBe(2);
+      expect(wfFiles.map((f) => f.relativePath)).toContain('workflows/validate-input.ts');
+      expect(wfFiles.map((f) => f.relativePath)).toContain('workflows/send-email.ts');
+    });
+
+    it('should return workflowNames in the result', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      expect(artifacts.workflowNames).toEqual(['validate-input', 'send-email']);
+    });
+
+    it('should generate wrangler.toml with service name', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, {
+        ...baseOptions,
+        displayName: 'my-service',
+      });
+      const wrangler = artifacts.files.find((f) => f.relativePath === 'wrangler.toml')!;
+      expect(wrangler.content).toContain('name = "my-service"');
+    });
+  });
+
+  // ── Node type service ──
+
+  describe('generateNodeTypeService', () => {
+    it('should import node types with lowercase file paths', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain(
+        "import { fetchData } from './node-types/fetchdata.js'"
+      );
+      expect(handler.content).toContain(
+        "import { transformData } from './node-types/transformdata.js'"
+      );
+    });
+
+    it('should map node type names to functions', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("'FetchData': fetchData");
+      expect(handler.content).toContain("'TransformData': transformData");
+    });
+
+    it('should route via /api/{nodeTypeName}', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('nodeTypeMatch');
+      expect(handler.content).toContain('path.match(');
+    });
+
+    it('should include /api/openapi.json and /api/docs', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("path === '/api/openapi.json'");
+      expect(handler.content).toContain("path === '/api/docs'");
+    });
+
+    it('should generate OpenAPI spec with node type endpoints', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      expect(openapi.content).toContain('/api/FetchData');
+      expect(openapi.content).toContain('/api/TransformData');
+    });
+
+    it('should set correct nodeTypeNames in result', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      expect(artifacts.nodeTypeNames).toEqual(['FetchData', 'TransformData']);
+    });
+
+    it('should generate node type content files', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const ntFiles = artifacts.files.filter((f) => f.relativePath.startsWith('node-types/'));
+      expect(ntFiles.length).toBe(2);
+      expect(ntFiles.map((f) => f.relativePath)).toContain('node-types/fetchdata.ts');
+      expect(ntFiles.map((f) => f.relativePath)).toContain('node-types/transformdata.ts');
+    });
+
+    it('should return 404 for unknown node types in the handler template', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('not found');
+      expect(handler.content).toContain('availableNodeTypes');
+    });
+
+    it('should generate Cloudflare-specific config files', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const wrangler = artifacts.files.find((f) => f.relativePath === 'wrangler.toml')!;
+      expect(wrangler.content).toContain('name = "data-service"');
+
+      const pkg = artifacts.files.find((f) => f.relativePath === 'package.json')!;
+      const parsed = JSON.parse(pkg.content);
+      expect(parsed.devDependencies['@cloudflare/workers-types']).toBeDefined();
+      expect(parsed.devDependencies.wrangler).toBeDefined();
+    });
+  });
+
+  // ── Bundle ──
+
+  describe('generateBundle', () => {
+    it('should import all workflows and node types with code', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain(
+        "import { processOrder } from './workflows/process-order.js'"
+      );
+      expect(handler.content).toContain(
+        "import { internalHelper } from './workflows/internal-helper.js'"
+      );
+      expect(handler.content).toContain(
+        "import { validator } from './node-types/validator.js'"
+      );
+      expect(handler.content).toContain(
+        "import { logger } from './node-types/logger.js'"
+      );
+    });
+
+    it('should only expose the flagged items in handler maps', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      // Exposed
+      expect(handler.content).toContain("'process-order': processOrder");
+      expect(handler.content).toContain("'Validator': validator");
+      // Not exposed (should not appear in the exposed maps)
+      expect(handler.content).not.toContain("'internal-helper': internalHelper");
+      expect(handler.content).not.toContain("'Logger': logger");
+    });
+
+    it('should route workflows to /api/workflows/{name}', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('workflowMatch');
+      expect(handler.content).toContain('/api/workflows/');
+    });
+
+    it('should route node types to /api/nodes/{name}', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('nodeTypeMatch');
+      expect(handler.content).toContain('/api/nodes/');
+    });
+
+    it('should generate OpenAPI spec with exposed items only', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      expect(openapi.content).toContain('/api/workflows/process-order');
+      expect(openapi.content).toContain('/api/nodes/Validator');
+      // Internal items should not appear in the spec
+      expect(openapi.content).not.toContain('/api/workflows/internal-helper');
+      expect(openapi.content).not.toContain('/api/nodes/Logger');
+    });
+
+    it('should include runtime files', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const runtimePaths = artifacts.files
+        .filter((f) => f.relativePath.startsWith('runtime/'))
+        .map((f) => f.relativePath);
+      expect(runtimePaths).toContain('runtime/types.ts');
+      expect(runtimePaths).toContain('runtime/function-registry.ts');
+      expect(runtimePaths).toContain('runtime/builtin-functions.ts');
+      expect(runtimePaths).toContain('runtime/parameter-resolver.ts');
+    });
+
+    it('should generate workflow and node-type content files', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const wfFiles = artifacts.files.filter((f) => f.relativePath.startsWith('workflows/'));
+      const ntFiles = artifacts.files.filter((f) => f.relativePath.startsWith('node-types/'));
+      expect(wfFiles.length).toBe(2);
+      expect(ntFiles.length).toBe(2);
+    });
+
+    it('should return correct metadata in artifacts', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      expect(artifacts.target).toBe('cloudflare');
+      expect(artifacts.entryPoint).toBe('index.ts');
+      expect(artifacts.workflowNames).toEqual(['process-order', 'internal-helper']);
+      expect(artifacts.nodeTypeNames).toEqual(['Validator', 'Logger']);
+    });
+
+    it('should handle name collisions with aliases', async () => {
+      const collidingWorkflows: BundleWorkflow[] = [
+        { name: 'shared', functionName: 'shared', expose: true, code: 'export function shared() {}' },
+      ];
+      const collidingNodeTypes: BundleNodeType[] = [
+        {
+          name: 'SharedNT',
+          functionName: 'shared',
+          expose: true,
+          code: 'export function shared() {}',
+          inputs: {},
+          outputs: {},
+        },
+      ];
+      const artifacts = await target.generateBundle(
+        collidingWorkflows,
+        collidingNodeTypes,
+        baseOptions
+      );
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      // The node type should be aliased to avoid collision
+      expect(handler.content).toContain('shared as shared_nodeType');
+      expect(handler.content).toContain("'SharedNT': shared_nodeType");
+    });
+
+    it('should skip npm node types from content file generation', async () => {
+      const npmNodeTypes: BundleNodeType[] = [
+        {
+          name: 'npm/lodash/get',
+          functionName: 'get',
+          expose: true,
+          inputs: {},
+          outputs: {},
+        },
+        {
+          name: 'LocalNode',
+          functionName: 'localNode',
+          expose: true,
+          code: 'export function localNode() {}',
+          inputs: {},
+          outputs: {},
+        },
+      ];
+      const artifacts = await target.generateBundle([], npmNodeTypes, baseOptions);
+      const ntFiles = artifacts.files.filter((f) => f.relativePath.startsWith('node-types/'));
+      // Only the local node type should get a content file
+      expect(ntFiles.length).toBe(1);
+      expect(ntFiles[0].relativePath).toBe('node-types/localnode.ts');
+    });
+
+    it('should handle empty workflows and node types', async () => {
+      const artifacts = await target.generateBundle([], [], baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('// No workflows');
+      expect(handler.content).toContain('// No node types');
+      expect(handler.content).toContain('// No exposed workflows');
+      expect(handler.content).toContain('// No exposed node types');
+    });
+  });
+
+  // ── Wrangler config ──
+
+  describe('wrangler.toml contents', () => {
+    it('should set the main entry point to dist/index.js', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const wrangler = artifacts.files.find((f) => f.relativePath === 'wrangler.toml')!;
+      expect(wrangler.content).toContain('main = "dist/index.js"');
+    });
+
+    it('should include a build command', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const wrangler = artifacts.files.find((f) => f.relativePath === 'wrangler.toml')!;
+      expect(wrangler.content).toContain('[build]');
+      expect(wrangler.content).toContain('command = "npm run build"');
+    });
+
+    it('should include a compatibility_date', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const wrangler = artifacts.files.find((f) => f.relativePath === 'wrangler.toml')!;
+      expect(wrangler.content).toContain('compatibility_date');
+    });
+  });
+
+  // ── tsconfig details ──
+
+  describe('tsconfig.json contents', () => {
+    it('should configure ESNext module with Bundler resolution', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const tsconfig = artifacts.files.find((f) => f.relativePath === 'tsconfig.json')!;
+      const parsed = JSON.parse(tsconfig.content);
+      expect(parsed.compilerOptions.module).toBe('ESNext');
+      expect(parsed.compilerOptions.moduleResolution).toBe('Bundler');
+      expect(parsed.compilerOptions.types).toContain('@cloudflare/workers-types');
+    });
+
+    it('should target ES2022', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const tsconfig = artifacts.files.find((f) => f.relativePath === 'tsconfig.json')!;
+      const parsed = JSON.parse(tsconfig.content);
+      expect(parsed.compilerOptions.target).toBe('ES2022');
+      expect(parsed.compilerOptions.strict).toBe(true);
+    });
+  });
+
+  // ── Package.json details ──
+
+  describe('package.json contents', () => {
+    it('should use fw- prefix for the package name', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const pkg = artifacts.files.find((f) => f.relativePath === 'package.json')!;
+      const parsed = JSON.parse(pkg.content);
+      expect(parsed.name).toBe('fw-process-order');
+    });
+
+    it('should include build, dev, and deploy scripts', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const pkg = artifacts.files.find((f) => f.relativePath === 'package.json')!;
+      const parsed = JSON.parse(pkg.content);
+      expect(parsed.scripts.build).toBe('tsc');
+      expect(parsed.scripts.dev).toBe('wrangler dev');
+      expect(parsed.scripts.deploy).toBe('wrangler deploy');
+    });
+
+    it('should set type to module', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const pkg = artifacts.files.find((f) => f.relativePath === 'package.json')!;
+      const parsed = JSON.parse(pkg.content);
+      expect(parsed.type).toBe('module');
+    });
+
+    it('should use custom description when provided', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const pkg = artifacts.files.find((f) => f.relativePath === 'package.json')!;
+      const parsed = JSON.parse(pkg.content);
+      expect(parsed.description).toBe('Processes incoming orders');
+    });
+
+    it('should use default description when none provided', async () => {
+      const opts = { ...baseOptions, description: undefined };
+      const artifacts = await target.generate(opts);
+      const pkg = artifacts.files.find((f) => f.relativePath === 'package.json')!;
+      const parsed = JSON.parse(pkg.content);
+      expect(parsed.description).toContain('Flow Weaver workflow');
+    });
+
+    it('should include multi-workflow description with workflow count', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const pkg = artifacts.files.find((f) => f.relativePath === 'package.json')!;
+      const parsed = JSON.parse(pkg.content);
+      expect(parsed.description).toContain('2');
+    });
+
+    it('should include bundle description with counts', async () => {
+      const artifacts = await target.generateBundle(bundleWorkflows, bundleNodeTypes, baseOptions);
+      const pkg = artifacts.files.find((f) => f.relativePath === 'package.json')!;
+      const parsed = JSON.parse(pkg.content);
+      expect(parsed.description).toContain('2 workflows');
+      expect(parsed.description).toContain('2 node types');
+    });
+  });
+
+  // ── OpenAPI spec structure ──
+
+  describe('OpenAPI spec structure', () => {
+    it('should generate valid OpenAPI 3.0.3 spec in single workflow docs mode', async () => {
+      const artifacts = await target.generate({ ...baseOptions, includeDocs: true });
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      expect(openapi.content).toContain('"openapi": "3.0.3"');
+      expect(openapi.content).toContain(`${baseOptions.displayName} API`);
+    });
+
+    it('should include workflow description in the OpenAPI spec', async () => {
+      const artifacts = await target.generate({
+        ...baseOptions,
+        includeDocs: true,
+        description: 'Custom description',
+      });
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      expect(openapi.content).toContain('Custom description');
+    });
+
+    it('should include node type input/output schemas in OpenAPI spec', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      // FetchData has STRING url input and OBJECT data output
+      expect(openapi.content).toContain('"url"');
+      expect(openapi.content).toContain('"string"');
+      // STEP ports should be excluded
+      expect(openapi.content).not.toContain('"execute"');
+      expect(openapi.content).not.toContain('"onSuccess"');
+    });
+
+    it('should mark required inputs in the node type OpenAPI spec', async () => {
+      const artifacts = await target.generateNodeTypeService(nodeTypes, nodeTypeExportOptions);
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      // url is required (not optional), headers is optional
+      expect(openapi.content).toContain('"required"');
+      expect(openapi.content).toContain('"url"');
+    });
+
+    it('should include multi-workflow service description in OpenAPI spec', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      expect(openapi.content).toContain('Multi-workflow service with 2 workflows');
+    });
+
+    it('should include functions endpoint in multi-workflow OpenAPI spec', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      expect(openapi.content).toContain('/api/functions');
+      expect(openapi.content).toContain('list_functions');
+    });
+
+    it('should include bundle description with exposed counts in OpenAPI spec', async () => {
+      const artifacts = await target.generateBundle(bundleWorkflows, bundleNodeTypes, baseOptions);
+      const openapi = artifacts.files.find((f) => f.relativePath === 'openapi.ts')!;
+      // 1 exposed workflow, 1 exposed node type
+      expect(openapi.content).toContain('1 workflow');
+      expect(openapi.content).toContain('1 node type');
+    });
+  });
+
+  // ── Handler error handling ──
+
+  describe('handler error handling', () => {
+    it('should include execution error catching in single workflow handler', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('EXECUTION_ERROR');
+      expect(handler.content).toContain('error instanceof Error');
+      expect(handler.content).toContain('status: 500');
+    });
+
+    it('should include execution time tracking', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('performance.now()');
+      expect(handler.content).toContain('X-Execution-Time');
+      expect(handler.content).toContain('executionTime');
+    });
+
+    it('should include 404 for unknown workflows in multi-workflow handler', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('not found');
+      expect(handler.content).toContain('availableWorkflows');
+      expect(handler.content).toContain('404');
+    });
+
+    it('should include 405 for non-POST in multi-workflow handler', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('METHOD_NOT_ALLOWED');
+      expect(handler.content).toContain('405');
+    });
+  });
+
+  // ── Bundle runtime files content ──
+
+  describe('bundle runtime file content', () => {
+    it('should generate function registry with workflow and node type metadata', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const registry = artifacts.files.find((f) => f.relativePath === 'runtime/function-registry.ts')!;
+      expect(registry.content).toContain("name: 'process-order'");
+      expect(registry.content).toContain("type: 'workflow'");
+      expect(registry.content).toContain("name: 'Validator'");
+      expect(registry.content).toContain("type: 'nodeType'");
+      expect(registry.content).toContain('exposed: true');
+      expect(registry.content).toContain('exposed: false');
+    });
+
+    it('should generate parameter resolver module', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const resolver = artifacts.files.find((f) => f.relativePath === 'runtime/parameter-resolver.ts')!;
+      expect(resolver.content).toContain('resolveFunction');
+    });
+
+    it('should generate runtime types module', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const types = artifacts.files.find((f) => f.relativePath === 'runtime/types.ts')!;
+      expect(types.content.length).toBeGreaterThan(0);
+    });
+
+    it('should generate function registry with list and get methods', async () => {
+      const artifacts = await target.generateBundle(
+        bundleWorkflows,
+        bundleNodeTypes,
+        baseOptions
+      );
+      const registry = artifacts.files.find((f) => f.relativePath === 'runtime/function-registry.ts')!;
+      expect(registry.content).toContain('functionRegistry');
+      expect(registry.content).toContain('list(');
+      expect(registry.content).toContain('get(');
+    });
+  });
+
+  // ── Workflow content file content ──
+
+  describe('workflow content files', () => {
+    it('should include the workflow code in multi-workflow content files', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const wf = artifacts.files.find((f) => f.relativePath === 'workflows/validate-input.ts')!;
+      expect(wf.content).toBe('export function validateInput() {}');
+      expect(wf.type).toBe('workflow');
+    });
+
+    it('should skip workflows without code in multi-workflow', async () => {
+      const noCodeWorkflows: CompiledWorkflow[] = [
+        { name: 'has-code', functionName: 'hasCode', code: 'export function hasCode() {}' },
+        { name: 'no-code', functionName: 'noCode' },
+      ];
+      const artifacts = await target.generateMultiWorkflow(noCodeWorkflows, baseOptions);
+      const wfFiles = artifacts.files.filter((f) => f.relativePath.startsWith('workflows/'));
+      expect(wfFiles.length).toBe(1);
+      expect(wfFiles[0].relativePath).toBe('workflows/has-code.ts');
+    });
+
+    it('should skip node types without code in node type service', async () => {
+      const mixedNodeTypes: NodeTypeInfo[] = [
+        {
+          name: 'WithCode',
+          functionName: 'withCode',
+          inputs: {},
+          outputs: {},
+          code: 'export function withCode() {}',
+        },
+        {
+          name: 'NoCode',
+          functionName: 'noCode',
+          inputs: {},
+          outputs: {},
+        },
+      ];
+      const artifacts = await target.generateNodeTypeService(mixedNodeTypes, nodeTypeExportOptions);
+      const ntFiles = artifacts.files.filter((f) => f.relativePath.startsWith('node-types/'));
+      expect(ntFiles.length).toBe(1);
+      expect(ntFiles[0].relativePath).toBe('node-types/withcode.ts');
+    });
+  });
+
+  // ── File absolute paths ──
+
+  describe('file paths', () => {
+    it('should set absolute paths based on outputDir', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.absolutePath).toBe('/tmp/cf-output/index.ts');
+    });
+
+    it('should set absolute paths for nested files', async () => {
+      const artifacts = await target.generateMultiWorkflow(multiWorkflows, baseOptions);
+      const wf = artifacts.files.find((f) => f.relativePath === 'workflows/validate-input.ts')!;
+      expect(wf.absolutePath).toBe('/tmp/cf-output/workflows/validate-input.ts');
+    });
+  });
+
+  // ── Bundle with only workflows or only node types ──
+
+  describe('bundle with partial content', () => {
+    it('should handle bundle with only workflows (no node types)', async () => {
+      const artifacts = await target.generateBundle(bundleWorkflows, [], baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain("import { processOrder }");
+      expect(handler.content).toContain('// No node types');
+      expect(handler.content).toContain('// No exposed node types');
+    });
+
+    it('should handle bundle with only node types (no workflows)', async () => {
+      const artifacts = await target.generateBundle([], bundleNodeTypes, baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('// No workflows');
+      expect(handler.content).toContain('// No exposed workflows');
+      expect(handler.content).toContain("import { validator }");
+    });
+
+    it('should handle bundle with items that have no code', async () => {
+      const noCodeWorkflows: BundleWorkflow[] = [
+        { name: 'no-code', functionName: 'noCode', expose: true },
+      ];
+      const noCodeNodeTypes: BundleNodeType[] = [
+        { name: 'NoCode', functionName: 'noCode', expose: true, inputs: {}, outputs: {} },
+      ];
+      const artifacts = await target.generateBundle(noCodeWorkflows, noCodeNodeTypes, baseOptions);
+      const handler = artifacts.files.find((f) => f.relativePath === 'index.ts')!;
+      expect(handler.content).toContain('// No workflows');
+      expect(handler.content).toContain('// No node types');
+    });
+  });
+
+  // ── Deploy instructions ──
+
+  describe('getDeployInstructions', () => {
+    it('should include docs URL when openapi.ts is present', async () => {
+      const artifacts = await target.generate({ ...baseOptions, includeDocs: true });
+      const instructions = target.getDeployInstructions(artifacts);
+      expect(instructions.steps).toContain('Visit /docs for API documentation');
+    });
+
+    it('should not include docs URL without openapi.ts', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const instructions = target.getDeployInstructions(artifacts);
+      expect(instructions.steps).not.toContain('Visit /docs for API documentation');
+    });
+
+    it('should include local test steps', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const instructions = target.getDeployInstructions(artifacts);
+      expect(instructions.localTestSteps).toBeDefined();
+      expect(instructions.localTestSteps!.some((s) => s.includes('8787'))).toBe(true);
+    });
+
+    it('should include Wrangler and Cloudflare account prerequisites', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const instructions = target.getDeployInstructions(artifacts);
+      expect(instructions.prerequisites.some((p) => p.includes('Wrangler'))).toBe(true);
+      expect(instructions.prerequisites.some((p) => p.includes('Cloudflare account'))).toBe(true);
+    });
+
+    it('should include links to Cloudflare docs', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const instructions = target.getDeployInstructions(artifacts);
+      expect(instructions.links).toBeDefined();
+      expect(instructions.links!.some((l) => l.url.includes('cloudflare.com'))).toBe(true);
+    });
+
+    it('should include npm install and deploy in the steps', async () => {
+      const artifacts = await target.generate(baseOptions);
+      const instructions = target.getDeployInstructions(artifacts);
+      expect(instructions.steps).toContain('npm install');
+      expect(instructions.steps).toContain('npm run deploy');
+    });
+  });
+});
