@@ -152,3 +152,34 @@ export function isControlFlowPort(portName: string): boolean {
 export function isScopedPort(portDef: { dataType: string; scope?: string }): boolean {
   return portDef.dataType === "FUNCTION" && portDef.scope !== undefined;
 }
+
+// ── Valid annotation values ───────────────────────────────────────────
+
+export const VALID_NODE_COLORS = [
+  'blue', 'purple', 'cyan', 'orange', 'pink', 'green', 'red', 'yellow', 'teal',
+] as const;
+
+export type ValidNodeColor = (typeof VALID_NODE_COLORS)[number];
+
+// ── Known annotation tags per block type ──────────────────────────────
+
+export const KNOWN_NODETYPE_TAGS = new Set([
+  'flowWeaver', 'name', 'label', 'description', 'color', 'icon', 'tag',
+  'executeWhen', 'scope', 'expression', 'pullExecution', 'input', 'output', 'step',
+]);
+
+export const KNOWN_WORKFLOW_TAGS = new Set([
+  'flowWeaver', 'name', 'fwImport', 'description', 'strictTypes', 'autoConnect',
+  'node', 'position', 'connect', 'scope', 'map', 'path', 'fanOut', 'fanIn',
+  'coerce', 'trigger', 'cancelOn', 'retries', 'timeout', 'throttle', 'param',
+  'return', 'returns',
+]);
+
+export const KNOWN_PATTERN_TAGS = new Set([
+  'flowWeaver', 'name', 'description', 'node', 'position', 'connect', 'port',
+]);
+
+export const STANDARD_JSDOC_TAGS = new Set([
+  'example', 'see', 'deprecated', 'type', 'typedef', 'template',
+  'link', 'since', 'version', 'author',
+]);
