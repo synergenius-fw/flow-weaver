@@ -9,8 +9,6 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,14 +32,21 @@ jobs:
           files: coverage/lcov.info
           fail_ci_if_error: false
 
-      # Commit test count badge JSON to repo (main branch only)
-      - name: Update test count badge
+      # Update test count badge via Gist (main branch only)
+      - name: Extract test count
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: test-count
         run: |
           PASSED=$(jq '.numPassedTests' test-results.json)
-          mkdir -p .github/badges
-          echo "{\"schemaVersion\":1,\"label\":\"tests\",\"message\":\"${PASSED} passed\",\"color\":\"brightgreen\"}" > .github/badges/test-count.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/badges/test-count.json
-          git diff --cached --quiet || git commit -m "Update test count badge [skip ci]" && git push
+          echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+
+      - name: Update test count badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.GIST_ID }}
+          filename: flow-weaver-test-count.json
+          label: tests
+          message: "${{ steps.test-count.outputs.passed }} passed"
+          color: brightgreen
