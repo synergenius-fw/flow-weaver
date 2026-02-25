@@ -113,7 +113,7 @@ export function renderSVG(graph: DiagramGraph, options: DiagramOptions = {}): st
 function renderConnection(parts: string[], conn: DiagramConnection, gradIndex: number): void {
   const dashAttr = conn.isStepConnection ? '' : ' stroke-dasharray="8 4"';
   parts.push(
-    `  <path d="${conn.path}" fill="none" stroke="url(#conn-grad-${gradIndex})" stroke-width="3"${dashAttr} stroke-linecap="round" data-source="${escapeXml(conn.fromNode)}.${escapeXml(conn.fromPort)}" data-target="${escapeXml(conn.toNode)}.${escapeXml(conn.toPort)}"/>`,
+    `  <path d="${conn.path}" fill="none" stroke="url(#conn-grad-${gradIndex})" stroke-width="3"${dashAttr} stroke-linecap="round" data-source="${escapeXml(conn.fromNode)}.${escapeXml(conn.fromPort)}:output" data-target="${escapeXml(conn.toNode)}.${escapeXml(conn.toPort)}:input"/>`,
   );
 }
 
@@ -122,7 +122,7 @@ function renderScopeConnection(parts: string[], conn: DiagramConnection, allConn
   if (gradIndex < 0) return;
   const dashAttr = conn.isStepConnection ? '' : ' stroke-dasharray="8 4"';
   parts.push(
-    `    <path d="${conn.path}" fill="none" stroke="url(#conn-grad-${gradIndex})" stroke-width="2.5"${dashAttr} stroke-linecap="round" data-source="${escapeXml(conn.fromNode)}.${escapeXml(conn.fromPort)}" data-target="${escapeXml(conn.toNode)}.${escapeXml(conn.toPort)}"/>`,
+    `    <path d="${conn.path}" fill="none" stroke="url(#conn-grad-${gradIndex})" stroke-width="2.5"${dashAttr} stroke-linecap="round" data-source="${escapeXml(conn.fromNode)}.${escapeXml(conn.fromPort)}:output" data-target="${escapeXml(conn.toNode)}.${escapeXml(conn.toPort)}:input"/>`,
   );
 }
 
@@ -257,7 +257,7 @@ function renderPortDots(
     const color = getPortColor(port.dataType, port.isFailure, themeName);
     const ringColor = getPortRingColor(port.dataType, port.isFailure, themeName);
     const dir = port.direction === 'INPUT' ? 'input' : 'output';
-    parts.push(`    <circle cx="${port.cx}" cy="${port.cy}" r="${PORT_RADIUS}" fill="${color}" stroke="${ringColor}" stroke-width="2" data-port-id="${escapeXml(nodeId)}.${escapeXml(port.name)}" data-direction="${dir}"/>`);
+    parts.push(`    <circle cx="${port.cx}" cy="${port.cy}" r="${PORT_RADIUS}" fill="${color}" stroke="${ringColor}" stroke-width="2" data-port-id="${escapeXml(nodeId)}.${escapeXml(port.name)}:${dir}" data-direction="${dir}"/>`);
   }
 }
 
@@ -274,7 +274,8 @@ function renderPortLabels(
     const color = getPortColor(port.dataType, port.isFailure, themeName);
     const isInput = port.direction === 'INPUT';
     const abbrev = TYPE_ABBREVIATIONS[port.dataType] ?? port.dataType;
-    const portId = `${escapeXml(nodeId)}.${escapeXml(port.name)}`;
+    const dir = isInput ? 'input' : 'output';
+    const portId = `${escapeXml(nodeId)}.${escapeXml(port.name)}:${dir}`;
 
     const portLabel = port.label;
     const typeWidth = measureText(abbrev);

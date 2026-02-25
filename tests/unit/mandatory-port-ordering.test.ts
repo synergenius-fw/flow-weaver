@@ -139,13 +139,13 @@ export { forEach };
     });
 
     it("should preserve explicit order when specified", () => {
-      // Regular port has explicit order 0, which should push mandatory ports
+      // Regular port has explicit order 0; mandatory ports get negative implicit orders
       const testContent = `
 /**
  * @flowWeaver nodeType
  * @input items
  * @output item scope:iteration [order:0] - Regular port with explicit order 0
- * @output start scope:iteration - MANDATORY (should be pushed to order >= 1)
+ * @output start scope:iteration - MANDATORY (gets negative order, sorts before item)
  * @output results
  */
 function forEach(execute: boolean, items: any[]) {
@@ -167,19 +167,19 @@ export { forEach };
       const itemOrder = getOrder(forEachNode!.outputs.item);
       expect(itemOrder).toBe(0);
 
-      // start (mandatory) should have order >= 1 (pushed by explicit order 0)
+      // start (mandatory) gets a negative implicit order (sorts before item)
       const startOrder = getOrder(forEachNode!.outputs.start);
       expect(startOrder).not.toBe(Infinity);
-      expect(startOrder).toBeGreaterThanOrEqual(1);
+      expect(startOrder).toBeLessThan(0);
 
-      // Verify sorted order
+      // Verify sorted order: mandatory first (negative), then explicit
       const scopedOutputs = Object.entries(forEachNode!.outputs)
         .filter(([_, port]) => port.scope === "iteration")
         .map(([name, port]) => ({ name, order: getOrder(port) }))
         .sort((a, b) => a.order - b.order);
 
-      expect(scopedOutputs[0].name).toBe("item"); // explicit order 0
-      expect(scopedOutputs[1].name).toBe("start"); // pushed to order >= 1
+      expect(scopedOutputs[0].name).toBe("start"); // mandatory, negative order
+      expect(scopedOutputs[1].name).toBe("item"); // explicit order 0
     });
   });
 
