@@ -657,6 +657,10 @@ These codes apply to AI agent workflows that use LLM, tool-executor, and memory 
 | MISSING_REQUIRED_INPUT | Required input has no connection/default/expression |
 | CYCLE_DETECTED | Graph contains a loop |
 | INVALID_EXIT_PORT_TYPE | Exit onSuccess/onFailure is not STEP type |
+| SCOPE_MISSING_REQUIRED_INPUT | Required input port on a scoped child has no connection |
+| SCOPE_WRONG_SCOPE_NAME | Connection uses a scope name not defined on the node |
+| SCOPE_CONNECTION_OUTSIDE | Scoped connection references a node outside the scope |
+| SCOPE_UNKNOWN_PORT | Connection references a port that is not a scoped port of the specified scope |
 | AGENT_LLM_MISSING_ERROR_HANDLER | LLM node's onFailure port is unconnected |
 <!-- AUTO:END error_summary_table -->
 
@@ -679,6 +683,9 @@ These codes apply to AI agent workflows that use LLM, tool-executor, and memory 
 | UNUSED_OUTPUT_PORT | Output port data is discarded |
 | UNREACHABLE_EXIT_PORT | Exit port has no incoming connection |
 | MULTIPLE_EXIT_CONNECTIONS | Exit port has multiple sources |
+| SCOPE_UNUSED_INPUT | Scoped input port has no connection from inner nodes |
+| SCOPE_PORT_TYPE_MISMATCH | Type mismatch between scoped port and connected child port |
+| SCOPE_ORPHANED_CHILD | Child node in scope has no scoped connections to parent |
 | AGENT_UNGUARDED_TOOL_EXECUTOR | Tool executor has no upstream human-approval gate |
 | AGENT_MISSING_MEMORY_IN_LOOP | Loop has LLM but no conversation memory node |
 | AGENT_LLM_NO_FALLBACK | LLM onFailure routes directly to Exit |

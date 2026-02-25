@@ -66,6 +66,10 @@
     "./marketplace": {
       "types": "./dist/marketplace/index.d.ts",
       "default": "./dist/marketplace/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
     }
   },
   "bin": {
