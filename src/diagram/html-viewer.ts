@@ -275,40 +275,76 @@ body.node-active .connections path.dimmed { opacity: 0.15; }
     else if (e.key === 'Escape') deselectNode();
   });
 
-  // ---- Port label visibility via JS (since CSS sibling selectors can't reach .labels group) ----
-  var labelEls = content.querySelectorAll('.labels g[data-port-label]');
+  // ---- Port label visibility ----
+  var labelMap = {};
+  content.querySelectorAll('.labels g[data-port-label]').forEach(function(lbl) {
+    labelMap[lbl.getAttribute('data-port-label')] = lbl;
+  });
+
+  // Build adjacency: portId → array of connected portIds
+  var portConnections = {};
+  content.querySelectorAll('.connections path').forEach(function(p) {
+    var src = p.getAttribute('data-source');
+    var tgt = p.getAttribute('data-target');
+    if (!src || !tgt) return;
+    if (!portConnections[src]) portConnections[src] = [];
+    if (!portConnections[tgt]) portConnections[tgt] = [];
+    portConnections[src].push(tgt);
+    portConnections[tgt].push(src);
+  });
+
+  var allLabelIds = Object.keys(labelMap);
+  var hoveredPort = null;
+
+  function showLabel(id) { var l = labelMap[id]; if (l) { l.style.opacity = '1'; l.style.pointerEvents = 'auto'; } }
+  function hideLabel(id) { var l = labelMap[id]; if (l) { l.style.opacity = '0'; l.style.pointerEvents = 'none'; } }
+
+  function showLabelsFor(nodeId) {
+    allLabelIds.forEach(function(id) {
+      if (id.indexOf(nodeId + '.') === 0) showLabel(id);
+    });
+  }
+  function hideLabelsFor(nodeId) {
+    allLabelIds.forEach(function(id) {
+      if (id.indexOf(nodeId + '.') === 0) hideLabel(id);
+    });
+  }
+
+  // Node hover: show all port labels for the hovered node
   var nodeEls = content.querySelectorAll('.nodes g[data-node-id]');
-
-  function showLabelsFor(id) {
-    labelEls.forEach(function(lbl) {
-      var portId = lbl.getAttribute('data-port-label') || '';
-      if (portId.indexOf(id + '.') === 0) {
-        lbl.style.opacity = '1';
-        lbl.style.pointerEvents = 'auto';
-      }
-    });
-  }
-  function hideLabelsFor(id) {
-    labelEls.forEach(function(lbl) {
-      var portId = lbl.getAttribute('data-port-label') || '';
-      if (portId.indexOf(id + '.') === 0) {
-        lbl.style.opacity = '0';
-        lbl.style.pointerEvents = 'none';
-      }
-    });
-  }
-
   nodeEls.forEach(function(nodeG) {
     var nodeId = nodeG.getAttribute('data-node-id');
     var parentNodeG = nodeG.parentElement ? nodeG.parentElement.closest('g[data-node-id]') : null;
     var parentId = parentNodeG ? parentNodeG.getAttribute('data-node-id') : null;
     nodeG.addEventListener('mouseenter', function() {
+      if (hoveredPort) return; // port hover takes priority
       if (parentId) hideLabelsFor(parentId);
       showLabelsFor(nodeId);
     });
     nodeG.addEventListener('mouseleave', function() {
+      if (hoveredPort) return;
       hideLabelsFor(nodeId);
       if (parentId) showLabelsFor(parentId);
+    });
+  });
+
+  // Port hover: show this port's label + all connected port labels
+  content.querySelectorAll('[data-port-id]').forEach(function(portEl) {
+    var portId = portEl.getAttribute('data-port-id');
+    var nodeId = portId.split('.')[0];
+    var peers = (portConnections[portId] || []).concat(portId);
+
+    portEl.addEventListener('mouseenter', function() {
+      hoveredPort = portId;
+      // Hide all labels for this node first, then show only the relevant ones
+      hideLabelsFor(nodeId);
+      peers.forEach(showLabel);
+    });
+    portEl.addEventListener('mouseleave', function() {
+      hoveredPort = null;
+      peers.forEach(hideLabel);
+      // Restore all labels for the node since we're still inside it
+      showLabelsFor(nodeId);
     });
   });
 
@@ -338,7 +374,7 @@ body.node-active .connections path.dimmed { opacity: 0.15; }
     ports.forEach(function(p) {
       var id = p.getAttribute('data-port-id');
       var dir = p.getAttribute('data-direction');
-      var name = id.split('.').slice(1).join('.');
+      var name = id.split('.').slice(1).join('.').replace(/:(?:input|output)$/, '');
       if (dir === 'input') inputs.push(name);
       else outputs.push(name);
     });
