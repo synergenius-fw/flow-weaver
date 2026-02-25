@@ -167,6 +167,14 @@ describe('renderSVG — scoped workflows', () => {
     expect(circleCount).toBeGreaterThan(5);
   });
 
+  it('marks scope connections with data-scope attribute', () => {
+    const graph = scopedGraph();
+    const svg = renderSVG(graph);
+    const parent = graph.nodes.find(n => n.id === 'forEach1')!;
+    expect(parent.scopeConnections!.length).toBeGreaterThan(0);
+    expect(svg).toContain(`data-scope="${parent.id}"`);
+  });
+
   it('includes gradient defs for scope connections', () => {
     const graph = scopedGraph();
     const svg = renderSVG(graph);
