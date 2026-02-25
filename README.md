@@ -10,11 +10,17 @@ Design agent workflows in the Studio, in TypeScript, or let AI build them for yo
 
 ## Three Ways to Build
 
-**Studio.** Drag, drop, connect. The visual editor renders your workflow as an interactive graph with bidirectional sync: canvas changes write code, code changes update the canvas. 80+ plugins handle rendering, state, minimap, undo/redo, and more.
+**Studio.**
+A unified environment that combines a full code editor with a visual graph builder. You can write and refactor workflows directly in code or compose them visually on the canvas. Both representations stay synchronized at all times. Editing either one updates the other instantly, so you can move between abstraction levels without friction.
 
-**TypeScript.** Annotate plain functions with JSDoc tags. The compiler turns them into executable workflow graphs with full type safety, IDE autocomplete, and compile-time validation. No YAML, no JSON configs.
+**TypeScript.**
+Define workflows in plain TypeScript by annotating functions with JSDoc. The compiler derives an executable workflow graph with static typing and compile-time validation.
+There is no YAML, no JSON configuration, and no runtime layer.
+No lock-in. Remove the annotations and you keep a clean, readable TypeScript file with zero dependencies.
 
-**AI Agents.** Connect Claude Code, Cursor, or OpenClaw and they scaffold, validate, and ship workflows using 30+ MCP tools. The agent reads validation errors, fixes issues, and re-validates until the workflow compiles clean. The development loop (steps 1-4 are fully autonomous):
+**AI Agents.**
+Connect Claude Code, Cursor, or OpenClaw to design and ship workflows. Agents scaffold implementations, run the compiler, interpret validation errors, apply corrections, and repeat the process until the workflow compiles successfully.
+With more than 30 MCP tools available, the entire build loop can run autonomously.
 
 1. **Agent creates**: scaffolds from templates, builds from a model, or writes from scratch
 2. **Compiler validates**: 15+ validation passes catch missing connections, type mismatches, unreachable paths
