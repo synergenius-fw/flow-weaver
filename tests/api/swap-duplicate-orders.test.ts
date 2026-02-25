@@ -243,7 +243,9 @@ export async function testWorkflow(execute: boolean, params: { a: number }) {
 
     expect(resultConfig).toBeDefined();
     expect(successConfig).toBeDefined();
-    expect(resultConfig!.order).toBe(0);
-    expect(successConfig!.order).toBe(1);
+    // onFailure (injected mandatory) occupies visual position 0,
+    // so after swap: result takes onSuccess's position (1), onSuccess takes result's (2)
+    expect(resultConfig!.order).toBe(1);
+    expect(successConfig!.order).toBe(2);
   });
 });

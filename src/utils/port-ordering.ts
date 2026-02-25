@@ -23,11 +23,11 @@ export function isMandatoryPort(portName: string, isScoped: boolean): boolean {
  *
  * Rules:
  * 1. Ports are grouped by scope (undefined = external, string = scoped)
- * 2. Within each scope group:
- *    - Mandatory ports (execute, onSuccess, onFailure) get lower order values
- *    - Regular ports get higher order values
- * 3. Explicit order metadata is always preserved
- * 4. If a regular port has explicit order 0, mandatory ports are pushed to order >= 1
+ * 2. Explicit order metadata is always preserved
+ * 3. Mandatory ports without explicit orders get negative slots (-N, ..., -1)
+ *    so they always sort before any user-specified [order:0] data port
+ * 4. Regular ports without explicit orders fill non-negative slots (0+),
+ *    skipping any slots already occupied by explicit orders
  *
  * @param ports - Record of port definitions to process (mutated in place)
  */
@@ -46,53 +46,47 @@ export function assignImplicitPortOrders(ports: Record<string, TPortDefinition>)
   // Process each scope group independently
   for (const [scope, portsInScope] of scopeGroups.entries()) {
     const isScoped = scope !== undefined;
-    // Separate mandatory from regular ports
-    const mandatoryPorts = portsInScope.filter(([name]) => isMandatoryPort(name, isScoped));
-    const regularPorts = portsInScope.filter(([name]) => !isMandatoryPort(name, isScoped));
 
-    // Find minimum explicit order among regular ports (if any)
-    let minRegularExplicitOrder = Infinity;
-    for (const [, portDef] of regularPorts) {
+    // Collect all explicitly occupied order slots
+    const occupied = new Set<number>();
+    for (const [, portDef] of portsInScope) {
       const order = portDef.metadata?.order;
       if (typeof order === "number") {
-        minRegularExplicitOrder = Math.min(minRegularExplicitOrder, order);
+        occupied.add(order);
       }
     }
 
-    // Determine starting order for mandatory ports
-    let mandatoryStartOrder = 0;
-
-    // If a regular port has explicit order 0 (or any low value),
-    // mandatory ports should be pushed after it
-    if (minRegularExplicitOrder !== Infinity && minRegularExplicitOrder === 0) {
-      // Count how many regular ports have explicit order 0
-      const regularPortsWithOrder0 = regularPorts.filter(([, p]) => p.metadata?.order === 0);
-      mandatoryStartOrder = regularPortsWithOrder0.length;
+    // Helper: find next available slot starting from `from`
+    function nextSlot(from: number): number {
+      while (occupied.has(from)) from++;
+      occupied.add(from);
+      return from;
     }
 
-    // Assign orders to mandatory ports (if they don't have explicit order)
-    let currentMandatoryOrder = mandatoryStartOrder;
-    for (const [, portDef] of mandatoryPorts) {
-      if (portDef.metadata?.order === undefined) {
-        // Assign implicit order
-        if (!portDef.metadata) {
-          portDef.metadata = {};
-        }
-        portDef.metadata.order = currentMandatoryOrder++;
-      }
+    // Separate mandatory from regular ports (only those needing implicit orders)
+    const mandatoryNeedOrder = portsInScope.filter(
+      ([name, def]) => isMandatoryPort(name, isScoped) && def.metadata?.order === undefined
+    );
+    const regularNeedOrder = portsInScope.filter(
+      ([name, def]) => !isMandatoryPort(name, isScoped) && def.metadata?.order === undefined
+    );
+
+    // Mandatory ports fill negative slots so they always sort before [order:0] data ports
+    let slot = -mandatoryNeedOrder.length;
+    for (const [, portDef] of mandatoryNeedOrder) {
+      if (!portDef.metadata) portDef.metadata = {};
+      slot = nextSlot(slot);
+      portDef.metadata.order = slot;
+      slot++;
     }
 
-    // Assign orders to regular ports (if they don't have explicit order)
-    // Regular ports start after mandatory ports
-    let currentRegularOrder = currentMandatoryOrder;
-    for (const [, portDef] of regularPorts) {
-      if (portDef.metadata?.order === undefined) {
-        // Assign implicit order
-        if (!portDef.metadata) {
-          portDef.metadata = {};
-        }
-        portDef.metadata.order = currentRegularOrder++;
-      }
+    // Regular ports fill non-negative slots, skipping occupied ones
+    slot = Math.max(slot, 0);
+    for (const [, portDef] of regularNeedOrder) {
+      if (!portDef.metadata) portDef.metadata = {};
+      slot = nextSlot(slot);
+      portDef.metadata.order = slot;
+      slot++;
     }
   }
 }
