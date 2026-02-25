@@ -1243,7 +1243,7 @@ export class JSDocParser {
       return;
     }
 
-    const { source, target } = result;
+    const { source, target, coerce } = result;
 
     // Capture source location from tag
     const line = tag.getStartLineNumber();
@@ -1260,6 +1260,7 @@ export class JSDocParser {
         ...(target.scope && { scope: target.scope }),
       },
       sourceLocation: { line, column: 0 },
+      ...(coerce && { coerce }),
     });
   }
 

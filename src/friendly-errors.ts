@@ -576,6 +576,44 @@ const errorMappers: Record<string, ErrorMapper> = {
     };
   },
 
+  COERCE_TYPE_MISMATCH(error) {
+    const coerceMatch = error.message.match(/`as (\w+)`/);
+    const coerceType = coerceMatch?.[1] || 'unknown';
+    const expectsMatch = error.message.match(/expects (\w+)/);
+    const expectedType = expectsMatch?.[1] || 'unknown';
+    const suggestedType = COERCE_TARGET_TYPES[expectedType.toUpperCase()] || expectedType.toLowerCase();
+    return {
+      title: 'Wrong Coercion Type',
+      explanation: `The \`as ${coerceType}\` coercion produces the wrong type for the target port. The target expects ${expectedType}.`,
+      fix: `Change \`as ${coerceType}\` to \`as ${suggestedType}\` in the @connect annotation.`,
+      code: error.code,
+    };
+  },
+
+  REDUNDANT_COERCE(error) {
+    const coerceMatch = error.message.match(/`as (\w+)`/);
+    const coerceType = coerceMatch?.[1] || 'unknown';
+    const bothMatch = error.message.match(/both (\w+)/);
+    const dataType = bothMatch?.[1] || 'the same type';
+    return {
+      title: 'Redundant Coercion',
+      explanation: `The \`as ${coerceType}\` coercion is unnecessary because both the source and target ports are already ${dataType}.`,
+      fix: `Remove \`as ${coerceType}\` from the @connect annotation — no coercion is needed.`,
+      code: error.code,
+    };
+  },
+
+  COERCE_ON_FUNCTION_PORT(error) {
+    const coerceMatch = error.message.match(/`as (\w+)`/);
+    const coerceType = coerceMatch?.[1] || 'unknown';
+    return {
+      title: 'Coercion on Function Port',
+      explanation: `The \`as ${coerceType}\` coercion cannot be applied to FUNCTION ports. Function values are callable references and cannot be meaningfully converted to other types.`,
+      fix: `Remove \`as ${coerceType}\` from the @connect annotation. If you need to convert the function's return value, add a transformation node.`,
+      code: error.code,
+    };
+  },
+
   LOSSY_TYPE_COERCION(error) {
     const types = extractTypes(error.message);
     const source = types?.source || 'unknown';

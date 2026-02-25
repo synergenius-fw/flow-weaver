@@ -1,4 +1,4 @@
-import type { TNodeTypeAST, TWorkflowAST, TMergeStrategy } from '../ast';
+import type { TNodeTypeAST, TWorkflowAST, TMergeStrategy, TCoerceTargetType, TConnectionAST, TDataType } from '../ast';
 import {
   RESERVED_PORT_NAMES,
   isStartNode,
@@ -9,6 +9,86 @@ import {
 } from '../constants';
 import { generateScopeFunctionClosure } from './scope-function-generator';
 import { mapToTypeScript } from '../type-mappings';
+
+/** Map coercion target type to inline JS expression */
+const COERCION_EXPRESSIONS: Record<TCoerceTargetType, string> = {
+  string: 'String',
+  number: 'Number',
+  boolean: 'Boolean',
+  json: 'JSON.stringify',
+  object: 'JSON.parse',
+};
+
+/** Map TDataType to TCoerceTargetType for auto-coercion */
+const DATATYPE_TO_COERCE: Partial<Record<TDataType, TCoerceTargetType>> = {
+  STRING: 'string',
+  NUMBER: 'number',
+  BOOLEAN: 'boolean',
+  OBJECT: 'object',
+};
+
+/**
+ * Resolve the dataType of a source port by looking up the node instance -> node type -> outputs.
+ */
+function resolveSourcePortDataType(
+  workflow: TWorkflowAST,
+  sourceNodeId: string,
+  sourcePort: string,
+): TDataType | undefined {
+  if (isStartNode(sourceNodeId)) {
+    return workflow.startPorts?.[sourcePort]?.dataType;
+  }
+  if (isExitNode(sourceNodeId)) {
+    return workflow.exitPorts?.[sourcePort]?.dataType;
+  }
+  const instance = workflow.instances.find((i) => i.id === sourceNodeId);
+  if (!instance) return undefined;
+  const nodeType = workflow.nodeTypes.find(
+    (nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType
+  );
+  if (!nodeType) return undefined;
+  return nodeType.outputs?.[sourcePort]?.dataType;
+}
+
+/**
+ * Get the coercion expression to wrap a value, if coercion is needed.
+ * Returns null if no coercion needed.
+ *
+ * Priority:
+ * 1. Explicit coerce on the connection (from `as <type>` annotation)
+ * 2. Auto-coercion for safe pairs:
+ *    - anything -> STRING (String() never fails)
+ *    - BOOLEAN -> NUMBER (well-defined: false->0, true->1)
+ */
+export function getCoercionWrapper(
+  connection: TConnectionAST,
+  sourceDataType: TDataType | undefined,
+  targetDataType: TDataType | undefined,
+): string | null {
+  // Explicit coerce on connection
+  if (connection.coerce) {
+    return COERCION_EXPRESSIONS[connection.coerce];
+  }
+
+  // No auto-coercion if types are unknown or same
+  if (!sourceDataType || !targetDataType || sourceDataType === targetDataType) return null;
+
+  // Skip STEP and ANY ports — no coercion needed
+  if (sourceDataType === 'STEP' || targetDataType === 'STEP') return null;
+  if (sourceDataType === 'ANY' || targetDataType === 'ANY') return null;
+
+  // Auto-coerce: anything -> STRING
+  if (targetDataType === 'STRING' && sourceDataType !== 'STRING') {
+    return 'String';
+  }
+
+  // Auto-coerce: BOOLEAN -> NUMBER
+  if (sourceDataType === 'BOOLEAN' && targetDataType === 'NUMBER') {
+    return 'Number';
+  }
+
+  return null;
+}
 
 /**
  * Sanitize a node ID to be a valid JavaScript identifier.
@@ -260,9 +340,19 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
             `${indent}const ${varName} = ${varName}_resolved.fn as ${portType};`
           );
         } else {
-          lines.push(
-            `${indent}const ${varName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} }) as ${portType};`
-          );
+          // Check for coercion (explicit or auto)
+          const sourceDataType = resolveSourcePortDataType(workflow, sourceNode, sourcePort);
+          const coerceExpr = getCoercionWrapper(connection, sourceDataType, portConfig.dataType);
+          const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} })`;
+          if (coerceExpr) {
+            lines.push(
+              `${indent}const ${varName} = ${coerceExpr}(${getExpr}) as ${portType};`
+            );
+          } else {
+            lines.push(
+              `${indent}const ${varName} = ${getExpr} as ${portType};`
+            );
+          }
         }
       } else {
         // Filter to only connections with existing source nodes
@@ -278,13 +368,21 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
           return;
         }
         const attempts: string[] = [];
-        validConnections.forEach((conn, _idx) => {
+        validConnections.forEach((conn) => {
           const sourceNode = conn.from.node;
           const sourcePort = conn.from.port;
           const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
-          attempts.push(
-            `(${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) : undefined)`
-          );
+          const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} })`;
+
+          // Per-connection coercion: each source gets its own coercion wrapper
+          if (portConfig.dataType !== 'FUNCTION') {
+            const sourceDataType = resolveSourcePortDataType(workflow, sourceNode, sourcePort);
+            const coerceExpr = getCoercionWrapper(conn, sourceDataType, portConfig.dataType);
+            const wrapped = coerceExpr ? `${coerceExpr}(${getExpr})` : getExpr;
+            attempts.push(`(${sourceIdx} !== undefined ? ${wrapped} : undefined)`);
+          } else {
+            attempts.push(`(${sourceIdx} !== undefined ? ${getExpr} : undefined)`);
+          }
         });
         const ternary = attempts.join(' ?? ');
         const portType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
