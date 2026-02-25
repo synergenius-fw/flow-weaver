@@ -1,8 +1,12 @@
 # @synergenius/flow-weaver
 
-[![npm version](https://img.shields.io/npm/v/@synergenius/flow-weaver.svg)](https://www.npmjs.com/package/@synergenius/flow-weaver)
-[![License: Flow Weaver Library License](https://img.shields.io/badge/License-Flow%20Weaver%20Library-blue.svg)](./LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org)
+[![npm version](https://img.shields.io/npm/v/@synergenius/flow-weaver?style=flat)](https://www.npmjs.com/package/@synergenius/flow-weaver)
+[![npm downloads](https://img.shields.io/npm/dw/@synergenius/flow-weaver?style=flat)](https://www.npmjs.com/package/@synergenius/flow-weaver)
+[![CI](https://img.shields.io/github/actions/workflow/status/synergenius-fw/flow-weaver/ci.yml?branch=main&style=flat)](https://github.com/synergenius-fw/flow-weaver/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/synergenius-fw/flow-weaver/main/.github/badges/test-count.json&style=flat)](https://github.com/synergenius-fw/flow-weaver/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/synergenius-fw/flow-weaver?style=flat)](https://codecov.io/gh/synergenius-fw/flow-weaver)
+[![License: Flow Weaver Library License](https://img.shields.io/badge/License-Flow%20Weaver%20Library-blue?style=flat)](./LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green?style=flat)](https://nodejs.org)
 
 **Build AI agent workflows visually. Ship them as your own code.**
 
