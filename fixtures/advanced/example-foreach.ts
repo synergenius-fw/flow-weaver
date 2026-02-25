@@ -90,7 +90,7 @@ function double(execute: boolean, value: number) {
  * @path Start -> forEach -> Exit
  * @path Start -> forEach:fail -> Exit
  * @position Start 0 0
- * @position Exit 1080 0
+ * @position Exit 1250 0
  * @connect forEach.start:iteration -> processItem.execute
  * @connect forEach.item:iteration -> processItem.item
  * @connect processItem.onSuccess -> double.execute
