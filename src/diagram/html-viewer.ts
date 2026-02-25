@@ -9,6 +9,7 @@
 export interface HtmlViewerOptions {
   title?: string;
   theme?: 'dark' | 'light';
+  nodeSources?: Record<string, { description?: string; source?: string; ports?: Record<string, { type: string; tsType?: string }> }>;
 }
 
 /**
@@ -134,24 +135,46 @@ path[data-source].port-hover { opacity: 1; }
 /* Info panel */
 #info-panel {
   position: fixed; bottom: 52px; left: 16px;
-  max-width: 320px; min-width: 200px;
+  max-width: 480px; min-width: 260px;
   background: ${surfaceMain}; border: 1px solid ${borderSubtle};
   border-radius: 8px; padding: 12px 16px;
   font-size: 13px; line-height: 1.5;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   z-index: 10; display: none;
+  max-height: calc(100vh - 120px); overflow-y: auto;
 }
 #info-panel.visible { display: block; }
 #info-panel h3 {
   font-size: 14px; font-weight: 700; margin-bottom: 6px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+#info-panel .node-desc { color: ${textMed}; font-size: 12px; margin-bottom: 8px; font-style: italic; }
 #info-panel .info-section { margin-bottom: 6px; }
 #info-panel .info-label { font-size: 11px; font-weight: 600; color: ${textLow}; text-transform: uppercase; letter-spacing: 0.5px; }
 #info-panel .info-value { color: ${textMed}; }
 #info-panel .port-list { list-style: none; padding: 0; }
 #info-panel .port-list li { padding: 1px 0; }
 #info-panel .port-list li::before { content: '\\2022'; margin-right: 6px; color: ${textLow}; }
+#info-panel .port-type { color: ${textLow}; font-size: 11px; margin-left: 4px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+#info-panel pre {
+  background: ${isDark ? '#161625' : '#f0f1fa'}; border: 1px solid ${borderSubtle};
+  border-radius: 6px; padding: 10px; overflow-x: auto;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px; line-height: 1.6; white-space: pre;
+  max-height: 300px; overflow-y: auto; margin: 6px 0 0;
+  color: ${isDark ? '#e6edf3' : '#1a2340'};
+}
+.hl-kw { color: ${isDark ? '#8e9eff' : '#4040bf'}; }
+.hl-str { color: ${isDark ? '#ff7b72' : '#c4432b'}; }
+.hl-num { color: ${isDark ? '#f0a050' : '#b35e14'}; }
+.hl-cm { color: #6a737d; font-style: italic; }
+.hl-fn { color: ${isDark ? '#d2a8ff' : '#7c3aed'}; }
+.hl-ty { color: ${isDark ? '#d2a8ff' : '#7c3aed'}; }
+.hl-pn { color: ${isDark ? '#b8bdd0' : '#4a5578'}; }
+.hl-ann { color: ${isDark ? '#8e9eff' : '#4040bf'}; font-weight: 600; font-style: normal; }
+.hl-arr { color: ${isDark ? '#79c0ff' : '#0969da'}; font-weight: 600; font-style: normal; }
+.hl-id { color: ${isDark ? '#e6edf3' : '#1a2340'}; font-style: normal; }
+.hl-sc { color: ${isDark ? '#d2a8ff' : '#7c3aed'}; font-style: italic; }
 
 /* Branding badge */
 #branding {
@@ -206,8 +229,8 @@ path[data-source].port-hover { opacity: 1; }
       <circle cx="10" cy="10" r="1.5" fill="${dotColor}" opacity="0.6"/>
     </pattern>
   </defs>
-  <rect x="-100000" y="-100000" width="200000" height="200000" fill="${bg}"/>
-  <rect x="-100000" y="-100000" width="200000" height="200000" fill="url(#viewer-dots)"/>
+  <rect x="-100000" y="-100000" width="200000" height="200000" fill="${bg}" pointer-events="none"/>
+  <rect x="-100000" y="-100000" width="200000" height="200000" fill="url(#viewer-dots)" pointer-events="none"/>
   <g id="diagram">${inner}</g>
 </svg>
 <div id="controls">
@@ -237,6 +260,7 @@ path[data-source].port-hover { opacity: 1; }
 </a>
 <div id="scroll-hint">Use <kbd id="mod-key">Ctrl</kbd> + scroll to zoom</div>
 <div id="studio-hint">Like rearranging? <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> saves your layouts.</div>
+<script>var nodeSources = ${JSON.stringify(options.nodeSources ?? {})};</script>
 <script>
 (function() {
   'use strict';
@@ -321,6 +345,7 @@ path[data-source].port-hover { opacity: 1; }
 
   // ---- Pan (drag) + Node drag ----
   var draggedNodeId = null, dragNodeStart = null, didDragNode = false;
+  var clickTarget = null; // stash the real target before setPointerCapture steals it
   var dragCount = 0, nudgeIndex = 0, nudgeTimer = null;
   var nudgeMessages = [
     'Like rearranging? <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> saves your layouts.',
@@ -335,6 +360,8 @@ path[data-source].port-hover { opacity: 1; }
 
   canvas.addEventListener('pointerdown', function(e) {
     if (e.button !== 0) return;
+    clickTarget = e.target; // stash before setPointerCapture redirects events
+    didDrag = false;
     // Check if clicking on a node body (walk up to detect data-node-id)
     var t = e.target;
     while (t && t !== canvas) {
@@ -351,7 +378,6 @@ path[data-source].port-hover { opacity: 1; }
     }
     // Canvas pan
     pointerDown = true;
-    didDrag = false;
     dragLast = { x: e.clientX, y: e.clientY };
     canvas.setPointerCapture(e.pointerId);
   });
@@ -804,20 +830,38 @@ path[data-source].port-hover { opacity: 1; }
     // Build info panel
     infoTitle.textContent = labelText;
     var html = '';
+    var src = nodeSources[nodeId];
+    if (src && src.description) {
+      html += '<div class="node-desc">' + escapeH(src.description) + '</div>';
+    }
+    var portInfo = (src && src.ports) ? src.ports : {};
+    function portLabel(name) {
+      var p = portInfo[name];
+      var label = escapeH(name);
+      if (p) {
+        var typeStr = p.tsType || p.type;
+        if (typeStr) label += ' <span class="port-type">' + escapeH(typeStr) + '</span>';
+      }
+      return label;
+    }
     if (inputs.length) {
       html += '<div class="info-section"><div class="info-label">Inputs</div><ul class="port-list">';
-      inputs.forEach(function(n) { html += '<li>' + escapeH(n) + '</li>'; });
+      inputs.forEach(function(n) { html += '<li>' + portLabel(n) + '</li>'; });
       html += '</ul></div>';
     }
     if (outputs.length) {
       html += '<div class="info-section"><div class="info-label">Outputs</div><ul class="port-list">';
-      outputs.forEach(function(n) { html += '<li>' + escapeH(n) + '</li>'; });
+      outputs.forEach(function(n) { html += '<li>' + portLabel(n) + '</li>'; });
       html += '</ul></div>';
     }
     if (connectedNodes.size) {
       html += '<div class="info-section"><div class="info-label">Connected to</div><div class="info-value">';
       html += Array.from(connectedNodes).map(escapeH).join(', ');
       html += '</div></div>';
+    }
+    if (src && src.source) {
+      html += '<div class="info-section"><div class="info-label">Source</div>';
+      html += '<pre><code>' + highlightTS(src.source) + '</code></pre></div>';
     }
     infoBody.innerHTML = html;
     infoPanel.classList.add('visible');
@@ -827,10 +871,130 @@ path[data-source].port-hover { opacity: 1; }
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  var fwAnnotations = 'flowWeaver,input,output,step,node,connect,param,returns,fwImport,label,scope,position,color,icon,tag,map,path,name,description,expression,executeWhen,pullExecution,strictTypes,autoConnect,port,trigger,cancelOn,retries,timeout,throttle';
+
+  function highlightJSDoc(block) {
+    var annSet = fwAnnotations.split(',');
+    var out = '';
+    var re = /(@[a-zA-Z]+)|(-&gt;)|(\\.[a-zA-Z_][a-zA-Z0-9_]*)|("[^"]*")|('\\''[^'\\'']*'\\'')|(-?[0-9]+(?:\\.[0-9]+)?)|([a-zA-Z_][a-zA-Z0-9_]*)|([^@a-zA-Z0-9"'\\-.]+)/g;
+    var m;
+    while ((m = re.exec(block)) !== null) {
+      if (m[1]) {
+        var tag = m[1].slice(1);
+        if (annSet.indexOf(tag) >= 0) {
+          out += '<span class="hl-ann">' + m[0] + '</span>';
+        } else {
+          out += '<span class="hl-ann">' + m[0] + '</span>';
+        }
+      } else if (m[2]) {
+        out += '<span class="hl-arr">' + m[2] + '</span>';
+      } else if (m[3]) {
+        // .portName scope reference
+        out += '<span class="hl-sc">' + m[3] + '</span>';
+      } else if (m[4] || m[5]) {
+        out += '<span class="hl-str">' + (m[4] || m[5]) + '</span>';
+      } else if (m[6]) {
+        out += '<span class="hl-num">' + m[6] + '</span>';
+      } else if (m[7]) {
+        var tys = 'string,number,boolean,any,void,never,unknown,STEP,STRING,NUMBER,BOOLEAN,ARRAY,OBJECT,FUNCTION,ANY';
+        if (tys.split(',').indexOf(m[7]) >= 0) {
+          out += '<span class="hl-ty">' + m[7] + '</span>';
+        } else {
+          out += '<span class="hl-id">' + m[7] + '</span>';
+        }
+      } else {
+        out += m[0];
+      }
+    }
+    return out;
+  }
+
+  function highlightTS(code) {
+    var tokens = [];
+    var i = 0;
+    while (i < code.length) {
+      // Line comments
+      if (code[i] === '/' && code[i+1] === '/') {
+        var end = code.indexOf('\\n', i);
+        if (end === -1) end = code.length;
+        tokens.push({ t: 'cm', v: code.slice(i, end) });
+        i = end;
+        continue;
+      }
+      // Block comments (detect JSDoc for annotation highlighting)
+      if (code[i] === '/' && code[i+1] === '*') {
+        var end = code.indexOf('*/', i + 2);
+        if (end === -1) end = code.length; else end += 2;
+        var block = code.slice(i, end);
+        var hasFW = /@(flowWeaver|input|output|step|node|connect|param|returns)/.test(block);
+        if (hasFW) {
+          tokens.push({ t: 'jsdoc', v: block });
+        } else {
+          tokens.push({ t: 'cm', v: block });
+        }
+        i = end;
+        continue;
+      }
+      // Strings
+      if (code[i] === "'" || code[i] === '"' || code[i] === '\`') {
+        var q = code[i], j = i + 1;
+        while (j < code.length && code[j] !== q) { if (code[j] === '\\\\') j++; j++; }
+        tokens.push({ t: 'str', v: code.slice(i, j + 1) });
+        i = j + 1;
+        continue;
+      }
+      // Numbers
+      if (/[0-9]/.test(code[i]) && (i === 0 || /[^a-zA-Z_$]/.test(code[i-1]))) {
+        var j = i;
+        while (j < code.length && /[0-9a-fA-FxX._]/.test(code[j])) j++;
+        tokens.push({ t: 'num', v: code.slice(i, j) });
+        i = j;
+        continue;
+      }
+      // Words
+      if (/[a-zA-Z_$]/.test(code[i])) {
+        var j = i;
+        while (j < code.length && /[a-zA-Z0-9_$]/.test(code[j])) j++;
+        var w = code.slice(i, j);
+        var kws = 'async,await,break,case,catch,class,const,continue,default,delete,do,else,export,extends,finally,for,from,function,if,import,in,instanceof,let,new,of,return,switch,throw,try,typeof,var,void,while,yield';
+        var tys = 'string,number,boolean,any,void,never,unknown,null,undefined,true,false,Promise,Record,Map,Set,Array,Partial,Required,Omit,Pick';
+        if (kws.split(',').indexOf(w) >= 0) {
+          tokens.push({ t: 'kw', v: w });
+        } else if (tys.split(',').indexOf(w) >= 0) {
+          tokens.push({ t: 'ty', v: w });
+        } else if (j < code.length && code[j] === '(') {
+          tokens.push({ t: 'fn', v: w });
+        } else {
+          tokens.push({ t: '', v: w });
+        }
+        i = j;
+        continue;
+      }
+      // Punctuation
+      if (/[{}()\\[\\];:.,<>=!&|?+\\-*/%^~@]/.test(code[i])) {
+        tokens.push({ t: 'pn', v: code[i] });
+        i++;
+        continue;
+      }
+      // Whitespace and other
+      tokens.push({ t: '', v: code[i] });
+      i++;
+    }
+    return tokens.map(function(tk) {
+      if (tk.t === 'jsdoc') {
+        return '<span class="hl-cm">' + highlightJSDoc(escapeH(tk.v)) + '</span>';
+      }
+      var v = escapeH(tk.v);
+      return tk.t ? '<span class="hl-' + tk.t + '">' + v + '</span>' : v;
+    }).join('');
+  }
+
   // Delegate click: port click > node click > background
+  // Use clickTarget (stashed from pointerdown) because setPointerCapture redirects click to canvas
   canvas.addEventListener('click', function(e) {
     if (didDrag || didDragNode) { didDragNode = false; return; }
-    var target = e.target;
+    var target = clickTarget || e.target;
+    clickTarget = null;
     while (target && target !== canvas) {
       if (target.hasAttribute && target.hasAttribute('data-port-id')) {
         e.stopPropagation();

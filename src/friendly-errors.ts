@@ -57,7 +57,7 @@ const COERCE_TARGET_TYPES: Record<string, string> = {
 };
 
 /**
- * Build a concrete @coerce suggestion from error message context.
+ * Build a concrete `@connect ... as <type>` coercion suggestion from error context.
  * Returns null if not enough info is available.
  */
 function buildCoerceSuggestion(quoted: string[], targetType: string): string | null {
@@ -73,7 +73,7 @@ function buildCoerceSuggestion(quoted: string[], targetType: string): string | n
   const coerceType = COERCE_TARGET_TYPES[targetType.toUpperCase()] || targetType.toLowerCase();
   if (!['string', 'number', 'boolean', 'json', 'object'].includes(coerceType)) return null;
 
-  return `@coerce c1 ${portRefs[0]} -> ${portRefs[1]} as ${coerceType}`;
+  return `@connect ${portRefs[0]} -> ${portRefs[1]} as ${coerceType}`;
 }
 
 function extractCyclePath(message: string): string | null {
@@ -200,8 +200,8 @@ const errorMappers: Record<string, ErrorMapper> = {
       title: 'Type Mismatch',
       explanation: `Type mismatch: you're connecting a ${source} to a ${target}. The value will be automatically converted, but this might cause unexpected behavior.`,
       fix: coerceSuggestion
-        ? `Add an explicit coercion: \`${coerceSuggestion}\`, change one of the port types, or use @strictTypes to turn this into an error.`
-        : `Add a @coerce annotation between the two ports, change one of the port types, or use @strictTypes to turn this into an error.`,
+        ? `Use \`${coerceSuggestion}\` for explicit coercion, change one of the port types, or use @strictTypes to turn this into an error.`
+        : `Add \`as <type>\` to the @connect annotation (e.g. \`as string\`), change one of the port types, or use @strictTypes to turn this into an error.`,
       code: error.code,
     };
   },
@@ -311,8 +311,8 @@ const errorMappers: Record<string, ErrorMapper> = {
       title: 'Type Incompatible',
       explanation: `Type mismatch: ${source} to ${target}. With @strictTypes enabled, this is an error instead of a warning.`,
       fix: coerceSuggestion
-        ? `Add an explicit coercion: \`${coerceSuggestion}\`, change one of the port types, or remove @strictTypes to allow implicit coercions.`
-        : `Add a @coerce annotation between the ports, change one of the port types, or remove @strictTypes to allow implicit coercions.`,
+        ? `Use \`${coerceSuggestion}\` for explicit coercion, change one of the port types, or remove @strictTypes to allow implicit coercions.`
+        : `Add \`as <type>\` to the @connect annotation (e.g. \`as number\`), change one of the port types, or remove @strictTypes to allow implicit coercions.`,
       code: error.code,
     };
   },
@@ -327,8 +327,8 @@ const errorMappers: Record<string, ErrorMapper> = {
       title: 'Unusual Type Coercion',
       explanation: `Converting ${source} to ${target} is technically valid but semantically unusual and may produce unexpected behavior.`,
       fix: coerceSuggestion
-        ? `If intentional, add an explicit coercion: \`${coerceSuggestion}\`, or use @strictTypes to enforce type safety.`
-        : `If intentional, add an explicit @coerce annotation, or use @strictTypes to enforce type safety.`,
+        ? `If intentional, use \`${coerceSuggestion}\` for explicit coercion, or use @strictTypes to enforce type safety.`
+        : `If intentional, add \`as <type>\` to the @connect annotation, or use @strictTypes to enforce type safety.`,
       code: error.code,
     };
   },
@@ -624,8 +624,8 @@ const errorMappers: Record<string, ErrorMapper> = {
       title: 'Lossy Type Conversion',
       explanation: `Converting ${source} to ${target} may lose data or produce unexpected results (e.g., NaN, truncation).`,
       fix: coerceSuggestion
-        ? `Add an explicit coercion: \`${coerceSuggestion}\`, or use @strictTypes to enforce type safety.`
-        : `Add an explicit conversion with @coerce, or use @strictTypes to enforce type safety.`,
+        ? `Use \`${coerceSuggestion}\` for explicit coercion, or use @strictTypes to enforce type safety.`
+        : `Add \`as <type>\` to the @connect annotation for explicit conversion, or use @strictTypes to enforce type safety.`,
       code: error.code,
     };
   },
