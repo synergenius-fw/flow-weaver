@@ -145,7 +145,7 @@ path[data-source].port-hover { opacity: 1; }
 }
 #info-panel.visible { display: block; }
 #info-panel h3 {
-  font-size: 14px; font-weight: 700; margin-bottom: 6px;
+  font-size: 14px; font-weight: 700; margin: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 #info-panel .node-desc { color: ${textMed}; font-size: 12px; margin-bottom: 8px; font-style: italic; }
@@ -164,6 +164,45 @@ path[data-source].port-hover { opacity: 1; }
   max-height: 300px; overflow-y: auto; margin: 6px 0 0;
   color: ${isDark ? '#e6edf3' : '#1a2340'};
 }
+
+/* Custom scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: ${isDark ? 'rgba(142,158,255,0.25)' : 'rgba(84,104,255,0.2)'}; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: ${isDark ? 'rgba(142,158,255,0.45)' : 'rgba(84,104,255,0.4)'}; }
+::-webkit-scrollbar-corner { background: transparent; }
+* { scrollbar-width: thin; scrollbar-color: ${isDark ? 'rgba(142,158,255,0.25)' : 'rgba(84,104,255,0.2)'} transparent; }
+
+/* Info panel header */
+#info-header {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+}
+#info-header h3 { flex: 1; margin-bottom: 0; }
+.panel-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border: none; border-radius: 4px;
+  background: transparent; color: ${textLow};
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.panel-btn:hover { background: ${surfaceHigh}; color: ${textHigh}; }
+
+/* Info panel transitions */
+#info-panel {
+  transition: left 0.3s cubic-bezier(0.4,0,0.2,1), bottom 0.3s cubic-bezier(0.4,0,0.2,1),
+              width 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1),
+              max-width 0.3s cubic-bezier(0.4,0,0.2,1), max-height 0.3s cubic-bezier(0.4,0,0.2,1),
+              min-width 0.3s cubic-bezier(0.4,0,0.2,1), border-radius 0.3s cubic-bezier(0.4,0,0.2,1),
+              opacity 0.2s ease, transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  transform: translateY(8px); opacity: 0;
+}
+#info-panel.visible { transform: translateY(0); opacity: 1; }
+#info-panel.fullscreen {
+  left: 16px; bottom: 16px; top: 16px; right: 16px;
+  max-width: none; min-width: 0; width: auto; max-height: none;
+  border-radius: 12px;
+}
+#info-panel.fullscreen pre { max-height: none; }
 .hl-kw { color: ${isDark ? '#8e9eff' : '#4040bf'}; }
 .hl-str { color: ${isDark ? '#ff7b72' : '#c4432b'}; }
 .hl-num { color: ${isDark ? '#f0a050' : '#b35e14'}; }
@@ -251,7 +290,19 @@ path[data-source].port-hover { opacity: 1; }
   </button>
 </div>
 <div id="info-panel">
-  <h3 id="info-title"></h3>
+  <div id="info-header">
+    <h3 id="info-title"></h3>
+    <button class="panel-btn" id="btn-expand" title="Expand panel" aria-label="Expand panel">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9"/>
+      </svg>
+    </button>
+    <button class="panel-btn" id="btn-close-panel" title="Close panel" aria-label="Close panel">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M2 2l10 10M12 2L2 12"/>
+      </svg>
+    </button>
+  </div>
   <div id="info-body"></div>
 </div>
 <a id="branding" href="https://flowweaver.ai" target="_blank" rel="noopener">
@@ -272,8 +323,12 @@ path[data-source].port-hover { opacity: 1; }
   var infoPanel = document.getElementById('info-panel');
   var infoTitle = document.getElementById('info-title');
   var infoBody = document.getElementById('info-body');
+  var btnExpand = document.getElementById('btn-expand');
+  var btnClosePanel = document.getElementById('btn-close-panel');
   var scrollHint = document.getElementById('scroll-hint');
   var studioHint = document.getElementById('studio-hint');
+  var expandIcon = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9"/></svg>';
+  var collapseIcon = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 1v4H1M13 5H9V1M9 13V9h4M1 9h4v4"/></svg>';
 
   // Parse the original viewBox (diagram bounding box)
   var vbParts = '${viewBox}'.split(/\\s+/).map(Number);
@@ -782,6 +837,8 @@ path[data-source].port-hover { opacity: 1; }
     selectedNodeId = null;
     document.body.classList.remove('node-active');
     infoPanel.classList.remove('visible');
+    infoPanel.classList.remove('fullscreen');
+    btnExpand.innerHTML = expandIcon;
     removeNodeGlow();
     content.querySelectorAll('path[data-source].dimmed').forEach(function(p) {
       p.classList.remove('dimmed');
@@ -1011,6 +1068,21 @@ path[data-source].port-hover { opacity: 1; }
     }
     deselectPort();
     deselectNode();
+  });
+
+  // ---- Panel expand/collapse ----
+  btnExpand.addEventListener('click', function(e) {
+    e.stopPropagation();
+    infoPanel.classList.toggle('fullscreen');
+    btnExpand.innerHTML = infoPanel.classList.contains('fullscreen') ? collapseIcon : expandIcon;
+    btnExpand.title = infoPanel.classList.contains('fullscreen') ? 'Collapse panel' : 'Expand panel';
+  });
+  btnClosePanel.addEventListener('click', function(e) {
+    e.stopPropagation();
+    deselectPort();
+    deselectNode();
+    infoPanel.classList.remove('fullscreen');
+    btnExpand.innerHTML = expandIcon;
   });
 
   // ---- Init ----

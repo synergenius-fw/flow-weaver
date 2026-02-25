@@ -166,6 +166,20 @@ describe('html-viewer', () => {
       expect(html).toContain('origPortPositions');
     });
 
+    it('includes custom scrollbar styles', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('::-webkit-scrollbar');
+      expect(html).toContain('scrollbar-width: thin');
+    });
+
+    it('includes panel expand/collapse button and fullscreen CSS', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('id="btn-expand"');
+      expect(html).toContain('id="btn-close-panel"');
+      expect(html).toContain('.fullscreen');
+      expect(html).toContain('btnExpand');
+    });
+
     it('embeds node source data when provided', () => {
       const html = wrapSVGInHTML('<svg></svg>', {
         nodeSources: { myNode: { description: 'A test node', source: 'function myNode() {}' } },
