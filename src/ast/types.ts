@@ -98,6 +98,8 @@ export type TWorkflowAST = {
   availableFunctionNames?: string[];
   /** Sugar macros (@map, @filter) that expand to full scope patterns. Stored for round-trip preservation. */
   macros?: TWorkflowMacro[];
+  /** Whether this workflow was defined as a stub (const declaration, no function body). */
+  stub?: boolean;
   /** Reserved for plugin extensibility */
   metadata?: TWorkflowMetadata;
 };
