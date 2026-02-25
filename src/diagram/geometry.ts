@@ -752,11 +752,15 @@ function assignUnpositionedNodes(
  * label extent) intrudes into the previous node's right edge (plus its
  * output label extent and clearance).
  */
-function resolveHorizontalOverlaps(diagramNodes: Map<string, DiagramNode>): void {
+function resolveHorizontalOverlaps(
+  diagramNodes: Map<string, DiagramNode>,
+  explicitPositions: Map<string, { x: number; y: number }>,
+): void {
   const nodes = [...diagramNodes.values()].sort((a, b) => a.x - b.x);
   for (let i = 1; i < nodes.length; i++) {
     const prev = nodes[i - 1];
     const curr = nodes[i];
+    if (explicitPositions.has(curr.id)) continue; // respect author-set positions
 
     // Only external port labels overhang the node boundary.
     // Scope inner-edge port labels face inward and don't extend past the node box.
@@ -896,8 +900,7 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
   const nonePositioned = ![...diagramNodes.keys()].some(id => explicitPositions.has(id));
 
   if (allPositioned) {
-    // All nodes have explicit positions — apply them, then fix overlaps
-    // caused by scope expansion making nodes wider than the author anticipated.
+    // All nodes have explicit positions — apply them as-is
     for (const [id, pos] of explicitPositions) {
       const node = diagramNodes.get(id);
       if (node) {
@@ -905,7 +908,6 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
         node.y = pos.y;
       }
     }
-    resolveHorizontalOverlaps(diagramNodes);
   } else if (nonePositioned) {
     // No positions — full auto-layout (original behavior)
     const { layers } = layoutWorkflow(ast);
@@ -914,7 +916,7 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     // Mixed — explicit positions + auto-layout for remaining nodes
     const { layers } = layoutWorkflow(ast);
     assignUnpositionedNodes(layers, diagramNodes, explicitPositions);
-    resolveHorizontalOverlaps(diagramNodes);
+    resolveHorizontalOverlaps(diagramNodes, explicitPositions);
   }
 
   // Compute external port positions
