@@ -445,6 +445,8 @@ export type TConnectionAST = {
   metadata?: TConnectionMetadata;
   /** Pre-computed type compatibility (set during parsing when ts-morph Types are available) */
   typeCompatibility?: TTypeCompatibility;
+  /** Explicit type coercion for this connection (e.g., 'number' wraps value with Number()) */
+  coerce?: TCoerceTargetType;
 };
 
 /**

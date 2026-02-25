@@ -173,3 +173,101 @@ describe('@coerce Chevrotain parser', () => {
     });
   });
 });
+
+// =============================================================================
+// @connect ... as <type> coercion parsing (connection-level)
+// =============================================================================
+
+import { parseConnectLine } from '../../src/chevrotain-parser/connect-parser';
+
+describe('@connect ... as <type> coercion parsing', () => {
+  describe('valid coerce types', () => {
+    it('parses @connect with as string', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect fetch.count -> display.label as string', warnings);
+      expect(warnings).toHaveLength(0);
+      expect(result).not.toBeNull();
+      expect(result!.coerce).toBe('string');
+    });
+
+    it('parses @connect with as number', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect input.text -> calc.amount as number', warnings);
+      expect(warnings).toHaveLength(0);
+      expect(result!.coerce).toBe('number');
+    });
+
+    it('parses @connect with as boolean', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect config.value -> gate.enabled as boolean', warnings);
+      expect(warnings).toHaveLength(0);
+      expect(result!.coerce).toBe('boolean');
+    });
+
+    it('parses @connect with as json', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect raw.data -> handler.payload as json', warnings);
+      expect(warnings).toHaveLength(0);
+      expect(result!.coerce).toBe('json');
+    });
+
+    it('parses @connect with as object', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect serializer.output -> store.record as object', warnings);
+      expect(warnings).toHaveLength(0);
+      expect(result!.coerce).toBe('object');
+    });
+  });
+
+  describe('without coercion', () => {
+    it('parses @connect without as clause (coerce is undefined)', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect A.x -> B.y', warnings);
+      expect(warnings).toHaveLength(0);
+      expect(result!.coerce).toBeUndefined();
+    });
+  });
+
+  describe('invalid coerce type', () => {
+    it('warns and ignores invalid type "float"', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect A.x -> B.y as float', warnings);
+      expect(result).not.toBeNull();
+      expect(result!.coerce).toBeUndefined();
+      expect(warnings.length).toBe(1);
+      expect(warnings[0]).toContain('Invalid coerce type');
+      expect(warnings[0]).toContain('float');
+    });
+
+    it('warns and ignores invalid type "int"', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect A.x -> B.y as int', warnings);
+      expect(result).not.toBeNull();
+      expect(result!.coerce).toBeUndefined();
+      expect(warnings.length).toBe(1);
+      expect(warnings[0]).toContain('Invalid coerce type');
+      expect(warnings[0]).toContain('int');
+    });
+
+    it('lists valid types in the warning message', () => {
+      const warnings: string[] = [];
+      parseConnectLine('@connect A.x -> B.y as text', warnings);
+      expect(warnings.length).toBe(1);
+      expect(warnings[0]).toContain('string');
+      expect(warnings[0]).toContain('number');
+      expect(warnings[0]).toContain('boolean');
+      expect(warnings[0]).toContain('json');
+      expect(warnings[0]).toContain('object');
+    });
+  });
+
+  describe('with scoped ports', () => {
+    it('parses scoped source port with coerce', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect A.x:myScope -> B.y as number', warnings);
+      expect(warnings).toHaveLength(0);
+      expect(result!.source).toEqual({ nodeId: 'A', portName: 'x', scope: 'myScope' });
+      expect(result!.coerce).toBe('number');
+    });
+  });
+});

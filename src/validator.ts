@@ -37,7 +37,27 @@ const ERROR_DOC_URLS: Record<string, string> = {
   INFERRED_NODE_TYPE: `${DOCS_BASE}/node-conversion`,
   DUPLICATE_CONNECTION: `${DOCS_BASE}/concepts#connections`,
   STUB_NODE: `${DOCS_BASE}/model-driven#stub-nodes`,
+  COERCE_TYPE_MISMATCH: `${DOCS_BASE}/compilation#type-coercion`,
+  REDUNDANT_COERCE: `${DOCS_BASE}/compilation#type-coercion`,
+  COERCE_ON_FUNCTION_PORT: `${DOCS_BASE}/compilation#type-coercion`,
 };
+
+/** Map coerce type to the dataType it produces */
+const COERCE_OUTPUT_TYPE: Record<string, string> = {
+  string: 'STRING', number: 'NUMBER', boolean: 'BOOLEAN',
+  json: 'STRING', object: 'OBJECT',
+};
+
+/** Suggest the correct `as <type>` for a given target dataType */
+function suggestCoerceType(targetType: string): string {
+  switch (targetType) {
+    case 'STRING': return 'string';
+    case 'NUMBER': return 'number';
+    case 'BOOLEAN': return 'boolean';
+    case 'OBJECT': return 'object';
+    default: return '<type>';
+  }
+}
 
 export class WorkflowValidator {
   private errors: TValidationError[] = [];
@@ -552,8 +572,31 @@ export class WorkflowValidator {
         return;
       }
 
+      // Block coercion on FUNCTION ports — coercing a function value is nonsensical
+      if (conn.coerce && (sourceType === 'FUNCTION' || targetType === 'FUNCTION')) {
+        this.errors.push({
+          type: 'error',
+          code: 'COERCE_ON_FUNCTION_PORT',
+          message: `Coercion \`as ${conn.coerce}\` cannot be used on FUNCTION ports in connection "${fromNode}.${fromPort}" → "${toNode}.${toPort}". FUNCTION values cannot be meaningfully coerced.`,
+          connection: conn,
+          location: connLocation,
+        });
+        return;
+      }
+
       // Same type - check for structural compatibility if both are OBJECT
       if (sourceType === targetType) {
+        // Redundant coerce: same types don't need coercion
+        if (conn.coerce) {
+          this.warnings.push({
+            type: 'warning',
+            code: 'REDUNDANT_COERCE',
+            message: `Coercion \`as ${conn.coerce}\` on connection "${fromNode}.${fromPort}" → "${toNode}.${toPort}" is redundant — source and target are both ${sourceType}.`,
+            connection: conn,
+            location: connLocation,
+          });
+          return;
+        }
         // For OBJECT types, check if tsType differs (structural mismatch)
         if (sourceType === 'OBJECT' && sourcePortDef.tsType && targetPortDef.tsType) {
           const normalizedSource = this.normalizeTypeString(sourcePortDef.tsType);
@@ -577,6 +620,26 @@ export class WorkflowValidator {
 
       // ANY type - always compatible (no warning)
       if (sourceType === 'ANY' || targetType === 'ANY') {
+        return;
+      }
+
+      // Validate explicit coerce: check that produced type matches target
+      if (conn.coerce) {
+        const producedType = COERCE_OUTPUT_TYPE[conn.coerce];
+        if (producedType === targetType) {
+          return; // Coerce correctly resolves the mismatch
+        }
+        // Wrong coerce type — produced type doesn't match target
+        pushTypeIssue(
+          {
+            type: 'warning',
+            code: 'COERCE_TYPE_MISMATCH',
+            message: `Coercion \`as ${conn.coerce}\` produces ${producedType} but target port "${toPort}" on "${toNode}" expects ${targetType}. Use \`as ${suggestCoerceType(targetType)}\` instead.`,
+            connection: conn,
+            location: connLocation,
+          },
+          true
+        );
         return;
       }
 
