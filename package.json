@@ -100,7 +100,8 @@
     "docs": "typedoc && tsx scripts/generate-grammar-docs.ts",
     "docs:serve": "npm run docs && npx http-server docs/api -c-1 -o",
     "prepare": "npm run build",
-    "cli": "tsx src/cli/index.ts"
+    "cli": "tsx src/cli/index.ts",
+    "diagram": "tsx scripts/generate-diagram.ts"
   },
   "keywords": [
     "flow-weaver",

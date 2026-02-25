@@ -83,11 +83,18 @@ describe('html-viewer', () => {
       expect(html).toContain('scroll to zoom');
     });
 
-    it('includes CSS hover interactions', () => {
+    it('uses attribute selectors for connection CSS so scope connections are included', () => {
       const html = wrapSVGInHTML('<svg></svg>');
-      expect(html).toContain('.connections path:hover');
+      expect(html).toContain('path[data-source]:hover');
+      expect(html).toContain('path[data-source].dimmed');
       expect(html).toContain('.node-active');
-      expect(html).toContain('.dimmed');
+    });
+
+    it('builds port adjacency from all connection paths via attribute selector', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain("querySelectorAll('path[data-source]')");
+      // Must not use the old .connections-only selector
+      expect(html).not.toContain("querySelectorAll('.connections path')");
     });
   });
 
