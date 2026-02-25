@@ -182,6 +182,21 @@ path[data-source].port-hover { opacity: 1; }
   border-radius: 3px; font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 12px; background: rgba(255,255,255,0.1);
 }
+
+/* Studio nudge toast */
+#studio-hint {
+  position: fixed; bottom: 60px; left: 50%;
+  transform: translateX(-50%);
+  background: ${surfaceMain}; border: 1px solid ${borderSubtle};
+  padding: 8px 16px; border-radius: 8px;
+  font-size: 13px; color: ${textMed};
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 20; opacity: 0; transition: opacity 0.4s;
+  pointer-events: none;
+}
+#studio-hint.visible { opacity: 1; pointer-events: auto; }
+#studio-hint a { color: ${brandAccent}; text-decoration: none; font-weight: 600; }
+#studio-hint a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -205,6 +220,12 @@ path[data-source].port-hover { opacity: 1; }
       <path d="M1 5h12M1 9h12M5 1v12M9 1v12" opacity="0.4"/>
     </svg>
   </button>
+  <button class="ctrl-btn" id="btn-reset" title="Reset layout" aria-label="Reset layout">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M1.5 2v3.5h3.5"/>
+      <path d="M2.1 8.5a5 5 0 1 0 .9-4L1.5 5.5"/>
+    </svg>
+  </button>
 </div>
 <div id="info-panel">
   <h3 id="info-title"></h3>
@@ -215,6 +236,7 @@ path[data-source].port-hover { opacity: 1; }
   <span>Flow Weaver</span>
 </a>
 <div id="scroll-hint">Use <kbd id="mod-key">Ctrl</kbd> + scroll to zoom</div>
+<div id="studio-hint">Like rearranging? <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> saves your layouts.</div>
 <script>
 (function() {
   'use strict';
@@ -227,6 +249,7 @@ path[data-source].port-hover { opacity: 1; }
   var infoTitle = document.getElementById('info-title');
   var infoBody = document.getElementById('info-body');
   var scrollHint = document.getElementById('scroll-hint');
+  var studioHint = document.getElementById('studio-hint');
 
   // Parse the original viewBox (diagram bounding box)
   var vbParts = '${viewBox}'.split(/\\s+/).map(Number);
@@ -298,6 +321,17 @@ path[data-source].port-hover { opacity: 1; }
 
   // ---- Pan (drag) + Node drag ----
   var draggedNodeId = null, dragNodeStart = null, didDragNode = false;
+  var dragCount = 0, nudgeIndex = 0, nudgeTimer = null;
+  var nudgeMessages = [
+    'Like rearranging? <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> saves your layouts.',
+    'Changes here are temporary. <a href="https://flowweaver.ai" target="_blank" rel="noopener">Try the Studio</a> to keep them.',
+    'Want to collaborate? <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> has real-time sharing.',
+    'Build and deploy from the cloud with <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a>.',
+    'This viewer is read-only. <a href="https://flowweaver.ai" target="_blank" rel="noopener">Build workflows</a> in the Studio.',
+    'Version history, diff viewer, rollbacks. All in <a href="https://flowweaver.ai" target="_blank" rel="noopener">the Studio</a>.',
+    'Debug workflows step by step in <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a>.',
+    'Ship faster. <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> runs your workflows in the cloud.'
+  ];
 
   canvas.addEventListener('pointerdown', function(e) {
     if (e.button !== 0) return;
@@ -356,6 +390,18 @@ path[data-source].port-hover { opacity: 1; }
   });
 
   function endDrag() {
+    if (didDragNode) {
+      dragCount++;
+      var threshold = nudgeIndex === 0 ? 3 : 5;
+      if (dragCount >= threshold) {
+        dragCount = 0;
+        studioHint.innerHTML = nudgeMessages[nudgeIndex % nudgeMessages.length];
+        nudgeIndex++;
+        studioHint.classList.add('visible');
+        clearTimeout(nudgeTimer);
+        nudgeTimer = setTimeout(function() { studioHint.classList.remove('visible'); }, 5000);
+      }
+    }
     pointerDown = false;
     draggedNodeId = null;
     canvas.classList.remove('dragging');
@@ -449,6 +495,38 @@ path[data-source].port-hover { opacity: 1; }
     var src = p.getAttribute('data-source'), tgt = p.getAttribute('data-target');
     connIndex.push({ el: p, src: src, tgt: tgt, srcNode: src.split('.')[0], tgtNode: tgt.split('.')[0] });
   });
+
+  // Snapshot of original port positions for reset
+  var origPortPositions = {};
+  for (var pid in portPositions) {
+    origPortPositions[pid] = { cx: portPositions[pid].cx, cy: portPositions[pid].cy };
+  }
+
+  function resetLayout() {
+    for (var nid in nodeOffsets) {
+      var esc = CSS.escape(nid);
+      var nodeG = content.querySelector('.nodes [data-node-id="' + esc + '"]');
+      if (nodeG) nodeG.removeAttribute('transform');
+      var labelG = content.querySelector('[data-label-for="' + esc + '"]');
+      if (labelG) labelG.removeAttribute('transform');
+      allLabelIds.forEach(function(id) {
+        if (id.indexOf(nid + '.') === 0) {
+          var el = labelMap[id];
+          if (el) el.removeAttribute('transform');
+        }
+      });
+    }
+    nodeOffsets = {};
+    for (var pid in origPortPositions) {
+      portPositions[pid] = { cx: origPortPositions[pid].cx, cy: origPortPositions[pid].cy };
+    }
+    connIndex.forEach(function(c) {
+      var sp = portPositions[c.src], tp = portPositions[c.tgt];
+      if (sp && tp) c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
+    });
+    fitToView();
+  }
+  document.getElementById('btn-reset').addEventListener('click', resetLayout);
 
   // ---- Node drag: moveNode ----
   function moveNode(nodeId, dx, dy) {

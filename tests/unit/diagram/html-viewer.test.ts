@@ -145,6 +145,20 @@ describe('html-viewer', () => {
       expect(html).toContain('href="https://flowweaver.ai"');
       expect(html).toContain('Flow Weaver');
     });
+
+    it('includes studio nudge toast with rotating messages', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('id="studio-hint"');
+      expect(html).toContain('nudgeMessages');
+      expect(html).toContain('nudgeIndex');
+    });
+
+    it('includes reset layout button', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('id="btn-reset"');
+      expect(html).toContain('resetLayout');
+      expect(html).toContain('origPortPositions');
+    });
   });
 
   describe('fileToHTML', () => {
