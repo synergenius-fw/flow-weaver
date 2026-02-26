@@ -3,9 +3,11 @@ import { parser } from '../parser';
 import { buildDiagramGraph } from './geometry';
 import { renderSVG } from './renderer';
 import { wrapSVGInHTML } from './html-viewer';
+import { renderASCII, renderASCIICompact, renderText } from './ascii-renderer';
 import type { DiagramOptions } from './types';
 
 export type { DiagramOptions } from './types';
+export { renderASCII, renderASCIICompact, renderText } from './ascii-renderer';
 
 /**
  * Render a workflow AST to an SVG string.
@@ -111,4 +113,33 @@ function pickWorkflow(workflows: TWorkflowAST[], options: DiagramOptions): TWork
 
 function pickAndRender(workflows: TWorkflowAST[], options: DiagramOptions): string {
   return workflowToSVG(pickWorkflow(workflows, options), options);
+}
+
+// ── ASCII / Text convenience functions ───────────────────────────────────────
+
+function renderByFormat(graph: ReturnType<typeof buildDiagramGraph>, format: 'ascii' | 'ascii-compact' | 'text'): string {
+  switch (format) {
+    case 'ascii': return renderASCII(graph);
+    case 'ascii-compact': return renderASCIICompact(graph);
+    case 'text': return renderText(graph);
+  }
+}
+
+export function workflowToASCII(ast: TWorkflowAST, options: DiagramOptions = {}): string {
+  const graph = buildDiagramGraph(ast, options);
+  return renderByFormat(graph, options.format as 'ascii' | 'ascii-compact' | 'text' ?? 'ascii');
+}
+
+export function sourceToASCII(code: string, options: DiagramOptions = {}): string {
+  const result = parser.parseFromString(code);
+  const ast = pickWorkflow(result.workflows, options);
+  const graph = buildDiagramGraph(ast, options);
+  return renderByFormat(graph, options.format as 'ascii' | 'ascii-compact' | 'text' ?? 'ascii');
+}
+
+export function fileToASCII(filePath: string, options: DiagramOptions = {}): string {
+  const result = parser.parse(filePath);
+  const ast = pickWorkflow(result.workflows, options);
+  const graph = buildDiagramGraph(ast, options);
+  return renderByFormat(graph, options.format as 'ascii' | 'ascii-compact' | 'text' ?? 'ascii');
 }

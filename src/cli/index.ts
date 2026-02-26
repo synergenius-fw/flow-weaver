@@ -121,7 +121,7 @@ program
 program
   .command('describe <input>')
   .description('Output workflow structure in LLM-friendly formats (JSON, text, mermaid)')
-  .option('-f, --format <format>', 'Output format: json (default), text, mermaid', 'json')
+  .option('-f, --format <format>', 'Output format: json (default), text, mermaid, paths, ascii, ascii-compact', 'json')
   .option('-n, --node <id>', 'Focus on a specific node')
   .option('--compile', 'Also update runtime markers in the source file')
   .option('-w, --workflow-name <name>', 'Specific workflow name to describe')
@@ -143,7 +143,7 @@ program
   .option('-p, --padding <pixels>', 'Canvas padding in pixels')
   .option('--no-port-labels', 'Hide data type labels on ports')
   .option('--workflow-name <name>', 'Specific workflow to render')
-  .option('-f, --format <format>', 'Output format: svg (default), html (interactive viewer)', 'svg')
+  .option('-f, --format <format>', 'Output format: svg (default), html, ascii, ascii-compact, text', 'svg')
   .option('-o, --output <file>', 'Write output to file instead of stdout')
   .action(async (input: string, options) => {
     try {

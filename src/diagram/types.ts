@@ -8,7 +8,7 @@ export interface DiagramOptions {
   padding?: number;
   showPortLabels?: boolean;
   workflowName?: string;
-  format?: 'svg' | 'html';
+  format?: 'svg' | 'html' | 'ascii' | 'ascii-compact' | 'text';
 }
 
 // ---- Internal layout types ----

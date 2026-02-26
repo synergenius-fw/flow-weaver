@@ -1435,6 +1435,34 @@ describe('Library MCP tools', () => {
       expect(typeof parsed.data).toBe('string');
       expect(parsed.data).toContain('graph LR');
     });
+
+    it('returns ascii format as string data', async () => {
+      mockParseWorkflow.mockResolvedValue({ ast: fakeAST, errors: [], warnings: [] });
+      mockDescribeWorkflow.mockReturnValue({ name: 'test' });
+      mockFormatDescribeOutput.mockReturnValue('testWorkflow\n┌────┐\n│Start│');
+
+      const handler = mockToolHandlers.get('fw_describe')!;
+      const result = (await handler({ filePath: '/test/workflow.ts', format: 'ascii' })) as {
+        content: Array<{ text: string }>;
+      };
+      const parsed = JSON.parse(result.content[0].text);
+      expect(parsed.success).toBe(true);
+      expect(typeof parsed.data).toBe('string');
+    });
+
+    it('returns ascii-compact format as string data', async () => {
+      mockParseWorkflow.mockResolvedValue({ ast: fakeAST, errors: [], warnings: [] });
+      mockDescribeWorkflow.mockReturnValue({ name: 'test' });
+      mockFormatDescribeOutput.mockReturnValue('testWorkflow\n┌─────┐━━━▶┌────┐');
+
+      const handler = mockToolHandlers.get('fw_describe')!;
+      const result = (await handler({ filePath: '/test/workflow.ts', format: 'ascii-compact' })) as {
+        content: Array<{ text: string }>;
+      };
+      const parsed = JSON.parse(result.content[0].text);
+      expect(parsed.success).toBe(true);
+      expect(typeof parsed.data).toBe('string');
+    });
   });
 
   describe('fw_validate', () => {

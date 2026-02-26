@@ -1,13 +1,15 @@
 /* eslint-disable no-console */
 /**
- * Diagram command — generates SVG or interactive HTML diagrams from workflow files.
+ * Diagram command — generates SVG, interactive HTML, or ASCII diagrams from workflow files.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileToSVG, fileToHTML } from '../../diagram/index.js';
+import { fileToSVG, fileToHTML, fileToASCII } from '../../diagram/index.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
+
+const ASCII_FORMATS = new Set(['ascii', 'ascii-compact', 'text']);
 
 export interface DiagramCommandOptions {
   theme?: 'dark' | 'light';
@@ -16,7 +18,7 @@ export interface DiagramCommandOptions {
   showPortLabels?: boolean;
   workflowName?: string;
   output?: string;
-  format?: 'svg' | 'html';
+  format?: 'svg' | 'html' | 'ascii' | 'ascii-compact' | 'text';
 }
 
 export async function diagramCommand(input: string, options: DiagramCommandOptions = {}): Promise<void> {
@@ -29,10 +31,14 @@ export async function diagramCommand(input: string, options: DiagramCommandOptio
   }
 
   try {
-    const isHtml = format === 'html';
-    const result = isHtml
-      ? fileToHTML(filePath, diagramOptions)
-      : fileToSVG(filePath, diagramOptions);
+    let result: string;
+    if (ASCII_FORMATS.has(format)) {
+      result = fileToASCII(filePath, { ...diagramOptions, format });
+    } else if (format === 'html') {
+      result = fileToHTML(filePath, diagramOptions);
+    } else {
+      result = fileToSVG(filePath, diagramOptions);
+    }
 
     if (output) {
       const outputPath = path.resolve(output);

@@ -11,9 +11,11 @@ import { getNode, getIncomingConnections, getOutgoingConnections } from '../../a
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import type { TWorkflowAST, TNodeInstanceAST, TNodeTypeAST } from '../../ast/types.js';
+import { buildDiagramGraph } from '../../diagram/geometry.js';
+import { renderASCII, renderASCIICompact } from '../../diagram/ascii-renderer.js';
 
 export interface DescribeOptions {
-  format?: 'json' | 'text' | 'mermaid' | 'paths';
+  format?: 'json' | 'text' | 'mermaid' | 'paths' | 'ascii' | 'ascii-compact';
   node?: string;
   workflowName?: string;
   compile?: boolean;
@@ -427,7 +429,7 @@ export function formatTextOutput(
 export function formatDescribeOutput(
   ast: TWorkflowAST,
   output: DescribeOutput | FocusedNodeOutput,
-  format: 'json' | 'text' | 'mermaid' | 'paths'
+  format: 'json' | 'text' | 'mermaid' | 'paths' | 'ascii' | 'ascii-compact'
 ): string {
   switch (format) {
     case 'text':
@@ -436,6 +438,10 @@ export function formatDescribeOutput(
       return generateMermaid(ast);
     case 'paths':
       return formatPaths(ast);
+    case 'ascii':
+      return renderASCII(buildDiagramGraph(ast));
+    case 'ascii-compact':
+      return renderASCIICompact(buildDiagramGraph(ast));
     case 'json':
     default:
       return JSON.stringify(output, null, 2);

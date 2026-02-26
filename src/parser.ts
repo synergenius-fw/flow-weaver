@@ -2266,33 +2266,52 @@ export class AnnotationParser {
         ports.execute = { dataType: 'STEP', tsType: 'boolean', label: 'Execute' };
       }
 
-      // Extract data ports from second parameter if it exists
+      // Extract data ports from parameters beyond execute
       if (params.length > 1) {
-        const dataParam = params[1];
-        const dataParamType = dataParam.getType();
-        const properties = dataParamType.getProperties();
-        properties.forEach((prop: TsSymbol) => {
-          const propName = prop.getName();
-          const propType = prop.getTypeAtLocation(dataParam);
-          const portType = this.inferPortType(propType);
-          const propTypeText = propType.getText();
-          // Extract schema for complex types (interfaces/objects)
-          const tsSchema = portType === 'OBJECT' ? this.extractTypeSchema(propType) : undefined;
+        const dataParams = params.slice(1);
 
-          // Check if JSDoc has explicit metadata override for this start port (from @param annotation)
-          // Always prefer ts-morph inferred type over JSDoc regex-based inference
-          // (JSDoc @param type inference uses regex which can fail for complex types)
-          const startPortConfig = config?.startPorts?.[propName];
-          ports[propName] = {
-            dataType: portType,
-            label: startPortConfig?.label || this.capitalize(propName),
-            ...(startPortConfig?.metadata && { metadata: startPortConfig.metadata }),
-            // Include original TS type for rich type display
-            ...(propTypeText && { tsType: propTypeText }),
-            // Include schema breakdown for complex types
-            ...(tsSchema && Object.keys(tsSchema).length > 0 && { tsSchema }),
-          };
-        });
+        // Multiple separate params: each becomes its own port
+        // Single param with object type: expand its properties into ports
+        const shouldExpandProperties =
+          dataParams.length === 1 && this.isExpandableObjectType(dataParams[0].getType());
+
+        if (shouldExpandProperties) {
+          const dataParam = dataParams[0];
+          const dataParamType = dataParam.getType();
+          const properties = dataParamType.getProperties();
+          properties.forEach((prop: TsSymbol) => {
+            const propName = prop.getName();
+            const propType = prop.getTypeAtLocation(dataParam);
+            const portType = this.inferPortType(propType);
+            const propTypeText = propType.getText();
+            const tsSchema = portType === 'OBJECT' ? this.extractTypeSchema(propType) : undefined;
+            const startPortConfig = config?.startPorts?.[propName];
+            ports[propName] = {
+              dataType: portType,
+              label: startPortConfig?.label || this.capitalize(propName),
+              ...(startPortConfig?.metadata && { metadata: startPortConfig.metadata }),
+              ...(propTypeText && { tsType: propTypeText }),
+              ...(tsSchema && Object.keys(tsSchema).length > 0 && { tsSchema }),
+            };
+          });
+        } else {
+          // Each parameter becomes its own port
+          for (const param of dataParams) {
+            const paramName = param.getName();
+            const paramType = param.getType();
+            const portType = this.inferPortType(paramType);
+            const paramTypeText = paramType.getText(param);
+            const tsSchema = portType === 'OBJECT' ? this.extractTypeSchema(paramType) : undefined;
+            const startPortConfig = config?.startPorts?.[paramName];
+            ports[paramName] = {
+              dataType: portType,
+              label: startPortConfig?.label || this.capitalize(paramName),
+              ...(startPortConfig?.metadata && { metadata: startPortConfig.metadata }),
+              ...(paramTypeText && { tsType: paramTypeText }),
+              ...(tsSchema && Object.keys(tsSchema).length > 0 && { tsSchema }),
+            };
+          }
+        }
       }
     } else {
       // Old format detected - reject it
@@ -2405,6 +2424,19 @@ export class AnnotationParser {
     }
 
     return Object.keys(schema).length > 0 ? schema : undefined;
+  }
+
+  /**
+   * Check if a type should be expanded into individual ports via getProperties().
+   * Returns true for object literals and interfaces, false for primitives, arrays,
+   * and built-in types whose properties are prototype methods (string, number, etc.).
+   */
+  private isExpandableObjectType(tsType: Type): boolean {
+    const typeText = tsType.getText();
+    const primitiveTypes = new Set(['string', 'number', 'boolean', 'any', 'unknown', 'never', 'object', 'Object']);
+    if (primitiveTypes.has(typeText)) return false;
+    if (typeText.endsWith('[]') || typeText.startsWith('Array<')) return false;
+    return tsType.isObject() && tsType.getProperties().length > 0;
   }
 
   private inferPortType(tsType: Type): TDataType {
