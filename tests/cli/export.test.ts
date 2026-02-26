@@ -423,6 +423,73 @@ describe('export module', () => {
       });
     });
 
+    describe('multi-workflow export', () => {
+      it('should export all workflows in multi mode', async () => {
+        const inputPath = path.join(tempDir, 'multi-all-input.ts');
+        const outputDir = path.join(tempDir, 'multi-all-output');
+
+        fs.writeFileSync(inputPath, MULTI_WORKFLOW);
+
+        const result = await exportWorkflow({
+          target: 'lambda',
+          input: inputPath,
+          output: outputDir,
+          multi: true,
+        });
+
+        expect(result.workflows).toBeDefined();
+        expect(result.workflows!.length).toBe(2);
+        expect(result.workflows).toContain('firstWorkflow');
+        expect(result.workflows).toContain('secondWorkflow');
+      });
+
+      it('should export specific workflows when --workflows filter is provided', async () => {
+        const inputPath = path.join(tempDir, 'multi-filter-input.ts');
+        const outputDir = path.join(tempDir, 'multi-filter-output');
+
+        fs.writeFileSync(inputPath, MULTI_WORKFLOW);
+
+        const result = await exportWorkflow({
+          target: 'vercel',
+          input: inputPath,
+          output: outputDir,
+          multi: true,
+          workflows: ['secondWorkflow'],
+        });
+
+        expect(result.workflows).toBeDefined();
+        expect(result.workflows!.length).toBe(1);
+        expect(result.workflows).toContain('secondWorkflow');
+      });
+    });
+
+    describe('inngest export', () => {
+      it('should generate Inngest handler', async () => {
+        const inputPath = path.join(tempDir, 'inngest-input.ts');
+        const outputDir = path.join(tempDir, 'inngest-output');
+
+        fs.writeFileSync(inputPath, SAMPLE_WORKFLOW);
+
+        const result = await exportWorkflow({
+          target: 'inngest',
+          input: inputPath,
+          output: outputDir,
+        });
+
+        expect(result.target).toBe('inngest');
+        expect(result.workflow).toBe('calculator');
+
+        const handlerFile = result.files.find((f) => f.path.includes('handler.ts'));
+        expect(handlerFile).toBeDefined();
+        expect(handlerFile?.content).toContain('Inngest');
+
+        const packageFile = result.files.find((f) => f.path.includes('package.json'));
+        expect(packageFile).toBeDefined();
+        const pkg = JSON.parse(packageFile!.content);
+        expect(pkg.dependencies.inngest).toBeDefined();
+      });
+    });
+
     describe('dry-run mode', () => {
       it('should not create output directory in dry-run mode', async () => {
         const inputPath = path.join(tempDir, 'dryrun-mkdir-input.ts');
@@ -501,5 +568,190 @@ describe('export module', () => {
         expect(result.workflow).toBe('calculator');
       });
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// exportCommand (CLI layer): mocked I/O to test logging, validation, error paths
+// ---------------------------------------------------------------------------
+
+vi.mock('../../src/export/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/export/index')>();
+  return {
+    ...actual,
+    // Preserve real implementation for tests above, but allow spy
+    exportWorkflow: vi.fn(actual.exportWorkflow),
+    getSupportedTargets: actual.getSupportedTargets,
+  };
+});
+
+import { exportCommand, type ExportOptions } from '../../src/cli/commands/export';
+import { exportWorkflow as exportWorkflowMocked } from '../../src/export/index';
+
+describe('exportCommand (CLI layer)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should throw on invalid target', async () => {
+    await expect(
+      exportCommand('input.ts', {
+        target: 'azure',
+        output: 'out/',
+      })
+    ).rejects.toThrow(/Invalid target "azure"/);
+  });
+
+  it('should list valid targets in the error message', async () => {
+    await expect(
+      exportCommand('input.ts', {
+        target: 'invalid',
+        output: 'out/',
+      })
+    ).rejects.toThrow(/lambda, vercel, cloudflare, inngest/);
+  });
+
+  it('should call exportWorkflow with correct options for a valid target', async () => {
+    const mockResult = {
+      target: 'lambda' as const,
+      workflow: 'myWorkflow',
+      files: [{ path: 'handler.ts', content: 'code' }],
+    };
+
+    (exportWorkflowMocked as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockResult);
+
+    await exportCommand('input.ts', {
+      target: 'lambda',
+      output: 'dist/',
+      production: true,
+    });
+
+    expect(exportWorkflowMocked).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: 'lambda',
+        input: 'input.ts',
+        output: 'dist/',
+        production: true,
+      })
+    );
+  });
+
+  it('should handle multi mode with workflow list', async () => {
+    const mockResult = {
+      target: 'lambda' as const,
+      workflow: 'service',
+      workflows: ['wfA', 'wfB'],
+      files: [{ path: 'handler.ts', content: 'code' }],
+    };
+
+    (exportWorkflowMocked as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockResult);
+
+    await exportCommand('input.ts', {
+      target: 'lambda',
+      output: 'dist/',
+      multi: true,
+      workflows: 'wfA, wfB',
+    });
+
+    expect(exportWorkflowMocked).toHaveBeenCalledWith(
+      expect.objectContaining({
+        multi: true,
+        workflows: ['wfA', 'wfB'],
+      })
+    );
+  });
+
+  it('should pass docs flag through to exportWorkflow', async () => {
+    const mockResult = {
+      target: 'vercel' as const,
+      workflow: 'myWorkflow',
+      files: [{ path: 'handler.ts', content: 'code' }],
+    };
+
+    (exportWorkflowMocked as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockResult);
+
+    await exportCommand('input.ts', {
+      target: 'vercel',
+      output: 'api/',
+      docs: true,
+    });
+
+    expect(exportWorkflowMocked).toHaveBeenCalledWith(
+      expect.objectContaining({ includeDocs: true })
+    );
+  });
+
+  it('should pass durableSteps flag through to exportWorkflow', async () => {
+    const mockResult = {
+      target: 'inngest' as const,
+      workflow: 'myWorkflow',
+      files: [{ path: 'handler.ts', content: 'code' }],
+    };
+
+    (exportWorkflowMocked as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockResult);
+
+    await exportCommand('input.ts', {
+      target: 'inngest',
+      output: 'out/',
+      durableSteps: true,
+    });
+
+    expect(exportWorkflowMocked).toHaveBeenCalledWith(
+      expect.objectContaining({ durableSteps: true })
+    );
+  });
+
+  it('should handle dry run mode without error', async () => {
+    const mockResult = {
+      target: 'cloudflare' as const,
+      workflow: 'myWorkflow',
+      files: [
+        { path: 'index.ts', content: 'export default { fetch() {} }' },
+        { path: 'wrangler.toml', content: 'name = "myWorkflow"' },
+      ],
+    };
+
+    (exportWorkflowMocked as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockResult);
+
+    await expect(
+      exportCommand('input.ts', {
+        target: 'cloudflare',
+        output: 'workers/',
+        dryRun: true,
+      })
+    ).resolves.not.toThrow();
+  });
+
+  it('should show handler preview in dry-run for files ending with handler.ts', async () => {
+    const handlerContent = Array.from({ length: 50 }, (_, i) => `// line ${i + 1}`).join('\n');
+    const mockResult = {
+      target: 'lambda' as const,
+      workflow: 'myWorkflow',
+      files: [{ path: 'handler.ts', content: handlerContent }],
+    };
+
+    (exportWorkflowMocked as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockResult);
+
+    // Should not throw; the dry-run branch shows first 40 lines + "more lines" info
+    await expect(
+      exportCommand('input.ts', {
+        target: 'lambda',
+        output: 'dist/',
+        dryRun: true,
+      })
+    ).resolves.not.toThrow();
+  });
+
+  it('should propagate errors from exportWorkflow', async () => {
+    (exportWorkflowMocked as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('File not found')
+    );
+
+    await expect(
+      exportCommand('missing.ts', {
+        target: 'lambda',
+        output: 'dist/',
+      })
+    ).rejects.toThrow('File not found');
   });
 });
