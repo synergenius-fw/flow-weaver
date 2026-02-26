@@ -9,8 +9,8 @@ import { AgentChannel } from './agent-channel.js';
 import { storePendingRun, getPendingRun, removePendingRun, listPendingRuns } from './run-registry.js';
 
 /**
- * Unwrap editor ack responses to flatten double-nested results.
- * Editor returns { requestId, success, result: { actualData } } —
+ * Unwrap Studio ack responses to flatten double-nested results.
+ * Studio returns { requestId, success, result: { actualData } },
  * we extract the `result` field to avoid double-nesting in MCP output.
  */
 function unwrapAckResult(ack: AckResponse): unknown {
@@ -27,7 +27,7 @@ export function registerEditorTools(
 ): void {
   mcp.tool(
     'fw_check_events',
-    'Get buffered editor events. Returns and clears the event buffer unless peek=true.',
+    'Get buffered Studio events. Returns and clears the event buffer unless peek=true.',
     { peek: z.boolean().optional().describe('If true, read events without clearing the buffer') },
     async (args: { peek?: boolean }) => {
       const events = args.peek ? buffer.peek() : buffer.drain();
@@ -37,13 +37,13 @@ export function registerEditorTools(
 
   mcp.tool(
     'fw_get_state',
-    'Get the current editor/workflow state from Flow Weaver.',
+    'Get the current Studio/workflow state from Flow Weaver.',
     {},
     async () => {
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const result = await connection.sendCommand('get-state', {});
@@ -53,13 +53,13 @@ export function registerEditorTools(
 
   mcp.tool(
     'fw_focus_node',
-    'Select and center a node in the Flow Weaver editor.',
+    'Select and center a node in Flow Weaver Studio.',
     { nodeId: z.string().describe('The ID of the node to focus') },
     async (args: { nodeId: string }) => {
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const result = await connection.sendCommand('focus-node', { nodeId: args.nodeId });
@@ -69,7 +69,7 @@ export function registerEditorTools(
 
   mcp.tool(
     'fw_add_node',
-    'Add a new node to the workflow in the Flow Weaver editor.',
+    'Add a new node to the workflow in Flow Weaver Studio.',
     {
       nodeTypeName: z.string().describe('The name of the node type to add'),
       nodeTypeDefinition: z
@@ -81,7 +81,7 @@ export function registerEditorTools(
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const params: Record<string, unknown> = { nodeTypeName: args.nodeTypeName };
@@ -95,13 +95,13 @@ export function registerEditorTools(
 
   mcp.tool(
     'fw_open_workflow',
-    'Open a workflow file in the Flow Weaver editor.',
+    'Open a workflow file in Flow Weaver Studio.',
     { filePath: z.string().describe('The path to the workflow file to open') },
     async (args: { filePath: string }) => {
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const result = await connection.sendCommand('open-workflow', { filePath: args.filePath });
@@ -111,7 +111,7 @@ export function registerEditorTools(
 
   mcp.tool(
     'fw_send_command',
-    'Send a generic command to the Flow Weaver editor.',
+    'Send a generic command to Flow Weaver Studio.',
     {
       action: z.string().describe('The command action name'),
       params: z.record(z.unknown()).optional().describe('Optional parameters for the command'),
@@ -120,7 +120,7 @@ export function registerEditorTools(
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const result = await connection.sendCommand(args.action, args.params ?? {});
@@ -145,7 +145,7 @@ export function registerEditorTools(
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const result = await connection.sendBatch(args.commands);
@@ -163,7 +163,7 @@ export function registerEditorTools(
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const result = await connection.sendCommand('remove-node', { nodeName: args.nodeName });
@@ -197,7 +197,7 @@ export function registerEditorTools(
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const bridgeAction = args.action === 'add' ? 'add-connection' : 'remove-connection';
@@ -216,7 +216,7 @@ export function registerEditorTools(
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const result = await connection.sendCommand(args.action, {});
@@ -235,7 +235,7 @@ export function registerEditorTools(
         .string()
         .optional()
         .describe(
-          'Path to workflow file. When provided, compiles and executes directly (no editor needed)'
+          'Path to workflow file. When provided, compiles and executes directly (no Studio needed)'
         ),
       workflowName: z
         .string()
@@ -253,7 +253,7 @@ export function registerEditorTools(
       params?: Record<string, unknown>;
       includeTrace?: boolean;
     }, extra) => {
-      // When filePath is provided, compile and execute directly (no editor needed)
+      // When filePath is provided, compile and execute directly (no Studio needed)
       if (args.filePath) {
         try {
           const channel = new AgentChannel();
@@ -322,11 +322,11 @@ export function registerEditorTools(
         }
       }
 
-      // No filePath: delegate to editor via Socket.io (existing behavior)
+      // No filePath: delegate to Studio via Socket.io (existing behavior)
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const result = await connection.sendCommand('execute-workflow', args.params ?? {});
@@ -401,7 +401,7 @@ export function registerEditorTools(
       if (!connection.isConnected) {
         return makeErrorResult(
           'EDITOR_NOT_CONNECTED',
-          'Not connected to the editor. Is the editor running?'
+          'Not connected to Studio. Is Studio running?'
         );
       }
       const result = await connection.sendCommand('get-workflow-details', {});

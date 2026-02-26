@@ -3,7 +3,7 @@ import type { AckResponse, EditorConnectionOptions } from './types.js';
 import type { EventBuffer } from './event-buffer.js';
 
 /**
- * Manages a WebSocket connection to the Flow Weaver editor via socket.io.
+ * Manages a WebSocket connection to Flow Weaver Studio via socket.io.
  * Supports sending commands and batches with request/response correlation,
  * and forwards incoming `fw:` and `integration:` events to an {@link EventBuffer}.
  */
@@ -13,9 +13,11 @@ export class EditorConnection {
   private buffer: EventBuffer;
   private ioFactory: typeof socketIO;
   private ackTimeout: number;
+  private hasLoggedDisconnect = false;
+  private wasConnected = false;
 
   /**
-   * @param serverUrl - The base URL of the editor WebSocket server.
+   * @param serverUrl - The base URL of the Studio WebSocket server.
    * @param buffer - The event buffer to push incoming events into.
    * @param options - Optional connection configuration (custom io factory, ack timeout).
    */
@@ -27,7 +29,7 @@ export class EditorConnection {
   }
 
   /**
-   * Establishes a WebSocket connection to the editor's `/integrations` namespace.
+   * Establishes a WebSocket connection to Studio's `/integrations` namespace.
    * Cleans up any previous connection first. Incoming `fw:` and `integration:` events
    * are automatically forwarded to the event buffer.
    * @param log - Optional logging callback for connection lifecycle events.
@@ -52,15 +54,28 @@ export class EditorConnection {
     });
 
     this.socket.on('connect', () => {
-      log?.(`Connected to editor at ${this.serverUrl}`);
+      const msg = this.wasConnected
+        ? `Reconnected to Studio at ${this.serverUrl}`
+        : `Connected to Studio at ${this.serverUrl}`;
+      log?.(msg);
+      this.hasLoggedDisconnect = false;
+      this.wasConnected = true;
       this.buffer.push('mcp:status', { status: 'connected', server: this.serverUrl });
     });
 
     if (log) {
-      this.socket.on('disconnect', (reason: string) => log(`Disconnected from editor: ${reason}`));
-      this.socket.on('connect_error', (err: Error) =>
-        log(`Editor connection error: ${err.message}`)
-      );
+      this.socket.on('disconnect', () => {
+        if (!this.hasLoggedDisconnect) {
+          log('Studio disconnected');
+          this.hasLoggedDisconnect = true;
+        }
+      });
+      this.socket.on('connect_error', () => {
+        if (!this.hasLoggedDisconnect) {
+          log(`Studio not reachable at ${this.serverUrl}`);
+          this.hasLoggedDisconnect = true;
+        }
+      });
     }
 
     this.socket.onAny((event: string, data: unknown) => {
@@ -70,17 +85,17 @@ export class EditorConnection {
     });
   }
 
-  /** Whether the socket is currently connected to the editor. */
+  /** Whether the socket is currently connected to Studio. */
   get isConnected(): boolean {
     return this.socket?.connected ?? false;
   }
 
   /**
-   * Sends a single command to the editor and waits for an acknowledgement.
+   * Sends a single command to Studio and waits for an acknowledgement.
    * Returns an error response if not connected or if the ack times out.
    * @param action - The command action name (e.g. "get-state", "add-node").
    * @param params - Parameters for the command.
-   * @returns The editor's acknowledgement response.
+   * @returns Studio's acknowledgement response.
    */
   async sendCommand(action: string, params: Record<string, unknown>): Promise<AckResponse> {
     if (!this.socket) {
@@ -108,10 +123,10 @@ export class EditorConnection {
   }
 
   /**
-   * Sends a batch of commands to the editor as a single request and waits for acknowledgement.
+   * Sends a batch of commands to Studio as a single request and waits for acknowledgement.
    * Returns an error response if not connected or if the ack times out.
    * @param commands - Array of commands, each with an action name and optional params.
-   * @returns The editor's acknowledgement response for the entire batch.
+   * @returns Studio's acknowledgement response for the entire batch.
    */
   async sendBatch(
     commands: Array<{ action: string; params?: Record<string, unknown> }>
@@ -140,7 +155,7 @@ export class EditorConnection {
     });
   }
 
-  /** Disconnects from the editor and releases the socket. */
+  /** Disconnects from Studio and releases the socket. */
   disconnect(): void {
     this.socket?.disconnect();
     this.socket = null;

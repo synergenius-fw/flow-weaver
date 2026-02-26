@@ -11,7 +11,6 @@ const mockRegisterDiagramTools = vi.fn();
 const mockRegisterDocsTools = vi.fn();
 const mockRegisterModelTools = vi.fn();
 const mockRegisterResources = vi.fn();
-const mockOfferClaudeRegistration = vi.fn();
 
 vi.mock('../../../src/mcp/tools-editor.js', () => ({
   registerEditorTools: (...a: unknown[]) => mockRegisterEditorTools(...a),
@@ -42,9 +41,6 @@ vi.mock('../../../src/mcp/tools-model.js', () => ({
 }));
 vi.mock('../../../src/mcp/resources.js', () => ({
   registerResources: (...a: unknown[]) => mockRegisterResources(...a),
-}));
-vi.mock('../../../src/mcp/auto-registration.js', () => ({
-  offerClaudeRegistration: (...a: unknown[]) => mockOfferClaudeRegistration(...a),
 }));
 
 // Mock EventBuffer and EditorConnection as classes (must be constructable)

@@ -126,7 +126,7 @@ describe('registerResources', () => {
 
       expect(conn.sendCommand).not.toHaveBeenCalled();
       const parsed = JSON.parse(result.contents[0].text);
-      expect(parsed.error).toBe('Not connected to editor');
+      expect(parsed.error).toBe('Not connected to Studio');
     });
 
     it('returns error JSON when sendCommand throws an Error', async () => {

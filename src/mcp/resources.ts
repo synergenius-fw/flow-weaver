@@ -3,12 +3,12 @@ import type { EditorConnection } from './editor-connection.js';
 import type { EventBuffer } from './event-buffer.js';
 
 /**
- * Registers MCP resources that expose editor state and event data.
+ * Registers MCP resources that expose Studio state and event data.
  * Registers two resources:
  * - `fw://events` - read-only peek at the event buffer.
- * - `fw://state` - current editor/workflow state fetched via the editor connection.
+ * - `fw://state` - current Studio/workflow state fetched via the Studio connection.
  * @param mcp - The MCP server instance to register resources on.
- * @param connection - The editor WebSocket connection used to query state.
+ * @param connection - The Studio WebSocket connection used to query state.
  * @param buffer - The event buffer to read events from.
  */
 export function registerResources(
@@ -33,14 +33,14 @@ export function registerResources(
   mcp.resource(
     'state',
     'fw://state',
-    { description: 'Current editor/workflow state' },
+    { description: 'Current Studio/workflow state' },
     async () => {
       if (!connection.isConnected) {
         return {
           contents: [
             {
               uri: 'fw://state',
-              text: JSON.stringify({ error: 'Not connected to editor' }),
+              text: JSON.stringify({ error: 'Not connected to Studio' }),
             },
           ],
         };

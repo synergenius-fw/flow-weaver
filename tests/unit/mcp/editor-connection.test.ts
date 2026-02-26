@@ -136,7 +136,7 @@ describe('EditorConnection', () => {
       expect(firstSocket.disconnect).toHaveBeenCalled();
     });
 
-    it('calls log callback on connect/disconnect/error when provided', () => {
+    it('logs "Connected to Studio" on first connect', () => {
       const log = vi.fn();
       const conn = new EditorConnection('http://localhost:4000', buffer, {
         ioFactory: mockIoFactory as any,
@@ -144,13 +144,63 @@ describe('EditorConnection', () => {
       conn.connect(log);
 
       mockSocket._fire('connect');
-      expect(log).toHaveBeenCalledWith(expect.stringContaining('Connected'));
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('Connected to Studio'));
+    });
+
+    it('logs "Studio disconnected" once on disconnect', () => {
+      const log = vi.fn();
+      const conn = new EditorConnection('http://localhost:4000', buffer, {
+        ioFactory: mockIoFactory as any,
+      });
+      conn.connect(log);
+
+      mockSocket._fire('connect');
+      log.mockClear();
 
       mockSocket._fire('disconnect', 'transport close');
-      expect(log).toHaveBeenCalledWith(expect.stringContaining('Disconnected'));
+      expect(log).toHaveBeenCalledWith('Studio disconnected');
+
+      // Second disconnect should not log again
+      log.mockClear();
+      mockSocket._fire('disconnect', 'transport close');
+      expect(log).not.toHaveBeenCalled();
+    });
+
+    it('logs "Studio not reachable" once on connect_error', () => {
+      const log = vi.fn();
+      const conn = new EditorConnection('http://localhost:4000', buffer, {
+        ioFactory: mockIoFactory as any,
+      });
+      conn.connect(log);
 
       mockSocket._fire('connect_error', new Error('refused'));
-      expect(log).toHaveBeenCalledWith(expect.stringContaining('refused'));
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('Studio not reachable'));
+
+      // Repeated errors should not log again
+      log.mockClear();
+      mockSocket._fire('connect_error', new Error('refused'));
+      mockSocket._fire('connect_error', new Error('refused'));
+      expect(log).not.toHaveBeenCalled();
+    });
+
+    it('logs "Reconnected to Studio" after disconnect then reconnect', () => {
+      const log = vi.fn();
+      const conn = new EditorConnection('http://localhost:4000', buffer, {
+        ioFactory: mockIoFactory as any,
+      });
+      conn.connect(log);
+
+      // First connect
+      mockSocket._fire('connect');
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('Connected to Studio'));
+
+      // Disconnect
+      mockSocket._fire('disconnect', 'transport close');
+      log.mockClear();
+
+      // Reconnect
+      mockSocket._fire('connect');
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('Reconnected to Studio'));
     });
   });
 

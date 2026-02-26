@@ -4,7 +4,6 @@ import type { McpServerOptions, EventFilterConfig } from './types.js';
 import { DEFAULT_SERVER_URL } from '../defaults.js';
 import { EventBuffer } from './event-buffer.js';
 import { EditorConnection } from './editor-connection.js';
-import { offerClaudeRegistration } from './auto-registration.js';
 import { registerEditorTools } from './tools-editor.js';
 import { registerQueryTools } from './tools-query.js';
 import { registerTemplateTools } from './tools-template.js';
@@ -56,7 +55,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   const buffer = options._testDeps?.buffer ?? new EventBuffer(undefined, undefined, filterFromEnv);
   const connection = options._testDeps?.connection ?? new EditorConnection(serverUrl, buffer);
 
-  // Connect to editor (non-blocking)
+  // Connect to Studio (non-blocking)
   if (!options._testDeps) {
     const log = options.stdio
       ? (msg: string) => process.stderr.write(msg + '\n')
@@ -100,9 +99,8 @@ export async function mcpServerCommand(options: McpServerOptions): Promise<void>
     : (msg: string) => process.stdout.write(msg + '\n');
 
   if (!options.stdio) {
-    // Interactive mode — offer registration first
-    await offerClaudeRegistration(options);
-    log(`Starting MCP server (editor: ${serverUrl})...`);
+    log('Tip: run "flow-weaver mcp-setup" to register with your AI tools.');
+    log(`Starting MCP server (Studio: ${serverUrl})...`);
   }
 
   await startMcpServer(options);
