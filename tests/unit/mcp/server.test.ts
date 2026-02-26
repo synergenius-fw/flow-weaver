@@ -83,6 +83,7 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
       connect = mockMcpConnect;
       tool() {}
       resource() {}
+      registerPrompt() {}
     },
   };
 });

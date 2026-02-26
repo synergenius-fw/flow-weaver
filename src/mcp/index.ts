@@ -14,4 +14,5 @@ export { registerQueryTools } from './tools-query.js';
 export { registerTemplateTools } from './tools-template.js';
 export { registerPatternTools } from './tools-pattern.js';
 export { registerResources } from './resources.js';
+export { registerPrompts } from './prompts.js';
 export { startMcpServer, mcpServerCommand } from './server.js';
