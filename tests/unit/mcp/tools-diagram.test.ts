@@ -108,6 +108,7 @@ describe('tools-diagram (fw_diagram)', () => {
       workflowName: 'myWorkflow',
       theme: 'light',
       showPortLabels: false,
+      format: 'svg',
     });
   });
 

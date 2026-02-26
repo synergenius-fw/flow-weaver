@@ -2268,7 +2268,9 @@ export class AnnotationParser {
 
       // Extract data ports from parameters beyond execute
       if (params.length > 1) {
-        const dataParams = params.slice(1);
+        // Filter out __abortSignal__ which is injected by generateInPlace and
+        // is not a user-visible port.
+        const dataParams = params.slice(1).filter(p => p.getName() !== '__abortSignal__');
 
         // Multiple separate params: each becomes its own port
         // Single param with object type: expand its properties into ports
