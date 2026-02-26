@@ -716,4 +716,136 @@ describe('CLI command registration and parsing', () => {
       }).toThrow();
     });
   });
+
+  describe('help text', () => {
+    it('should generate help text containing known commands', () => {
+      program = buildTestProgram();
+      const helpText = program.helpInformation();
+
+      expect(helpText).toContain('compile');
+      expect(helpText).toContain('validate');
+      expect(helpText).toContain('describe');
+      expect(helpText).toContain('export');
+      expect(helpText).toContain('run');
+      expect(helpText).toContain('serve');
+      expect(helpText).toContain('doctor');
+      expect(helpText).toContain('init');
+      expect(helpText).toContain('grammar');
+      expect(helpText).toContain('strip');
+      expect(helpText).toContain('migrate');
+      expect(helpText).toContain('changelog');
+      expect(helpText).toContain('status');
+      expect(helpText).toContain('templates');
+    });
+
+    it('should include subcommand groups in help', () => {
+      program = buildTestProgram();
+      const helpText = program.helpInformation();
+
+      expect(helpText).toContain('ui');
+      expect(helpText).toContain('create');
+      expect(helpText).toContain('pattern');
+      expect(helpText).toContain('market');
+      expect(helpText).toContain('plugin');
+    });
+  });
+
+  describe('configureOutput error handler', () => {
+    it('should handle command that throws via action error catching', async () => {
+      const throwingProgram = new Command();
+      throwingProgram.exitOverride();
+
+      const errors: string[] = [];
+      throwingProgram.configureOutput({
+        writeErr: (str: string) => { errors.push(str); },
+        writeOut: () => {},
+      });
+
+      throwingProgram
+        .command('fail')
+        .action(() => {
+          throw new Error('Test error');
+        });
+
+      expect(() => {
+        throwingProgram.parse(['node', 'test', 'fail']);
+      }).toThrow();
+    });
+  });
+
+  describe('command builder option completeness', () => {
+    it('compile should accept all documented options', () => {
+      parseArgs('compile', 'workflow.ts', '--strict', '--clean', '--format', 'esm');
+      const opts = mockCompileCommand.mock.calls[0][1];
+      expect(opts.strict).toBe(true);
+      expect(opts.clean).toBe(true);
+      expect(opts.format).toBe('esm');
+    });
+
+    it('export should accept all documented options together', () => {
+      parseArgs('export', 'w.ts', '-t', 'vercel', '-o', 'out/', '--multi', '--docs');
+      const opts = mockExportCommand.mock.calls[0][1];
+      expect(opts.target).toBe('vercel');
+      expect(opts.output).toBe('out/');
+      expect(opts.multi).toBe(true);
+      expect(opts.docs).toBe(true);
+    });
+
+    it('run should pass --json flag', () => {
+      parseArgs('run', 'workflow.ts', '--json');
+      const opts = mockRunCommand.mock.calls[0][1];
+      expect(opts.json).toBe(true);
+    });
+  });
+
+  describe('dev command parsing', () => {
+    // Add dev to the test program
+    function buildDevProgram(): Command {
+      const prog = new Command();
+      prog.exitOverride();
+
+      prog
+        .command('dev <input>')
+        .option('--params <json>', 'Params')
+        .option('--params-file <path>', 'Params file')
+        .option('-w, --workflow <name>', 'Workflow name')
+        .option('-p, --production', 'Production', false)
+        .option('-f, --format <format>', 'Format', 'auto')
+        .option('--clean', 'Clean', false)
+        .option('--once', 'Once', false)
+        .option('--json', 'JSON', false)
+        .option('--target <target>', 'Target')
+        .option('--framework <framework>', 'Framework', 'express')
+        .option('--port <port>', 'Port', (v: string) => parseInt(v, 10), 3000)
+        .action(mockDevCommand);
+
+      return prog;
+    }
+
+    it('should parse dev command with all options', () => {
+      vi.clearAllMocks();
+      const prog = buildDevProgram();
+      prog.parse(['node', 'fw', 'dev', 'wf.ts', '--once', '--json', '--params', '{"x":1}', '--target', 'inngest', '--port', '4000']);
+
+      expect(mockDevCommand).toHaveBeenCalled();
+      const [input, opts] = mockDevCommand.mock.calls[0];
+      expect(input).toBe('wf.ts');
+      expect(opts.once).toBe(true);
+      expect(opts.json).toBe(true);
+      expect(opts.params).toBe('{"x":1}');
+      expect(opts.target).toBe('inngest');
+      expect(opts.port).toBe(4000);
+    });
+
+    it('should default port to 3000 and format to auto', () => {
+      vi.clearAllMocks();
+      const prog = buildDevProgram();
+      prog.parse(['node', 'fw', 'dev', 'wf.ts']);
+
+      const opts = mockDevCommand.mock.calls[0][1];
+      expect(opts.port).toBe(3000);
+      expect(opts.format).toBe('auto');
+      expect(opts.framework).toBe('express');
+    });
+  });
 });

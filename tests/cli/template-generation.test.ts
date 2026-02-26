@@ -559,4 +559,119 @@ describe('Template code generation', () => {
       }
     });
   });
+
+  describe('AI mock-provider (src/cli/templates/ai/mock-provider.ts)', () => {
+    it('createMockProvider returns an object with a chat method', async () => {
+      const { createMockProvider } = await import(
+        '../../src/cli/templates/ai/mock-provider'
+      );
+      const provider = createMockProvider();
+      expect(provider).toBeDefined();
+      expect(typeof provider.chat).toBe('function');
+    });
+
+    it('chat returns a mock response for a plain message', async () => {
+      const { createMockProvider } = await import(
+        '../../src/cli/templates/ai/mock-provider'
+      );
+      const provider = createMockProvider();
+      const response = await provider.chat([
+        { role: 'user', content: 'Hello world, this is a test message.' },
+      ]);
+
+      expect(response.finishReason).toBe('stop');
+      expect(response.content).toContain('Mock Response');
+      expect(response.toolCalls).toEqual([]);
+    });
+
+    it('chat triggers tool_calls when message includes "search"', async () => {
+      const { createMockProvider } = await import(
+        '../../src/cli/templates/ai/mock-provider'
+      );
+      const provider = createMockProvider();
+      const tool = {
+        name: 'web_search',
+        description: 'Search the web',
+        parameters: { type: 'object' as const, properties: {}, required: [] },
+      };
+      const response = await provider.chat(
+        [{ role: 'user', content: 'Please search for TypeScript tutorials' }],
+        { tools: [tool] },
+      );
+
+      expect(response.finishReason).toBe('tool_calls');
+      expect(response.content).toBeNull();
+      expect(response.toolCalls).toHaveLength(1);
+      expect(response.toolCalls[0].name).toBe('web_search');
+      expect(response.toolCalls[0].id).toMatch(/^call_/);
+    });
+
+    it('chat triggers tool_calls when message includes "calculate"', async () => {
+      const { createMockProvider } = await import(
+        '../../src/cli/templates/ai/mock-provider'
+      );
+      const provider = createMockProvider();
+      const tool = {
+        name: 'calculator',
+        description: 'Do math',
+        parameters: { type: 'object' as const, properties: {}, required: [] },
+      };
+      const response = await provider.chat(
+        [{ role: 'user', content: 'Calculate 2 + 2' }],
+        { tools: [tool] },
+      );
+
+      expect(response.finishReason).toBe('tool_calls');
+      expect(response.toolCalls[0].name).toBe('calculator');
+    });
+
+    it('chat does NOT trigger tool_calls when message has no trigger words', async () => {
+      const { createMockProvider } = await import(
+        '../../src/cli/templates/ai/mock-provider'
+      );
+      const provider = createMockProvider();
+      const tool = {
+        name: 'web_search',
+        description: 'Search',
+        parameters: { type: 'object' as const, properties: {}, required: [] },
+      };
+      const response = await provider.chat(
+        [{ role: 'user', content: 'Tell me a joke' }],
+        { tools: [tool] },
+      );
+
+      expect(response.finishReason).toBe('stop');
+      expect(response.content).toBeTruthy();
+      expect(response.toolCalls).toEqual([]);
+    });
+
+    it('chat with empty tools array returns a normal response', async () => {
+      const { createMockProvider } = await import(
+        '../../src/cli/templates/ai/mock-provider'
+      );
+      const provider = createMockProvider();
+      const response = await provider.chat(
+        [{ role: 'user', content: 'Search for something' }],
+        { tools: [] },
+      );
+
+      expect(response.finishReason).toBe('stop');
+      expect(response.content).toBeTruthy();
+    });
+
+    it('chat truncates long messages in the mock response', async () => {
+      const { createMockProvider } = await import(
+        '../../src/cli/templates/ai/mock-provider'
+      );
+      const provider = createMockProvider();
+      const longMessage = 'A'.repeat(200);
+      const response = await provider.chat([
+        { role: 'user', content: longMessage },
+      ]);
+
+      // The mock response includes first 50 chars + "..."
+      expect(response.content).toContain('...');
+      expect(response.content!.length).toBeLessThan(longMessage.length);
+    });
+  });
 });
