@@ -91,6 +91,10 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
       mockResourceHandlers.set(name, handler);
     }
 
+    registerPrompt(): void {
+      // noop
+    }
+
     async connect(_transport: unknown): Promise<void> {
       // noop
     }
