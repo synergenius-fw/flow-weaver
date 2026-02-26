@@ -46,6 +46,7 @@ import {
   marketSearchCommand,
   marketListCommand,
 } from './commands/market.js';
+import { mcpSetupCommand } from './commands/mcp-setup.js';
 import { logger } from './utils/logger.js';
 import { getErrorMessage } from '../utils/error-utils.js';
 import { DEFAULT_SERVER_URL } from '../defaults.js';
@@ -274,8 +275,8 @@ program
 // Listen command
 program
   .command('listen')
-  .description('Connect to the editor and stream integration events as JSON lines')
-  .option('-s, --server <url>', 'Editor URL', DEFAULT_SERVER_URL)
+  .description('Connect to Studio and stream integration events as JSON lines')
+  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
   .action(async (options) => {
     try {
       await listenCommand(options);
@@ -289,7 +290,7 @@ program
 program
   .command('mcp-server')
   .description('Start MCP server for Claude Code integration')
-  .option('-s, --server <url>', 'Editor URL', DEFAULT_SERVER_URL)
+  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
   .option('--stdio', 'Run in MCP stdio mode (skip interactive registration)')
   .action(async (options) => {
     try {
@@ -300,13 +301,29 @@ program
     }
   });
 
-// UI command group (send commands to editor)
-const uiCmd = program.command('ui').description('Send commands to the editor');
+// MCP setup command
+program
+  .command('mcp-setup')
+  .description('Configure MCP server for AI coding tools (Claude, Cursor, VS Code, Windsurf, Codex, OpenClaw)')
+  .option('--tool <tools...>', 'Specific tools to configure (claude, cursor, vscode, windsurf, codex, openclaw)')
+  .option('--all', 'Configure all detected tools without prompting')
+  .option('--list', 'List detected tools without configuring')
+  .action(async (options) => {
+    try {
+      await mcpSetupCommand(options);
+    } catch (error) {
+      logger.error(`Command failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
+// UI command group (send commands to Studio)
+const uiCmd = program.command('ui').description('Send commands to Studio');
 
 uiCmd
   .command('focus-node <nodeId>')
-  .description('Select and center a node in the editor')
-  .option('-s, --server <url>', 'Editor URL', DEFAULT_SERVER_URL)
+  .description('Select and center a node in Studio')
+  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
   .action(async (nodeId: string, options) => {
     try {
       await uiFocusNode(nodeId, options);
@@ -319,7 +336,7 @@ uiCmd
 uiCmd
   .command('add-node <nodeTypeName>')
   .description('Add a node at viewport center')
-  .option('-s, --server <url>', 'Editor URL', DEFAULT_SERVER_URL)
+  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
   .action(async (nodeTypeName: string, options) => {
     try {
       await uiAddNode(nodeTypeName, options);
@@ -331,8 +348,8 @@ uiCmd
 
 uiCmd
   .command('open-workflow <filePath>')
-  .description('Open a workflow file in the editor')
-  .option('-s, --server <url>', 'Editor URL', DEFAULT_SERVER_URL)
+  .description('Open a workflow file in Studio')
+  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
   .action(async (filePath: string, options) => {
     try {
       await uiOpenWorkflow(filePath, options);
@@ -344,8 +361,8 @@ uiCmd
 
 uiCmd
   .command('get-state')
-  .description('Return current workflow state from the editor')
-  .option('-s, --server <url>', 'Editor URL', DEFAULT_SERVER_URL)
+  .description('Return current workflow state from Studio')
+  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
   .action(async (options) => {
     try {
       await uiGetState(options);
@@ -358,7 +375,7 @@ uiCmd
 uiCmd
   .command('batch <json>')
   .description('Execute a batch of commands with auto-snapshot rollback')
-  .option('-s, --server <url>', 'Editor URL', DEFAULT_SERVER_URL)
+  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
   .action(async (json: string, options) => {
     try {
       await uiBatch(json, options);

@@ -4,7 +4,7 @@ import type { EditorConnection } from './editor-connection.js';
 
 /** Options for initializing the MCP server. */
 export interface McpServerOptions {
-  /** WebSocket server URL for editor connection. */
+  /** WebSocket server URL for Studio connection. */
   server?: string;
   /** Whether to use stdio transport instead of SSE. */
   stdio?: boolean;
@@ -27,7 +27,7 @@ export interface RegistrationDeps {
   resolveCliPath: () => string;
 }
 
-/** Acknowledgement response returned by the editor after processing a command. */
+/** Acknowledgement response returned by Studio after processing a command. */
 export interface AckResponse {
   /** Unique identifier correlating the response to its originating request. */
   requestId: string;
@@ -49,7 +49,7 @@ export interface BufferedEvent {
   timestamp: string;
 }
 
-/** Options for configuring the editor WebSocket connection. */
+/** Options for configuring the Studio WebSocket connection. */
 export interface EditorConnectionOptions {
   /** Custom socket.io factory, primarily used for injecting mocks in tests. */
   ioFactory?: typeof socketIO;
