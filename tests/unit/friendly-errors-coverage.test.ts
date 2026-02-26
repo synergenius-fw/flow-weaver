@@ -177,7 +177,7 @@ describe('getFriendlyError: every error code', () => {
     // Structural type regex matches first, extracting "MyType" and "OtherType"
     expect(r!.explanation).toContain('MyType');
     expect(r!.explanation).toContain('OtherType');
-    expect(r!.fix).toContain('@coerce');
+    expect(r!.fix).toContain('as <type>');
   });
 
   it('TYPE_MISMATCH with port refs and simple types gets concrete coerce suggestion', () => {
@@ -186,7 +186,7 @@ describe('getFriendlyError: every error code', () => {
       message: 'Type mismatch from STRING to NUMBER between "a.out" and "b.inp"',
     });
     expectValid(r, 'TYPE_MISMATCH');
-    expect(r!.fix).toContain('@coerce');
+    expect(r!.fix).toContain('@connect');
     expect(r!.fix).toContain('a.out');
     expect(r!.fix).toContain('b.inp');
     expect(r!.fix).toContain('as number');
@@ -318,7 +318,7 @@ describe('getFriendlyError: every error code', () => {
       message: 'Incompatible from STRING to BOOLEAN between "src.out" and "tgt.inp"',
     });
     expectValid(r, 'TYPE_INCOMPATIBLE');
-    expect(r!.fix).toContain('@coerce');
+    expect(r!.fix).toContain('@connect');
     expect(r!.fix).toContain('boolean');
   });
 
@@ -328,7 +328,7 @@ describe('getFriendlyError: every error code', () => {
       message: 'Incompatible from STRING to BOOLEAN',
     });
     expectValid(r, 'TYPE_INCOMPATIBLE');
-    expect(r!.fix).toContain('@coerce annotation');
+    expect(r!.fix).toContain('as <type>');
   });
 
   it('UNUSUAL_TYPE_COERCION with coerce suggestion', () => {
@@ -337,7 +337,7 @@ describe('getFriendlyError: every error code', () => {
       message: 'Unusual coercion from NUMBER to STRING between "a.val" and "b.text"',
     });
     expectValid(r, 'UNUSUAL_TYPE_COERCION');
-    expect(r!.fix).toContain('@coerce');
+    expect(r!.fix).toContain('@connect');
     expect(r!.fix).toContain('string');
   });
 
@@ -347,7 +347,7 @@ describe('getFriendlyError: every error code', () => {
       message: 'Unusual coercion from NUMBER to STRING',
     });
     expectValid(r, 'UNUSUAL_TYPE_COERCION');
-    expect(r!.fix).toContain('@coerce annotation');
+    expect(r!.fix).toContain('as <type>');
   });
 
   it('MULTIPLE_CONNECTIONS_TO_INPUT', () => {
@@ -568,7 +568,7 @@ describe('getFriendlyError: every error code', () => {
     });
     expectValid(r, 'LOSSY_TYPE_COERCION');
     expect(r!.explanation).toContain('STRING');
-    expect(r!.fix).toContain('@coerce');
+    expect(r!.fix).toContain('as number');
     expect(r!.fix).toContain('parser.text');
   });
 
@@ -578,7 +578,7 @@ describe('getFriendlyError: every error code', () => {
       message: 'Lossy coercion from STRING to NUMBER',
     });
     expectValid(r, 'LOSSY_TYPE_COERCION');
-    expect(r!.fix).toContain('@coerce');
+    expect(r!.fix).toContain('as <type>');
     expect(r!.fix).not.toContain('parser.text');
   });
 
@@ -716,7 +716,7 @@ describe('coerce suggestion edge cases', () => {
       message: 'Mismatch from STRING to ARRAY between "x.out" and "y.inp"',
     });
     // ARRAY is not in COERCE_TARGET_TYPES, so no concrete suggestion
-    expect(r!.fix).toContain('@coerce annotation');
+    expect(r!.fix).toContain('as <type>');
   });
 
   it('no coerce suggestion when quoted values are not port refs', () => {
@@ -725,7 +725,7 @@ describe('coerce suggestion edge cases', () => {
       message: 'Mismatch from STRING to NUMBER between "just a word" and "another"',
     });
     // "just a word" is not a port ref pattern
-    expect(r!.fix).toContain('@coerce annotation');
+    expect(r!.fix).toContain('as <type>');
   });
 });
 
