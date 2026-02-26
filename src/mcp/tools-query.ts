@@ -37,15 +37,15 @@ export function registerQueryTools(mcp: McpServer): void {
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       format: z
-        .enum(['json', 'text', 'mermaid', 'paths'])
+        .enum(['json', 'text', 'mermaid', 'paths', 'ascii', 'ascii-compact'])
         .optional()
-        .describe('Output format (default: json)'),
+        .describe('Output format (default: json). ascii/ascii-compact produce terminal-readable diagrams.'),
       node: z.string().optional().describe('Focus on a specific node ID'),
       workflowName: z.string().optional().describe('Specific workflow if file has multiple'),
     },
     async (args: {
       filePath: string;
-      format?: 'json' | 'text' | 'mermaid' | 'paths';
+      format?: 'json' | 'text' | 'mermaid' | 'paths' | 'ascii' | 'ascii-compact';
       node?: string;
       workflowName?: string;
     }) => {
