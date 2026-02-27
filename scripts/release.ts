@@ -188,7 +188,13 @@ run('git pull origin main');
 const lastTag = run('git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo ""');
 const notes = generateReleaseNotes(lastTag || '');
 
-run(`gh release create ${tag} --target main --title "${tag}" --notes ${JSON.stringify(notes)}`);
+const notesFile = path.join(rootDir, '.release-notes.tmp');
+fs.writeFileSync(notesFile, notes);
+try {
+  run(`gh release create ${tag} --target main --title "${tag}" --notes-file ${notesFile}`);
+} finally {
+  fs.unlinkSync(notesFile);
+}
 success(`Release ${tag} published!`);
 
 // Cleanup: delete release branch
