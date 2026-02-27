@@ -904,6 +904,48 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
     category: 'debug',
     params: [],
   },
+
+  // Context tools (tools-context.ts)
+  {
+    name: 'fw_context',
+    description:
+      'Generate a self-contained LLM context bundle with Flow Weaver documentation, grammar, and conventions.',
+    category: 'query',
+    params: [
+      {
+        name: 'preset',
+        type: 'string',
+        description: 'Topic preset: core, authoring, full, or ops',
+        required: false,
+        enum: ['core', 'authoring', 'full', 'ops'],
+      },
+      {
+        name: 'profile',
+        type: 'string',
+        description: 'Output profile: standalone (full dump) or assistant (assumes MCP tools)',
+        required: false,
+        enum: ['standalone', 'assistant'],
+      },
+      {
+        name: 'topics',
+        type: 'string',
+        description: 'Comma-separated topic slugs (overrides preset)',
+        required: false,
+      },
+      {
+        name: 'addTopics',
+        type: 'string',
+        description: 'Comma-separated slugs to add to preset',
+        required: false,
+      },
+      {
+        name: 'includeGrammar',
+        type: 'boolean',
+        description: 'Include EBNF annotation grammar section (default: true)',
+        required: false,
+      },
+    ],
+  },
 ];
 
 /**

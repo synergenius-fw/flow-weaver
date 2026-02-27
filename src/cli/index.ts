@@ -37,6 +37,7 @@ import { migrateCommand } from './commands/migrate.js';
 import { changelogCommand } from './commands/changelog.js';
 import { stripCommand } from './commands/strip.js';
 import { docsListCommand, docsReadCommand, docsSearchCommand } from './commands/docs.js';
+import { contextCommand } from './commands/context.js';
 import { statusCommand } from './commands/status.js';
 import { implementCommand } from './commands/implement.js';
 import {
@@ -718,6 +719,25 @@ program
       } else {
         await docsReadCommand(args[0], options);
       }
+    } catch (error) {
+      logger.error(`Command failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
+// Context command: generate LLM context bundles
+program
+  .command('context [preset]')
+  .description('Generate LLM context bundle from documentation and grammar')
+  .option('--profile <profile>', 'Output profile: standalone or assistant', 'standalone')
+  .option('--topics <slugs>', 'Comma-separated topic slugs (overrides preset)')
+  .option('--add <slugs>', 'Comma-separated topic slugs to add to preset')
+  .option('--no-grammar', 'Omit EBNF grammar section')
+  .option('-o, --output <path>', 'Write to file instead of stdout')
+  .option('--list', 'List available presets and exit')
+  .action(async (preset: string | undefined, options) => {
+    try {
+      await contextCommand(preset, options);
     } catch (error) {
       logger.error(`Command failed: ${getErrorMessage(error)}`);
       process.exit(1);
