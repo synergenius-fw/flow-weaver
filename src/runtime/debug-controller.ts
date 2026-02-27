@@ -313,14 +313,14 @@ export class DebugController {
     ctx: GeneratedExecutionContext
   ): void {
     // outputs is keyed by "portName:executionIndex" -> value
+    // Don't call ctx.addExecution here: the generated code's else block handles
+    // execution registration so local variables (e.g. dIdx) are set correctly.
     for (const [portKey, value] of Object.entries(outputs)) {
       const colonIdx = portKey.lastIndexOf(':');
       if (colonIdx === -1) continue;
       const portName = portKey.substring(0, colonIdx);
       const executionIndex = parseInt(portKey.substring(colonIdx + 1), 10);
 
-      // Register the execution so downstream nodes can find it
-      ctx.addExecution(nodeId);
       ctx.setVariable(
         { id: nodeId, portName, executionIndex },
         value

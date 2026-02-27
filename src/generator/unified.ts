@@ -1302,6 +1302,28 @@ function generateBranchingNodeCode(
   const safeId = toValidIdentifier(instanceId);
   const functionName = branchNode.functionName;
 
+  // Debug controller: beforeNode hook for branching nodes
+  const emitDebugHooks = !production;
+  const outerIndent = indent;
+
+  // Only declare success flag if there are downstream nodes
+  const hasSuccessDownstream = region.successNodes.size > 0;
+  const hasFailureDownstream = region.failureNodes.size > 0;
+  const hasDownstream = hasSuccessDownstream || hasFailureDownstream;
+  // Track success flag when there are downstream nodes OR when chain code needs it
+  const trackSuccess = hasDownstream || forceTrackSuccess;
+
+  if (emitDebugHooks) {
+    // Hoist success flag declaration before the if block so it remains in scope
+    // for downstream branching code that runs after the if/else.
+    if (trackSuccess && !preDeclaredSuccessFlags.has(safeId)) {
+      lines.push(`${indent}let ${safeId}_success = false;`);
+    }
+    const awaitHook = isAsync ? 'await ' : '';
+    lines.push(`${indent}if (${awaitHook}__ctrl__.beforeNode('${instanceId}', ${ctxVar})) {`);
+    indent = `${indent}  `;
+  }
+
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
   lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
@@ -1313,16 +1335,9 @@ function generateBranchingNodeCode(
   lines.push(`${indent}});`);
   lines.push('');
 
-  // Only declare success flag if there are downstream nodes
-  const hasSuccessDownstream = region.successNodes.size > 0;
-  const hasFailureDownstream = region.failureNodes.size > 0;
-  const hasDownstream = hasSuccessDownstream || hasFailureDownstream;
-  // Track success flag when there are downstream nodes OR when chain code needs it
-  const trackSuccess = hasDownstream || forceTrackSuccess;
-
   if (trackSuccess) {
-    if (preDeclaredSuccessFlags.has(safeId)) {
-      // Flag was pre-declared by chain code — use assignment, not declaration
+    if (preDeclaredSuccessFlags.has(safeId) || emitDebugHooks) {
+      // Flag was pre-declared (by chain code or hoisted for debug hooks) — assignment only
       lines.push(`${indent}${safeId}_success = false;`);
     } else {
       lines.push(`${indent}let ${safeId}_success = false;`);
@@ -1485,6 +1500,11 @@ function generateBranchingNodeCode(
   lines.push(`${indent}    executionIndex: ${safeId}Idx,`);
   lines.push(`${indent}    status: 'SUCCEEDED',`);
   lines.push(`${indent}  });`);
+  // Debug controller: afterNode hook for branching nodes
+  if (emitDebugHooks) {
+    const awaitHook = isAsync ? 'await ' : '';
+    lines.push(`${indent}  ${awaitHook}__ctrl__.afterNode('${instanceId}', ${ctxVar});`);
+  }
   // Use onSuccess from result to determine control flow
   // For expression nodes, onSuccess is always true here (catch handles failure)
   if (trackSuccess) {
@@ -1541,6 +1561,21 @@ function generateBranchingNodeCode(
   // Re-throw the error to propagate it up (important for recursive workflows)
   lines.push(`${indent}  throw error;`);
   lines.push(`${indent}}`);
+
+  // Close the debug controller beforeNode if block for the node's own execution.
+  // The downstream branching must be outside the if block so it runs even when
+  // the node is skipped (checkpoint resume).
+  if (emitDebugHooks) {
+    lines.push(`${outerIndent}} else {`);
+    // Node was skipped (checkpoint resume). Controller already restored outputs
+    // into ctx, but we need local vars for downstream branching.
+    lines.push(`${outerIndent}  ${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
+    if (trackSuccess) {
+      lines.push(`${outerIndent}  ${safeId}_success = true;`);
+    }
+    lines.push(`${outerIndent}}`);
+    indent = outerIndent; // Restore indent level for downstream code
+  }
   lines.push('');
 
   // Only generate if/else if there are downstream nodes
@@ -2033,11 +2068,19 @@ function generateNodeCallWithContext(
   const emitDebugHooks = !production;
   const outerIndent = indent; // preserve for closing brace
   if (emitDebugHooks) {
-    lines.push(`${indent}if (await __ctrl__.beforeNode('${instanceId}', ${ctxVar})) {`);
+    // When useConst=true, the Idx variable would normally be declared with const
+    // inside the node execution block. Since debug hooks wrap that in if/else,
+    // we must hoist the declaration before the if block to keep it in scope.
+    if (useConst) {
+      lines.push(`${indent}let ${safeId}Idx: number;`);
+    }
+    const awaitHook = isAsync ? 'await ' : '';
+    lines.push(`${indent}if (${awaitHook}__ctrl__.beforeNode('${instanceId}', ${ctxVar})) {`);
     indent = `${indent}  `;
   }
 
-  const varDecl = useConst ? 'const ' : '';
+  // When debug hooks hoist the declaration, we use assignment only inside the block.
+  const varDecl = (useConst && !emitDebugHooks) ? 'const ' : '';
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${varDecl}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
   lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
@@ -2243,7 +2286,8 @@ function generateNodeCallWithContext(
   lines.push(`${indent}  });`);
   // Debug controller: afterNode hook (checkpoint write, step pause)
   if (emitDebugHooks) {
-    lines.push(`${indent}  await __ctrl__.afterNode('${instanceId}', ${ctxVar});`);
+    const awaitHook = isAsync ? 'await ' : '';
+    lines.push(`${indent}  ${awaitHook}__ctrl__.afterNode('${instanceId}', ${ctxVar});`);
   }
   lines.push(`${indent}} catch (error: unknown) {`);
   lines.push(`${indent}  const isCancellation = CancellationError.isCancellationError(error);`);
@@ -2274,6 +2318,10 @@ function generateNodeCallWithContext(
   lines.push(`${indent}}`);
   // Close the debug controller beforeNode if block
   if (emitDebugHooks) {
+    // Else block: node was skipped (checkpoint resume).
+    // Register execution so downstream nodes can reference {safeId}Idx.
+    lines.push(`${outerIndent}} else {`);
+    lines.push(`${outerIndent}  ${varDecl}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
     lines.push(`${outerIndent}}`);
   }
   if (shouldIndent) {

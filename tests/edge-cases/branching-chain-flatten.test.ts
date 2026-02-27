@@ -160,9 +160,9 @@ export async function chainFailWorkflow(execute: boolean, params: { input: any }
     // With flattening, max indent should be bounded (not growing with chain length)
     // Without flattening, 5 nested levels would produce ~20+ spaces of indentation
     // With flattening, max indent is bounded by single-branch depth:
-    //   chain_guard(2) + if_success(4) + try(6) + catch_body(8) + error_object(10) + property(12)
+    //   debug_hook(2) + chain_guard(4) + if_success(6) + try(8) + catch_body(10) + error_object(12) + property(14)
     const maxIndent5 = getMaxIndent(bodyCode5);
-    expect(maxIndent5).toBeLessThanOrEqual(12);
+    expect(maxIndent5).toBeLessThanOrEqual(14);
 
     // 10-node chain — same bound expected (proves flattening, not nesting)
     const code10 = await global.testHelpers.generateFast(chain10Path, 'chain10Workflow');
@@ -170,7 +170,7 @@ export async function chainFailWorkflow(execute: boolean, params: { input: any }
     const bodyCode10 = fnStart10 >= 0 ? code10.substring(fnStart10) : code10;
 
     const maxIndent10 = getMaxIndent(bodyCode10);
-    expect(maxIndent10).toBeLessThanOrEqual(12);
+    expect(maxIndent10).toBeLessThanOrEqual(14);
   });
 
   it('should generate correct behavior for a chain with failure at mid-point', async () => {
