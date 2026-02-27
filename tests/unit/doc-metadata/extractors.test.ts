@@ -96,7 +96,7 @@ describe('MCP Tools extractor', () => {
   });
 
   it('categories are drawn from the allowed set', () => {
-    const allowed = new Set(['query', 'template', 'pattern', 'modify', 'editor', 'execution']);
+    const allowed = new Set(['query', 'template', 'pattern', 'modify', 'editor', 'execution', 'debug']);
     for (const tool of MCP_TOOLS) {
       expect(allowed.has(tool.category)).toBe(true);
     }

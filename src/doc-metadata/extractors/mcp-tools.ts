@@ -707,6 +707,203 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       },
     ],
   },
+
+  // Debug tools (tools-debug.ts)
+  {
+    name: 'fw_debug_workflow',
+    description:
+      'Start a step-through debug session for a workflow. Compiles and executes the workflow, pausing before the first node.',
+    category: 'debug',
+    params: [
+      {
+        name: 'filePath',
+        type: 'string',
+        description: 'Path to the workflow .ts file',
+        required: true,
+      },
+      {
+        name: 'workflowName',
+        type: 'string',
+        description: 'Specific workflow function name (for multi-workflow files)',
+        required: false,
+      },
+      {
+        name: 'params',
+        type: 'object',
+        description: 'Parameters to pass to the workflow',
+        required: false,
+      },
+      {
+        name: 'breakpoints',
+        type: 'array',
+        description: 'Node IDs to set as initial breakpoints',
+        required: false,
+      },
+      {
+        name: 'checkpoint',
+        type: 'boolean',
+        description: 'Enable checkpointing to disk after each node (default: false)',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_debug_step',
+    description:
+      'Step to the next node in a debug session. Executes one node then pauses again.',
+    category: 'debug',
+    params: [
+      {
+        name: 'debugId',
+        type: 'string',
+        description: 'The debug session ID from fw_debug_workflow',
+        required: true,
+      },
+    ],
+  },
+  {
+    name: 'fw_debug_continue',
+    description:
+      'Continue execution from the current pause point. Runs to completion, or stops at the next breakpoint if toBreakpoint is true.',
+    category: 'debug',
+    params: [
+      {
+        name: 'debugId',
+        type: 'string',
+        description: 'The debug session ID',
+        required: true,
+      },
+      {
+        name: 'toBreakpoint',
+        type: 'boolean',
+        description: 'If true, pause at the next breakpoint instead of running to completion',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_debug_inspect',
+    description:
+      'Inspect the current debug state without advancing execution. Returns all variables, or filter to a specific node.',
+    category: 'debug',
+    params: [
+      {
+        name: 'debugId',
+        type: 'string',
+        description: 'The debug session ID',
+        required: true,
+      },
+      {
+        name: 'nodeId',
+        type: 'string',
+        description: "Filter to show only this node's variables",
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_debug_set_variable',
+    description:
+      'Modify a variable value in the debug session. The new value will be used by downstream nodes when execution continues.',
+    category: 'debug',
+    params: [
+      {
+        name: 'debugId',
+        type: 'string',
+        description: 'The debug session ID',
+        required: true,
+      },
+      {
+        name: 'nodeId',
+        type: 'string',
+        description: 'The node that produced the variable',
+        required: true,
+      },
+      {
+        name: 'portName',
+        type: 'string',
+        description: 'The output port name',
+        required: true,
+      },
+      {
+        name: 'value',
+        type: 'object',
+        description: 'The new value to set (any JSON-compatible value)',
+        required: true,
+      },
+      {
+        name: 'executionIndex',
+        type: 'number',
+        description: 'Execution index (defaults to the latest)',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_debug_breakpoint',
+    description:
+      'Add, remove, or list breakpoints in a debug session.',
+    category: 'debug',
+    params: [
+      {
+        name: 'debugId',
+        type: 'string',
+        description: 'The debug session ID',
+        required: true,
+      },
+      {
+        name: 'action',
+        type: 'string',
+        description: 'Action to perform',
+        required: true,
+        enum: ['add', 'remove', 'list'],
+      },
+      {
+        name: 'nodeId',
+        type: 'string',
+        description: 'Node ID for add/remove',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_resume_from_checkpoint',
+    description:
+      'Resume a workflow from a checkpoint file written after a crash. Skips completed nodes and re-runs from the last checkpoint position.',
+    category: 'debug',
+    params: [
+      {
+        name: 'filePath',
+        type: 'string',
+        description: 'Path to the workflow .ts file',
+        required: true,
+      },
+      {
+        name: 'checkpointFile',
+        type: 'string',
+        description: 'Path to the checkpoint file. If omitted, auto-detects the latest.',
+        required: false,
+      },
+      {
+        name: 'workflowName',
+        type: 'string',
+        description: 'Workflow function name (for multi-workflow files)',
+        required: false,
+      },
+      {
+        name: 'debug',
+        type: 'boolean',
+        description: 'Enter step-through debug mode at the resume point (default: false)',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_list_debug_sessions',
+    description: 'List all active debug sessions.',
+    category: 'debug',
+    params: [],
+  },
 ];
 
 /**

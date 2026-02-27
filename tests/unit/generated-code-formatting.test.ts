@@ -61,7 +61,7 @@ export function simpleChain(
       fs.mkdirSync(tempDir, { recursive: true });
       const sourceFile = path.join(tempDir, 'simple-chain.ts');
       fs.writeFileSync(sourceFile, sourceCode, 'utf-8');
-      generatedCode = await generator.generate(sourceFile, 'simpleChain');
+      generatedCode = await generator.generate(sourceFile, 'simpleChain', { production: true });
     });
 
     it('should use const for node index declarations (not let)', () => {
@@ -133,7 +133,7 @@ export function branchingWorkflow(
       fs.mkdirSync(tempDir, { recursive: true });
       const sourceFile = path.join(tempDir, 'branching.ts');
       fs.writeFileSync(sourceFile, sourceCode, 'utf-8');
-      generatedCode = await generator.generate(sourceFile, 'branchingWorkflow');
+      generatedCode = await generator.generate(sourceFile, 'branchingWorkflow', { production: true });
     });
 
     it('should use let for branching node (validator)', () => {
@@ -210,7 +210,7 @@ export function scopedWorkflow(
       fs.mkdirSync(tempDir, { recursive: true });
       const sourceFile = path.join(tempDir, 'scoped.ts');
       fs.writeFileSync(sourceFile, sourceCode, 'utf-8');
-      generatedCode = await generator.generate(sourceFile, 'scopedWorkflow');
+      generatedCode = await generator.generate(sourceFile, 'scopedWorkflow', { production: true });
     });
 
     it('should use const for parent node (container)', () => {
@@ -269,7 +269,7 @@ export function noAnyAssertions(
       fs.mkdirSync(tempDir, { recursive: true });
       const sourceFile = path.join(tempDir, 'no-any.ts');
       fs.writeFileSync(sourceFile, sourceCode, 'utf-8');
-      generatedCode = await generator.generate(sourceFile, 'noAnyAssertions');
+      generatedCode = await generator.generate(sourceFile, 'noAnyAssertions', { production: true });
     });
 
     it("should not use double 'as' assertions for __rd__", () => {
