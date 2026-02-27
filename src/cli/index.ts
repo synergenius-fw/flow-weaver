@@ -24,6 +24,7 @@ import { initCommand } from './commands/init.js';
 import { watchCommand } from './commands/watch.js';
 import { devCommand } from './commands/dev.js';
 import { listenCommand } from './commands/listen.js';
+import { tunnelCommand } from './commands/tunnel.js';
 import { mcpServerCommand } from '../mcp/server.js';
 import { uiFocusNode, uiAddNode, uiOpenWorkflow, uiGetState, uiBatch } from './commands/ui.js';
 import { grammarCommand } from './commands/grammar.js';
@@ -280,6 +281,22 @@ program
   .action(async (options) => {
     try {
       await listenCommand(options);
+    } catch (error) {
+      logger.error(`Command failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
+// Tunnel command
+program
+  .command('tunnel')
+  .description('Create a tunnel from cloud Studio to your local development server')
+  .requiredOption('-k, --key <apiKey>', 'API key for cloud authentication (fw_xxxx)')
+  .option('-c, --cloud <url>', 'Cloud server URL', 'https://flowweaver.dev')
+  .option('-s, --server <url>', 'Local server URL', DEFAULT_SERVER_URL)
+  .action(async (options) => {
+    try {
+      await tunnelCommand(options);
     } catch (error) {
       logger.error(`Command failed: ${getErrorMessage(error)}`);
       process.exit(1);
