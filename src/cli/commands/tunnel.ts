@@ -1,24 +1,24 @@
 /**
- * tunnel command — Relay Studio RPC calls from cloud to a local dev server.
+ * tunnel command — Self-contained tunnel for cloud Studio.
  *
- * 1. Connects to the local server via Socket.IO (same as listen command).
- * 2. Opens a WebSocket to the cloud server's /api/tunnel endpoint.
- * 3. Relays tunnel:request messages from cloud → local Socket.IO → cloud.
+ * Handles all RPC methods locally using Node.js fs and the
+ * @synergenius/flow-weaver AST API.  No local server required.
+ *
+ * 1. Opens a WebSocket to the cloud server's /api/tunnel endpoint.
+ * 2. Dispatches RPC calls directly to local handler functions.
  */
 
-import { io as socketIO } from 'socket.io-client';
+import * as path from 'node:path';
 import WebSocket from 'ws';
 import { logger } from '../utils/logger.js';
-import { DEFAULT_SERVER_URL } from '../../defaults.js';
+import { dispatch } from '../tunnel/dispatch.js';
 
 export interface TunnelOptions {
   key: string;
   cloud?: string;
-  server?: string;
+  dir?: string;
   /** Override WebSocket factory (for testing) */
   createWs?: (url: string) => WebSocket;
-  /** Override socket.io-client factory (for testing) */
-  ioFactory?: typeof socketIO;
 }
 
 interface TunnelRequest {
@@ -29,59 +29,18 @@ interface TunnelRequest {
   params: Record<string, unknown>;
 }
 
-interface MethodResponse {
-  id: string;
-  success: boolean;
-  result?: unknown;
-  error?: { message: string };
-}
-
 export async function tunnelCommand(options: TunnelOptions): Promise<void> {
   const cloudUrl = options.cloud || 'https://flowweaver.dev';
-  const localUrl = options.server || DEFAULT_SERVER_URL;
+  const workspaceRoot = path.resolve(options.dir || process.cwd());
   const createWs = options.createWs ?? ((url: string) => new WebSocket(url));
-  const ioFactory = options.ioFactory ?? socketIO;
 
   logger.section('Flow Weaver Tunnel');
-  logger.info(`Cloud:  ${cloudUrl}`);
-  logger.info(`Local:  ${localUrl}`);
+  logger.info(`Cloud:     ${cloudUrl}`);
+  logger.info(`Workspace: ${workspaceRoot}`);
   logger.newline();
 
   // -----------------------------------------------------------------------
-  // 1. Connect to local server via Socket.IO
-  // -----------------------------------------------------------------------
-
-  logger.info('Connecting to local server...');
-
-  const localSocket = ioFactory(`${localUrl}`, {
-    query: { clientType: 'tunnel' },
-    transports: ['websocket', 'polling'],
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionAttempts: Infinity,
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      localSocket.disconnect();
-      reject(new Error(`Local server connection timeout (10s). Is it running on ${localUrl}?`));
-    }, 10_000);
-
-    localSocket.on('connect', () => {
-      clearTimeout(timeout);
-      logger.success(`Connected to local server (${localUrl})`);
-      resolve();
-    });
-
-    localSocket.on('connect_error', (err: Error) => {
-      clearTimeout(timeout);
-      localSocket.disconnect();
-      reject(new Error(`Cannot connect to local server: ${err.message}`));
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // 2. Connect to cloud server via WebSocket
+  // 1. Connect to cloud server via WebSocket
   // -----------------------------------------------------------------------
 
   logger.info('Connecting to cloud server...');
@@ -130,12 +89,13 @@ export async function tunnelCommand(options: TunnelOptions): Promise<void> {
   logger.newline();
 
   let requestCount = 0;
+  const ctx = { workspaceRoot };
 
   // -----------------------------------------------------------------------
-  // 3. Relay: cloud → local → cloud
+  // 2. Handle RPC: cloud → local dispatch → cloud
   // -----------------------------------------------------------------------
 
-  cloudWs.on('message', (raw: WebSocket.Data) => {
+  cloudWs.on('message', async (raw: WebSocket.Data) => {
     let msg: Record<string, unknown>;
     try {
       msg = JSON.parse(raw.toString());
@@ -153,42 +113,26 @@ export async function tunnelCommand(options: TunnelOptions): Promise<void> {
       requestCount++;
       logger.debug(`[${requestCount}] → ${req.method}`);
 
-      localSocket.emit(
-        'method',
-        { id: req.id, method: req.method, params: req.params },
-        (response: MethodResponse) => {
-          cloudWs.send(JSON.stringify({
-            type: 'tunnel:response',
-            requestId: req.requestId,
-            id: response.id,
-            success: response.success,
-            result: response.result,
-            error: response.error,
-          }));
-        },
-      );
+      const response = await dispatch(req.method, req.params || {}, ctx);
+
+      cloudWs.send(JSON.stringify({
+        type: 'tunnel:response',
+        requestId: req.requestId,
+        id: req.id,
+        success: response.success,
+        result: response.result,
+        error: response.error,
+      }));
     }
   });
 
   // -----------------------------------------------------------------------
-  // 4. Handle disconnections
+  // 3. Handle disconnections
   // -----------------------------------------------------------------------
-
-  localSocket.on('disconnect', (reason: string) => {
-    logger.warn(`Local server disconnected: ${reason}`);
-    if (reason === 'io server disconnect') {
-      logger.info('Attempting to reconnect...');
-    }
-  });
-
-  localSocket.on('connect', () => {
-    logger.success('Reconnected to local server');
-  });
 
   cloudWs.on('close', (code: number, reason: Buffer) => {
     logger.warn(`Cloud server disconnected: ${code} ${reason.toString()}`);
     logger.info('Shutting down tunnel...');
-    localSocket.disconnect();
     process.exit(code === 4001 ? 1 : 0);
   });
 
@@ -197,14 +141,13 @@ export async function tunnelCommand(options: TunnelOptions): Promise<void> {
   });
 
   // -----------------------------------------------------------------------
-  // 5. Graceful shutdown
+  // 4. Graceful shutdown
   // -----------------------------------------------------------------------
 
   process.on('SIGINT', () => {
     logger.newline();
-    logger.info(`Shutting down tunnel (${requestCount} requests relayed)...`);
+    logger.info(`Shutting down tunnel (${requestCount} requests handled)...`);
     cloudWs.close();
-    localSocket.disconnect();
     process.exit(0);
   });
 

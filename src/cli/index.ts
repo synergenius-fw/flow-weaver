@@ -290,10 +290,10 @@ program
 // Tunnel command
 program
   .command('tunnel')
-  .description('Create a tunnel from cloud Studio to your local development server')
+  .description('Connect cloud Studio to your local project directory')
   .requiredOption('-k, --key <apiKey>', 'API key for cloud authentication (fw_xxxx)')
   .option('-c, --cloud <url>', 'Cloud server URL', 'https://flowweaver.dev')
-  .option('-s, --server <url>', 'Local server URL', DEFAULT_SERVER_URL)
+  .option('-d, --dir <path>', 'Project directory', process.cwd())
   .action(async (options) => {
     try {
       await tunnelCommand(options);

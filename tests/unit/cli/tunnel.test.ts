@@ -1,63 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-// ---------------------------------------------------------------------------
-// Mock socket.io-client (hoisted — no top-level refs allowed in factory)
-// ---------------------------------------------------------------------------
-
-vi.mock('socket.io-client', () => {
-  const handlers = new Map<string, ((...args: unknown[]) => void)[]>();
-  const socket = {
-    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-      const existing = handlers.get(event) || [];
-      existing.push(handler);
-      handlers.set(event, existing);
-    }),
-    emit: vi.fn(),
-    disconnect: vi.fn(),
-    connected: true,
-    _trigger: (event: string, ...args: unknown[]) => {
-      const h = handlers.get(event);
-      if (h) for (const fn of h) fn(...args);
-    },
-    _handlers: handlers,
-    _reset: () => {
-      handlers.clear();
-      socket.on = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-        const existing = handlers.get(event) || [];
-        existing.push(handler);
-        handlers.set(event, existing);
-      });
-      socket.emit = vi.fn();
-      socket.disconnect = vi.fn();
-    },
-  };
-  return {
-    io: vi.fn().mockReturnValue(socket),
-    __mockSocket: socket,
-  };
-});
-
-// ---------------------------------------------------------------------------
-// Import after mock
-// ---------------------------------------------------------------------------
-
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import { tunnelCommand } from '../../../src/cli/commands/tunnel.js';
-// @ts-expect-error __mockSocket is injected by vi.mock above
-import { io as mockIoFn, __mockSocket as rawLocalSocket } from 'socket.io-client';
-
-type MockSocket = {
-  on: ReturnType<typeof vi.fn>;
-  emit: ReturnType<typeof vi.fn>;
-  disconnect: ReturnType<typeof vi.fn>;
-  _trigger: (event: string, ...args: unknown[]) => void;
-  _handlers: Map<string, ((...args: unknown[]) => void)[]>;
-  _reset: () => void;
-};
-
-const localSocket = rawLocalSocket as unknown as MockSocket;
 
 // ---------------------------------------------------------------------------
-// Mock WebSocket (no vi.mock — use wsFactory injection instead)
+// Mock WebSocket (use createWs injection — no vi.mock needed)
 // ---------------------------------------------------------------------------
 
 function createMockWs() {
@@ -83,10 +31,12 @@ function createMockWs() {
 type MockWs = ReturnType<typeof createMockWs>;
 
 /**
- * Start tunnel and simulate a successful connection sequence.
+ * Start tunnel and simulate a successful cloud connection.
  * Returns the cloud ws mock for further assertions.
  */
-async function startTunnel(): Promise<{ promise: Promise<void>; cloudWs: MockWs }> {
+async function startTunnel(
+  dir: string,
+): Promise<{ promise: Promise<void>; cloudWs: MockWs }> {
   let capturedWs: MockWs | null = null;
   const createWsFn = vi.fn((_url: string) => {
     capturedWs = createMockWs();
@@ -96,92 +46,37 @@ async function startTunnel(): Promise<{ promise: Promise<void>; cloudWs: MockWs 
   const promise = tunnelCommand({
     key: 'fw_testkey1234567890abcdef',
     cloud: 'http://localhost:4800',
-    server: 'http://localhost:6546',
+    dir,
     createWs: createWsFn as unknown as (url: string) => import('ws').default,
-    ioFactory: mockIoFn as typeof import('socket.io-client').io,
   });
 
-  // Simulate local Socket.IO connect
-  localSocket._trigger('connect');
+  // Wait for ws creation
   await new Promise((r) => setTimeout(r, 10));
-
   const cloudWs = capturedWs!;
 
   // Simulate cloud WebSocket open + hello
   cloudWs._trigger('open');
-  cloudWs._trigger('message', JSON.stringify({ type: 'tunnel:hello', userId: 'user-123' }));
+  cloudWs._trigger(
+    'message',
+    JSON.stringify({ type: 'tunnel:hello', userId: 'user-123' }),
+  );
   await new Promise((r) => setTimeout(r, 10));
 
   return { promise, cloudWs };
 }
 
-describe('tunnel command', () => {
-  beforeEach(() => {
+describe('tunnel command (self-contained)', () => {
+  let tmpDir: string;
+
+  beforeEach(async () => {
     vi.clearAllMocks();
-    localSocket._reset();
-  });
-
-  it('connects to local server via Socket.IO', async () => {
-    const { promise } = await startTunnel();
-
-    expect(mockIoFn).toHaveBeenCalledWith(
-      'http://localhost:6546',
-      expect.objectContaining({
-        query: { clientType: 'tunnel' },
-      }),
-    );
-
-    void promise;
-  });
-
-  it('relays tunnel:request to local server and sends response back', async () => {
-    const { promise, cloudWs } = await startTunnel();
-
-    // When local socket emit is called, invoke the callback with a response
-    localSocket.emit.mockImplementation(
-      (_event: string, _data: unknown, callback: (response: unknown) => void) => {
-        callback({
-          id: 'req-1',
-          success: true,
-          result: 'file content here',
-        });
-      },
-    );
-
-    // Simulate a tunnel:request from cloud
-    cloudWs._trigger('message', JSON.stringify({
-      type: 'tunnel:request',
-      requestId: 'tunnel-1234-abcd',
-      id: 'req-1',
-      method: 'getFile',
-      params: { filePath: '/test.ts' },
-    }));
-
-    await new Promise((r) => setTimeout(r, 10));
-
-    // Verify it was forwarded to local server
-    expect(localSocket.emit).toHaveBeenCalledWith(
-      'method',
-      { id: 'req-1', method: 'getFile', params: { filePath: '/test.ts' } },
-      expect.any(Function),
-    );
-
-    // Verify the response was sent back to cloud
-    expect(cloudWs.send).toHaveBeenCalledWith(
-      JSON.stringify({
-        type: 'tunnel:response',
-        requestId: 'tunnel-1234-abcd',
-        id: 'req-1',
-        success: true,
-        result: 'file content here',
-      }),
-    );
-
-    void promise;
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tunnel-test-'));
+    // Create a test file in the workspace
+    await fs.writeFile(path.join(tmpDir, 'hello.txt'), 'hello world', 'utf-8');
   });
 
   it('responds to ping with pong', async () => {
-    const { promise, cloudWs } = await startTunnel();
+    const { promise, cloudWs } = await startTunnel(tmpDir);
 
     cloudWs._trigger('message', JSON.stringify({ type: 'ping' }));
     await new Promise((r) => setTimeout(r, 10));
@@ -191,39 +86,170 @@ describe('tunnel command', () => {
     void promise;
   });
 
-  it('relays error responses from local server', async () => {
-    const { promise, cloudWs } = await startTunnel();
+  it('dispatches getCWD and returns /', async () => {
+    const { promise, cloudWs } = await startTunnel(tmpDir);
 
-    localSocket.emit.mockImplementation(
-      (_event: string, _data: unknown, callback: (response: unknown) => void) => {
-        callback({
-          id: 'req-2',
-          success: false,
-          error: { message: 'File not found' },
-        });
-      },
+    cloudWs._trigger(
+      'message',
+      JSON.stringify({
+        type: 'tunnel:request',
+        requestId: 'r-1',
+        id: 'req-1',
+        method: 'getCWD',
+        params: {},
+      }),
     );
 
-    cloudWs._trigger('message', JSON.stringify({
-      type: 'tunnel:request',
-      requestId: 'tunnel-5678-efgh',
-      id: 'req-2',
-      method: 'getFile',
-      params: { filePath: '/missing.ts' },
-    }));
-
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 50));
 
     expect(cloudWs.send).toHaveBeenCalledWith(
       JSON.stringify({
         type: 'tunnel:response',
-        requestId: 'tunnel-5678-efgh',
-        id: 'req-2',
-        success: false,
-        result: undefined,
-        error: { message: 'File not found' },
+        requestId: 'r-1',
+        id: 'req-1',
+        success: true,
+        result: '/',
       }),
     );
+
+    void promise;
+  });
+
+  it('dispatches hasFile and returns true for existing file', async () => {
+    const { promise, cloudWs } = await startTunnel(tmpDir);
+
+    cloudWs._trigger(
+      'message',
+      JSON.stringify({
+        type: 'tunnel:request',
+        requestId: 'r-2',
+        id: 'req-2',
+        method: 'hasFile',
+        params: { filePath: '/hello.txt' },
+      }),
+    );
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(cloudWs.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'tunnel:response',
+        requestId: 'r-2',
+        id: 'req-2',
+        success: true,
+        result: true,
+      }),
+    );
+
+    void promise;
+  });
+
+  it('dispatches getFile and returns file content', async () => {
+    const { promise, cloudWs } = await startTunnel(tmpDir);
+
+    cloudWs._trigger(
+      'message',
+      JSON.stringify({
+        type: 'tunnel:request',
+        requestId: 'r-3',
+        id: 'req-3',
+        method: 'getFile',
+        params: { filePath: '/hello.txt' },
+      }),
+    );
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(cloudWs.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'tunnel:response',
+        requestId: 'r-3',
+        id: 'req-3',
+        success: true,
+        result: 'hello world',
+      }),
+    );
+
+    void promise;
+  });
+
+  it('handles unknown methods gracefully', async () => {
+    const { promise, cloudWs } = await startTunnel(tmpDir);
+
+    cloudWs._trigger(
+      'message',
+      JSON.stringify({
+        type: 'tunnel:request',
+        requestId: 'r-4',
+        id: 'req-4',
+        method: 'nonExistentMethod',
+        params: {},
+      }),
+    );
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(cloudWs.send).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'tunnel:response',
+        requestId: 'r-4',
+        id: 'req-4',
+        success: true,
+        result: undefined,
+      }),
+    );
+
+    void promise;
+  });
+
+  it('returns error for missing required params', async () => {
+    const { promise, cloudWs } = await startTunnel(tmpDir);
+
+    cloudWs._trigger(
+      'message',
+      JSON.stringify({
+        type: 'tunnel:request',
+        requestId: 'r-5',
+        id: 'req-5',
+        method: 'getFile',
+        params: {}, // no filePath
+      }),
+    );
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const sent = cloudWs.send.mock.calls.find((call) => {
+      const msg = JSON.parse(call[0] as string);
+      return msg.requestId === 'r-5';
+    });
+
+    expect(sent).toBeTruthy();
+    const response = JSON.parse(sent![0] as string);
+    expect(response.success).toBe(false);
+    expect(response.error.message).toContain('filePath');
+
+    void promise;
+  });
+
+  it('dispatches writeFile and reads it back', async () => {
+    const { promise, cloudWs } = await startTunnel(tmpDir);
+
+    // Write
+    cloudWs._trigger(
+      'message',
+      JSON.stringify({
+        type: 'tunnel:request',
+        requestId: 'r-6',
+        id: 'req-6',
+        method: 'writeFile',
+        params: { filePath: '/new-file.txt', content: 'new content' },
+      }),
+    );
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Read back to verify
+    const written = await fs.readFile(path.join(tmpDir, 'new-file.txt'), 'utf-8');
+    expect(written).toBe('new content');
 
     void promise;
   });
