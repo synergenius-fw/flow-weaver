@@ -92,6 +92,13 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     // (e.g., passed as a function parameter or injected by execution harness)
     lines.push('declare const __flowWeaverDebugger__: TDebugger | undefined;');
     lines.push('');
+
+    // Debug controller type for step-through debugging and checkpoint/resume
+    lines.push('type TDebugController = {');
+    lines.push('  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<boolean> | boolean;');
+    lines.push('  afterNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;');
+    lines.push('};');
+    lines.push('');
   }
 
   // Declare __abortSignal__ so TypeScript knows it might exist at runtime
@@ -452,6 +459,43 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('');
     lines.push('  sendWorkflowCompletedEvent(_args: unknown): void {');
     lines.push('    // No-op in production mode');
+    lines.push('  }');
+  }
+
+  // Serialize/restore methods (dev mode only, used by debug controller and checkpointing)
+  if (!production) {
+    lines.push('');
+    lines.push('  serialize(): {');
+    lines.push('    variables: Record<string, unknown>;');
+    lines.push('    executions: Record<string, ExecutionInfo>;');
+    lines.push('    executionCounter: number;');
+    lines.push('    nodeExecutionCounts: Record<string, number>;');
+    lines.push('  } {');
+    lines.push('    const vars: Record<string, unknown> = {};');
+    lines.push('    for (const [key, value] of this.variables) {');
+    lines.push('      if (typeof value === "function") {');
+    lines.push('        try { vars[key] = (value as () => unknown)(); } catch { vars[key] = value; }');
+    lines.push('      } else {');
+    lines.push('        vars[key] = value;');
+    lines.push('      }');
+    lines.push('    }');
+    lines.push('    const execs: Record<string, ExecutionInfo> = {};');
+    lines.push('    for (const [key, info] of this.executions) { execs[key] = { ...info }; }');
+    lines.push('    const nodeCounts: Record<string, number> = {};');
+    lines.push('    for (const [key, count] of this.nodeExecutionIndices) { nodeCounts[key] = count; }');
+    lines.push('    return { variables: vars, executions: execs, executionCounter: this.executionCounter, nodeExecutionCounts: nodeCounts };');
+    lines.push('  }');
+    lines.push('');
+    lines.push('  restore(data: {');
+    lines.push('    variables: Record<string, unknown>;');
+    lines.push('    executions: Record<string, ExecutionInfo>;');
+    lines.push('    executionCounter: number;');
+    lines.push('    nodeExecutionCounts: Record<string, number>;');
+    lines.push('  }): void {');
+    lines.push('    this.variables = new Map(Object.entries(data.variables));');
+    lines.push('    this.executions = new Map(Object.entries(data.executions));');
+    lines.push('    this.executionCounter = data.executionCounter;');
+    lines.push('    this.nodeExecutionIndices = new Map(Object.entries(data.nodeExecutionCounts));');
     lines.push('  }');
   }
 

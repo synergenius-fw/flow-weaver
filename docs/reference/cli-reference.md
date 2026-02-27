@@ -176,6 +176,10 @@ flow-weaver run <input> [options]
 | `--timeout <ms>` | Execution timeout in milliseconds | — |
 | `--mocks <json>` | Mock config for built-in nodes as JSON | — |
 | `--mocks-file <path>` | Path to JSON file with mock config | — |
+| `-d, --debug` | Start in step-through debug mode | `false` |
+| `--checkpoint` | Enable checkpointing to disk after each node | `false` |
+| `--resume [file]` | Resume from a checkpoint file (auto-detects latest if no file given) | — |
+| `-b, --breakpoint <nodeIds...>` | Set initial breakpoints (repeatable) | — |
 
 **Examples:**
 ```bash
@@ -183,9 +187,13 @@ flow-weaver run workflow.ts --params '{"amount": 500}'
 flow-weaver run workflow.ts --params-file input.json --trace
 flow-weaver run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
 flow-weaver run workflow.ts --timeout 30000 --json
+flow-weaver run workflow.ts --debug
+flow-weaver run workflow.ts --checkpoint
+flow-weaver run workflow.ts --resume
+flow-weaver run workflow.ts --debug --breakpoint processData --breakpoint validate
 ```
 
-> See also: [Built-in Nodes](built-in-nodes) for mock configuration details.
+> See also: [Built-in Nodes](built-in-nodes) for mock configuration details, [Debugging](debugging) for debug REPL commands and checkpoint details.
 
 ---
 
