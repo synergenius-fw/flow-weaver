@@ -1,7 +1,7 @@
 ---
 name: CLI Reference
 description: Complete reference for all Flow Weaver CLI commands, flags, and options
-keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, plugin, grammar, changelog, openapi, pattern, create, templates]
+keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, plugin, grammar, changelog, openapi, pattern, create, templates, context]
 ---
 
 # CLI Reference
@@ -34,6 +34,7 @@ Complete reference for all `flow-weaver` CLI commands.
 | `changelog` | Generate changelog from git |
 | `market` | Marketplace packages |
 | `plugin` | External plugins |
+| `context` | Generate LLM context bundle |
 | `docs` | Browse reference documentation |
 | `ui` | Send commands to the editor |
 | `listen` | Stream editor events |
@@ -801,6 +802,37 @@ flow-weaver docs
 flow-weaver docs read error-codes
 flow-weaver docs read scaffold --compact
 flow-weaver docs search "missing workflow"
+```
+
+---
+
+### context
+
+Generate a self-contained LLM context bundle from documentation and annotation grammar. Two profiles control the output format: `standalone` produces a complete reference for pasting into any LLM, `assistant` produces a leaner version that assumes MCP tools are available.
+
+```bash
+flow-weaver context [preset] [options]
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--profile <profile>` | `standalone` or `assistant` | `standalone` |
+| `--topics <slugs>` | Comma-separated topic slugs (overrides preset) | — |
+| `--add <slugs>` | Extra topic slugs on top of preset | — |
+| `--no-grammar` | Omit EBNF grammar section | grammar included |
+| `-o, --output <path>` | Write to file instead of stdout | stdout |
+| `--list` | List available presets and exit | — |
+
+Built-in presets: `core` (concepts, grammar, tutorial), `authoring` (concepts, grammar, annotations, built-in nodes, scaffold, node-conversion, patterns), `ops` (CLI, compilation, deployment, export, debugging, error-codes), `full` (all 16 topics).
+
+**Examples:**
+```bash
+flow-weaver context core | pbcopy
+flow-weaver context full -o .flow-weaver-context.md
+flow-weaver context authoring --profile assistant
+flow-weaver context --topics concepts,jsdoc-grammar,error-codes
+flow-weaver context core --add error-codes
+flow-weaver context --list
 ```
 
 ---
