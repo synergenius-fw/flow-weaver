@@ -1,5 +1,9 @@
 export { GeneratedExecutionContext } from "./ExecutionContext";
 export { CancellationError } from "./CancellationError";
+export { DebugController } from "./debug-controller";
+export type { DebugMode, DebugPauseState, DebugResumeAction, DebugControllerConfig } from "./debug-controller";
+export { CheckpointWriter, loadCheckpoint, findLatestCheckpoint } from "./checkpoint";
+export type { CheckpointData } from "./checkpoint";
 export * from "./events";
 export * from "./function-registry";
 export * from "./parameter-resolver";

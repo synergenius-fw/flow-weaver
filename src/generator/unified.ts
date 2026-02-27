@@ -148,6 +148,20 @@ export function generateControlFlowWithExecutionContext(
     );
   }
   lines.push('');
+
+  // Debug controller: step-through debugging and checkpoint/resume
+  // In production mode, no controller is emitted. In dev mode, the controller
+  // resolves from globalThis (injected by executor) or falls back to a no-op.
+  if (!production) {
+    lines.push(`  // Debug controller for step-through debugging and checkpoint/resume`);
+    lines.push(`  const __ctrl__: TDebugController = (`);
+    lines.push(`    typeof globalThis !== 'undefined' && (globalThis as any).__fw_debug_controller__`);
+    lines.push(`      ? (globalThis as any).__fw_debug_controller__`);
+    lines.push(`      : { beforeNode: () => true, afterNode: () => {} }`);
+    lines.push(`  );`);
+    lines.push('');
+  }
+
   lines.push(`  const startIdx = ctx.addExecution('${RESERVED_NODE_NAMES.START}');`);
   Object.keys(extractStartPorts(workflow)).forEach((portName) => {
     const setCall = isAsync ? `await ctx.setVariable` : `ctx.setVariable`;
@@ -407,7 +421,8 @@ export function generateControlFlowWithExecutionContext(
           isAsync,
           'ctx',
           bundleMode,
-          branchingNodes
+          branchingNodes,
+          production
         );
         // Generate scoped children for each parallel node
         for (const parallelNodeId of ungeneratedGroup) {
@@ -429,7 +444,8 @@ export function generateControlFlowWithExecutionContext(
             branchingNodes,
             branchRegions,
             isAsync,
-            bundleMode
+            bundleMode,
+            production
           );
         }
         return;
@@ -478,7 +494,8 @@ export function generateControlFlowWithExecutionContext(
           isAsync,
           'ctx',
           bundleMode,
-          branchingNodesNeedingSuccessFlag
+          branchingNodesNeedingSuccessFlag,
+          production
         );
         if (chainNeedsClose) {
           lines.push(`  }`);
@@ -524,7 +541,8 @@ export function generateControlFlowWithExecutionContext(
         'ctx',
         bundleMode,
         new Set(),
-        branchingNodesNeedingSuccessFlag.has(instanceId)
+        branchingNodesNeedingSuccessFlag.has(instanceId),
+        production
       );
       if (branchNeedsClose) {
         lines.push(`  }`);
@@ -546,7 +564,8 @@ export function generateControlFlowWithExecutionContext(
         branchingNodes,
         branchRegions,
         isAsync,
-        bundleMode
+        bundleMode,
+        production
       );
     } else {
       const belongsToBranch = Array.from(branchRegions.values()).some(
@@ -573,7 +592,8 @@ export function generateControlFlowWithExecutionContext(
           'ctx', // ctxVar
           bundleMode,
           false, // skipExecuteGuard
-          branchingNodes // for port-aware STEP guards
+          branchingNodes, // for port-aware STEP guards
+          production
         );
         generatedNodes.add(instanceId);
 
@@ -590,7 +610,8 @@ export function generateControlFlowWithExecutionContext(
           branchingNodes,
           branchRegions,
           isAsync,
-          bundleMode
+          bundleMode,
+          production
         );
       }
     }
@@ -777,7 +798,8 @@ function generateScopedChildrenExecution(
   branchingNodes: Set<string>,
   branchRegions: Map<string, { successNodes: Set<string>; failureNodes: Set<string> }>,
   isAsync: boolean,
-  bundleMode: boolean = false
+  bundleMode: boolean = false,
+  production: boolean = false
 ): void {
   // Check if this node creates a scope
   if (!parentNodeType.scope) return;
@@ -856,7 +878,10 @@ function generateScopedChildrenExecution(
         branchRegions,
         isAsync,
         scopedCtxVar, // Pass scoped context name
-        bundleMode
+        bundleMode,
+        new Set(),
+        false,
+        production
       );
       const region = branchRegions.get(childInstanceId)!;
       region.successNodes.forEach((n) => generatedNodes.add(n));
@@ -874,7 +899,10 @@ function generateScopedChildrenExecution(
         false, // useConst = false - scoped children need let (referenced outside scope block)
         parentInstance.id, // instanceParent - parent node is const, no ! needed when referencing it
         scopedCtxVar, // Pass scoped context name
-        bundleMode
+        bundleMode,
+        false, // skipExecuteGuard
+        new Set(), // branchingNodes
+        production
       );
     }
 
@@ -904,7 +932,8 @@ function generateParallelGroupWithContext(
   isAsync: boolean,
   ctxVar: string,
   bundleMode: boolean,
-  branchingNodes: Set<string>
+  branchingNodes: Set<string>,
+  production: boolean = false
 ): void {
   // Collect code buffers for each node
   const nodeBuffers: { id: string; lines: string[] }[] = [];
@@ -932,7 +961,8 @@ function generateParallelGroupWithContext(
       ctxVar,
       bundleMode,
       false,
-      branchingNodes
+      branchingNodes,
+      production
     );
     nodeBuffers.push({ id: nodeId, lines: nodeLines });
   }
@@ -1123,7 +1153,8 @@ function generateBranchingChainCode(
   isAsync: boolean,
   ctxVar: string,
   bundleMode: boolean,
-  forceTrackSuccessNodes: Set<string> = new Set()
+  forceTrackSuccessNodes: Set<string> = new Set(),
+  production: boolean = false
 ): void {
   // Pre-declare success flags for all non-last chain nodes so they're
   // accessible across guard blocks (avoiding let-in-block scoping issues).
@@ -1192,7 +1223,8 @@ function generateBranchingChainCode(
       ctxVar,
       bundleMode,
       preDeclaredFlags,
-      !isLast || forceTrackSuccessNodes.has(chain[i]) // forceTrackSuccess for non-last chain nodes or nodes with promoted dependents
+      !isLast || forceTrackSuccessNodes.has(chain[i]), // forceTrackSuccess for non-last chain nodes or nodes with promoted dependents
+      production
     );
 
     // Generate scoped children for this chain node
@@ -1208,7 +1240,8 @@ function generateBranchingChainCode(
       branchingNodes,
       branchRegions,
       isAsync,
-      bundleMode
+      bundleMode,
+      production
     );
 
     if (hasGuard) {
@@ -1262,11 +1295,34 @@ function generateBranchingNodeCode(
   ctxVar: string = 'ctx', // Context variable name (for scoped contexts)
   bundleMode: boolean = false,
   preDeclaredSuccessFlags: Set<string> = new Set(),
-  forceTrackSuccess: boolean = false
+  forceTrackSuccess: boolean = false,
+  production: boolean = false
 ): void {
   const instanceId = instance.id;
   const safeId = toValidIdentifier(instanceId);
   const functionName = branchNode.functionName;
+
+  // Debug controller: beforeNode hook for branching nodes
+  const emitDebugHooks = !production;
+  const outerIndent = indent;
+
+  // Only declare success flag if there are downstream nodes
+  const hasSuccessDownstream = region.successNodes.size > 0;
+  const hasFailureDownstream = region.failureNodes.size > 0;
+  const hasDownstream = hasSuccessDownstream || hasFailureDownstream;
+  // Track success flag when there are downstream nodes OR when chain code needs it
+  const trackSuccess = hasDownstream || forceTrackSuccess;
+
+  if (emitDebugHooks) {
+    // Hoist success flag declaration before the if block so it remains in scope
+    // for downstream branching code that runs after the if/else.
+    if (trackSuccess && !preDeclaredSuccessFlags.has(safeId)) {
+      lines.push(`${indent}let ${safeId}_success = false;`);
+    }
+    const awaitHook = isAsync ? 'await ' : '';
+    lines.push(`${indent}if (${awaitHook}__ctrl__.beforeNode('${instanceId}', ${ctxVar})) {`);
+    indent = `${indent}  `;
+  }
 
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
@@ -1279,16 +1335,9 @@ function generateBranchingNodeCode(
   lines.push(`${indent}});`);
   lines.push('');
 
-  // Only declare success flag if there are downstream nodes
-  const hasSuccessDownstream = region.successNodes.size > 0;
-  const hasFailureDownstream = region.failureNodes.size > 0;
-  const hasDownstream = hasSuccessDownstream || hasFailureDownstream;
-  // Track success flag when there are downstream nodes OR when chain code needs it
-  const trackSuccess = hasDownstream || forceTrackSuccess;
-
   if (trackSuccess) {
-    if (preDeclaredSuccessFlags.has(safeId)) {
-      // Flag was pre-declared by chain code — use assignment, not declaration
+    if (preDeclaredSuccessFlags.has(safeId) || emitDebugHooks) {
+      // Flag was pre-declared (by chain code or hoisted for debug hooks) — assignment only
       lines.push(`${indent}${safeId}_success = false;`);
     } else {
       lines.push(`${indent}let ${safeId}_success = false;`);
@@ -1451,6 +1500,11 @@ function generateBranchingNodeCode(
   lines.push(`${indent}    executionIndex: ${safeId}Idx,`);
   lines.push(`${indent}    status: 'SUCCEEDED',`);
   lines.push(`${indent}  });`);
+  // Debug controller: afterNode hook for branching nodes
+  if (emitDebugHooks) {
+    const awaitHook = isAsync ? 'await ' : '';
+    lines.push(`${indent}  ${awaitHook}__ctrl__.afterNode('${instanceId}', ${ctxVar});`);
+  }
   // Use onSuccess from result to determine control flow
   // For expression nodes, onSuccess is always true here (catch handles failure)
   if (trackSuccess) {
@@ -1507,6 +1561,21 @@ function generateBranchingNodeCode(
   // Re-throw the error to propagate it up (important for recursive workflows)
   lines.push(`${indent}  throw error;`);
   lines.push(`${indent}}`);
+
+  // Close the debug controller beforeNode if block for the node's own execution.
+  // The downstream branching must be outside the if block so it runs even when
+  // the node is skipped (checkpoint resume).
+  if (emitDebugHooks) {
+    lines.push(`${outerIndent}} else {`);
+    // Node was skipped (checkpoint resume). Controller already restored outputs
+    // into ctx, but we need local vars for downstream branching.
+    lines.push(`${outerIndent}  ${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
+    if (trackSuccess) {
+      lines.push(`${outerIndent}  ${safeId}_success = true;`);
+    }
+    lines.push(`${outerIndent}}`);
+    indent = outerIndent; // Restore indent level for downstream code
+  }
   lines.push('');
 
   // Only generate if/else if there are downstream nodes
@@ -1555,7 +1624,10 @@ function generateBranchingNodeCode(
           branchRegions,
           isAsync,
           ctxVar,
-          bundleMode
+          bundleMode,
+          new Set(),
+          false,
+          production
         );
         successExecutedNodes.push(instanceId);
         nestedRegion.successNodes.forEach((n) => successExecutedNodes.push(n));
@@ -1574,7 +1646,9 @@ function generateBranchingNodeCode(
           undefined, // instanceParent
           ctxVar,
           bundleMode,
-          true // skipExecuteGuard — inside branch, execute is guaranteed by if/else
+          true, // skipExecuteGuard — inside branch, execute is guaranteed by if/else
+          branchingNodes,
+          production
         );
         Object.keys(nodeType.outputs).forEach((portName) => {
           successVars.set(`${instanceId}.${portName}`, `${toValidIdentifier(instanceId)}Result.${portName}`);
@@ -1630,7 +1704,10 @@ function generateBranchingNodeCode(
             branchRegions,
             isAsync,
             ctxVar,
-            bundleMode
+            bundleMode,
+            new Set(),
+            false,
+            production
           );
           failureExecutedNodes.push(instanceId);
           nestedRegion.successNodes.forEach((n) => failureExecutedNodes.push(n));
@@ -1649,7 +1726,9 @@ function generateBranchingNodeCode(
             undefined, // instanceParent
             ctxVar,
             bundleMode,
-            true // skipExecuteGuard — inside branch, execute is guaranteed by if/else
+            true, // skipExecuteGuard — inside branch, execute is guaranteed by if/else
+            branchingNodes,
+            production
           );
           Object.keys(nodeType.outputs).forEach((portName) => {
             failureVars.set(`${instanceId}.${portName}`, `${toValidIdentifier(instanceId)}Result.${portName}`);
@@ -1842,7 +1921,8 @@ function generateNodeCallWithContext(
   ctxVar: string = 'ctx', // Context variable name (for scoped contexts)
   bundleMode: boolean = false, // Bundle mode uses params object pattern for wrapper functions
   skipExecuteGuard: boolean = false, // Skip execute port STEP guard (for nodes inside branch blocks)
-  branchingNodes: Set<string> = new Set() // Branching nodes set for port-aware STEP guards
+  branchingNodes: Set<string> = new Set(), // Branching nodes set for port-aware STEP guards
+  production: boolean = false // When false, emit debug controller hooks (beforeNode/afterNode)
 ): void {
   const instanceId = instance.id;
   const safeId = toValidIdentifier(instanceId);
@@ -1982,7 +2062,25 @@ function generateNodeCallWithContext(
       }
     }
   }
-  const varDecl = useConst ? 'const ' : '';
+  // Debug controller: beforeNode hook (step-through / checkpoint resume)
+  // When enabled, wraps the entire node execution in if(await __ctrl__.beforeNode(...))
+  // so checkpoint resume can skip already-completed nodes.
+  const emitDebugHooks = !production;
+  const outerIndent = indent; // preserve for closing brace
+  if (emitDebugHooks) {
+    // When useConst=true, the Idx variable would normally be declared with const
+    // inside the node execution block. Since debug hooks wrap that in if/else,
+    // we must hoist the declaration before the if block to keep it in scope.
+    if (useConst) {
+      lines.push(`${indent}let ${safeId}Idx: number;`);
+    }
+    const awaitHook = isAsync ? 'await ' : '';
+    lines.push(`${indent}if (${awaitHook}__ctrl__.beforeNode('${instanceId}', ${ctxVar})) {`);
+    indent = `${indent}  `;
+  }
+
+  // When debug hooks hoist the declaration, we use assignment only inside the block.
+  const varDecl = (useConst && !emitDebugHooks) ? 'const ' : '';
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${varDecl}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
   lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
@@ -2186,6 +2284,11 @@ function generateNodeCallWithContext(
   lines.push(`${indent}    executionIndex: ${safeId}Idx,`);
   lines.push(`${indent}    status: 'SUCCEEDED',`);
   lines.push(`${indent}  });`);
+  // Debug controller: afterNode hook (checkpoint write, step pause)
+  if (emitDebugHooks) {
+    const awaitHook = isAsync ? 'await ' : '';
+    lines.push(`${indent}  ${awaitHook}__ctrl__.afterNode('${instanceId}', ${ctxVar});`);
+  }
   lines.push(`${indent}} catch (error: unknown) {`);
   lines.push(`${indent}  const isCancellation = CancellationError.isCancellationError(error);`);
   lines.push(`${indent}  ${ctxVar}.sendStatusChangedEvent({`);
@@ -2213,8 +2316,16 @@ function generateNodeCallWithContext(
   lines.push(`${indent}  }`);
   lines.push(`${indent}  throw error;`);
   lines.push(`${indent}}`);
+  // Close the debug controller beforeNode if block
+  if (emitDebugHooks) {
+    // Else block: node was skipped (checkpoint resume).
+    // Register execution so downstream nodes can reference {safeId}Idx.
+    lines.push(`${outerIndent}} else {`);
+    lines.push(`${outerIndent}  ${varDecl}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
+    lines.push(`${outerIndent}}`);
+  }
   if (shouldIndent) {
-    const originalIndent = indent.slice(0, -2);
+    const originalIndent = outerIndent.slice(0, -2);
     lines.push(`${originalIndent}}`);
   }
 }

@@ -11,6 +11,7 @@ import { compileWorkflow } from '../api/index.js';
 import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import type { AgentChannel } from './agent-channel.js';
+import type { DebugController } from '../runtime/debug-controller.js';
 
 /** A single trace event captured during workflow execution. */
 export interface ExecutionTraceEvent {
@@ -78,7 +79,7 @@ export interface ExecuteWorkflowResult {
 export async function executeWorkflowFromFile(
   filePath: string,
   params?: Record<string, unknown>,
-  options?: { workflowName?: string; production?: boolean; includeTrace?: boolean; mocks?: FwMockConfig; agentChannel?: AgentChannel; onEvent?: (event: ExecutionTraceEvent) => void }
+  options?: { workflowName?: string; production?: boolean; includeTrace?: boolean; mocks?: FwMockConfig; agentChannel?: AgentChannel; debugController?: DebugController; onEvent?: (event: ExecutionTraceEvent) => void }
 ): Promise<ExecuteWorkflowResult> {
   const resolvedPath = path.resolve(filePath);
   const includeTrace = options?.includeTrace !== false;
@@ -104,13 +105,18 @@ export async function executeWorkflowFromFile(
     const source = fs.readFileSync(resolvedPath, 'utf8');
     const allWorkflows = getAvailableWorkflows(source);
 
-    // Compile each workflow in-place so all function bodies are generated
+    // Compile each workflow in-place so all function bodies are generated.
+    // Debug controller requires dev mode (production: false) so that
+    // __ctrl__.beforeNode/afterNode hooks are emitted in generated code.
+    const production = options?.debugController
+      ? false
+      : (options?.production ?? !includeTrace);
     for (const wf of allWorkflows) {
       await compileWorkflow(tmpTsFile, {
         write: true,
         inPlace: true,
         parse: { workflowName: wf.functionName },
-        generate: { production: options?.production ?? !includeTrace },
+        generate: { production },
       });
     }
 
@@ -163,6 +169,11 @@ export async function executeWorkflowFromFile(
       (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ = options.agentChannel;
     }
 
+    // Set debug controller for step-through debugging and checkpoint/resume
+    if (options?.debugController) {
+      (globalThis as unknown as Record<string, unknown>).__fw_debug_controller__ = options.debugController;
+    }
+
     // Dynamic import using file:// URL for cross-platform compatibility
     // (Windows paths like C:\... break with bare import() — "Received protocol 'c:'")
     const mod = await import(pathToFileURL(tmpFile).href);
@@ -204,6 +215,7 @@ export async function executeWorkflowFromFile(
     delete (globalThis as unknown as Record<string, unknown>).__fw_mocks__;
     delete (globalThis as unknown as Record<string, unknown>).__fw_workflow_registry__;
     delete (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__;
+    delete (globalThis as unknown as Record<string, unknown>).__fw_debug_controller__;
     // Clean up temp files
     try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
     try { fs.unlinkSync(tmpTsFile); } catch { /* ignore */ }

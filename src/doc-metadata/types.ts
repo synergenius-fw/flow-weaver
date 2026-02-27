@@ -49,7 +49,7 @@ export interface TMcpToolDoc {
   /** Human-readable description */
   description: string;
   /** Category for grouping */
-  category: 'query' | 'template' | 'pattern' | 'modify' | 'editor' | 'execution';
+  category: 'query' | 'template' | 'pattern' | 'modify' | 'editor' | 'execution' | 'debug';
   /** Tool parameters */
   params: TMcpToolParam[];
 }

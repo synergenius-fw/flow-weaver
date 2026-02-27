@@ -8,6 +8,10 @@ import * as readline from 'readline';
 import { executeWorkflowFromFile } from '../../mcp/workflow-executor.js';
 import type { ExecuteWorkflowResult, ExecutionTraceEvent } from '../../mcp/workflow-executor.js';
 import { AgentChannel } from '../../mcp/agent-channel.js';
+import { DebugController } from '../../runtime/debug-controller.js';
+import type { DebugPauseState } from '../../runtime/debug-controller.js';
+import { CheckpointWriter, loadCheckpoint, findLatestCheckpoint } from '../../runtime/checkpoint.js';
+import { getTopologicalOrder } from '../../api/query.js';
 import { logger } from '../utils/logger.js';
 import { getFriendlyError } from '../../friendly-errors.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
@@ -35,6 +39,14 @@ export interface RunOptions {
   mocks?: string;
   /** Path to JSON file containing mock config for built-in nodes */
   mocksFile?: string;
+  /** Start in step-through debug mode */
+  debug?: boolean;
+  /** Enable checkpointing to disk after each node */
+  checkpoint?: boolean;
+  /** Resume from a checkpoint file (true for auto-detect, or a file path) */
+  resume?: boolean | string;
+  /** Initial breakpoint node IDs */
+  breakpoint?: string[];
 }
 
 /**
@@ -131,6 +143,59 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
   }
 
   try {
+    // Handle --resume: load checkpoint and set up skip nodes
+    let resumeSkipNodes: Map<string, Record<string, unknown>> | undefined;
+    let resumeCheckpointPath: string | undefined;
+    let resumeParams: Record<string, unknown> | undefined;
+    let resumeWorkflowName: string | undefined;
+    let resumeExecutionOrder: string[] | undefined;
+    let resumeRerunNodes: string[] | undefined;
+    let resumeStale = false;
+
+    if (options.resume) {
+      const checkpointPath =
+        typeof options.resume === 'string'
+          ? options.resume
+          : findLatestCheckpoint(filePath, options.workflow);
+
+      if (!checkpointPath) {
+        throw new Error(
+          `No checkpoint file found for ${filePath}. ` +
+          'Checkpoints are created when running with --checkpoint.'
+        );
+      }
+
+      const { data, stale, rerunNodes, skipNodes } = loadCheckpoint(
+        checkpointPath,
+        filePath
+      );
+
+      resumeSkipNodes = skipNodes;
+      resumeCheckpointPath = checkpointPath;
+      resumeParams = data.params;
+      resumeWorkflowName = data.workflowName;
+      resumeExecutionOrder = data.executionOrder;
+      resumeRerunNodes = rerunNodes;
+      resumeStale = stale;
+
+      // Use checkpoint params if none provided
+      if (Object.keys(params).length === 0) {
+        params = data.params;
+      }
+
+      if (!options.json) {
+        const skipped = data.completedNodes.length - rerunNodes.length;
+        logger.info(`Resuming from checkpoint: ${checkpointPath}`);
+        logger.info(`Skipping ${skipped} completed nodes`);
+        if (rerunNodes.length > 0) {
+          logger.info(`Re-running ${rerunNodes.length} nodes: ${rerunNodes.join(', ')}`);
+        }
+        if (stale) {
+          logger.warn('Workflow file has changed since checkpoint was written.');
+        }
+      }
+    }
+
     // Determine trace inclusion:
     // - If --production is set, no trace (unless --trace explicitly set)
     // - If --trace is set, include trace
@@ -139,6 +204,45 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
 
     if (!options.json && mocks) {
       logger.info('Running with mock data');
+    }
+
+    // Set up debug controller if --debug, --checkpoint, or --resume
+    const useDebug = options.debug || options.checkpoint || options.resume;
+    let debugController: DebugController | undefined;
+
+    if (useDebug) {
+      // Get execution order for the controller
+      let executionOrder = resumeExecutionOrder;
+      if (!executionOrder) {
+        const source = fs.readFileSync(filePath, 'utf8');
+        const parsed = await parseWorkflow(source, { workflowName: options.workflow });
+        if (parsed.errors.length === 0) {
+          executionOrder = getTopologicalOrder(parsed.ast);
+        } else {
+          executionOrder = [];
+        }
+      }
+
+      // Set up checkpoint writer
+      let checkpointWriter: CheckpointWriter | undefined;
+      if (options.checkpoint || options.resume) {
+        const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        checkpointWriter = new CheckpointWriter(
+          filePath,
+          resumeWorkflowName ?? options.workflow ?? 'default',
+          runId,
+          params
+        );
+      }
+
+      debugController = new DebugController({
+        debug: options.debug ?? false,
+        checkpoint: !!(options.checkpoint || options.resume),
+        checkpointWriter,
+        breakpoints: options.breakpoint,
+        executionOrder,
+        skipNodes: resumeSkipNodes,
+      });
     }
 
     // Build onEvent callback for real-time streaming
@@ -170,27 +274,65 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
 
     const channel = new AgentChannel();
     const execPromise = executeWorkflowFromFile(filePath, params, {
-      workflowName: options.workflow,
+      workflowName: resumeWorkflowName ?? options.workflow,
       production: options.production ?? false,
       includeTrace,
       mocks,
       agentChannel: channel,
+      debugController,
       onEvent,
     });
+
+    // If debug mode is active and interactive, enter the debug REPL
+    if (options.debug && debugController && process.stdin.isTTY) {
+      const debugResult = await runDebugRepl(debugController, execPromise, channel, options);
+      if (timedOut) return;
+
+      if (options.json) {
+        process.stdout.write(
+          JSON.stringify({
+            success: true,
+            result: debugResult,
+            ...(resumeCheckpointPath && { resumedFrom: resumeCheckpointPath }),
+            ...(resumeRerunNodes && resumeRerunNodes.length > 0 && { rerunNodes: resumeRerunNodes }),
+            ...(resumeStale && { warning: 'Workflow changed since checkpoint.' }),
+          }, null, 2) + '\n'
+        );
+      } else {
+        logger.success('Debug session completed');
+        logger.newline();
+        logger.section('Result');
+        logger.log(JSON.stringify(debugResult, null, 2));
+      }
+      return;
+    }
 
     let result!: ExecuteWorkflowResult;
     let execDone = false;
 
     // Race loop: detect pauses, prompt user, resume
     while (!execDone) {
-      const raceResult = await Promise.race([
+      const promises: Promise<{ type: string; result?: ExecuteWorkflowResult; request?: object; state?: DebugPauseState }>[] = [
         execPromise.then((r) => ({ type: 'completed' as const, result: r })),
-        channel.onPause().then((req) => ({ type: 'paused' as const, request: req })),
-      ]);
+        channel.onPause().then((req) => ({ type: 'agent_paused' as const, request: req })),
+      ];
+
+      // Also race against debug controller pause if present (non-interactive checkpoint mode)
+      if (debugController) {
+        promises.push(
+          debugController.onPause().then((state) => ({ type: 'debug_paused' as const, state }))
+        );
+      }
+
+      const raceResult = await Promise.race(promises);
 
       if (raceResult.type === 'completed') {
-        result = raceResult.result;
+        result = raceResult.result!;
         execDone = true;
+      } else if (raceResult.type === 'debug_paused') {
+        // Non-interactive debug mode (checkpoint only, no --debug flag):
+        // Auto-continue, the checkpoint was written in afterNode
+        debugController!.resume({ type: 'continue' });
       } else {
         // Workflow paused at waitForAgent
         const request = raceResult.request as { agentId?: string; context?: unknown; prompt?: string };
@@ -239,6 +381,8 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
             executionTime: result.executionTime,
             result: result.result,
             ...(includeTrace && result.trace && { traceCount: result.trace.length }),
+            ...(resumeCheckpointPath && { resumedFrom: resumeCheckpointPath }),
+            ...(resumeRerunNodes && resumeRerunNodes.length > 0 && { rerunNodes: resumeRerunNodes }),
           },
           null,
           2
@@ -352,6 +496,310 @@ export async function validateMockConfig(
   } catch {
     // Parsing failed — skip validation, the execution will report the real error
   }
+}
+
+// ---------------------------------------------------------------------------
+// Interactive debug REPL
+// ---------------------------------------------------------------------------
+
+function printDebugState(state: DebugPauseState): void {
+  const pos = `${state.position + 1}/${state.executionOrder.length}`;
+  logger.log(`\n[paused] ${state.phase}: ${state.currentNodeId} (${pos})`);
+
+  if (state.phase === 'after' && state.currentNodeOutputs) {
+    // Show outputs of the node that just completed
+    for (const [port, value] of Object.entries(state.currentNodeOutputs)) {
+      const valueStr = JSON.stringify(value);
+      const display = valueStr.length > 80 ? valueStr.substring(0, 77) + '...' : valueStr;
+      logger.log(`  ${state.currentNodeId}.${port} = ${display}`);
+    }
+  }
+}
+
+function printDebugHelp(): void {
+  logger.log('Commands:');
+  logger.log('  s, step             Step to next node');
+  logger.log('  c, continue         Run to completion');
+  logger.log('  cb                  Continue to next breakpoint');
+  logger.log('  i, inspect          Show all variables');
+  logger.log('  i <node>            Show variables for a specific node');
+  logger.log('  b <node>            Add breakpoint');
+  logger.log('  rb <node>           Remove breakpoint');
+  logger.log('  bl                  List breakpoints');
+  logger.log('  set <node>.<port> <json>  Modify a variable');
+  logger.log('  q, quit             Abort debug session');
+  logger.log('  h, help             Show this help');
+}
+
+async function runDebugRepl(
+  controller: DebugController,
+  execPromise: Promise<ExecuteWorkflowResult>,
+  agentChannel: AgentChannel,
+  options: RunOptions
+): Promise<unknown> {
+  if (!options.json) {
+    logger.newline();
+    logger.section('Flow Weaver Debug');
+    logger.log('Type "h" for help.');
+  }
+
+  // Wait for the first pause
+  const firstResult = await Promise.race([
+    execPromise.then((r) => ({ type: 'completed' as const, result: r })),
+    controller.onPause().then((state) => ({ type: 'paused' as const, state })),
+  ]);
+
+  if (firstResult.type === 'completed') {
+    return (firstResult.result as ExecuteWorkflowResult).result;
+  }
+
+  let currentState = firstResult.state;
+  printDebugState(currentState);
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+    prompt: '> ',
+  });
+
+  return new Promise<unknown>((resolve, reject) => {
+    let resolved = false;
+
+    function finish(value: unknown): void {
+      if (resolved) return;
+      resolved = true;
+      rl.close();
+      resolve(value);
+    }
+
+    function fail(err: Error): void {
+      if (resolved) return;
+      resolved = true;
+      rl.close();
+      reject(err);
+    }
+
+    async function handleResume(): Promise<void> {
+      const raceResult = await Promise.race([
+        execPromise.then((r) => ({ type: 'completed' as const, result: r })),
+        controller.onPause().then((state) => ({ type: 'paused' as const, state })),
+        agentChannel.onPause().then((req) => ({ type: 'agent_paused' as const, request: req })),
+      ]);
+
+      if (raceResult.type === 'completed') {
+        const execResult = raceResult.result as ExecuteWorkflowResult;
+        if (!options.json) {
+          logger.success(`\nWorkflow completed in ${execResult.executionTime}ms`);
+        }
+        finish(execResult.result);
+      } else if (raceResult.type === 'paused') {
+        currentState = raceResult.state;
+        printDebugState(currentState);
+        rl.prompt();
+      } else {
+        // Agent pause during debug: prompt user for agent input
+        const request = raceResult.request as { agentId?: string; prompt?: string };
+        const label = request.prompt || `Agent "${request.agentId}" is requesting input`;
+        logger.log(`\n[waitForAgent] ${label}`);
+        rl.question('Agent response (JSON): ', (answer) => {
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(answer);
+          } catch {
+            parsed = { response: answer };
+          }
+          agentChannel.resume(parsed);
+          // Re-race after agent resume
+          handleResume().catch(fail);
+        });
+      }
+    }
+
+    rl.on('line', async (line) => {
+      const input = line.trim();
+      if (!input) {
+        rl.prompt();
+        return;
+      }
+
+      const parts = input.split(/\s+/);
+      const cmd = parts[0].toLowerCase();
+
+      try {
+        switch (cmd) {
+          case 's':
+          case 'step':
+            controller.resume({ type: 'step' });
+            await handleResume();
+            break;
+
+          case 'c':
+          case 'continue':
+            controller.resume({ type: 'continue' });
+            await handleResume();
+            break;
+
+          case 'cb':
+            controller.resume({ type: 'continueToBreakpoint' });
+            await handleResume();
+            break;
+
+          case 'i':
+          case 'inspect': {
+            const nodeId = parts[1];
+            if (nodeId) {
+              const prefix = `${nodeId}:`;
+              let found = false;
+              for (const [key, value] of Object.entries(currentState.variables)) {
+                if (key.startsWith(prefix)) {
+                  found = true;
+                  const portKey = key.substring(prefix.length);
+                  logger.log(`  ${nodeId}.${portKey} = ${JSON.stringify(value)}`);
+                }
+              }
+              if (!found) {
+                logger.log(`  No variables found for node "${nodeId}"`);
+              }
+            } else {
+              // Group by node
+              const byNode = new Map<string, Record<string, unknown>>();
+              for (const [key, value] of Object.entries(currentState.variables)) {
+                const firstColon = key.indexOf(':');
+                if (firstColon === -1) continue;
+                const node = key.substring(0, firstColon);
+                if (!byNode.has(node)) byNode.set(node, {});
+                byNode.get(node)![key.substring(firstColon + 1)] = value;
+              }
+              for (const [node, vars] of byNode) {
+                logger.log(`  ${node}:`);
+                for (const [port, value] of Object.entries(vars)) {
+                  const valueStr = JSON.stringify(value);
+                  const display = valueStr.length > 60 ? valueStr.substring(0, 57) + '...' : valueStr;
+                  logger.log(`    ${port} = ${display}`);
+                }
+              }
+            }
+            rl.prompt();
+            break;
+          }
+
+          case 'b': {
+            const nodeId = parts[1];
+            if (!nodeId) {
+              logger.log('Usage: b <nodeId>');
+            } else {
+              controller.addBreakpoint(nodeId);
+              logger.log(`Breakpoint added: ${nodeId}`);
+            }
+            rl.prompt();
+            break;
+          }
+
+          case 'rb': {
+            const nodeId = parts[1];
+            if (!nodeId) {
+              logger.log('Usage: rb <nodeId>');
+            } else {
+              controller.removeBreakpoint(nodeId);
+              logger.log(`Breakpoint removed: ${nodeId}`);
+            }
+            rl.prompt();
+            break;
+          }
+
+          case 'bl':
+            logger.log(`Breakpoints: ${controller.getBreakpoints().join(', ') || '(none)'}`);
+            rl.prompt();
+            break;
+
+          case 'set': {
+            // set node.port <json_value>
+            const target = parts[1];
+            const jsonValue = parts.slice(2).join(' ');
+            if (!target || !jsonValue) {
+              logger.log('Usage: set <node>.<port> <json_value>');
+              rl.prompt();
+              break;
+            }
+            const dotIdx = target.indexOf('.');
+            if (dotIdx === -1) {
+              logger.log('Target must be in format: node.port');
+              rl.prompt();
+              break;
+            }
+            const nodeId = target.substring(0, dotIdx);
+            const portName = target.substring(dotIdx + 1);
+            let value: unknown;
+            try {
+              value = JSON.parse(jsonValue);
+            } catch {
+              logger.log(`Invalid JSON value: ${jsonValue}`);
+              rl.prompt();
+              break;
+            }
+            // Find the key in current variables
+            const prefix = `${nodeId}:${portName}:`;
+            let foundKey: string | null = null;
+            let latestIdx = -1;
+            for (const key of Object.keys(currentState.variables)) {
+              if (key.startsWith(prefix)) {
+                const idx = parseInt(key.substring(prefix.length), 10);
+                if (idx > latestIdx) {
+                  latestIdx = idx;
+                  foundKey = key;
+                }
+              }
+            }
+            if (!foundKey) {
+              logger.log(`Variable not found: ${nodeId}.${portName}`);
+              rl.prompt();
+              break;
+            }
+            controller.setVariable(foundKey, value);
+            currentState.variables[foundKey] = value;
+            logger.log(`Set ${nodeId}.${portName} = ${JSON.stringify(value)}`);
+            rl.prompt();
+            break;
+          }
+
+          case 'q':
+          case 'quit':
+            controller.resume({ type: 'abort' as never });
+            finish(undefined);
+            break;
+
+          case 'h':
+          case 'help':
+            printDebugHelp();
+            rl.prompt();
+            break;
+
+          default:
+            logger.log(`Unknown command: ${cmd}. Type "h" for help.`);
+            rl.prompt();
+        }
+      } catch (err) {
+        if (!resolved) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes('aborted')) {
+            logger.log('Debug session aborted.');
+            finish(undefined);
+          } else {
+            logger.error(`Error: ${msg}`);
+            rl.prompt();
+          }
+        }
+      }
+    });
+
+    rl.on('close', () => {
+      if (!resolved) {
+        finish(undefined);
+      }
+    });
+
+    rl.prompt();
+  });
 }
 
 function promptForInput(question: string): Promise<string> {

@@ -232,7 +232,9 @@ export function chainWorkflow(
 `
     );
 
-    const code = await generator.generate(workflowFile, 'chainWorkflow');
+    // Use production mode to test clean code formatting (dev mode hoists
+    // const declarations to let for debug hook scoping).
+    const code = await generator.generate(workflowFile, 'chainWorkflow', { production: true });
 
     // Should have index variables for each node
     expect(code).toMatch(/const\s+aIdx\s*=/);

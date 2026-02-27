@@ -1,7 +1,7 @@
 ---
 name: Flow Weaver Debugging
 description: Debugging workflows, validation, diagnostics, and error resolution
-keywords: [debug, troubleshooting, errors, WebSocket, diagnostics, runtime, validation, trace]
+keywords: [debug, troubleshooting, errors, WebSocket, diagnostics, runtime, validation, trace, step-through, checkpoint, resume, breakpoint, crash-recovery, REPL]
 ---
 
 # Flow Weaver Debugging Guide
@@ -267,6 +267,153 @@ Use `--timeout <ms>` as a safeguard when running workflows that may block on unr
 
 See `built-in-nodes` for full documentation on mock configuration and testing patterns.
 
+## Step-Through Debugging
+
+Flow Weaver supports pausing execution at node boundaries, inspecting all variable values, modifying them, and stepping through the workflow one node at a time. This works from both the CLI (interactive REPL) and MCP tools (for LLM-driven debugging).
+
+The debug system intercepts execution at two points per node: before it runs (where you can inspect inputs and decide whether to proceed) and after it completes (where you can see its outputs before continuing to the next node).
+
+### CLI Debug Mode
+
+```bash
+flow-weaver run workflow.ts --debug --params '{"x": 5}'
+```
+
+This starts an interactive debug REPL. The workflow pauses before the first node and waits for your command:
+
+```
+Flow Weaver Debug
+Type "h" for help.
+
+[paused] before: validate (1/5)
+> s
+
+  validate.isValid = true
+
+[paused] before: compute (2/5)
+> i validate
+  validate:
+    isValid:0 = true
+
+> set validate.isValid false
+Set validate.isValid = false
+
+> s
+```
+
+Debug REPL commands:
+
+| Command | Description |
+|---------|-------------|
+| `s`, `step` | Execute the next node, then pause |
+| `c`, `continue` | Run to completion |
+| `cb` | Run until the next breakpoint |
+| `i`, `inspect` | Show all variables grouped by node |
+| `i <node>` | Show variables for a specific node |
+| `b <node>` | Add a breakpoint |
+| `rb <node>` | Remove a breakpoint |
+| `bl` | List all breakpoints |
+| `set <node>.<port> <json>` | Modify a variable value |
+| `q`, `quit` | Abort the debug session |
+| `h`, `help` | Show command help |
+
+You can set breakpoints at startup with `--breakpoint`:
+
+```bash
+flow-weaver run workflow.ts --debug --breakpoint processData --breakpoint formatOutput
+```
+
+### MCP Debug Tools
+
+For LLM-driven debugging via MCP, use these tools:
+
+**`fw_debug_workflow`** starts a debug session. Pass the file path and optional parameters, breakpoints, and checkpoint flag. Returns a `debugId` and the initial pause state with all variable values, execution order, and current position.
+
+**`fw_debug_step`** advances one node. Returns the updated state after the node completes.
+
+**`fw_debug_continue`** runs to completion or to the next breakpoint (with `toBreakpoint: true`).
+
+**`fw_debug_inspect`** reads the current state without advancing execution. Optionally filter to a specific node's variables.
+
+**`fw_debug_set_variable`** modifies a variable value. Takes `nodeId`, `portName`, and the new `value`. The change takes effect when the next node executes.
+
+**`fw_debug_breakpoint`** adds, removes, or lists breakpoints.
+
+**`fw_list_debug_sessions`** shows all active debug sessions.
+
+Example MCP sequence:
+
+```
+1. fw_debug_workflow(filePath: "workflow.ts", params: { x: 5 })
+   → { debugId: "debug-...", status: "paused", state: { currentNodeId: "validate", ... } }
+
+2. fw_debug_step(debugId: "debug-...")
+   → { status: "paused", state: { currentNodeId: "compute", variables: { "validate:isValid:0": true } } }
+
+3. fw_debug_set_variable(debugId: "debug-...", nodeId: "validate", portName: "isValid", value: false)
+   → { modified: "validate:isValid:0" }
+
+4. fw_debug_continue(debugId: "debug-...")
+   → { status: "completed", result: { ... } }
+```
+
+---
+
+## Checkpoint/Resume (Crash Recovery)
+
+Checkpointing writes workflow state to disk after each node completes. If the process crashes mid-execution, the checkpoint file persists and can resume the workflow from the last completed node, skipping work that was already done.
+
+### Enabling Checkpoints
+
+```bash
+flow-weaver run workflow.ts --checkpoint --params '{"data": "large-dataset"}'
+```
+
+This creates a `.fw-checkpoints/` directory next to the workflow file containing one JSON file per run. The file is automatically deleted after successful completion, so you'll only see them after a crash.
+
+### Resuming from a Checkpoint
+
+```bash
+# Auto-detect the most recent checkpoint
+flow-weaver run workflow.ts --resume
+
+# Specify a checkpoint file
+flow-weaver run workflow.ts --resume .fw-checkpoints/myWorkflow-run-123.json
+
+# Resume in debug mode (step through from the resume point)
+flow-weaver run workflow.ts --resume --debug
+```
+
+Via MCP: `fw_resume_from_checkpoint(filePath: "workflow.ts")`.
+
+### How It Works
+
+After each node completes, the checkpoint writer serializes the execution context (all variable values, execution indices, and completion state) to a JSON file. On resume, the controller walks the topological execution order and skips nodes that have serialized outputs, restoring their values directly into the context.
+
+If the workflow file has changed since the checkpoint was written (detected via SHA-256 hash), a warning is shown but execution proceeds.
+
+### Handling Non-Serializable Values
+
+Not all values can survive serialization. Function values are invoked to get their concrete results. Promises and objects with circular references get marked as unserializable. When a checkpoint has unserializable outputs for a node, that node and all its downstream dependents are re-executed instead of being skipped.
+
+On resume, the tool reports what happened:
+
+```
+Resuming from checkpoint: .fw-checkpoints/pipeline-run-abc.json
+Skipping 5 completed nodes
+Re-running 2 nodes: processImage, formatOutput
+```
+
+### Checkpoint File Location
+
+Checkpoints live in `.fw-checkpoints/` next to the workflow file. Add this to `.gitignore`:
+
+```
+.fw-checkpoints/
+```
+
+---
+
 ## Dev Mode
 
 Use `flow-weaver dev` to watch, compile, and run in a single command:
@@ -281,10 +428,10 @@ This recompiles and re-runs automatically on every file save.
 
 ## Related Topics
 
-- `error-codes` — Error code reference with fixes
-- `built-in-nodes` — Mock system for delay, waitForEvent, invokeWorkflow
-- `cli-reference` — All CLI commands and flags
-- `advanced-annotations` — Pull execution, merge strategies, and other advanced features
+- `error-codes` -- Error code reference with fixes
+- `built-in-nodes` -- Mock system for delay, waitForEvent, invokeWorkflow
+- `cli-reference` -- All CLI commands and flags
+- `advanced-annotations` -- Pull execution, merge strategies, and other advanced features
 
 ## Still Stuck?
 

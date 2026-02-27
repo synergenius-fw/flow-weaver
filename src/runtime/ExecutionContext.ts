@@ -312,4 +312,60 @@ export class GeneratedExecutionContext {
       });
     }
   }
+
+  /**
+   * Serialize the execution context state for checkpointing.
+   * Function values are resolved to concrete values before serialization.
+   */
+  serialize(): {
+    variables: Record<string, unknown>;
+    executions: Record<string, ExecutionInfo>;
+    executionCounter: number;
+    nodeExecutionCounts: Record<string, number>;
+  } {
+    const vars: Record<string, unknown> = {};
+    for (const [key, value] of this.variables) {
+      if (typeof value === 'function') {
+        try {
+          vars[key] = (value as () => unknown)();
+        } catch {
+          vars[key] = value; // Let the checkpoint layer handle the marker
+        }
+      } else {
+        vars[key] = value;
+      }
+    }
+
+    const execs: Record<string, ExecutionInfo> = {};
+    for (const [key, info] of this.executions) {
+      execs[key] = { ...info };
+    }
+
+    const nodeCounts: Record<string, number> = {};
+    for (const [key, count] of this.nodeExecutionIndices) {
+      nodeCounts[key] = count;
+    }
+
+    return {
+      variables: vars,
+      executions: execs,
+      executionCounter: this.executionCounter,
+      nodeExecutionCounts: nodeCounts,
+    };
+  }
+
+  /**
+   * Restore execution context state from a checkpoint.
+   */
+  restore(data: {
+    variables: Record<string, unknown>;
+    executions: Record<string, ExecutionInfo>;
+    executionCounter: number;
+    nodeExecutionCounts: Record<string, number>;
+  }): void {
+    this.variables = new Map(Object.entries(data.variables));
+    this.executions = new Map(Object.entries(data.executions));
+    this.executionCounter = data.executionCounter;
+    this.nodeExecutionIndices = new Map(Object.entries(data.nodeExecutionCounts));
+  }
 }

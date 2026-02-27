@@ -13,6 +13,7 @@ import { registerMarketplaceTools } from './tools-marketplace.js';
 import { registerDiagramTools } from './tools-diagram.js';
 import { registerDocsTools } from './tools-docs.js';
 import { registerModelTools } from './tools-model.js';
+import { registerDebugTools } from './tools-debug.js';
 import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
 
@@ -80,6 +81,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   registerDiagramTools(mcp);
   registerDocsTools(mcp);
   registerModelTools(mcp);
+  registerDebugTools(mcp);
   registerResources(mcp, connection, buffer);
   registerPrompts(mcp);
 

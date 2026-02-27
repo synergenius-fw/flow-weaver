@@ -189,17 +189,18 @@ export function generateInPlace(
   // If any node is async, force async (even if source isn't marked async)
   const nodesRequireAsync = shouldWorkflowBeAsync(ast, ast.nodeTypes);
   const sourceIsAsync = detectFunctionIsAsync(result, ast.functionName);
-  const isAsync = nodesRequireAsync || sourceIsAsync;
+  const forceAsync = nodesRequireAsync;
+  const isAsync = forceAsync || sourceIsAsync;
 
-  // Add async keyword to source if nodes require it but source doesn't have it
-  const asyncSigResult = ensureAsyncKeyword(result, ast.functionName, nodesRequireAsync);
+  // Add async keyword to source if nodes or debug hooks require it
+  const asyncSigResult = ensureAsyncKeyword(result, ast.functionName, forceAsync);
   if (asyncSigResult.changed) {
     result = asyncSigResult.code;
     hasChanges = true;
   }
 
   // Step 5b: Wrap return type in Promise<T> when async was added
-  const returnTypeResult = ensurePromiseReturnType(result, ast.functionName, nodesRequireAsync);
+  const returnTypeResult = ensurePromiseReturnType(result, ast.functionName, forceAsync);
   if (returnTypeResult.changed) {
     result = returnTypeResult.code;
     hasChanges = true;
