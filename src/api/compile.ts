@@ -1,10 +1,8 @@
 import * as fs from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import type { TCompileResult as ASTCompileResult } from '../ast/types';
 
-const require = createRequire(import.meta.url);
-const { version: COMPILER_VERSION } = require('../../package.json');
+import { VERSION as COMPILER_VERSION } from '../generated-version';
 import { type GenerateOptions, generateCode } from './generate';
 import { type InPlaceGenerateOptions, generateInPlace } from './generate-in-place';
 import { type ParseOptions, parseWorkflow } from './parse';
