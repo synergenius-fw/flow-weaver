@@ -1,4 +1,24 @@
 import { getGeneratedBranding } from '../generated-branding.js';
+import { transformSync } from 'esbuild';
+
+export type TOutputFormat = 'typescript' | 'javascript';
+
+/**
+ * Strip TypeScript type syntax from code using esbuild.
+ * Removes type declarations, interfaces, declare statements, and type annotations
+ * while preserving runtime JavaScript code.
+ */
+export function stripTypeScript(code: string): string {
+  const result = transformSync(code, {
+    loader: 'ts',
+    target: 'es2020',
+    // Keep the code readable (no minification)
+    minify: false,
+    // Preserve formatting as much as possible
+    keepNames: true,
+  });
+  return result.code;
+}
 
 /**
  * Generates inline runtime code for standalone execution
@@ -8,8 +28,9 @@ import { getGeneratedBranding } from '../generated-branding.js';
  *
  * @param production - Whether to generate production-optimized code (no debug events)
  * @param exportClasses - Whether to add 'export' keyword to classes (for shared modules)
+ * @param outputFormat - Output format: 'typescript' (default) or 'javascript' (strips types)
  */
-export function generateInlineRuntime(production: boolean, exportClasses: boolean = false): string {
+export function generateInlineRuntime(production: boolean, exportClasses: boolean = false, outputFormat: TOutputFormat = 'typescript'): string {
   const exportKeyword = exportClasses ? 'export ' : '';
   const lines: string[] = [];
 
@@ -502,7 +523,11 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   lines.push('}');
   lines.push('');
 
-  return lines.join('\n');
+  const output = lines.join('\n');
+  if (outputFormat === 'javascript') {
+    return stripTypeScript(output);
+  }
+  return output;
 }
 
 import type { TModuleFormat } from '../ast/types';
@@ -512,8 +537,9 @@ import type { TModuleFormat } from '../ast/types';
  * Only included in development mode builds
  *
  * @param moduleFormat - The module format to use for imports ('esm' or 'cjs')
+ * @param outputFormat - Output format: 'typescript' (default) or 'javascript' (strips types)
  */
-export function generateInlineDebugClient(moduleFormat: TModuleFormat = 'esm'): string {
+export function generateInlineDebugClient(moduleFormat: TModuleFormat = 'esm', outputFormat: TOutputFormat = 'typescript'): string {
   const lines: string[] = [];
 
   lines.push('// ============================================================================');
@@ -593,7 +619,11 @@ export function generateInlineDebugClient(moduleFormat: TModuleFormat = 'esm'): 
   lines.push('/* eslint-enable @typescript-eslint/no-explicit-any, no-console */');
   lines.push('');
 
-  return lines.join('\n');
+  const output = lines.join('\n');
+  if (outputFormat === 'javascript') {
+    return stripTypeScript(output);
+  }
+  return output;
 }
 
 /**
