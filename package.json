@@ -83,6 +83,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "prebuild": "tsx scripts/generate-version.ts",
     "build": "rimraf dist .tsbuildinfo && tsc -p tsconfig.build.json && npm run build:cli",
     "postbuild": "npx tsx scripts/postbuild.ts && npm run generate:docs",
     "generate:docs": "tsx scripts/generate-docs.ts",
