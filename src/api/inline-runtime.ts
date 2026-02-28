@@ -1,5 +1,4 @@
 import { getGeneratedBranding } from '../generated-branding.js';
-import { transformSync } from 'esbuild';
 
 export type TOutputFormat = 'typescript' | 'javascript';
 
@@ -7,8 +6,11 @@ export type TOutputFormat = 'typescript' | 'javascript';
  * Strip TypeScript type syntax from code using esbuild.
  * Removes type declarations, interfaces, declare statements, and type annotations
  * while preserving runtime JavaScript code.
+ * Uses a lazy import so esbuild is only loaded when actually needed.
  */
 export function stripTypeScript(code: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { transformSync } = require('esbuild') as typeof import('esbuild');
   const result = transformSync(code, {
     loader: 'ts',
     target: 'es2020',
