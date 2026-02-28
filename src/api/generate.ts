@@ -10,7 +10,8 @@ import { extractExitPorts, extractStartPorts, hasBranching } from '../ast/workfl
 import { isExecutePort } from '../constants';
 import { mapToTypeScript } from '../type-mappings';
 import { SourceMapGenerator } from 'source-map';
-import { generateInlineRuntime, generateInlineDebugClient } from './inline-runtime';
+import { generateInlineRuntime, generateInlineDebugClient, stripTypeScript } from './inline-runtime';
+import type { TOutputFormat } from './inline-runtime';
 import { validateWorkflowAsync } from '../generator/async-detection';
 import { extractTypeDeclarationsFromFile } from './extract-types';
 import * as path from 'node:path';
@@ -141,6 +142,7 @@ export function generateCode(
     constants = [],
     externalNodeTypes = {},
     generateStubs = false,
+    outputFormat = 'typescript',
   } = options || {};
 
   // Check for stub nodes — refuse to generate unless explicitly allowed
@@ -619,7 +621,12 @@ export function generateCode(
     addLine();
   }
 
-  const code = lines.join('\n');
+  let code = lines.join('\n');
+
+  // Strip TypeScript syntax when outputFormat is 'javascript'
+  if (outputFormat === 'javascript') {
+    code = stripTypeScript(code);
+  }
 
   // Set source content for the source map
   if (sourceMapGenerator && ast.sourceFile) {
