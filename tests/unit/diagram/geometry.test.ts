@@ -358,8 +358,8 @@ describe('[size: W H] annotation', () => {
     const graph = buildDiagramGraph(ast);
     const node = graph.nodes.find(n => n.id === ast.instances[0].id);
     expect(node).toBeDefined();
-    expect(node!.width).toBeGreaterThanOrEqual(200);
-    expect(node!.height).toBeGreaterThanOrEqual(150);
+    expect(node!.width).toBe(200);
+    expect(node!.height).toBe(150);
   });
 
   it('applies config width/height to a scope parent node', () => {
@@ -374,8 +374,8 @@ describe('[size: W H] annotation', () => {
     const graph = buildDiagramGraph(ast);
     const parentNode = graph.nodes.find(n => n.id === forEachInst!.id);
     expect(parentNode).toBeDefined();
-    expect(parentNode!.width).toBeGreaterThanOrEqual(500);
-    expect(parentNode!.height).toBeGreaterThanOrEqual(300);
+    expect(parentNode!.width).toBe(500);
+    expect(parentNode!.height).toBe(300);
   });
 
   it('applies config width/height to a scope child node', () => {
@@ -392,8 +392,8 @@ describe('[size: W H] annotation', () => {
     expect(parentNode).toBeDefined();
     const child = parentNode!.scopeChildren!.find(c => c.id === 'child1');
     expect(child).toBeDefined();
-    expect(child!.width).toBeGreaterThanOrEqual(150);
-    expect(child!.height).toBeGreaterThanOrEqual(120);
+    expect(child!.width).toBe(150);
+    expect(child!.height).toBe(120);
   });
 
   it('pushes downstream nodes rightward when scope box overlaps them', () => {
