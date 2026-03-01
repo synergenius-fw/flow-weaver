@@ -357,6 +357,8 @@ function buildScopeSubGraph(
 
     const childNode = buildInstanceNode(childId, childInst.nodeType, childInst.config, nodeTypeMap, theme);
     computeNodeDimensions(childNode);
+    if (childInst.config?.width != null) childNode.width = childInst.config.width;
+    if (childInst.config?.height != null) childNode.height = childInst.config.height;
     children.push(childNode);
     childNodeMap.set(childId, childNode);
   }
@@ -776,6 +778,34 @@ function resolveHorizontalOverlaps(
   }
 }
 
+/**
+ * After all positioning, resolve overlaps caused by expanded scope boxes.
+ * Only checks nodes immediately after a scope parent — regular node spacing
+ * is left to the user's explicit positions. When a node falls inside the
+ * expanded scope box, shift it and all further-right nodes to clear.
+ */
+function resolvePostLayoutOverlaps(diagramNodes: Map<string, DiagramNode>): void {
+  const hasScopeParent = [...diagramNodes.values()].some(n => n.scopeChildren && n.scopeChildren.length > 0);
+  if (!hasScopeParent) return;
+
+  const nodes = [...diagramNodes.values()].sort((a, b) => a.x - b.x);
+  for (let i = 1; i < nodes.length; i++) {
+    const prev = nodes[i - 1];
+    const curr = nodes[i];
+
+    // Only resolve overlaps caused by scope parent expansion
+    if (!prev.scopeChildren || prev.scopeChildren.length === 0) continue;
+
+    const actualGap = curr.x - (prev.x + prev.width);
+    if (actualGap < MIN_EDGE_GAP) {
+      const shift = MIN_EDGE_GAP - actualGap;
+      for (let j = i; j < nodes.length; j++) {
+        nodes[j].x += shift;
+      }
+    }
+  }
+}
+
 // ---- Main orchestrator ----
 
 export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {}): DiagramGraph {
@@ -894,6 +924,15 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     buildScopeSubGraph(parentNode, parentNt, scopeName, childIds, ast, nodeTypeMap, themeName);
   }
 
+  // Apply explicit [size: W H] annotation — hard override (not a floor)
+  for (const inst of ast.instances) {
+    if (scopedChildren.has(inst.id)) continue;
+    const node = diagramNodes.get(inst.id);
+    if (!node) continue;
+    if (inst.config?.width != null) node.width = inst.config.width;
+    if (inst.config?.height != null) node.height = inst.config.height;
+  }
+
   // Layout — use explicit positions when available, auto-layout otherwise
   const explicitPositions = extractExplicitPositions(ast);
   const allPositioned = [...diagramNodes.keys()].every(id => explicitPositions.has(id));
@@ -918,6 +957,12 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     assignUnpositionedNodes(layers, diagramNodes, explicitPositions);
     resolveHorizontalOverlaps(diagramNodes, explicitPositions);
   }
+
+  // Resolve overlaps caused by expanded scope boxes. When all positions are
+  // explicit, resolveHorizontalOverlaps is never called (or skips all nodes).
+  // Scope parents can be far wider than the user anticipates, so we cascade
+  // a rightward shift to all downstream nodes that fall inside the expanded box.
+  resolvePostLayoutOverlaps(diagramNodes);
 
   // Compute external port positions
   for (const node of diagramNodes.values()) {
