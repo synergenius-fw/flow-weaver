@@ -1070,13 +1070,21 @@ export class JSDocParser {
       if (paramsParam) {
         const paramType = paramsParam.getType();
         const paramTypeText = paramType.getText();
-        const fieldMatch = paramTypeText.match(new RegExp(`${name}\\s*:\\s*([^;},]+)`));
-        if (fieldMatch) {
-          type = inferDataTypeFromTS(fieldMatch[1].trim());
-        } else {
-          // F: @param doesn't match any field in the params object
-          // G: Type inference fallback to ANY
-          warnings.push(`@param "${name}" does not match any field in the params object. Type defaults to ANY.`);
+        // Skip field-matching for catch-all Record types — @param annotations are intentional metadata
+        const isCatchAllRecord = (
+          /^Record<string,\s*(never|any|unknown)>$/.test(paramTypeText) ||
+          paramTypeText === '{}' ||
+          /^\{\s*\[[\w]+:\s*string\]:\s*(never|any|unknown);\s*\}$/.test(paramTypeText)
+        );
+        if (!isCatchAllRecord) {
+          const fieldMatch = paramTypeText.match(new RegExp(`${name}\\s*:\\s*([^;},]+)`));
+          if (fieldMatch) {
+            type = inferDataTypeFromTS(fieldMatch[1].trim());
+          } else {
+            // F: @param doesn't match any field in the params object
+            // G: Type inference fallback to ANY
+            warnings.push(`@param "${name}" does not match any field in the params object. Type defaults to ANY.`);
+          }
         }
       }
     }
