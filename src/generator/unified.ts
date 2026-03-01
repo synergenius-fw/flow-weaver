@@ -1324,6 +1324,10 @@ function generateBranchingNodeCode(
     indent = `${indent}  `;
   }
 
+  if (!production) {
+    lines.push('');
+    lines.push(`${indent}// ── ${instanceId} (${functionName}) ──`);
+  }
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
   lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
