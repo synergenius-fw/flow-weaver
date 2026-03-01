@@ -357,6 +357,8 @@ function buildScopeSubGraph(
 
     const childNode = buildInstanceNode(childId, childInst.nodeType, childInst.config, nodeTypeMap, theme);
     computeNodeDimensions(childNode);
+    if (childInst.config?.width != null) childNode.width = Math.max(childNode.width, childInst.config.width);
+    if (childInst.config?.height != null) childNode.height = Math.max(childNode.height, childInst.config.height);
     children.push(childNode);
     childNodeMap.set(childId, childNode);
   }
@@ -875,6 +877,15 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
   // Compute base dimensions
   for (const node of diagramNodes.values()) {
     computeNodeDimensions(node);
+  }
+
+  // Apply explicit [size: W H] annotation as minimum dimensions
+  for (const inst of ast.instances) {
+    if (scopedChildren.has(inst.id)) continue;
+    const node = diagramNodes.get(inst.id);
+    if (!node) continue;
+    if (inst.config?.width != null) node.width = Math.max(node.width, inst.config.width);
+    if (inst.config?.height != null) node.height = Math.max(node.height, inst.config.height);
   }
 
   // Build scope sub-graphs (expands parent dimensions)

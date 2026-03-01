@@ -346,3 +346,53 @@ describe('buildDiagramGraph — scoped workflows', () => {
     }
   });
 });
+
+describe('[size: W H] annotation', () => {
+  it('applies config width/height to a regular node', () => {
+    const ast = createSimpleWorkflow();
+    ast.instances[0].config = {
+      ...ast.instances[0].config,
+      width: 200,
+      height: 150,
+    };
+    const graph = buildDiagramGraph(ast);
+    const node = graph.nodes.find(n => n.id === ast.instances[0].id);
+    expect(node).toBeDefined();
+    expect(node!.width).toBeGreaterThanOrEqual(200);
+    expect(node!.height).toBeGreaterThanOrEqual(150);
+  });
+
+  it('applies config width/height to a scope parent node', () => {
+    const ast = createScopedWorkflow();
+    const forEachInst = ast.instances.find(i => i.nodeType === 'forEach');
+    expect(forEachInst).toBeDefined();
+    forEachInst!.config = {
+      ...forEachInst!.config,
+      width: 500,
+      height: 300,
+    };
+    const graph = buildDiagramGraph(ast);
+    const parentNode = graph.nodes.find(n => n.id === forEachInst!.id);
+    expect(parentNode).toBeDefined();
+    expect(parentNode!.width).toBeGreaterThanOrEqual(500);
+    expect(parentNode!.height).toBeGreaterThanOrEqual(300);
+  });
+
+  it('applies config width/height to a scope child node', () => {
+    const ast = createScopedWorkflow();
+    const childInst = ast.instances.find(i => i.id === 'child1');
+    expect(childInst).toBeDefined();
+    childInst!.config = {
+      ...childInst!.config,
+      width: 150,
+      height: 120,
+    };
+    const graph = buildDiagramGraph(ast);
+    const parentNode = graph.nodes.find(n => n.scopeChildren?.some(c => c.id === 'child1'));
+    expect(parentNode).toBeDefined();
+    const child = parentNode!.scopeChildren!.find(c => c.id === 'child1');
+    expect(child).toBeDefined();
+    expect(child!.width).toBeGreaterThanOrEqual(150);
+    expect(child!.height).toBeGreaterThanOrEqual(120);
+  });
+});
