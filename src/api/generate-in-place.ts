@@ -1239,8 +1239,11 @@ function replaceWorkflowJSDoc(
 
   let functionNode: ts.FunctionDeclaration | undefined;
 
-  // Find the workflow function (exported or not)
+  // Find the FIRST workflow function with the matching name.
+  // ts.forEachChild visits all children — we break on first match to avoid
+  // targeting a later duplicate (which corrupts the wrong function's JSDoc).
   ts.forEachChild(sourceFile, (node) => {
+    if (functionNode) return; // already found — skip
     if (ts.isFunctionDeclaration(node) && node.name?.text === ast.functionName) {
       functionNode = node;
     }
