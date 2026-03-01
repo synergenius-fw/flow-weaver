@@ -346,3 +346,75 @@ describe('buildDiagramGraph — scoped workflows', () => {
     }
   });
 });
+
+describe('[size: W H] annotation', () => {
+  it('applies config width/height to a regular node', () => {
+    const ast = createSimpleWorkflow();
+    ast.instances[0].config = {
+      ...ast.instances[0].config,
+      width: 200,
+      height: 150,
+    };
+    const graph = buildDiagramGraph(ast);
+    const node = graph.nodes.find(n => n.id === ast.instances[0].id);
+    expect(node).toBeDefined();
+    expect(node!.width).toBe(200);
+    expect(node!.height).toBe(150);
+  });
+
+  it('applies config width/height to a scope parent node', () => {
+    const ast = createScopedWorkflow();
+    const forEachInst = ast.instances.find(i => i.nodeType === 'forEach');
+    expect(forEachInst).toBeDefined();
+    forEachInst!.config = {
+      ...forEachInst!.config,
+      width: 500,
+      height: 300,
+    };
+    const graph = buildDiagramGraph(ast);
+    const parentNode = graph.nodes.find(n => n.id === forEachInst!.id);
+    expect(parentNode).toBeDefined();
+    expect(parentNode!.width).toBe(500);
+    expect(parentNode!.height).toBe(300);
+  });
+
+  it('applies config width/height to a scope child node', () => {
+    const ast = createScopedWorkflow();
+    const childInst = ast.instances.find(i => i.id === 'child1');
+    expect(childInst).toBeDefined();
+    childInst!.config = {
+      ...childInst!.config,
+      width: 150,
+      height: 120,
+    };
+    const graph = buildDiagramGraph(ast);
+    const parentNode = graph.nodes.find(n => n.scopeChildren?.some(c => c.id === 'child1'));
+    expect(parentNode).toBeDefined();
+    const child = parentNode!.scopeChildren!.find(c => c.id === 'child1');
+    expect(child).toBeDefined();
+    expect(child!.width).toBe(150);
+    expect(child!.height).toBe(120);
+  });
+
+  it('pushes downstream nodes rightward when scope box overlaps them', () => {
+    const ast = createScopedWorkflow();
+    // Give all nodes explicit positions. Place Exit too close — inside
+    // the scope box which expands far beyond the forEach1 explicit x.
+    // Scope computed width: SCOPE_PORT_COLUMN(50) + SCOPE_PADDING_X(140) +
+    //   child(90) + SCOPE_PADDING_X(140) + SCOPE_PORT_COLUMN(50) = 470
+    ast.ui = {
+      startNode: { x: 0, y: 0 },
+      exitNode: { x: 400, y: 0 },  // 200 + 470 = 670, so 400 is inside the scope box
+    };
+    const forEachInst = ast.instances.find(i => i.nodeType === 'forEach');
+    forEachInst!.config = { ...forEachInst!.config, x: 200, y: 0 };
+
+    const graph = buildDiagramGraph(ast);
+    const scopeNode = graph.nodes.find(n => n.id === forEachInst!.id);
+    const exitNode = graph.nodes.find(n => n.id === 'Exit');
+    expect(scopeNode).toBeDefined();
+    expect(exitNode).toBeDefined();
+    // Exit must be pushed past the scope box's right edge
+    expect(exitNode!.x).toBeGreaterThanOrEqual(scopeNode!.x + scopeNode!.width);
+  });
+});
