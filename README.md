@@ -1,4 +1,4 @@
-# @synergenius/flow-weaver
+# Flow Weaver
 
 [![npm version](https://img.shields.io/npm/v/@synergenius/flow-weaver?style=flat)](https://www.npmjs.com/package/@synergenius/flow-weaver)
 [![npm downloads](https://img.shields.io/npm/dw/@synergenius/flow-weaver?style=flat)](https://www.npmjs.com/package/@synergenius/flow-weaver)
@@ -10,33 +10,42 @@
 
 **Build AI agent workflows visually. Ship them as your own code.**
 
-Design agent workflows in the Studio, in TypeScript, or let AI build them for you. Everything compiles to standalone functions you deploy anywhere, no runtime dependency on Flow Weaver.
+Design agent workflows in the Studio, in TypeScript, or let AI build them for you. The compiler validates everything with 20+ rule categories. The output is standalone TypeScript you deploy anywhere, zero runtime dependency on Flow Weaver.
 
-## Three Ways to Build
+[**flowweaver.ai**](https://flowweaver.ai) · [**Open the Studio**](https://flowweaver.ai/studio) · [**Docs**](https://flowweaver.ai/docs) · [**Discord**](https://discord.gg/6Byh3ur2bk) · [**npm**](https://www.npmjs.com/package/@synergenius/flow-weaver)
 
-**Studio.**
-A unified environment that combines a full code editor with a visual graph builder. You can write and refactor workflows directly in code or compose them visually on the canvas. Both representations stay synchronized at all times. Editing either one updates the other instantly, so you can move between abstraction levels without friction.
+---
 
-**TypeScript.**
-Define workflows in plain TypeScript by annotating functions with JSDoc. The compiler derives an executable workflow graph with static typing and compile-time validation.
-There is no YAML, no JSON configuration, and no runtime layer.
-No lock-in. Remove the annotations and you keep a clean, readable TypeScript file with zero dependencies.
+## Try It
 
-**AI Agents.**
-Connect Claude Code, Cursor, or OpenClaw to design and ship workflows. Agents scaffold implementations, run the compiler, interpret validation errors, apply corrections, and repeat the process until the workflow compiles successfully.
-With more than 30 MCP tools available, the entire build loop can run autonomously.
+**In the browser.** Open the [Cloud Studio](https://flowweaver.ai/studio), sign up, and start building. No install required.
 
-1. **Agent creates**: scaffolds from templates, builds from a model, or writes from scratch
-2. **Compiler validates**: 15+ validation passes catch missing connections, type mismatches, unreachable paths
-3. **Agent iterates**: validation errors include fix suggestions, the agent corrects and re-validates
-4. **Agent tests**: deterministic mock providers for reproducible testing without real API calls
-5. **Human reviews**: visual editor or SVG diagram for final approval
-
-## Quick Start
+**From the terminal.**
 
 ```bash
 npm install @synergenius/flow-weaver
+npx flow-weaver init my-project
+cd my-project
+npx flow-weaver run workflows/example.ts --params '{"input": "value"}'
 ```
+
+## How It Works
+
+**Generate.** AI agents build workflows via 48 MCP tools, or you build visually in the Studio, or you write annotated TypeScript by hand. All three stay in sync.
+
+**Validate.** The compiler catches wiring errors, type mismatches, missing handlers, unreachable paths, and agent-specific mistakes before anything runs. Not at runtime, not in production.
+
+**Own.** Compiled output is plain TypeScript with zero imports from Flow Weaver. Clean git diffs, standard testing, no license obligations on the output. If Flow Weaver disappeared tomorrow, your agents would still run.
+
+## Three Ways to Build
+
+**Studio.** A visual IDE that combines a full code editor with a graph builder. Write and refactor workflows in code or compose them on the canvas. Both representations stay synchronized: editing either one updates the other instantly.
+
+**TypeScript.** Define workflows in plain TypeScript by annotating functions with JSDoc. The compiler derives an executable workflow graph with static typing and compile-time validation. No YAML, no JSON configuration, no runtime layer. Remove the annotations and you keep a clean TypeScript file with zero dependencies.
+
+**AI Agents.** Connect Claude Code, Cursor, or OpenClaw and let agents scaffold implementations, run the compiler, interpret validation errors, apply corrections, and iterate until the workflow compiles. Agents then test with deterministic mock providers and generate diagrams for human review.
+
+## Quick Start
 
 Workflows are plain TypeScript. Annotations declare the graph structure:
 
@@ -79,7 +88,7 @@ The compiler fills in the function body while preserving your code outside the g
 
 ## AI-Native Development with MCP
 
-Flow Weaver includes an MCP server for Claude Code, Cursor, OpenClaw, or any MCP-compatible agent:
+Flow Weaver includes an MCP server with 48 tools for Claude Code, Cursor, OpenClaw, or any MCP-compatible agent:
 
 ```bash
 npx flow-weaver mcp-server    # auto-registers with Claude Code
@@ -108,27 +117,20 @@ npx flow-weaver status my-workflow.ts      # shows stub vs implemented progress
 npx flow-weaver implement my-workflow.ts processData   # scaffolds a node body
 ```
 
-The graph is valid before any node has a real implementation. Fill in node bodies incrementally, check `status` to track progress. Architecture and implementation stay separate: the architect defines the shape, developers fill in the logic.
+The graph is valid before any node has a real implementation. Fill in node bodies incrementally, check `status` to track progress. The architect defines the shape, developers fill in the logic.
 
 ## Agent Workflow Templates
 
-Built-in templates for AI agent workflows (LLM reasoning, tool calling, looping):
+Built-in templates for AI agent workflows:
 
 ```bash
-# Scaffold a tool-calling agent with memory and error handling
 npx flow-weaver create workflow ai-agent my-agent.ts --provider openai --model gpt-4o
-
-# ReAct pattern (Thought -> Action -> Observation loop)
 npx flow-weaver create workflow ai-react react-agent.ts
-
-# RAG pipeline (Retrieve -> Augment -> Generate)
 npx flow-weaver create workflow ai-rag rag-pipeline.ts
-
-# Durable agent with per-step retries (compiles to Inngest)
 npx flow-weaver create workflow ai-agent-durable durable-agent.ts
 ```
 
-**12 workflow templates** cover common patterns:
+**12 workflow templates:**
 
 | Template | What it builds |
 |----------|---------------|
@@ -145,9 +147,9 @@ npx flow-weaver create workflow ai-agent-durable durable-agent.ts
 | `webhook` | HTTP event handler |
 | `error-handler` | Error recovery pattern |
 
-**12 node templates** for common node types: `llm-call`, `tool-executor`, `conversation-memory`, `prompt-template`, `json-extractor`, `human-approval`, `agent-router`, `rag-retriever`, `validator`, `transformer`, `http`, `aggregator`.
+Plus **12 node templates** for common building blocks: `llm-call`, `tool-executor`, `conversation-memory`, `prompt-template`, `json-extractor`, `human-approval`, `agent-router`, `rag-retriever`, `validator`, `transformer`, `http`, `aggregator`.
 
-## Agent-Aware Validation
+## Compile-Time Validation
 
 The validator understands AI agent patterns and enforces safety rules:
 
@@ -159,7 +161,7 @@ AGENT_LLM_NO_FALLBACK              LLM failure goes directly to Exit, add retry 
 AGENT_TOOL_NO_OUTPUT_HANDLING      Tool executor outputs are all unconnected, results are discarded
 ```
 
-These aren't generic lint rules. The validator identifies LLM, tool-executor, human-approval, and memory nodes by port signatures, annotations, and naming patterns, then applies agent-specific checks.
+These are not generic lint rules. The validator identifies LLM, tool-executor, human-approval, and memory nodes by port signatures, annotations, and naming patterns, then applies agent-specific checks.
 
 ## Deterministic Agent Testing
 
@@ -185,9 +187,9 @@ const replay = loadRecording('fixtures/agent-session.json');
 
 Mock human approvals, fast-forward delays, and simulate external events. Configured via `globalThis.__fw_mock_config__`.
 
-## Scoped Ports: Agent Loops Without Cycles
+## Scoped Ports: Agent Loops Without Graph Cycles
 
-Most workflow engines either ban loops (DAG-only) or allow arbitrary cycles (hard to reason about). Flow Weaver uses **scoped ports** to express iteration without graph cycles:
+Most workflow engines either ban loops entirely (DAG-only) or allow arbitrary cycles that are hard to reason about. Flow Weaver takes a third path: **scoped ports** express iteration while keeping the graph acyclic and statically analyzable.
 
 ```typescript
 /**
@@ -202,32 +204,9 @@ Most workflow engines either ban loops (DAG-only) or allow arbitrary cycles (har
  */
 ```
 
-The scope's output ports become callback parameters, and input ports become return values. Agent reasoning loops, ForEach over collections, map/reduce patterns, nested sub-workflows: all work while keeping the graph acyclic and statically analyzable.
+The scope's output ports become callback parameters, and input ports become return values. Agent reasoning loops, ForEach over collections, map/reduce patterns, and nested sub-workflows all work without introducing graph cycles.
 
-## Diagram Generation
-
-Generate SVG or interactive HTML diagrams from any workflow:
-
-```bash
-flow-weaver diagram workflow.ts -o workflow.svg --theme dark
-flow-weaver diagram workflow.ts -o workflow.html --format html
-```
-
-Customize node appearance with annotations:
-
-```typescript
-/**
- * @flowWeaver nodeType
- * @color blue
- * @icon database
- */
-```
-
-Named colors: `blue`, `purple`, `green`, `cyan`, `orange`, `pink`, `red`, `yellow`. Icons include `api`, `database`, `shield`, `brain`, `cloud`, `search`, `code`, and 60+ more from Material Design 3.
-
-The interactive HTML viewer supports zoom/pan, click-to-inspect nodes, port-level hover with connection tracing, and works standalone or embedded in an iframe.
-
-## Multi-Target Compilation
+## Deploy Anywhere
 
 Same workflow source, multiple deployment targets:
 
@@ -248,6 +227,27 @@ flow-weaver serve ./workflows --port 3000 --swagger
 ```
 
 Both the default TypeScript target and Inngest target parallelize independent nodes with `Promise.all()`. Inngest additionally wraps each node in `step.run()` for individual durability and generates typed Zod event schemas.
+
+## Diagram Generation
+
+Generate SVG or interactive HTML diagrams from any workflow:
+
+```bash
+flow-weaver diagram workflow.ts -o workflow.svg --theme dark
+flow-weaver diagram workflow.ts -o workflow.html --format html
+```
+
+Customize node appearance with annotations:
+
+```typescript
+/**
+ * @flowWeaver nodeType
+ * @color blue
+ * @icon database
+ */
+```
+
+Named colors: `blue`, `purple`, `green`, `cyan`, `orange`, `pink`, `red`, `yellow`. Icons include `api`, `database`, `shield`, `brain`, `cloud`, `search`, `code`, and 60+ more from Material Design 3. The interactive HTML viewer supports zoom/pan, click-to-inspect nodes, and port-level hover with connection tracing.
 
 ## API
 
@@ -370,18 +370,38 @@ function nodeName(
 
 Expression nodes (`@expression`) skip the control flow boilerplate. Inputs and outputs map directly to the TypeScript signature.
 
-## Testing
+## Flow Weaver Cloud
 
-```bash
-npm test              # Run all tests
-npm run test:watch    # Watch mode
-```
+[flowweaver.ai](https://flowweaver.ai) is the hosted platform that adds collaboration, managed deployments, and team features on top of everything the CLI provides.
+
+What the cloud adds:
+
+- **Browser-based Studio** with real-time collaborative editing
+- **One-click deployment** of any workflow as an HTTP endpoint
+- **Execution logs** for every workflow run, with input/output history
+- **Visual debugger** for step-through node inspection (Pro)
+- **Version history** and workflow snapshots (Pro)
+- **AI Chat assistant** for building and debugging workflows (Pro)
+- **Organization workspaces** with team management (Business)
+
+Three tiers: **Free** (3 workflows, 1 deployment, 100 executions/month), **Pro** at 9 EUR/month (25 workflows, 10k executions), and **Business** at 29 EUR/month (unlimited workflows, 100k executions). See [flowweaver.ai/pricing](https://flowweaver.ai/pricing) for details.
+
+The CLI remains fully functional for local development. The cloud adds the parts that are hard to do alone: team collaboration, always-on endpoints, and operational visibility.
+
+## Community
+
+- [Discord](https://discord.gg/6Byh3ur2bk)
+- [GitHub Discussions](https://github.com/synergenius-fw/flow-weaver/discussions)
+- [X / Twitter](https://x.com/flowweaver_ai)
+- [Website](https://flowweaver.ai)
 
 ## Development
 
 ```bash
 npm run build         # Build
 npm run watch         # Watch mode
+npm test              # Run all tests
+npm run test:watch    # Watch mode
 npm run typecheck     # Type check
 npm run docs          # Generate API docs
 ```
