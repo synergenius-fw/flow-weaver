@@ -3164,4 +3164,89 @@ export async function calculate(execute: boolean, params: { a: number; b: number
       expect(result.code).not.toContain('TDebugger');
     });
   });
+
+  describe('duplicate function names', () => {
+    it('should update the first workflow JSDoc when two functions share the same name', () => {
+      // Regression: replaceWorkflowJSDoc used ts.forEachChild without early exit,
+      // so functionNode was set to the LAST match. Position updates went to the
+      // wrong function's JSDoc, meaning positions never persisted on refresh.
+      const sourceCode = `/**
+ * @flowWeaver nodeType
+ * @label Add
+ * @input a [order:0] - First number
+ * @input b [order:1] - Second number
+ * @output result [order:0] - Sum
+ */
+function add(a: number, b: number): { result: number } {
+  return { result: a + b };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node adder add [position: 100 50]
+ * @position Start 0 0
+ * @position Exit 300 0
+ */
+export function calculate(execute: boolean, params: { a: number; b: number }) {
+  throw new Error('Not compiled');
+}
+
+/**
+ * @flowWeaver workflow
+ * @node adder add [position: 100 50]
+ * @position Start 0 0
+ * @position Exit 300 0
+ */
+export function calculate(execute: boolean, params: { a: number; b: number }) {
+  throw new Error('Duplicate');
+}`;
+
+      // AST represents the FIRST workflow with updated positions
+      const ast: TWorkflowAST = {
+        type: 'Workflow',
+        functionName: 'calculate',
+        name: 'calculate',
+        description: '',
+        sourceFile: 'test.ts',
+        nodeTypes: [createMultiInputNodeType('add', 'add')],
+        instances: [createNodeInstance('adder', 'add', { x: 500, y: 200 })],
+        connections: [
+          { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'adder', port: 'a' } },
+          { type: 'Connection', from: { node: 'Start', port: 'b' }, to: { node: 'adder', port: 'b' } },
+          { type: 'Connection', from: { node: 'adder', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+        ],
+        scopes: {},
+        startPorts: { a: { dataType: 'NUMBER' }, b: { dataType: 'NUMBER' } },
+        exitPorts: { result: { dataType: 'NUMBER' } },
+        imports: [],
+        ui: {
+          startNode: { x: -100, y: 0 },
+          exitNode: { x: 700, y: 0 },
+        },
+      };
+
+      const result = generateInPlace(sourceCode, ast);
+
+      // The FIRST workflow's @node should have updated positions
+      // Find the first workflow's JSDoc block
+      const firstWorkflowJSDocMatch = result.code.match(
+        /\/\*\*[\s\S]*?@flowWeaver workflow[\s\S]*?\*\/\s*\nexport function calculate/
+      );
+      expect(firstWorkflowJSDocMatch).toBeTruthy();
+      const firstJSDoc = firstWorkflowJSDocMatch![0];
+
+      // Positions should reflect the AST (500, 200), not original (100, 50)
+      expect(firstJSDoc).toContain('[position: 500 200]');
+      expect(firstJSDoc).toContain('@position Start -100 0');
+      expect(firstJSDoc).toContain('@position Exit 700 0');
+
+      // The SECOND workflow's JSDoc should be unchanged.
+      // Split at "throw new Error('Not compiled')" to isolate the second half of the file.
+      const secondHalf = result.code.split("throw new Error('Not compiled')")[1];
+      expect(secondHalf).toBeDefined();
+      // Second workflow should still have original positions, not the first workflow's updated ones
+      expect(secondHalf).toContain('[position: 100 50]');
+      expect(secondHalf).not.toContain('[position: 500 200]');
+    });
+  });
 });
