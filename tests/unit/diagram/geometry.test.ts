@@ -395,4 +395,26 @@ describe('[size: W H] annotation', () => {
     expect(child!.width).toBeGreaterThanOrEqual(150);
     expect(child!.height).toBeGreaterThanOrEqual(120);
   });
+
+  it('pushes downstream nodes rightward when scope box overlaps them', () => {
+    const ast = createScopedWorkflow();
+    // Give all nodes explicit positions. Place Exit too close — inside
+    // the scope box which expands far beyond the forEach1 explicit x.
+    // Scope computed width: SCOPE_PORT_COLUMN(50) + SCOPE_PADDING_X(140) +
+    //   child(90) + SCOPE_PADDING_X(140) + SCOPE_PORT_COLUMN(50) = 470
+    ast.ui = {
+      startNode: { x: 0, y: 0 },
+      exitNode: { x: 400, y: 0 },  // 200 + 470 = 670, so 400 is inside the scope box
+    };
+    const forEachInst = ast.instances.find(i => i.nodeType === 'forEach');
+    forEachInst!.config = { ...forEachInst!.config, x: 200, y: 0 };
+
+    const graph = buildDiagramGraph(ast);
+    const scopeNode = graph.nodes.find(n => n.id === forEachInst!.id);
+    const exitNode = graph.nodes.find(n => n.id === 'Exit');
+    expect(scopeNode).toBeDefined();
+    expect(exitNode).toBeDefined();
+    // Exit must be pushed past the scope box's right edge
+    expect(exitNode!.x).toBeGreaterThanOrEqual(scopeNode!.x + scopeNode!.width);
+  });
 });

@@ -778,6 +778,34 @@ function resolveHorizontalOverlaps(
   }
 }
 
+/**
+ * After all positioning, resolve overlaps caused by expanded scope boxes.
+ * Only checks nodes immediately after a scope parent — regular node spacing
+ * is left to the user's explicit positions. When a node falls inside the
+ * expanded scope box, shift it and all further-right nodes to clear.
+ */
+function resolvePostLayoutOverlaps(diagramNodes: Map<string, DiagramNode>): void {
+  const hasScopeParent = [...diagramNodes.values()].some(n => n.scopeChildren && n.scopeChildren.length > 0);
+  if (!hasScopeParent) return;
+
+  const nodes = [...diagramNodes.values()].sort((a, b) => a.x - b.x);
+  for (let i = 1; i < nodes.length; i++) {
+    const prev = nodes[i - 1];
+    const curr = nodes[i];
+
+    // Only resolve overlaps caused by scope parent expansion
+    if (!prev.scopeChildren || prev.scopeChildren.length === 0) continue;
+
+    const actualGap = curr.x - (prev.x + prev.width);
+    if (actualGap < MIN_EDGE_GAP) {
+      const shift = MIN_EDGE_GAP - actualGap;
+      for (let j = i; j < nodes.length; j++) {
+        nodes[j].x += shift;
+      }
+    }
+  }
+}
+
 // ---- Main orchestrator ----
 
 export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {}): DiagramGraph {
@@ -929,6 +957,12 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     assignUnpositionedNodes(layers, diagramNodes, explicitPositions);
     resolveHorizontalOverlaps(diagramNodes, explicitPositions);
   }
+
+  // Resolve overlaps caused by expanded scope boxes. When all positions are
+  // explicit, resolveHorizontalOverlaps is never called (or skips all nodes).
+  // Scope parents can be far wider than the user anticipates, so we cascade
+  // a rightward shift to all downstream nodes that fall inside the expanded box.
+  resolvePostLayoutOverlaps(diagramNodes);
 
   // Compute external port positions
   for (const node of diagramNodes.values()) {
