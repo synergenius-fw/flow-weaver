@@ -141,7 +141,7 @@ npx flow-weaver mcp-server    # auto-registers with Claude Code
 | **Understand** | `fw_describe` (json/text/mermaid), `fw_query` (10 query types), `fw_diff` |
 | **Test** | `fw_execute_workflow` (with trace), `fw_compile` |
 | **Visualize** | `fw_diagram` (SVG/HTML), `fw_get_state`, `fw_focus_node` |
-| **Deploy** | `fw_export` (Lambda, Vercel, Cloudflare, Inngest), `fw_compile --target inngest` |
+| **Deploy** | `fw_export` (Lambda, Vercel, Cloudflare, Inngest, GitHub Actions, GitLab CI — via packs), `fw_compile --target inngest` |
 | **Reuse** | `fw_list_patterns`, `fw_apply_pattern`, `fw_extract_pattern` |
 | **Extend** | `fw_market_search`, `fw_market_install` |
 
@@ -247,7 +247,13 @@ The scope's output ports become callback parameters, and input ports become retu
 
 ## Deploy Anywhere
 
-Same workflow source, multiple deployment targets:
+Same workflow source, multiple deployment targets. Export targets are provided by marketplace packs — install the ones you need:
+
+```bash
+npm install @synergenius/flowweaver-pack-lambda @synergenius/flowweaver-pack-vercel \
+  @synergenius/flowweaver-pack-cloudflare @synergenius/flowweaver-pack-inngest \
+  @synergenius/flowweaver-pack-github-actions @synergenius/flowweaver-pack-gitlab-ci
+```
 
 ```bash
 # Plain TypeScript (default)
@@ -260,6 +266,10 @@ flow-weaver compile workflow.ts --target inngest --retries 3 --cron "0 9 * * *"
 flow-weaver export workflow.ts --target lambda --output deploy/
 flow-weaver export workflow.ts --target vercel --output deploy/
 flow-weaver export workflow.ts --target cloudflare --output deploy/
+
+# CI/CD pipelines
+flow-weaver export workflow.ts --target github-actions --output .github/workflows/
+flow-weaver export workflow.ts --target gitlab-ci --output .
 
 # HTTP server with OpenAPI docs
 flow-weaver serve ./workflows --port 3000 --swagger
@@ -320,7 +330,7 @@ const code = generateCode(ast);
 | `@synergenius/flow-weaver/ast` | AST types and utilities |
 | `@synergenius/flow-weaver/api` | Programmatic workflow manipulation API |
 | `@synergenius/flow-weaver/diff` | Semantic workflow diffing |
-| `@synergenius/flow-weaver/deployment` | Multi-target deployment generators |
+| `@synergenius/flow-weaver/deployment` | Deployment base classes, registry, and CI/CD utilities |
 | `@synergenius/flow-weaver/marketplace` | Marketplace package utilities |
 | `@synergenius/flow-weaver/editor` | Editor completions and suggestions |
 | `@synergenius/flow-weaver/browser` | JSDoc port sync for browser environments |
@@ -354,7 +364,7 @@ flow-weaver grammar                  # Output annotation grammar (EBNF/railroad)
 
 # Deploy
 flow-weaver serve [directory]        # HTTP server with Swagger UI
-flow-weaver export <file>            # Export to Lambda/Vercel/Cloudflare/Inngest
+flow-weaver export <file>            # Export to Lambda/Vercel/Cloudflare/Inngest/GitHub Actions/GitLab CI (via packs)
 flow-weaver openapi <directory>      # Generate OpenAPI spec
 
 # Patterns

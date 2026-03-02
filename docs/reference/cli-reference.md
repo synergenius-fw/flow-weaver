@@ -560,7 +560,7 @@ flow-weaver export <input> [options]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-t, --target <target>` | `lambda`, `vercel`, `cloudflare`, `inngest` **(required)** | — |
+| `-t, --target <target>` | Target from installed packs (e.g. `lambda`, `vercel`, `cloudflare`, `inngest`, `github-actions`, `gitlab-ci`) **(required)** | — |
 | `-o, --output <path>` | Output directory **(required)** | — |
 | `-w, --workflow <name>` | Specific workflow | — |
 | `-p, --production` | Production mode | `true` |
@@ -578,7 +578,7 @@ flow-weaver export workflow.ts --target inngest --output dist/ --durable-steps
 flow-weaver export workflow.ts --target cloudflare --output worker/
 ```
 
-> See also: [Deployment](deployment) for target-specific details.
+> Available targets depend on installed `flowweaver-pack-*` packages. See [Deployment](deployment) for installation instructions and target-specific details.
 
 ---
 
