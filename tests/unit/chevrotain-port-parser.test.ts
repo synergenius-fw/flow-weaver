@@ -293,6 +293,45 @@ describe('Chevrotain Port Parser', () => {
     });
   });
 
+  describe('[hidden] attribute parsing', () => {
+    it('should parse @output with [hidden]', () => {
+      const warnings: string[] = [];
+      const result = parsePortLine('@output onFailure [hidden] - Hidden failure port', warnings);
+      expect(warnings).toEqual([]);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'onFailure',
+        hidden: true,
+        description: 'Hidden failure port',
+      });
+    });
+
+    it('should parse @input with [hidden]', () => {
+      const warnings: string[] = [];
+      const result = parsePortLine('@input secret [hidden] - Internal', warnings);
+      expect(warnings).toEqual([]);
+      expect(result).toEqual({
+        type: 'input',
+        name: 'secret',
+        hidden: true,
+        description: 'Internal',
+      });
+    });
+
+    it('should parse [hidden] with other attributes', () => {
+      const warnings: string[] = [];
+      const result = parsePortLine('@output port [order:1, hidden] - Desc', warnings);
+      expect(warnings).toEqual([]);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'port',
+        order: 1,
+        hidden: true,
+        description: 'Desc',
+      });
+    });
+  });
+
   describe('Edge cases', () => {
     it('should return null for non-port lines', () => {
       expect(parsePortLine('@node myNode type', w)).toBeNull();

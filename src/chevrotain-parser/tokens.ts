@@ -211,6 +211,11 @@ export const MinimizedKeyword = createToken({
   pattern: /minimized\b/,
 });
 
+export const HiddenKeyword = createToken({
+  name: 'HiddenKeyword',
+  pattern: /hidden\b/,
+});
+
 export const SizePrefix = createToken({
   name: 'SizePrefix',
   pattern: /size:/,
@@ -459,6 +464,7 @@ export const allTokens = [
   OverKeyword,
   AsKeyword,
   MinimizedKeyword,
+  HiddenKeyword,
   TopKeyword,
   BottomKeyword,
   TrueKeyword,
