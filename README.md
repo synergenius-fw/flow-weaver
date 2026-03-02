@@ -12,7 +12,46 @@
 
 Design agent workflows in the Studio, in TypeScript, or let AI build them for you. The compiler validates everything with 20+ rule categories. The output is standalone TypeScript you deploy anywhere, zero runtime dependency on Flow Weaver.
 
+*Got an AGENTS.md or runbook? [Convert it to a typed workflow →](https://flowweaver.ai/services/md-converter)*
+
 [**flowweaver.ai**](https://flowweaver.ai) · [**Open the Studio**](https://flowweaver.ai/studio) · [**Docs**](https://flowweaver.ai/docs) · [**Discord**](https://discord.gg/6Byh3ur2bk) · [**npm**](https://www.npmjs.com/package/@synergenius/flow-weaver)
+
+---
+
+## Your AGENTS.md is a workflow waiting to happen
+
+You already wrote the steps, the branching logic, the edge cases. But it's a markdown file. It doesn't run, doesn't validate, and you can't see the full flow at a glance.
+
+**Paste this:**
+
+```markdown
+# Code Review Agent
+
+### 1. Analyze diff
+Send the PR diff to an LLM for security, quality, and style review.
+
+### 2. Classify severity
+Critical (must fix) · Warning (should fix) · Suggestion (nice to have).
+
+### 3. Route
+Critical issues → request changes. Otherwise → approve with comments.
+```
+
+**Get this:**
+
+<a href="https://htmlpreview.github.io/?https://github.com/synergenius-fw/flow-weaver/blob/main/docs/images/code-review-agent.html">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/code-review-agent-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/code-review-agent-light.svg">
+  <img alt="Code Review Agent workflow diagram generated from AGENTS.md" src="docs/images/code-review-agent-dark.svg" width="100%">
+</picture>
+</a>
+
+<sup>Click the diagram to open the interactive version (zoom, pan, inspect nodes).</sup>
+
+The converter extracts the steps and decision points from your markdown and produces typed TypeScript plus a visual diagram. You can run it, test it, deploy it.
+
+[**Try the converter →**](https://flowweaver.ai/services/md-converter) &ensp; Works with AGENTS.md, CLAUDE.md, Cursor rules, runbooks, SOPs, and any process doc.
 
 ---
 
@@ -31,7 +70,7 @@ npx flow-weaver run workflows/example.ts --params '{"input": "value"}'
 
 ## How It Works
 
-**Generate.** AI agents build workflows via 48 MCP tools, or you build visually in the Studio, or you write annotated TypeScript by hand. All three stay in sync.
+**Generate.** Let AI build it for you, design visually in the Studio, or write annotated TypeScript by hand. All three stay in sync.
 
 **Validate.** The compiler catches wiring errors, type mismatches, missing handlers, unreachable paths, and agent-specific mistakes before anything runs. Not at runtime, not in production.
 
@@ -43,7 +82,7 @@ npx flow-weaver run workflows/example.ts --params '{"input": "value"}'
 
 **TypeScript.** Define workflows in plain TypeScript by annotating functions with JSDoc. The compiler derives an executable workflow graph with static typing and compile-time validation. No YAML, no JSON configuration, no runtime layer. Remove the annotations and you keep a clean TypeScript file with zero dependencies.
 
-**AI Agents.** Connect Claude Code, Cursor, or OpenClaw and let agents scaffold implementations, run the compiler, interpret validation errors, apply corrections, and iterate until the workflow compiles. Agents then test with deterministic mock providers and generate diagrams for human review.
+**AI Agents.** Connect Claude Code, Cursor, or OpenClaw and let agents scaffold, compile, fix validation errors, and iterate until the workflow works. Agents can also test with mock AI responses and generate diagrams for review.
 
 ## Quick Start
 

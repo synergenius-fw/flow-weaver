@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>codeReviewAgent — Flow Weaver</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 100vw; height: 100vh; overflow: hidden;
+  font-family: Montserrat, 'Segoe UI', Roboto, sans-serif;
+  color: #e8e8ee;
+}
+
+#canvas {
+  display: block; width: 100%; height: 100%;
+  cursor: grab;
+  touch-action: none; user-select: none;
+}
+#canvas.dragging { cursor: grabbing; }
+
+/* Port labels: hidden by default, shown on node hover */
+.nodes > g .port-label,
+.nodes > g .port-type-label,
+.labels g[data-port-label] {
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.15s ease-in-out;
+}
+
+/* Connection hover & dimming (attribute selector covers both main and scope connections) */
+path[data-source] { transition: opacity 0.2s ease, stroke-width 0.15s ease; }
+path[data-source]:hover { stroke-width: 4; cursor: pointer; }
+body.node-active path[data-source].dimmed,
+body.port-active path[data-source].dimmed { opacity: 0.1; }
+body.port-hovered path[data-source].dimmed { opacity: 0.25; }
+
+/* Port circles are interactive */
+circle[data-port-id] { cursor: pointer; }
+circle[data-port-id]:hover { stroke-width: 3; filter: brightness(1.3); }
+
+/* Port-click highlighting */
+path[data-source].highlighted { opacity: 1; }
+circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); stroke-width: 4; }
+
+/* Node selection glow */
+@keyframes select-pop {
+  0% { opacity: 0; stroke-width: 0; }
+  50% { opacity: 0.6; stroke-width: 12; }
+  100% { opacity: 0.35; stroke-width: 8; }
+}
+.node-glow { fill: none; pointer-events: none; animation: select-pop 0.3s ease-out forwards; }
+
+/* Port hover path highlight */
+path[data-source].port-hover { opacity: 1; }
+
+/* Node hover glow + draggable cursor */
+.nodes g[data-node-id] { cursor: grab; }
+.nodes g[data-node-id]:active { cursor: grabbing; }
+.nodes g[data-node-id]:hover > rect:first-of-type { filter: brightness(1.08); }
+
+/* Zoom controls */
+#controls {
+  position: fixed; bottom: 16px; right: 16px;
+  display: flex; align-items: center; gap: 2px;
+  background: #1a1a2e; border: 1px solid #313143;
+  border-radius: 8px; padding: 4px; z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.ctrl-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border: none; border-radius: 6px;
+  background: transparent; color: #babac0;
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ctrl-btn:hover { background: #313143; color: #e8e8ee; }
+#zoom-label {
+  font-size: 11px; font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #767682; min-width: 36px; text-align: center;
+}
+
+/* Info panel */
+#info-panel {
+  position: fixed; bottom: 52px; left: 16px;
+  max-width: 480px; min-width: 260px;
+  background: #1a1a2e; border: 1px solid #313143;
+  border-radius: 8px; padding: 12px 16px;
+  font-size: 13px; line-height: 1.5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 10; display: none;
+  max-height: calc(100vh - 120px); overflow-y: auto;
+}
+#info-panel.visible { display: block; }
+#info-panel h3 {
+  font-size: 14px; font-weight: 700; margin: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#info-panel .node-desc { color: #babac0; font-size: 12px; margin-bottom: 8px; font-style: italic; }
+#info-panel .info-section { margin-bottom: 6px; }
+#info-panel .info-label { font-size: 11px; font-weight: 600; color: #767682; text-transform: uppercase; letter-spacing: 0.5px; }
+#info-panel .info-value { color: #babac0; }
+#info-panel .port-list { list-style: none; padding: 0; }
+#info-panel .port-list li { padding: 1px 0; }
+#info-panel .port-list li::before { content: '\2022'; margin-right: 6px; color: #767682; }
+#info-panel .port-type { color: #767682; font-size: 11px; margin-left: 4px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+#info-panel pre {
+  background: #161625; border: 1px solid #313143;
+  border-radius: 6px; padding: 10px; overflow-x: auto;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px; line-height: 1.6; white-space: pre;
+  max-height: 300px; overflow-y: auto; margin: 6px 0 0;
+  color: #e6edf3;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(142,158,255,0.25); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(142,158,255,0.45); }
+::-webkit-scrollbar-corner { background: transparent; }
+* { scrollbar-width: thin; scrollbar-color: rgba(142,158,255,0.25) transparent; }
+
+/* Info panel header */
+#info-header {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+}
+#info-header h3 { flex: 1; margin-bottom: 0; }
+.panel-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border: none; border-radius: 4px;
+  background: transparent; color: #767682;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.panel-btn:hover { background: #313143; color: #e8e8ee; }
+
+/* Info panel transitions */
+#info-panel {
+  transition: left 0.3s cubic-bezier(0.4,0,0.2,1), bottom 0.3s cubic-bezier(0.4,0,0.2,1),
+              width 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1),
+              max-width 0.3s cubic-bezier(0.4,0,0.2,1), max-height 0.3s cubic-bezier(0.4,0,0.2,1),
+              min-width 0.3s cubic-bezier(0.4,0,0.2,1), border-radius 0.3s cubic-bezier(0.4,0,0.2,1),
+              opacity 0.2s ease, transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  transform: translateY(8px); opacity: 0;
+}
+#info-panel.visible { transform: translateY(0); opacity: 1; }
+#info-panel.fullscreen {
+  left: 16px; bottom: 16px; top: 16px; right: 16px;
+  max-width: none; min-width: 0; width: auto; max-height: none;
+  border-radius: 12px;
+}
+#info-panel.fullscreen pre { max-height: none; }
+.hl-kw { color: #8e9eff; }
+.hl-str { color: #ff7b72; }
+.hl-num { color: #f0a050; }
+.hl-cm { color: #6a737d; font-style: italic; }
+.hl-fn { color: #d2a8ff; }
+.hl-ty { color: #d2a8ff; }
+.hl-pn { color: #b8bdd0; }
+.hl-ann { color: #8e9eff; font-weight: 600; font-style: normal; }
+.hl-arr { color: #79c0ff; font-weight: 600; font-style: normal; }
+.hl-id { color: #e6edf3; font-style: normal; }
+.hl-sc { color: #d2a8ff; font-style: italic; }
+
+/* Branding badge */
+#branding {
+  position: fixed; bottom: 16px; left: 16px;
+  display: flex; align-items: center; gap: 6px;
+  background: #1a1a2e; border: 1px solid #313143;
+  border-radius: 8px; padding: 6px 12px;
+  font-size: 12px; font-weight: 600; color: #babac0;
+  text-decoration: none; z-index: 9;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: color 0.15s, border-color 0.15s;
+}
+#branding:hover { color: #e8e8ee; border-color: #767682; }
+
+/* Scroll hint */
+#scroll-hint {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.75); color: #fff;
+  padding: 6px 14px; border-radius: 8px;
+  font-size: 13px; pointer-events: none;
+  z-index: 20; opacity: 0; transition: opacity 0.3s;
+}
+#scroll-hint.visible { opacity: 1; }
+#scroll-hint kbd {
+  display: inline-block; padding: 1px 5px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 3px; font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px; background: rgba(255,255,255,0.1);
+}
+
+/* Studio nudge toast */
+#studio-hint {
+  position: fixed; bottom: 60px; left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a2e; border: 1px solid #313143;
+  padding: 8px 16px; border-radius: 8px;
+  font-size: 13px; color: #babac0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 20; opacity: 0; transition: opacity 0.4s;
+  pointer-events: none;
+}
+#studio-hint.visible { opacity: 1; pointer-events: auto; }
+#studio-hint a { color: #8e9eff; text-decoration: none; font-weight: 600; }
+#studio-hint a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<svg id="canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3041.790000000001 436">
+  <defs>
+    <pattern id="viewer-dots" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="10" cy="10" r="1.5" fill="rgba(142, 158, 255, 0.6)" opacity="0.6"/>
+    </pattern>
+  </defs>
+  <rect x="-100000" y="-100000" width="200000" height="200000" fill="#202139" pointer-events="none"/>
+  <rect x="-100000" y="-100000" width="200000" height="200000" fill="url(#viewer-dots)" pointer-events="none"/>
+  <g id="diagram"><style>
+  text { font-family: Montserrat, 'Segoe UI', Roboto, sans-serif; }
+  .node-label { font-size: 13px; font-weight: 700; fill: #a4beff; }
+  .port-label { font-size: 10px; font-weight: 600; fill: #a4beff; }
+  .port-type-label { font-size: 10px; font-weight: 600; }
+</style>
+<defs>
+  
+  <linearGradient id="conn-grad-0" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#10e15a"/>
+    <stop offset="100%" stop-color="#10e15a"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#5e9eff"/>
+    <stop offset="100%" stop-color="#5e9eff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#5e9eff"/>
+    <stop offset="100%" stop-color="#5e9eff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-3" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#5e9eff"/>
+    <stop offset="100%" stop-color="#5e9eff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-4" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#ffbd30"/>
+    <stop offset="100%" stop-color="#ffbd30"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-5" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#5e9eff"/>
+    <stop offset="100%" stop-color="#5e9eff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-6" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#10e15a"/>
+    <stop offset="100%" stop-color="#10e15a"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-7" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#ff4f4f"/>
+    <stop offset="100%" stop-color="#10e15a"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-8" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#b36bff"/>
+    <stop offset="100%" stop-color="#b36bff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-9" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#b36bff"/>
+    <stop offset="100%" stop-color="#b36bff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-10" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#10e15a"/>
+    <stop offset="100%" stop-color="#10e15a"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-11" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#5e9eff"/>
+    <stop offset="100%" stop-color="#5e9eff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-12" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#5e9eff"/>
+    <stop offset="100%" stop-color="#5e9eff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-13" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#10e15a"/>
+    <stop offset="100%" stop-color="#10e15a"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-14" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#5e9eff"/>
+    <stop offset="100%" stop-color="#5e9eff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-15" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#5e9eff"/>
+    <stop offset="100%" stop-color="#5e9eff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-16" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#10e15a"/>
+    <stop offset="100%" stop-color="#10e15a"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-17" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#6fe5dc"/>
+    <stop offset="100%" stop-color="#b36bff"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-18" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#10e15a"/>
+    <stop offset="100%" stop-color="#10e15a"/>
+  </linearGradient>
+  <linearGradient id="conn-grad-19" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#b36bff"/>
+    <stop offset="100%" stop-color="#b36bff"/>
+  </linearGradient>
+</defs>
+
+<g class="connections">
+  <path d="M 185.6065321937462,179.0002 M 130.0001,179.0001 L 150.0001,179.0002 Q 185.6065321937462,179.0002 210.00009999998778,179.0001685088797 L 471.0599000000123,178.9998314911203 Q 495.4534678062539,178.9998 531.0599000000001,178.9998 L 551.0599000000001,178.9999" fill="none" stroke="url(#conn-grad-0)" stroke-width="3" stroke-linecap="round" data-source="Start.execute:output" data-target="analyze.execute:input"/>
+  <path d="M 185.6065321937462,201.0002 M 130.0001,201.0001 L 150.0001,201.0002 Q 185.6065321937462,201.0002 210.00009999998778,201.0001685088797 L 471.0599000000123,200.9998314911203 Q 495.4534678062539,200.9998 531.0599000000001,200.9998 L 551.0599000000001,200.9999" fill="none" stroke="url(#conn-grad-1)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="Start.diff:output" data-target="analyze.diff:input"/>
+  <path d="M 185.6065321937462,223.0002 M 130.0001,223.0001 L 150.0001,223.0002 Q 185.6065321937462,223.0002 210.00009999998778,223.0001685088797 L 471.0599000000123,222.9998314911203 Q 495.4534678062539,222.9998 531.0599000000001,222.9998 L 551.0599000000001,222.9999" fill="none" stroke="url(#conn-grad-2)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="Start.title:output" data-target="analyze.title:input"/>
+  <path d="M 185.6065321937462,245.0002 M 130.0001,245.0001 L 150.0001,245.0002 Q 185.6065321937462,245.0002 210.00009999998778,245.0001685088797 L 471.0599000000123,244.9998314911203 Q 495.4534678062539,244.9998 531.0599000000001,244.9998 L 551.0599000000001,244.9999" fill="none" stroke="url(#conn-grad-3)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="Start.author:output" data-target="analyze.author:input"/>
+  <path d="M 185.60653218551747,267.00019999999995 M 130.0001,267.0001 L 150.0001,267.00019999999995 Q 185.60653218551747,267.00019999999995 210.00009999998778,267.00016850887965 L 471.0599000000123,266.99983149112035 Q 495.4534678144826,266.99980000000005 531.0599000000001,266.99980000000005 L 551.0599000000001,266.9999" fill="none" stroke="url(#conn-grad-4)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="Start.number:output" data-target="analyze.number:input"/>
+  <path d="M 185.60653218551747,289.00019999999995 M 130.0001,289.0001 L 150.0001,289.00019999999995 Q 185.60653218551747,289.00019999999995 210.00009999998778,289.00016850887965 L 471.0599000000123,288.99983149112035 Q 495.4534678144826,288.99980000000005 531.0599000000001,288.99980000000005 L 551.0599000000001,288.9999" fill="none" stroke="url(#conn-grad-5)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="Start.repo:output" data-target="analyze.repo:input"/>
+  <path d="M 1903.9300000000005,212 L 2106.1550000000007,212 A 10 10 0 0 0 2116.1550000000007,202 L 2116.1550000000007,107 A 10 10 0 0 1 2126.1550000000007,97 L 2328.3800000000006,97" fill="none" stroke="url(#conn-grad-6)" stroke-width="3" stroke-linecap="round" data-source="route.onSuccess:output" data-target="approve.execute:input"/>
+  <path d="M 1903.9300000000005,234 L 2112.1550000000007,234 A 10 10 0 0 1 2122.1550000000007,244 L 2122.1550000000007,295 A 10 10 0 0 0 2132.1550000000007,305 L 2328.3800000000006,305" fill="none" stroke="url(#conn-grad-7)" stroke-width="3" stroke-linecap="round" data-source="route.onFailure:output" data-target="request.execute:input"/>
+  <path d="M 1903.9300000000005,256 L 2127.1550000000007,256 A 10 10 0 0 0 2137.1550000000007,246 L 2137.1550000000007,129 A 10 10 0 0 1 2147.1550000000007,119 L 2328.3800000000006,119" fill="none" stroke="url(#conn-grad-8)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="route.context:output" data-target="approve.context:input"/>
+  <path d="M 1903.9300000000005,256 L 1937.9300000000005,256 A 10 10 0 0 1 1947.9300000000005,266 L 1947.9300000000005,317 A 10 10 0 0 0 1957.9300000000005,327 L 2328.3800000000006,327" fill="none" stroke="url(#conn-grad-9)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="route.context:output" data-target="request.context:input"/>
+  <path d="M 2418.3800000000006,97 L 2655.085000000001,97 A 10 10 0 0 1 2665.085000000001,107 L 2665.085000000001,191 A 10 10 0 0 0 2675.085000000001,201 L 2911.790000000001,201" fill="none" stroke="url(#conn-grad-10)" stroke-width="3" stroke-linecap="round" data-source="approve.onSuccess:output" data-target="Exit.onSuccess:input"/>
+  <path d="M 2418.3800000000006,141 L 2640.085000000001,141 A 10 10 0 0 1 2650.085000000001,151 L 2650.085000000001,235 A 10 10 0 0 0 2660.085000000001,245 L 2911.790000000001,245" fill="none" stroke="url(#conn-grad-11)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="approve.reviewComment:output" data-target="Exit.reviewComment:input"/>
+  <path d="M 2418.3800000000006,163 L 2625.085000000001,163 A 10 10 0 0 1 2635.085000000001,173 L 2635.085000000001,257 A 10 10 0 0 0 2645.085000000001,267 L 2911.790000000001,267" fill="none" stroke="url(#conn-grad-12)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="approve.action:output" data-target="Exit.action:input"/>
+  <path d="M 2418.3800000000006,305 L 2428.3800000000006,305 A 10 10 0 0 0 2438.3800000000006,295 L 2438.3800000000006,293 A 10 10 0 0 1 2448.3800000000006,283 L 2881.790000000001,283 A 10 10 0 0 0 2891.790000000001,273 L 2891.790000000001,211 A 10 10 0 0 1 2901.790000000001,201 L 2911.790000000001,201" fill="none" stroke="url(#conn-grad-13)" stroke-width="3" stroke-linecap="round" data-source="request.onSuccess:output" data-target="Exit.onSuccess:input"/>
+  <path d="M 2418.3800000000006,349 L 2452.3800000000006,349 A 10 10 0 0 0 2462.3800000000006,339 L 2462.3800000000006,322 A 10 10 0 0 1 2472.3800000000006,312 L 2857.790000000001,312 A 10 10 0 0 0 2867.790000000001,302 L 2867.790000000001,255 A 10 10 0 0 1 2877.790000000001,245 L 2911.790000000001,245" fill="none" stroke="url(#conn-grad-14)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="request.reviewComment:output" data-target="Exit.reviewComment:input"/>
+  <path d="M 2418.3800000000006,371 L 2479.3800000000006,371 A 10 10 0 0 0 2489.3800000000006,361 L 2489.3800000000006,344 A 10 10 0 0 1 2499.3800000000006,334 L 2845.790000000001,334 A 10 10 0 0 0 2855.790000000001,324 L 2855.790000000001,277 A 10 10 0 0 1 2865.790000000001,267 L 2911.790000000001,267" fill="none" stroke="url(#conn-grad-15)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="request.action:output" data-target="Exit.action:input"/>
+  <path d="M 641.0600000000001,179 L 885.5200000000002,179 A 10 10 0 0 1 895.5200000000002,189 L 895.5200000000002,202 A 10 10 0 0 0 905.5200000000002,212 L 1149.9800000000002,212" fill="none" stroke="url(#conn-grad-16)" stroke-width="3" stroke-linecap="round" data-source="analyze.onSuccess:output" data-target="classify.execute:input"/>
+  <path d="M 641.0600000000001,223 L 1112.4800000000002,223 A 5.5 5.5 0 0 1 1117.9800000000002,228.5 L 1117.9800000000002,228.5 A 5.5 5.5 0 0 0 1123.4800000000002,234 L 1149.9800000000002,234" fill="none" stroke="url(#conn-grad-17)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="analyze.context:output" data-target="classify.context:input"/>
+  <path d="M 1293.7779705732332,212.0002 M 1239.9801000000002,212.0001 L 1259.9801000000002,212.0002 Q 1293.7779705732332,212.0002 1319.9801000000043,212.00017752597716 L 1733.9298999999965,211.99982247402284 Q 1760.1320294267675,211.9998 1793.9299000000005,211.9998 L 1813.9299000000005,211.9999" fill="none" stroke="url(#conn-grad-18)" stroke-width="3" stroke-linecap="round" data-source="classify.onSuccess:output" data-target="route.execute:input"/>
+  <path d="M 1239.9800000000002,256 L 1522.9550000000004,256 A 10 10 0 0 0 1532.9550000000004,246 L 1532.9550000000004,244 A 10 10 0 0 1 1542.9550000000004,234 L 1813.9300000000005,234" fill="none" stroke="url(#conn-grad-19)" stroke-width="3" stroke-dasharray="8 4" stroke-linecap="round" data-source="classify.context:output" data-target="route.context:input"/>
+</g>
+<g class="nodes">
+  <g data-node-id="Start">
+    <rect x="40" y="154" width="90" height="160" rx="6" fill="#1a1a2e" stroke="#a4beff" stroke-width="2"/>
+    <svg x="65" y="214" width="40" height="40" viewBox="0 -960 960 960"><path d="M314.02-192v-582l457.22 291-457.22 291Zm68.13-291Zm0 166.93L644.93-483 382.15-649.93v333.86Z" fill="#a4beff"/></svg>
+    <circle cx="130" cy="179" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="Start.execute:output" data-direction="output"/>
+    <circle cx="130" cy="201" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="Start.diff:output" data-direction="output"/>
+    <circle cx="130" cy="223" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="Start.title:output" data-direction="output"/>
+    <circle cx="130" cy="245" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="Start.author:output" data-direction="output"/>
+    <circle cx="130" cy="267" r="7" fill="#ffbd30" stroke="#99711d" stroke-width="2" data-port-id="Start.number:output" data-direction="output"/>
+    <circle cx="130" cy="289" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="Start.repo:output" data-direction="output"/>
+  </g>
+  <g data-node-id="Exit">
+    <rect x="2911.790000000001" y="176" width="90" height="116" rx="6" fill="#1a1a2e" stroke="#a4beff" stroke-width="2"/>
+    <svg x="2936.790000000001" y="214" width="40" height="40" viewBox="0 -960 960 960"><path d="M302.15-657.85v355.7-355.7Zm-68.13 423.83v-492.2h492.2v492.2h-492.2Zm68.13-68.13h355.7v-355.7h-355.7v355.7Z" fill="#a4beff"/></svg>
+    <circle cx="2911.790000000001" cy="201" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="Exit.onSuccess:input" data-direction="input"/>
+    <circle cx="2911.790000000001" cy="223" r="7" fill="#ff4f4f" stroke="#992f2f" stroke-width="2" data-port-id="Exit.onFailure:input" data-direction="input"/>
+    <circle cx="2911.790000000001" cy="245" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="Exit.reviewComment:input" data-direction="input"/>
+    <circle cx="2911.790000000001" cy="267" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="Exit.action:input" data-direction="input"/>
+  </g>
+  <g data-node-id="analyze">
+    <rect x="551.0600000000001" y="154" width="90" height="160" rx="6" fill="#1a1a2e" stroke="#a4beff" stroke-width="2"/>
+    <svg x="576.0600000000001" y="214" width="40" height="40" viewBox="0 -960 960 960"><path d="M317.37-236.26 71.39-482l247.98-247.98 48.98 48.74-199 199 197 197-48.98 48.98Zm323.26 2.24-48.74-48.74 199-199-197-197 48.74-48.98L888.61-482 640.63-234.02Z" fill="#a4beff"/></svg>
+    <circle cx="551.0600000000001" cy="179" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="analyze.execute:input" data-direction="input"/>
+    <circle cx="551.0600000000001" cy="201" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="analyze.diff:input" data-direction="input"/>
+    <circle cx="551.0600000000001" cy="223" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="analyze.title:input" data-direction="input"/>
+    <circle cx="551.0600000000001" cy="245" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="analyze.author:input" data-direction="input"/>
+    <circle cx="551.0600000000001" cy="267" r="7" fill="#ffbd30" stroke="#99711d" stroke-width="2" data-port-id="analyze.number:input" data-direction="input"/>
+    <circle cx="551.0600000000001" cy="289" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="analyze.repo:input" data-direction="input"/>
+    <circle cx="641.0600000000001" cy="179" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="analyze.onSuccess:output" data-direction="output"/>
+    <circle cx="641.0600000000001" cy="201" r="7" fill="#ff4f4f" stroke="#992f2f" stroke-width="2" data-port-id="analyze.onFailure:output" data-direction="output"/>
+    <circle cx="641.0600000000001" cy="223" r="7" fill="#6fe5dc" stroke="#438984" stroke-width="2" data-port-id="analyze.context:output" data-direction="output"/>
+  </g>
+  <g data-node-id="classify">
+    <rect x="1149.9800000000002" y="187" width="90" height="94" rx="6" fill="#1a1a2e" stroke="#a4beff" stroke-width="2"/>
+    <svg x="1174.9800000000002" y="214" width="40" height="40" viewBox="0 -960 960 960"><path d="M317.37-236.26 71.39-482l247.98-247.98 48.98 48.74-199 199 197 197-48.98 48.98Zm323.26 2.24-48.74-48.74 199-199-197-197 48.74-48.98L888.61-482 640.63-234.02Z" fill="#a4beff"/></svg>
+    <circle cx="1149.9800000000002" cy="212" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="classify.execute:input" data-direction="input"/>
+    <circle cx="1149.9800000000002" cy="234" r="7" fill="#b36bff" stroke="#6b4099" stroke-width="2" data-port-id="classify.context:input" data-direction="input"/>
+    <circle cx="1239.9800000000002" cy="212" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="classify.onSuccess:output" data-direction="output"/>
+    <circle cx="1239.9800000000002" cy="234" r="7" fill="#ff4f4f" stroke="#992f2f" stroke-width="2" data-port-id="classify.onFailure:output" data-direction="output"/>
+    <circle cx="1239.9800000000002" cy="256" r="7" fill="#b36bff" stroke="#6b4099" stroke-width="2" data-port-id="classify.context:output" data-direction="output"/>
+  </g>
+  <g data-node-id="route">
+    <rect x="1813.9300000000005" y="187" width="90" height="94" rx="6" fill="#1a1a2e" stroke="#a4beff" stroke-width="2"/>
+    <svg x="1838.9300000000005" y="214" width="40" height="40" viewBox="0 -960 960 960"><path d="M317.37-236.26 71.39-482l247.98-247.98 48.98 48.74-199 199 197 197-48.98 48.98Zm323.26 2.24-48.74-48.74 199-199-197-197 48.74-48.98L888.61-482 640.63-234.02Z" fill="#a4beff"/></svg>
+    <circle cx="1813.9300000000005" cy="212" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="route.execute:input" data-direction="input"/>
+    <circle cx="1813.9300000000005" cy="234" r="7" fill="#b36bff" stroke="#6b4099" stroke-width="2" data-port-id="route.context:input" data-direction="input"/>
+    <circle cx="1903.9300000000005" cy="212" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="route.onSuccess:output" data-direction="output"/>
+    <circle cx="1903.9300000000005" cy="234" r="7" fill="#ff4f4f" stroke="#992f2f" stroke-width="2" data-port-id="route.onFailure:output" data-direction="output"/>
+    <circle cx="1903.9300000000005" cy="256" r="7" fill="#b36bff" stroke="#6b4099" stroke-width="2" data-port-id="route.context:output" data-direction="output"/>
+  </g>
+  <g data-node-id="approve">
+    <rect x="2328.3800000000006" y="72" width="90" height="116" rx="6" fill="#1a1a2e" stroke="#a4beff" stroke-width="2"/>
+    <svg x="2353.3800000000006" y="110" width="40" height="40" viewBox="0 -960 960 960"><path d="M317.37-236.26 71.39-482l247.98-247.98 48.98 48.74-199 199 197 197-48.98 48.98Zm323.26 2.24-48.74-48.74 199-199-197-197 48.74-48.98L888.61-482 640.63-234.02Z" fill="#a4beff"/></svg>
+    <circle cx="2328.3800000000006" cy="97" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="approve.execute:input" data-direction="input"/>
+    <circle cx="2328.3800000000006" cy="119" r="7" fill="#b36bff" stroke="#6b4099" stroke-width="2" data-port-id="approve.context:input" data-direction="input"/>
+    <circle cx="2418.3800000000006" cy="97" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="approve.onSuccess:output" data-direction="output"/>
+    <circle cx="2418.3800000000006" cy="119" r="7" fill="#ff4f4f" stroke="#992f2f" stroke-width="2" data-port-id="approve.onFailure:output" data-direction="output"/>
+    <circle cx="2418.3800000000006" cy="141" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="approve.reviewComment:output" data-direction="output"/>
+    <circle cx="2418.3800000000006" cy="163" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="approve.action:output" data-direction="output"/>
+  </g>
+  <g data-node-id="request">
+    <rect x="2328.3800000000006" y="280" width="90" height="116" rx="6" fill="#1a1a2e" stroke="#a4beff" stroke-width="2"/>
+    <svg x="2353.3800000000006" y="318" width="40" height="40" viewBox="0 -960 960 960"><path d="M317.37-236.26 71.39-482l247.98-247.98 48.98 48.74-199 199 197 197-48.98 48.98Zm323.26 2.24-48.74-48.74 199-199-197-197 48.74-48.98L888.61-482 640.63-234.02Z" fill="#a4beff"/></svg>
+    <circle cx="2328.3800000000006" cy="305" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="request.execute:input" data-direction="input"/>
+    <circle cx="2328.3800000000006" cy="327" r="7" fill="#b36bff" stroke="#6b4099" stroke-width="2" data-port-id="request.context:input" data-direction="input"/>
+    <circle cx="2418.3800000000006" cy="305" r="7" fill="#10e15a" stroke="#0a8736" stroke-width="2" data-port-id="request.onSuccess:output" data-direction="output"/>
+    <circle cx="2418.3800000000006" cy="327" r="7" fill="#ff4f4f" stroke="#992f2f" stroke-width="2" data-port-id="request.onFailure:output" data-direction="output"/>
+    <circle cx="2418.3800000000006" cy="349" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="request.reviewComment:output" data-direction="output"/>
+    <circle cx="2418.3800000000006" cy="371" r="7" fill="#5e9eff" stroke="#385f99" stroke-width="2" data-port-id="request.action:output" data-direction="output"/>
+  </g>
+</g>
+<g class="labels">
+    <g data-label-for="Start">
+      <rect x="59.5" y="122" width="51" height="20" rx="6" fill="#252538" opacity="0.8"/>
+      <text class="node-label" x="85" y="138" text-anchor="middle" fill="#a4beff">Start</text>
+    </g>
+    <g data-port-label="Start.execute:output">
+      <rect x="142" y="171" width="80.81" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="172.45" y1="174" x2="172.45" y2="184" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="158.725" y="182.5" text-anchor="middle" fill="#10e15a">STP</text>
+      <text class="port-label" x="177.45" y="182.5" text-anchor="start">Execute</text>
+    </g>
+    <g data-port-label="Start.diff:output">
+      <rect x="142" y="193" width="177.53000000000003" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="173.01" y1="196" x2="173.01" y2="206" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="159.005" y="204.5" text-anchor="middle" fill="#5e9eff">STR</text>
+      <text class="port-label" x="178.01" y="204.5" text-anchor="start">The pull request diff content</text>
+    </g>
+    <g data-port-label="Start.title:output">
+      <rect x="142" y="215" width="77.49000000000001" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="173.01" y1="218" x2="173.01" y2="228" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="159.005" y="226.5" text-anchor="middle" fill="#5e9eff">STR</text>
+      <text class="port-label" x="178.01" y="226.5" text-anchor="start">PR title</text>
+    </g>
+    <g data-port-label="Start.author:output">
+      <rect x="142" y="237" width="90.82" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="173.01" y1="240" x2="173.01" y2="250" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="159.005" y="248.5" text-anchor="middle" fill="#5e9eff">STR</text>
+      <text class="port-label" x="178.01" y="248.5" text-anchor="start">PR author</text>
+    </g>
+    <g data-port-label="Start.number:output">
+      <rect x="142" y="259" width="99.16999999999999" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="175.8" y1="262" x2="175.8" y2="272" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="160.4" y="270.5" text-anchor="middle" fill="#ffbd30">NUM</text>
+      <text class="port-label" x="180.8" y="270.5" text-anchor="start">PR number</text>
+    </g>
+    <g data-port-label="Start.repo:output">
+      <rect x="142" y="281" width="164.27000000000004" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="173.01" y1="284" x2="173.01" y2="294" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="159.005" y="292.5" text-anchor="middle" fill="#5e9eff">STR</text>
+      <text class="port-label" x="178.01" y="292.5" text-anchor="start">Repository (owner/name)</text>
+    </g>
+    <g data-label-for="Exit">
+      <rect x="2934.790000000001" y="144" width="44" height="20" rx="6" fill="#252538" opacity="0.8"/>
+      <text class="node-label" x="2956.790000000001" y="160" text-anchor="middle" fill="#a4beff">Exit</text>
+    </g>
+    <g data-port-label="Exit.onSuccess:input">
+      <rect x="2800.090000000001" y="193" width="99.70000000000002" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2869.340000000001" y1="196" x2="2869.340000000001" y2="206" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="2865.340000000001" y="204.5" text-anchor="end">On Success</text>
+      <text class="port-type-label" x="2883.065000000001" y="204.5" text-anchor="middle" fill="#10e15a">STP</text>
+    </g>
+    <g data-port-label="Exit.onFailure:input">
+      <rect x="2807.870000000001" y="215" width="91.92" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2869.340000000001" y1="218" x2="2869.340000000001" y2="228" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="2865.340000000001" y="226.5" text-anchor="end">On Failure</text>
+      <text class="port-type-label" x="2883.065000000001" y="226.5" text-anchor="middle" fill="#ff4f4f">STP</text>
+    </g>
+    <g data-port-label="Exit.reviewComment:input">
+      <rect x="2726.670000000001" y="237" width="173.12" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2868.7800000000007" y1="240" x2="2868.7800000000007" y2="250" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="2864.7800000000007" y="248.5" text-anchor="end">Formatted review comment</text>
+      <text class="port-type-label" x="2882.7850000000008" y="248.5" text-anchor="middle" fill="#5e9eff">STR</text>
+    </g>
+    <g data-port-label="Exit.action:input">
+      <rect x="2655.480000000001" y="259" width="244.31000000000012" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2868.7800000000007" y1="262" x2="2868.7800000000007" y2="272" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="2864.7800000000007" y="270.5" text-anchor="end">Review action (approve/request_changes)</text>
+      <text class="port-type-label" x="2882.7850000000008" y="270.5" text-anchor="middle" fill="#5e9eff">STR</text>
+    </g>
+    <g data-label-for="analyze">
+      <rect x="546.0600000000001" y="122" width="100" height="20" rx="6" fill="#252538" opacity="0.8"/>
+      <text class="node-label" x="596.0600000000001" y="138" text-anchor="middle" fill="#a4beff">Analyze Diff</text>
+    </g>
+    <g data-port-label="analyze.execute:input">
+      <rect x="458.25000000000006" y="171" width="80.81" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="508.61" y1="174" x2="508.61" y2="184" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="504.61" y="182.5" text-anchor="end">Execute</text>
+      <text class="port-type-label" x="522.335" y="182.5" text-anchor="middle" fill="#10e15a">STP</text>
+    </g>
+    <g data-port-label="analyze.diff:input">
+      <rect x="361.53000000000003" y="193" width="177.53000000000003" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="508.05000000000007" y1="196" x2="508.05000000000007" y2="206" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="504.05000000000007" y="204.5" text-anchor="end">The pull request diff content</text>
+      <text class="port-type-label" x="522.0550000000001" y="204.5" text-anchor="middle" fill="#5e9eff">STR</text>
+    </g>
+    <g data-port-label="analyze.title:input">
+      <rect x="461.57000000000005" y="215" width="77.49000000000001" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="508.05000000000007" y1="218" x2="508.05000000000007" y2="228" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="504.05000000000007" y="226.5" text-anchor="end">PR title</text>
+      <text class="port-type-label" x="522.0550000000001" y="226.5" text-anchor="middle" fill="#5e9eff">STR</text>
+    </g>
+    <g data-port-label="analyze.author:input">
+      <rect x="448.24000000000007" y="237" width="90.82" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="508.05000000000007" y1="240" x2="508.05000000000007" y2="250" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="504.05000000000007" y="248.5" text-anchor="end">PR author</text>
+      <text class="port-type-label" x="522.0550000000001" y="248.5" text-anchor="middle" fill="#5e9eff">STR</text>
+    </g>
+    <g data-port-label="analyze.number:input">
+      <rect x="439.8900000000001" y="259" width="99.16999999999999" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="505.2600000000001" y1="262" x2="505.2600000000001" y2="272" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="501.2600000000001" y="270.5" text-anchor="end">PR number</text>
+      <text class="port-type-label" x="520.6600000000001" y="270.5" text-anchor="middle" fill="#ffbd30">NUM</text>
+    </g>
+    <g data-port-label="analyze.repo:input">
+      <rect x="374.79" y="281" width="164.27000000000004" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="508.05000000000007" y1="284" x2="508.05000000000007" y2="294" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="504.05000000000007" y="292.5" text-anchor="end">Repository (owner/name)</text>
+      <text class="port-type-label" x="522.0550000000001" y="292.5" text-anchor="middle" fill="#5e9eff">STR</text>
+    </g>
+    <g data-port-label="analyze.onSuccess:output">
+      <rect x="653.0600000000001" y="171" width="99.70000000000002" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="683.5100000000001" y1="174" x2="683.5100000000001" y2="184" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="669.7850000000001" y="182.5" text-anchor="middle" fill="#10e15a">STP</text>
+      <text class="port-label" x="688.5100000000001" y="182.5" text-anchor="start">On Success</text>
+    </g>
+    <g data-port-label="analyze.onFailure:output">
+      <rect x="653.0600000000001" y="193" width="91.92" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="683.5100000000001" y1="196" x2="683.5100000000001" y2="206" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="669.7850000000001" y="204.5" text-anchor="middle" fill="#ff4f4f">STP</text>
+      <text class="port-label" x="688.5100000000001" y="204.5" text-anchor="start">On Failure</text>
+    </g>
+    <g data-port-label="analyze.context:output">
+      <rect x="653.0600000000001" y="215" width="242.03000000000011" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="685.19" y1="218" x2="685.19" y2="228" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="670.6250000000001" y="226.5" text-anchor="middle" fill="#6fe5dc">ANY</text>
+      <text class="port-label" x="690.19" y="226.5" text-anchor="start">Review context with AI-identified findings</text>
+    </g>
+    <g data-label-for="classify">
+      <rect x="1127.4800000000002" y="155" width="135" height="20" rx="6" fill="#252538" opacity="0.8"/>
+      <text class="node-label" x="1194.9800000000002" y="171" text-anchor="middle" fill="#a4beff">Classify Severity</text>
+    </g>
+    <g data-port-label="classify.execute:input">
+      <rect x="1057.1700000000003" y="204" width="80.81" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1107.5300000000004" y1="207" x2="1107.5300000000004" y2="217" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="1103.5300000000004" y="215.5" text-anchor="end">Execute</text>
+      <text class="port-type-label" x="1121.2550000000003" y="215.5" text-anchor="middle" fill="#10e15a">STP</text>
+    </g>
+    <g data-port-label="classify.context:input">
+      <rect x="937.0900000000001" y="226" width="200.89000000000007" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1106.41" y1="229" x2="1106.41" y2="239" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="1102.41" y="237.5" text-anchor="end">Review context with raw findings</text>
+      <text class="port-type-label" x="1120.6950000000002" y="237.5" text-anchor="middle" fill="#b36bff">OBJ</text>
+    </g>
+    <g data-port-label="classify.onSuccess:output">
+      <rect x="1251.9800000000002" y="204" width="99.70000000000002" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1282.4300000000003" y1="207" x2="1282.4300000000003" y2="217" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="1268.7050000000002" y="215.5" text-anchor="middle" fill="#10e15a">STP</text>
+      <text class="port-label" x="1287.4300000000003" y="215.5" text-anchor="start">On Success</text>
+    </g>
+    <g data-port-label="classify.onFailure:output">
+      <rect x="1251.9800000000002" y="226" width="91.92" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1282.4300000000003" y1="229" x2="1282.4300000000003" y2="239" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="1268.7050000000002" y="237.5" text-anchor="middle" fill="#ff4f4f">STP</text>
+      <text class="port-label" x="1287.4300000000003" y="237.5" text-anchor="start">On Failure</text>
+    </g>
+    <g data-port-label="classify.context:output">
+      <rect x="1251.9800000000002" y="248" width="278.71000000000015" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1283.5500000000002" y1="251" x2="1283.5500000000002" y2="261" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="1269.2650000000003" y="259.5" text-anchor="middle" fill="#b36bff">OBJ</text>
+      <text class="port-label" x="1288.5500000000002" y="259.5" text-anchor="start">Review context with findings grouped by severity</text>
+    </g>
+    <g data-label-for="route">
+      <rect x="1808.9300000000005" y="155" width="100" height="20" rx="6" fill="#252538" opacity="0.8"/>
+      <text class="node-label" x="1858.9300000000005" y="171" text-anchor="middle" fill="#a4beff">Route Review</text>
+    </g>
+    <g data-port-label="route.execute:input">
+      <rect x="1721.1200000000006" y="204" width="80.81" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1771.4800000000007" y1="207" x2="1771.4800000000007" y2="217" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="1767.4800000000007" y="215.5" text-anchor="end">Execute</text>
+      <text class="port-type-label" x="1785.2050000000006" y="215.5" text-anchor="middle" fill="#10e15a">STP</text>
+    </g>
+    <g data-port-label="route.context:input">
+      <rect x="1572.6900000000005" y="226" width="229.2400000000001" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1770.3600000000004" y1="229" x2="1770.3600000000004" y2="239" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="1766.3600000000004" y="237.5" text-anchor="end">Review context with classified findings</text>
+      <text class="port-type-label" x="1784.6450000000004" y="237.5" text-anchor="middle" fill="#b36bff">OBJ</text>
+    </g>
+    <g data-port-label="route.onSuccess:output">
+      <rect x="1915.9300000000005" y="204" width="99.70000000000002" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1946.3800000000006" y1="207" x2="1946.3800000000006" y2="217" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="1932.6550000000004" y="215.5" text-anchor="middle" fill="#10e15a">STP</text>
+      <text class="port-label" x="1951.3800000000006" y="215.5" text-anchor="start">On Success</text>
+    </g>
+    <g data-port-label="route.onFailure:output">
+      <rect x="1915.9300000000005" y="226" width="91.92" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1946.3800000000006" y1="229" x2="1946.3800000000006" y2="239" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="1932.6550000000004" y="237.5" text-anchor="middle" fill="#ff4f4f">STP</text>
+      <text class="port-label" x="1951.3800000000006" y="237.5" text-anchor="start">On Failure</text>
+    </g>
+    <g data-port-label="route.context:output">
+      <rect x="1915.9300000000005" y="248" width="146.41000000000003" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="1947.5000000000005" y1="251" x2="1947.5000000000005" y2="261" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="1933.2150000000006" y="259.5" text-anchor="middle" fill="#b36bff">OBJ</text>
+      <text class="port-label" x="1952.5000000000005" y="259.5" text-anchor="start">Pass-through context</text>
+    </g>
+    <g data-label-for="approve">
+      <rect x="2319.8800000000006" y="40" width="107" height="20" rx="6" fill="#252538" opacity="0.8"/>
+      <text class="node-label" x="2373.3800000000006" y="56" text-anchor="middle" fill="#a4beff">Approve Clean</text>
+    </g>
+    <g data-port-label="approve.execute:input">
+      <rect x="2235.5700000000006" y="89" width="80.81" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2285.9300000000007" y1="92" x2="2285.9300000000007" y2="102" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="2281.9300000000007" y="100.5" text-anchor="end">Execute</text>
+      <text class="port-type-label" x="2299.6550000000007" y="100.5" text-anchor="middle" fill="#10e15a">STP</text>
+    </g>
+    <g data-port-label="approve.context:input">
+      <rect x="2109.3500000000004" y="111" width="207.03000000000006" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2284.810000000001" y1="114" x2="2284.810000000001" y2="124" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="2280.810000000001" y="122.5" text-anchor="end">Review context (no critical issues)</text>
+      <text class="port-type-label" x="2299.0950000000007" y="122.5" text-anchor="middle" fill="#b36bff">OBJ</text>
+    </g>
+    <g data-port-label="approve.onSuccess:output">
+      <rect x="2430.3800000000006" y="89" width="99.70000000000002" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2460.8300000000004" y1="92" x2="2460.8300000000004" y2="102" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="2447.1050000000005" y="100.5" text-anchor="middle" fill="#10e15a">STP</text>
+      <text class="port-label" x="2465.8300000000004" y="100.5" text-anchor="start">On Success</text>
+    </g>
+    <g data-port-label="approve.onFailure:output">
+      <rect x="2430.3800000000006" y="111" width="91.92" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2460.8300000000004" y1="114" x2="2460.8300000000004" y2="124" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="2447.1050000000005" y="122.5" text-anchor="middle" fill="#ff4f4f">STP</text>
+      <text class="port-label" x="2465.8300000000004" y="122.5" text-anchor="start">On Failure</text>
+    </g>
+    <g data-port-label="approve.reviewComment:output">
+      <rect x="2430.3800000000006" y="133" width="133.63000000000002" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2461.390000000001" y1="136" x2="2461.390000000001" y2="146" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="2447.3850000000007" y="144.5" text-anchor="middle" fill="#5e9eff">STR</text>
+      <text class="port-label" x="2466.390000000001" y="144.5" text-anchor="start">Approval comment</text>
+    </g>
+    <g data-port-label="approve.action:output">
+      <rect x="2430.3800000000006" y="155" width="109.72000000000001" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2461.390000000001" y1="158" x2="2461.390000000001" y2="168" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="2447.3850000000007" y="166.5" text-anchor="middle" fill="#5e9eff">STR</text>
+      <text class="port-label" x="2466.390000000001" y="166.5" text-anchor="start">Review action</text>
+    </g>
+    <g data-label-for="request">
+      <rect x="2312.8800000000006" y="248" width="121" height="20" rx="6" fill="#252538" opacity="0.8"/>
+      <text class="node-label" x="2373.3800000000006" y="264" text-anchor="middle" fill="#a4beff">Request Changes</text>
+    </g>
+    <g data-port-label="request.execute:input">
+      <rect x="2235.5700000000006" y="297" width="80.81" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2285.9300000000007" y1="300" x2="2285.9300000000007" y2="310" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="2281.9300000000007" y="308.5" text-anchor="end">Execute</text>
+      <text class="port-type-label" x="2299.6550000000007" y="308.5" text-anchor="middle" fill="#10e15a">STP</text>
+    </g>
+    <g data-port-label="request.context:input">
+      <rect x="2104.3400000000006" y="319" width="212.04000000000005" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2284.810000000001" y1="322" x2="2284.810000000001" y2="332" stroke="#313143" stroke-width="1"/>
+      <text class="port-label" x="2280.810000000001" y="330.5" text-anchor="end">Review context (has critical issues)</text>
+      <text class="port-type-label" x="2299.0950000000007" y="330.5" text-anchor="middle" fill="#b36bff">OBJ</text>
+    </g>
+    <g data-port-label="request.onSuccess:output">
+      <rect x="2430.3800000000006" y="297" width="99.70000000000002" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2460.8300000000004" y1="300" x2="2460.8300000000004" y2="310" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="2447.1050000000005" y="308.5" text-anchor="middle" fill="#10e15a">STP</text>
+      <text class="port-label" x="2465.8300000000004" y="308.5" text-anchor="start">On Success</text>
+    </g>
+    <g data-port-label="request.onFailure:output">
+      <rect x="2430.3800000000006" y="319" width="91.92" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2460.8300000000004" y1="322" x2="2460.8300000000004" y2="332" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="2447.1050000000005" y="330.5" text-anchor="middle" fill="#ff4f4f">STP</text>
+      <text class="port-label" x="2465.8300000000004" y="330.5" text-anchor="start">On Failure</text>
+    </g>
+    <g data-port-label="request.reviewComment:output">
+      <rect x="2430.3800000000006" y="341" width="183.10000000000002" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2461.390000000001" y1="344" x2="2461.390000000001" y2="354" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="2447.3850000000007" y="352.5" text-anchor="middle" fill="#5e9eff">STR</text>
+      <text class="port-label" x="2466.390000000001" y="352.5" text-anchor="start">Changes requested comment</text>
+    </g>
+    <g data-port-label="request.action:output">
+      <rect x="2430.3800000000006" y="363" width="109.72000000000001" height="16" rx="8" fill="#1a1a2e" stroke="#313143" stroke-width="1"/>
+      <line x1="2461.390000000001" y1="366" x2="2461.390000000001" y2="376" stroke="#313143" stroke-width="1"/>
+      <text class="port-type-label" x="2447.3850000000007" y="374.5" text-anchor="middle" fill="#5e9eff">STR</text>
+      <text class="port-label" x="2466.390000000001" y="374.5" text-anchor="start">Review action</text>
+    </g>
+</g>
+
+</g>
+</svg>
+<div id="controls">
+  <button class="ctrl-btn" id="btn-in" title="Zoom in" aria-label="Zoom in">+</button>
+  <span id="zoom-label">100%</span>
+  <button class="ctrl-btn" id="btn-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+  <button class="ctrl-btn" id="btn-fit" title="Fit to view" aria-label="Fit to view">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="1" y="1" width="12" height="12" rx="2"/>
+      <path d="M1 5h12M1 9h12M5 1v12M9 1v12" opacity="0.4"/>
+    </svg>
+  </button>
+  <button class="ctrl-btn" id="btn-reset" title="Reset layout" aria-label="Reset layout">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M1.5 2v3.5h3.5"/>
+      <path d="M2.1 8.5a5 5 0 1 0 .9-4L1.5 5.5"/>
+    </svg>
+  </button>
+</div>
+<div id="info-panel">
+  <div id="info-header">
+    <h3 id="info-title"></h3>
+    <button class="panel-btn" id="btn-expand" title="Expand panel" aria-label="Expand panel">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9"/>
+      </svg>
+    </button>
+    <button class="panel-btn" id="btn-close-panel" title="Close panel" aria-label="Close panel">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M2 2l10 10M12 2L2 12"/>
+      </svg>
+    </button>
+  </div>
+  <div id="info-body"></div>
+</div>
+<a id="branding" href="https://flowweaver.ai" target="_blank" rel="noopener">
+  <svg width="16" height="16" viewBox="0 0 256 256" fill="none"><path d="M80 128C134 128 122 49 176 49" stroke="#8e9eff" stroke-width="14" stroke-linecap="round"/><path d="M80 128C134 128 122 207 176 207" stroke="#8e9eff" stroke-width="14" stroke-linecap="round"/><rect x="28" y="102" width="52" height="52" rx="10" stroke="#8e9eff" stroke-width="14"/><rect x="176" y="23" width="52" height="52" rx="10" stroke="#8e9eff" stroke-width="14"/><rect x="176" y="181" width="52" height="52" rx="10" stroke="#8e9eff" stroke-width="14"/></svg>
+  <span>Flow Weaver</span>
+</a>
+<div id="scroll-hint">Use <kbd id="mod-key">Ctrl</kbd> + scroll to zoom</div>
+<div id="studio-hint">Like rearranging? <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> saves your layouts.</div>
+<script>var nodeSources = {"analyze":{"source":"/**\n * @flowWeaver nodeType\n * @expression\n * @async\n * @label Analyze Diff\n * @input diff - The pull request diff content\n * @input title - PR title\n * @input author - PR author\n * @input number - PR number\n * @input repo - Repository (owner/name)\n * @output context - Review context with AI-identified findings\n */\nasync function analyzeDiff(\n  diff: string,\n  title: string,\n  author: string,\n  number: number,\n  repo: string,\n): Promise<{ context: ReviewFindings }> {\n  const response = await llm.chat([\n    {\n      role: 'system',\n      content: 'You are a code review assistant. Analyze the diff for:\\n1. Security vulnerabilities (injection, secrets, OWASP)\\n2. Code quality issues (complexity, duplication)\\n3. Style violations (naming, formatting)\\n\\nReturn a JSON array of { file, line, category, description } objects.',\n    },\n    {\n      role: 'user',\n      content: `PR: ${repo}#${number} — ${title} by ${author}\\n\\nDiff:\\n${diff}`,\n    },\n  ], { temperature: 0.2 });\n\n  let findings: ReviewFindings['findings'];\n  try {\n    const cleaned = response.replace(/^```(?:json)?\\n?/m, '').replace(/\\n?```$/m, '').trim();\n    findings = JSON.parse(cleaned);\n  } catch {\n    findings = [];\n  }\n\n  return {\n    context: {\n      diff,\n      metadata: { title, author, number, repo },\n      findings,\n      classified: { critical: [], warnings: [], suggestions: [] },\n    },\n  };\n}","ports":{"diff":{"type":"STRING","tsType":"string"},"title":{"type":"STRING","tsType":"string"},"author":{"type":"STRING","tsType":"string"},"number":{"type":"NUMBER","tsType":"number"},"repo":{"type":"STRING","tsType":"string"},"execute":{"type":"STEP"},"context":{"type":"ANY"},"onSuccess":{"type":"STEP"},"onFailure":{"type":"STEP"}}},"classify":{"source":"/**\n * @flowWeaver nodeType\n * @expression\n * @label Classify Severity\n * @input context - Review context with raw findings\n * @output context - Review context with findings grouped by severity\n */\nfunction classifySeverity(context: ReviewFindings): { context: ReviewFindings } {\n  const critical = context.findings.filter(f => f.category === 'security');\n  const warnings = context.findings.filter(f => f.category === 'quality');\n  const suggestions = context.findings.filter(f => f.category === 'style');\n\n  return {\n    context: { ...context, classified: { critical, warnings, suggestions } },\n  };\n}","ports":{"context":{"type":"OBJECT","tsType":"ReviewFindings"},"execute":{"type":"STEP"},"onSuccess":{"type":"STEP"},"onFailure":{"type":"STEP"}}},"route":{"source":"/**\n * @flowWeaver nodeType\n * @label Route Review\n * @input context - Review context with classified findings\n * @output context - Pass-through context\n */\nfunction routeReview(\n  execute: boolean,\n  context: ReviewFindings,\n): { onSuccess: boolean; onFailure: boolean; context: ReviewFindings } {\n  if (!execute) return { onSuccess: false, onFailure: false, context };\n  const hasCritical = context.classified.critical.length > 0;\n  return { onSuccess: !hasCritical, onFailure: hasCritical, context };\n}","ports":{"context":{"type":"OBJECT","tsType":"ReviewFindings"},"execute":{"type":"STEP"},"onSuccess":{"type":"STEP"},"onFailure":{"type":"STEP"}}},"approve":{"source":"/**\n * @flowWeaver nodeType\n * @expression\n * @label Approve Clean\n * @input context - Review context (no critical issues)\n * @output reviewComment - Approval comment\n * @output action - Review action\n */\nfunction approveClean(context: ReviewFindings): { reviewComment: string; action: string } {\n  const lines: string[] = [\n    `## ✅ PR Review — ${context.metadata.repo}#${context.metadata.number}`,\n    '',\n    `**Author:** ${context.metadata.author}`,\n    `**Title:** ${context.metadata.title}`,\n    '',\n  ];\n\n  if (context.classified.warnings.length > 0 || context.classified.suggestions.length > 0) {\n    lines.push('Approved with comments:');\n    lines.push('');\n    for (const w of context.classified.warnings) {\n      lines.push(`- ⚠️ **${w.file}:${w.line}** — ${w.description}`);\n    }\n    for (const s of context.classified.suggestions) {\n      lines.push(`- 💡 **${s.file}:${s.line}** — ${s.description}`);\n    }\n  } else {\n    lines.push('No issues found. Looks good to merge!');\n  }\n\n  return { reviewComment: lines.join('\\n'), action: 'approve' };\n}","ports":{"context":{"type":"OBJECT","tsType":"ReviewFindings"},"execute":{"type":"STEP"},"reviewComment":{"type":"STRING","tsType":"string"},"action":{"type":"STRING","tsType":"string"},"onSuccess":{"type":"STEP"},"onFailure":{"type":"STEP"}}},"request":{"source":"/**\n * @flowWeaver nodeType\n * @expression\n * @label Request Changes\n * @input context - Review context (has critical issues)\n * @output reviewComment - Changes requested comment\n * @output action - Review action\n */\nfunction requestChanges(context: ReviewFindings): { reviewComment: string; action: string } {\n  const lines: string[] = [\n    `## 🚨 PR Review — ${context.metadata.repo}#${context.metadata.number}`,\n    '',\n    `**Author:** ${context.metadata.author}`,\n    `**Title:** ${context.metadata.title}`,\n    '',\n    `Found **${context.classified.critical.length}** critical issue${context.classified.critical.length === 1 ? '' : 's'} that must be fixed before merge:`,\n    '',\n  ];\n\n  for (const c of context.classified.critical) {\n    lines.push(`- 🚨 **${c.file}:${c.line}** — ${c.description}`);\n  }\n\n  if (context.classified.warnings.length > 0) {\n    lines.push('', 'Also consider:');\n    for (const w of context.classified.warnings) {\n      lines.push(`- ⚠️ **${w.file}:${w.line}** — ${w.description}`);\n    }\n  }\n\n  return { reviewComment: lines.join('\\n'), action: 'request_changes' };\n}","ports":{"context":{"type":"OBJECT","tsType":"ReviewFindings"},"execute":{"type":"STEP"},"reviewComment":{"type":"STRING","tsType":"string"},"action":{"type":"STRING","tsType":"string"},"onSuccess":{"type":"STEP"},"onFailure":{"type":"STEP"}}},"Start":{"ports":{"execute":{"type":"STEP","tsType":"boolean"},"diff":{"type":"STRING","tsType":"string"},"title":{"type":"STRING","tsType":"string"},"author":{"type":"STRING","tsType":"string"},"number":{"type":"NUMBER","tsType":"number"},"repo":{"type":"STRING","tsType":"string"}}},"Exit":{"ports":{"onSuccess":{"type":"STEP"},"onFailure":{"type":"STEP"},"reviewComment":{"type":"STRING"},"action":{"type":"STRING"}}}};</script>
+<script>
+(function() {
+  'use strict';
+
+  var MIN_ZOOM = 0.25, MAX_ZOOM = 3;
+  var canvas = document.getElementById('canvas');
+  var content = document.getElementById('diagram');
+  var zoomLabel = document.getElementById('zoom-label');
+  var infoPanel = document.getElementById('info-panel');
+  var infoTitle = document.getElementById('info-title');
+  var infoBody = document.getElementById('info-body');
+  var btnExpand = document.getElementById('btn-expand');
+  var btnClosePanel = document.getElementById('btn-close-panel');
+  var scrollHint = document.getElementById('scroll-hint');
+  var studioHint = document.getElementById('studio-hint');
+  var expandIcon = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9"/></svg>';
+  var collapseIcon = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 1v4H1M13 5H9V1M9 13V9h4M1 9h4v4"/></svg>';
+
+  // Parse the original viewBox (diagram bounding box)
+  var vbParts = '0 0 3041.790000000001 436'.split(/\s+/).map(Number);
+  var origX = vbParts[0], origY = vbParts[1], origW = vbParts[2], origH = vbParts[3];
+  var vbX = origX, vbY = origY, vbW = origW, vbH = origH;
+  var baseW = origW; // reference width for 100% zoom
+
+  var pointerDown = false, didDrag = false, dragLast = { x: 0, y: 0 };
+  var selectedNodeId = null;
+  var selectedPortId = null;
+  var hintTimer = null;
+
+  // Detect Mac for modifier key
+  var isMac = /Mac/.test(navigator.userAgent);
+  document.getElementById('mod-key').textContent = isMac ? '\u2318' : 'Ctrl';
+
+  function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+
+  function applyViewBox() {
+    canvas.setAttribute('viewBox', vbX + ' ' + vbY + ' ' + vbW + ' ' + vbH);
+    zoomLabel.textContent = Math.round(baseW / vbW * 100) + '%';
+  }
+
+  function fitToView() {
+    var pad = 60;
+    var cw = canvas.clientWidth, ch = canvas.clientHeight;
+    if (!cw || !ch) return;
+    var dw = origW + pad * 2, dh = origH + pad * 2;
+    var vpRatio = cw / ch;
+    var dRatio = dw / dh;
+    if (vpRatio > dRatio) {
+      vbH = dh; vbW = dh * vpRatio;
+    } else {
+      vbW = dw; vbH = dw / vpRatio;
+    }
+    vbX = origX - pad - (vbW - dw) / 2;
+    vbY = origY - pad - (vbH - dh) / 2;
+    baseW = vbW;
+    applyViewBox();
+  }
+
+  // Convert pixel delta to SVG coordinate delta
+  function pxToSvg() { return vbW / canvas.clientWidth; }
+
+  // ---- Zoom (Ctrl/Cmd + scroll) ----
+  canvas.addEventListener('wheel', function(e) {
+    if (!e.ctrlKey && !e.metaKey) {
+      scrollHint.classList.add('visible');
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(function() { scrollHint.classList.remove('visible'); }, 1500);
+      return;
+    }
+    e.preventDefault();
+    var rect = canvas.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) / rect.width;
+    var my = (e.clientY - rect.top) / rect.height;
+    var pivotX = vbX + mx * vbW;
+    var pivotY = vbY + my * vbH;
+    var delta = clamp(e.deltaY, -10, 10);
+    var factor = 1 + delta * 0.005;
+    var newW = clamp(vbW * factor, baseW / MAX_ZOOM, baseW / MIN_ZOOM);
+    var ratio = vbH / vbW;
+    var newH = newW * ratio;
+    vbX = pivotX - mx * newW;
+    vbY = pivotY - my * newH;
+    vbW = newW; vbH = newH;
+    applyViewBox();
+  }, { passive: false });
+
+  // ---- Pan (drag) + Node drag ----
+  var draggedNodeId = null, dragNodeStart = null, didDragNode = false;
+  var clickTarget = null; // stash the real target before setPointerCapture steals it
+  var dragCount = 0, nudgeIndex = 0, nudgeTimer = null;
+  var nudgeMessages = [
+    'Like rearranging? <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> saves your layouts.',
+    'Changes here are temporary. <a href="https://flowweaver.ai" target="_blank" rel="noopener">Try the Studio</a> to keep them.',
+    'Want to collaborate? <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> has real-time sharing.',
+    'Build and deploy from the cloud with <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a>.',
+    'This viewer is read-only. <a href="https://flowweaver.ai" target="_blank" rel="noopener">Build workflows</a> in the Studio.',
+    'Version history, diff viewer, rollbacks. All in <a href="https://flowweaver.ai" target="_blank" rel="noopener">the Studio</a>.',
+    'Debug workflows step by step in <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a>.',
+    'Ship faster. <a href="https://flowweaver.ai" target="_blank" rel="noopener">Flow Weaver Studio</a> runs your workflows in the cloud.'
+  ];
+
+  canvas.addEventListener('pointerdown', function(e) {
+    if (e.button !== 0) return;
+    clickTarget = e.target; // stash before setPointerCapture redirects events
+    didDrag = false;
+    // Check if clicking on a node body (walk up to detect data-node-id)
+    var t = e.target;
+    while (t && t !== canvas) {
+      if (t.hasAttribute && t.hasAttribute('data-node-id')) {
+        // Don't start node drag if clicking on a port circle
+        if (e.target.hasAttribute && e.target.hasAttribute('data-port-id')) break;
+        draggedNodeId = t.getAttribute('data-node-id');
+        dragNodeStart = { x: e.clientX, y: e.clientY };
+        didDragNode = false;
+        canvas.setPointerCapture(e.pointerId);
+        return;
+      }
+      t = t.parentElement;
+    }
+    // Canvas pan
+    pointerDown = true;
+    dragLast = { x: e.clientX, y: e.clientY };
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', function(e) {
+    var ratio = pxToSvg();
+
+    // Node drag
+    if (draggedNodeId) {
+      var dx = (e.clientX - dragNodeStart.x) * ratio;
+      var dy = (e.clientY - dragNodeStart.y) * ratio;
+      if (!didDragNode && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+        didDragNode = true;
+        canvas.classList.add('dragging');
+      }
+      if (didDragNode) {
+        moveNode(draggedNodeId, dx, dy);
+      }
+      dragNodeStart = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
+    // Canvas pan — shift the viewBox origin
+    if (!pointerDown) return;
+    var dxPx = e.clientX - dragLast.x, dyPx = e.clientY - dragLast.y;
+    if (!didDrag && (Math.abs(dxPx) > 3 || Math.abs(dyPx) > 3)) {
+      didDrag = true;
+      canvas.classList.add('dragging');
+    }
+    if (didDrag) {
+      vbX -= dxPx * ratio;
+      vbY -= dyPx * ratio;
+      applyViewBox();
+    }
+    dragLast = { x: e.clientX, y: e.clientY };
+  });
+
+  function endDrag() {
+    if (didDragNode) {
+      dragCount++;
+      var threshold = nudgeIndex === 0 ? 3 : 5;
+      if (dragCount >= threshold) {
+        dragCount = 0;
+        studioHint.innerHTML = nudgeMessages[nudgeIndex % nudgeMessages.length];
+        nudgeIndex++;
+        studioHint.classList.add('visible');
+        clearTimeout(nudgeTimer);
+        nudgeTimer = setTimeout(function() { studioHint.classList.remove('visible'); }, 5000);
+      }
+    }
+    pointerDown = false;
+    draggedNodeId = null;
+    canvas.classList.remove('dragging');
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  // ---- Zoom buttons ----
+  function zoomBy(dir) {
+    var cx = vbX + vbW / 2, cy = vbY + vbH / 2;
+    var factor = dir > 0 ? 0.85 : 1.18;
+    var newW = clamp(vbW * factor, baseW / MAX_ZOOM, baseW / MIN_ZOOM);
+    var ratio = vbH / vbW;
+    var newH = newW * ratio;
+    vbX = cx - newW / 2;
+    vbY = cy - newH / 2;
+    vbW = newW; vbH = newH;
+    applyViewBox();
+  }
+  document.getElementById('btn-in').addEventListener('click', function() { zoomBy(1); });
+  document.getElementById('btn-out').addEventListener('click', function() { zoomBy(-1); });
+  document.getElementById('btn-fit').addEventListener('click', fitToView);
+
+  // ---- Keyboard shortcuts ----
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === '+' || e.key === '=') zoomBy(1);
+    else if (e.key === '-') zoomBy(-1);
+    else if (e.key === '0') fitToView();
+    else if (e.key === 'Escape') { deselectPort(); deselectNode(); }
+  });
+
+  // ---- Port label visibility ----
+  var labelMap = {};
+  content.querySelectorAll('.labels g[data-port-label]').forEach(function(lbl) {
+    labelMap[lbl.getAttribute('data-port-label')] = lbl;
+  });
+
+  // Build adjacency: portId -> array of connected portIds
+  var portConnections = {};
+  content.querySelectorAll('path[data-source]').forEach(function(p) {
+    var src = p.getAttribute('data-source');
+    var tgt = p.getAttribute('data-target');
+    if (!src || !tgt) return;
+    if (!portConnections[src]) portConnections[src] = [];
+    if (!portConnections[tgt]) portConnections[tgt] = [];
+    portConnections[src].push(tgt);
+    portConnections[tgt].push(src);
+  });
+
+  // ---- Connection path computation (from geometry.ts) ----
+  function quadCurveControl(ax, ay, bx, by, ux, uy) {
+    var dn = Math.abs(ay - by);
+    return [bx + (ux * dn) / Math.abs(uy), ay];
+  }
+
+  function computeConnectionPath(sx, sy, tx, ty) {
+    var e = 0.0001;
+    var ax = sx + e, ay = sy + e, hx = tx - e, hy = ty - e;
+    var ramp = Math.min(20, (hx - ax) / 10);
+    var bx = ax + ramp, by = ay + e, gx = hx - ramp, gy = hy - e;
+    var curveSizeX = Math.min(60, Math.abs(ax - hx) / 4);
+    var curveSizeY = Math.min(60, Math.abs(ay - hy) / 4);
+    var curveMag = Math.sqrt(curveSizeX * curveSizeX + curveSizeY * curveSizeY);
+    var bgX = gx - bx, bgY = gy - by;
+    var bgLen = Math.sqrt(bgX * bgX + bgY * bgY);
+    var bgUx = bgX / bgLen, bgUy = bgY / bgLen;
+    var dx = bx + bgUx * curveMag, dy = by + (bgUy * curveMag) / 2;
+    var ex = gx - bgUx * curveMag, ey = gy - (bgUy * curveMag) / 2;
+    var deX = ex - dx, deY = ey - dy;
+    var deLen = Math.sqrt(deX * deX + deY * deY);
+    var deUx = deX / deLen, deUy = deY / deLen;
+    var c = quadCurveControl(bx, by, dx, dy, -deUx, -deUy);
+    var f = quadCurveControl(gx, gy, ex, ey, deUx, deUy);
+    return 'M ' + c[0] + ',' + c[1] + ' M ' + ax + ',' + ay +
+      ' L ' + bx + ',' + by + ' Q ' + c[0] + ',' + c[1] + ' ' + dx + ',' + dy +
+      ' L ' + ex + ',' + ey + ' Q ' + f[0] + ',' + f[1] + ' ' + gx + ',' + gy +
+      ' L ' + hx + ',' + hy;
+  }
+
+  // ---- Port position + connection path indexes ----
+  var portPositions = {};
+  content.querySelectorAll('[data-port-id]').forEach(function(el) {
+    var id = el.getAttribute('data-port-id');
+    portPositions[id] = { cx: parseFloat(el.getAttribute('cx')), cy: parseFloat(el.getAttribute('cy')) };
+  });
+
+  var nodeOffsets = {};
+  var connIndex = [];
+  content.querySelectorAll('path[data-source]').forEach(function(p) {
+    var src = p.getAttribute('data-source'), tgt = p.getAttribute('data-target');
+    connIndex.push({ el: p, src: src, tgt: tgt, srcNode: src.split('.')[0], tgtNode: tgt.split('.')[0], scopeOf: p.getAttribute('data-scope') || null });
+  });
+
+  // Snapshot of original port positions for reset
+  var origPortPositions = {};
+  for (var pid in portPositions) {
+    origPortPositions[pid] = { cx: portPositions[pid].cx, cy: portPositions[pid].cy };
+  }
+
+  function resetLayout() {
+    for (var nid in nodeOffsets) {
+      var esc = CSS.escape(nid);
+      var nodeG = content.querySelector('.nodes [data-node-id="' + esc + '"]');
+      if (nodeG) nodeG.removeAttribute('transform');
+      var labelG = content.querySelector('[data-label-for="' + esc + '"]');
+      if (labelG) labelG.removeAttribute('transform');
+      allLabelIds.forEach(function(id) {
+        if (id.indexOf(nid + '.') === 0) {
+          var el = labelMap[id];
+          if (el) el.removeAttribute('transform');
+        }
+      });
+    }
+    nodeOffsets = {};
+    for (var pid in origPortPositions) {
+      portPositions[pid] = { cx: origPortPositions[pid].cx, cy: origPortPositions[pid].cy };
+    }
+    connIndex.forEach(function(c) {
+      var sp = portPositions[c.src], tp = portPositions[c.tgt];
+      if (sp && tp) c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
+    });
+    fitToView();
+  }
+  document.getElementById('btn-reset').addEventListener('click', resetLayout);
+
+  // ---- Node drag: moveNode ----
+  function moveNode(nodeId, dx, dy) {
+    if (!nodeOffsets[nodeId]) nodeOffsets[nodeId] = { dx: 0, dy: 0 };
+    var off = nodeOffsets[nodeId];
+    off.dx += dx; off.dy += dy;
+    var tr = 'translate(' + off.dx + ',' + off.dy + ')';
+
+    // Move node group (if nested inside a scoped parent, subtract parent offset)
+    var nodeG = content.querySelector('.nodes [data-node-id="' + CSS.escape(nodeId) + '"]');
+    if (nodeG) {
+      var parentNodeG = nodeG.parentElement ? nodeG.parentElement.closest('[data-node-id]') : null;
+      if (parentNodeG) {
+        var parentId = parentNodeG.getAttribute('data-node-id');
+        var parentOff = nodeOffsets[parentId] || { dx: 0, dy: 0 };
+        nodeG.setAttribute('transform', 'translate(' + (off.dx - parentOff.dx) + ',' + (off.dy - parentOff.dy) + ')');
+      } else {
+        nodeG.setAttribute('transform', tr);
+      }
+    }
+
+    // Move label
+    var labelG = content.querySelector('[data-label-for="' + CSS.escape(nodeId) + '"]');
+    if (labelG) labelG.setAttribute('transform', tr);
+
+    // Move port labels
+    allLabelIds.forEach(function(id) {
+      if (id.indexOf(nodeId + '.') === 0) {
+        var el = labelMap[id];
+        if (el) el.setAttribute('transform', tr);
+      }
+    });
+
+    // Update port positions
+    for (var pid in portPositions) {
+      if (pid.indexOf(nodeId + '.') === 0) {
+        portPositions[pid].cx += dx;
+        portPositions[pid].cy += dy;
+      }
+    }
+
+    // Move child nodes inside scoped parents
+    if (nodeG) {
+      var children = nodeG.querySelectorAll(':scope > g[data-node-id]');
+      children.forEach(function(childG) {
+        var childId = childG.getAttribute('data-node-id');
+        if (!nodeOffsets[childId]) nodeOffsets[childId] = { dx: 0, dy: 0 };
+        nodeOffsets[childId].dx += dx;
+        nodeOffsets[childId].dy += dy;
+        for (var pid in portPositions) {
+          if (pid.indexOf(childId + '.') === 0) {
+            portPositions[pid].cx += dx;
+            portPositions[pid].cy += dy;
+          }
+        }
+        var childLabel = content.querySelector('[data-label-for="' + CSS.escape(childId) + '"]');
+        if (childLabel) childLabel.setAttribute('transform', 'translate(' + nodeOffsets[childId].dx + ',' + nodeOffsets[childId].dy + ')');
+        allLabelIds.forEach(function(id) {
+          if (id.indexOf(childId + '.') === 0) {
+            var el = labelMap[id];
+            if (el) el.setAttribute('transform', 'translate(' + nodeOffsets[childId].dx + ',' + nodeOffsets[childId].dy + ')');
+          }
+        });
+      });
+    }
+
+    // Recalculate affected connection paths (skip scope connections when parent is dragged — they move with the group transform)
+    connIndex.forEach(function(c) {
+      if (c.scopeOf === nodeId) return;
+      if (c.srcNode === nodeId || c.tgtNode === nodeId) {
+        var sp = portPositions[c.src], tp = portPositions[c.tgt];
+        if (sp && tp) {
+          if (c.scopeOf) {
+            // Scope connection paths live inside the parent group; use parent-local coords
+            var pOff = nodeOffsets[c.scopeOf] || { dx: 0, dy: 0 };
+            c.el.setAttribute('d', computeConnectionPath(sp.cx - pOff.dx, sp.cy - pOff.dy, tp.cx - pOff.dx, tp.cy - pOff.dy));
+          } else {
+            c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
+          }
+        }
+      }
+      if (nodeG) {
+        var children = nodeG.querySelectorAll(':scope > g[data-node-id]');
+        children.forEach(function(childG) {
+          var childId = childG.getAttribute('data-node-id');
+          if (c.srcNode === childId || c.tgtNode === childId) {
+            var sp = portPositions[c.src], tp = portPositions[c.tgt];
+            if (sp && tp) {
+              if (c.scopeOf) {
+                var pOff = nodeOffsets[c.scopeOf] || { dx: 0, dy: 0 };
+                c.el.setAttribute('d', computeConnectionPath(sp.cx - pOff.dx, sp.cy - pOff.dy, tp.cx - pOff.dx, tp.cy - pOff.dy));
+              } else {
+                c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
+              }
+            }
+          }
+        });
+      }
+    });
+  }
+
+  var allLabelIds = Object.keys(labelMap);
+  var hoveredPort = null;
+
+  function showLabel(id) { var l = labelMap[id]; if (l) { l.style.opacity = '1'; l.style.pointerEvents = 'auto'; } }
+  function hideLabel(id) { var l = labelMap[id]; if (l) { l.style.opacity = '0'; l.style.pointerEvents = 'none'; } }
+
+  function showLabelsFor(nodeId) {
+    allLabelIds.forEach(function(id) {
+      if (id.indexOf(nodeId + '.') === 0) showLabel(id);
+    });
+  }
+  function hideLabelsFor(nodeId) {
+    allLabelIds.forEach(function(id) {
+      if (id.indexOf(nodeId + '.') === 0) hideLabel(id);
+    });
+  }
+
+  // Node hover: show all port labels for the hovered node
+  var nodeEls = content.querySelectorAll('.nodes g[data-node-id]');
+  nodeEls.forEach(function(nodeG) {
+    var nodeId = nodeG.getAttribute('data-node-id');
+    var parentNodeG = nodeG.parentElement ? nodeG.parentElement.closest('g[data-node-id]') : null;
+    var parentId = parentNodeG ? parentNodeG.getAttribute('data-node-id') : null;
+    nodeG.addEventListener('mouseenter', function() {
+      if (hoveredPort) return;
+      if (parentId) hideLabelsFor(parentId);
+      showLabelsFor(nodeId);
+    });
+    nodeG.addEventListener('mouseleave', function() {
+      if (hoveredPort) return;
+      hideLabelsFor(nodeId);
+      if (parentId) showLabelsFor(parentId);
+    });
+  });
+
+  // Port hover: show this port's label + all connected port labels
+  content.querySelectorAll('[data-port-id]').forEach(function(portEl) {
+    var portId = portEl.getAttribute('data-port-id');
+    var nodeId = portId.split('.')[0];
+    var peers = (portConnections[portId] || []).concat(portId);
+
+    portEl.addEventListener('mouseenter', function() {
+      hoveredPort = portId;
+      hideLabelsFor(nodeId);
+      peers.forEach(showLabel);
+      document.body.classList.add('port-hovered');
+      content.querySelectorAll('path[data-source]').forEach(function(p) {
+        if (p.getAttribute('data-source') === portId || p.getAttribute('data-target') === portId) {
+          p.classList.remove('dimmed');
+        } else {
+          p.classList.add('dimmed');
+        }
+      });
+    });
+    portEl.addEventListener('mouseleave', function() {
+      hoveredPort = null;
+      peers.forEach(hideLabel);
+      showLabelsFor(nodeId);
+      document.body.classList.remove('port-hovered');
+      content.querySelectorAll('path[data-source].dimmed').forEach(function(p) {
+        p.classList.remove('dimmed');
+      });
+    });
+  });
+
+  // ---- Node glow helpers ----
+  function removeNodeGlow() {
+    var glow = content.querySelector('.node-glow');
+    if (glow) glow.remove();
+  }
+
+  function addNodeGlow(nodeG) {
+    removeNodeGlow();
+    var rect = nodeG.querySelector('rect');
+    if (!rect) return;
+    var ns = 'http://www.w3.org/2000/svg';
+    var glow = document.createElementNS(ns, 'rect');
+    glow.setAttribute('x', rect.getAttribute('x'));
+    glow.setAttribute('y', rect.getAttribute('y'));
+    glow.setAttribute('width', rect.getAttribute('width'));
+    glow.setAttribute('height', rect.getAttribute('height'));
+    glow.setAttribute('rx', rect.getAttribute('rx') || '0');
+    glow.setAttribute('stroke', rect.getAttribute('stroke') || '#5468ff');
+    glow.setAttribute('class', 'node-glow');
+    nodeG.insertBefore(glow, rect);
+  }
+
+  // ---- Port selection ----
+  function deselectPort() {
+    if (!selectedPortId) return;
+    selectedPortId = null;
+    document.body.classList.remove('port-active');
+    content.querySelectorAll('circle.port-selected').forEach(function(c) {
+      c.classList.remove('port-selected');
+    });
+    content.querySelectorAll('path[data-source].dimmed, path[data-source].highlighted').forEach(function(p) {
+      p.classList.remove('dimmed');
+      p.classList.remove('highlighted');
+    });
+  }
+
+  function selectPort(portId) {
+    if (selectedPortId === portId) { deselectPort(); return; }
+    if (selectedNodeId) deselectNode();
+    deselectPort();
+    selectedPortId = portId;
+    document.body.classList.add('port-active');
+
+    var portEl = content.querySelector('[data-port-id="' + CSS.escape(portId) + '"]');
+    if (portEl) portEl.classList.add('port-selected');
+
+    content.querySelectorAll('path[data-source]').forEach(function(p) {
+      if (p.getAttribute('data-source') === portId || p.getAttribute('data-target') === portId) {
+        p.classList.add('highlighted');
+      } else {
+        p.classList.add('dimmed');
+      }
+    });
+
+    var peers = (portConnections[portId] || []).concat(portId);
+    peers.forEach(showLabel);
+  }
+
+  // ---- Click to inspect node ----
+  function deselectNode() {
+    selectedNodeId = null;
+    document.body.classList.remove('node-active');
+    infoPanel.classList.remove('visible');
+    infoPanel.classList.remove('fullscreen');
+    btnExpand.innerHTML = expandIcon;
+    removeNodeGlow();
+    content.querySelectorAll('path[data-source].dimmed').forEach(function(p) {
+      p.classList.remove('dimmed');
+    });
+  }
+
+  function selectNode(nodeId) {
+    if (selectedNodeId === nodeId) { deselectNode(); return; }
+    selectedNodeId = nodeId;
+    document.body.classList.add('node-active');
+
+    var nodeG = content.querySelector('[data-node-id="' + CSS.escape(nodeId) + '"]');
+    addNodeGlow(nodeG);
+
+    var labelG = content.querySelector('[data-label-for="' + CSS.escape(nodeId) + '"]');
+    var labelText = labelG ? (labelG.querySelector('.node-label') || {}).textContent || nodeId : nodeId;
+
+    // Ports
+    var ports = content.querySelectorAll('[data-port-id^="' + CSS.escape(nodeId) + '."]');
+    var inputs = [], outputs = [];
+    ports.forEach(function(p) {
+      var id = p.getAttribute('data-port-id');
+      var dir = p.getAttribute('data-direction');
+      var name = id.split('.').slice(1).join('.').replace(/:(?:input|output)$/, '');
+      if (dir === 'input') inputs.push(name);
+      else outputs.push(name);
+    });
+
+    // Connected paths
+    var allPaths = content.querySelectorAll('path[data-source]');
+    var connectedNodes = new Set();
+    allPaths.forEach(function(p) {
+      var src = p.getAttribute('data-source') || '';
+      var tgt = p.getAttribute('data-target') || '';
+      var srcNode = src.split('.')[0];
+      var tgtNode = tgt.split('.')[0];
+      if (srcNode === nodeId || tgtNode === nodeId) {
+        if (srcNode !== nodeId) connectedNodes.add(srcNode);
+        if (tgtNode !== nodeId) connectedNodes.add(tgtNode);
+        p.classList.remove('dimmed');
+      } else {
+        p.classList.add('dimmed');
+      }
+    });
+
+    // Build info panel
+    infoTitle.textContent = labelText;
+    var html = '';
+    var src = nodeSources[nodeId];
+    if (src && src.description) {
+      html += '<div class="node-desc">' + escapeH(src.description) + '</div>';
+    }
+    var portInfo = (src && src.ports) ? src.ports : {};
+    function portLabel(name) {
+      var p = portInfo[name];
+      var label = escapeH(name);
+      if (p) {
+        var typeStr = p.tsType || p.type;
+        if (typeStr) label += ' <span class="port-type">' + escapeH(typeStr) + '</span>';
+      }
+      return label;
+    }
+    if (inputs.length) {
+      html += '<div class="info-section"><div class="info-label">Inputs</div><ul class="port-list">';
+      inputs.forEach(function(n) { html += '<li>' + portLabel(n) + '</li>'; });
+      html += '</ul></div>';
+    }
+    if (outputs.length) {
+      html += '<div class="info-section"><div class="info-label">Outputs</div><ul class="port-list">';
+      outputs.forEach(function(n) { html += '<li>' + portLabel(n) + '</li>'; });
+      html += '</ul></div>';
+    }
+    if (connectedNodes.size) {
+      html += '<div class="info-section"><div class="info-label">Connected to</div><div class="info-value">';
+      html += Array.from(connectedNodes).map(escapeH).join(', ');
+      html += '</div></div>';
+    }
+    if (src && src.source) {
+      html += '<div class="info-section"><div class="info-label">Source</div>';
+      html += '<pre><code>' + highlightTS(src.source) + '</code></pre></div>';
+    }
+    infoBody.innerHTML = html;
+    infoPanel.classList.add('visible');
+  }
+
+  function escapeH(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  var fwAnnotations = 'flowWeaver,input,output,step,node,connect,param,returns,fwImport,label,scope,position,color,icon,tag,map,path,name,description,expression,executeWhen,pullExecution,strictTypes,autoConnect,port,trigger,cancelOn,retries,timeout,throttle';
+
+  function highlightJSDoc(block) {
+    var annSet = fwAnnotations.split(',');
+    var out = '';
+    var re = /(@[a-zA-Z]+)|(-&gt;)|(\.[a-zA-Z_][a-zA-Z0-9_]*)|("[^"]*")|('\''[^'\'']*'\'')|(-?[0-9]+(?:\.[0-9]+)?)|([a-zA-Z_][a-zA-Z0-9_]*)|([^@a-zA-Z0-9"'\-.]+)/g;
+    var m;
+    while ((m = re.exec(block)) !== null) {
+      if (m[1]) {
+        var tag = m[1].slice(1);
+        if (annSet.indexOf(tag) >= 0) {
+          out += '<span class="hl-ann">' + m[0] + '</span>';
+        } else {
+          out += '<span class="hl-ann">' + m[0] + '</span>';
+        }
+      } else if (m[2]) {
+        out += '<span class="hl-arr">' + m[2] + '</span>';
+      } else if (m[3]) {
+        // .portName scope reference
+        out += '<span class="hl-sc">' + m[3] + '</span>';
+      } else if (m[4] || m[5]) {
+        out += '<span class="hl-str">' + (m[4] || m[5]) + '</span>';
+      } else if (m[6]) {
+        out += '<span class="hl-num">' + m[6] + '</span>';
+      } else if (m[7]) {
+        var tys = 'string,number,boolean,any,void,never,unknown,STEP,STRING,NUMBER,BOOLEAN,ARRAY,OBJECT,FUNCTION,ANY';
+        if (tys.split(',').indexOf(m[7]) >= 0) {
+          out += '<span class="hl-ty">' + m[7] + '</span>';
+        } else {
+          out += '<span class="hl-id">' + m[7] + '</span>';
+        }
+      } else {
+        out += m[0];
+      }
+    }
+    return out;
+  }
+
+  function highlightTS(code) {
+    var tokens = [];
+    var i = 0;
+    while (i < code.length) {
+      // Line comments
+      if (code[i] === '/' && code[i+1] === '/') {
+        var end = code.indexOf('\n', i);
+        if (end === -1) end = code.length;
+        tokens.push({ t: 'cm', v: code.slice(i, end) });
+        i = end;
+        continue;
+      }
+      // Block comments (detect JSDoc for annotation highlighting)
+      if (code[i] === '/' && code[i+1] === '*') {
+        var end = code.indexOf('*/', i + 2);
+        if (end === -1) end = code.length; else end += 2;
+        var block = code.slice(i, end);
+        var hasFW = /@(flowWeaver|input|output|step|node|connect|param|returns)/.test(block);
+        if (hasFW) {
+          tokens.push({ t: 'jsdoc', v: block });
+        } else {
+          tokens.push({ t: 'cm', v: block });
+        }
+        i = end;
+        continue;
+      }
+      // Strings
+      if (code[i] === "'" || code[i] === '"' || code[i] === '`') {
+        var q = code[i], j = i + 1;
+        while (j < code.length && code[j] !== q) { if (code[j] === '\\') j++; j++; }
+        tokens.push({ t: 'str', v: code.slice(i, j + 1) });
+        i = j + 1;
+        continue;
+      }
+      // Numbers
+      if (/[0-9]/.test(code[i]) && (i === 0 || /[^a-zA-Z_$]/.test(code[i-1]))) {
+        var j = i;
+        while (j < code.length && /[0-9a-fA-FxX._]/.test(code[j])) j++;
+        tokens.push({ t: 'num', v: code.slice(i, j) });
+        i = j;
+        continue;
+      }
+      // Words
+      if (/[a-zA-Z_$]/.test(code[i])) {
+        var j = i;
+        while (j < code.length && /[a-zA-Z0-9_$]/.test(code[j])) j++;
+        var w = code.slice(i, j);
+        var kws = 'async,await,break,case,catch,class,const,continue,default,delete,do,else,export,extends,finally,for,from,function,if,import,in,instanceof,let,new,of,return,switch,throw,try,typeof,var,void,while,yield';
+        var tys = 'string,number,boolean,any,void,never,unknown,null,undefined,true,false,Promise,Record,Map,Set,Array,Partial,Required,Omit,Pick';
+        if (kws.split(',').indexOf(w) >= 0) {
+          tokens.push({ t: 'kw', v: w });
+        } else if (tys.split(',').indexOf(w) >= 0) {
+          tokens.push({ t: 'ty', v: w });
+        } else if (j < code.length && code[j] === '(') {
+          tokens.push({ t: 'fn', v: w });
+        } else {
+          tokens.push({ t: '', v: w });
+        }
+        i = j;
+        continue;
+      }
+      // Punctuation
+      if (/[{}()\[\];:.,<>=!&|?+\-*/%^~@]/.test(code[i])) {
+        tokens.push({ t: 'pn', v: code[i] });
+        i++;
+        continue;
+      }
+      // Whitespace and other
+      tokens.push({ t: '', v: code[i] });
+      i++;
+    }
+    return tokens.map(function(tk) {
+      if (tk.t === 'jsdoc') {
+        return '<span class="hl-cm">' + highlightJSDoc(escapeH(tk.v)) + '</span>';
+      }
+      var v = escapeH(tk.v);
+      return tk.t ? '<span class="hl-' + tk.t + '">' + v + '</span>' : v;
+    }).join('');
+  }
+
+  // Delegate click: port click > node click > background
+  // Use clickTarget (stashed from pointerdown) because setPointerCapture redirects click to canvas
+  canvas.addEventListener('click', function(e) {
+    if (didDrag || didDragNode) { didDragNode = false; return; }
+    var target = clickTarget || e.target;
+    clickTarget = null;
+    while (target && target !== canvas) {
+      if (target.hasAttribute && target.hasAttribute('data-port-id')) {
+        e.stopPropagation();
+        selectPort(target.getAttribute('data-port-id'));
+        return;
+      }
+      if (target.hasAttribute && target.hasAttribute('data-node-id')) {
+        e.stopPropagation();
+        deselectPort();
+        selectNode(target.getAttribute('data-node-id'));
+        return;
+      }
+      target = target.parentElement;
+    }
+    deselectPort();
+    deselectNode();
+  });
+
+  // ---- Panel expand/collapse ----
+  btnExpand.addEventListener('click', function(e) {
+    e.stopPropagation();
+    infoPanel.classList.toggle('fullscreen');
+    btnExpand.innerHTML = infoPanel.classList.contains('fullscreen') ? collapseIcon : expandIcon;
+    btnExpand.title = infoPanel.classList.contains('fullscreen') ? 'Collapse panel' : 'Expand panel';
+  });
+  btnClosePanel.addEventListener('click', function(e) {
+    e.stopPropagation();
+    deselectPort();
+    deselectNode();
+    infoPanel.classList.remove('fullscreen');
+    btnExpand.innerHTML = expandIcon;
+  });
+
+  // ---- Init ----
+  requestAnimationFrame(fitToView);
+  window.addEventListener('resize', fitToView);
+})();
+</script>
+</body>
+</html>
