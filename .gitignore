@@ -69,3 +69,4 @@ temp/
 .cache/
 .temp/
 .tmp/
+.mcp.json
