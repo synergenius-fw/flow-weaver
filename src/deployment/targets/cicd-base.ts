@@ -15,6 +15,7 @@
 import type {
   TWorkflowAST,
   TNodeInstanceAST,
+  TNodeTypeAST,
   TCICDSecret,
   TCICDCache,
   TCICDArtifact,
@@ -52,6 +53,8 @@ export interface CICDStep {
   nodeType: string;
   /** Environment variables for this step */
   env?: Record<string, string>;
+  /** Per-target deploy config from @deploy annotations on the node type */
+  nodeTypeDeploy?: Record<string, Record<string, unknown>>;
 }
 
 export interface CICDJob {
@@ -222,14 +225,56 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
   // ---------------------------------------------------------------------------
 
   /**
+   * Resolve the action mapping for a node type.
+   * Priority: @deploy annotations on the node type → NODE_ACTION_MAP fallback → undefined.
+   *
+   * This makes marketplace packages self-describing: a node type with
+   * `@deploy github-actions action="actions/checkout@v4"` contributes its own mapping.
+   */
+  protected resolveActionMapping(
+    step: CICDStep,
+    targetName: string,
+  ): ActionMapping | undefined {
+    // 1. Check @deploy annotations on the node type
+    const deployConfig = step.nodeTypeDeploy?.[targetName];
+    if (deployConfig) {
+      return {
+        githubAction: deployConfig.action as string | undefined,
+        githubWith: deployConfig.with
+          ? (typeof deployConfig.with === 'string'
+              ? JSON.parse(deployConfig.with as string) as Record<string, string>
+              : deployConfig.with as Record<string, string>)
+          : undefined,
+        gitlabScript: deployConfig.script
+          ? (Array.isArray(deployConfig.script)
+              ? deployConfig.script as string[]
+              : [deployConfig.script as string])
+          : undefined,
+        gitlabImage: deployConfig.image as string | undefined,
+        label: (deployConfig.label as string | undefined) || step.name,
+      };
+    }
+
+    // 2. Fall back to built-in NODE_ACTION_MAP
+    return NODE_ACTION_MAP[step.nodeType];
+  }
+
+  /**
    * Build the job graph from the workflow AST.
    * Groups nodes by their [job: "name"] attribute and computes dependencies
    * from connections between nodes in different jobs.
    */
   protected buildJobGraph(ast: TWorkflowAST): CICDJob[] {
+    // Build node type lookup for @deploy annotations
+    const nodeTypeLookup = new Map<string, TNodeTypeAST>();
+    for (const nt of ast.nodeTypes) {
+      nodeTypeLookup.set(nt.name, nt);
+      if (nt.functionName !== nt.name) nodeTypeLookup.set(nt.functionName, nt);
+    }
+
     // Group instances by job
     const jobMap = new Map<string, TNodeInstanceAST[]>();
-    const defaultRunner = ast.options?.runner;
+    const defaultRunner = ast.options?.cicd?.runner;
 
     for (const inst of ast.instances) {
       const jobName = inst.job || 'default';
@@ -264,11 +309,15 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
       // Determine environment from first instance with one
       const environment = instances.find((i) => i.environment)?.environment;
 
-      const steps: CICDStep[] = instances.map((inst) => ({
-        id: inst.id,
-        name: inst.config?.label || inst.id,
-        nodeType: inst.nodeType,
-      }));
+      const steps: CICDStep[] = instances.map((inst) => {
+        const nt = nodeTypeLookup.get(inst.nodeType);
+        return {
+          id: inst.id,
+          name: inst.config?.label || inst.id,
+          nodeType: inst.nodeType,
+          ...(nt?.deploy && { nodeTypeDeploy: nt.deploy }),
+        };
+      });
 
       const needs = jobDeps.get(jobId)
         ? Array.from(jobDeps.get(jobId)!)

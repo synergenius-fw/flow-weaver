@@ -119,9 +119,9 @@ describe('export/index', () => {
   // getSupportedTargets
   // ──────────────────────────────────────────────────
   describe('getSupportedTargets', () => {
-    it('returns all four supported targets', () => {
+    it('returns all six supported targets', () => {
       const targets = getSupportedTargets();
-      expect(targets).toEqual(['lambda', 'vercel', 'cloudflare', 'inngest']);
+      expect(targets).toEqual(['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci']);
     });
 
     it('returns a fresh array on each call', () => {

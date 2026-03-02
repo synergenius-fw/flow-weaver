@@ -94,6 +94,8 @@ export {
   type ExportArtifacts,
   type GeneratedFile,
   type DeployInstructions,
+  type DeploySchema,
+  type DeploySchemaField,
   BaseExportTarget,
   ExportTargetRegistry,
 } from './targets/base.js';
@@ -116,16 +118,20 @@ import { GitHubActionsTarget } from './targets/github-actions.js';
 import { GitLabCITarget } from './targets/gitlab-ci.js';
 
 /**
- * Default export target registry with all built-in targets
+ * Default export target registry with all built-in targets.
+ *
+ * All targets are registered as lazy factories — they're only instantiated
+ * when first accessed via registry.get(). This avoids eagerly constructing
+ * all 6 targets when only one is needed.
  */
 export function createTargetRegistry(): ExportTargetRegistry {
   const registry = new ExportTargetRegistry();
-  registry.register(new LambdaTarget());
-  registry.register(new VercelTarget());
-  registry.register(new CloudflareTarget());
-  registry.register(new InngestTarget());
-  registry.register(new GitHubActionsTarget());
-  registry.register(new GitLabCITarget());
+  registry.register('lambda', () => new LambdaTarget());
+  registry.register('vercel', () => new VercelTarget());
+  registry.register('cloudflare', () => new CloudflareTarget());
+  registry.register('inngest', () => new InngestTarget());
+  registry.register('github-actions', () => new GitHubActionsTarget());
+  registry.register('gitlab-ci', () => new GitLabCITarget());
   return registry;
 }
 

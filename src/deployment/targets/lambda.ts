@@ -900,6 +900,12 @@ export class LambdaTarget extends BaseExportTarget {
   readonly name = 'lambda';
   readonly description = 'AWS Lambda with SAM (Serverless Application Model)';
 
+  readonly deploySchema = {
+    memory: { type: 'number' as const, description: 'Lambda memory in MB', default: 256 },
+    runtime: { type: 'string' as const, description: 'Lambda runtime', default: 'nodejs20.x' },
+    timeout: { type: 'number' as const, description: 'Function timeout in seconds', default: 30 },
+  };
+
   async generate(options: ExportOptions): Promise<ExportArtifacts> {
     const files = [];
     const includeDocs = options.includeDocs ?? false;

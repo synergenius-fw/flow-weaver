@@ -18,19 +18,19 @@ import type { TWorkflowAST } from '../ast/types';
  * 3. Workflow has cicdTriggers
  */
 export function isCICDWorkflow(ast: TWorkflowAST): boolean {
-  const opts = ast.options;
-  if (!opts) return false;
-
-  // Check workflow-level CI/CD annotations
-  if (opts.secrets && opts.secrets.length > 0) return true;
-  if (opts.runner) return true;
-  if (opts.caches && opts.caches.length > 0) return true;
-  if (opts.artifacts && opts.artifacts.length > 0) return true;
-  if (opts.environments && opts.environments.length > 0) return true;
-  if (opts.matrix) return true;
-  if (opts.services && opts.services.length > 0) return true;
-  if (opts.concurrency) return true;
-  if (opts.cicdTriggers && opts.cicdTriggers.length > 0) return true;
+  // Check CI/CD domain annotations
+  const cicd = ast.options?.cicd;
+  if (cicd) {
+    if (cicd.secrets && cicd.secrets.length > 0) return true;
+    if (cicd.runner) return true;
+    if (cicd.caches && cicd.caches.length > 0) return true;
+    if (cicd.artifacts && cicd.artifacts.length > 0) return true;
+    if (cicd.environments && cicd.environments.length > 0) return true;
+    if (cicd.matrix) return true;
+    if (cicd.services && cicd.services.length > 0) return true;
+    if (cicd.concurrency) return true;
+    if (cicd.triggers && cicd.triggers.length > 0) return true;
+  }
 
   // Check node-level CI/CD annotations
   if (ast.instances.some((inst) => inst.job)) return true;
@@ -54,7 +54,7 @@ export function getJobNames(ast: TWorkflowAST): string[] {
  * Get all declared secret names from a CI/CD workflow.
  */
 export function getDeclaredSecrets(ast: TWorkflowAST): string[] {
-  return (ast.options?.secrets || []).map((s) => s.name);
+  return (ast.options?.cicd?.secrets || []).map((s) => s.name);
 }
 
 /**

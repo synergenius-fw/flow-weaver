@@ -257,6 +257,8 @@ export type TNodeTypeAST = {
   declarationKind?: 'const' | 'let' | 'var';
   /** npm package specifier this node type was resolved from (e.g., 'date-fns') */
   importSource?: string;
+  /** Per-target deploy config from @deploy annotations (e.g., deploy['github-actions'].action) */
+  deploy?: Record<string, Record<string, unknown>>;
 };
 
 /**
@@ -430,8 +432,23 @@ export type TWorkflowOptions = {
   /** Rate limiting configuration */
   throttle?: { limit: number; period?: string };
 
-  // ── CI/CD annotations ────────────────────────────────────────────
+  // ── CI/CD domain annotations (shared across CI/CD targets) ─────
 
+  /** CI/CD pipeline configuration from @secret, @cache, @artifact, etc. */
+  cicd?: TCICDOptions;
+
+  // ── Per-target deployment config from @deploy annotations ──────
+
+  /** Target-specific config (e.g., deploy['github-actions'].runner) */
+  deploy?: Record<string, Record<string, unknown>>;
+};
+
+/**
+ * CI/CD domain options — shared across all CI/CD export targets.
+ * Populated from @secret, @runner, @cache, @artifact, @environment,
+ * @matrix, @service, @concurrency annotations.
+ */
+export type TCICDOptions = {
   /** Secret declarations for CI/CD pipelines */
   secrets?: TCICDSecret[];
   /** Default runner environment for CI/CD jobs */
@@ -449,7 +466,7 @@ export type TWorkflowOptions = {
   /** Concurrency control */
   concurrency?: { group: string; cancelInProgress?: boolean };
   /** Extended CI/CD triggers (push, PR, dispatch, tag) */
-  cicdTriggers?: TCICDTrigger[];
+  triggers?: TCICDTrigger[];
 };
 
 // ── CI/CD Types ──────────────────────────────────────────────────────

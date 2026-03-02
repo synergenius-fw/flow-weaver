@@ -951,6 +951,7 @@ export class AnnotationParser {
                 tags: config.tags,
               }
             : undefined,
+        ...(config.deploy && { deploy: config.deploy }),
         sourceLocation: {
           file: sourceFile.getFilePath(),
           line: fn.getStartLineNumber(false),
@@ -1266,7 +1267,8 @@ export class AnnotationParser {
              config.timeout || config.throttle ||
              config.secrets || config.runner || config.caches || config.artifacts ||
              config.environments || config.matrix || config.services ||
-             config.concurrency || config.cicdTriggers) && {
+             config.concurrency || config.cicdTriggers ||
+             config.deploy) && {
           options: {
             ...(config.strictTypes !== undefined && { strictTypes: config.strictTypes }),
             ...(config.autoConnect && { autoConnect: true }),
@@ -1275,16 +1277,24 @@ export class AnnotationParser {
             ...(config.retries !== undefined && { retries: config.retries }),
             ...(config.timeout && { timeout: config.timeout }),
             ...(config.throttle && { throttle: config.throttle }),
-            // CI/CD options
-            ...(config.secrets && { secrets: config.secrets }),
-            ...(config.runner && { runner: config.runner }),
-            ...(config.caches && { caches: config.caches }),
-            ...(config.artifacts && { artifacts: config.artifacts }),
-            ...(config.environments && { environments: config.environments }),
-            ...(config.matrix && { matrix: config.matrix }),
-            ...(config.services && { services: config.services }),
-            ...(config.concurrency && { concurrency: config.concurrency }),
-            ...(config.cicdTriggers && { cicdTriggers: config.cicdTriggers }),
+            // CI/CD domain options (grouped)
+            ...((config.secrets || config.runner || config.caches || config.artifacts ||
+                 config.environments || config.matrix || config.services ||
+                 config.concurrency || config.cicdTriggers) && {
+              cicd: {
+                ...(config.secrets && { secrets: config.secrets }),
+                ...(config.runner && { runner: config.runner }),
+                ...(config.caches && { caches: config.caches }),
+                ...(config.artifacts && { artifacts: config.artifacts }),
+                ...(config.environments && { environments: config.environments }),
+                ...(config.matrix && { matrix: config.matrix }),
+                ...(config.services && { services: config.services }),
+                ...(config.concurrency && { concurrency: config.concurrency }),
+                ...(config.cicdTriggers && { triggers: config.cicdTriggers }),
+              },
+            }),
+            // Per-target deployment config
+            ...(config.deploy && { deploy: config.deploy }),
           },
         }),
       });

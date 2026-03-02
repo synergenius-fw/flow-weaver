@@ -55,7 +55,31 @@ export const cicdDockerTemplate: WorkflowTemplate = {
       gcr: ' * @connect secret:GCR_KEY -> login.serviceAccountKey',
     };
 
-    return `/**
+    return `/** @flowWeaver nodeType
+ * @expression
+ * @label Checkout code
+ */
+function checkout(): { repo: string } { return { repo: '.' }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Docker login
+ */
+function dockerLogin(${registry === 'dockerhub' ? 'username: string = \'\', password: string = \'\'' : registry === 'ecr' ? 'accessKey: string = \'\', secretKey: string = \'\'' : registry === 'gcr' ? 'serviceAccountKey: string = \'\'' : 'token: string = \'\''}): { loggedIn: boolean } { return { loggedIn: true }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Docker build
+ */
+function dockerBuild(): { imageTag: string } { return { imageTag: 'latest' }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Docker push
+ */
+function dockerPush(): { digest: string } { return { digest: 'sha256:abc123' }; }
+
+/**
  * @flowWeaver workflow
  * @trigger push branches="main" paths="Dockerfile,src/**"
  * @trigger tag pattern="v*"
@@ -63,9 +87,9 @@ export const cicdDockerTemplate: WorkflowTemplate = {
 ${registrySecrets[registry]}
  *
  * @node co checkout [job: "build"] [position: 270 0]
- * @node login docker-login [job: "build"] [position: 540 0]
- * @node build docker-build [job: "build"] [position: 810 0]
- * @node push docker-push [job: "build"] [position: 1080 0]
+ * @node login dockerLogin [job: "build"] [position: 540 0]
+ * @node build dockerBuild [job: "build"] [position: 810 0]
+ * @node push dockerPush [job: "build"] [position: 1080 0]
  *
  * @path Start -> co -> login -> build -> push -> Exit
  * @position Start 0 0

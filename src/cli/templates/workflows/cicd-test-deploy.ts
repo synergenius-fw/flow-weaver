@@ -50,8 +50,9 @@ export const cicdTestDeployTemplate: WorkflowTemplate = {
     const deployTarget = (opts.config?.deployTarget as string) || 'ssh';
     const hasDeploy = deployTarget !== 'none';
 
+    const deployNodeType = deployTarget === 'ssh' ? 'deploySsh' : 'deployS3';
     const deployNode = hasDeploy
-      ? `\n * @node deploy deploy-${deployTarget} [job: "deploy" environment: "production"] [position: 1620 0]`
+      ? `\n * @node deploy ${deployNodeType} [job: "deploy"] [environment: "production"] [position: 1620 0]`
       : '';
     const deployPath = hasDeploy ? ' -> deploy' : '';
     const deploySecret = deployTarget === 'ssh'
@@ -67,7 +68,55 @@ export const cicdTestDeployTemplate: WorkflowTemplate = {
     const deployReturns = hasDeploy ? '\n * @returns deployResult [order:3] - Deploy result' : '';
     const deployConnect2 = hasDeploy ? '\n * @connect deploy.result -> Exit.deployResult' : '';
 
-    return `/**
+    const deployStub = hasDeploy
+      ? deployTarget === 'ssh'
+        ? `
+/** @flowWeaver nodeType
+ * @expression
+ * @label Deploy via SSH
+ */
+function deploySsh(sshKey: string = ''): { result: string } { return { result: 'deployed' }; }
+`
+        : `
+/** @flowWeaver nodeType
+ * @expression
+ * @label Deploy to S3
+ */
+function deployS3(accessKey: string = '', secretKey: string = ''): { result: string } { return { result: 'deployed' }; }
+`
+      : '';
+
+    return `/** @flowWeaver nodeType
+ * @expression
+ * @label Checkout code
+ */
+function checkout(): { repo: string } { return { repo: '.' }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Setup Node.js
+ */
+function setupNode(): { nodeVersion: string } { return { nodeVersion: '20' }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Install dependencies
+ */
+function npmInstall(npmToken: string = ''): { installed: boolean } { return { installed: true }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Run tests
+ */
+function npmTest(): { exitCode: number } { return { exitCode: 0 }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Build project
+ */
+function npmBuild(): { output: string } { return { output: 'dist/' }; }
+${deployStub}
+/**
  * @flowWeaver workflow
  * @trigger push branches="main"
  * @trigger pull_request branches="main"
@@ -76,10 +125,10 @@ export const cicdTestDeployTemplate: WorkflowTemplate = {
  * @cache npm key="package-lock.json"
  *
  * @node co checkout [job: "test"] [position: 270 0]
- * @node setup setup-node [job: "test"] [position: 540 0]
- * @node install npm-install [job: "test"] [position: 810 0]
- * @node test npm-test [job: "test"] [position: 1080 0]
- * @node build npm-build [job: "build"] [position: 1350 0]${deployNode}
+ * @node setup setupNode [job: "test"] [position: 540 0]
+ * @node install npmInstall [job: "test"] [position: 810 0]
+ * @node test npmTest [job: "test"] [position: 1080 0]
+ * @node build npmBuild [job: "build"] [position: 1350 0]${deployNode}
  *
  * @path Start -> co -> setup -> install -> test -> build${deployPath} -> Exit
  * @position Start 0 0

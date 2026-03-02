@@ -171,6 +171,8 @@ export interface JSDocNodeTypeConfig {
       tsType?: string;
     }
   >;
+  /** Per-target deploy config from @deploy annotations on nodeType */
+  deploy?: Record<string, Record<string, unknown>>;
 }
 
 export interface JSDocWorkflowConfig {
@@ -282,6 +284,10 @@ export interface JSDocWorkflowConfig {
   concurrency?: { group: string; cancelInProgress?: boolean };
   /** Extended CI/CD triggers from @trigger push/pull_request/dispatch/tag */
   cicdTriggers?: Array<{ type: 'push' | 'pull_request' | 'schedule' | 'dispatch' | 'tag'; branches?: string[]; paths?: string[]; pathsIgnore?: string[]; pattern?: string; types?: string[]; cron?: string; inputs?: Record<string, { description?: string; required?: boolean; default?: string; type?: string }> }>;
+
+  // ── Per-target deployment config from @deploy annotations ──────
+  /** @deploy target key=value pairs */
+  deploy?: Record<string, Record<string, unknown>>;
 }
 
 export interface JSDocPatternConfig {
@@ -410,6 +416,11 @@ export class JSDocParser {
 
         case 'step':
           this.parseStepTag(tag, config, func, warnings);
+          break;
+
+        case 'deploy':
+          config.deploy = config.deploy || {};
+          this.parseDeployTag(tag, config.deploy);
           break;
 
         default:
@@ -557,39 +568,17 @@ export class JSDocParser {
           this.parseThrottleTag(tag, config, warnings);
           break;
 
-        // ── CI/CD annotations ──────────────────────────────────────
+        // ── CI/CD + deployment annotations (delegated to helper) ──
+        case 'deploy':
         case 'secret':
-          this.parseSecretTag(tag, config, warnings);
-          break;
-
-        case 'runner': {
-          const runnerVal = comment.trim().replace(/^["']|["']$/g, '');
-          if (runnerVal) config.runner = runnerVal;
-          break;
-        }
-
+        case 'runner':
         case 'cache':
-          this.parseCacheTag(tag, config, warnings);
-          break;
-
         case 'artifact':
-          this.parseArtifactTag(tag, config, warnings);
-          break;
-
         case 'environment':
-          this.parseEnvironmentTag(tag, config, warnings);
-          break;
-
         case 'matrix':
-          this.parseMatrixTag(tag, config, warnings);
-          break;
-
         case 'service':
-          this.parseServiceTag(tag, config, warnings);
-          break;
-
         case 'concurrency':
-          this.parseConcurrencyTag(tag, config, warnings);
+          this.handleDeploymentTag(tagName, tag, config, warnings);
           break;
 
         case 'param':
@@ -1546,6 +1535,102 @@ export class JSDocParser {
       return;
     }
     config.throttle = result;
+  }
+
+  // ── Deployment dispatch + @deploy parser ───────────────────────────
+
+  /**
+   * Dispatch a CI/CD or @deploy tag to the appropriate parser.
+   * Consolidates all deployment-related cases from the main switch.
+   */
+  private handleDeploymentTag(tagName: string, tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
+    switch (tagName) {
+      case 'deploy':
+        config.deploy = config.deploy || {};
+        this.parseDeployTag(tag, config.deploy);
+        break;
+      case 'secret':
+        this.parseSecretTag(tag, config, warnings);
+        break;
+      case 'runner': {
+        const comment = (tag.getCommentText() || '').trim().replace(/^["']|["']$/g, '');
+        if (comment) config.runner = comment;
+        break;
+      }
+      case 'cache':
+        this.parseCacheTag(tag, config, warnings);
+        break;
+      case 'artifact':
+        this.parseArtifactTag(tag, config, warnings);
+        break;
+      case 'environment':
+        this.parseEnvironmentTag(tag, config, warnings);
+        break;
+      case 'matrix':
+        this.parseMatrixTag(tag, config, warnings);
+        break;
+      case 'service':
+        this.parseServiceTag(tag, config, warnings);
+        break;
+      case 'concurrency':
+        this.parseConcurrencyTag(tag, config, warnings);
+        break;
+    }
+  }
+
+  /**
+   * Parse @deploy tag.
+   * Format: @deploy <target> key=value key2="value with spaces" key3=123 key4=true
+   *
+   * Examples:
+   *   @deploy github-actions action="actions/checkout@v4"
+   *   @deploy inngest durableSteps=true framework="next" retries=3
+   *   @deploy lambda memory=256 timeout=30
+   *
+   * Values are auto-coerced: "true"/"false" → boolean, numeric strings → number.
+   */
+  private parseDeployTag(tag: JSDocTag, deployMap: Record<string, Record<string, unknown>>): void {
+    const text = (tag.getCommentText() || '').trim();
+    if (!text) return;
+
+    // Split target name from remaining key=value pairs
+    const spaceIdx = text.indexOf(' ');
+    const targetName = spaceIdx === -1 ? text : text.substring(0, spaceIdx);
+    const rest = spaceIdx === -1 ? '' : text.substring(spaceIdx + 1);
+
+    if (!targetName) return;
+
+    if (!deployMap[targetName]) deployMap[targetName] = {};
+
+    if (!rest) return;
+
+    // Parse key=value and key="value with spaces" pairs
+    const kvRegex = /(\w[\w-]*)\s*=\s*(?:"([^"]*)"|([\S]+))/g;
+    let match: RegExpExecArray | null;
+    while ((match = kvRegex.exec(rest)) !== null) {
+      const key = match[1];
+      const quotedVal = match[2]; // captured from "..."
+      const bareVal = match[3];   // captured from unquoted
+
+      if (quotedVal !== undefined) {
+        // Quoted values: check if comma-separated list → string[]
+        if (quotedVal.includes(',')) {
+          deployMap[targetName][key] = quotedVal.split(',').map(v => v.trim());
+        } else {
+          deployMap[targetName][key] = quotedVal;
+        }
+      } else if (bareVal !== undefined) {
+        // Bare values: auto-coerce boolean and number
+        if (bareVal === 'true') {
+          deployMap[targetName][key] = true;
+        } else if (bareVal === 'false') {
+          deployMap[targetName][key] = false;
+        } else {
+          const num = Number(bareVal);
+          deployMap[targetName][key] = isNaN(num) ? bareVal : num;
+        }
+      }
+    }
   }
 
   // ── CI/CD annotation parsers ───────────────────────────────────────

@@ -50,24 +50,48 @@ export const cicdMultiEnvTemplate: WorkflowTemplate = {
     nodeAnnotations.push(` * @node co checkout [job: "test"] [position: ${x} 0]`);
     pathParts.push('co');
     x += 270;
-    nodeAnnotations.push(` * @node test npm-test [job: "test"] [position: ${x} 0]`);
+    nodeAnnotations.push(` * @node test npmTest [job: "test"] [position: ${x} 0]`);
     pathParts.push('test');
     x += 270;
-    nodeAnnotations.push(` * @node build npm-build [job: "build"] [position: ${x} 0]`);
+    nodeAnnotations.push(` * @node build npmBuild [job: "build"] [position: ${x} 0]`);
     pathParts.push('build');
     x += 270;
 
     // Deploy jobs for each environment
     for (const env of envs) {
       const id = `deploy_${env.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      nodeAnnotations.push(` * @node ${id} deploy-ssh [job: "deploy-${env}" environment: "${env}"] [position: ${x} 0]`);
+      nodeAnnotations.push(` * @node ${id} deploySsh [job: "deploy-${env}"] [environment: "${env}"] [position: ${x} 0]`);
       pathParts.push(id);
       x += 270;
     }
 
     pathParts.push('Exit');
 
-    return `/**
+    return `/** @flowWeaver nodeType
+ * @expression
+ * @label Checkout code
+ */
+function checkout(): { repo: string } { return { repo: '.' }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Run tests
+ */
+function npmTest(): { exitCode: number } { return { exitCode: 0 }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Build project
+ */
+function npmBuild(): { output: string } { return { output: 'dist/' }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Deploy via SSH
+ */
+function deploySsh(sshKey: string = ''): { result: string } { return { result: 'deployed' }; }
+
+/**
  * @flowWeaver workflow
  * @trigger push branches="main"
  * @runner ubuntu-latest

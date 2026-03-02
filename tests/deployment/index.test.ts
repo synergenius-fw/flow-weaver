@@ -66,13 +66,16 @@ describe('deployment module re-exports', () => {
     expect(mod.VercelTarget).toBeDefined();
     expect(mod.CloudflareTarget).toBeDefined();
     expect(mod.InngestTarget).toBeDefined();
+    expect(mod.GitHubActionsTarget).toBeDefined();
+    expect(mod.GitLabCITarget).toBeDefined();
+    expect(mod.BaseCICDTarget).toBeDefined();
     expect(mod.BaseExportTarget).toBeDefined();
     expect(mod.ExportTargetRegistry).toBeDefined();
   });
 });
 
 describe('createTargetRegistry', () => {
-  it('returns a registry with all four built-in targets', async () => {
+  it('returns a registry with all six built-in targets', async () => {
     const { createTargetRegistry } = await import('../../src/deployment/index');
     const registry = createTargetRegistry();
 
@@ -80,13 +83,17 @@ describe('createTargetRegistry', () => {
     expect(registry.get('vercel')).toBeDefined();
     expect(registry.get('cloudflare')).toBeDefined();
     expect(registry.get('inngest')).toBeDefined();
+    expect(registry.get('github-actions')).toBeDefined();
+    expect(registry.get('gitlab-ci')).toBeDefined();
 
     const names = registry.getNames();
     expect(names).toContain('lambda');
     expect(names).toContain('vercel');
     expect(names).toContain('cloudflare');
     expect(names).toContain('inngest');
-    expect(names).toHaveLength(4);
+    expect(names).toContain('github-actions');
+    expect(names).toContain('gitlab-ci');
+    expect(names).toHaveLength(6);
   });
 
   it('each target has a name and description', async () => {
@@ -116,11 +123,11 @@ describe('createTargetRegistry', () => {
 });
 
 describe('getSupportedTargetNames', () => {
-  it('returns the four supported target names', async () => {
+  it('returns the six supported target names', async () => {
     const { getSupportedTargetNames } = await import('../../src/deployment/index');
     const names = getSupportedTargetNames();
 
-    expect(names).toEqual(['lambda', 'vercel', 'cloudflare', 'inngest']);
+    expect(names).toEqual(['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci']);
   });
 
   it('returns a new array each time', async () => {

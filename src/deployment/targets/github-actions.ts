@@ -19,7 +19,6 @@ import type { TWorkflowAST } from '../../ast/types';
 import { isCICDWorkflow } from '../../validation/cicd-detection.js';
 import {
   BaseCICDTarget,
-  NODE_ACTION_MAP,
   type CICDJob,
   type CICDStep,
 } from './cicd-base.js';
@@ -35,6 +34,16 @@ import * as fs from 'fs';
 export class GitHubActionsTarget extends BaseCICDTarget {
   readonly name = 'github-actions';
   readonly description = 'GitHub Actions workflow YAML (.github/workflows/)';
+
+  readonly deploySchema = {
+    runner: { type: 'string' as const, description: 'GitHub runner label', default: 'ubuntu-latest' },
+  };
+
+  readonly nodeTypeDeploySchema = {
+    action: { type: 'string' as const, description: 'GitHub Action uses: value (e.g. actions/checkout@v4)' },
+    with: { type: 'string' as const, description: 'JSON object for with: parameters' },
+    label: { type: 'string' as const, description: 'Step display name' },
+  };
 
   async generate(options: ExportOptions): Promise<ExportArtifacts> {
     const filePath = path.resolve(options.sourceFile);
@@ -65,7 +74,7 @@ export class GitHubActionsTarget extends BaseCICDTarget {
       this.resolveJobSecrets(jobs, ast, (name) => `\${{ secrets.${name} }}`);
 
       // Inject artifacts
-      const artifacts = ast.options?.artifacts || [];
+      const artifacts = ast.options?.cicd?.artifacts || [];
       this.injectArtifactSteps(jobs, artifacts);
 
       // Apply cache, services, matrix from workflow options
@@ -79,7 +88,7 @@ export class GitHubActionsTarget extends BaseCICDTarget {
       files.push(this.createFile(outputDir, yamlFileName, yamlContent, 'config'));
 
       // Generate secrets doc if secrets exist
-      const secrets = ast.options?.secrets || [];
+      const secrets = ast.options?.cicd?.secrets || [];
       if (secrets.length > 0) {
         const secretsDoc = this.generateSecretsDoc(secrets, 'github-actions');
         files.push(this.createFile(outputDir, 'SECRETS_SETUP.md', secretsDoc, 'other'));
@@ -128,13 +137,13 @@ export class GitHubActionsTarget extends BaseCICDTarget {
     doc.name = ast.name;
 
     // on: triggers
-    doc.on = this.renderTriggers(ast.options?.cicdTriggers || []);
+    doc.on = this.renderTriggers(ast.options?.cicd?.triggers || []);
 
     // concurrency
-    if (ast.options?.concurrency) {
+    if (ast.options?.cicd?.concurrency) {
       doc.concurrency = {
-        group: ast.options.concurrency.group,
-        'cancel-in-progress': ast.options.concurrency.cancelInProgress ?? false,
+        group: ast.options.cicd.concurrency.group,
+        'cancel-in-progress': ast.options.cicd.concurrency.cancelInProgress ?? false,
       };
     }
 
@@ -217,7 +226,7 @@ export class GitHubActionsTarget extends BaseCICDTarget {
 
     // environment
     if (job.environment) {
-      const envConfig = ast.options?.environments?.find((e) => e.name === job.environment);
+      const envConfig = ast.options?.cicd?.environments?.find((e) => e.name === job.environment);
       if (envConfig?.url) {
         jobObj.environment = { name: job.environment, url: envConfig.url };
       } else {
@@ -260,7 +269,7 @@ export class GitHubActionsTarget extends BaseCICDTarget {
     // Download artifacts first
     if (job.downloadArtifacts && job.downloadArtifacts.length > 0) {
       for (const artifactName of job.downloadArtifacts) {
-        const artifact = ast.options?.artifacts?.find((a) => a.name === artifactName);
+        const artifact = ast.options?.cicd?.artifacts?.find((a) => a.name === artifactName);
         steps.push({
           uses: 'actions/download-artifact@v4',
           with: {
@@ -304,7 +313,7 @@ export class GitHubActionsTarget extends BaseCICDTarget {
   }
 
   private renderStep(step: CICDStep): Record<string, unknown> {
-    const mapping = NODE_ACTION_MAP[step.nodeType];
+    const mapping = this.resolveActionMapping(step, 'github-actions');
 
     if (mapping?.githubAction) {
       // Use a pre-built action
@@ -378,30 +387,30 @@ export class GitHubActionsTarget extends BaseCICDTarget {
    * Apply workflow-level options (cache, services, matrix) to jobs.
    */
   private applyWorkflowOptions(jobs: CICDJob[], ast: TWorkflowAST): void {
-    const opts = ast.options;
-    if (!opts) return;
+    const cicd = ast.options?.cicd;
+    if (!cicd) return;
 
     // Apply cache to all jobs (or first job if only one)
-    if (opts.caches && opts.caches.length > 0) {
+    if (cicd.caches && cicd.caches.length > 0) {
       const targetJobs = jobs.length === 1 ? jobs : jobs.filter((j) => j.needs.length === 0);
       for (const job of targetJobs) {
-        job.cache = opts.caches[0]; // Primary cache
+        job.cache = cicd.caches[0]; // Primary cache
       }
     }
 
     // Apply services to all jobs
-    if (opts.services && opts.services.length > 0) {
+    if (cicd.services && cicd.services.length > 0) {
       for (const job of jobs) {
-        job.services = opts.services;
+        job.services = cicd.services;
       }
     }
 
     // Apply matrix to first job (or specific jobs based on convention)
-    if (opts.matrix) {
+    if (cicd.matrix) {
       // Apply to all jobs that don't have dependencies (root jobs)
       const rootJobs = jobs.filter((j) => j.needs.length === 0);
       for (const job of rootJobs) {
-        job.matrix = opts.matrix;
+        job.matrix = cicd.matrix;
       }
     }
   }

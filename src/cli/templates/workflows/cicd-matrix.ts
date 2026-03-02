@@ -49,7 +49,37 @@ export const cicdMatrixTemplate: WorkflowTemplate = {
 
     const matrixNode = ` * @matrix node="${versions.join(',')}" os="${oses.join(',')}"`;
 
-    return `/**
+    return `/** @flowWeaver nodeType
+ * @expression
+ * @label Checkout code
+ */
+function checkout(): { repo: string } { return { repo: '.' }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Setup Node.js
+ */
+function setupNode(): { nodeVersion: string } { return { nodeVersion: '20' }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Install dependencies
+ */
+function npmInstall(): { installed: boolean } { return { installed: true }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Run shell command
+ */
+function shellCommand(): { exitCode: number } { return { exitCode: 0 }; }
+
+/** @flowWeaver nodeType
+ * @expression
+ * @label Run tests
+ */
+function npmTest(): { exitCode: number } { return { exitCode: 0 }; }
+
+/**
  * @flowWeaver workflow
  * @trigger push branches="main"
  * @trigger pull_request branches="main"
@@ -58,10 +88,10 @@ ${matrixNode}
  * @cache npm key="package-lock.json"
  *
  * @node co checkout [job: "test"] [position: 270 0]
- * @node setup setup-node [job: "test"] [position: 540 0]
- * @node install npm-install [job: "test"] [position: 810 0]
- * @node lint shell-command [job: "test"] [position: 1080 0]
- * @node test npm-test [job: "test"] [position: 1350 0]
+ * @node setup setupNode [job: "test"] [position: 540 0]
+ * @node install npmInstall [job: "test"] [position: 810 0]
+ * @node lint shellCommand [job: "test"] [position: 1080 0]
+ * @node test npmTest [job: "test"] [position: 1350 0]
  *
  * @path Start -> co -> setup -> install -> lint -> test -> Exit
  * @position Start 0 0

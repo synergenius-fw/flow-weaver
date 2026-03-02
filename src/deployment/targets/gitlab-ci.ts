@@ -18,7 +18,6 @@ import type { TWorkflowAST } from '../../ast/types';
 import { isCICDWorkflow } from '../../validation/cicd-detection.js';
 import {
   BaseCICDTarget,
-  NODE_ACTION_MAP,
   type CICDJob,
   type CICDStep,
 } from './cicd-base.js';
@@ -33,6 +32,16 @@ import * as path from 'path';
 export class GitLabCITarget extends BaseCICDTarget {
   readonly name = 'gitlab-ci';
   readonly description = 'GitLab CI/CD pipeline (.gitlab-ci.yml)';
+
+  readonly deploySchema = {
+    runner: { type: 'string' as const, description: 'Default Docker image', default: 'ubuntu:latest' },
+  };
+
+  readonly nodeTypeDeploySchema = {
+    script: { type: 'string[]' as const, description: 'GitLab CI script commands' },
+    image: { type: 'string' as const, description: 'Docker image override' },
+    label: { type: 'string' as const, description: 'Step display name' },
+  };
 
   async generate(options: ExportOptions): Promise<ExportArtifacts> {
     const filePath = path.resolve(options.sourceFile);
@@ -63,7 +72,7 @@ export class GitLabCITarget extends BaseCICDTarget {
       this.resolveJobSecrets(jobs, ast, (name) => `$${name}`);
 
       // Inject artifacts
-      const artifacts = ast.options?.artifacts || [];
+      const artifacts = ast.options?.cicd?.artifacts || [];
       this.injectArtifactSteps(jobs, artifacts);
 
       // Apply workflow options
@@ -75,7 +84,7 @@ export class GitLabCITarget extends BaseCICDTarget {
       files.push(this.createFile(outputDir, '.gitlab-ci.yml', yamlContent, 'config'));
 
       // Generate secrets doc if secrets exist
-      const secrets = ast.options?.secrets || [];
+      const secrets = ast.options?.cicd?.secrets || [];
       if (secrets.length > 0) {
         const secretsDoc = this.generateSecretsDoc(secrets, 'gitlab-ci');
         files.push(this.createFile(outputDir, 'SECRETS_SETUP.md', secretsDoc, 'other'));
@@ -126,13 +135,13 @@ export class GitLabCITarget extends BaseCICDTarget {
     doc.stages = stages;
 
     // Default image
-    const defaultImage = this.deriveDefaultImage(ast);
+    const defaultImage = this.deriveDefaultImage(ast, jobs);
     if (defaultImage) {
       doc.default = { image: defaultImage };
     }
 
     // Workflow-level rules (from triggers)
-    const rules = this.renderWorkflowRules(ast.options?.cicdTriggers || []);
+    const rules = this.renderWorkflowRules(ast.options?.cicd?.triggers || []);
     if (rules.length > 0) {
       doc.workflow = { rules };
     }
@@ -185,13 +194,15 @@ export class GitLabCITarget extends BaseCICDTarget {
   }
 
   /**
-   * Derive default image from runner or node-type mappings.
+   * Derive default image from @deploy annotations or built-in mappings.
    */
-  private deriveDefaultImage(ast: TWorkflowAST): string | undefined {
-    // Check if any step uses a setup node that implies an image
-    for (const inst of ast.instances) {
-      const mapping = NODE_ACTION_MAP[inst.nodeType];
-      if (mapping?.gitlabImage) return mapping.gitlabImage;
+  private deriveDefaultImage(_ast: TWorkflowAST, jobs: CICDJob[]): string | undefined {
+    // Check steps for @deploy gitlab-ci image or built-in mapping
+    for (const job of jobs) {
+      for (const step of job.steps) {
+        const mapping = this.resolveActionMapping(step, 'gitlab-ci');
+        if (mapping?.gitlabImage) return mapping.gitlabImage;
+      }
     }
     return undefined;
   }
@@ -277,7 +288,7 @@ export class GitLabCITarget extends BaseCICDTarget {
 
     // environment
     if (job.environment) {
-      const envConfig = ast.options?.environments?.find((e) => e.name === job.environment);
+      const envConfig = ast.options?.cicd?.environments?.find((e) => e.name === job.environment);
       const envObj: Record<string, unknown> = { name: job.environment };
       if (envConfig?.url) envObj.url = envConfig.url;
       if (envConfig?.reviewers) envObj.deployment_tier = 'production';
@@ -349,7 +360,7 @@ export class GitLabCITarget extends BaseCICDTarget {
   }
 
   private renderStepScript(step: CICDStep): string[] {
-    const mapping = NODE_ACTION_MAP[step.nodeType];
+    const mapping = this.resolveActionMapping(step, 'gitlab-ci');
     const lines: string[] = [];
 
     // Add env vars as export statements if present
@@ -399,32 +410,32 @@ export class GitLabCITarget extends BaseCICDTarget {
    * Apply workflow-level options to jobs.
    */
   private applyWorkflowOptions(jobs: CICDJob[], ast: TWorkflowAST): void {
-    const opts = ast.options;
-    if (!opts) return;
+    const cicd = ast.options?.cicd;
+    if (!cicd) return;
 
     // Apply cache to all jobs
-    if (opts.caches && opts.caches.length > 0) {
+    if (cicd.caches && cicd.caches.length > 0) {
       for (const job of jobs) {
         if (!job.cache) {
-          job.cache = opts.caches[0];
+          job.cache = cicd.caches[0];
         }
       }
     }
 
     // Apply services to all jobs
-    if (opts.services && opts.services.length > 0) {
+    if (cicd.services && cicd.services.length > 0) {
       for (const job of jobs) {
         if (!job.services) {
-          job.services = opts.services;
+          job.services = cicd.services;
         }
       }
     }
 
     // Apply matrix (GitLab uses `parallel: matrix:`)
-    if (opts.matrix) {
+    if (cicd.matrix) {
       const rootJobs = jobs.filter((j) => j.needs.length === 0);
       for (const job of rootJobs) {
-        job.matrix = opts.matrix;
+        job.matrix = cicd.matrix;
       }
     }
   }

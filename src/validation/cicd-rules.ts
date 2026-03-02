@@ -20,7 +20,6 @@ import type {
   TWorkflowAST,
 } from '../ast/types';
 import {
-  isCICDWorkflow,
   getDeclaredSecrets,
   getReferencedSecrets,
   getJobNames,
@@ -38,8 +37,6 @@ import {
 export const secretNotDeclaredRule: TValidationRule = {
   name: 'CICD_SECRET_NOT_DECLARED',
   validate(ast: TWorkflowAST): TValidationError[] {
-    if (!isCICDWorkflow(ast)) return [];
-
     const errors: TValidationError[] = [];
     const declared = new Set(getDeclaredSecrets(ast));
     const referenced = getReferencedSecrets(ast);
@@ -69,8 +66,6 @@ export const secretNotDeclaredRule: TValidationRule = {
 export const secretUnusedRule: TValidationRule = {
   name: 'CICD_SECRET_UNUSED',
   validate(ast: TWorkflowAST): TValidationError[] {
-    if (!isCICDWorkflow(ast)) return [];
-
     const errors: TValidationError[] = [];
     const referenced = new Set(getReferencedSecrets(ast));
     const declared = getDeclaredSecrets(ast);
@@ -100,9 +95,7 @@ export const secretUnusedRule: TValidationRule = {
 export const triggerMissingRule: TValidationRule = {
   name: 'CICD_TRIGGER_MISSING',
   validate(ast: TWorkflowAST): TValidationError[] {
-    if (!isCICDWorkflow(ast)) return [];
-
-    const triggers = ast.options?.cicdTriggers || [];
+    const triggers = ast.options?.cicd?.triggers || [];
     // Also check for FW-style triggers (event=, cron=)
     const fwTrigger = ast.options?.trigger;
 
@@ -133,10 +126,8 @@ export const triggerMissingRule: TValidationRule = {
 export const jobMissingRunnerRule: TValidationRule = {
   name: 'CICD_JOB_MISSING_RUNNER',
   validate(ast: TWorkflowAST): TValidationError[] {
-    if (!isCICDWorkflow(ast)) return [];
-
     const errors: TValidationError[] = [];
-    const defaultRunner = ast.options?.runner;
+    const defaultRunner = ast.options?.cicd?.runner;
     const jobNames = getJobNames(ast);
 
     // If there's a default runner, all jobs are covered
@@ -167,10 +158,8 @@ export const jobMissingRunnerRule: TValidationRule = {
 export const artifactCrossJobRule: TValidationRule = {
   name: 'CICD_ARTIFACT_CROSS_JOB',
   validate(ast: TWorkflowAST): TValidationError[] {
-    if (!isCICDWorkflow(ast)) return [];
-
     const errors: TValidationError[] = [];
-    const artifacts = ast.options?.artifacts || [];
+    const artifacts = ast.options?.cicd?.artifacts || [];
 
     // Build node -> job map
     const nodeJob = new Map<string, string>();
@@ -221,8 +210,6 @@ export const artifactCrossJobRule: TValidationRule = {
 export const circularJobDepsRule: TValidationRule = {
   name: 'CICD_CIRCULAR_JOB_DEPS',
   validate(ast: TWorkflowAST): TValidationError[] {
-    if (!isCICDWorkflow(ast)) return [];
-
     const errors: TValidationError[] = [];
 
     // Build node -> job map
@@ -295,11 +282,9 @@ export const circularJobDepsRule: TValidationRule = {
 export const matrixWithEnvironmentRule: TValidationRule = {
   name: 'CICD_MATRIX_WITH_ENVIRONMENT',
   validate(ast: TWorkflowAST): TValidationError[] {
-    if (!isCICDWorkflow(ast)) return [];
-
     const errors: TValidationError[] = [];
-    const matrix = ast.options?.matrix;
-    const environments = ast.options?.environments || [];
+    const matrix = ast.options?.cicd?.matrix;
+    const environments = ast.options?.cicd?.environments || [];
 
     if (matrix && environments.length > 0) {
       // Calculate matrix size

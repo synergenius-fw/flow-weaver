@@ -416,6 +416,14 @@ export class InngestTarget extends BaseExportTarget {
   readonly name = 'inngest';
   readonly description = 'Inngest — durable, event-driven workflow functions';
 
+  readonly deploySchema = {
+    durableSteps: { type: 'boolean' as const, description: 'Per-node step.run() for durability', default: false },
+    framework: { type: 'string' as const, description: 'Framework adapter: next, express, hono, fastify, remix' },
+    serve: { type: 'boolean' as const, description: 'Generate serve() handler export', default: false },
+    retries: { type: 'number' as const, description: 'Retries per function', default: 3 },
+    triggerEvent: { type: 'string' as const, description: 'Custom trigger event name' },
+  };
+
   /**
    * Sanitize a name into a valid Inngest ID (lowercase, alphanumeric + hyphens)
    */
@@ -437,7 +445,9 @@ export class InngestTarget extends BaseExportTarget {
   async generate(options: ExportOptions): Promise<ExportArtifacts> {
     const files = [];
     const includeDocs = options.includeDocs ?? false;
-    const durableSteps = options.targetOptions?.durableSteps === true;
+    // @deploy inngest annotations take precedence over CLI flags
+    const deployConfig = (options.targetOptions?.deploy as Record<string, Record<string, unknown>> | undefined)?.inngest;
+    const durableSteps = deployConfig?.durableSteps === true || options.targetOptions?.durableSteps === true;
     const serviceId = this.toInngestId(options.displayName);
     const functionId = this.toInngestId(options.workflowName);
     const functionVar = `fn_${this.toVarName(options.workflowName)}`;

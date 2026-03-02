@@ -230,7 +230,11 @@ export function registerExportTools(mcp: McpServer): void {
             outputDir,
             production: true,
             includeDocs,
-            targetOptions: args.durableSteps ? { durableSteps: true } : undefined,
+            targetOptions: {
+              ...(args.durableSteps && { durableSteps: true }),
+              // Pass @deploy config from workflow AST so targets can read their annotations
+              ...(allWorkflows[0]?.options?.deploy && { deploy: allWorkflows[0].options.deploy }),
+            },
           }
         );
 
