@@ -94,6 +94,10 @@ flow-weaver templates [--json]
 | `error-handler` | Try/catch/retry pattern with error recovery |
 | `ai-agent-durable` | Linear agent pipeline with durability — classify, tools, approval, respond |
 | `ai-pipeline-durable` | Sequential data pipeline with durability — fetch, extract, validate, save |
+| `cicd-test-deploy` | Standard test-and-deploy pipeline with checkout, setup, test, build, and deploy stages |
+| `cicd-docker` | Build and push Docker images to a container registry |
+| `cicd-multi-env` | Multi-environment deployment pipeline with staging and production stages |
+| `cicd-matrix` | Test across multiple Node.js versions and operating systems |
 <!-- AUTO:END workflow_templates_table -->
 
 ## Node Templates

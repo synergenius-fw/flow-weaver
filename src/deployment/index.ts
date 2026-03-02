@@ -96,9 +96,21 @@ export {
   type DeployInstructions,
   type DeploySchema,
   type DeploySchemaField,
+  type CompiledWorkflow,
+  type MultiWorkflowArtifacts,
+  type NodeTypeInfo,
+  type NodeTypeExportOptions,
+  type NodeTypeArtifacts,
+  type BundleWorkflow,
+  type BundleNodeType,
+  type BundleArtifacts,
   BaseExportTarget,
   ExportTargetRegistry,
 } from './targets/base.js';
+
+// Utilities needed by export target packs
+export { isCICDWorkflow } from '../validation/cicd-detection.js';
+export { generateStandaloneRuntimeModule } from '../api/inline-runtime.js';
 
 // Target implementations — still exported for direct use by pack authors and tests
 export { LambdaTarget } from './targets/lambda.js';
