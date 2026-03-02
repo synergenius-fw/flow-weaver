@@ -1,6 +1,6 @@
 {
   "name": "@synergenius/flow-weaver",
-  "version": "0.14.2",
+  "version": "0.15.0",
   "description": "Deterministic workflow compiler for AI agents. Compiles to standalone TypeScript, no runtime dependencies.",
   "private": false,
   "type": "module",
@@ -142,7 +142,6 @@
     "source-map": "^0.7.6",
     "ts-morph": "^21.0.1",
     "ws": "^8.19.0",
-    "yaml": "^2.8.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {
