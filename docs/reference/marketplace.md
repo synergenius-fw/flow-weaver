@@ -15,8 +15,30 @@ The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node 
 | **Node types** | Reusable `@flowWeaver nodeType` functions |
 | **Workflows** | Complete `@flowWeaver workflow` exports |
 | **Patterns** | Reusable `@flowWeaver pattern` fragments |
+| **Export targets** | Deployment targets for `flow-weaver export` |
 
 A single package can contain any combination of these.
+
+## Official Export Target Packs
+
+Flow Weaver provides 6 official export target packs:
+
+| Package | Target name | Description |
+|---------|-------------|-------------|
+| `@synergenius/flowweaver-pack-lambda` | `lambda` | AWS Lambda + API Gateway |
+| `@synergenius/flowweaver-pack-vercel` | `vercel` | Vercel serverless functions |
+| `@synergenius/flowweaver-pack-cloudflare` | `cloudflare` | Cloudflare Workers |
+| `@synergenius/flowweaver-pack-inngest` | `inngest` | Inngest durable functions |
+| `@synergenius/flowweaver-pack-github-actions` | `github-actions` | GitHub Actions CI/CD pipelines |
+| `@synergenius/flowweaver-pack-gitlab-ci` | `gitlab-ci` | GitLab CI/CD pipelines |
+
+Install with:
+
+```bash
+npm install @synergenius/flowweaver-pack-lambda
+```
+
+See [Deployment](deployment) for target-specific usage details.
 
 ---
 
