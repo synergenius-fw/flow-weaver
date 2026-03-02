@@ -89,7 +89,8 @@ function validateManifestContents(manifest: TMarketplaceManifest): TValidationIs
   const issues: TValidationIssue[] = [];
 
   const totalUnits =
-    manifest.nodeTypes.length + manifest.workflows.length + manifest.patterns.length;
+    manifest.nodeTypes.length + manifest.workflows.length + manifest.patterns.length +
+    (manifest.exportTargets?.length ?? 0);
 
   // PKG-006: Must contain at least one unit
   if (totalUnits === 0) {
@@ -97,9 +98,34 @@ function validateManifestContents(manifest: TMarketplaceManifest): TValidationIs
       issue(
         'PKG-006',
         'error',
-        'Package must contain at least one node type, workflow, or pattern',
+        'Package must contain at least one node type, workflow, pattern, or export target',
       )
     );
+  }
+
+  // TGT-001: Export target entries must have name and file
+  for (const et of manifest.exportTargets ?? []) {
+    if (!et.name) {
+      issues.push(
+        issue('TGT-001', 'error', 'Export target entry must have a "name"')
+      );
+    }
+    if (!et.file) {
+      issues.push(
+        issue('TGT-001', 'error', `Export target "${et.name || '(unnamed)'}" must have a "file"`)
+      );
+    }
+  }
+
+  // TGT-002: Export target names must be unique within the package
+  const etNames = new Set<string>();
+  for (const et of manifest.exportTargets ?? []) {
+    if (et.name && etNames.has(et.name)) {
+      issues.push(
+        issue('TGT-002', 'error', `Duplicate export target name: "${et.name}"`)
+      );
+    }
+    if (et.name) etNames.add(et.name);
   }
 
   // UNIT-002: Node type names must be unique within the package

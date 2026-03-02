@@ -542,6 +542,12 @@ export class VercelTarget extends BaseExportTarget {
   readonly name = 'vercel';
   readonly description = 'Vercel Serverless Functions';
 
+  readonly deploySchema = {
+    maxDuration: { type: 'number' as const, description: 'Max function duration in seconds', default: 60 },
+    memory: { type: 'number' as const, description: 'Memory in MB', default: 1024 },
+    regions: { type: 'string[]' as const, description: 'Deployment regions' },
+  };
+
   async generate(options: ExportOptions): Promise<ExportArtifacts> {
     const files = [];
     const maxDuration = (options.targetOptions?.maxDuration as number) || 60;

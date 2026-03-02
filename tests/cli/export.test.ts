@@ -1,14 +1,149 @@
 /**
  * Tests for the export command
  *
- * Tests serverless function generation for Lambda, Vercel, and Cloudflare.
+ * Tests the registry-driven export orchestrator and CLI command layer.
+ * Target-specific output details are tested in each target pack's own tests.
  */
 
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+
+// ── Mock the deployment registry ──────────────────────────────────────────────
+// Provides mock targets so exportWorkflow() doesn't need real marketplace packs.
+
+function createMockTarget(name: string) {
+  return {
+    generate: async (opts: Record<string, unknown>) => {
+      const wfName = (opts.workflowName as string) || 'workflow';
+      const files: Array<{ relativePath: string; content: string; type: string }> = [];
+
+      if (name === 'lambda') {
+        files.push(
+          {
+            relativePath: 'handler.ts',
+            content: `import { ${wfName} } from './workflow';\n// Lambda handler for ${wfName}\nexport const handler = async (event: APIGatewayProxyEventV2) => { return ${wfName}(true, event); };`,
+            type: 'handler',
+          },
+          {
+            relativePath: 'template.yaml',
+            content: `AWSTemplateFormatVersion: '2010-09-09'\nResources:\n  ${wfName}Function:\n    Type: AWS::Serverless::Function`,
+            type: 'config',
+          },
+          {
+            relativePath: 'package.json',
+            content: JSON.stringify({ name: wfName, dependencies: {} }),
+            type: 'config',
+          },
+        );
+      } else if (name === 'vercel') {
+        files.push(
+          {
+            relativePath: `${wfName}.ts`,
+            content: `import type { VercelRequest, VercelResponse } from '@vercel/node';\nimport { ${wfName} } from './workflow';\nexport default async function handler(req: VercelRequest, res: VercelResponse) {}`,
+            type: 'handler',
+          },
+          {
+            relativePath: 'vercel.json',
+            content: JSON.stringify({
+              functions: { [`api/${wfName}.ts`]: { maxDuration: 60 } },
+            }),
+            type: 'config',
+          },
+        );
+      } else if (name === 'cloudflare') {
+        files.push(
+          {
+            relativePath: 'index.ts',
+            content: `import { ${wfName} } from './workflow';\nexport default { async fetch(request: Request): Promise<Response> { return new Response('${wfName}'); } };`,
+            type: 'handler',
+          },
+          {
+            relativePath: 'wrangler.toml',
+            content: `name = "${wfName}"\nmain = "index.ts"`,
+            type: 'config',
+          },
+          {
+            relativePath: 'package.json',
+            content: JSON.stringify({
+              name: wfName,
+              devDependencies: { wrangler: '^3.0.0', '@cloudflare/workers-types': '^4.0.0' },
+            }),
+            type: 'config',
+          },
+        );
+      } else if (name === 'inngest') {
+        files.push(
+          {
+            relativePath: 'handler.ts',
+            content: `import { Inngest } from 'inngest';\nimport { ${wfName} } from './workflow';\nconst inngest = new Inngest({ id: '${wfName}' });\nexport const fn = inngest.createFunction({ id: '${wfName}' }, { event: '${wfName}/run' }, async ({ step }) => { await step.run('execute', () => ${wfName}(true, {})); });`,
+            type: 'handler',
+          },
+          {
+            relativePath: 'package.json',
+            content: JSON.stringify({
+              name: wfName,
+              dependencies: { inngest: '^3.0.0' },
+            }),
+            type: 'config',
+          },
+        );
+      }
+
+      return { files };
+    },
+    generateBundle: async (
+      workflows: Array<{ name: string; functionName: string }>,
+      _nodeTypes: unknown[],
+      opts: Record<string, unknown>,
+    ) => {
+      const serviceName = (opts.workflowName as string) || 'service';
+      const wfNames = workflows.map((w) => w.name || w.functionName);
+      return {
+        files: [
+          {
+            relativePath: 'handler.ts',
+            content: `// ${name} multi handler for ${serviceName}\n${wfNames.map((n: string) => `import { ${n} } from './workflow';`).join('\n')}`,
+            type: 'handler',
+          },
+          {
+            relativePath: 'package.json',
+            content: JSON.stringify({ name: serviceName }),
+            type: 'config',
+          },
+        ],
+      };
+    },
+    getDeployInstructions: () => ({
+      title: `Deploy to ${name}`,
+      steps: ['npm install', 'deploy'],
+      prerequisites: [],
+    }),
+  };
+}
+
+const mockTargets: Record<string, ReturnType<typeof createMockTarget>> = {
+  lambda: createMockTarget('lambda'),
+  vercel: createMockTarget('vercel'),
+  cloudflare: createMockTarget('cloudflare'),
+  inngest: createMockTarget('inngest'),
+};
+
+vi.mock('../../src/deployment/index.js', () => ({
+  createTargetRegistry: vi.fn(async () => ({
+    get: (name: string) => mockTargets[name],
+    getNames: () => Object.keys(mockTargets),
+    getAll: () => Object.values(mockTargets),
+  })),
+}));
+
+// ── Mock the compiler (no-op — we only test orchestration, not compilation) ──
+vi.mock('../../src/api/compile.js', () => ({
+  compileWorkflow: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { exportWorkflow, getSupportedTargets } from '../../src/export/index';
-import { LAMBDA_TEMPLATE, VERCEL_TEMPLATE, CLOUDFLARE_TEMPLATE, INNGEST_TEMPLATE } from '../../src/export/templates';
 
 const tempDir = path.join(os.tmpdir(), `flow-weaver-export-test-${process.pid}`);
 
@@ -116,47 +251,14 @@ afterAll(() => {
 
 describe('export module', () => {
   describe('getSupportedTargets', () => {
-    it('should return all supported targets', () => {
-      const targets = getSupportedTargets();
+    it('should return all supported targets', async () => {
+      const targets = await getSupportedTargets();
 
       expect(targets).toContain('lambda');
       expect(targets).toContain('vercel');
       expect(targets).toContain('cloudflare');
       expect(targets).toContain('inngest');
       expect(targets.length).toBe(4);
-    });
-  });
-
-  describe('templates', () => {
-    it('should have valid Lambda template', () => {
-      expect(LAMBDA_TEMPLATE).toContain('APIGatewayProxyEventV2');
-      expect(LAMBDA_TEMPLATE).toContain('{{WORKFLOW_IMPORT}}');
-      expect(LAMBDA_TEMPLATE).toContain('{{FUNCTION_NAME}}');
-      expect(LAMBDA_TEMPLATE).toContain('handler');
-    });
-
-    it('should have valid Vercel template', () => {
-      expect(VERCEL_TEMPLATE).toContain('VercelRequest');
-      expect(VERCEL_TEMPLATE).toContain('VercelResponse');
-      expect(VERCEL_TEMPLATE).toContain('{{WORKFLOW_IMPORT}}');
-      expect(VERCEL_TEMPLATE).toContain('{{FUNCTION_NAME}}');
-      expect(VERCEL_TEMPLATE).toContain('{{MAX_DURATION}}');
-    });
-
-    it('should have valid Cloudflare template', () => {
-      expect(CLOUDFLARE_TEMPLATE).toContain('fetch');
-      expect(CLOUDFLARE_TEMPLATE).toContain('Request');
-      expect(CLOUDFLARE_TEMPLATE).toContain('Response');
-      expect(CLOUDFLARE_TEMPLATE).toContain('{{WORKFLOW_IMPORT}}');
-      expect(CLOUDFLARE_TEMPLATE).toContain('{{FUNCTION_NAME}}');
-    });
-
-    it('should have valid Inngest template', () => {
-      expect(INNGEST_TEMPLATE).toContain('Inngest');
-      expect(INNGEST_TEMPLATE).toContain('createFunction');
-      expect(INNGEST_TEMPLATE).toContain('step.run');
-      expect(INNGEST_TEMPLATE).toContain('{{WORKFLOW_IMPORT}}');
-      expect(INNGEST_TEMPLATE).toContain('{{FUNCTION_NAME}}');
     });
   });
 
@@ -590,19 +692,19 @@ import { exportWorkflow as exportWorkflowMocked } from '../../src/export/index';
 
 describe('exportCommand (CLI layer)', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
-  it('should throw on invalid target', async () => {
+  it('should throw on unknown target', async () => {
     await expect(
       exportCommand('input.ts', {
         target: 'azure',
         output: 'out/',
       })
-    ).rejects.toThrow(/Invalid target "azure"/);
+    ).rejects.toThrow(/Unknown target "azure"/);
   });
 
-  it('should list valid targets in the error message', async () => {
+  it('should list installed targets in the error message', async () => {
     await expect(
       exportCommand('input.ts', {
         target: 'invalid',
@@ -613,7 +715,7 @@ describe('exportCommand (CLI layer)', () => {
 
   it('should call exportWorkflow with correct options for a valid target', async () => {
     const mockResult = {
-      target: 'lambda' as const,
+      target: 'lambda',
       workflow: 'myWorkflow',
       files: [{ path: 'handler.ts', content: 'code' }],
     };
@@ -638,7 +740,7 @@ describe('exportCommand (CLI layer)', () => {
 
   it('should handle multi mode with workflow list', async () => {
     const mockResult = {
-      target: 'lambda' as const,
+      target: 'lambda',
       workflow: 'service',
       workflows: ['wfA', 'wfB'],
       files: [{ path: 'handler.ts', content: 'code' }],
@@ -663,7 +765,7 @@ describe('exportCommand (CLI layer)', () => {
 
   it('should pass docs flag through to exportWorkflow', async () => {
     const mockResult = {
-      target: 'vercel' as const,
+      target: 'vercel',
       workflow: 'myWorkflow',
       files: [{ path: 'handler.ts', content: 'code' }],
     };
@@ -683,7 +785,7 @@ describe('exportCommand (CLI layer)', () => {
 
   it('should pass durableSteps flag through to exportWorkflow', async () => {
     const mockResult = {
-      target: 'inngest' as const,
+      target: 'inngest',
       workflow: 'myWorkflow',
       files: [{ path: 'handler.ts', content: 'code' }],
     };
@@ -703,7 +805,7 @@ describe('exportCommand (CLI layer)', () => {
 
   it('should handle dry run mode without error', async () => {
     const mockResult = {
-      target: 'cloudflare' as const,
+      target: 'cloudflare',
       workflow: 'myWorkflow',
       files: [
         { path: 'index.ts', content: 'export default { fetch() {} }' },
@@ -725,7 +827,7 @@ describe('exportCommand (CLI layer)', () => {
   it('should show handler preview in dry-run for files ending with handler.ts', async () => {
     const handlerContent = Array.from({ length: 50 }, (_, i) => `// line ${i + 1}`).join('\n');
     const mockResult = {
-      target: 'lambda' as const,
+      target: 'lambda',
       workflow: 'myWorkflow',
       files: [{ path: 'handler.ts', content: handlerContent }],
     };

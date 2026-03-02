@@ -236,6 +236,16 @@ export const IconPrefix = createToken({
   pattern: /icon:/,
 });
 
+export const JobPrefix = createToken({
+  name: 'JobPrefix',
+  pattern: /job:/,
+});
+
+export const EnvironmentAttrPrefix = createToken({
+  name: 'EnvironmentAttrPrefix',
+  pattern: /environment:/,
+});
+
 export const TagsPrefix = createToken({
   name: 'TagsPrefix',
   pattern: /tags:/,
@@ -452,6 +462,8 @@ export const allTokens = [
   PositionPrefix,
   ColorPrefix,
   IconPrefix,
+  JobPrefix,
+  EnvironmentAttrPrefix,
   TagsPrefix,
   EventEq,
   CronEq,

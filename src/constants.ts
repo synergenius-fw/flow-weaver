@@ -166,6 +166,8 @@ export type ValidNodeColor = (typeof VALID_NODE_COLORS)[number];
 export const KNOWN_NODETYPE_TAGS = new Set([
   'flowWeaver', 'name', 'label', 'description', 'color', 'icon', 'tag',
   'executeWhen', 'scope', 'expression', 'pullExecution', 'input', 'output', 'step',
+  // Deployment annotations
+  'deploy',
 ]);
 
 export const KNOWN_WORKFLOW_TAGS = new Set([
@@ -173,6 +175,11 @@ export const KNOWN_WORKFLOW_TAGS = new Set([
   'node', 'position', 'connect', 'scope', 'map', 'path', 'fanOut', 'fanIn',
   'coerce', 'trigger', 'cancelOn', 'retries', 'timeout', 'throttle', 'param',
   'return', 'returns',
+  // CI/CD annotations
+  'secret', 'runner', 'cache', 'artifact', 'environment', 'matrix',
+  'service', 'concurrency',
+  // Deployment annotations
+  'deploy',
 ]);
 
 export const KNOWN_PATTERN_TAGS = new Set([

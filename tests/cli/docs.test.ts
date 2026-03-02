@@ -63,8 +63,8 @@ describe('docsListCommand', () => {
 
   it('should output JSON when --json is set', async () => {
     vi.mocked(listTopics).mockReturnValue([
-      { slug: 'getting-started', description: 'How to get started' },
-      { slug: 'syntax', description: 'Annotation syntax reference' },
+      { slug: 'getting-started', name: 'Getting Started', description: 'How to get started', keywords: ['setup', 'install'] },
+      { slug: 'syntax', name: 'Syntax', description: 'Annotation syntax reference', keywords: ['annotations'] },
     ]);
 
     await docsListCommand({ json: true });
@@ -77,8 +77,8 @@ describe('docsListCommand', () => {
 
   it('should display formatted list in human-readable mode', async () => {
     vi.mocked(listTopics).mockReturnValue([
-      { slug: 'getting-started', description: 'How to get started' },
-      { slug: 'syntax', description: 'Annotation syntax reference' },
+      { slug: 'getting-started', name: 'Getting Started', description: 'How to get started', keywords: ['setup', 'install'] },
+      { slug: 'syntax', name: 'Syntax', description: 'Annotation syntax reference', keywords: ['annotations'] },
     ]);
 
     await docsListCommand({});
@@ -95,8 +95,10 @@ describe('docsReadCommand', () => {
   it('should output JSON when --json is set and topic exists', async () => {
     vi.mocked(readTopicStructured).mockReturnValue({
       slug: 'syntax',
-      title: 'Syntax',
-      sections: [{ heading: 'Overview', content: 'Some content' }],
+      name: 'Syntax',
+      description: 'Annotation syntax reference',
+      keywords: ['annotations'],
+      sections: [{ heading: 'Overview', level: 2, content: 'Some content', codeBlocks: [] }],
     });
 
     await docsReadCommand('syntax', { json: true });
@@ -120,6 +122,9 @@ describe('docsReadCommand', () => {
   it('should output topic content to stdout in normal mode', async () => {
     vi.mocked(readTopic).mockReturnValue({
       slug: 'syntax',
+      name: 'Syntax',
+      description: 'Annotation syntax reference',
+      keywords: ['annotations'],
       content: '# Syntax Reference\n\nUse annotations to define nodes.',
     });
 
@@ -132,6 +137,9 @@ describe('docsReadCommand', () => {
   it('should pass compact option through to readTopic', async () => {
     vi.mocked(readTopic).mockReturnValue({
       slug: 'syntax',
+      name: 'Syntax',
+      description: 'Annotation syntax reference',
+      keywords: ['annotations'],
       content: 'compact content',
     });
 
@@ -159,7 +167,7 @@ describe('docsReadCommand', () => {
 describe('docsSearchCommand', () => {
   it('should output JSON when --json is set', async () => {
     vi.mocked(searchDocs).mockReturnValue([
-      { slug: 'syntax', heading: 'Node Types', excerpt: 'Define node types...' },
+      { topic: 'Syntax', slug: 'syntax', section: 'Node Types', heading: 'Node Types', excerpt: 'Define node types...', relevance: 10 },
     ]);
 
     await docsSearchCommand('node', { json: true });
@@ -182,8 +190,8 @@ describe('docsSearchCommand', () => {
 
   it('should display search results in human-readable mode', async () => {
     vi.mocked(searchDocs).mockReturnValue([
-      { slug: 'syntax', heading: 'Node Types', excerpt: 'Define node types using annotations.' },
-      { slug: 'getting-started', heading: 'Setup', excerpt: 'Install and configure.' },
+      { topic: 'Syntax', slug: 'syntax', section: 'Node Types', heading: 'Node Types', excerpt: 'Define node types using annotations.', relevance: 10 },
+      { topic: 'Getting Started', slug: 'getting-started', section: 'Setup', heading: 'Setup', excerpt: 'Install and configure.', relevance: 5 },
     ]);
 
     await docsSearchCommand('node', {});
@@ -195,9 +203,9 @@ describe('docsSearchCommand', () => {
 
   it('should deduplicate results by slug+heading', async () => {
     vi.mocked(searchDocs).mockReturnValue([
-      { slug: 'syntax', heading: 'Node Types', excerpt: 'First occurrence' },
-      { slug: 'syntax', heading: 'Node Types', excerpt: 'Duplicate' },
-      { slug: 'syntax', heading: 'Workflows', excerpt: 'Different heading' },
+      { topic: 'Syntax', slug: 'syntax', section: 'Node Types', heading: 'Node Types', excerpt: 'First occurrence', relevance: 10 },
+      { topic: 'Syntax', slug: 'syntax', section: 'Node Types', heading: 'Node Types', excerpt: 'Duplicate', relevance: 8 },
+      { topic: 'Syntax', slug: 'syntax', section: 'Workflows', heading: 'Workflows', excerpt: 'Different heading', relevance: 5 },
     ]);
 
     await docsSearchCommand('types', {});
@@ -211,9 +219,12 @@ describe('docsSearchCommand', () => {
 
   it('should limit output to 15 results', async () => {
     const manyResults = Array.from({ length: 20 }, (_, i) => ({
+      topic: `Topic ${i}`,
       slug: `topic-${i}`,
+      section: `Section ${i}`,
       heading: `Section ${i}`,
       excerpt: `Excerpt ${i}`,
+      relevance: 20 - i,
     }));
     vi.mocked(searchDocs).mockReturnValue(manyResults);
 

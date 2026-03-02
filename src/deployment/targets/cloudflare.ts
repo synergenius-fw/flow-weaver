@@ -710,6 +710,10 @@ export class CloudflareTarget extends BaseExportTarget {
   readonly name = 'cloudflare';
   readonly description = 'Cloudflare Workers';
 
+  readonly deploySchema = {
+    compatDate: { type: 'string' as const, description: 'Compatibility date' },
+  };
+
   async generate(options: ExportOptions): Promise<ExportArtifacts> {
     const files = [];
     const includeDocs = options.includeDocs ?? false;

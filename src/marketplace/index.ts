@@ -10,6 +10,7 @@ export type {
   TManifestNodeType,
   TManifestWorkflow,
   TManifestPattern,
+  TManifestExportTarget,
   TManifestPort,
   TValidationIssue,
   TValidationSeverity,

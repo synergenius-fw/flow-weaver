@@ -21,6 +21,8 @@ import {
   PositionPrefix,
   ColorPrefix,
   IconPrefix,
+  JobPrefix,
+  EnvironmentAttrPrefix,
   TagsPrefix,
   StringLiteral,
   LBracket,
@@ -55,6 +57,10 @@ export interface NodeParseResult {
   color?: string;
   icon?: string;
   tags?: Array<{ label: string; tooltip?: string }>;
+  /** CI/CD job group */
+  job?: string;
+  /** CI/CD deployment environment */
+  environment?: string;
 }
 
 // =============================================================================
@@ -107,6 +113,8 @@ class NodeParser extends CstParser {
           { ALT: () => this.SUBRULE(this.positionAttr) },
           { ALT: () => this.SUBRULE(this.colorAttr) },
           { ALT: () => this.SUBRULE(this.iconAttr) },
+          { ALT: () => this.SUBRULE(this.jobAttr) },
+          { ALT: () => this.SUBRULE(this.environmentAttr) },
           { ALT: () => this.SUBRULE(this.tagsAttr) },
         ]);
       },
@@ -227,6 +235,18 @@ class NodeParser extends CstParser {
     this.CONSUME(StringLiteral, { LABEL: 'iconValue' });
   });
 
+  // job: "value" — CI/CD job group
+  private jobAttr = this.RULE('jobAttr', () => {
+    this.CONSUME(JobPrefix);
+    this.CONSUME(StringLiteral, { LABEL: 'jobValue' });
+  });
+
+  // environment: "value" — CI/CD deployment environment
+  private environmentAttr = this.RULE('environmentAttr', () => {
+    this.CONSUME(EnvironmentAttrPrefix);
+    this.CONSUME(StringLiteral, { LABEL: 'environmentValue' });
+  });
+
   // tags: "label" "tooltip", "label2"
   private tagsAttr = this.RULE('tagsAttr', () => {
     this.CONSUME(TagsPrefix);
@@ -287,6 +307,8 @@ interface AttributeBracketContext {
   positionAttr?: CstNode[];
   colorAttr?: CstNode[];
   iconAttr?: CstNode[];
+  jobAttr?: CstNode[];
+  environmentAttr?: CstNode[];
   tagsAttr?: CstNode[];
 }
 
@@ -349,6 +371,14 @@ interface IconAttrContext {
   iconValue: CstNodeWithImage[];
 }
 
+interface JobAttrContext {
+  jobValue: CstNodeWithImage[];
+}
+
+interface EnvironmentAttrContext {
+  environmentValue: CstNodeWithImage[];
+}
+
 interface TagsAttrContext {
   tagEntry?: CstNode[];
 }
@@ -380,6 +410,8 @@ class NodeVisitor extends BaseVisitor {
     let color: string | undefined;
     let icon: string | undefined;
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
+    let job: string | undefined;
+    let environment: string | undefined;
 
     if (ctx.parentScopeRef) {
       parentScope = this.visit(ctx.parentScopeRef);
@@ -399,6 +431,8 @@ class NodeVisitor extends BaseVisitor {
         if (attrs.color) color = attrs.color;
         if (attrs.icon) icon = attrs.icon;
         if (attrs.tags) tags = [...(tags || []), ...attrs.tags];
+        if (attrs.job) job = attrs.job;
+        if (attrs.environment) environment = attrs.environment;
       }
     }
 
@@ -417,6 +451,8 @@ class NodeVisitor extends BaseVisitor {
       ...(color && { color }),
       ...(icon && { icon }),
       ...(tags && { tags }),
+      ...(job && { job }),
+      ...(environment && { environment }),
     };
   }
 
@@ -438,6 +474,8 @@ class NodeVisitor extends BaseVisitor {
     color?: string;
     icon?: string;
     tags?: Array<{ label: string; tooltip?: string }>;
+    job?: string;
+    environment?: string;
   } {
     let label: string | undefined;
     let expressions: Record<string, string> | undefined;
@@ -450,6 +488,8 @@ class NodeVisitor extends BaseVisitor {
     let color: string | undefined;
     let icon: string | undefined;
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
+    let job: string | undefined;
+    let environment: string | undefined;
 
     if (ctx.labelAttr) {
       for (const attr of ctx.labelAttr) {
@@ -519,6 +559,18 @@ class NodeVisitor extends BaseVisitor {
       }
     }
 
+    if (ctx.jobAttr) {
+      for (const attr of ctx.jobAttr) {
+        job = this.visit(attr);
+      }
+    }
+
+    if (ctx.environmentAttr) {
+      for (const attr of ctx.environmentAttr) {
+        environment = this.visit(attr);
+      }
+    }
+
     return {
       label,
       expressions,
@@ -531,6 +583,8 @@ class NodeVisitor extends BaseVisitor {
       color,
       icon,
       tags,
+      job,
+      environment,
     };
   }
 
@@ -633,6 +687,14 @@ class NodeVisitor extends BaseVisitor {
 
   iconAttr(ctx: IconAttrContext): string {
     return this.unescapeString(ctx.iconValue[0].image);
+  }
+
+  jobAttr(ctx: JobAttrContext): string {
+    return this.unescapeString(ctx.jobValue[0].image);
+  }
+
+  environmentAttr(ctx: EnvironmentAttrContext): string {
+    return this.unescapeString(ctx.environmentValue[0].image);
   }
 
   tagsAttr(ctx: TagsAttrContext): Array<{ label: string; tooltip?: string }> {

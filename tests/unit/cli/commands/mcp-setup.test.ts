@@ -237,7 +237,7 @@ describe('mcp-setup', () => {
       mockWhich(deps, ['claude']);
       // Override exec to also handle claude mcp add
       const exec = deps.execCommand as ReturnType<typeof vi.fn>;
-      const originalImpl = exec.getMockImplementation()!;
+      const originalImpl = exec.getMockImplementation()! as (...args: any[]) => any;
       exec.mockImplementation(async (cmd: string) => {
         if (cmd.startsWith('claude mcp add')) {
           return { stdout: '', exitCode: 0 };

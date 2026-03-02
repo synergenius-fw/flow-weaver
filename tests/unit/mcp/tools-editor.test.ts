@@ -20,8 +20,8 @@ const agentChannelSetup: {
 
 vi.mock('../../../src/mcp/agent-channel.js', () => ({
   AgentChannel: vi.fn().mockImplementation(() => ({
-    onPause: (...a: unknown[]) => agentChannelSetup.onPause(...a),
-    resume: (...a: unknown[]) => agentChannelSetup.resume(...a),
+    onPause: (...a: unknown[]) => (agentChannelSetup.onPause as (...args: unknown[]) => unknown)(...a),
+    resume: (...a: unknown[]) => (agentChannelSetup.resume as (...args: unknown[]) => unknown)(...a),
   })),
 }));
 
