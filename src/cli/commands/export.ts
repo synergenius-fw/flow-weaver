@@ -2,7 +2,7 @@
  * Export command - generate serverless function handlers for deployment
  */
 
-import { exportWorkflow, getSupportedTargets, type ExportTarget } from '../../export/index.js';
+import { exportWorkflow, type ExportTarget } from '../../export/index.js';
 import { logger } from '../utils/logger.js';
 
 export interface ExportOptions {
@@ -59,13 +59,9 @@ export interface ExportOptions {
  * ```
  */
 export async function exportCommand(input: string, options: ExportOptions): Promise<void> {
-  const validTargets = getSupportedTargets();
-
-  // Validate target
-  if (!validTargets.includes(options.target as ExportTarget)) {
-    throw new Error(
-      `Invalid target "${options.target}". Valid targets: ${validTargets.join(', ')}`
-    );
+  // Validate target is provided
+  if (!options.target) {
+    throw new Error('--target is required. Install a target pack (e.g. npm install flowweaver-pack-lambda)');
   }
 
   const isDryRun = options.dryRun ?? false;
@@ -160,61 +156,30 @@ export async function exportCommand(input: string, options: ExportOptions): Prom
     }
   }
 
+  // Get deploy instructions from the target
   logger.newline();
   logger.section('Next Steps');
 
-  switch (result.target) {
-    case 'lambda':
-      logger.log('  1. cd ' + options.output);
-      logger.log('  2. npm install');
-      logger.log('  3. npm run build');
-      logger.log('  4. sam build && sam deploy --guided');
-      logger.newline();
-      logger.info('Requires: AWS SAM CLI (https://aws.amazon.com/serverless/sam/)');
-      break;
+  const { createTargetRegistry } = await import('../../deployment/index.js');
+  const registry = await createTargetRegistry(process.cwd());
+  const target = registry.get(result.target);
 
-    case 'vercel':
-      logger.log("  1. Move files to your Vercel project's api/ directory:");
-      logger.log(`     mv ${options.output}/*.ts your-project/api/`);
-      logger.log('  2. vercel deploy');
+  if (target) {
+    // Use the target's own deploy instructions
+    const instructions = target.getDeployInstructions({
+      files: [],
+      target: result.target,
+      workflowName: result.workflow,
+      entryPoint: '',
+    });
+    for (let i = 0; i < instructions.steps.length; i++) {
+      logger.log(`  ${i + 1}. ${instructions.steps[i]}`);
+    }
+    if (instructions.prerequisites.length > 0) {
       logger.newline();
-      logger.info('Requires: Vercel CLI (npm install -g vercel)');
-      logger.info(`Endpoint will be: https://your-project.vercel.app/api/${result.workflow}`);
-      break;
-
-    case 'cloudflare':
-      logger.log('  1. cd ' + options.output);
-      logger.log('  2. npm install');
-      logger.log('  3. npm run deploy');
-      logger.newline();
-      logger.info('Requires: Wrangler CLI (npm install -g wrangler)');
-      logger.info('First run: wrangler login');
-      break;
-
-    case 'inngest':
-      logger.log('  1. cd ' + options.output);
-      logger.log('  2. npm install');
-      logger.log('  3. npm run dev');
-      logger.newline();
-      logger.info('Inngest Dev Server will start at http://localhost:8288');
-      logger.info('Send test events from the Inngest Dev Server UI');
-      logger.info('Docs: https://www.inngest.com/docs');
-      break;
-
-    case 'github-actions':
-      logger.log('  1. Copy .github/workflows/ to your repository root');
-      logger.log('  2. Configure secrets (see SECRETS_SETUP.md)');
-      logger.log('  3. git push to trigger the workflow');
-      logger.newline();
-      logger.info('Local testing: brew install act && act push');
-      break;
-
-    case 'gitlab-ci':
-      logger.log('  1. Copy .gitlab-ci.yml to your repository root');
-      logger.log('  2. Configure CI/CD variables (see SECRETS_SETUP.md)');
-      logger.log('  3. git push to trigger the pipeline');
-      logger.newline();
-      logger.info('Validate: paste into GitLab CI Lint (CI/CD > Editor > Validate)');
-      break;
+      logger.info(`Requires: ${instructions.prerequisites.join(', ')}`);
+    }
+  } else {
+    logger.log('  See target documentation for deployment instructions.');
   }
 }

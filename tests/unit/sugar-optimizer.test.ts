@@ -21,6 +21,7 @@ import type {
 // Helpers to build test data
 function conn(fromNode: string, fromPort: string, toNode: string, toPort: string): TConnectionAST {
   return {
+    type: 'Connection',
     from: { node: fromNode, port: fromPort },
     to: { node: toNode, port: toPort },
   };
@@ -105,7 +106,7 @@ describe('sugar-optimizer', () => {
     it('should ignore scoped connections', () => {
       const path = pathMacro([{ node: 'Start' }, { node: 'a' }, { node: 'Exit' }]);
       const connections = [
-        { from: { node: 'Start', port: 'execute', scope: 'myScope' }, to: { node: 'a', port: 'execute' } },
+        { type: 'Connection', from: { node: 'Start', port: 'execute', scope: 'myScope' }, to: { node: 'a', port: 'execute' } },
         conn('a', 'onSuccess', 'Exit', 'onSuccess'),
       ] as TConnectionAST[];
       // Start->a connection is scoped so not found in unscoped lookup
@@ -289,7 +290,7 @@ describe('sugar-optimizer', () => {
 
     it('should skip scoped connections', () => {
       const connections: TConnectionAST[] = [
-        { from: { node: 'Start', port: 'execute', scope: 'myScope' }, to: { node: 'a', port: 'execute' } },
+        { type: 'Connection', from: { node: 'Start', port: 'execute', scope: 'myScope' }, to: { node: 'a', port: 'execute' } },
         conn('a', 'onSuccess', 'Exit', 'onSuccess'),
       ];
       const instances = [inst('a', 'TypeA')];

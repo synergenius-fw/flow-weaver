@@ -100,6 +100,7 @@ export {
   ExportTargetRegistry,
 } from './targets/base.js';
 
+// Target implementations — still exported for direct use by pack authors and tests
 export { LambdaTarget } from './targets/lambda.js';
 export { VercelTarget } from './targets/vercel.js';
 export { CloudflareTarget } from './targets/cloudflare.js';
@@ -108,36 +109,37 @@ export { GitHubActionsTarget } from './targets/github-actions.js';
 export { GitLabCITarget } from './targets/gitlab-ci.js';
 export { BaseCICDTarget, NODE_ACTION_MAP } from './targets/cicd-base.js';
 
-// Convenience: Create a pre-configured target registry
+import * as path from 'path';
 import { ExportTargetRegistry } from './targets/base.js';
-import { LambdaTarget } from './targets/lambda.js';
-import { VercelTarget } from './targets/vercel.js';
-import { CloudflareTarget } from './targets/cloudflare.js';
-import { InngestTarget } from './targets/inngest.js';
-import { GitHubActionsTarget } from './targets/github-actions.js';
-import { GitLabCITarget } from './targets/gitlab-ci.js';
 
 /**
- * Default export target registry with all built-in targets.
+ * Create an export target registry via marketplace discovery.
  *
- * All targets are registered as lazy factories — they're only instantiated
- * when first accessed via registry.get(). This avoids eagerly constructing
- * all 6 targets when only one is needed.
+ * Scans `node_modules/` for installed `flowweaver-pack-*` packages that
+ * declare `exportTargets` in their `flowweaver.manifest.json`.
+ * Each target class is eagerly imported (to resolve the async import) but
+ * lazily instantiated — the constructor only runs when `registry.get()` is called.
+ *
+ * @param projectDir — project root to scan for installed packs.
+ *   When omitted, returns an empty registry (useful for tests).
  */
-export function createTargetRegistry(): ExportTargetRegistry {
+export async function createTargetRegistry(projectDir?: string): Promise<ExportTargetRegistry> {
   const registry = new ExportTargetRegistry();
-  registry.register('lambda', () => new LambdaTarget());
-  registry.register('vercel', () => new VercelTarget());
-  registry.register('cloudflare', () => new CloudflareTarget());
-  registry.register('inngest', () => new InngestTarget());
-  registry.register('github-actions', () => new GitHubActionsTarget());
-  registry.register('gitlab-ci', () => new GitLabCITarget());
-  return registry;
-}
 
-/**
- * Get names of all supported export targets
- */
-export function getSupportedTargetNames(): string[] {
-  return ['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci'];
+  if (projectDir) {
+    const { listInstalledPackages } = await import('../marketplace/registry.js');
+    const packages = await listInstalledPackages(projectDir);
+    for (const pkg of packages) {
+      for (const def of pkg.manifest.exportTargets ?? []) {
+        const filePath = path.join(pkg.path, def.file);
+        // Dynamic import is async, so we resolve the module here
+        // but defer instantiation to the lazy factory
+        const mod = await import(filePath);
+        const TargetClass = def.exportName ? mod[def.exportName] : mod.default;
+        registry.register(def.name, () => new TargetClass());
+      }
+    }
+  }
+
+  return registry;
 }

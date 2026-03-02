@@ -29,7 +29,6 @@ import type {
 } from './base.js';
 import { parseWorkflow } from '../../api/index.js';
 import * as path from 'path';
-import * as fs from 'fs';
 
 export class GitHubActionsTarget extends BaseCICDTarget {
   readonly name = 'github-actions';

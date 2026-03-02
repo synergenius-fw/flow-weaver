@@ -30,6 +30,8 @@ export type TMarketplaceManifest = {
   workflows: TManifestWorkflow[];
   /** Patterns included in this package */
   patterns: TManifestPattern[];
+  /** Export targets provided by this package */
+  exportTargets?: TManifestExportTarget[];
   /** External dependency information */
   dependencies?: {
     /** Flow Weaver peer dependency constraints */
@@ -37,6 +39,20 @@ export type TMarketplaceManifest = {
     /** npm runtime dependencies */
     npm?: Record<string, string>;
   };
+};
+
+// ── Export targets ────────────────────────────────────────────────────────────
+
+/** An export target provided by a marketplace package. */
+export type TManifestExportTarget = {
+  /** Target identifier (e.g. "lambda", "azure-pipelines") */
+  name: string;
+  /** Human-readable description */
+  description?: string;
+  /** Relative path to the compiled JS file that exports the target class */
+  file: string;
+  /** Named export from the file (default: "default") */
+  exportName?: string;
 };
 
 // ── Manifest units ───────────────────────────────────────────────────────────

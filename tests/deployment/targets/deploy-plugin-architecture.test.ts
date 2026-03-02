@@ -25,7 +25,7 @@ import { InngestTarget } from '../../../src/deployment/targets/inngest';
 import { GitHubActionsTarget } from '../../../src/deployment/targets/github-actions';
 import { GitLabCITarget } from '../../../src/deployment/targets/gitlab-ci';
 import { BaseCICDTarget, NODE_ACTION_MAP, type CICDStep } from '../../../src/deployment/targets/cicd-base';
-import { createTargetRegistry, getSupportedTargetNames } from '../../../src/deployment/index';
+import { createTargetRegistry } from '../../../src/deployment/index';
 
 // Temp workflow file for Inngest tests that need durableSteps
 const tmpDir = path.join(os.tmpdir(), 'fw-deploy-test');
@@ -398,10 +398,30 @@ describe('ExportTargetRegistry lazy factory', () => {
 });
 
 describe('createTargetRegistry()', () => {
-  it('should register all 6 built-in targets', () => {
-    const registry = createTargetRegistry();
+  it('should return an empty registry when no projectDir is provided', async () => {
+    const registry = await createTargetRegistry();
     const names = registry.getNames();
 
+    expect(names.length).toBe(0);
+  });
+
+  it('should return undefined for unregistered targets', async () => {
+    const registry = await createTargetRegistry();
+    expect(registry.get('firebase')).toBeUndefined();
+  });
+
+  it('should support manual registration of built-in targets', async () => {
+    const registry = await createTargetRegistry();
+
+    // Manually register targets (simulates what installed packs would do)
+    registry.register('lambda', () => new LambdaTarget());
+    registry.register('vercel', () => new VercelTarget());
+    registry.register('cloudflare', () => new CloudflareTarget());
+    registry.register('inngest', () => new InngestTarget());
+    registry.register('github-actions', () => new GitHubActionsTarget());
+    registry.register('gitlab-ci', () => new GitLabCITarget());
+
+    const names = registry.getNames();
     expect(names).toContain('lambda');
     expect(names).toContain('vercel');
     expect(names).toContain('cloudflare');
@@ -409,12 +429,8 @@ describe('createTargetRegistry()', () => {
     expect(names).toContain('github-actions');
     expect(names).toContain('gitlab-ci');
     expect(names.length).toBe(6);
-  });
 
-  it('should lazily instantiate targets', () => {
-    const registry = createTargetRegistry();
-
-    // Getting a specific target should work
+    // Lazily instantiate and verify
     const lambda = registry.get('lambda');
     expect(lambda).toBeDefined();
     expect(lambda!.name).toBe('lambda');
@@ -422,18 +438,6 @@ describe('createTargetRegistry()', () => {
     const gh = registry.get('github-actions');
     expect(gh).toBeDefined();
     expect(gh!.name).toBe('github-actions');
-  });
-
-  it('should return undefined for unregistered targets', () => {
-    const registry = createTargetRegistry();
-    expect(registry.get('firebase')).toBeUndefined();
-  });
-
-  it('getSupportedTargetNames() should match registry names', () => {
-    const names = getSupportedTargetNames();
-    const registry = createTargetRegistry();
-
-    expect(names.sort()).toEqual(registry.getNames().sort());
   });
 });
 

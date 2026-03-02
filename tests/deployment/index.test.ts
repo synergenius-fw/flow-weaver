@@ -1,7 +1,7 @@
 /**
  * Tests for src/deployment/index.ts.
- * Verifies all re-exports resolve, and tests the factory functions
- * createTargetRegistry() and getSupportedTargetNames().
+ * Verifies all re-exports resolve and tests the async createTargetRegistry()
+ * factory with marketplace pack discovery.
  */
 import { describe, it, expect } from 'vitest';
 
@@ -75,66 +75,36 @@ describe('deployment module re-exports', () => {
 });
 
 describe('createTargetRegistry', () => {
-  it('returns a registry with all six built-in targets', async () => {
+  it('returns an empty registry when called without a projectDir', async () => {
     const { createTargetRegistry } = await import('../../src/deployment/index');
-    const registry = createTargetRegistry();
+    const registry = await createTargetRegistry();
 
-    expect(registry.get('lambda')).toBeDefined();
-    expect(registry.get('vercel')).toBeDefined();
-    expect(registry.get('cloudflare')).toBeDefined();
-    expect(registry.get('inngest')).toBeDefined();
-    expect(registry.get('github-actions')).toBeDefined();
-    expect(registry.get('gitlab-ci')).toBeDefined();
-
-    const names = registry.getNames();
-    expect(names).toContain('lambda');
-    expect(names).toContain('vercel');
-    expect(names).toContain('cloudflare');
-    expect(names).toContain('inngest');
-    expect(names).toContain('github-actions');
-    expect(names).toContain('gitlab-ci');
-    expect(names).toHaveLength(6);
-  });
-
-  it('each target has a name and description', async () => {
-    const { createTargetRegistry } = await import('../../src/deployment/index');
-    const registry = createTargetRegistry();
-
-    for (const target of registry.getAll()) {
-      expect(target.name).toBeTruthy();
-      expect(target.description).toBeTruthy();
-      expect(typeof target.generate).toBe('function');
-      expect(typeof target.getDeployInstructions).toBe('function');
-    }
+    expect(registry.getNames()).toEqual([]);
+    expect(registry.getAll()).toEqual([]);
   });
 
   it('returns a fresh registry each time', async () => {
     const { createTargetRegistry } = await import('../../src/deployment/index');
-    const a = createTargetRegistry();
-    const b = createTargetRegistry();
+    const a = await createTargetRegistry();
+    const b = await createTargetRegistry();
     expect(a).not.toBe(b);
   });
 
   it('registry.get returns undefined for unknown target', async () => {
     const { createTargetRegistry } = await import('../../src/deployment/index');
-    const registry = createTargetRegistry();
+    const registry = await createTargetRegistry();
     expect(registry.get('nonexistent')).toBeUndefined();
   });
-});
 
-describe('getSupportedTargetNames', () => {
-  it('returns the six supported target names', async () => {
-    const { getSupportedTargetNames } = await import('../../src/deployment/index');
-    const names = getSupportedTargetNames();
+  it('get returns undefined for well-known names when no packs installed', async () => {
+    const { createTargetRegistry } = await import('../../src/deployment/index');
+    const registry = await createTargetRegistry();
 
-    expect(names).toEqual(['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci']);
-  });
-
-  it('returns a new array each time', async () => {
-    const { getSupportedTargetNames } = await import('../../src/deployment/index');
-    const a = getSupportedTargetNames();
-    const b = getSupportedTargetNames();
-    expect(a).toEqual(b);
-    expect(a).not.toBe(b);
+    expect(registry.get('lambda')).toBeUndefined();
+    expect(registry.get('vercel')).toBeUndefined();
+    expect(registry.get('cloudflare')).toBeUndefined();
+    expect(registry.get('inngest')).toBeUndefined();
+    expect(registry.get('github-actions')).toBeUndefined();
+    expect(registry.get('gitlab-ci')).toBeUndefined();
   });
 });
