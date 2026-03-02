@@ -650,6 +650,7 @@ describe('UnifiedWorkflowExecutor', () => {
         result: { sum: 42 },
         functionName: 'calculator',
         trace: [],
+        executionTime: 10,
       });
 
       const result = await executor.executeFromFile('/calculator.ts', { a: 20, b: 22 });
@@ -667,6 +668,7 @@ describe('UnifiedWorkflowExecutor', () => {
         result: {},
         functionName: 'wf',
         trace: traceEvents,
+        executionTime: 0,
       });
 
       const result = await executor.executeFromFile('/wf.ts', {}, { includeTrace: true });
@@ -679,6 +681,7 @@ describe('UnifiedWorkflowExecutor', () => {
         result: {},
         functionName: 'wf',
         trace: [{ type: 'NODE_STARTED', timestamp: Date.now() }],
+        executionTime: 0,
       });
 
       const result = await executor.executeFromFile('/wf.ts', {}, { includeTrace: true });
@@ -703,6 +706,7 @@ describe('UnifiedWorkflowExecutor', () => {
         result: { answer: 42 },
         functionName: 'calculator',
         trace: [],
+        executionTime: 5,
       });
 
       const result = await executor.execute(makeRequest({ workflowId: 'calculator' }));

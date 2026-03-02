@@ -32,8 +32,8 @@ function makeManifest(overrides?: Partial<TMarketplaceManifest>): TMarketplaceMa
         functionName: 'myNode',
         file: 'dist/myNode.js',
         isAsync: false,
-        inputs: { execute: { dataType: 'trigger' } },
-        outputs: { onSuccess: { dataType: 'trigger' } },
+        inputs: { execute: { dataType: 'STEP' } },
+        outputs: { onSuccess: { dataType: 'STEP' } },
         visuals: { color: '#ff0000', icon: 'bolt' },
       },
     ],
@@ -313,7 +313,7 @@ describe('validatePackage', () => {
         patterns: [{
           name: 'myPattern',
           file: 'src/myPattern.ts',
-          inputPorts: { data: { dataType: 'string' } },
+          inputPorts: { data: { dataType: 'STRING' } },
           outputPorts: {},
           nodeCount: 1,
         }],
@@ -492,7 +492,7 @@ describe('validatePackage', () => {
         patterns: [{
           name: 'inputOnly',
           file: 'src/inputOnly.ts',
-          inputPorts: { data: { dataType: 'string' } },
+          inputPorts: { data: { dataType: 'STRING' } },
           outputPorts: {},
           nodeCount: 1,
         }],
@@ -510,7 +510,7 @@ describe('validatePackage', () => {
           name: 'outputOnly',
           file: 'src/outputOnly.ts',
           inputPorts: {},
-          outputPorts: { result: { dataType: 'number' } },
+          outputPorts: { result: { dataType: 'NUMBER' } },
           nodeCount: 1,
         }],
       });

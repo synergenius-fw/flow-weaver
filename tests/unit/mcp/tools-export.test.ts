@@ -16,8 +16,9 @@ const mockGetDeployInstructions = vi.fn();
 const mockRegistryGet = vi.fn();
 
 vi.mock('../../../src/deployment/index.js', () => ({
-  createTargetRegistry: () => ({
+  createTargetRegistry: async () => ({
     get: (...args: unknown[]) => mockRegistryGet(...args),
+    getNames: () => ['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci'],
   }),
 }));
 
@@ -272,7 +273,7 @@ describe('tools-export (fw_export)', () => {
     expect((result.error as { code: string }).code).toBe('INVALID_TARGET');
   });
 
-  it('returns INVALID_TARGET when target does not support generateBundle', async () => {
+  it('returns EXPORT_ERROR when target has no generate or generateBundle', async () => {
     const wfFile = path.join(tmpDir, 'wf.ts');
     fs.writeFileSync(wfFile, '// ok');
     mockParseWorkflow.mockResolvedValue({
@@ -291,7 +292,7 @@ describe('tools-export (fw_export)', () => {
     );
 
     expect(result.success).toBe(false);
-    expect((result.error as { code: string }).code).toBe('INVALID_TARGET');
+    expect((result.error as { code: string }).code).toBe('EXPORT_ERROR');
   });
 
   it('returns EXPORT_ERROR when no workflows or node types are selected', async () => {

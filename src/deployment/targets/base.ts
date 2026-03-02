@@ -177,6 +177,22 @@ export interface BundleArtifacts extends ExportArtifacts {
 }
 
 /**
+ * Deploy schema field definition.
+ * Describes a single key that a target accepts via @deploy annotations.
+ */
+export interface DeploySchemaField {
+  type: 'string' | 'number' | 'boolean' | 'string[]';
+  description: string;
+  default?: unknown;
+}
+
+/**
+ * Deploy schema — describes all @deploy keys a target accepts.
+ * Used for validation, Studio autocomplete, and documentation.
+ */
+export type DeploySchema = Record<string, DeploySchemaField>;
+
+/**
  * Export target interface
  */
 export interface ExportTarget {
@@ -184,6 +200,12 @@ export interface ExportTarget {
   readonly name: string;
   /** Human-readable description */
   readonly description: string;
+
+  /** Schema for @deploy keys this target accepts on workflows */
+  readonly deploySchema?: DeploySchema;
+
+  /** Schema for @deploy keys this target accepts on node types */
+  readonly nodeTypeDeploySchema?: DeploySchema;
 
   /**
    * Generate deployment artifacts for single workflow
@@ -1182,21 +1204,50 @@ export const functionRegistry = {
  * Registry of available export targets
  */
 export class ExportTargetRegistry {
-  private targets = new Map<string, ExportTarget>();
+  private factories = new Map<string, () => ExportTarget>();
+  private instances = new Map<string, ExportTarget>();
 
-  register(target: ExportTarget): void {
-    this.targets.set(target.name, target);
+  /**
+   * Register a target factory. The target is only instantiated on first use.
+   * Also accepts a pre-instantiated target for backwards compatibility.
+   */
+  register(nameOrTarget: string | ExportTarget, factory?: () => ExportTarget): void {
+    if (typeof nameOrTarget === 'string') {
+      // New lazy factory API: register(name, factory)
+      this.factories.set(nameOrTarget, factory!);
+    } else {
+      // Legacy API: register(target) — wrap in factory
+      const target = nameOrTarget;
+      this.instances.set(target.name, target);
+      this.factories.set(target.name, () => target);
+    }
   }
 
   get(name: string): ExportTarget | undefined {
-    return this.targets.get(name);
+    if (!this.instances.has(name)) {
+      const factory = this.factories.get(name);
+      if (factory) this.instances.set(name, factory());
+    }
+    return this.instances.get(name);
   }
 
   getAll(): ExportTarget[] {
-    return Array.from(this.targets.values());
+    for (const [name, factory] of this.factories) {
+      if (!this.instances.has(name)) this.instances.set(name, factory());
+    }
+    return Array.from(this.instances.values());
   }
 
   getNames(): string[] {
-    return Array.from(this.targets.keys());
+    return Array.from(this.factories.keys());
+  }
+
+  /** Get deploy schemas from all registered targets (for validation/autocomplete) */
+  getDeploySchemas(): Record<string, DeploySchema> {
+    const schemas: Record<string, DeploySchema> = {};
+    for (const target of this.getAll()) {
+      if (target.deploySchema) schemas[target.name] = target.deploySchema;
+    }
+    return schemas;
   }
 }

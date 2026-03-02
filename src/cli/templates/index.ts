@@ -17,6 +17,12 @@ import { errorHandlerTemplate } from './workflows/error-handler';
 import { aiAgentDurableTemplate } from './workflows/ai-agent-durable';
 import { aiPipelineDurableTemplate } from './workflows/ai-pipeline-durable';
 
+// Import CI/CD workflow templates
+import { cicdTestDeployTemplate } from './workflows/cicd-test-deploy';
+import { cicdDockerTemplate } from './workflows/cicd-docker';
+import { cicdMultiEnvTemplate } from './workflows/cicd-multi-env';
+import { cicdMatrixTemplate } from './workflows/cicd-matrix';
+
 // Import node templates
 import { validatorNodeTemplate } from './nodes/validator';
 import { transformerNodeTemplate } from './nodes/transformer';
@@ -127,6 +133,10 @@ export const workflowTemplates: WorkflowTemplate[] = [
   errorHandlerTemplate,
   aiAgentDurableTemplate,
   aiPipelineDurableTemplate,
+  cicdTestDeployTemplate,
+  cicdDockerTemplate,
+  cicdMultiEnvTemplate,
+  cicdMatrixTemplate,
 ];
 
 /**

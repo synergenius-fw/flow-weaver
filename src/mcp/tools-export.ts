@@ -20,8 +20,8 @@ export function registerExportTools(mcp: McpServer): void {
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       target: z
-        .enum(['lambda', 'vercel', 'cloudflare', 'inngest'])
-        .describe('Deployment target platform'),
+        .string()
+        .describe('Deployment target platform (e.g. lambda, vercel, cloudflare, inngest, github-actions, gitlab-ci). Run with --list-targets to see installed targets.'),
       outputDir: z.string().describe('Output directory for generated files'),
       serviceName: z
         .string()
@@ -50,7 +50,7 @@ export function registerExportTools(mcp: McpServer): void {
     },
     async (args: {
       filePath: string;
-      target: 'lambda' | 'vercel' | 'cloudflare' | 'inngest';
+      target: string;
       outputDir: string;
       serviceName?: string;
       workflows?: string[];
@@ -72,7 +72,21 @@ export function registerExportTools(mcp: McpServer): void {
           return makeErrorResult('FILE_NOT_FOUND', `File not found: ${filePath}`);
         }
 
-        // 2. Parse the file to discover workflows and node types
+        // 2. Discover targets from installed packs
+        const registry = await createTargetRegistry(process.cwd());
+        const exportTarget = registry.get(args.target);
+
+        if (!exportTarget) {
+          const available = registry.getNames();
+          return makeErrorResult(
+            'INVALID_TARGET',
+            available.length === 0
+              ? `No export targets installed. Install a target pack (e.g. npm install flowweaver-pack-${args.target})`
+              : `Unknown target: "${args.target}". Installed: ${available.join(', ')}`
+          );
+        }
+
+        // 3. Parse the file to discover workflows and node types
         let parseResult;
         try {
           parseResult = await parseWorkflow(filePath, { nodeTypesOnly: false });
@@ -102,30 +116,56 @@ export function registerExportTools(mcp: McpServer): void {
           }
         }
 
-        // 3. Get the export target
-        const registry = createTargetRegistry();
-        const exportTarget = registry.get(args.target);
-
-        if (!exportTarget) {
-          return makeErrorResult(
-            'INVALID_TARGET',
-            `Unknown target: ${args.target}. Supported: lambda, vercel, cloudflare, inngest`
-          );
-        }
-
+        // CI/CD targets use generate() directly — they read the AST, not compiled code
         if (!exportTarget.generateBundle) {
-          return makeErrorResult(
-            'INVALID_TARGET',
-            `Target ${args.target} does not support bundle export`
-          );
+          const serviceName =
+            args.serviceName || path.basename(filePath, '.ts').replace(/[^a-zA-Z0-9-]/g, '-');
+
+          const artifacts = await exportTarget.generate({
+            sourceFile: filePath,
+            workflowName: args.workflows?.[0] || serviceName,
+            displayName: serviceName,
+            outputDir,
+            production: true,
+          });
+
+          // Write files if not preview
+          if (!preview) {
+            await fs.promises.mkdir(outputDir, { recursive: true });
+            for (const file of artifacts.files) {
+              const fullPath = path.join(outputDir, file.relativePath);
+              await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
+              await fs.promises.writeFile(fullPath, file.content, 'utf-8');
+            }
+          }
+
+          const instructions = exportTarget.getDeployInstructions(artifacts);
+
+          return makeToolResult({
+            preview,
+            target: args.target,
+            serviceName,
+            outputDir,
+            files: artifacts.files.map((f) => ({
+              path: f.relativePath,
+              type: f.type,
+              size: f.content.length,
+            })),
+            instructions: {
+              title: instructions.title,
+              steps: instructions.steps,
+              prerequisites: instructions.prerequisites,
+            },
+            summary: preview
+              ? `Preview: ${artifacts.files.length} files would be generated in ${outputDir}`
+              : `Exported ${artifacts.files.length} files to ${outputDir}`,
+          });
         }
 
         // 4. Build workflow and node type lists
-        // parseResult.allWorkflows has all TWorkflowAST[] from the file;
-        // each workflow's nodeTypes are in workflow.nodeTypes (TNodeTypeAST[])
         const allWorkflows = parseResult.allWorkflows || [];
         const allNodeTypes = allWorkflows.flatMap((w) => w.nodeTypes || []);
-        // Deduplicate node types by name (same type may appear in multiple workflows)
+        // Deduplicate node types by name
         const uniqueNodeTypes = [
           ...new Map(allNodeTypes.map((nt) => [nt.name, nt])).values(),
         ];
@@ -183,7 +223,11 @@ export function registerExportTools(mcp: McpServer): void {
             outputDir,
             production: true,
             includeDocs,
-            targetOptions: args.durableSteps ? { durableSteps: true } : undefined,
+            targetOptions: {
+              ...(args.durableSteps && { durableSteps: true }),
+              // Pass @deploy config from workflow AST so targets can read their annotations
+              ...(allWorkflows[0]?.options?.deploy && { deploy: allWorkflows[0].options.deploy }),
+            },
           }
         );
 

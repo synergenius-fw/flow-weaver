@@ -1,8 +1,11 @@
 /**
  * Tests for the export orchestrator (src/export/index.ts)
  *
- * Covers exportWorkflow, exportMultiWorkflow, getSupportedTargets,
- * and the internal handler/config generation logic for each target platform.
+ * Covers exportWorkflow (single and multi mode), getSupportedTargets,
+ * and the orchestrator's delegation to the target registry.
+ *
+ * Target-specific file generation (handler content, config shapes, etc.)
+ * is tested in the individual target test files under tests/unit/deployment/targets/.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -10,6 +13,24 @@ import * as path from 'path';
 
 // Shared mock parse function that tests can reconfigure
 const mockParseFn = vi.fn();
+
+// Mock target that tests can inspect and reconfigure
+const mockGenerateFn = vi.fn();
+const mockGenerateBundleFn = vi.fn();
+
+const mockTarget = {
+  name: 'lambda',
+  description: 'AWS Lambda',
+  generate: mockGenerateFn,
+  generateBundle: mockGenerateBundleFn,
+  getDeployInstructions: vi.fn().mockReturnValue({ title: '', steps: [], prerequisites: [] }),
+};
+
+// Mock registry returned by createTargetRegistry
+const mockRegistry = {
+  get: vi.fn().mockReturnValue(mockTarget),
+  getNames: vi.fn().mockImplementation(() => ['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci']),
+};
 
 // Mock fs before importing the module under test
 vi.mock('fs', async () => {
@@ -53,24 +74,17 @@ vi.mock('../../../src/generator/inngest.js', () => ({
   generateInngestFunction: vi.fn().mockReturnValue('// inngest deep handler code'),
 }));
 
-// Mock the templates with simple stubs that use the placeholder tokens
-vi.mock('../../../src/export/templates.js', () => ({
-  LAMBDA_TEMPLATE: `{{GENERATED_HEADER}}\n{{WORKFLOW_IMPORT}}\n// lambda handler for {{FUNCTION_NAME}}`,
-  VERCEL_TEMPLATE: `{{GENERATED_HEADER}}\n{{WORKFLOW_IMPORT}}\nexport const config = { maxDuration: {{MAX_DURATION}} };\n// vercel handler for {{FUNCTION_NAME}}`,
-  CLOUDFLARE_TEMPLATE: `{{GENERATED_HEADER}}\n{{WORKFLOW_IMPORT}}\n// cloudflare handler for {{FUNCTION_NAME}}`,
-  INNGEST_TEMPLATE: `{{GENERATED_HEADER}}\n{{WORKFLOW_IMPORT}}\n// inngest handler for {{FUNCTION_NAME}}`,
-  SAM_TEMPLATE: `Description: {{WORKFLOW_DESCRIPTION}}\nPath: /{{WORKFLOW_PATH}}\nName: {{WORKFLOW_NAME}}`,
+// Mock the deployment module to provide a controlled target registry
+vi.mock('../../../src/deployment/index.js', () => ({
+  createTargetRegistry: vi.fn().mockResolvedValue(mockRegistry),
 }));
 
 import * as fs from 'fs';
 import { compileWorkflow } from '../../../src/api/compile.js';
-import { generateInngestFunction } from '../../../src/generator/inngest.js';
 import {
   exportWorkflow,
-  exportMultiWorkflow,
   getSupportedTargets,
   type ExportOptions,
-  type ExportTarget,
 } from '../../../src/export/index.js';
 
 const mockedFs = vi.mocked(fs);
@@ -100,6 +114,65 @@ function setDefaultParseResult() {
   );
 }
 
+/** Default single-workflow artifacts returned by the mock target */
+function makeDefaultSingleArtifacts(workflowName = 'testWorkflow') {
+  return {
+    target: 'lambda',
+    workflowName,
+    entryPoint: 'handler.ts',
+    files: [
+      {
+        relativePath: 'handler.ts',
+        absolutePath: '/test/output/handler.ts',
+        content: `// lambda handler for ${workflowName}\nimport { ${workflowName} } from './workflow.js';`,
+        type: 'handler' as const,
+      },
+      {
+        relativePath: 'template.yaml',
+        absolutePath: '/test/output/template.yaml',
+        content: `Description: ${workflowName}\nName: ${workflowName}`,
+        type: 'config' as const,
+      },
+      {
+        relativePath: 'package.json',
+        absolutePath: '/test/output/package.json',
+        content: JSON.stringify({ name: `fw-${workflowName}`, devDependencies: { '@types/aws-lambda': '^8.0.0' } }),
+        type: 'package' as const,
+      },
+      {
+        relativePath: 'tsconfig.json',
+        absolutePath: '/test/output/tsconfig.json',
+        content: JSON.stringify({ compilerOptions: { target: 'ES2022' } }),
+        type: 'config' as const,
+      },
+    ],
+  };
+}
+
+/** Default multi-workflow bundle artifacts returned by the mock target */
+function makeDefaultBundleArtifacts(workflowNames: string[]) {
+  return {
+    target: 'lambda',
+    workflowName: 'input-service',
+    workflowNames,
+    entryPoint: 'handler.ts',
+    files: [
+      {
+        relativePath: 'handler.ts',
+        absolutePath: '/test/output/handler.ts',
+        content: `// multi handler\n${workflowNames.map((n) => `import { ${n} } from './workflows/${n}.js';`).join('\n')}`,
+        type: 'handler' as const,
+      },
+      {
+        relativePath: 'package.json',
+        absolutePath: '/test/output/package.json',
+        content: JSON.stringify({ name: 'fw-input-service' }),
+        type: 'package' as const,
+      },
+    ],
+  };
+}
+
 describe('export/index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -109,6 +182,13 @@ describe('export/index', () => {
     mockedFs.readFileSync.mockReturnValue('// compiled workflow code');
     // Default: parser returns one workflow
     setDefaultParseResult();
+    // Default: registry returns mock target
+    mockRegistry.get.mockReturnValue(mockTarget);
+    mockRegistry.getNames.mockImplementation(() => ['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci']);
+    // Default: mock target generate returns single artifacts
+    mockGenerateFn.mockResolvedValue(makeDefaultSingleArtifacts());
+    // Default: mock target generateBundle returns bundle artifacts
+    mockGenerateBundleFn.mockResolvedValue(makeDefaultBundleArtifacts(['wfA', 'wfB']));
   });
 
   afterEach(() => {
@@ -119,14 +199,14 @@ describe('export/index', () => {
   // getSupportedTargets
   // ──────────────────────────────────────────────────
   describe('getSupportedTargets', () => {
-    it('returns all four supported targets', () => {
-      const targets = getSupportedTargets();
-      expect(targets).toEqual(['lambda', 'vercel', 'cloudflare', 'inngest']);
+    it('returns installed targets from the registry', async () => {
+      const targets = await getSupportedTargets();
+      expect(targets).toEqual(['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci']);
     });
 
-    it('returns a fresh array on each call', () => {
-      const a = getSupportedTargets();
-      const b = getSupportedTargets();
+    it('returns a fresh array on each call', async () => {
+      const a = await getSupportedTargets();
+      const b = await getSupportedTargets();
       expect(a).not.toBe(b);
       expect(a).toEqual(b);
     });
@@ -141,6 +221,20 @@ describe('export/index', () => {
       input: '/test/input.ts',
       output: '/test/output',
     };
+
+    it('throws when target is not installed', async () => {
+      mockRegistry.get.mockReturnValue(undefined);
+      mockRegistry.getNames.mockReturnValue([]);
+
+      await expect(exportWorkflow(baseOptions)).rejects.toThrow('No export targets installed');
+    });
+
+    it('throws when target is unknown but others are installed', async () => {
+      mockRegistry.get.mockReturnValue(undefined);
+      mockRegistry.getNames.mockReturnValue(['vercel']);
+
+      await expect(exportWorkflow({ ...baseOptions, target: 'lambda' })).rejects.toThrow('Unknown target "lambda"');
+    });
 
     it('throws when input file does not exist', async () => {
       mockedFs.existsSync.mockReturnValue(false);
@@ -167,6 +261,7 @@ describe('export/index', () => {
           { name: 'second', functionName: 'second' },
         ])
       );
+      mockGenerateFn.mockResolvedValue(makeDefaultSingleArtifacts('first'));
 
       const result = await exportWorkflow(baseOptions);
       expect(result.workflow).toBe('first');
@@ -179,6 +274,7 @@ describe('export/index', () => {
           { name: 'second', functionName: 'second' },
         ])
       );
+      mockGenerateFn.mockResolvedValue(makeDefaultSingleArtifacts('second'));
 
       const result = await exportWorkflow({ ...baseOptions, workflow: 'second' });
       expect(result.workflow).toBe('second');
@@ -190,107 +286,75 @@ describe('export/index', () => {
           { name: 'myWorkflow', functionName: 'myWorkflowFn' },
         ])
       );
+      mockGenerateFn.mockResolvedValue(makeDefaultSingleArtifacts('myWorkflow'));
 
       const result = await exportWorkflow({ ...baseOptions, workflow: 'myWorkflowFn' });
       expect(result.workflow).toBe('myWorkflow');
     });
 
-    // Target-specific file generation
-    describe.each<ExportTarget>(['lambda', 'vercel', 'cloudflare', 'inngest'])('target: %s', (target) => {
-      it(`generates files for ${target} target`, async () => {
-        const result = await exportWorkflow({ ...baseOptions, target });
+    it('delegates to target.generate() with correct options', async () => {
+      await exportWorkflow({ ...baseOptions, production: true, durableSteps: true });
 
-        expect(result.target).toBe(target);
-        expect(result.files.length).toBeGreaterThan(0);
-        expect(result.workflow).toBe('testWorkflow');
-      });
-
-      it(`writes files to disk when not in dry-run mode`, async () => {
-        await exportWorkflow({ ...baseOptions, target });
-
-        expect(mockedFs.writeFileSync).toHaveBeenCalled();
-      });
+      expect(mockGenerateFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceFile: path.resolve(baseOptions.input),
+          workflowName: 'testWorkflow',
+          displayName: 'testWorkflow',
+          outputDir: path.resolve(baseOptions.output),
+          description: 'A test workflow',
+          production: true,
+          targetOptions: expect.objectContaining({ durableSteps: true }),
+        })
+      );
     });
 
-    it('generates handler.ts for lambda target', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'lambda' });
-      const handlerFile = result.files.find((f) => f.path.endsWith('handler.ts'));
-      expect(handlerFile).toBeDefined();
-      expect(handlerFile!.content).toContain('lambda handler');
+    it('defaults production to true', async () => {
+      await exportWorkflow(baseOptions);
+
+      expect(mockGenerateFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          production: true,
+        })
+      );
     });
 
-    it('generates api/<name>.ts for vercel target', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'vercel' });
-      const handlerFile = result.files.find((f) => f.path.includes('api/'));
-      expect(handlerFile).toBeDefined();
+    it('returns files mapped with full output paths', async () => {
+      const result = await exportWorkflow(baseOptions);
+
+      expect(result.files.length).toBeGreaterThan(0);
+      for (const file of result.files) {
+        expect(path.isAbsolute(file.path)).toBe(true);
+      }
     });
 
-    it('generates index.ts for cloudflare target', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'cloudflare' });
-      const handlerFile = result.files.find((f) => f.path.endsWith('index.ts'));
-      expect(handlerFile).toBeDefined();
+    it('includes compiled workflow.ts when handler references it', async () => {
+      const result = await exportWorkflow(baseOptions);
+      const workflowFile = result.files.find((f) => f.path.endsWith('workflow.ts'));
+      expect(workflowFile).toBeDefined();
+      expect(workflowFile!.content).toBe('// compiled workflow code');
     });
 
-    it('generates handler.ts for inngest target', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'inngest' });
-      const handlerFile = result.files.find((f) => f.path.endsWith('handler.ts'));
-      expect(handlerFile).toBeDefined();
+    it('calls compileWorkflow to produce compiled output', async () => {
+      await exportWorkflow(baseOptions);
+
+      expect(compileWorkflow).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          write: true,
+          inPlace: true,
+          generate: { production: true },
+        })
+      );
     });
 
-    // Config files per target
-    it('generates SAM template.yaml for lambda', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'lambda' });
-      const samFile = result.files.find((f) => f.path.endsWith('template.yaml'));
-      expect(samFile).toBeDefined();
-      expect(samFile!.content).toContain('testWorkflow');
+    it('includes description from the parsed workflow', async () => {
+      const result = await exportWorkflow(baseOptions);
+      expect(result.description).toBe('A test workflow');
     });
 
-    it('generates vercel.json for vercel', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'vercel' });
-      const configFile = result.files.find((f) => f.path.endsWith('vercel.json'));
-      expect(configFile).toBeDefined();
-      const parsed = JSON.parse(configFile!.content);
-      expect(parsed.functions).toBeDefined();
-    });
-
-    it('generates wrangler.toml for cloudflare', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'cloudflare' });
-      const configFile = result.files.find((f) => f.path.endsWith('wrangler.toml'));
-      expect(configFile).toBeDefined();
-      expect(configFile!.content).toContain('testWorkflow');
-    });
-
-    it('generates package.json for lambda', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'lambda' });
-      const pkgFile = result.files.find((f) => f.path.endsWith('package.json'));
-      expect(pkgFile).toBeDefined();
-      const pkg = JSON.parse(pkgFile!.content);
-      expect(pkg.name).toBe('fw-testWorkflow');
-      expect(pkg.devDependencies['@types/aws-lambda']).toBeDefined();
-    });
-
-    it('generates package.json for cloudflare with wrangler', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'cloudflare' });
-      const pkgFile = result.files.find((f) => f.path.endsWith('package.json'));
-      expect(pkgFile).toBeDefined();
-      const pkg = JSON.parse(pkgFile!.content);
-      expect(pkg.devDependencies.wrangler).toBeDefined();
-    });
-
-    it('generates package.json for inngest with inngest dependency', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'inngest' });
-      const pkgFile = result.files.find((f) => f.path.endsWith('package.json'));
-      expect(pkgFile).toBeDefined();
-      const pkg = JSON.parse(pkgFile!.content);
-      expect(pkg.dependencies.inngest).toBeDefined();
-    });
-
-    it('generates tsconfig.json for lambda', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'lambda' });
-      const tscFile = result.files.find((f) => f.path.endsWith('tsconfig.json'));
-      expect(tscFile).toBeDefined();
-      const tsc = JSON.parse(tscFile!.content);
-      expect(tsc.compilerOptions.target).toBe('ES2022');
+    it('returns target in result', async () => {
+      const result = await exportWorkflow(baseOptions);
+      expect(result.target).toBe('lambda');
     });
 
     // Dry-run mode
@@ -310,94 +374,48 @@ describe('export/index', () => {
       );
     });
 
-    // Production mode
-    it('passes production flag to compile', async () => {
-      await exportWorkflow({ ...baseOptions, production: true });
-
-      expect(compileWorkflow).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          generate: { production: true },
-        })
-      );
-    });
-
-    it('defaults production to true for compilation', async () => {
+    it('writes files to disk when not in dry-run mode', async () => {
       await exportWorkflow(baseOptions);
 
-      expect(compileWorkflow).toHaveBeenCalledWith(
+      expect(mockedFs.writeFileSync).toHaveBeenCalled();
+    });
+
+    it('creates parent directories when writing files', async () => {
+      await exportWorkflow(baseOptions);
+
+      expect(mockedFs.mkdirSync).toHaveBeenCalledWith(
         expect.any(String),
-        expect.objectContaining({
-          generate: { production: true },
-        })
+        expect.objectContaining({ recursive: true })
       );
     });
 
-    // Durable steps (inngest only)
-    it('uses deep generator when durableSteps is true for inngest', async () => {
-      await exportWorkflow({ ...baseOptions, target: 'inngest', durableSteps: true });
-
-      expect(generateInngestFunction).toHaveBeenCalled();
-    });
-
-    it('does not use deep generator when durableSteps is false for inngest', async () => {
-      await exportWorkflow({ ...baseOptions, target: 'inngest', durableSteps: false });
-
-      expect(generateInngestFunction).not.toHaveBeenCalled();
-    });
-
-    // Workflow result shape
-    it('includes description from the parsed workflow', async () => {
-      const result = await exportWorkflow(baseOptions);
-      expect(result.description).toBe('A test workflow');
-    });
-
-    it('includes compiled workflow.ts in the output files', async () => {
-      const result = await exportWorkflow(baseOptions);
-      const workflowFile = result.files.find((f) => f.path.endsWith('workflow.ts'));
-      expect(workflowFile).toBeDefined();
-      expect(workflowFile!.content).toBe('// compiled workflow code');
-    });
-
-    // Vercel handler import path adjustments
-    it('generates vercel handler with parent-relative import for workflow', async () => {
-      const result = await exportWorkflow({ ...baseOptions, target: 'vercel' });
-      const handlerFile = result.files.find((f) => f.path.includes('api/'));
-      expect(handlerFile).toBeDefined();
-      expect(handlerFile!.content).toContain('../workflow.js');
-    });
-  });
-
-  // ──────────────────────────────────────────────────
-  // exportWorkflow with multi flag delegates
-  // ──────────────────────────────────────────────────
-  describe('exportWorkflow (multi delegation)', () => {
-    it('delegates to exportMultiWorkflow when multi is true', async () => {
-      mockParseFn.mockReturnValue(
-        makeParseMock([
-          { name: 'wf1', functionName: 'wf1' },
-          { name: 'wf2', functionName: 'wf2' },
-        ])
-      );
-
-      const result = await exportWorkflow({
+    // Handler that does NOT reference workflow import should skip compilation
+    it('does not compile when handler does not import workflow', async () => {
+      mockGenerateFn.mockResolvedValue({
         target: 'lambda',
-        input: '/test/input.ts',
-        output: '/test/output',
-        multi: true,
+        workflowName: 'testWorkflow',
+        entryPoint: 'handler.ts',
+        files: [
+          {
+            relativePath: 'handler.ts',
+            absolutePath: '/test/output/handler.ts',
+            content: '// standalone handler with no workflow import',
+            type: 'handler' as const,
+          },
+        ],
       });
 
-      // Multi export returns workflows array
-      expect(result.workflows).toBeDefined();
-      expect(result.workflows).toContain('wf1');
-      expect(result.workflows).toContain('wf2');
+      const result = await exportWorkflow(baseOptions);
+      expect(compileWorkflow).not.toHaveBeenCalled();
+      const workflowFile = result.files.find((f) => f.path.endsWith('workflow.ts'));
+      expect(workflowFile).toBeUndefined();
     });
   });
 
   // ──────────────────────────────────────────────────
-  // exportMultiWorkflow
+  // exportWorkflow with multi flag
   // ──────────────────────────────────────────────────
-  describe('exportMultiWorkflow', () => {
+  describe('exportWorkflow (multi mode)', () => {
     const multiOptions: ExportOptions = {
       target: 'lambda',
       input: '/test/input.ts',
@@ -412,270 +430,97 @@ describe('export/index', () => {
           { name: 'wfB', functionName: 'wfB', description: 'Workflow B' },
         ])
       );
+      mockGenerateBundleFn.mockResolvedValue(makeDefaultBundleArtifacts(['wfA', 'wfB']));
     });
 
     it('throws when input file does not exist', async () => {
       mockedFs.existsSync.mockReturnValue(false);
-      await expect(exportMultiWorkflow(multiOptions)).rejects.toThrow('Input file not found');
+      await expect(exportWorkflow(multiOptions)).rejects.toThrow('Input file not found');
     });
 
     it('throws when no workflows are found', async () => {
       mockParseFn.mockReturnValue(makeParseMock([]));
-      await expect(exportMultiWorkflow(multiOptions)).rejects.toThrow('No workflows found');
+      await expect(exportWorkflow(multiOptions)).rejects.toThrow('No workflows found');
     });
 
     it('throws when specified workflow names are not found', async () => {
       await expect(
-        exportMultiWorkflow({ ...multiOptions, workflows: ['nonexistent'] })
+        exportWorkflow({ ...multiOptions, workflows: ['nonexistent'] })
       ).rejects.toThrow('None of the requested workflows found');
     });
 
     it('filters workflows when specific names are provided', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, workflows: ['wfA'] });
+      mockGenerateBundleFn.mockResolvedValue(makeDefaultBundleArtifacts(['wfA']));
+
+      const result = await exportWorkflow({ ...multiOptions, workflows: ['wfA'] });
       expect(result.workflows).toEqual(['wfA']);
     });
 
     it('filters workflows by functionName too', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, workflows: ['wfB'] });
+      mockGenerateBundleFn.mockResolvedValue(makeDefaultBundleArtifacts(['wfB']));
+
+      const result = await exportWorkflow({ ...multiOptions, workflows: ['wfB'] });
       expect(result.workflows).toEqual(['wfB']);
     });
 
     it('exports all workflows when no filter is specified', async () => {
-      const result = await exportMultiWorkflow(multiOptions);
+      const result = await exportWorkflow(multiOptions);
       expect(result.workflows).toEqual(['wfA', 'wfB']);
     });
 
-    it('compiles each workflow individually', async () => {
-      await exportMultiWorkflow(multiOptions);
-      expect(compileWorkflow).toHaveBeenCalledTimes(2);
-    });
+    it('delegates to target.generateBundle() with bundle items', async () => {
+      await exportWorkflow(multiOptions);
 
-    it('creates output directories', async () => {
-      await exportMultiWorkflow(multiOptions);
-      expect(mockedFs.mkdirSync).toHaveBeenCalledWith(
-        expect.stringContaining('workflows'),
-        expect.objectContaining({ recursive: true })
+      expect(mockGenerateBundleFn).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'wfA', functionName: 'wfA', expose: true }),
+          expect.objectContaining({ name: 'wfB', functionName: 'wfB', expose: true }),
+        ]),
+        [], // empty node types array
+        expect.objectContaining({
+          sourceFile: path.resolve(multiOptions.input),
+          production: true,
+        })
       );
-      expect(mockedFs.mkdirSync).toHaveBeenCalledWith(
-        expect.stringContaining('runtime'),
-        expect.objectContaining({ recursive: true })
+    });
+
+    it('throws when target does not support multi-workflow export', async () => {
+      const targetWithoutBundle = { ...mockTarget, generateBundle: undefined };
+      mockRegistry.get.mockReturnValue(targetWithoutBundle);
+
+      await expect(exportWorkflow(multiOptions)).rejects.toThrow(
+        'does not support multi-workflow export'
       );
-    });
-
-    // Multi target generation
-    describe.each<ExportTarget>(['lambda', 'vercel', 'cloudflare', 'inngest'])('multi target: %s', (target) => {
-      it(`generates files for ${target} multi-workflow export`, async () => {
-        const result = await exportMultiWorkflow({ ...multiOptions, target });
-        expect(result.target).toBe(target);
-        expect(result.files.length).toBeGreaterThan(0);
-      });
-
-      it(`generates an openapi.ts file for ${target}`, async () => {
-        const result = await exportMultiWorkflow({ ...multiOptions, target });
-        const openapiFile = result.files.find((f) => f.path.endsWith('openapi.ts'));
-        expect(openapiFile).toBeDefined();
-        expect(openapiFile!.content).toContain('openApiSpec');
-      });
-    });
-
-    it('generates OpenAPI spec with paths for each workflow', async () => {
-      const result = await exportMultiWorkflow(multiOptions);
-      expect(result.openApiSpec).toBeDefined();
-      const spec = result.openApiSpec as any;
-      expect(spec.openapi).toBe('3.0.3');
-      expect(spec.paths['/api/wfA']).toBeDefined();
-      expect(spec.paths['/api/wfB']).toBeDefined();
-    });
-
-    it('includes functions endpoint in OpenAPI spec', async () => {
-      const result = await exportMultiWorkflow(multiOptions);
-      const spec = result.openApiSpec as any;
-      expect(spec.paths['/api/functions']).toBeDefined();
-      expect(spec.paths['/api/functions'].get.operationId).toBe('list_functions');
     });
 
     it('sets service name from input filename', async () => {
-      const result = await exportMultiWorkflow(multiOptions);
+      const result = await exportWorkflow(multiOptions);
       expect(result.workflow).toContain('input-service');
     });
 
-    // Lambda multi specifics
-    it('generates SAM template for lambda multi', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, target: 'lambda' });
-      const samFile = result.files.find((f) => f.path.endsWith('template.yaml'));
-      expect(samFile).toBeDefined();
-      expect(samFile!.content).toContain('multi-workflow service');
+    it('returns workflows array', async () => {
+      const result = await exportWorkflow(multiOptions);
+      expect(result.workflows).toBeDefined();
+      expect(result.workflows).toContain('wfA');
+      expect(result.workflows).toContain('wfB');
     });
 
-    it('generates lambda handler with workflow map', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, target: 'lambda' });
-      const handlerFile = result.files.find((f) => f.path.endsWith('handler.ts'));
-      expect(handlerFile).toBeDefined();
-      expect(handlerFile!.content).toContain('wfA');
-      expect(handlerFile!.content).toContain('wfB');
-    });
-
-    // Vercel multi specifics
-    it('generates vercel handler under api/ directory', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, target: 'vercel' });
-      const handlerFile = result.files.find((f) => f.path.includes('api/'));
-      expect(handlerFile).toBeDefined();
-    });
-
-    it('generates vercel.json for multi', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, target: 'vercel' });
-      const configFile = result.files.find((f) => f.path.endsWith('vercel.json'));
-      expect(configFile).toBeDefined();
-    });
-
-    // Cloudflare multi specifics
-    it('generates index.ts for cloudflare multi', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, target: 'cloudflare' });
-      const handlerFile = result.files.find((f) => f.path.endsWith('index.ts'));
-      expect(handlerFile).toBeDefined();
-    });
-
-    it('generates wrangler.toml for cloudflare multi', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, target: 'cloudflare' });
-      const configFile = result.files.find((f) => f.path.endsWith('wrangler.toml'));
-      expect(configFile).toBeDefined();
-      expect(configFile!.content).toContain('input-service');
-    });
-
-    // Inngest multi specifics
-    it('generates inngest handler with function definitions', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, target: 'inngest' });
-      const handlerFile = result.files.find((f) => f.path.endsWith('handler.ts'));
-      expect(handlerFile).toBeDefined();
-      expect(handlerFile!.content).toContain('createFunction');
-      expect(handlerFile!.content).toContain('inngest');
-    });
-
-    it('generates inngest package.json with express dependency', async () => {
-      const result = await exportMultiWorkflow({ ...multiOptions, target: 'inngest' });
-      const pkgFile = result.files.find((f) => f.path.endsWith('package.json'));
-      expect(pkgFile).toBeDefined();
-      const pkg = JSON.parse(pkgFile!.content);
-      expect(pkg.dependencies.express).toBeDefined();
-      expect(pkg.dependencies.inngest).toBeDefined();
+    it('returns files from the target bundle artifacts', async () => {
+      const result = await exportWorkflow(multiOptions);
+      expect(result.files.length).toBeGreaterThan(0);
+      expect(result.target).toBe('lambda');
     });
 
     // Dry-run mode for multi
     it('does not write files in dry-run mode', async () => {
-      await exportMultiWorkflow({ ...multiOptions, dryRun: true });
+      const result = await exportWorkflow({ ...multiOptions, dryRun: true });
+      expect(result.files.length).toBeGreaterThan(0);
       expect(mockedFs.writeFileSync).not.toHaveBeenCalled();
     });
 
-    it('cleans up temp directory in dry-run mode', async () => {
-      await exportMultiWorkflow({ ...multiOptions, dryRun: true });
-      expect(mockedFs.rmSync).toHaveBeenCalledWith(
-        expect.stringContaining('fw-export-multi-dryrun'),
-        expect.objectContaining({ recursive: true, force: true })
-      );
-    });
-
     it('writes files to disk when not in dry-run mode', async () => {
-      await exportMultiWorkflow(multiOptions);
+      await exportWorkflow(multiOptions);
       expect(mockedFs.writeFileSync).toHaveBeenCalled();
-    });
-
-    // Error handling during compilation in multi mode
-    it('cleans up temp dir even when compilation fails in dry-run', async () => {
-      vi.mocked(compileWorkflow).mockRejectedValueOnce(new Error('compile failed'));
-
-      await expect(exportMultiWorkflow({ ...multiOptions, dryRun: true })).rejects.toThrow('compile failed');
-      expect(mockedFs.rmSync).toHaveBeenCalled();
-    });
-  });
-
-  // ──────────────────────────────────────────────────
-  // OpenAPI multi-workflow spec structure
-  // ──────────────────────────────────────────────────
-  describe('multi-workflow OpenAPI spec', () => {
-    beforeEach(() => {
-      mockParseFn.mockReturnValue(
-        makeParseMock([
-          { name: 'alpha', functionName: 'alpha', description: 'Alpha workflow' },
-          { name: 'beta', functionName: 'beta' },
-        ])
-      );
-    });
-
-    it('includes tags for workflows and functions', async () => {
-      const result = await exportMultiWorkflow({
-        target: 'lambda',
-        input: '/test/input.ts',
-        output: '/test/output',
-        multi: true,
-      });
-      const spec = result.openApiSpec as any;
-      expect(spec.tags).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ name: 'workflows' }),
-          expect.objectContaining({ name: 'functions' }),
-        ])
-      );
-    });
-
-    it('uses workflow description when available', async () => {
-      const result = await exportMultiWorkflow({
-        target: 'lambda',
-        input: '/test/input.ts',
-        output: '/test/output',
-        multi: true,
-      });
-      const spec = result.openApiSpec as any;
-      expect(spec.paths['/api/alpha'].post.description).toBe('Alpha workflow');
-    });
-
-    it('uses fallback description when none provided', async () => {
-      const result = await exportMultiWorkflow({
-        target: 'lambda',
-        input: '/test/input.ts',
-        output: '/test/output',
-        multi: true,
-      });
-      const spec = result.openApiSpec as any;
-      expect(spec.paths['/api/beta'].post.description).toContain('Execute the beta workflow');
-    });
-
-    it('generates correct operationIds', async () => {
-      const result = await exportMultiWorkflow({
-        target: 'lambda',
-        input: '/test/input.ts',
-        output: '/test/output',
-        multi: true,
-      });
-      const spec = result.openApiSpec as any;
-      expect(spec.paths['/api/alpha'].post.operationId).toBe('execute_alpha');
-      expect(spec.paths['/api/beta'].post.operationId).toBe('execute_beta');
-    });
-
-    it('includes standard response codes for each workflow', async () => {
-      const result = await exportMultiWorkflow({
-        target: 'lambda',
-        input: '/test/input.ts',
-        output: '/test/output',
-        multi: true,
-      });
-      const spec = result.openApiSpec as any;
-      const responses = spec.paths['/api/alpha'].post.responses;
-      expect(responses['200']).toBeDefined();
-      expect(responses['404']).toBeDefined();
-      expect(responses['500']).toBeDefined();
-    });
-
-    it('includes request body schema for each workflow', async () => {
-      const result = await exportMultiWorkflow({
-        target: 'lambda',
-        input: '/test/input.ts',
-        output: '/test/output',
-        multi: true,
-      });
-      const spec = result.openApiSpec as any;
-      const requestBody = spec.paths['/api/alpha'].post.requestBody;
-      expect(requestBody.required).toBe(true);
-      expect(requestBody.content['application/json']).toBeDefined();
     });
   });
 });
