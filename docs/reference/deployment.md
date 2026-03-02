@@ -1,12 +1,32 @@
 ---
 name: Deployment
 description: Export workflows to serverless platforms, HTTP serve mode, OpenAPI generation, and multi-workflow services
-keywords: [deploy, export, lambda, vercel, cloudflare, inngest, serve, openapi, swagger, serverless, multi-workflow, durable-steps, webhook, http, cors]
+keywords: [deploy, export, lambda, vercel, cloudflare, inngest, github-actions, gitlab-ci, serve, openapi, swagger, serverless, multi-workflow, durable-steps, webhook, http, cors, packs, marketplace]
 ---
 
 # Deployment
 
-Flow Weaver workflows can be deployed as serverless functions, HTTP endpoints, or durable event-driven functions. This guide covers all deployment options.
+Flow Weaver workflows can be deployed as serverless functions, HTTP endpoints, durable event-driven functions, or CI/CD pipelines. This guide covers all deployment options.
+
+## Installing Export Target Packs
+
+Export targets are provided by marketplace packs. Install the ones you need:
+
+```bash
+# Serverless targets
+npm install @synergenius/flowweaver-pack-lambda
+npm install @synergenius/flowweaver-pack-vercel
+npm install @synergenius/flowweaver-pack-cloudflare
+npm install @synergenius/flowweaver-pack-inngest
+
+# CI/CD targets
+npm install @synergenius/flowweaver-pack-github-actions
+npm install @synergenius/flowweaver-pack-gitlab-ci
+```
+
+The `export` command automatically discovers installed packs — no configuration needed.
+
+---
 
 ## Export Targets
 
@@ -62,6 +82,26 @@ Add `--durable-steps` for per-node `step.run()` durability:
 ```bash
 flow-weaver export workflow.ts --target inngest --output dist/ --durable-steps
 ```
+
+### GitHub Actions
+
+```bash
+flow-weaver export workflow.ts --target github-actions --output .github/workflows/
+```
+
+Generates:
+- GitHub Actions workflow YAML with jobs mapped from workflow nodes
+- Proper step ordering and dependency configuration
+
+### GitLab CI
+
+```bash
+flow-weaver export workflow.ts --target gitlab-ci --output .
+```
+
+Generates:
+- `.gitlab-ci.yml` with stages and jobs mapped from workflow nodes
+- Pipeline configuration with proper stage ordering
 
 ---
 
