@@ -128,6 +128,23 @@ describe('renderSVG', () => {
     const svg = renderSVG(simpleGraph());
     expect(svg).not.toContain('filter id="shadow"');
   });
+
+  it('renders Exit onFailure port in failure color (red), not STEP color (green)', () => {
+    const ast = createSimpleWorkflow();
+    ast.exitPorts.onSuccess = { dataType: 'STEP', isControlFlow: true };
+    ast.exitPorts.onFailure = { dataType: 'STEP', isControlFlow: true, failure: true };
+    const graph = buildDiagramGraph(ast);
+    const svg = renderSVG(graph);
+
+    // Find the circle for Exit.onFailure port
+    const failurePortMatch = svg.match(/<circle[^>]*data-port-id="Exit\.onFailure:input"[^>]*>/);
+    expect(failurePortMatch).toBeTruthy();
+
+    // The failure color should be red (#ff4f4f for dark theme), not green (#10e15a)
+    const failureCircle = failurePortMatch![0];
+    expect(failureCircle).toContain('#ff4f4f'); // dark failure color
+    expect(failureCircle).not.toContain('#10e15a'); // dark STEP color
+  });
 });
 
 describe('renderSVG — scoped workflows', () => {
