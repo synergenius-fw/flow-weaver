@@ -219,19 +219,19 @@ function buildInstanceNode(
   const nt = nodeTypeMap.get(instNodeType);
 
   const allInputs: Record<string, TPortDefinition> = nt
-    ? { ...filterNonScopedPorts(nt.inputs) }
+    ? filterHiddenPorts(filterNonScopedPorts(nt.inputs))
     : {};
   const allOutputs: Record<string, TPortDefinition> = nt
-    ? { ...filterNonScopedPorts(nt.outputs) }
+    ? filterHiddenPorts(filterNonScopedPorts(nt.outputs))
     : {};
 
   if (nt && !nt.expression) {
-    if (!allInputs.execute) allInputs.execute = { dataType: 'STEP' };
+    if (!allInputs.execute && !nt.inputs.execute?.hidden) allInputs.execute = { dataType: 'STEP' };
   }
-  if (nt && nt.hasSuccessPort && !allOutputs.onSuccess) {
+  if (nt && nt.hasSuccessPort && !allOutputs.onSuccess && !nt.outputs.onSuccess?.hidden) {
     allOutputs.onSuccess = { dataType: 'STEP', isControlFlow: true };
   }
-  if (nt && nt.hasFailurePort && !allOutputs.onFailure) {
+  if (nt && nt.hasFailurePort && !allOutputs.onFailure && !nt.outputs.onFailure?.hidden) {
     allOutputs.onFailure = { dataType: 'STEP', isControlFlow: true, failure: true };
   }
 
@@ -1239,6 +1239,14 @@ function findScopeParent(childId: string, diagramNodes: Map<string, DiagramNode>
     if (node.scopeChildren?.some(c => c.id === childId)) return node.id;
   }
   return undefined;
+}
+
+function filterHiddenPorts(ports: Record<string, TPortDefinition>): Record<string, TPortDefinition> {
+  const result: Record<string, TPortDefinition> = {};
+  for (const [name, def] of Object.entries(ports)) {
+    if (!def.hidden) result[name] = def;
+  }
+  return result;
 }
 
 function filterNonScopedPorts(ports: Record<string, TPortDefinition>): Record<string, TPortDefinition> {

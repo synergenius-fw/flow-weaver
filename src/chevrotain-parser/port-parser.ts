@@ -23,6 +23,7 @@ import {
   OverKeyword,
   AsKeyword,
   MinimizedKeyword,
+  HiddenKeyword,
   Integer,
   StringLiteral,
   DescriptionText,
@@ -59,6 +60,7 @@ export interface PortParseResult {
   placement?: 'TOP' | 'BOTTOM';
   dataType?: string;
   mergeStrategy?: string;
+  hidden?: boolean;
   description?: string;
 }
 
@@ -161,6 +163,7 @@ class PortParser extends CstParser {
           { ALT: () => this.SUBRULE(this.placementAttr) },
           { ALT: () => this.SUBRULE(this.typeAttr) },
           { ALT: () => this.SUBRULE(this.mergeStrategyAttr) },
+          { ALT: () => this.SUBRULE(this.hiddenAttr) },
         ]);
       },
     });
@@ -193,6 +196,11 @@ class PortParser extends CstParser {
   private mergeStrategyAttr = this.RULE('mergeStrategyAttr', () => {
     this.CONSUME(MergeStrategyPrefix);
     this.CONSUME(Identifier, { LABEL: 'mergeStrategyValue' });
+  });
+
+  // hidden (standalone keyword, no value needed)
+  private hiddenAttr = this.RULE('hiddenAttr', () => {
+    this.CONSUME(HiddenKeyword);
   });
 
   // - description text
@@ -301,6 +309,7 @@ interface MetadataBracketContext {
   placementAttr?: CstNode[];
   typeAttr?: CstNode[];
   mergeStrategyAttr?: CstNode[];
+  hiddenAttr?: CstNode[];
 }
 
 interface OrderAttrContext {
@@ -369,6 +378,8 @@ class PortVisitor extends BaseVisitor {
       scope = this.visit(ctx.scopeClause);
     }
 
+    let hidden: boolean | undefined;
+
     if (ctx.metadataBracket) {
       // Handle multiple metadata brackets (e.g., [order:1] [placement:TOP])
       for (const bracket of ctx.metadataBracket) {
@@ -377,6 +388,7 @@ class PortVisitor extends BaseVisitor {
         if (metadata.placement !== undefined) placement = metadata.placement;
         if (metadata.dataType !== undefined) dataType = metadata.dataType;
         if (metadata.mergeStrategy !== undefined) mergeStrategy = metadata.mergeStrategy;
+        if (metadata.hidden) hidden = true;
       }
     }
 
@@ -394,6 +406,7 @@ class PortVisitor extends BaseVisitor {
       ...(placement && { placement }),
       ...(dataType && { dataType }),
       ...(mergeStrategy && { mergeStrategy }),
+      ...(hidden && { hidden }),
       ...(description && { description }),
     };
   }
@@ -410,6 +423,8 @@ class PortVisitor extends BaseVisitor {
       scope = this.visit(ctx.scopeClause);
     }
 
+    let hidden: boolean | undefined;
+
     if (ctx.metadataBracket) {
       // Handle multiple metadata brackets (e.g., [order:1] [placement:TOP])
       for (const bracket of ctx.metadataBracket) {
@@ -417,6 +432,7 @@ class PortVisitor extends BaseVisitor {
         if (metadata.order !== undefined) order = metadata.order;
         if (metadata.placement !== undefined) placement = metadata.placement;
         if (metadata.dataType !== undefined) dataType = metadata.dataType;
+        if (metadata.hidden) hidden = true;
       }
     }
 
@@ -431,6 +447,7 @@ class PortVisitor extends BaseVisitor {
       ...(order !== undefined && { order }),
       ...(placement && { placement }),
       ...(dataType && { dataType }),
+      ...(hidden && { hidden }),
       ...(description && { description }),
     };
   }
@@ -459,11 +476,13 @@ class PortVisitor extends BaseVisitor {
     placement?: 'TOP' | 'BOTTOM';
     dataType?: string;
     mergeStrategy?: string;
+    hidden?: boolean;
   } {
     let order: number | undefined;
     let placement: 'TOP' | 'BOTTOM' | undefined;
     let dataType: string | undefined;
     let mergeStrategy: string | undefined;
+    let hidden: boolean | undefined;
 
     if (ctx.orderAttr) {
       for (const attr of ctx.orderAttr) {
@@ -489,7 +508,11 @@ class PortVisitor extends BaseVisitor {
       }
     }
 
-    return { order, placement, dataType, mergeStrategy };
+    if (ctx.hiddenAttr) {
+      hidden = true;
+    }
+
+    return { order, placement, dataType, mergeStrategy, hidden };
   }
 
   orderAttr(ctx: OrderAttrContext): number {
@@ -502,6 +525,10 @@ class PortVisitor extends BaseVisitor {
 
   typeAttr(ctx: TypeAttrContext): string {
     return ctx.typeValue[0].image;
+  }
+
+  hiddenAttr(_ctx: Record<string, never>): boolean {
+    return true;
   }
 
   mergeStrategyAttr(ctx: MergeStrategyAttrContext): string {

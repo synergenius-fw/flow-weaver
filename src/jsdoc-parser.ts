@@ -157,6 +157,7 @@ export interface JSDocNodeTypeConfig {
       expression?: string;
       scope?: string;
       mergeStrategy?: TMergeStrategy;
+      hidden?: boolean;
       metadata?: { order?: number };
       tsType?: string;
     }
@@ -167,6 +168,7 @@ export interface JSDocNodeTypeConfig {
       type: TDataType;
       label?: string;
       scope?: string;
+      hidden?: boolean;
       metadata?: { order?: number };
       tsType?: string;
     }
@@ -758,7 +760,7 @@ export class JSDocParser {
       return;
     }
 
-    const { name, defaultValue, isOptional, scope, order, mergeStrategy, description } = result;
+    const { name, defaultValue, isOptional, scope, order, mergeStrategy, hidden, description } = result;
 
     // Infer type from signature or scope callback return type
     let type: TDataType;
@@ -839,6 +841,7 @@ export class JSDocParser {
       ...(expression && { expression }),
       ...(scope && { scope }),
       ...(mergeStrategy && { mergeStrategy: mergeStrategy as TMergeStrategy }),
+      ...(hidden && { hidden }),
       ...(order !== undefined && { metadata: { order } }),
       ...(tsType && { tsType }),
     };
@@ -861,7 +864,7 @@ export class JSDocParser {
       return;
     }
 
-    const { name, scope, order, description } = result;
+    const { name, scope, order, hidden, description } = result;
 
     // Infer type from return type or scope callback parameter
     let type: TDataType;
@@ -932,6 +935,7 @@ export class JSDocParser {
       type,
       label: description?.trim(),
       ...(scope && { scope }),
+      ...(hidden && { hidden }),
       ...(order !== undefined && { metadata: { order } }),
       ...(tsType && { tsType }),
     };
