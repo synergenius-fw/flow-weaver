@@ -119,7 +119,13 @@ export { CloudflareTarget } from './targets/cloudflare.js';
 export { InngestTarget } from './targets/inngest.js';
 export { GitHubActionsTarget } from './targets/github-actions.js';
 export { GitLabCITarget } from './targets/gitlab-ci.js';
-export { BaseCICDTarget, NODE_ACTION_MAP } from './targets/cicd-base.js';
+export {
+  BaseCICDTarget,
+  NODE_ACTION_MAP,
+  type CICDStep,
+  type CICDJob,
+  type ActionMapping,
+} from './targets/cicd-base.js';
 
 import * as path from 'path';
 import { ExportTargetRegistry } from './targets/base.js';
