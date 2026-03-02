@@ -200,5 +200,21 @@ export async function exportCommand(input: string, options: ExportOptions): Prom
       logger.info('Send test events from the Inngest Dev Server UI');
       logger.info('Docs: https://www.inngest.com/docs');
       break;
+
+    case 'github-actions':
+      logger.log('  1. Copy .github/workflows/ to your repository root');
+      logger.log('  2. Configure secrets (see SECRETS_SETUP.md)');
+      logger.log('  3. git push to trigger the workflow');
+      logger.newline();
+      logger.info('Local testing: brew install act && act push');
+      break;
+
+    case 'gitlab-ci':
+      logger.log('  1. Copy .gitlab-ci.yml to your repository root');
+      logger.log('  2. Configure CI/CD variables (see SECRETS_SETUP.md)');
+      logger.log('  3. git push to trigger the pipeline');
+      logger.newline();
+      logger.info('Validate: paste into GitLab CI Lint (CI/CD > Editor > Validate)');
+      break;
   }
 }

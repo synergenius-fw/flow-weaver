@@ -173,6 +173,9 @@ export const KNOWN_WORKFLOW_TAGS = new Set([
   'node', 'position', 'connect', 'scope', 'map', 'path', 'fanOut', 'fanIn',
   'coerce', 'trigger', 'cancelOn', 'retries', 'timeout', 'throttle', 'param',
   'return', 'returns',
+  // CI/CD annotations
+  'secret', 'runner', 'cache', 'artifact', 'environment', 'matrix',
+  'service', 'concurrency',
 ]);
 
 export const KNOWN_PATTERN_TAGS = new Set([

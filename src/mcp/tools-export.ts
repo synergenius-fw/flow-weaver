@@ -20,7 +20,7 @@ export function registerExportTools(mcp: McpServer): void {
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       target: z
-        .enum(['lambda', 'vercel', 'cloudflare', 'inngest'])
+        .enum(['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci'])
         .describe('Deployment target platform'),
       outputDir: z.string().describe('Output directory for generated files'),
       serviceName: z
@@ -50,7 +50,7 @@ export function registerExportTools(mcp: McpServer): void {
     },
     async (args: {
       filePath: string;
-      target: 'lambda' | 'vercel' | 'cloudflare' | 'inngest';
+      target: 'lambda' | 'vercel' | 'cloudflare' | 'inngest' | 'github-actions' | 'gitlab-ci';
       outputDir: string;
       serviceName?: string;
       workflows?: string[];
@@ -109,8 +109,55 @@ export function registerExportTools(mcp: McpServer): void {
         if (!exportTarget) {
           return makeErrorResult(
             'INVALID_TARGET',
-            `Unknown target: ${args.target}. Supported: lambda, vercel, cloudflare, inngest`
+            `Unknown target: ${args.target}. Supported: lambda, vercel, cloudflare, inngest, github-actions, gitlab-ci`
           );
+        }
+
+        // CI/CD targets use generate() directly — they read the AST, not compiled code
+        const isCICDTarget = args.target === 'github-actions' || args.target === 'gitlab-ci';
+        if (isCICDTarget) {
+          const serviceName =
+            args.serviceName || path.basename(filePath, '.ts').replace(/[^a-zA-Z0-9-]/g, '-');
+
+          const artifacts = await exportTarget.generate({
+            sourceFile: filePath,
+            workflowName: args.workflows?.[0] || serviceName,
+            displayName: serviceName,
+            outputDir,
+            production: true,
+          });
+
+          // Write files if not preview
+          if (!preview) {
+            await fs.promises.mkdir(outputDir, { recursive: true });
+            for (const file of artifacts.files) {
+              const fullPath = path.join(outputDir, file.relativePath);
+              await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
+              await fs.promises.writeFile(fullPath, file.content, 'utf-8');
+            }
+          }
+
+          const instructions = exportTarget.getDeployInstructions(artifacts);
+
+          return makeToolResult({
+            preview,
+            target: args.target,
+            serviceName,
+            outputDir,
+            files: artifacts.files.map((f) => ({
+              path: f.relativePath,
+              type: f.type,
+              size: f.content.length,
+            })),
+            instructions: {
+              title: instructions.title,
+              steps: instructions.steps,
+              prerequisites: instructions.prerequisites,
+            },
+            summary: preview
+              ? `Preview: ${artifacts.files.length} files would be generated in ${outputDir}`
+              : `Exported ${artifacts.files.length} files to ${outputDir}`,
+          });
         }
 
         if (!exportTarget.generateBundle) {

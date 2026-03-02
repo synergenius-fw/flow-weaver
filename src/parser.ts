@@ -1137,6 +1137,8 @@ export class AnnotationParser {
           ...(inst.sourceLocation && {
             sourceLocation: { file: filePath, ...inst.sourceLocation },
           }),
+          ...(inst.job && { job: inst.job }),
+          ...(inst.environment && { environment: inst.environment }),
         };
       });
 
@@ -1261,7 +1263,10 @@ export class AnnotationParser {
         ...(Object.keys(ui).length > 0 && { ui }),
         ...((config.strictTypes !== undefined || config.autoConnect ||
              config.trigger || config.cancelOn || config.retries !== undefined ||
-             config.timeout || config.throttle) && {
+             config.timeout || config.throttle ||
+             config.secrets || config.runner || config.caches || config.artifacts ||
+             config.environments || config.matrix || config.services ||
+             config.concurrency || config.cicdTriggers) && {
           options: {
             ...(config.strictTypes !== undefined && { strictTypes: config.strictTypes }),
             ...(config.autoConnect && { autoConnect: true }),
@@ -1270,6 +1275,16 @@ export class AnnotationParser {
             ...(config.retries !== undefined && { retries: config.retries }),
             ...(config.timeout && { timeout: config.timeout }),
             ...(config.throttle && { throttle: config.throttle }),
+            // CI/CD options
+            ...(config.secrets && { secrets: config.secrets }),
+            ...(config.runner && { runner: config.runner }),
+            ...(config.caches && { caches: config.caches }),
+            ...(config.artifacts && { artifacts: config.artifacts }),
+            ...(config.environments && { environments: config.environments }),
+            ...(config.matrix && { matrix: config.matrix }),
+            ...(config.services && { services: config.services }),
+            ...(config.concurrency && { concurrency: config.concurrency }),
+            ...(config.cicdTriggers && { cicdTriggers: config.cicdTriggers }),
           },
         }),
       });

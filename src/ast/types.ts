@@ -388,6 +388,10 @@ export type TNodeInstanceAST = {
   sourceLocation?: TSourceLocation;
   /** Reserved for plugin extensibility */
   metadata?: TNodeMetadata;
+  /** CI/CD job group this node belongs to (from [job: "name"] attribute) */
+  job?: string;
+  /** CI/CD environment for this node's job (from [environment: "name"] attribute) */
+  environment?: string;
 };
 
 /**
@@ -425,6 +429,113 @@ export type TWorkflowOptions = {
   timeout?: string;
   /** Rate limiting configuration */
   throttle?: { limit: number; period?: string };
+
+  // ── CI/CD annotations ────────────────────────────────────────────
+
+  /** Secret declarations for CI/CD pipelines */
+  secrets?: TCICDSecret[];
+  /** Default runner environment for CI/CD jobs */
+  runner?: string;
+  /** Cache configurations for CI/CD */
+  caches?: TCICDCache[];
+  /** Artifact declarations for CI/CD */
+  artifacts?: TCICDArtifact[];
+  /** Deployment environment configurations */
+  environments?: TCICDEnvironment[];
+  /** Matrix strategy for multi-version/OS testing */
+  matrix?: TCICDMatrix;
+  /** Sidecar service containers */
+  services?: TCICDService[];
+  /** Concurrency control */
+  concurrency?: { group: string; cancelInProgress?: boolean };
+  /** Extended CI/CD triggers (push, PR, dispatch, tag) */
+  cicdTriggers?: TCICDTrigger[];
+};
+
+// ── CI/CD Types ──────────────────────────────────────────────────────
+
+/** Secret declaration from @secret annotation */
+export type TCICDSecret = {
+  /** Secret name (e.g., NPM_TOKEN) */
+  name: string;
+  /** Human-readable description */
+  description?: string;
+  /** Platform restriction (default: all) */
+  platform?: 'github' | 'gitlab' | 'all';
+  /** Which job scope uses this secret */
+  scope?: string;
+};
+
+/** Cache configuration from @cache annotation */
+export type TCICDCache = {
+  /** Cache strategy name (e.g., npm, pip, custom) */
+  strategy: string;
+  /** Cache path override */
+  path?: string;
+  /** Cache key file (e.g., package-lock.json) */
+  key?: string;
+};
+
+/** Artifact declaration from @artifact annotation */
+export type TCICDArtifact = {
+  /** Artifact name */
+  name: string;
+  /** Path(s) to include */
+  path: string;
+  /** Retention in days */
+  retention?: number;
+};
+
+/** Deployment environment from @environment annotation */
+export type TCICDEnvironment = {
+  /** Environment name (e.g., production, staging) */
+  name: string;
+  /** Environment URL */
+  url?: string;
+  /** Number of required reviewers */
+  reviewers?: number;
+};
+
+/** Matrix strategy from @matrix annotation */
+export type TCICDMatrix = {
+  /** Dimension name → values (e.g., { "node": ["18","20","22"] }) */
+  dimensions: Record<string, string[]>;
+  /** Explicit include entries */
+  include?: Record<string, string>[];
+  /** Explicit exclude entries */
+  exclude?: Record<string, string>[];
+};
+
+/** Service container from @service annotation */
+export type TCICDService = {
+  /** Service name */
+  name: string;
+  /** Docker image */
+  image: string;
+  /** Environment variables */
+  env?: Record<string, string>;
+  /** Port mappings (host:container) */
+  ports?: string[];
+};
+
+/** CI/CD trigger from extended @trigger annotation */
+export type TCICDTrigger = {
+  /** Trigger type */
+  type: 'push' | 'pull_request' | 'schedule' | 'dispatch' | 'tag';
+  /** Branch filters */
+  branches?: string[];
+  /** Path filters */
+  paths?: string[];
+  /** Path ignore filters */
+  pathsIgnore?: string[];
+  /** Tag pattern (for tag triggers) */
+  pattern?: string;
+  /** PR event types (e.g., opened, synchronize) */
+  types?: string[];
+  /** Cron expression (for schedule triggers) */
+  cron?: string;
+  /** Dispatch inputs */
+  inputs?: Record<string, { description?: string; required?: boolean; default?: string; type?: string }>;
 };
 
 /**

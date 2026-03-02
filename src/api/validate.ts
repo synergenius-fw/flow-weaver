@@ -8,6 +8,7 @@
 import type { TValidationRule, TWorkflowAST } from "../ast";
 import { validator, type TValidationError } from "../validator";
 import { getAgentValidationRules } from "../validation/agent-rules";
+import { getCICDValidationRules } from "../validation/cicd-rules";
 
 export interface ValidationResult {
   valid: boolean;
@@ -33,7 +34,7 @@ export function validateWorkflow(
   const result = validator.validate(ast, { mode: options?.mode });
 
   // Apply agent-specific rules + any custom rules
-  const allRules = [...getAgentValidationRules(), ...(options?.customRules || [])];
+  const allRules = [...getAgentValidationRules(), ...getCICDValidationRules(), ...(options?.customRules || [])];
   for (const rule of allRules) {
     const ruleResults = rule.validate(ast);
     for (const err of ruleResults) {

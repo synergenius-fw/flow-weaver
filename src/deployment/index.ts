@@ -102,6 +102,9 @@ export { LambdaTarget } from './targets/lambda.js';
 export { VercelTarget } from './targets/vercel.js';
 export { CloudflareTarget } from './targets/cloudflare.js';
 export { InngestTarget } from './targets/inngest.js';
+export { GitHubActionsTarget } from './targets/github-actions.js';
+export { GitLabCITarget } from './targets/gitlab-ci.js';
+export { BaseCICDTarget, NODE_ACTION_MAP } from './targets/cicd-base.js';
 
 // Convenience: Create a pre-configured target registry
 import { ExportTargetRegistry } from './targets/base.js';
@@ -109,6 +112,8 @@ import { LambdaTarget } from './targets/lambda.js';
 import { VercelTarget } from './targets/vercel.js';
 import { CloudflareTarget } from './targets/cloudflare.js';
 import { InngestTarget } from './targets/inngest.js';
+import { GitHubActionsTarget } from './targets/github-actions.js';
+import { GitLabCITarget } from './targets/gitlab-ci.js';
 
 /**
  * Default export target registry with all built-in targets
@@ -119,6 +124,8 @@ export function createTargetRegistry(): ExportTargetRegistry {
   registry.register(new VercelTarget());
   registry.register(new CloudflareTarget());
   registry.register(new InngestTarget());
+  registry.register(new GitHubActionsTarget());
+  registry.register(new GitLabCITarget());
   return registry;
 }
 
@@ -126,5 +133,5 @@ export function createTargetRegistry(): ExportTargetRegistry {
  * Get names of all supported export targets
  */
 export function getSupportedTargetNames(): string[] {
-  return ['lambda', 'vercel', 'cloudflare', 'inngest'];
+  return ['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci'];
 }

@@ -26,7 +26,7 @@ import { generateInngestFunction } from '../generator/inngest.js';
 /**
  * Supported export targets
  */
-export type ExportTarget = 'lambda' | 'vercel' | 'cloudflare' | 'inngest';
+export type ExportTarget = 'lambda' | 'vercel' | 'cloudflare' | 'inngest' | 'github-actions' | 'gitlab-ci';
 
 /**
  * Options for exporting a workflow
@@ -905,6 +905,41 @@ export default app;
  * Export a workflow for serverless deployment
  */
 export async function exportWorkflow(options: ExportOptions): Promise<ExportResult> {
+  // CI/CD targets use the deployment target registry, not the legacy template system
+  if (options.target === 'github-actions' || options.target === 'gitlab-ci') {
+    const { createTargetRegistry } = await import('../deployment/index.js');
+    const registry = createTargetRegistry();
+    const target = registry.get(options.target)!;
+    const inputPath = path.resolve(options.input);
+    const outputDir = path.resolve(options.output);
+    const isDryRun = options.dryRun ?? false;
+
+    const artifacts = await target.generate({
+      sourceFile: inputPath,
+      workflowName: options.workflow || path.basename(inputPath, '.ts'),
+      displayName: path.basename(inputPath, '.ts'),
+      outputDir,
+    });
+
+    // Write files if not dry run
+    if (!isDryRun) {
+      for (const file of artifacts.files) {
+        const fullPath = path.join(outputDir, file.relativePath);
+        fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+        fs.writeFileSync(fullPath, file.content, 'utf-8');
+      }
+    }
+
+    return {
+      target: options.target,
+      files: artifacts.files.map((f) => ({
+        path: path.join(outputDir, f.relativePath),
+        content: f.content,
+      })),
+      workflow: artifacts.workflowName,
+    };
+  }
+
   // If multi mode, use multi-workflow export
   if (options.multi) {
     return exportMultiWorkflow(options);
@@ -1084,6 +1119,8 @@ function getTemplate(target: ExportTarget): string {
       return CLOUDFLARE_TEMPLATE;
     case 'inngest':
       return INNGEST_TEMPLATE;
+    default:
+      throw new Error(`No template for target: ${target}. CI/CD targets use the deployment target registry.`);
   }
 }
 
@@ -1101,6 +1138,8 @@ function getHandlerFileName(target: ExportTarget, workflowName: string): string 
       return 'index.ts';
     case 'inngest':
       return 'handler.ts';
+    default:
+      throw new Error(`No handler for target: ${target}. CI/CD targets use the deployment target registry.`);
   }
 }
 
@@ -1308,5 +1347,5 @@ command = "npm run build"
  * List supported export targets
  */
 export function getSupportedTargets(): ExportTarget[] {
-  return ['lambda', 'vercel', 'cloudflare', 'inngest'];
+  return ['lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci'];
 }
