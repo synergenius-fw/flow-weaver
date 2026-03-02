@@ -103,3 +103,7 @@ export * from './builder';
 export * from './workflow-file-operations';
 export * from './templates';
 export * from './patterns';
+
+// Re-exports needed by export target packs
+export { generateInngestFunction } from '../generator/inngest.js';
+export { AnnotationParser } from '../parser.js';
