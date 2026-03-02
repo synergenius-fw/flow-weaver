@@ -154,6 +154,21 @@ describe('buildDiagramGraph', () => {
     expect(exit.inputs.find(p => p.name === 'onFailure')).toBeDefined();
   });
 
+  it('marks Exit onFailure port with isFailure flag', () => {
+    const ast = createSimpleWorkflow();
+    // Add onSuccess/onFailure exit ports (as a standard workflow would have)
+    ast.exitPorts.onSuccess = { dataType: 'STEP', isControlFlow: true };
+    ast.exitPorts.onFailure = { dataType: 'STEP', isControlFlow: true, failure: true };
+    const graph = buildDiagramGraph(ast);
+
+    const exit = graph.nodes.find(n => n.id === 'Exit')!;
+    const onSuccess = exit.inputs.find(p => p.name === 'onSuccess')!;
+    const onFailure = exit.inputs.find(p => p.name === 'onFailure')!;
+
+    expect(onSuccess.isFailure).toBe(false);
+    expect(onFailure.isFailure).toBe(true);
+  });
+
   it('uses node type label as fallback when instance has no label', () => {
     const ast = createSimpleWorkflow();
     // Add a label to the node type
