@@ -60,17 +60,21 @@ describe('deployment module re-exports', () => {
     expect(mod.schemaConverter).toBeDefined();
   });
 
-  it('exports target classes', async () => {
+  it('exports base target classes and CI/CD base', async () => {
     const mod = await import('../../src/deployment/index');
-    expect(mod.LambdaTarget).toBeDefined();
-    expect(mod.VercelTarget).toBeDefined();
-    expect(mod.CloudflareTarget).toBeDefined();
-    expect(mod.InngestTarget).toBeDefined();
-    expect(mod.GitHubActionsTarget).toBeDefined();
-    expect(mod.GitLabCITarget).toBeDefined();
     expect(mod.BaseCICDTarget).toBeDefined();
     expect(mod.BaseExportTarget).toBeDefined();
     expect(mod.ExportTargetRegistry).toBeDefined();
+  });
+
+  it('no longer exports removed target classes', async () => {
+    const mod = await import('../../src/deployment/index');
+    expect((mod as any).LambdaTarget).toBeUndefined();
+    expect((mod as any).VercelTarget).toBeUndefined();
+    expect((mod as any).CloudflareTarget).toBeUndefined();
+    expect((mod as any).InngestTarget).toBeUndefined();
+    expect((mod as any).GitHubActionsTarget).toBeUndefined();
+    expect((mod as any).GitLabCITarget).toBeUndefined();
   });
 });
 

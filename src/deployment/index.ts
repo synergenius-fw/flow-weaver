@@ -112,13 +112,6 @@ export {
 export { isCICDWorkflow } from '../validation/cicd-detection.js';
 export { generateStandaloneRuntimeModule } from '../api/inline-runtime.js';
 
-// Target implementations — still exported for direct use by pack authors and tests
-export { LambdaTarget } from './targets/lambda.js';
-export { VercelTarget } from './targets/vercel.js';
-export { CloudflareTarget } from './targets/cloudflare.js';
-export { InngestTarget } from './targets/inngest.js';
-export { GitHubActionsTarget } from './targets/github-actions.js';
-export { GitLabCITarget } from './targets/gitlab-ci.js';
 export {
   BaseCICDTarget,
   NODE_ACTION_MAP,
