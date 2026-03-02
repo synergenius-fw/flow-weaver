@@ -803,6 +803,7 @@ export class AnnotationParser {
             label: portDef.label,
             expression: portDef.expression,
             ...(portDef.scope && { scope: portDef.scope }),
+            ...(portDef.hidden && { hidden: portDef.hidden }),
             ...(portDef.metadata && { metadata: portDef.metadata }),
             ...(portDef.tsType && { tsType: portDef.tsType }),
           };
@@ -816,6 +817,7 @@ export class AnnotationParser {
             dataType: portDef.type,
             label: portDef.label,
             ...(portDef.scope && { scope: portDef.scope }),
+            ...(portDef.hidden && { hidden: portDef.hidden }),
             ...(portDef.metadata && { metadata: portDef.metadata }),
             ...(portDef.tsType && { tsType: portDef.tsType }),
           };
