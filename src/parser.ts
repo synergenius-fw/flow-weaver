@@ -2395,6 +2395,7 @@ export class AnnotationParser {
           dataType: 'STEP',
           label: returnPortConfig?.label || (propName === 'onSuccess' ? 'On Success' : 'On Failure'),
           isControlFlow: true,
+          ...(propName === 'onFailure' && { failure: true }),
           ...(returnPortConfig?.metadata && { metadata: returnPortConfig.metadata }),
         };
       } else {
