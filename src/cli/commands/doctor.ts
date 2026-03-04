@@ -764,40 +764,32 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
     console.log(JSON.stringify(report, null, 2));
   } else {
     logger.section('Flow Weaver Doctor');
-    logger.info(`Checking project at ${cwd}`);
-    logger.newline();
 
-    for (const check of report.checks) {
-      switch (check.status) {
-        case 'pass':
-          logger.success(check.message);
-          break;
-        case 'warn':
-          logger.warn(check.message);
-          if (check.fix) {
-            logger.log(`    Fix: ${check.fix}`);
-          }
-          break;
-        case 'fail':
-          logger.error(check.message);
-          if (check.fix) {
-            logger.log(`    Fix: ${check.fix}`);
-          }
-          break;
+    const statusIcon = (s: CheckStatus) =>
+      s === 'pass' ? logger.highlight('pass') : s === 'warn' ? '⚠ warn' : '✗ fail';
+
+    const rows: [string, string, string][] = report.checks.map((check) => [
+      check.name,
+      check.message,
+      statusIcon(check.status),
+    ]);
+    logger.table(rows);
+
+    // Show fixes for non-passing checks
+    const fixable = report.checks.filter((c) => c.status !== 'pass' && c.fix);
+    if (fixable.length > 0) {
+      logger.newline();
+      for (const check of fixable) {
+        logger.log(`  ${logger.dim(check.name + ':')} ${check.fix}`);
       }
     }
 
     logger.newline();
-    logger.section('Module Format');
-    logger.info(
-      `  Detected: ${report.moduleFormat.format.toUpperCase()} (${report.moduleFormat.details})`
-    );
+    logger.log(`  Module format: ${report.moduleFormat.format.toUpperCase()} ${logger.dim(`(${report.moduleFormat.details})`)}`);
 
-    logger.newline();
-    logger.section('Summary');
     const parts: string[] = [];
     if (report.summary.pass > 0) parts.push(`${report.summary.pass} passed`);
-    if (report.summary.warn > 0) parts.push(`${report.summary.warn} warning(s)`);
+    if (report.summary.warn > 0) parts.push(`${report.summary.warn} warnings`);
     if (report.summary.fail > 0) parts.push(`${report.summary.fail} failed`);
     logger.log(`  ${parts.join(', ')}`);
 
@@ -806,7 +798,7 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
       logger.success('Environment is ready for flow-weaver!');
     } else {
       logger.newline();
-      logger.error('Some checks failed. Please fix the issues above.');
+      logger.error('Fix the issues above to continue.');
     }
   }
 

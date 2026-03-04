@@ -39,6 +39,7 @@ export async function migrateCommand(
     logger.info(`Registered edge-case migrations: ${registeredMigrations.map((m) => m.name).join(', ')}`);
   }
 
+  const t = logger.timer();
   let migratedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
@@ -104,8 +105,8 @@ export async function migrateCommand(
   // Summary
   logger.newline();
   if (dryRun) {
-    logger.info(`Dry run complete: ${migratedCount} file(s) would be updated, ${skippedCount} already current, ${errorCount} error(s)`);
+    logger.info(`Dry run: ${migratedCount} file(s) would be updated, ${skippedCount} already current, ${errorCount} error(s) in ${t.elapsed()}`);
   } else {
-    logger.info(`Migration complete: ${migratedCount} file(s) updated, ${skippedCount} already current, ${errorCount} error(s)`);
+    logger.info(`${migratedCount} file(s) migrated, ${skippedCount} already current, ${errorCount} error(s) in ${t.elapsed()}`);
   }
 }

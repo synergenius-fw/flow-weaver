@@ -235,7 +235,7 @@ export function validWorkflow(execute: boolean): Promise<{ onSuccess: boolean; o
       try {
         await compileCommand(tmpFile, { verbose: true });
         const joined = output.join('\n');
-        expect(joined).toContain('Skipped');
+        expect(joined).toContain('skip');
       } finally {
         console.log = origLog;
         fs.rmSync(tmpDir, { recursive: true, force: true });
