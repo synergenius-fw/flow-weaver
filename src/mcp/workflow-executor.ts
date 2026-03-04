@@ -190,8 +190,14 @@ export async function executeWorkflowFromFile(
     // Find the target exported function
     const exportedFn = findExportedFunction(mod, options?.workflowName);
     if (!exportedFn) {
+      const available = Object.entries(mod)
+        .filter(([k, v]) => k !== '__esModule' && typeof v === 'function')
+        .map(([k]) => k);
+      const availStr = available.length > 0 ? `. Available: ${available.join(', ')}` : '';
       throw new Error(
-        `No exported workflow function found${options?.workflowName ? ` named "${options.workflowName}"` : ''}`
+        options?.workflowName
+          ? `Workflow "${options.workflowName}" not found in file${availStr}`
+          : `No exported workflow function found in file${availStr}`
       );
     }
 

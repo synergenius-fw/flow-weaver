@@ -69,6 +69,6 @@ export async function templatesCommand(
   logger.newline();
   logger.section("Usage");
   logger.log("  $ flow-weaver create workflow <template> <file> [--async] [--line N]");
-  logger.log("  $ flow-weaver create node <template> <name> <file> [--line N]");
+  logger.log("  $ flow-weaver create node <name> <file> [-t <template>] [--line N]");
   logger.newline();
 }

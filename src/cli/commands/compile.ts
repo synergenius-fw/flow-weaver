@@ -157,6 +157,7 @@ export async function compileCommand(input: string, options: CompileOptions = {}
       const parseResult = await parseWorkflow(file, { workflowName });
 
       if (parseResult.warnings.length > 0 && verbose) {
+        logger.warn(`Parse warnings in ${fileName}:`);
         parseResult.warnings.forEach((w) => logger.warn(`  ${w}`));
       }
 
@@ -190,9 +191,9 @@ export async function compileCommand(input: string, options: CompileOptions = {}
             if (friendly) {
               const loc = err.location ? `[line ${err.location.line}] ` : '';
               logger.error(`    ${loc}${friendly.title}: ${friendly.explanation}`);
-              logger.info(`    How to fix: ${friendly.fix}`);
+              logger.warn(`    How to fix: ${friendly.fix}`);
               if (err.docUrl) {
-                logger.info(`    See: ${err.docUrl}`);
+                logger.warn(`    See: ${err.docUrl}`);
               }
             } else {
               let msg = `    ${err.message}`;
@@ -201,7 +202,7 @@ export async function compileCommand(input: string, options: CompileOptions = {}
               }
               logger.error(msg);
               if (err.docUrl) {
-                logger.info(`    See: ${err.docUrl}`);
+                logger.warn(`    See: ${err.docUrl}`);
               }
             }
           });
@@ -214,7 +215,7 @@ export async function compileCommand(input: string, options: CompileOptions = {}
             if (friendly) {
               const loc = warn.location ? `[line ${warn.location.line}] ` : '';
               logger.warn(`  ${loc}${friendly.title}: ${friendly.explanation}`);
-              logger.info(`    How to fix: ${friendly.fix}`);
+              logger.warn(`    How to fix: ${friendly.fix}`);
             } else {
               logger.warn(`  ${warn.message}`);
             }
@@ -258,8 +259,8 @@ export async function compileCommand(input: string, options: CompileOptions = {}
       if (dryRun) {
         if (result.hasChanges) {
           logger.success(`${filePrint} ${timing} ${logger.dim('(dry run)')}`);
-        } else if (verbose) {
-          logger.info(`  ${filePrint} ${logger.dim('no changes')}`);
+        } else {
+          logger.log(`  ${filePrint} ${logger.dim('(no changes, dry run)')}`);
         }
       } else if (result.hasChanges) {
         logger.success(`${filePrint} ${timing}`);
@@ -277,12 +278,13 @@ export async function compileCommand(input: string, options: CompileOptions = {}
   // Summary
   const elapsed = totalTimer.elapsed();
   const formatNote = verbose ? '' : ` (${moduleFormat.toUpperCase()})`;
+  const dryRunNote = dryRun ? ' (dry run)' : '';
   logger.newline();
   if (errorCount > 0) {
-    logger.log(`  ${successCount} compiled, ${errorCount} failed${formatNote} in ${elapsed}`);
+    logger.log(`  ${successCount} compiled, ${errorCount} failed${formatNote} in ${elapsed}${dryRunNote}`);
     throw new Error(`${errorCount} file(s) failed to compile`);
   } else {
-    logger.log(`  ${successCount} file${successCount !== 1 ? 's' : ''} compiled${formatNote} in ${elapsed}`);
+    logger.log(`  ${successCount} file${successCount !== 1 ? 's' : ''} compiled${formatNote} in ${elapsed}${dryRunNote}`);
   }
 }
 
