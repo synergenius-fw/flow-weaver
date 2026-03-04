@@ -121,6 +121,7 @@ export {
 } from './targets/cicd-base.js';
 
 import * as path from 'path';
+import { pathToFileURL } from 'url';
 import { ExportTargetRegistry } from './targets/base.js';
 
 /**
@@ -145,7 +146,7 @@ export async function createTargetRegistry(projectDir?: string): Promise<ExportT
         const filePath = path.join(pkg.path, def.file);
         // Dynamic import is async, so we resolve the module here
         // but defer instantiation to the lazy factory
-        const mod = await import(filePath);
+        const mod = await import(pathToFileURL(filePath).href);
         const TargetClass = def.exportName ? mod[def.exportName] : mod.default;
         registry.register(def.name, () => new TargetClass());
       }

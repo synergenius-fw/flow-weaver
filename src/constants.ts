@@ -108,6 +108,11 @@ export function isSpecialNode(nodeName: string): boolean {
   return isStartNode(nodeName) || isExitNode(nodeName);
 }
 
+/** Pseudo-nodes like `secret:NAME` are connection sources that don't correspond to real node instances. */
+export function isPseudoNode(nodeName: string): boolean {
+  return nodeName.startsWith('secret:');
+}
+
 export function isExecutePort(portName: string): boolean {
   return portName === RESERVED_PORT_NAMES.EXECUTE;
 }

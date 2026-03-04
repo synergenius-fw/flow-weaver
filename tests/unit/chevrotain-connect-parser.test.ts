@@ -56,6 +56,49 @@ describe('Chevrotain Connect Parser', () => {
     });
   });
 
+  describe('Pseudo-node references (secret:NAME)', () => {
+    it('should parse @connect with secret:NAME source', () => {
+      const result = parseConnectLine('@connect secret:TOKEN -> node.port', w);
+      expect(result).toEqual({
+        source: { nodeId: 'secret:TOKEN', portName: 'value' },
+        target: { nodeId: 'node', portName: 'port', scope: undefined },
+      });
+    });
+
+    it('should parse @connect with secret:GITHUB_TOKEN', () => {
+      const result = parseConnectLine('@connect secret:GITHUB_TOKEN -> login.token', w);
+      expect(result).toEqual({
+        source: { nodeId: 'secret:GITHUB_TOKEN', portName: 'value' },
+        target: { nodeId: 'login', portName: 'token', scope: undefined },
+      });
+    });
+
+    it('should parse @connect with secret:NAME and coerce', () => {
+      const result = parseConnectLine('@connect secret:AWS_KEY -> deploy.key as string', w);
+      expect(result).toEqual({
+        source: { nodeId: 'secret:AWS_KEY', portName: 'value' },
+        target: { nodeId: 'deploy', portName: 'key', scope: undefined },
+        coerce: 'string',
+      });
+    });
+
+    it('should still parse standard node.port -> node.port', () => {
+      const result = parseConnectLine('@connect Start.x -> adder.a', w);
+      expect(result).toEqual({
+        source: { nodeId: 'Start', portName: 'x', scope: undefined },
+        target: { nodeId: 'adder', portName: 'a', scope: undefined },
+      });
+    });
+
+    it('should still parse node.port:scope -> node.port:scope', () => {
+      const result = parseConnectLine('@connect a.x:scope1 -> b.y:scope2', w);
+      expect(result).toEqual({
+        source: { nodeId: 'a', portName: 'x', scope: 'scope1' },
+        target: { nodeId: 'b', portName: 'y', scope: 'scope2' },
+      });
+    });
+  });
+
   describe('Edge cases', () => {
     it('should return null for non-connect lines', () => {
       expect(parseConnectLine('@input myPort', w)).toBeNull();
