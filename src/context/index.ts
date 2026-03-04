@@ -13,7 +13,7 @@ import { getAllGrammars, serializedToEBNF } from '../chevrotain-parser/grammar-d
 // ---------------------------------------------------------------------------
 
 export type ContextProfile = 'standalone' | 'assistant';
-export type ContextPreset = 'core' | 'authoring' | 'full' | 'ops';
+export type ContextPreset = 'core' | 'authoring' | 'full' | 'ops' | 'cicd';
 
 export interface ContextOptions {
   preset?: ContextPreset;
@@ -63,6 +63,7 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'jsdoc-grammar',
     'advanced-annotations',
     'built-in-nodes',
+    'cicd',
     'cli-reference',
     'compilation',
     'debugging',
@@ -75,6 +76,7 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'patterns',
     'scaffold',
   ],
+  cicd: ['concepts', 'jsdoc-grammar', 'cicd', 'deployment', 'scaffold'],
 };
 
 export const PRESET_NAMES = Object.keys(PRESETS) as ContextPreset[];
@@ -115,7 +117,13 @@ Tool quick reference:
 - fw_diagram: Visualize. Prefer format "ascii-compact" in chat contexts
 - fw_compile: Generate executable TypeScript from annotations
 - fw_docs: Look up reference docs by topic slug
-- fw_scaffold: Create from templates (sequential, foreach, ai-agent, etc.)
+- fw_scaffold: Create from templates (sequential, foreach, ai-agent, cicd-test-deploy, cicd-docker, etc.)
+- fw_export: Deploy to cloud (lambda, vercel, cloudflare) or generate CI/CD pipelines (github-actions, gitlab-ci)
+
+Flow Weaver can also generate CI/CD pipelines. Use @secret, @runner, @trigger,
+@cache, @matrix, and [job: "name"] annotations to define pipeline structure,
+then export to GitHub Actions YAML or GitLab CI YAML with fw_export.
+For details: fw_docs(action="read", topic="cicd")
 
 File conventions: .ts extension, camelCase node names, PascalCase workflow names.`;
 }

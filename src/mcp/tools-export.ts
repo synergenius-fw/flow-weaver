@@ -16,7 +16,7 @@ import { makeToolResult, makeErrorResult } from './response-utils.js';
 export function registerExportTools(mcp: McpServer): void {
   mcp.tool(
     'fw_export',
-    'Export workflows as serverless deployments. Generates handler code, platform config, and deploy instructions.',
+    'Export workflows as serverless functions (lambda, vercel, cloudflare, inngest) or CI/CD pipelines (github-actions, gitlab-ci). Generates platform-native config files and deploy instructions.',
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       target: z

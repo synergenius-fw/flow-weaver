@@ -213,6 +213,7 @@ attributeBracket ::= "[" nodeAttr { "," nodeAttr } "]"
 nodeAttr       ::= labelAttr | exprAttr | portOrderAttr | portLabelAttr
                  | minimizedAttr | pullExecutionAttr | sizeAttr
                  | colorAttr | iconAttr | tagsAttr | positionAttr
+                 | jobAttr | environmentAttr
 
 labelAttr      ::= "label:" STRING
 exprAttr       ::= "expr:" IDENTIFIER "=" STRING { "," IDENTIFIER "=" STRING }
@@ -226,6 +227,8 @@ iconAttr       ::= "icon:" STRING
 tagsAttr       ::= "tags:" tagEntry { "," tagEntry }
 tagEntry       ::= STRING [ STRING ]
 positionAttr   ::= "position:" INTEGER INTEGER
+jobAttr        ::= "job:" STRING
+environmentAttr ::= "environment:" STRING
 ```
 
 Multiple attribute brackets are allowed (zero or more). Attributes can be split across brackets or combined in one.
@@ -245,6 +248,8 @@ Multiple attribute brackets are allowed (zero or more). Attributes can be split 
 @node myAdd Add [tags: "math" "Math operation", "transform"]
 @node myAdd Add [position: 180 0]
 @node myAdd Add [label: "hi"] [color: "#f00"] [position: 360 0]
+@node build npmBuild [job: "build"]
+@node deploy deploySsh [job: "deploy"] [environment: "production"]
 ```
 
 ## @connect
@@ -253,15 +258,17 @@ Multiple attribute brackets are allowed (zero or more). Attributes can be split 
 connectTag     ::= "@connect" portRef "->" portRef
 
 portRef        ::= IDENTIFIER "." IDENTIFIER [ ":" IDENTIFIER ]
+                 | IDENTIFIER ":" IDENTIFIER
 ```
 
-The optional `:IDENTIFIER` suffix is a scope qualifier.
+The first form is the standard `node.port` reference with optional `:scope` suffix. The second form is a pseudo-node reference for CI/CD secrets: `secret:NAME` resolves to `{ nodeId: "secret:NAME", portName: "value" }`.
 
 **Examples:**
 
 ```
 @connect myAdd.result -> myLog.message
 @connect loop.item -> process.input:loopScope
+@connect secret:NPM_TOKEN -> publish.token
 ```
 
 ## @path
@@ -425,6 +432,140 @@ Limits concurrent executions of an Inngest function.
 
 ---
 
+# CI/CD Workflow Annotations
+
+These tags configure CI/CD pipeline behavior when exporting to GitHub Actions or GitLab CI. They are placed inside `@flowWeaver workflow` blocks alongside standard workflow tags.
+
+## @trigger (CI/CD mode)
+
+When the trigger value is one of `push`, `pull_request`, `dispatch`, `tag`, or `schedule`, the parser treats it as a CI/CD trigger rather than an Inngest event trigger.
+
+```
+cicdTriggerTag ::= "@trigger" ( "push" | "pull_request" | "dispatch" | "tag" | "schedule" )
+                   { IDENTIFIER "=" STRING }
+```
+
+Recognized attributes: `branches`, `paths`, `paths-ignore`, `types`, `pattern`, `cron`.
+
+**Examples:**
+
+```
+@trigger push branches="main,develop"
+@trigger pull_request branches="main" types="opened,synchronize"
+@trigger tag pattern="v*"
+@trigger dispatch
+@trigger schedule cron="0 9 * * 1"
+```
+
+## @secret
+
+```
+secretTag      ::= "@secret" IDENTIFIER { IDENTIFIER "=" STRING } [ "-" TEXT ]
+```
+
+**Examples:**
+
+```
+@secret NPM_TOKEN - NPM authentication token
+@secret DEPLOY_KEY scope="deploy" platform="github" - SSH deploy key
+```
+
+## @runner
+
+```
+runnerTag      ::= "@runner" TEXT
+```
+
+**Examples:**
+
+```
+@runner ubuntu-latest
+@runner self-hosted
+```
+
+## @cache
+
+```
+cacheTag       ::= "@cache" IDENTIFIER { IDENTIFIER "=" STRING }
+```
+
+**Examples:**
+
+```
+@cache npm key="package-lock.json"
+@cache npm key="package-lock.json" path="~/.npm"
+```
+
+## @artifact
+
+```
+artifactTag    ::= "@artifact" IDENTIFIER { IDENTIFIER "=" ( STRING | INTEGER ) }
+```
+
+**Examples:**
+
+```
+@artifact dist path="dist/" retention=5
+@artifact coverage path="coverage/"
+```
+
+## @environment
+
+```
+environmentTag ::= "@environment" IDENTIFIER { IDENTIFIER "=" ( STRING | INTEGER ) }
+```
+
+**Examples:**
+
+```
+@environment production url="https://app.example.com" reviewers=2
+@environment staging
+```
+
+## @matrix
+
+```
+matrixTag      ::= "@matrix" [ "include" | "exclude" ] { IDENTIFIER "=" STRING }
+```
+
+Without a prefix, each key-value pair declares a dimension with comma-separated values. With `include` or `exclude`, it adds or removes a specific combination.
+
+**Examples:**
+
+```
+@matrix node="18,20,22" os="ubuntu-latest,macos-latest"
+@matrix include node="22" os="windows-latest"
+@matrix exclude node="18" os="macos-latest"
+```
+
+## @service
+
+```
+serviceTag     ::= "@service" IDENTIFIER { IDENTIFIER "=" STRING }
+```
+
+**Examples:**
+
+```
+@service postgres image="postgres:16" env="POSTGRES_PASSWORD=test" ports="5432:5432"
+@service redis image="redis:7" ports="6379:6379"
+```
+
+## @concurrency
+
+```
+concurrencyTag ::= "@concurrency" IDENTIFIER [ "cancel-in-progress=" ( "true" | "false" ) ]
+```
+
+**Examples:**
+
+```
+@concurrency deploy cancel-in-progress=true
+@concurrency ci-main
+```
+
+---
+
 # Pattern Tags
 
 A `@flowWeaver pattern` block defines a reusable partial workflow with boundary ports:
@@ -471,6 +612,7 @@ IDENTIFIER supports `/` and `-` to accommodate npm package naming conventions (e
 # Related Topics
 
 - `advanced-annotations` — Conceptual explanations and examples for pull execution, execution strategies, merge strategies, auto-connect, strict types, path/map sugar, and node attributes
+- `cicd` — CI/CD pipeline export with annotation examples and validation rules
 - `compilation` — How annotations affect code generation, Inngest target details for @trigger/@cancelOn/@retries/@timeout/@throttle
 - `concepts` — Core workflow fundamentals and quick reference
 - `error-codes` — Validation errors and warnings for annotation issues

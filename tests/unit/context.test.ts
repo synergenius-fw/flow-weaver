@@ -63,7 +63,7 @@ describe('buildContext', () => {
 
   it('includes all topics for full preset', () => {
     const result = buildContext({ preset: 'full' });
-    expect(result.topicCount).toBe(16);
+    expect(result.topicCount).toBe(17);
   });
 
   it('respects explicit topics', () => {
@@ -119,10 +119,11 @@ describe('PRESETS', () => {
     expect(PRESET_NAMES).toContain('authoring');
     expect(PRESET_NAMES).toContain('ops');
     expect(PRESET_NAMES).toContain('full');
+    expect(PRESET_NAMES).toContain('cicd');
   });
 
-  it('full preset includes all 16 topics', () => {
-    expect(PRESETS.full.length).toBe(16);
+  it('full preset includes all 17 topics', () => {
+    expect(PRESETS.full.length).toBe(17);
   });
 
   it('core preset is a subset of full', () => {
@@ -141,5 +142,11 @@ describe('PRESETS', () => {
     for (const topic of PRESETS.ops) {
       expect(PRESETS.full).toContain(topic);
     }
+  });
+
+  it('cicd preset includes cicd and deployment topics', () => {
+    expect(PRESETS.cicd).toContain('cicd');
+    expect(PRESETS.cicd).toContain('deployment');
+    expect(PRESETS.cicd).toContain('jsdoc-grammar');
   });
 });

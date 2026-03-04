@@ -78,6 +78,7 @@ That is it. Two expression-mode functions, one workflow annotation, zero boilerp
 | Pull execution, merge strategies | `advanced-annotations`       | jsdoc-grammar       |
 | Compile to Inngest               | `compilation`                | cli-reference       |
 | Deploy to cloud                  | `deployment`                 | compilation         |
+| Build a CI/CD pipeline           | `cicd`                       | deployment, scaffold |
 | Use delay/waitForEvent/mocks     | `built-in-nodes`             | debugging           |
 | Publish marketplace packages     | `marketplace`                | —                   |
 
@@ -98,7 +99,7 @@ flow-weaver watch <file>      # Watch mode
 flow-weaver dev <file>        # Watch + compile + run in one command
 flow-weaver serve [dir]       # HTTP server exposing workflows as endpoints
 flow-weaver diagram <file>    # Generate SVG diagram
-flow-weaver export <file>     # Export as serverless function (lambda/vercel/cloudflare/inngest)
+flow-weaver export <file>     # Export as serverless function or CI/CD pipeline
 flow-weaver docs              # Browse documentation
 flow-weaver docs <topic>      # Read a specific topic
 flow-weaver docs search <q>   # Search across all docs
