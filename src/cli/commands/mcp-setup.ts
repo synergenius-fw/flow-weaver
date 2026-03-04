@@ -20,6 +20,15 @@ const MCP_ENTRY = { command: MCP_COMMAND, args: [...MCP_ARGS] };
 
 export type ToolId = 'claude' | 'cursor' | 'vscode' | 'windsurf' | 'codex' | 'openclaw';
 
+/** Tools that can be spawned as interactive CLI sessions */
+export const CLI_TOOL_IDS: ReadonlySet<ToolId> = new Set(['claude', 'codex']);
+
+/** Binary name to spawn for each CLI tool */
+export const CLI_TOOL_BINARY: Partial<Record<ToolId, string>> = {
+  claude: 'claude',
+  codex: 'codex',
+};
+
 export interface McpSetupDeps {
   execCommand: (cmd: string) => Promise<{ stdout: string; exitCode: number }>;
   fileExists: (filePath: string) => Promise<boolean>;
@@ -320,6 +329,60 @@ async function configureTool(tool: ToolDefinition, deps: McpSetupDeps): Promise<
     const msg = err instanceof Error ? err.message : String(err);
     return { id: tool.id, displayName: tool.displayName, action: 'failed', detail: msg };
   }
+}
+
+// ── Non-interactive setup (used by init) ─────────────────────────────────────
+
+export interface McpSetupFromInitResult {
+  configured: string[];
+  failed: string[];
+  /** Tool IDs that can be spawned as interactive CLI sessions (e.g. claude, codex) */
+  cliTools: ToolId[];
+  /** Tool IDs that are GUI-only editors (e.g. cursor, vscode, windsurf) */
+  guiTools: ToolId[];
+}
+
+/**
+ * Detect and configure all AI tools without interactive prompts.
+ * Used by the init command after the user has already consented.
+ */
+export async function runMcpSetupFromInit(
+  deps?: McpSetupDeps,
+): Promise<McpSetupFromInitResult> {
+  const d = deps ?? defaultDeps();
+  const detected = await detectTools(d);
+  const toConfig = detected.filter((t) => t.detected && !t.configured);
+
+  const configured: string[] = [];
+  const failed: string[] = [];
+
+  const toolMap = new Map(TOOL_REGISTRY.map((t) => [t.id, t]));
+  for (const t of toConfig) {
+    const tool = toolMap.get(t.id);
+    if (!tool) continue;
+    const result = await configureTool(tool, d);
+    if (result.action === 'configured') {
+      configured.push(result.displayName);
+    } else if (result.action === 'failed') {
+      failed.push(result.displayName);
+    }
+  }
+
+  // Include already-configured tools in the configured list
+  for (const t of detected) {
+    if (t.configured) {
+      configured.push(t.displayName);
+    }
+  }
+
+  // Classify configured/detected tools as CLI or GUI
+  const allConfiguredIds = detected
+    .filter((t) => t.detected && (t.configured || configured.includes(t.displayName)))
+    .map((t) => t.id);
+  const cliTools = allConfiguredIds.filter((id) => CLI_TOOL_IDS.has(id));
+  const guiTools = allConfiguredIds.filter((id) => !CLI_TOOL_IDS.has(id));
+
+  return { configured, failed, cliTools, guiTools };
 }
 
 // ── Command ──────────────────────────────────────────────────────────────────

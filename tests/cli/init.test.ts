@@ -17,6 +17,7 @@ import {
   runGitInit,
   initCommand,
   resolveInitConfig,
+  handleAgentHandoff,
 } from '../../src/cli/commands/init';
 import type { TModuleFormat } from '../../src/ast/types';
 
@@ -39,10 +40,10 @@ function makeFixture(name: string, files: Record<string, string> = {}): string {
 
 /** Cache for generateProjectFiles — pure function, same inputs produce same output */
 const _projectFilesCache = new Map<string, Record<string, string>>();
-function cachedGenerateProjectFiles(name: string, template: string, format?: string): Record<string, string> {
-  const key = `${name}:${template}:${format ?? ''}`;
+function cachedGenerateProjectFiles(name: string, template: string, format?: string, persona?: string): Record<string, string> {
+  const key = `${name}:${template}:${format ?? ''}:${persona ?? ''}`;
   if (!_projectFilesCache.has(key)) {
-    _projectFilesCache.set(key, generateProjectFiles(name, template, format as TModuleFormat));
+    _projectFilesCache.set(key, generateProjectFiles(name, template, format as TModuleFormat, (persona ?? 'expert') as any));
   }
   return _projectFilesCache.get(key)!;
 }
@@ -751,5 +752,294 @@ describe('initCommand human output', () => {
     expect(output).toContain('npm install');
     // After auto-compile, shows 'npm start'; if compile fails/skipped, shows 'npm run dev'
     expect(output).toMatch(/npm (run dev|start)/);
+  });
+});
+
+// ── Persona-aware init (backward compat + new features) ──────────────────────
+
+describe('resolveInitConfig persona', () => {
+  it('should default to expert persona with --yes', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true });
+    expect(config.persona).toBe('expert');
+  });
+
+  it('should default to expert persona with explicit --template', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, template: 'sequential' });
+    expect(config.persona).toBe('expert');
+  });
+
+  it('should accept --preset nocode', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, preset: 'nocode' });
+    expect(config.persona).toBe('nocode');
+  });
+
+  it('should accept --preset vibecoder', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, preset: 'vibecoder' });
+    expect(config.persona).toBe('vibecoder');
+  });
+
+  it('should accept --preset lowcode', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, preset: 'lowcode' });
+    expect(config.persona).toBe('lowcode');
+  });
+
+  it('should accept --preset expert', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, preset: 'expert' });
+    expect(config.persona).toBe('expert');
+  });
+
+  it('should throw for invalid --preset', async () => {
+    await expect(
+      resolveInitConfig(undefined, { yes: true, preset: 'invalid' })
+    ).rejects.toThrow('Unknown preset');
+  });
+
+  it('should default mcp to false with --yes', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true });
+    expect(config.mcp).toBe(false);
+  });
+
+  it('should accept --mcp flag', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, preset: 'nocode', mcp: true });
+    expect(config.mcp).toBe(true);
+  });
+});
+
+describe('resolveInitConfig use-case', () => {
+  it('should accept --use-case with non-expert preset', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, preset: 'nocode', useCase: 'ai' });
+    expect(config.useCase).toBe('ai');
+    expect(config.template).toBe('ai-agent');
+  });
+
+  it('should default to sequential for data use case', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, preset: 'nocode', useCase: 'data' });
+    expect(config.template).toBe('sequential');
+  });
+
+  it('should select webhook for api use case', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, preset: 'vibecoder', useCase: 'api' });
+    expect(config.template).toBe('webhook');
+  });
+
+  it('should throw for invalid --use-case', async () => {
+    await expect(
+      resolveInitConfig(undefined, { yes: true, preset: 'nocode', useCase: 'invalid' })
+    ).rejects.toThrow('Unknown use case');
+  });
+
+  it('should ignore use-case when --template is explicit', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, template: 'foreach', useCase: 'ai' });
+    expect(config.template).toBe('foreach');
+  });
+});
+
+describe('generateProjectFiles with persona', () => {
+  it('should include README.md for all personas', () => {
+    for (const persona of ['nocode', 'vibecoder', 'lowcode', 'expert']) {
+      const files = cachedGenerateProjectFiles('test', 'sequential', 'esm', persona);
+      expect(files['README.md']).toBeTruthy();
+    }
+  });
+
+  it('should include examples dir for lowcode persona', () => {
+    const files = cachedGenerateProjectFiles('test', 'sequential', 'esm', 'lowcode');
+    expect(files['examples/example-workflow.ts']).toBeTruthy();
+  });
+
+  it('should NOT include examples dir for expert persona', () => {
+    const files = cachedGenerateProjectFiles('test', 'sequential', 'esm', 'expert');
+    expect(files['examples/example-workflow.ts']).toBeUndefined();
+  });
+
+  it('should include diagram script for non-expert personas', () => {
+    const files = cachedGenerateProjectFiles('test', 'sequential', 'esm', 'nocode');
+    const pkg = JSON.parse(files['package.json']);
+    expect(pkg.scripts.diagram).toBeTruthy();
+  });
+
+  it('should NOT include diagram script for expert persona', () => {
+    const files = cachedGenerateProjectFiles('test', 'sequential', 'esm', 'expert');
+    const pkg = JSON.parse(files['package.json']);
+    expect(pkg.scripts.diagram).toBeUndefined();
+  });
+});
+
+describe('initCommand --json with persona', () => {
+  it('should include persona in JSON report', async () => {
+    const dir = makeFixture('init-json-persona');
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const originalCwd = process.cwd;
+
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    process.cwd = () => dir;
+
+    try {
+      await initCommand(dir, {
+        yes: true,
+        json: true,
+        install: false,
+        git: false,
+      });
+    } finally {
+      console.log = originalLog;
+      process.cwd = originalCwd;
+    }
+
+    const report = JSON.parse(logs.join(''));
+    expect(report.persona).toBe('expert');
+  });
+
+  it('should include persona in JSON report with --preset', async () => {
+    const dir = makeFixture('init-json-preset');
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const originalCwd = process.cwd;
+
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    process.cwd = () => dir;
+
+    try {
+      await initCommand(dir, {
+        preset: 'nocode',
+        useCase: 'ai',
+        json: true,
+        install: false,
+        git: false,
+      });
+    } finally {
+      console.log = originalLog;
+      process.cwd = originalCwd;
+    }
+
+    const report = JSON.parse(logs.join(''));
+    expect(report.persona).toBe('nocode');
+    expect(report.template).toBe('ai-agent');
+  });
+
+  it('should include agentLaunched: false in JSON report with --yes', async () => {
+    const dir = makeFixture('init-json-agent');
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const originalCwd = process.cwd;
+
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    process.cwd = () => dir;
+
+    try {
+      await initCommand(dir, {
+        yes: true,
+        json: true,
+        install: false,
+        git: false,
+      });
+    } finally {
+      console.log = originalLog;
+      process.cwd = originalCwd;
+    }
+
+    const report = JSON.parse(logs.join(''));
+    expect(report.agentLaunched).toBe(false);
+  });
+});
+
+// ── handleAgentHandoff ────────────────────────────────────────────────────────
+
+// Dynamic mocks for inquirer prompts used by handleAgentHandoff
+let mockConfirmResult = false;
+let mockSelectResult: string = 'skip';
+vi.mock('@inquirer/confirm', () => ({
+  default: vi.fn(() => Promise.resolve(mockConfirmResult)),
+}));
+vi.mock('@inquirer/select', () => ({
+  default: vi.fn(() => Promise.resolve(mockSelectResult)),
+  Separator: class Separator {},
+}));
+
+describe('handleAgentHandoff', () => {
+  it('should return false when no tools available', async () => {
+    const dir = makeFixture('agent-handoff-empty');
+    const result = await handleAgentHandoff({
+      projectName: 'test',
+      persona: 'expert',
+      template: 'sequential',
+      targetDir: dir,
+      cliTools: [],
+      guiTools: [],
+      filesCreated: ['package.json'],
+    });
+    expect(result).toBe(false);
+  });
+
+  it('should spawn CLI agent when user accepts', async () => {
+    const dir = makeFixture('agent-handoff-spawn');
+    mockConfirmResult = true;
+    const cp = await import('child_process');
+    const spawnSpy = vi.spyOn(cp, 'spawn').mockReturnValueOnce({ on: vi.fn() } as any);
+
+    const result = await handleAgentHandoff({
+      projectName: 'test',
+      persona: 'nocode',
+      template: 'sequential',
+      targetDir: dir,
+      cliTools: ['claude' as any],
+      guiTools: [],
+      filesCreated: ['package.json'],
+    });
+
+    expect(result).toBe(true);
+    expect(spawnSpy).toHaveBeenCalledWith(
+      'claude',
+      [expect.stringContaining('fw_context')],
+      expect.objectContaining({ cwd: dir, stdio: 'inherit' }),
+    );
+    spawnSpy.mockRestore();
+    mockConfirmResult = false;
+  });
+
+  it('should write PROJECT_SETUP.md when user selects file', async () => {
+    const dir = makeFixture('agent-handoff-file', { '.gitignore': '' });
+    mockConfirmResult = false;
+    mockSelectResult = 'file';
+
+    const result = await handleAgentHandoff({
+      projectName: 'test',
+      persona: 'vibecoder',
+      template: 'sequential',
+      targetDir: dir,
+      cliTools: ['claude' as any],
+      guiTools: ['cursor' as any],
+      filesCreated: ['package.json'],
+    });
+
+    expect(result).toBe(false);
+    const setupPath = path.join(dir, 'PROJECT_SETUP.md');
+    expect(fs.existsSync(setupPath)).toBe(true);
+    const content = fs.readFileSync(setupPath, 'utf8');
+    expect(content).toContain('test Setup');
+    // Should also add to .gitignore
+    const gitignore = fs.readFileSync(path.join(dir, '.gitignore'), 'utf8');
+    expect(gitignore).toContain('PROJECT_SETUP.md');
+    mockSelectResult = 'skip';
+  });
+
+  it('should return false when user selects skip', async () => {
+    const dir = makeFixture('agent-handoff-skip');
+    mockConfirmResult = false;
+    mockSelectResult = 'skip';
+
+    const result = await handleAgentHandoff({
+      projectName: 'test',
+      persona: 'expert',
+      template: 'sequential',
+      targetDir: dir,
+      cliTools: [],
+      guiTools: ['cursor' as any],
+      filesCreated: ['package.json'],
+    });
+
+    expect(result).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'PROJECT_SETUP.md'))).toBe(false);
   });
 });
