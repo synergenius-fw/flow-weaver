@@ -14,8 +14,7 @@ import { ExitPromptError } from '@inquirer/core';
 import { getWorkflowTemplate, workflowTemplates } from '../templates/index.js';
 import { logger } from '../utils/logger.js';
 import { compileCommand } from './compile.js';
-import { runMcpSetupFromInit } from './mcp-setup.js';
-import { CLI_TOOL_BINARY } from './mcp-setup.js';
+import { runMcpSetupFromInit, CLI_TOOL_BINARY } from './mcp-setup.js';
 import type { ToolId } from './mcp-setup.js';
 import type { TModuleFormat } from '../../ast/types.js';
 import type { PersonaId, UseCaseId } from './init-personas.js';
@@ -23,7 +22,6 @@ import {
   PERSONA_CHOICES,
   PERSONA_CONFIRMATIONS,
   USE_CASE_CHOICES,
-  USE_CASE_TEMPLATES,
   selectTemplateForPersona,
   getTemplateSubChoices,
   printNextSteps,
@@ -546,10 +544,13 @@ export async function handleAgentHandoff(opts: AgentHandoffOptions): Promise<boo
       logger.log(`  ${logger.dim(`Starting ${displayName}...`)}`);
       logger.newline();
 
-      spawn(binary, [prompt], {
+      const child = spawn(binary, [prompt], {
         cwd: targetDir,
         stdio: 'inherit',
         env: { ...process.env },
+      });
+      child.on('error', (err) => {
+        logger.error(`Failed to start ${displayName}: ${err.message}`);
       });
 
       return true;

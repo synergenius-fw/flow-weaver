@@ -358,7 +358,8 @@ export async function runMcpSetupFromInit(
 
   const toolMap = new Map(TOOL_REGISTRY.map((t) => [t.id, t]));
   for (const t of toConfig) {
-    const tool = toolMap.get(t.id)!;
+    const tool = toolMap.get(t.id);
+    if (!tool) continue;
     const result = await configureTool(tool, d);
     if (result.action === 'configured') {
       configured.push(result.displayName);

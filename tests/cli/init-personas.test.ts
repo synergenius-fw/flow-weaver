@@ -144,7 +144,7 @@ describe('selectTemplateForPersona', () => {
     ['lowcode', 'data', 'sequential'],
     ['lowcode', 'automation', 'conditional'],
   ] as [PersonaId, UseCaseId, string][])(
-    'should select %s template for persona=%s useCase=%s',
+    'persona=%s useCase=%s should select template=%s',
     (persona, useCase, expected) => {
       const result = selectTemplateForPersona(persona, useCase);
       expect(result.template).toBe(expected);

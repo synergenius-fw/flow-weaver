@@ -365,8 +365,8 @@ export function printNextSteps(opts: PrintNextStepsOptions): void {
     logger.log(`  ${logger.bold('Project files')}`);
     logger.newline();
     const wfDesc = workflowFileDesc(persona);
-    logger.log(`    ${logger.highlight(`src/${workflowFile}`)}${pad(workflowFile, 32)}${wfDesc}`);
-    logger.log(`    ${logger.highlight('src/main.ts')}${pad('main.ts', 32)}${FILE_DESCRIPTIONS['src/main.ts']}`);
+    logger.log(`    ${logger.highlight(`src/${workflowFile}`)}${pad(`src/${workflowFile}`, 32)}${wfDesc}`);
+    logger.log(`    ${logger.highlight('src/main.ts')}${pad('src/main.ts', 32)}${FILE_DESCRIPTIONS['src/main.ts']}`);
     logger.log(`    ${logger.highlight('package.json')}${pad('package.json', 32)}${FILE_DESCRIPTIONS['package.json']}`);
     logger.log(`    ${logger.highlight('tsconfig.json')}${pad('tsconfig.json', 32)}${FILE_DESCRIPTIONS['tsconfig.json']}`);
   }
@@ -449,8 +449,8 @@ function printExpertGuidance(): void {
 }
 
 /** Pad a filename to align descriptions */
-function pad(name: string, width: number): string {
-  const padding = Math.max(1, width - name.length - 4); // 4 for "src/" prefix
+function pad(displayName: string, width: number): string {
+  const padding = Math.max(1, width - displayName.length);
   return ' '.repeat(padding);
 }
 

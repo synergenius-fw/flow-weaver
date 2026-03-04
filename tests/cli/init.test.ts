@@ -946,10 +946,20 @@ describe('initCommand --json with persona', () => {
 
 // ── handleAgentHandoff ────────────────────────────────────────────────────────
 
+// Dynamic mocks for inquirer prompts used by handleAgentHandoff
+let mockConfirmResult = false;
+let mockSelectResult: string = 'skip';
+vi.mock('@inquirer/confirm', () => ({
+  default: vi.fn(() => Promise.resolve(mockConfirmResult)),
+}));
+vi.mock('@inquirer/select', () => ({
+  default: vi.fn(() => Promise.resolve(mockSelectResult)),
+  Separator: class Separator {},
+}));
+
 describe('handleAgentHandoff', () => {
   it('should return false when no tools available', async () => {
     const dir = makeFixture('agent-handoff-empty');
-    // Mock confirm/select to avoid TTY prompts
     const result = await handleAgentHandoff({
       projectName: 'test',
       persona: 'expert',
@@ -960,5 +970,76 @@ describe('handleAgentHandoff', () => {
       filesCreated: ['package.json'],
     });
     expect(result).toBe(false);
+  });
+
+  it('should spawn CLI agent when user accepts', async () => {
+    const dir = makeFixture('agent-handoff-spawn');
+    mockConfirmResult = true;
+    const cp = await import('child_process');
+    const spawnSpy = vi.spyOn(cp, 'spawn').mockReturnValueOnce({ on: vi.fn() } as any);
+
+    const result = await handleAgentHandoff({
+      projectName: 'test',
+      persona: 'nocode',
+      template: 'sequential',
+      targetDir: dir,
+      cliTools: ['claude' as any],
+      guiTools: [],
+      filesCreated: ['package.json'],
+    });
+
+    expect(result).toBe(true);
+    expect(spawnSpy).toHaveBeenCalledWith(
+      'claude',
+      [expect.stringContaining('fw_context')],
+      expect.objectContaining({ cwd: dir, stdio: 'inherit' }),
+    );
+    spawnSpy.mockRestore();
+    mockConfirmResult = false;
+  });
+
+  it('should write PROJECT_SETUP.md when user selects file', async () => {
+    const dir = makeFixture('agent-handoff-file', { '.gitignore': '' });
+    mockConfirmResult = false;
+    mockSelectResult = 'file';
+
+    const result = await handleAgentHandoff({
+      projectName: 'test',
+      persona: 'vibecoder',
+      template: 'sequential',
+      targetDir: dir,
+      cliTools: ['claude' as any],
+      guiTools: ['cursor' as any],
+      filesCreated: ['package.json'],
+    });
+
+    expect(result).toBe(false);
+    const setupPath = path.join(dir, 'PROJECT_SETUP.md');
+    expect(fs.existsSync(setupPath)).toBe(true);
+    const content = fs.readFileSync(setupPath, 'utf8');
+    expect(content).toContain('test Setup');
+    // Should also add to .gitignore
+    const gitignore = fs.readFileSync(path.join(dir, '.gitignore'), 'utf8');
+    expect(gitignore).toContain('PROJECT_SETUP.md');
+    mockSelectResult = 'skip';
+  });
+
+  it('should return false when user selects skip', async () => {
+    const dir = makeFixture('agent-handoff-skip');
+    mockConfirmResult = false;
+    mockSelectResult = 'skip';
+
+    const result = await handleAgentHandoff({
+      projectName: 'test',
+      persona: 'expert',
+      template: 'sequential',
+      targetDir: dir,
+      cliTools: [],
+      guiTools: ['cursor' as any],
+      filesCreated: ['package.json'],
+    });
+
+    expect(result).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'PROJECT_SETUP.md'))).toBe(false);
   });
 });
