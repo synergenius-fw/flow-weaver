@@ -50,6 +50,7 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'patterns',
   ],
   ops: [
+    'cicd',
     'cli-reference',
     'compilation',
     'deployment',
