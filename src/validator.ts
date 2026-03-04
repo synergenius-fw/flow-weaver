@@ -9,6 +9,7 @@ import {
   RESERVED_NODE_NAMES,
   isStartNode,
   isExitNode,
+  isPseudoNode,
   isExecutePort,
   isReservedNodeName,
   VALID_NODE_COLORS,
@@ -382,7 +383,7 @@ export class WorkflowValidator {
       const fromNode = conn.from.node;
       const fromPort = conn.from.port;
       const connLocation = this.getConnectionLocation(conn);
-      if (!isStartNode(fromNode) && !instanceMap.has(fromNode)) {
+      if (!isStartNode(fromNode) && !isPseudoNode(fromNode) && !instanceMap.has(fromNode)) {
         const instanceIds = [...instanceMap.keys()];
         const suggestions = findClosestMatches(fromNode, instanceIds);
         const suggestion = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
@@ -729,7 +730,7 @@ export class WorkflowValidator {
     workflow.connections.forEach((conn) => {
       const fromNode = conn.from.node;
       const toNode = conn.to.node;
-      if (!isStartNode(fromNode) && !isExitNode(fromNode)) {
+      if (!isStartNode(fromNode) && !isExitNode(fromNode) && !isPseudoNode(fromNode)) {
         referencedNodes.add(fromNode);
       }
       if (!isStartNode(toNode) && !isExitNode(toNode)) {

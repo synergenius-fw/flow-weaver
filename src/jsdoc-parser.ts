@@ -1609,7 +1609,8 @@ export class JSDocParser {
     if (!rest) return;
 
     // Parse key=value and key="value with spaces" pairs
-    const kvRegex = /(\w[\w-]*)\s*=\s*(?:"([^"]*)"|([\S]+))/g;
+    // The quoted value pattern handles escaped quotes: "echo \"hello\""
+    const kvRegex = /(\w[\w-]*)\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([\S]+))/g;
     let match: RegExpExecArray | null;
     while ((match = kvRegex.exec(rest)) !== null) {
       const key = match[1];

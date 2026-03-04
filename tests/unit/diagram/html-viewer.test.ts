@@ -194,6 +194,79 @@ describe('html-viewer', () => {
       expect(html).toContain('src.source');
       expect(html).toContain('node-desc');
     });
+
+    it('uses glassmorphism backdrop-filter on controls', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('backdrop-filter: blur(8px)');
+      expect(html).toContain('-webkit-backdrop-filter: blur(8px)');
+    });
+
+    it('uses glassmorphism on branding badge', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      // Dark theme default: check for translucent bg
+      expect(html).toContain('rgba(26,26,46,0.85)');
+    });
+
+    it('uses glassmorphism on scroll hint', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('rgba(26,26,46,0.92)');
+    });
+
+    it('uses glassmorphism on studio nudge toast', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      // The studio-hint should use backdrop-filter
+      const studioHintMatch = html.match(/#studio-hint\s*\{[^}]+\}/);
+      expect(studioHintMatch).toBeTruthy();
+      expect(studioHintMatch![0]).toContain('backdrop-filter');
+    });
+
+    it('uses light theme glassmorphism values', () => {
+      const html = wrapSVGInHTML('<svg></svg>', { theme: 'light' });
+      expect(html).toContain('rgba(255,255,255,0.85)');
+      expect(html).toContain('rgba(84,104,255,0.1)');
+    });
+
+    it('includes info panel slide-in animation', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('@keyframes panelSlideIn');
+      expect(html).toContain('animation: panelSlideIn');
+    });
+
+    it('includes info panel header with border separator', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('#info-header');
+      expect(html).toContain('border-bottom:');
+    });
+
+    it('uses flex layout for port lists', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('.port-list');
+      expect(html).toContain('display: flex');
+      expect(html).toContain('flex-direction: column');
+    });
+
+    it('includes node hover glow with drop-shadow', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('drop-shadow(0 0 6px');
+      expect(html).toContain('transition: filter 0.15s ease');
+    });
+
+    it('includes reduced motion support', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('prefers-reduced-motion: reduce');
+      expect(html).toContain('transition-duration: 0s !important');
+    });
+
+    it('includes responsive mobile styles', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('@media (max-width: 768px)');
+      expect(html).toContain('border-radius: 12px 12px 0 0');
+    });
+
+    it('includes hintFade keyframe animation', () => {
+      const html = wrapSVGInHTML('<svg></svg>');
+      expect(html).toContain('@keyframes hintFade');
+    });
   });
 
   describe('fileToHTML', () => {

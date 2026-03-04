@@ -60,6 +60,8 @@ const DARK_PALETTE: ThemePalette = {
   labelBadgeBorder: '#313143', // color-surface-lowest = dark-shade-90
   nodeIconColor: '#a4beff',    // secondary-dark-base (matches label color)
   scopeAreaStroke: '#5f5f6d',  // color-border-subtle = dark-shade-70
+  nodeShadowOpacity: 0.15,
+  dotOpacity: 0.5,
 };
 
 const LIGHT_PALETTE: ThemePalette = {
@@ -74,6 +76,8 @@ const LIGHT_PALETTE: ThemePalette = {
   labelBadgeBorder: '#e6e6e6', // shade-10
   nodeIconColor: '#5468ff',    // primary-base (light)
   scopeAreaStroke: '#cccccc',  // color-border-default
+  nodeShadowOpacity: 0.08,
+  dotOpacity: 0.45,
 };
 
 export function getTheme(name: 'dark' | 'light'): ThemePalette {

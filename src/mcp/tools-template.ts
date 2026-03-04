@@ -22,7 +22,7 @@ import { makeToolResult, makeErrorResult } from './response-utils.js';
 export function registerTemplateTools(mcp: McpServer): void {
   mcp.tool(
     'fw_list_templates',
-    'List available scaffold templates for workflows and nodes.',
+    'List available scaffold templates for workflows, nodes, and CI/CD pipelines (cicd-test-deploy, cicd-docker, cicd-matrix, cicd-multi-env).',
     {
       type: z
         .enum(['workflow', 'node', 'all'])
@@ -60,9 +60,9 @@ export function registerTemplateTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_scaffold',
-    'Create a workflow or node from a template.',
+    'Create a workflow, node, or CI/CD pipeline from a template.',
     {
-      template: z.string().describe('Template name (e.g. "sequential", "validator")'),
+      template: z.string().describe('Template name (e.g. "sequential", "validator", "cicd-test-deploy", "cicd-docker")'),
       filePath: z.string().describe('Output file path'),
       name: z.string().optional().describe('Workflow/node function name'),
       preview: z

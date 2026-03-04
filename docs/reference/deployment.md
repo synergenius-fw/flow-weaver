@@ -105,6 +105,26 @@ Generates:
 
 ---
 
+## CI/CD Pipeline Export
+
+CI/CD export works differently from serverless export. Instead of generating a handler that runs your workflow at request time, it reads the workflow graph and produces native pipeline YAML. The generated file has no runtime dependency on Flow Weaver.
+
+Use CI/CD-specific annotations (`@secret`, `@runner`, `@cache`, `@artifact`, `@environment`, `@matrix`, `@service`, `@concurrency`) alongside `@node` and `@connect` to define pipeline structure. The `[job: "name"]` attribute on `@node` groups nodes into jobs. Triggers use `@trigger push`, `@trigger pull_request`, etc.
+
+Secrets are wired as pseudo-node connections: `@connect secret:TOKEN -> node.port`. The export target renders these as platform-native secret references (`${{ secrets.TOKEN }}` for GitHub, `$NPM_TOKEN` for GitLab).
+
+```bash
+# GitHub Actions
+flow-weaver export pipeline.ts --target github-actions --output .github/workflows/
+
+# GitLab CI
+flow-weaver export pipeline.ts --target gitlab-ci --output .
+```
+
+See the [CI/CD Pipelines](cicd) topic for the complete annotation reference, validation rules, and full examples.
+
+---
+
 ## Multi-Workflow Export
 
 Export all workflows in a file as a **unified service** with routing, function registry, and optional API documentation:
@@ -241,6 +261,7 @@ This:
 
 ## Related Topics
 
+- [CI/CD Pipelines](cicd) — CI/CD annotation reference, secret wiring, job grouping, validation rules
 - [CLI Reference](cli-reference) — Full command flags for export, serve, openapi
 - [Compilation](compilation) — Inngest target details and serve handlers
 - [Built-in Nodes](built-in-nodes) — Mock system for local testing

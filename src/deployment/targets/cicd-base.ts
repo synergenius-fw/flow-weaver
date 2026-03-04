@@ -256,7 +256,10 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
     }
 
     // 2. Fall back to built-in NODE_ACTION_MAP
-    return NODE_ACTION_MAP[step.nodeType];
+    // Try exact match first, then normalize camelCase to kebab-case
+    // (templates use camelCase function names like npmInstall, map uses kebab-case npm-install)
+    return NODE_ACTION_MAP[step.nodeType]
+      || NODE_ACTION_MAP[step.nodeType.replace(/([A-Z])/g, '-$1').toLowerCase()];
   }
 
   /**

@@ -181,6 +181,82 @@ function testNode(): {} { return {}; }
     expect(deploy?.framework).toBe('next');
   });
 
+  it('should parse @deploy with escaped quotes inside values', () => {
+    const result = parseWorkflowSource(`
+/**
+ * @flowWeaver workflow
+ * @deploy github-actions script="echo \\"hello\\""
+ * @node a testNode [position: 0 0]
+ * @path Start -> a -> Exit
+ */
+export function myWorkflow() {}
+
+/** @flowWeaver nodeType
+ * @expression
+ */
+function testNode(): {} { return {}; }
+`);
+    const deploy = result.workflows[0].options?.deploy?.['github-actions'];
+    expect(deploy?.script).toBe('echo \\"hello\\"');
+  });
+
+  it('should parse @deploy with single quotes inside double-quoted values', () => {
+    const result = parseWorkflowSource(`
+/**
+ * @flowWeaver workflow
+ * @deploy github-actions cmd="echo 'hello world'"
+ * @node a testNode [position: 0 0]
+ * @path Start -> a -> Exit
+ */
+export function myWorkflow() {}
+
+/** @flowWeaver nodeType
+ * @expression
+ */
+function testNode(): {} { return {}; }
+`);
+    const deploy = result.workflows[0].options?.deploy?.['github-actions'];
+    expect(deploy?.cmd).toBe("echo 'hello world'");
+  });
+
+  it('should split comma-separated quoted values into arrays', () => {
+    const result = parseWorkflowSource(`
+/**
+ * @flowWeaver workflow
+ * @deploy gitlab-ci branches="main,develop,staging"
+ * @node a testNode [position: 0 0]
+ * @path Start -> a -> Exit
+ */
+export function myWorkflow() {}
+
+/** @flowWeaver nodeType
+ * @expression
+ */
+function testNode(): {} { return {}; }
+`);
+    const deploy = result.workflows[0].options?.deploy?.['gitlab-ci'];
+    expect(deploy?.branches).toEqual(['main', 'develop', 'staging']);
+  });
+
+  it('should not split non-comma quoted values into arrays', () => {
+    const result = parseWorkflowSource(`
+/**
+ * @flowWeaver workflow
+ * @deploy gitlab-ci script="npm ci"
+ * @node a testNode [position: 0 0]
+ * @path Start -> a -> Exit
+ */
+export function myWorkflow() {}
+
+/** @flowWeaver nodeType
+ * @expression
+ */
+function testNode(): {} { return {}; }
+`);
+    const deploy = result.workflows[0].options?.deploy?.['gitlab-ci'];
+    expect(deploy?.script).toBe('npm ci');
+  });
+
   it('should parse bare (unquoted) string values', () => {
     const result = parseWorkflowSource(`
 /**

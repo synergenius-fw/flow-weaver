@@ -6,10 +6,10 @@ import { makeToolResult, makeErrorResult } from './response-utils.js';
 export function registerContextTools(mcp: McpServer): void {
   mcp.tool(
     'fw_context',
-    'Generate a self-contained LLM context bundle with Flow Weaver documentation, grammar, and conventions. Use preset="core" for basics, "authoring" for writing workflows, "full" for everything, "ops" for CLI/deployment reference.',
+    'Generate a self-contained LLM context bundle with Flow Weaver documentation, grammar, and conventions. Use preset="core" for basics, "authoring" for writing workflows, "full" for everything, "ops" for CLI/deployment reference, "cicd" for CI/CD pipeline building.',
     {
       preset: z
-        .enum(['core', 'authoring', 'full', 'ops'])
+        .enum(['core', 'authoring', 'full', 'ops', 'cicd'])
         .optional()
         .default('core')
         .describe('Topic preset'),
