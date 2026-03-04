@@ -372,7 +372,8 @@ describe('printNextSteps', () => {
     logs = [];
     printNextSteps({ ...baseOpts, persona: 'vibecoder' });
     const output = logs.join('\n');
-    expect(output).toContain('AI editor connected');
+    expect(output).toContain('Describe what you want');
+    expect(output).toContain('npm run diagram');
   });
 
   it('should show template commands for lowcode persona', () => {
@@ -381,6 +382,7 @@ describe('printNextSteps', () => {
     const output = logs.join('\n');
     expect(output).toContain('flow-weaver templates');
     expect(output).toContain('examples/');
+    expect(output).toContain('MCP connected');
   });
 
   it('should show mcp-setup and docs for expert persona', () => {
@@ -412,6 +414,26 @@ describe('printNextSteps', () => {
       const output = logs.join('\n');
       expect(output).toContain('npm run dev');
     }
+  });
+
+  it('should show npm start first when compiled is true', () => {
+    logs = [];
+    printNextSteps({ ...baseOpts, persona: 'expert', compiled: true });
+    const output = logs.join('\n');
+    expect(output).toContain('npm start');
+    expect(output).toContain('npm run dev');
+    // npm start should appear before npm run dev
+    const startIdx = output.indexOf('npm start');
+    const devIdx = output.indexOf('npm run dev');
+    expect(startIdx).toBeLessThan(devIdx);
+  });
+
+  it('should not show npm start when compiled is false', () => {
+    logs = [];
+    printNextSteps({ ...baseOpts, persona: 'expert', compiled: false });
+    const output = logs.join('\n');
+    expect(output).not.toContain('npm start');
+    expect(output).toContain('npm run dev');
   });
 
   it('should skip persona guidance when agentLaunched is true', () => {
@@ -522,6 +544,16 @@ describe('generateAgentPrompt', () => {
       expect(prompt).toMatch(/^Before doing anything else, call fw_context/);
     }
   });
+
+  it('should include useCaseDescription when provided', () => {
+    const prompt = generateAgentPrompt('test', 'nocode', 'sequential', 'a Slack bot that forwards messages');
+    expect(prompt).toContain('The user wants to build: a Slack bot that forwards messages');
+  });
+
+  it('should not include description placeholder when omitted', () => {
+    const prompt = generateAgentPrompt('test', 'nocode', 'sequential');
+    expect(prompt).not.toContain('The user wants to build');
+  });
 });
 
 // ── generateEditorPrompt ─────────────────────────────────────────────────────
@@ -559,6 +591,16 @@ describe('generateEditorPrompt', () => {
   it('expert editor prompt should use authoring preset', () => {
     const prompt = generateEditorPrompt('test', 'expert', 'sequential');
     expect(prompt).toContain('preset="authoring"');
+  });
+
+  it('should include useCaseDescription when provided', () => {
+    const prompt = generateEditorPrompt('test', 'vibecoder', 'sequential', 'an email automation pipeline');
+    expect(prompt).toContain('I want to build: an email automation pipeline');
+  });
+
+  it('should not include description when omitted', () => {
+    const prompt = generateEditorPrompt('test', 'vibecoder', 'sequential');
+    expect(prompt).not.toContain('I want to build');
   });
 });
 
