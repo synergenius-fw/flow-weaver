@@ -3,6 +3,7 @@
  * Types, use-case mappings, template selection, and post-scaffold output.
  */
 
+import { execSync } from 'child_process';
 import { logger } from '../utils/logger.js';
 import { workflowTemplates } from '../templates/index.js';
 import { buildContext } from '../../context/index.js';
@@ -343,10 +344,12 @@ export interface PrintNextStepsOptions {
   mcpConfigured?: string[];
   /** When true, skip persona-specific guidance (the agent handles it) */
   agentLaunched?: boolean;
+  /** When true, the workflow was auto-compiled and npm start works immediately */
+  compiled?: boolean;
 }
 
 export function printNextSteps(opts: PrintNextStepsOptions): void {
-  const { projectName, persona, displayDir, installSkipped, workflowCode, workflowFile, agentLaunched } = opts;
+  const { projectName, persona, displayDir, installSkipped, workflowCode, workflowFile, agentLaunched, compiled } = opts;
 
   // Workflow preview
   if (workflowCode) {
@@ -382,7 +385,12 @@ export function printNextSteps(opts: PrintNextStepsOptions): void {
   if (installSkipped) {
     logger.log('    npm install');
   }
-  logger.log('    npm run dev');
+  if (compiled) {
+    logger.log(`    npm start${' '.repeat(14)}${logger.dim('Run your compiled workflow')}`);
+    logger.log(`    npm run dev${' '.repeat(12)}${logger.dim('Recompile + run (after editing)')}`);
+  } else {
+    logger.log('    npm run dev');
+  }
 
   // Persona-specific guidance (skip if agent was launched, it handles this)
   if (!agentLaunched) {
@@ -418,28 +426,27 @@ function printNocodeGuidance(_projectName: string): void {
 
 function printVibecoderGuidance(): void {
   logger.newline();
-  logger.log('  With your AI editor connected, try:');
+  logger.log(`  ${logger.bold('Describe what you want, AI handles the code.')}`);
   logger.newline();
   logger.log(`    ${logger.dim('"Add a retry loop when the model call fails"')}`);
-  logger.log(`    ${logger.dim('"Add a tool that searches a knowledge base"')}`);
+  logger.log(`    ${logger.dim('"Connect this to a Postgres database"')}`);
+  logger.log(`    ${logger.dim('"Show me a diagram of the current workflow"')}`);
   logger.newline();
-  logger.log(`  ${logger.bold('Commands you\'ll use')}`);
+  logger.log(`  ${logger.bold('When you want to see the structure')}`);
   logger.newline();
-  logger.log(`    flow-weaver diagram src/*.ts     ${logger.dim('See a visual diagram')}`);
-  logger.log(`    flow-weaver validate src/*.ts    ${logger.dim('Check for errors')}`);
-  logger.log(`    flow-weaver templates            ${logger.dim('Browse all templates')}`);
+  logger.log(`    npm run diagram                  ${logger.dim('Visual diagram of your workflow')}`);
 }
 
 function printLowcodeGuidance(): void {
   logger.newline();
-  logger.log(`  ${logger.bold('Explore and learn')}`);
+  logger.log(`  ${logger.bold('Explore and customize')}`);
   logger.newline();
   logger.log(`    flow-weaver templates            ${logger.dim('List all 16 workflow templates')}`);
-  logger.log(`    flow-weaver create workflow ...   ${logger.dim('Add another workflow')}`);
-  logger.log(`    flow-weaver describe src/*.ts     ${logger.dim('See workflow structure')}`);
-  logger.log(`    flow-weaver docs annotations     ${logger.dim('Read the annotation reference')}`);
+  logger.log(`    flow-weaver describe src/*.ts     ${logger.dim('See the workflow structure')}`);
+  logger.log(`    flow-weaver docs annotations     ${logger.dim('Annotation reference')}`);
   logger.newline();
   logger.log(`  Your project includes an example in ${logger.highlight('examples/')} to study.`);
+  logger.log(`  With MCP connected, AI can help modify nodes and connections.`);
 }
 
 function printExpertGuidance(): void {
@@ -516,27 +523,36 @@ Then ask what I'd like to build.`,
  * Generate the initial prompt for a CLI agent (Claude Code, Codex).
  * Interpolates project name and template into the persona-specific template.
  */
-export function generateAgentPrompt(projectName: string, persona: PersonaId, template: string): string {
-  return AGENT_PROMPTS[persona]
+export function generateAgentPrompt(projectName: string, persona: PersonaId, template: string, useCaseDescription?: string): string {
+  let prompt = AGENT_PROMPTS[persona]
     .replace(/\{name\}/g, projectName)
     .replace(/\{template\}/g, template);
+  if (useCaseDescription) {
+    // Insert the user's description after the template mention line
+    prompt = prompt.replace(
+      /(using the .+ template\.?\n)/,
+      `$1The user wants to build: ${useCaseDescription}\n`,
+    );
+  }
+  return prompt;
 }
 
 /**
  * Generate a shorter prompt suitable for pasting into a GUI editor.
  * Persona-aware but more concise than the full agent prompt.
  */
-export function generateEditorPrompt(projectName: string, persona: PersonaId, template: string): string {
+export function generateEditorPrompt(projectName: string, persona: PersonaId, template: string, useCaseDescription?: string): string {
   const preset = AGENT_CONTEXT_PRESETS[persona];
   const bootstrap = `Start by calling fw_context(preset="${preset}", profile="assistant") to learn Flow Weaver.`;
+  const desc = useCaseDescription ? ` I want to build: ${useCaseDescription}.` : '';
   if (persona === 'nocode') {
-    return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template. Show me the workflow diagram, walk me through what each step does in plain language, then ask me what I want to build. Keep it simple, no code.`;
+    return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template.${desc} Show me the workflow diagram, walk me through what each step does in plain language, then ask me what I want to build. Keep it simple, no code.`;
   }
   if (persona === 'vibecoder') {
-    return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template. Show me the workflow diagram, then let's iterate on it together. I'll describe what I want and you handle the implementation.`;
+    return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template.${desc} Show me the workflow diagram, then let's iterate on it together. I'll describe what I want and you handle the implementation.`;
   }
   if (persona === 'lowcode') {
-    return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template. Show me the workflow diagram and explain the template, then help me customize it for my use case.`;
+    return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template.${desc} Show me the workflow diagram and explain the template, then help me customize it for my use case.`;
   }
   return `${bootstrap}\nFlow Weaver project "${projectName}" (template: ${template}). Show the workflow diagram and implementation status.`;
 }
@@ -550,8 +566,9 @@ export function generateSetupPromptFile(
   persona: PersonaId,
   template: string,
   filesCreated: string[],
+  useCaseDescription?: string,
 ): string {
-  const prompt = generateAgentPrompt(projectName, persona, template);
+  const prompt = generateAgentPrompt(projectName, persona, template, useCaseDescription);
 
   // Embed Flow Weaver knowledge directly so the file is self-contained.
   // GUI editors may not have MCP tools configured when first reading this file.
@@ -636,6 +653,20 @@ export function printCopyablePrompt(prompt: string): void {
     logger.log(`  │ ${padded} │`);
   }
   logger.log(`  ${'└' + '─'.repeat(width) + '┘'}`);
+
+  // Auto-copy to clipboard (best-effort)
+  try {
+    const clipCmd = process.platform === 'darwin' ? 'pbcopy'
+      : process.platform === 'linux' ? 'xclip -selection clipboard'
+      : null;
+    if (clipCmd) {
+      execSync(clipCmd, { input: prompt, stdio: ['pipe', 'pipe', 'pipe'], timeout: 3000 });
+      logger.newline();
+      logger.success('Copied to clipboard');
+    }
+  } catch {
+    // Clipboard not available, box is still there
+  }
 }
 
 /** Default for the "Launch agent?" confirm prompt per persona */
