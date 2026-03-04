@@ -63,7 +63,10 @@ export async function openapiCommand(dir: string, options: OpenAPIOptions): Prom
     throw new Error(`No workflows found in ${workflowDir}`);
   }
 
-  logger.info(`Found ${endpoints.length} workflow(s)`);
+  // Only print info when writing to file (not stdout) to avoid contaminating JSON/YAML output
+  if (options.output) {
+    logger.info(`Found ${endpoints.length} workflow(s)`);
+  }
 
   // Generate options
   const generatorOptions = {

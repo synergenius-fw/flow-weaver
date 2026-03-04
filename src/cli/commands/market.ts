@@ -259,7 +259,9 @@ export async function marketPackCommand(directory?: string, options: MarketPackO
       validation,
       parsedFiles: parsedFiles.length,
     }, null, 2));
-    if (!validation.valid) process.exit(1);
+    if (!validation.valid) {
+      process.exitCode = 1;
+    }
     return;
   }
 
@@ -370,7 +372,8 @@ export async function marketInstallCommand(packageSpec: string, options: MarketI
     } else {
       logger.error(`npm install failed: ${getErrorMessage(err)}`);
     }
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 2. Read manifest from installed package
@@ -421,7 +424,15 @@ export async function marketSearchCommand(query?: string, options: MarketSearchO
   }
 
   try {
-    const results = await searchPackages({ query, limit, registryUrl: registry });
+    let results = await searchPackages({ query, limit, registryUrl: registry });
+
+    // Client-side filtering: npm search may return broad results, narrow to query match
+    if (query) {
+      const q = query.toLowerCase();
+      results = results.filter(
+        (pkg) => pkg.name.toLowerCase().includes(q) || (pkg.description && pkg.description.toLowerCase().includes(q))
+      );
+    }
 
     if (json) {
       console.log(JSON.stringify(results, null, 2));
@@ -429,7 +440,7 @@ export async function marketSearchCommand(query?: string, options: MarketSearchO
     }
 
     if (results.length === 0) {
-      logger.info('No packages found');
+      logger.info(query ? `No packages matching "${query}"` : 'No packages found');
       return;
     }
 
@@ -449,7 +460,8 @@ export async function marketSearchCommand(query?: string, options: MarketSearchO
     } else {
       logger.error(`Search failed: ${getErrorMessage(err)}`);
     }
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 }
 

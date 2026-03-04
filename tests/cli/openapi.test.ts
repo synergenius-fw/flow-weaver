@@ -196,14 +196,15 @@ describe('openapiCommand', () => {
     );
   });
 
-  it('should log the count of discovered workflows', async () => {
+  it('should log the count of discovered workflows when writing to file', async () => {
     mockGetAllEndpoints.mockReturnValue([
       { method: 'GET', path: '/api/a', workflowName: 'a' },
       { method: 'POST', path: '/api/b', workflowName: 'b' },
       { method: 'PUT', path: '/api/c', workflowName: 'c' },
     ]);
 
-    await openapiCommand(OPENAPI_TEMP_DIR, {});
+    const outFile = path.join(OPENAPI_TEMP_DIR, 'count-test.json');
+    await openapiCommand(OPENAPI_TEMP_DIR, { output: outFile });
 
     expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('3 workflow(s)'));
   });
