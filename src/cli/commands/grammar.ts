@@ -17,7 +17,9 @@ export interface GrammarOptions {
 }
 
 export async function grammarCommand(options: GrammarOptions = {}): Promise<void> {
-  const { format = 'html', output } = options;
+  // Default to ebnf on TTY (readable in terminal), html when writing to file
+  const defaultFormat = options.output ? 'html' : (process.stdout.isTTY ? 'ebnf' : 'html');
+  const { format = defaultFormat, output } = options;
 
   try {
     let content: string;

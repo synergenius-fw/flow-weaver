@@ -29,6 +29,7 @@ beforeEach(() => {
   console.error = vi.fn();
   console.warn = vi.fn();
   process.exit = vi.fn() as never;
+  process.exitCode = undefined;
 });
 
 afterEach(() => {
@@ -36,6 +37,7 @@ afterEach(() => {
   console.error = origError;
   console.warn = origWarn;
   process.exit = origExit;
+  process.exitCode = undefined;
 });
 
 // ── Sample workflows ─────────────────────────────────────────────────────────
@@ -186,7 +188,7 @@ describe('statusCommand', () => {
   it('should exit(1) for nonexistent file', async () => {
     await statusCommand('/nonexistent/file.ts', { json: true });
 
-    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
     // The first log entry contains the JSON error
     expect(logs.length).toBeGreaterThan(0);
     const output = JSON.parse(logs[0]);
@@ -198,7 +200,7 @@ describe('statusCommand', () => {
 
     await statusCommand(file, { json: true });
 
-    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should produce human-readable output when json is false', async () => {

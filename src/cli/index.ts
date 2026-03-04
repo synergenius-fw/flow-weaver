@@ -6,7 +6,10 @@
  * Do not add #!/usr/bin/env node here - it will cause duplicate shebangs.
  */
 
-import { Command } from 'commander';
+// Must be imported first: sets up env vars before picocolors reads them
+import './env-setup.js';
+
+import { Command, Option } from 'commander';
 import { compileCommand } from './commands/compile.js';
 import { createWorkflowCommand, createNodeCommand } from './commands/create.js';
 import { describeCommand } from './commands/describe.js';
@@ -63,6 +66,8 @@ program
   .name('flow-weaver')
   .description('Flow Weaver Annotations - Compile and validate workflow files')
   .option('-v, --version', 'Output the current version')
+  .option('--no-color', 'Disable colors')
+  .option('--color', 'Force colors')
   .on('option:version', () => {
     logger.banner(version);
     process.exit(0);
@@ -112,8 +117,8 @@ program
   .option('-s, --source-map', 'Generate source maps', false)
   .option('--verbose', 'Verbose output', false)
   .option('--dry-run', 'Preview compilation without writing files', false)
-  .option('-w, --workflow-name <name>', 'Specific workflow name to compile')
-  .option('-f, --format <format>', 'Module format: esm, cjs, or auto (default: auto)', 'auto')
+  .option('-w, --workflow <name>', 'Specific workflow name to compile')
+  .addOption(new Option('-f, --format <format>', 'Module format').choices(['esm', 'cjs', 'auto']).default('auto'))
   .option('--strict', 'Treat type coercion warnings as errors', false)
   .option('--inline-runtime', 'Force inline runtime even when @synergenius/flow-weaver package is installed', false)
   .option('--clean', 'Omit redundant @param/@returns annotations from compiled output', false)
@@ -125,6 +130,7 @@ program
   .option('--retries <n>', 'Number of retries per function (Inngest target only)', parseInt)
   .option('--timeout <duration>', 'Function timeout (e.g. "30m", "1h")')
   .action(wrapAction(async (input: string, options) => {
+    if (options.workflow) options.workflowName = options.workflow;
     await compileCommand(input, options);
   }));
 
@@ -143,11 +149,12 @@ program
 program
   .command('describe <input>')
   .description('Output workflow structure in LLM-friendly formats (JSON, text, mermaid)')
-  .option('-f, --format <format>', 'Output format: json (default), text, mermaid, paths, ascii, ascii-compact', 'json')
+  .addOption(new Option('-f, --format <format>', 'Output format').choices(['json', 'text', 'mermaid', 'paths', 'ascii', 'ascii-compact']).default('json'))
   .option('-n, --node <id>', 'Focus on a specific node')
   .option('--compile', 'Also update runtime markers in the source file')
-  .option('-w, --workflow-name <name>', 'Specific workflow name to describe')
+  .option('-w, --workflow <name>', 'Specific workflow name to describe')
   .action(wrapAction(async (input: string, options) => {
+      if (options.workflow) options.workflowName = options.workflow;
       await describeCommand(input, options);
   }));
 
@@ -155,17 +162,18 @@ program
 program
   .command('diagram <input>')
   .description('Generate SVG or interactive HTML diagram of a workflow')
-  .option('-t, --theme <theme>', 'Color theme: dark (default), light', 'dark')
-  .option('-w, --width <pixels>', 'SVG width in pixels')
+  .option('-t, --theme <theme>', 'Color theme: dark, light', 'dark')
+  .option('--width <pixels>', 'SVG width in pixels')
   .option('-p, --padding <pixels>', 'Canvas padding in pixels')
   .option('--no-port-labels', 'Hide data type labels on ports')
-  .option('--workflow-name <name>', 'Specific workflow to render')
-  .option('-f, --format <format>', 'Output format: svg (default), html, ascii, ascii-compact, text', 'svg')
+  .option('-w, --workflow <name>', 'Specific workflow to render')
+  .addOption(new Option('-f, --format <format>', 'Output format').choices(['svg', 'html', 'ascii', 'ascii-compact', 'text']).default('svg'))
   .option('-o, --output <file>', 'Write output to file instead of stdout')
   .action(wrapAction(async (input: string, options) => {
       if (options.width) options.width = Number(options.width);
       if (options.padding) options.padding = Number(options.padding);
       options.showPortLabels = options.portLabels;
+      if (options.workflow) options.workflowName = options.workflow;
       await diagramCommand(input, options);
   }));
 
@@ -173,10 +181,11 @@ program
 program
   .command('diff <file1> <file2>')
   .description('Compare two workflow files semantically')
-  .option('-f, --format <format>', 'Output format: text (default), json, compact', 'text')
-  .option('-w, --workflow-name <name>', 'Specific workflow name to compare')
+  .addOption(new Option('-f, --format <format>', 'Output format').choices(['text', 'json', 'compact']).default('text'))
+  .option('-w, --workflow <name>', 'Specific workflow name to compare')
   .option('--exit-zero', 'Exit 0 even when differences are found', false)
   .action(wrapAction(async (file1: string, file2: string, options) => {
+      if (options.workflow) options.workflowName = options.workflow;
       await diffCommand(file1, file2, options);
   }));
 
@@ -187,9 +196,10 @@ program
   .option('--verbose', 'Verbose output', false)
   .option('-q, --quiet', 'Suppress warnings', false)
   .option('--json', 'Output results as JSON', false)
-  .option('-w, --workflow-name <name>', 'Specific workflow name to validate')
+  .option('-w, --workflow <name>', 'Specific workflow name to validate')
   .option('--strict', 'Treat type coercion warnings as errors', false)
   .action(wrapAction(async (input: string, options) => {
+      if (options.workflow) options.workflowName = options.workflow;
       await validateCommand(input, options);
   }));
 
@@ -207,7 +217,7 @@ program
   .command('init [directory]')
   .description('Create a new flow-weaver project')
   .option('-n, --name <name>', 'Project name (defaults to directory name)')
-  .option('-t, --template <template>', 'Workflow template (default: simple)')
+  .option('-t, --template <template>', 'Workflow template (default: sequential)')
   .option('-f, --format <format>', 'Module format: esm or cjs (default: esm)')
   .option('-y, --yes', 'Skip prompts and use defaults', false)
   .option('--install', 'Run npm install after scaffolding')
@@ -228,9 +238,10 @@ program
   .option('-p, --production', 'Generate production code (no debug events)', false)
   .option('-s, --source-map', 'Generate source maps', false)
   .option('--verbose', 'Verbose output', false)
-  .option('-w, --workflow-name <name>', 'Specific workflow name to compile')
-  .option('-f, --format <format>', 'Module format: esm, cjs, or auto (default: auto)', 'auto')
+  .option('-w, --workflow <name>', 'Specific workflow name to compile')
+  .option('-f, --format <format>', 'Module format: esm, cjs, or auto', 'auto')
   .action(wrapAction(async (input: string, options) => {
+      if (options.workflow) options.workflowName = options.workflow;
       await watchCommand(input, options);
   }));
 
@@ -242,7 +253,7 @@ program
   .option('--params-file <path>', 'Path to JSON file with input parameters')
   .option('-w, --workflow <name>', 'Specific workflow name to run')
   .option('-p, --production', 'Run in production mode (no trace events)', false)
-  .option('-f, --format <format>', 'Module format: esm, cjs, or auto (default: auto)', 'auto')
+  .option('-f, --format <format>', 'Module format: esm, cjs, or auto', 'auto')
   .option('--clean', 'Omit redundant @param/@returns annotations', false)
   .option('--once', 'Run once then exit', false)
   .option('--json', 'Output result as JSON', false)
@@ -359,9 +370,9 @@ createCmd
 
 createCmd
   .command('node <name> <file>')
-  .description('Create a node type (uses processor template by default)')
+  .description('Create a node type from a template')
   .option('-l, --line <number>', 'Insert at specific line number', parseInt)
-  .option('-t, --template <template>', 'Node template to use', 'processor')
+  .option('-t, --template <template>', 'Node template to use', 'transformer')
   .option('-p, --preview', 'Preview generated code without writing', false)
   .option('--strategy <strategy>', 'Template strategy (e.g. mock, callback, webhook)')
   .option('--config <json>', 'Additional configuration (JSON)')
@@ -384,7 +395,7 @@ program
   .description(
     'Output JSDoc annotation grammar (@input, @output, @connect, @node, @scope) as HTML railroad diagrams or EBNF text'
   )
-  .option('-f, --format <format>', 'Output format: html (default), ebnf', 'html')
+  .addOption(new Option('-f, --format <format>', 'Output format').choices(['html', 'ebnf']))
   .option('-o, --output <path>', 'Write output to file instead of stdout')
   .action(wrapAction(async (options) => {
       await grammarCommand(options);
@@ -471,7 +482,7 @@ program
 program
   .command('export <input>')
   .description('Export workflow as serverless function')
-  .requiredOption('-t, --target <target>', 'Target platform (lambda, vercel, cloudflare)')
+  .requiredOption('-t, --target <target>', 'Target platform (install target packs via marketplace)')
   .requiredOption('-o, --output <path>', 'Output directory')
   .option('-w, --workflow <name>', 'Specific workflow name to export')
   .option('-p, --production', 'Production mode', true)
@@ -492,7 +503,7 @@ program
   .option('--title <title>', 'API title', 'Flow Weaver API')
   .option('--version <version>', 'API version', '1.0.0')
   .option('--description <desc>', 'API description')
-  .option('-f, --format <format>', 'Output format: json (default), yaml', 'json')
+  .option('-f, --format <format>', 'Output format: json, yaml', 'json')
   .option('--server <url>', 'Server URL')
   .action(wrapAction(async (directory: string, options) => {
       await openapiCommand(directory, options);
@@ -526,9 +537,10 @@ program
 program
   .command('status <input>')
   .description('Report implementation progress for stub workflows')
-  .option('-w, --workflow-name <name>', 'Specific workflow name')
+  .option('-w, --workflow <name>', 'Specific workflow name')
   .option('--json', 'Output as JSON', false)
   .action(wrapAction(async (input: string, options) => {
+      if (options.workflow) options.workflowName = options.workflow;
       await statusCommand(input, options);
   }));
 
@@ -536,9 +548,10 @@ program
 program
   .command('implement <input> <node>')
   .description('Replace a stub node with a real function skeleton')
-  .option('-w, --workflow-name <name>', 'Specific workflow name')
+  .option('-w, --workflow <name>', 'Specific workflow name')
   .option('-p, --preview', 'Preview the generated code without writing', false)
   .action(wrapAction(async (input: string, node: string, options) => {
+      if (options.workflow) options.workflowName = options.workflow;
       await implementCommand(input, node, options);
   }));
 
@@ -560,7 +573,7 @@ program
   .option('--json', 'Output as JSON', false)
   .option('--compact', 'Return compact LLM-friendly version', false)
   .action(wrapAction(async (args: string[], options) => {
-      if (args.length === 0) {
+      if (args.length === 0 || args[0] === 'list') {
         await docsListCommand(options);
       } else if (args[0] === 'search') {
         const query = args.slice(1).join(' ');

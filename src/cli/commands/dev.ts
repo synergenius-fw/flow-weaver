@@ -112,7 +112,7 @@ async function compileAndRun(
         const friendly = getFriendlyError(err);
         if (friendly) {
           logger.error(`  ${friendly.title}: ${friendly.explanation}`);
-          logger.info(`    How to fix: ${friendly.fix}`);
+          logger.warn(`    How to fix: ${friendly.fix}`);
         } else {
           logger.error(`  - ${err.message}`);
         }

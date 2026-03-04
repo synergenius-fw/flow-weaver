@@ -76,5 +76,6 @@ export async function stripCommand(input: string, options: StripOptions = {}): P
     }
   }
 
-  logger.success(`${stripped} file${stripped !== 1 ? 's' : ''} stripped, ${skipped} skipped in ${t.elapsed()}`);
+  const verb = dryRun ? 'would be stripped' : 'stripped';
+  logger.success(`${stripped} file${stripped !== 1 ? 's' : ''} ${verb}, ${skipped} skipped in ${t.elapsed()}`);
 }

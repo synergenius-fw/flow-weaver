@@ -320,6 +320,7 @@ describe('validateCommand no files found', () => {
     console.error = vi.fn();
     console.warn = vi.fn();
     process.exit = mockExit;
+    process.exitCode = undefined;
 
     try {
       await validateCommand('/nonexistent/path/*.ts', { json: true });
@@ -330,7 +331,7 @@ describe('validateCommand no files found', () => {
       process.exit = origExit;
     }
 
-    expect(mockExit).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
     // Parse only the first log entry since mocked process.exit doesn't
     // actually halt execution, so additional JSON may be logged after
     const output = JSON.parse(logs[0]);

@@ -83,6 +83,20 @@ export interface RunOptions {
  * ```
  */
 export async function runCommand(input: string, options: RunOptions): Promise<void> {
+  // Wrap entire body in JSON-aware error handler when --json is set (0b fix)
+  if (options.json) {
+    try {
+      await runCommandInner(input, options);
+    } catch (e) {
+      console.log(JSON.stringify({ success: false, error: getErrorMessage(e) }));
+      process.exitCode = 1;
+    }
+    return;
+  }
+  await runCommandInner(input, options);
+}
+
+async function runCommandInner(input: string, options: RunOptions): Promise<void> {
   const filePath = path.resolve(input);
 
   // Validate file exists
@@ -206,9 +220,9 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
     }
 
     // Determine trace inclusion:
-    // - If --production is set, no trace (unless --trace explicitly set)
-    // - If --trace is set, include trace
-    // - Default: include trace in dev mode
+    // Include trace data if --trace or --stream is explicitly set.
+    // Also include when not in production mode (needed for debug/checkpoint).
+    // Display of trace results is gated separately on options.trace/options.stream.
     const includeTrace = options.stream || options.trace || !options.production;
 
     if (!options.json && mocks) {
@@ -404,7 +418,8 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
       logger.section('Result');
       logger.log(JSON.stringify(result.result, null, 2));
 
-      if (result.trace && result.trace.length > 0) {
+      // Show trace summary only when --trace is explicitly set (not on --stream, which already printed live)
+      if (options.trace && !options.stream && result.trace && result.trace.length > 0) {
         logger.newline();
         logger.section('Trace');
         logger.log(`${result.trace.length} events captured`);
@@ -435,7 +450,7 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
         const friendly = getFriendlyError(err);
         if (friendly) {
           logger.error(`  ${friendly.title}: ${friendly.explanation}`);
-          logger.info(`    How to fix: ${friendly.fix}`);
+          logger.warn(`    How to fix: ${friendly.fix}`);
         } else {
           logger.error(`  - ${err.message}`);
         }
@@ -444,7 +459,7 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
       const friendly = getFriendlyError({ code: errorObj.code, message: errorMsg });
       if (friendly) {
         logger.error(`${friendly.title}: ${friendly.explanation}`);
-        logger.info(`  How to fix: ${friendly.fix}`);
+        logger.warn(`  How to fix: ${friendly.fix}`);
       } else {
         logger.error(`Workflow execution failed: ${errorMsg}`);
       }
@@ -452,12 +467,15 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
       logger.error(`Workflow execution failed: ${errorMsg}`);
     }
 
-    if (!options.json) {
-      throw error;
-    } else {
+    if (options.json) {
+      // JSON mode: output structured error (0a fix: set exit code)
       process.stdout.write(
         JSON.stringify({ success: false, error: errorMsg }, null, 2) + '\n'
       );
+      process.exitCode = 1;
+    } else {
+      // Non-json mode: don't re-throw to avoid duplicate error from wrapAction (0c fix)
+      process.exitCode = 1;
     }
   } finally {
     if (timeoutId) {

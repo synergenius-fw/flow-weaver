@@ -59,7 +59,11 @@ export async function diffCommand(
 
     // Output based on format
     if (diff.identical) {
-      logger.success('Workflows are identical');
+      if (format === 'json') {
+        console.log(JSON.stringify({ identical: true }));
+      } else {
+        logger.success('Workflows are identical');
+      }
     } else {
       // eslint-disable-next-line no-console
       console.log(formatDiff(diff, format));

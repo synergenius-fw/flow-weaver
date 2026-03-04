@@ -49,7 +49,8 @@ export async function statusCommand(input: string, options: StatusOptions = {}):
       } else {
         logger.error(`File not found: ${input}`);
       }
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     const parseResult = await parseWorkflow(filePath, { workflowName });
@@ -61,7 +62,8 @@ export async function statusCommand(input: string, options: StatusOptions = {}):
         logger.error('Parse errors:');
         parseResult.errors.forEach((e) => logger.error(`  ${e}`));
       }
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     const ast = parseResult.ast;
@@ -149,6 +151,6 @@ export async function statusCommand(input: string, options: StatusOptions = {}):
     } else {
       logger.error(`Status failed: ${getErrorMessage(error)}`);
     }
-    process.exit(1);
+    process.exitCode = 1;
   }
 }

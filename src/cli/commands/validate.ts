@@ -62,8 +62,8 @@ export async function validateCommand(input: string, options: ValidateOptions = 
     if (files.length === 0) {
       if (json) {
         console.log(JSON.stringify({ error: `No files found matching pattern: ${input}` }));
-        process.exit(1);
-        return; // unreachable in production, but needed when process.exit is mocked in tests
+        process.exitCode = 1;
+        return;
       }
       throw new Error(`No files found matching pattern: ${input}`);
     }
@@ -185,9 +185,9 @@ export async function validateCommand(input: string, options: ValidateOptions = 
               if (friendly) {
                 const loc = err.location ? `[line ${err.location.line}] ` : '';
                 logger.error(`  ${loc}${friendly.title}: ${friendly.explanation}`);
-                logger.info(`    How to fix: ${friendly.fix}`);
+                logger.warn(`    How to fix: ${friendly.fix}`);
                 if (err.docUrl) {
-                  logger.info(`    See: ${err.docUrl}`);
+                  logger.warn(`    See: ${err.docUrl}`);
                 }
               } else {
                 let msg = `  - ${err.message}`;
@@ -202,7 +202,7 @@ export async function validateCommand(input: string, options: ValidateOptions = 
                 }
                 logger.error(msg);
                 if (err.docUrl) {
-                  logger.info(`    See: ${err.docUrl}`);
+                  logger.warn(`    See: ${err.docUrl}`);
                 }
               }
             });
@@ -218,9 +218,9 @@ export async function validateCommand(input: string, options: ValidateOptions = 
               if (friendly) {
                 const loc = warn.location ? `[line ${warn.location.line}] ` : '';
                 logger.warn(`  ${loc}${friendly.title}: ${friendly.explanation}`);
-                logger.info(`    How to fix: ${friendly.fix}`);
+                logger.warn(`    How to fix: ${friendly.fix}`);
                 if (warn.docUrl) {
-                  logger.info(`    See: ${warn.docUrl}`);
+                  logger.warn(`    See: ${warn.docUrl}`);
                 }
               } else {
                 let msg = `  - ${warn.message}`;
@@ -232,7 +232,7 @@ export async function validateCommand(input: string, options: ValidateOptions = 
                 }
                 logger.warn(msg);
                 if (warn.docUrl) {
-                  logger.info(`    See: ${warn.docUrl}`);
+                  logger.warn(`    See: ${warn.docUrl}`);
                 }
               }
             });
@@ -298,7 +298,7 @@ export async function validateCommand(input: string, options: ValidateOptions = 
   } catch (error) {
     if (json) {
       console.log(JSON.stringify({ error: getErrorMessage(error) }));
-      process.exit(1);
+      process.exitCode = 1;
       return;
     }
     throw error;
