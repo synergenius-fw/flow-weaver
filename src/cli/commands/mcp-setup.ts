@@ -322,6 +322,48 @@ async function configureTool(tool: ToolDefinition, deps: McpSetupDeps): Promise<
   }
 }
 
+// ── Non-interactive setup (used by init) ─────────────────────────────────────
+
+export interface McpSetupFromInitResult {
+  configured: string[];
+  failed: string[];
+}
+
+/**
+ * Detect and configure all AI tools without interactive prompts.
+ * Used by the init command after the user has already consented.
+ */
+export async function runMcpSetupFromInit(
+  deps?: McpSetupDeps,
+): Promise<McpSetupFromInitResult> {
+  const d = deps ?? defaultDeps();
+  const detected = await detectTools(d);
+  const toConfig = detected.filter((t) => t.detected && !t.configured);
+
+  const configured: string[] = [];
+  const failed: string[] = [];
+
+  const toolMap = new Map(TOOL_REGISTRY.map((t) => [t.id, t]));
+  for (const t of toConfig) {
+    const tool = toolMap.get(t.id)!;
+    const result = await configureTool(tool, d);
+    if (result.action === 'configured') {
+      configured.push(result.displayName);
+    } else if (result.action === 'failed') {
+      failed.push(result.displayName);
+    }
+  }
+
+  // Include already-configured tools in the configured list
+  for (const t of detected) {
+    if (t.configured) {
+      configured.push(t.displayName);
+    }
+  }
+
+  return { configured, failed };
+}
+
 // ── Command ──────────────────────────────────────────────────────────────────
 
 export async function mcpSetupCommand(

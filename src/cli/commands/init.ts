@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 /**
- * Init command — scaffolds a new flow-weaver project interactively
+ * Init command — scaffolds a new flow-weaver project interactively.
+ * Supports persona-aware onboarding for nocode, low-code, vibe-coder, and expert users.
  */
 
 import * as fs from 'fs';
@@ -13,7 +14,19 @@ import { ExitPromptError } from '@inquirer/core';
 import { getWorkflowTemplate, workflowTemplates } from '../templates/index.js';
 import { logger } from '../utils/logger.js';
 import { compileCommand } from './compile.js';
+import { runMcpSetupFromInit } from './mcp-setup.js';
 import type { TModuleFormat } from '../../ast/types.js';
+import type { PersonaId, UseCaseId } from './init-personas.js';
+import {
+  PERSONA_CHOICES,
+  USE_CASE_CHOICES,
+  USE_CASE_TEMPLATES,
+  selectTemplateForPersona,
+  getTemplateSubChoices,
+  printNextSteps,
+  generateReadme,
+  generateExampleWorkflow,
+} from './init-personas.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +39,9 @@ export interface InitOptions {
   git?: boolean;
   force?: boolean;
   json?: boolean;
+  preset?: string;
+  useCase?: string;
+  mcp?: boolean;
 }
 
 export interface InitConfig {
@@ -36,6 +52,9 @@ export interface InitConfig {
   install: boolean;
   git: boolean;
   force: boolean;
+  persona: PersonaId;
+  useCase?: UseCaseId;
+  mcp: boolean;
 }
 
 export interface InitReport {
@@ -44,8 +63,10 @@ export interface InitReport {
   filesSkipped: string[];
   template: string;
   format: TModuleFormat;
+  persona: PersonaId;
   installResult?: { success: boolean; error?: string };
   gitResult?: { success: boolean; error?: string };
+  mcpConfigured?: string[];
 }
 
 // ── Utilities ────────────────────────────────────────────────────────────────
@@ -74,6 +95,8 @@ export function isNonInteractive(): boolean {
 }
 
 const VALID_TEMPLATES = workflowTemplates.map((t) => t.id);
+const VALID_PERSONAS: PersonaId[] = ['nocode', 'vibecoder', 'lowcode', 'expert'];
+const VALID_USE_CASES: UseCaseId[] = ['data', 'ai', 'api', 'automation', 'cicd', 'minimal'];
 
 // ── Config resolution (prompts) ──────────────────────────────────────────────
 
@@ -83,8 +106,9 @@ export async function resolveInitConfig(
 ): Promise<InitConfig> {
   const skipPrompts = options.yes || isNonInteractive();
   const force = options.force ?? false;
+  const hasExplicitTemplate = !!options.template;
 
-  // 1. Project name
+  // 1. Project name (unchanged)
   let projectName: string;
   if (options.name) {
     projectName = options.name;
@@ -105,92 +129,151 @@ export async function resolveInitConfig(
     throw new Error(valid);
   }
 
-  // Target directory
   const targetDir = path.resolve(dirArg ?? projectName);
 
-  // 2. Template
-  let template: string;
-  if (options.template) {
-    template = options.template;
-    if (!VALID_TEMPLATES.includes(template)) {
-      throw new Error(`Unknown template "${template}". Available: ${VALID_TEMPLATES.join(', ')}`);
+  // 2. Persona
+  let persona: PersonaId;
+  if (options.preset) {
+    if (!VALID_PERSONAS.includes(options.preset as PersonaId)) {
+      throw new Error(`Unknown preset "${options.preset}". Available: ${VALID_PERSONAS.join(', ')}`);
     }
-  } else if (skipPrompts) {
-    template = 'sequential';
+    persona = options.preset as PersonaId;
+  } else if (skipPrompts || hasExplicitTemplate) {
+    persona = 'expert';
   } else {
-    template = await select<string>({
-      message: 'Workflow template:',
-      choices: [
-        new Separator('── Data Processing ──'),
-        { value: 'sequential', name: 'sequential', description: 'Linear pipeline' },
-        { value: 'foreach', name: 'foreach', description: 'Batch iteration' },
-        { value: 'aggregator', name: 'aggregator', description: 'Collect and aggregate results' },
-        new Separator('── Automation ──'),
-        { value: 'conditional', name: 'conditional', description: 'Route by condition' },
-        new Separator('── AI ──'),
-        { value: 'ai-agent', name: 'ai-agent', description: 'LLM agent with tool calling' },
-        { value: 'ai-react', name: 'ai-react', description: 'ReAct pattern' },
-        { value: 'ai-rag', name: 'ai-rag', description: 'Retrieval-Augmented Generation' },
-        { value: 'ai-chat', name: 'ai-chat', description: 'Conversational AI' },
-        new Separator('── Durable ──'),
-        { value: 'ai-agent-durable', name: 'ai-agent-durable', description: 'Durable agent with approval gate' },
-        { value: 'ai-pipeline-durable', name: 'ai-pipeline-durable', description: 'Durable data pipeline' },
-        new Separator('── Integration ──'),
-        { value: 'webhook', name: 'webhook', description: 'HTTP webhook handler' },
-        new Separator('── Utility ──'),
-        {
-          value: 'error-handler',
-          name: 'error-handler',
-          description: 'Error handling and recovery',
-        },
-      ],
-      default: 'sequential',
+    persona = await select<PersonaId>({
+      message: 'How do you plan to build?',
+      choices: PERSONA_CHOICES,
+      default: 'vibecoder',
     });
   }
 
-  // 3. Install deps?
+  // 3. Template selection (persona-dependent)
+  let template: string;
+  let useCase: UseCaseId | undefined;
+
+  if (hasExplicitTemplate) {
+    // Direct --template flag bypasses everything
+    template = options.template!;
+    if (!VALID_TEMPLATES.includes(template)) {
+      throw new Error(`Unknown template "${template}". Available: ${VALID_TEMPLATES.join(', ')}`);
+    }
+  } else if (persona === 'expert') {
+    // Expert: show today's flat template list
+    if (skipPrompts) {
+      template = 'sequential';
+    } else {
+      template = await select<string>({
+        message: 'Workflow template:',
+        choices: [
+          new Separator('── Data Processing ──'),
+          { value: 'sequential', name: 'sequential', description: 'Linear pipeline' },
+          { value: 'foreach', name: 'foreach', description: 'Batch iteration' },
+          { value: 'aggregator', name: 'aggregator', description: 'Collect and aggregate results' },
+          new Separator('── Automation ──'),
+          { value: 'conditional', name: 'conditional', description: 'Route by condition' },
+          new Separator('── AI ──'),
+          { value: 'ai-agent', name: 'ai-agent', description: 'LLM agent with tool calling' },
+          { value: 'ai-react', name: 'ai-react', description: 'ReAct pattern' },
+          { value: 'ai-rag', name: 'ai-rag', description: 'Retrieval-Augmented Generation' },
+          { value: 'ai-chat', name: 'ai-chat', description: 'Conversational AI' },
+          new Separator('── Durable ──'),
+          { value: 'ai-agent-durable', name: 'ai-agent-durable', description: 'Durable agent with approval gate' },
+          { value: 'ai-pipeline-durable', name: 'ai-pipeline-durable', description: 'Durable data pipeline' },
+          new Separator('── Integration ──'),
+          { value: 'webhook', name: 'webhook', description: 'HTTP webhook handler' },
+          new Separator('── Utility ──'),
+          { value: 'error-handler', name: 'error-handler', description: 'Error handling and recovery' },
+          new Separator('── CI/CD ──'),
+          { value: 'cicd-test-deploy', name: 'cicd-test-deploy', description: 'Test and deploy pipeline' },
+          { value: 'cicd-docker', name: 'cicd-docker', description: 'Docker build and push' },
+          { value: 'cicd-multi-env', name: 'cicd-multi-env', description: 'Multi-environment deploy' },
+          { value: 'cicd-matrix', name: 'cicd-matrix', description: 'Matrix build strategy' },
+        ],
+        default: 'sequential',
+      });
+    }
+  } else {
+    // Non-expert: use-case categories
+    if (options.useCase) {
+      if (!VALID_USE_CASES.includes(options.useCase as UseCaseId)) {
+        throw new Error(`Unknown use case "${options.useCase}". Available: ${VALID_USE_CASES.join(', ')}`);
+      }
+      useCase = options.useCase as UseCaseId;
+    } else if (skipPrompts) {
+      useCase = 'data';
+    } else {
+      useCase = await select<UseCaseId>({
+        message: 'What are you building?',
+        choices: USE_CASE_CHOICES,
+        default: 'data',
+      });
+    }
+
+    const selection = selectTemplateForPersona(persona, useCase);
+
+    if (selection.choices && !skipPrompts) {
+      // Lowcode with multiple choices: show sub-select
+      template = await select<string>({
+        message: 'Pick a template:',
+        choices: getTemplateSubChoices(selection.choices),
+        default: selection.template,
+      });
+    } else {
+      template = selection.template;
+    }
+  }
+
+  // 4. MCP setup (nocode + vibecoder only)
+  let mcp: boolean;
+  if (options.mcp !== undefined) {
+    mcp = options.mcp;
+  } else if (skipPrompts) {
+    mcp = false;
+  } else if (persona === 'nocode' || persona === 'vibecoder') {
+    mcp = await confirm({
+      message: 'Set up AI editor integration? (Claude Code, Cursor, VS Code, etc.)',
+      default: true,
+    });
+  } else {
+    mcp = false;
+  }
+
+  // 5. Install deps (expert: prompt, others: auto-yes)
   let installDeps: boolean;
   if (options.install !== undefined) {
     installDeps = options.install;
-  } else if (skipPrompts) {
+  } else if (skipPrompts || persona !== 'expert') {
     installDeps = true;
   } else {
     installDeps = await confirm({ message: 'Install dependencies (npm install)?', default: true });
   }
 
-  // 4. Git init?
+  // 6. Git init (expert: prompt, others: auto-yes)
   let gitInit: boolean;
   if (options.git !== undefined) {
     gitInit = options.git;
-  } else if (skipPrompts) {
+  } else if (skipPrompts || persona !== 'expert') {
     gitInit = true;
   } else {
     gitInit = await confirm({ message: 'Initialize a git repository?', default: true });
   }
 
-  // 5. Module format
+  // 7. Module format (expert only)
   let format: TModuleFormat;
   if (options.format) {
     format = options.format;
     if (format !== 'esm' && format !== 'cjs') {
       throw new Error(`Invalid format "${format}". Use "esm" or "cjs".`);
     }
-  } else if (skipPrompts) {
+  } else if (skipPrompts || persona !== 'expert') {
     format = 'esm';
   } else {
     format = await select<TModuleFormat>({
       message: 'Module format:',
       choices: [
-        {
-          value: 'esm',
-          name: 'ESM (Recommended)',
-          description: 'ECMAScript modules (import/export)',
-        },
-        {
-          value: 'cjs',
-          name: 'CommonJS',
-          description: 'CommonJS modules (require/module.exports)',
-        },
+        { value: 'esm', name: 'ESM (Recommended)', description: 'ECMAScript modules (import/export)' },
+        { value: 'cjs', name: 'CommonJS', description: 'CommonJS modules (require/module.exports)' },
       ],
       default: 'esm',
     });
@@ -204,6 +287,9 @@ export async function resolveInitConfig(
     install: installDeps,
     git: gitInit,
     force,
+    persona,
+    useCase,
+    mcp,
   };
 }
 
@@ -212,7 +298,8 @@ export async function resolveInitConfig(
 export function generateProjectFiles(
   projectName: string,
   template: string,
-  format: TModuleFormat = 'esm'
+  format: TModuleFormat = 'esm',
+  persona: PersonaId = 'expert'
 ): Record<string, string> {
   const workflowName = toWorkflowName(projectName);
   const workflowFile = `${projectName}-workflow.ts`;
@@ -224,17 +311,24 @@ export function generateProjectFiles(
 
   const workflowCode = tmpl.generate({ workflowName });
 
-  // Package.json differs based on module format
+  // Package.json
+  const scripts: Record<string, string> = {
+    dev: `npx flow-weaver compile src/${workflowFile} -o src && npx tsx src/main.ts`,
+    start: 'npx tsx src/main.ts',
+    compile: `npx flow-weaver compile src/${workflowFile} -o src`,
+    validate: `npx flow-weaver validate src/${workflowFile}`,
+    doctor: 'npx flow-weaver doctor',
+  };
+
+  // Add diagram script for non-expert personas
+  if (persona !== 'expert') {
+    scripts.diagram = `npx flow-weaver diagram src/${workflowFile} --format ascii-compact`;
+  }
+
   const packageJsonContent: Record<string, unknown> = {
     name: projectName,
     version: '1.0.0',
-    scripts: {
-      dev: `npx flow-weaver compile src/${workflowFile} -o src && npx tsx src/main.ts`,
-      start: 'npx tsx src/main.ts',
-      compile: `npx flow-weaver compile src/${workflowFile} -o src`,
-      validate: `npx flow-weaver validate src/${workflowFile}`,
-      doctor: 'npx flow-weaver doctor',
-    },
+    scripts,
     dependencies: {
       '@synergenius/flow-weaver': 'latest',
     },
@@ -245,15 +339,13 @@ export function generateProjectFiles(
     },
   };
 
-  // ESM projects need "type": "module"
   if (format === 'esm') {
     packageJsonContent.type = 'module';
   }
-  // CJS projects can optionally have "type": "commonjs" but it's the default
 
   const packageJson = JSON.stringify(packageJsonContent, null, 2);
 
-  // tsconfig.json differs based on module format
+  // tsconfig.json
   const tsconfigContent = {
     compilerOptions: {
       target: 'ES2020',
@@ -271,7 +363,7 @@ export function generateProjectFiles(
 
   const tsconfigJson = JSON.stringify(tsconfigContent, null, 2);
 
-  // main.ts import syntax differs based on module format
+  // main.ts
   const workflowJsFile = workflowFile.replace(/\.ts$/, '.js');
   let mainTs: string;
   if (format === 'esm') {
@@ -300,7 +392,6 @@ export function generateProjectFiles(
       '',
     ].join('\n');
   } else {
-    // CommonJS format
     mainTs = [
       '/**',
       ` * ${projectName} — workflow runner`,
@@ -328,10 +419,9 @@ export function generateProjectFiles(
   }
 
   const gitignore = `node_modules/\ndist/\n.tsbuildinfo\n`;
-
   const configYaml = `defaultFileType: ts\n`;
 
-  return {
+  const files: Record<string, string> = {
     'package.json': packageJson,
     'tsconfig.json': tsconfigJson,
     [`src/${workflowFile}`]: workflowCode,
@@ -339,6 +429,16 @@ export function generateProjectFiles(
     '.gitignore': gitignore,
     '.flowweaver/config.yaml': configYaml,
   };
+
+  // Add README for all personas
+  files['README.md'] = generateReadme(projectName, persona, template);
+
+  // Add example workflow for lowcode persona
+  if (persona === 'lowcode') {
+    files['examples/example-workflow.ts'] = generateExampleWorkflow(projectName);
+  }
+
+  return files;
 }
 
 // ── Filesystem writer ────────────────────────────────────────────────────────
@@ -405,7 +505,7 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
     }
 
     // Generate and scaffold
-    const files = generateProjectFiles(config.projectName, config.template, config.format);
+    const files = generateProjectFiles(config.projectName, config.template, config.format, config.persona);
     const { filesCreated, filesSkipped } = scaffoldProject(config.targetDir, files, {
       force: config.force,
     });
@@ -426,8 +526,7 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
       gitResult = runGitInit(config.targetDir);
     }
 
-    // Auto-compile the workflow so `npm start` works immediately.
-    // Skip in JSON mode since compileCommand writes to logger.
+    // Auto-compile the workflow so `npm start` works immediately
     const workflowFile = `${config.projectName}-workflow.ts`;
     const workflowPath = path.join(config.targetDir, 'src', workflowFile);
     let compileResult: { success: boolean; error?: string } | undefined;
@@ -441,6 +540,25 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
       }
     }
 
+    // MCP setup
+    let mcpConfigured: string[] | undefined;
+    if (config.mcp && !options.json) {
+      const spinner = logger.spinner('Configuring AI editors...');
+      try {
+        const result = await runMcpSetupFromInit();
+        mcpConfigured = result.configured;
+        if (result.configured.length > 0) {
+          spinner.stop(`${result.configured.join(', ')} configured`);
+        } else if (result.failed.length > 0) {
+          spinner.fail('MCP setup failed');
+        } else {
+          spinner.stop('No AI editors detected');
+        }
+      } catch {
+        spinner.fail('MCP setup failed');
+      }
+    }
+
     // Build report
     const report: InitReport = {
       projectDir: config.targetDir,
@@ -448,8 +566,10 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
       filesSkipped,
       template: config.template,
       format: config.format,
+      persona: config.persona,
       installResult,
       gitResult,
+      mcpConfigured,
     };
 
     if (options.json) {
@@ -457,13 +577,20 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
       return;
     }
 
-    // Human output
+    // Human output — status lines
     logger.newline();
     logger.success(`Created ${logger.highlight(config.projectName)} ${logger.dim(`(${config.template}, ${config.format.toUpperCase()})`)}`);
 
-    logger.log(`  ${filesCreated.join(', ')}`);
     if (filesSkipped.length > 0) {
       logger.warn(`Skipped ${filesSkipped.length} existing file(s)`);
+    }
+
+    if (installResult) {
+      if (installResult.success) {
+        logger.success('Dependencies installed');
+      } else {
+        logger.warn(`npm install failed: ${installResult.error}`);
+      }
     }
 
     if (gitResult) {
@@ -482,20 +609,24 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
       }
     }
 
-    logger.newline();
-    logger.log(`  ${logger.bold('Next steps')}`);
+    // Read the workflow code for preview
+    const workflowCode = files[`src/${workflowFile}`] ?? null;
 
+    // Persona-specific rich output
     const relDir = path.relative(process.cwd(), config.targetDir);
     const displayDir =
       !relDir || relDir === '.' ? null : relDir.startsWith('../../') ? config.targetDir : relDir;
-    if (displayDir) {
-      logger.log(`  cd ${displayDir}`);
-    }
-    if (!config.install) {
-      logger.log('  npm install');
-    }
-    logger.log(compileResult?.success ? '  npm start' : '  npm run dev');
-    logger.newline();
+
+    printNextSteps({
+      projectName: config.projectName,
+      persona: config.persona,
+      template: config.template,
+      displayDir,
+      installSkipped: !config.install,
+      workflowCode,
+      workflowFile,
+      mcpConfigured,
+    });
   } catch (err) {
     // Clean exit on Ctrl+C during prompts
     if (err instanceof ExitPromptError) {
