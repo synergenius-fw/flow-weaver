@@ -832,6 +832,11 @@ describe('resolveInitConfig use-case', () => {
     const config = await resolveInitConfig(undefined, { yes: true, template: 'foreach', useCase: 'ai' });
     expect(config.template).toBe('foreach');
   });
+
+  it('should not set useCaseDescription in non-interactive mode', async () => {
+    const config = await resolveInitConfig(undefined, { yes: true, preset: 'nocode', useCase: 'minimal' });
+    expect(config.useCaseDescription).toBeUndefined();
+  });
 });
 
 describe('generateProjectFiles with persona', () => {

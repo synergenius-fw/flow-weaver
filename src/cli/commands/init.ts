@@ -14,7 +14,7 @@ import { ExitPromptError } from '@inquirer/core';
 import { getWorkflowTemplate, workflowTemplates } from '../templates/index.js';
 import { logger } from '../utils/logger.js';
 import { compileCommand } from './compile.js';
-import { runMcpSetupFromInit, CLI_TOOL_BINARY } from './mcp-setup.js';
+import { runMcpSetupFromInit, CLI_TOOL_BINARY, detectCliTools } from './mcp-setup.js';
 import type { ToolId } from './mcp-setup.js';
 import type { TModuleFormat } from '../../ast/types.js';
 import type { PersonaId, UseCaseId } from './init-personas.js';
@@ -61,6 +61,8 @@ export interface InitConfig {
   force: boolean;
   persona: PersonaId;
   useCase?: UseCaseId;
+  /** Free-text description when user picked "Something else" */
+  useCaseDescription?: string;
   mcp: boolean;
 }
 
@@ -241,13 +243,25 @@ export async function resolveInitConfig(
     }
   }
 
-  // 4. MCP setup (nocode + vibecoder only)
+  // 3b. "Something else" follow-up: ask what they're building
+  let useCaseDescription: string | undefined;
+  if (useCase === 'minimal' && !skipPrompts && persona !== 'expert') {
+    useCaseDescription = await input({
+      message: 'Briefly describe what you want to build:',
+    });
+    if (useCaseDescription) {
+      useCaseDescription = useCaseDescription.trim();
+    }
+    if (!useCaseDescription) useCaseDescription = undefined;
+  }
+
+  // 4. MCP setup (nocode, vibecoder, lowcode: prompt; expert: skip unless --mcp)
   let mcp: boolean;
   if (options.mcp !== undefined) {
     mcp = options.mcp;
   } else if (skipPrompts) {
     mcp = false;
-  } else if (persona === 'nocode' || persona === 'vibecoder') {
+  } else if (persona === 'nocode' || persona === 'vibecoder' || persona === 'lowcode') {
     mcp = await confirm({
       message: 'Set up AI editor integration? (Claude Code, Cursor, VS Code, etc.)',
       default: true,
@@ -306,6 +320,7 @@ export async function resolveInitConfig(
     force,
     persona,
     useCase,
+    useCaseDescription,
     mcp,
   };
 }
@@ -517,6 +532,7 @@ interface AgentHandoffOptions {
   cliTools: ToolId[];
   guiTools: ToolId[];
   filesCreated: string[];
+  useCaseDescription?: string;
 }
 
 /**
@@ -524,7 +540,7 @@ interface AgentHandoffOptions {
  * Returns true if a CLI agent was spawned (init should exit and let the agent take over).
  */
 export async function handleAgentHandoff(opts: AgentHandoffOptions): Promise<boolean> {
-  const { projectName, persona, template, targetDir, cliTools, guiTools, filesCreated } = opts;
+  const { projectName, persona, template, targetDir, cliTools, guiTools, filesCreated, useCaseDescription } = opts;
 
   // Step 1: If CLI agent available, offer to launch it
   if (cliTools.length > 0) {
@@ -539,7 +555,7 @@ export async function handleAgentHandoff(opts: AgentHandoffOptions): Promise<boo
     });
 
     if (shouldLaunch && binary) {
-      const prompt = generateAgentPrompt(projectName, persona, template);
+      const prompt = generateAgentPrompt(projectName, persona, template, useCaseDescription);
       logger.newline();
       logger.log(`  ${logger.dim(`Starting ${displayName}...`)}`);
       logger.newline();
@@ -572,14 +588,14 @@ export async function handleAgentHandoff(opts: AgentHandoffOptions): Promise<boo
 
     if (promptAction === 'skip') return false;
 
-    const editorPrompt = generateEditorPrompt(projectName, persona, template);
+    const editorPrompt = generateEditorPrompt(projectName, persona, template, useCaseDescription);
 
     if (promptAction === 'terminal' || promptAction === 'both') {
       printCopyablePrompt(editorPrompt);
     }
 
     if (promptAction === 'file' || promptAction === 'both') {
-      const setupContent = generateSetupPromptFile(projectName, persona, template, filesCreated);
+      const setupContent = generateSetupPromptFile(projectName, persona, template, filesCreated, useCaseDescription);
       const setupPath = path.join(targetDir, 'PROJECT_SETUP.md');
       fs.writeFileSync(setupPath, setupContent, 'utf8');
 
@@ -654,16 +670,27 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
     let mcpConfigured: string[] | undefined;
     let mcpResult: Awaited<ReturnType<typeof runMcpSetupFromInit>> | undefined;
     if (config.mcp && !options.json) {
-      const spinner = logger.spinner('Configuring AI editors...');
+      const spinner = logger.spinner('Detecting AI editors...');
       try {
         mcpResult = await runMcpSetupFromInit();
         mcpConfigured = mcpResult.configured;
-        if (mcpResult.configured.length > 0) {
-          spinner.stop(`${mcpResult.configured.join(', ')} configured`);
-        } else if (mcpResult.failed.length > 0) {
-          spinner.fail('MCP setup failed');
-        } else {
-          spinner.stop('No AI editors detected');
+        spinner.stop();
+
+        // Per-tool status lines
+        for (const t of mcpResult.detected) {
+          if (!t.detected) continue;
+          const wasConfigured = mcpConfigured.includes(t.displayName);
+          if (wasConfigured) {
+            logger.success(`${t.displayName} configured`);
+          }
+        }
+        if (mcpResult.failed.length > 0) {
+          for (const name of mcpResult.failed) {
+            logger.warn(`${name} failed to configure`);
+          }
+        }
+        if (mcpResult.detected.every((t) => !t.detected)) {
+          logger.log(`  ${logger.dim('No AI editors detected')}`);
         }
       } catch {
         spinner.fail('MCP setup failed');
@@ -738,23 +765,37 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
     const displayDir =
       !relDir || relDir === '.' ? null : relDir.startsWith('../../') ? config.targetDir : relDir;
 
-    // Agent handoff: offer to launch CLI agent or generate prompt for GUI editors
+    // Agent handoff: offer to launch CLI agent or generate prompt for GUI editors.
+    // Decoupled from MCP: even if MCP wasn't run, check for available CLI tools.
     const skipAgent = options.agent === false || options.yes || isNonInteractive();
-    if (mcpConfigured && mcpConfigured.length > 0 && !skipAgent) {
-      try {
-        agentLaunched = await handleAgentHandoff({
-          projectName: config.projectName,
-          persona: config.persona,
-          template: config.template,
-          targetDir: config.targetDir,
-          cliTools: mcpCliTools,
-          guiTools: mcpGuiTools,
-          filesCreated,
-        });
-        report.agentLaunched = agentLaunched;
-      } catch (err) {
-        if (err instanceof ExitPromptError) return;
-        // Non-fatal: just skip agent handoff
+    if (!skipAgent) {
+      // If MCP didn't run or found no CLI tools, do a quick binary check
+      if (mcpCliTools.length === 0) {
+        try {
+          mcpCliTools = await detectCliTools();
+        } catch {
+          // Non-fatal
+        }
+      }
+
+      const hasTools = mcpCliTools.length > 0 || mcpGuiTools.length > 0;
+      if (hasTools) {
+        try {
+          agentLaunched = await handleAgentHandoff({
+            projectName: config.projectName,
+            persona: config.persona,
+            template: config.template,
+            targetDir: config.targetDir,
+            cliTools: mcpCliTools,
+            guiTools: mcpGuiTools,
+            filesCreated,
+            useCaseDescription: config.useCaseDescription,
+          });
+          report.agentLaunched = agentLaunched;
+        } catch (err) {
+          if (err instanceof ExitPromptError) return;
+          // Non-fatal: just skip agent handoff
+        }
       }
     }
 
@@ -773,6 +814,7 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
       workflowFile,
       mcpConfigured,
       agentLaunched,
+      compiled: compileResult?.success,
     });
   } catch (err) {
     // Clean exit on Ctrl+C during prompts
