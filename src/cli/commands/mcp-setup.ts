@@ -336,6 +336,8 @@ async function configureTool(tool: ToolDefinition, deps: McpSetupDeps): Promise<
 export interface McpSetupFromInitResult {
   configured: string[];
   failed: string[];
+  /** Full detection results for each tool (used by init for transparent feedback) */
+  detected: DetectedTool[];
   /** Tool IDs that can be spawned as interactive CLI sessions (e.g. claude, codex) */
   cliTools: ToolId[];
   /** Tool IDs that are GUI-only editors (e.g. cursor, vscode, windsurf) */
@@ -382,7 +384,24 @@ export async function runMcpSetupFromInit(
   const cliTools = allConfiguredIds.filter((id) => CLI_TOOL_IDS.has(id));
   const guiTools = allConfiguredIds.filter((id) => !CLI_TOOL_IDS.has(id));
 
-  return { configured, failed, cliTools, guiTools };
+  return { configured, failed, detected, cliTools, guiTools };
+}
+
+// ── Quick CLI tool detection (no config, just binary check) ──────────────────
+
+/**
+ * Check which CLI agent tools are available on PATH.
+ * Lightweight: only runs `which` for known CLI binaries.
+ */
+export async function detectCliTools(deps?: McpSetupDeps): Promise<ToolId[]> {
+  const d = deps ?? defaultDeps();
+  const results: ToolId[] = [];
+  for (const [id, binary] of Object.entries(CLI_TOOL_BINARY)) {
+    if (binary && await binaryExists(binary, d)) {
+      results.push(id as ToolId);
+    }
+  }
+  return results;
 }
 
 // ── Command ──────────────────────────────────────────────────────────────────
