@@ -62,16 +62,20 @@ export async function validateCommand(input: string, options: ValidateOptions = 
     if (files.length === 0) {
       if (json) {
         console.log(JSON.stringify({ error: `No files found matching pattern: ${input}` }));
-      } else {
-        logger.error(`No files found matching pattern: ${input}`);
+        process.exit(1);
+        return; // unreachable in production, but needed when process.exit is mocked in tests
       }
-      process.exit(1);
+      throw new Error(`No files found matching pattern: ${input}`);
     }
+
+    const totalTimer = logger.timer();
 
     if (!json) {
       logger.section('Validating Workflows');
-      logger.info(`Found ${files.length} file(s)`);
-      logger.newline();
+      if (verbose) {
+        logger.info(`Found ${files.length} file(s)`);
+        logger.newline();
+      }
     }
 
     let totalErrors = 0;
@@ -83,7 +87,7 @@ export async function validateCommand(input: string, options: ValidateOptions = 
       const file = files[i];
       const fileName = path.basename(file);
 
-      if (!json) {
+      if (!json && verbose) {
         logger.progress(i + 1, files.length, fileName);
       }
 
@@ -275,18 +279,16 @@ export async function validateCommand(input: string, options: ValidateOptions = 
       );
     } else {
       // Summary
+      const elapsed = totalTimer.elapsed();
       logger.newline();
-      logger.section('Validation Summary');
-      logger.success(`${successCount} file(s) valid`);
-
-      if (totalWarnings > 0) {
-        logger.warn(`${totalWarnings} warning(s) found`);
-      }
-
       if (totalErrors > 0) {
-        logger.error(`${totalErrors} error(s) found`);
+        const parts = [`${successCount} valid`, `${totalErrors} error${totalErrors !== 1 ? 's' : ''}`];
+        if (totalWarnings > 0) parts.push(`${totalWarnings} warning${totalWarnings !== 1 ? 's' : ''}`);
+        logger.log(`  ${parts.join(', ')} in ${elapsed}`);
+      } else if (totalWarnings > 0) {
+        logger.log(`  ${successCount} valid, ${totalWarnings} warning${totalWarnings !== 1 ? 's' : ''} in ${elapsed}`);
       } else {
-        logger.success('All workflows are valid!');
+        logger.success(`${successCount} file${successCount !== 1 ? 's' : ''} valid in ${elapsed}`);
       }
     }
 
@@ -296,9 +298,9 @@ export async function validateCommand(input: string, options: ValidateOptions = 
   } catch (error) {
     if (json) {
       console.log(JSON.stringify({ error: getErrorMessage(error) }));
-    } else {
-      logger.error(`Validation failed: ${getErrorMessage(error)}`);
+      process.exit(1);
+      return;
     }
-    process.exit(1);
+    throw error;
   }
 }

@@ -18,6 +18,15 @@ import { getErrorMessage } from '../../utils/error-utils.js';
 import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
 import { parseWorkflow } from '../../api/index.js';
 
+/** Show path relative to cwd for cleaner output */
+function displayPath(filePath: string): string {
+  const rel = path.relative(process.cwd(), filePath);
+  if (rel && !rel.startsWith('..') && rel.length < filePath.length) {
+    return rel;
+  }
+  return filePath;
+}
+
 export interface RunOptions {
   /** Specific workflow name to run (if file contains multiple workflows) */
   workflow?: string;
@@ -78,7 +87,7 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
 
   // Validate file exists
   if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${filePath}`);
+    throw new Error(`File not found: ${displayPath(filePath)}`);
   }
 
   // Parse params from --params or --params-file
@@ -160,7 +169,7 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
 
       if (!checkpointPath) {
         throw new Error(
-          `No checkpoint file found for ${filePath}. ` +
+          `No checkpoint file found for ${displayPath(filePath)}. ` +
           'Checkpoints are created when running with --checkpoint.'
         );
       }
@@ -400,13 +409,15 @@ export async function runCommand(input: string, options: RunOptions): Promise<vo
         logger.section('Trace');
         logger.log(`${result.trace.length} events captured`);
 
-        // Show first few trace events as summary
-        const preview = result.trace.slice(0, 5);
+        // Show first few trace events as summary (skip events without nodeId)
+        const meaningful = result.trace.filter((e) => e.data?.nodeId || e.data?.id);
+        const preview = meaningful.slice(0, 5);
         for (const event of preview) {
-          logger.log(`  [${event.type}] ${event.data?.nodeId || ''}`);
+          const nodeId = (event.data?.nodeId || event.data?.id || '') as string;
+          logger.log(`  [${event.type}] ${nodeId}`);
         }
-        if (result.trace.length > 5) {
-          logger.log(`  ... and ${result.trace.length - 5} more events`);
+        if (meaningful.length > 5) {
+          logger.log(`  ... and ${meaningful.length - 5} more events`);
         }
       }
     }

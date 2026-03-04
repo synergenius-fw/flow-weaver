@@ -138,6 +138,7 @@
     "glob": "^10.3.10",
     "immer": "^10.2.0",
     "js-yaml": "^4.1.0",
+    "picocolors": "^1.1.1",
     "socket.io-client": "^4.8.0",
     "source-map": "^0.7.6",
     "ts-morph": "^21.0.1",

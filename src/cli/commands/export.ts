@@ -65,6 +65,7 @@ export async function exportCommand(input: string, options: ExportOptions): Prom
   }
 
   const isDryRun = options.dryRun ?? false;
+  const t = logger.timer();
 
   const isMulti = options.multi ?? false;
   const workflowsList = options.workflows
@@ -127,6 +128,7 @@ export async function exportCommand(input: string, options: ExportOptions): Prom
     } else {
       logger.success(`Exported workflow "${result.workflow}" for ${result.target}`);
     }
+    logger.info(`done in ${t.elapsed()}`);
   }
   logger.newline();
 

@@ -17,6 +17,16 @@ import { detectProjectModuleFormat } from './doctor.js';
 import { generateInngestFunction } from '../../generator/inngest.js';
 import { AnnotationParser } from '../../parser.js';
 
+/** Show path relative to cwd for cleaner output */
+function displayPath(filePath: string): string {
+  const rel = path.relative(process.cwd(), filePath);
+  // Use relative if it's shorter and doesn't escape cwd
+  if (rel && !rel.startsWith('..') && rel.length < filePath.length) {
+    return rel;
+  }
+  return filePath;
+}
+
 export interface CompileOptions {
   output?: string;
   production?: boolean;
@@ -87,193 +97,192 @@ export async function compileCommand(input: string, options: CompileOptions = {}
   const cwd = process.cwd();
   const moduleFormat = resolveModuleFormat(format, cwd);
 
+  // If input is a directory, expand to all .ts files recursively
+  let pattern = input;
   try {
-    // If input is a directory, expand to all .ts files recursively
-    let pattern = input;
+    if (fs.existsSync(input) && fs.statSync(input).isDirectory()) {
+      pattern = path.join(input, '**/*.ts');
+    }
+  } catch {
+    // Not a valid path, use as glob pattern
+  }
+
+  // Find files matching the pattern, filter to actual files only
+  const allFiles = await glob(pattern, { absolute: true });
+  const files = allFiles.filter((f) => {
     try {
-      if (fs.existsSync(input) && fs.statSync(input).isDirectory()) {
-        pattern = path.join(input, '**/*.ts');
-      }
+      return fs.statSync(f).isFile();
     } catch {
-      // Not a valid path, use as glob pattern
+      return false;
     }
+  });
 
-    // Find files matching the pattern, filter to actual files only
-    const allFiles = await glob(pattern, { absolute: true });
-    const files = allFiles.filter((f) => {
-      try {
-        return fs.statSync(f).isFile();
-      } catch {
-        return false;
-      }
-    });
+  if (files.length === 0) {
+    throw new Error(`No files found matching pattern: ${input}`);
+  }
 
-    if (files.length === 0) {
-      throw new Error(`No files found matching pattern: ${input}`);
-    }
+  const totalTimer = logger.timer();
 
-    logger.section('Compiling Workflows');
+  logger.section('Compiling Workflows');
+
+  if (verbose) {
     logger.info(`Found ${files.length} file(s)`);
     logger.info(`Module format: ${moduleFormat.toUpperCase()}`);
     if (sourceMap) {
       logger.info('Source maps: enabled');
     }
-    if (verbose) {
-      files.forEach((file) => logger.info(`  - ${file}`));
-    }
+    files.forEach((file) => logger.info(`  ${displayPath(file)}`));
     logger.newline();
+  }
 
-    let successCount = 0;
-    let errorCount = 0;
+  let successCount = 0;
+  let errorCount = 0;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const fileName = path.basename(file);
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const fileName = path.basename(file);
+    const fileTimer = logger.timer();
 
-      logger.progress(i + 1, files.length, fileName);
+    try {
+      // Skip files without @flowWeaver annotations before parsing
+      const rawSource = fs.readFileSync(file, 'utf8');
+      if (!rawSource.includes('@flowWeaver')) {
+        if (verbose) {
+          logger.info(`  ${logger.dim('skip')} ${fileName} ${logger.dim('(no @flowWeaver annotations)')}`);
+        }
+        continue;
+      }
 
-      try {
-        // Skip files without @flowWeaver annotations before parsing
-        const rawSource = fs.readFileSync(file, 'utf8');
-        if (!rawSource.includes('@flowWeaver')) {
+      // Parse the workflow
+      const parseResult = await parseWorkflow(file, { workflowName });
+
+      if (parseResult.warnings.length > 0 && verbose) {
+        parseResult.warnings.forEach((w) => logger.warn(`  ${w}`));
+      }
+
+      if (parseResult.errors.length > 0) {
+        // Skip non-workflow files silently (only error is "No workflows found")
+        const isNonWorkflowFile =
+          parseResult.errors.length === 1 &&
+          typeof parseResult.errors[0] === 'string' &&
+          parseResult.errors[0].startsWith('No workflows found');
+
+        if (isNonWorkflowFile) {
           if (verbose) {
-            logger.info(`  Skipped ${fileName} (no @flowWeaver annotations)`);
+            logger.info(`  ${logger.dim('skip')} ${fileName} ${logger.dim('(no workflow)')}`);
           }
           continue;
         }
 
-        // Parse the workflow
-        const parseResult = await parseWorkflow(file, { workflowName });
+        logger.error(`  ${fileName}`);
+        parseResult.errors.forEach((err) => logger.error(`    ${err}`));
+        errorCount++;
+        continue;
+      }
 
-        if (parseResult.warnings.length > 0) {
-          parseResult.warnings.forEach((w) => logger.warn(`  ${w}`));
-        }
-
-        if (parseResult.errors.length > 0) {
-          // Skip non-workflow files silently (only error is "No workflows found")
-          const isNonWorkflowFile =
-            parseResult.errors.length === 1 &&
-            typeof parseResult.errors[0] === 'string' &&
-            parseResult.errors[0].startsWith('No workflows found');
-
-          if (isNonWorkflowFile) {
-            if (verbose) {
-              logger.info(`  Skipped ${fileName} (no workflow)`);
+      // Validate the AST (especially for --strict mode)
+      if (strict) {
+        const validation = validator.validate(parseResult.ast, { strictMode: true });
+        if (validation.errors.length > 0) {
+          logger.error(`  ${fileName}`);
+          validation.errors.forEach((err) => {
+            const friendly = getFriendlyError(err);
+            if (friendly) {
+              const loc = err.location ? `[line ${err.location.line}] ` : '';
+              logger.error(`    ${loc}${friendly.title}: ${friendly.explanation}`);
+              logger.info(`    How to fix: ${friendly.fix}`);
+              if (err.docUrl) {
+                logger.info(`    See: ${err.docUrl}`);
+              }
+            } else {
+              let msg = `    ${err.message}`;
+              if (err.node) {
+                msg += ` (node: ${err.node})`;
+              }
+              logger.error(msg);
+              if (err.docUrl) {
+                logger.info(`    See: ${err.docUrl}`);
+              }
             }
-            continue;
-          }
-
-          logger.error(`Failed to parse ${fileName}:`);
-          parseResult.errors.forEach((err) => logger.error(`  ${err}`));
+          });
           errorCount++;
           continue;
         }
-
-        // Validate the AST (especially for --strict mode)
-        if (strict) {
-          const validation = validator.validate(parseResult.ast, { strictMode: true });
-          if (validation.errors.length > 0) {
-            logger.error(`Validation errors in ${fileName}:`);
-            validation.errors.forEach((err) => {
-              const friendly = getFriendlyError(err);
-              if (friendly) {
-                const loc = err.location ? `[line ${err.location.line}] ` : '';
-                logger.error(`  ${loc}${friendly.title}: ${friendly.explanation}`);
-                logger.info(`    How to fix: ${friendly.fix}`);
-                if (err.docUrl) {
-                  logger.info(`    See: ${err.docUrl}`);
-                }
-              } else {
-                let msg = `  - ${err.message}`;
-                if (err.node) {
-                  msg += ` (node: ${err.node})`;
-                }
-                logger.error(msg);
-                if (err.docUrl) {
-                  logger.info(`    See: ${err.docUrl}`);
-                }
-              }
-            });
-            errorCount++;
-            continue;
-          }
-          if (validation.warnings.length > 0 && verbose) {
-            validation.warnings.forEach((warn) => {
-              const friendly = getFriendlyError(warn);
-              if (friendly) {
-                const loc = warn.location ? `[line ${warn.location.line}] ` : '';
-                logger.warn(`  ${loc}${friendly.title}: ${friendly.explanation}`);
-                logger.info(`    How to fix: ${friendly.fix}`);
-              } else {
-                logger.warn(`  ${warn.message}`);
-              }
-            });
-          }
+        if (validation.warnings.length > 0 && verbose) {
+          validation.warnings.forEach((warn) => {
+            const friendly = getFriendlyError(warn);
+            if (friendly) {
+              const loc = warn.location ? `[line ${warn.location.line}] ` : '';
+              logger.warn(`  ${loc}${friendly.title}: ${friendly.explanation}`);
+              logger.info(`    How to fix: ${friendly.fix}`);
+            } else {
+              logger.warn(`  ${warn.message}`);
+            }
+          });
         }
+      }
 
-        // Read original source
-        const sourceCode = fs.readFileSync(file, 'utf8');
+      // Read original source
+      const sourceCode = fs.readFileSync(file, 'utf8');
 
-        // Generate code in-place (preserves types, interfaces, etc.)
-        const result = generateInPlace(sourceCode, parseResult.ast, { production, moduleFormat, inlineRuntime, sourceFile: file, skipParamReturns: clean });
+      // Generate code in-place (preserves types, interfaces, etc.)
+      const result = generateInPlace(sourceCode, parseResult.ast, { production, moduleFormat, inlineRuntime, sourceFile: file, skipParamReturns: clean });
 
-        // Write back to original file (skip in dry-run mode)
-        if (!dryRun) {
-          fs.writeFileSync(file, result.code, 'utf8');
+      // Write back to original file (skip in dry-run mode)
+      if (!dryRun) {
+        fs.writeFileSync(file, result.code, 'utf8');
 
-          // Generate source map if requested
-          if (sourceMap) {
-            const mapResult = generateCode(parseResult.ast, {
-              production,
-              sourceMap: true,
-              moduleFormat,
-            });
-            if (mapResult.sourceMap) {
-              const mapPath = file + '.map';
-              fs.writeFileSync(mapPath, mapResult.sourceMap, 'utf8');
-              // Append sourceMappingURL comment to the compiled file
-              const sourceMappingComment = `\n//# sourceMappingURL=${path.basename(mapPath)}\n`;
-              if (!result.code.includes('//# sourceMappingURL=')) {
-                fs.appendFileSync(file, sourceMappingComment, 'utf8');
-              }
-              if (verbose) {
-                logger.info(`  Source map: ${mapPath}`);
-              }
+        // Generate source map if requested
+        if (sourceMap) {
+          const mapResult = generateCode(parseResult.ast, {
+            production,
+            sourceMap: true,
+            moduleFormat,
+          });
+          if (mapResult.sourceMap) {
+            const mapPath = file + '.map';
+            fs.writeFileSync(mapPath, mapResult.sourceMap, 'utf8');
+            const sourceMappingComment = `\n//# sourceMappingURL=${path.basename(mapPath)}\n`;
+            if (!result.code.includes('//# sourceMappingURL=')) {
+              fs.appendFileSync(file, sourceMappingComment, 'utf8');
+            }
+            if (verbose) {
+              logger.info(`    source map: ${displayPath(mapPath)}`);
             }
           }
         }
-
-        if (dryRun) {
-          if (result.hasChanges) {
-            logger.success(`  Would compile: ${file}`);
-          } else if (verbose) {
-            logger.info(`  No changes: ${file}`);
-          }
-        } else if (result.hasChanges) {
-          logger.success(`  Compiled: ${file}`);
-        } else if (verbose) {
-          logger.info(`  No changes: ${file}`);
-        }
-
-        successCount++;
-      } catch (error) {
-        logger.error(`Failed to compile ${fileName}: ${getErrorMessage(error)}`);
-        errorCount++;
       }
-    }
 
-    // Summary
-    logger.newline();
-    logger.section('Summary');
-    logger.success(`${successCount} file(s) compiled successfully`);
-    if (errorCount > 0) {
-      throw new Error(`${errorCount} file(s) failed to compile`);
+      const timing = logger.dim(fileTimer.elapsed());
+      const filePrint = displayPath(file);
+      if (dryRun) {
+        if (result.hasChanges) {
+          logger.success(`${filePrint} ${timing} ${logger.dim('(dry run)')}`);
+        } else if (verbose) {
+          logger.info(`  ${filePrint} ${logger.dim('no changes')}`);
+        }
+      } else if (result.hasChanges) {
+        logger.success(`${filePrint} ${timing}`);
+      } else if (verbose) {
+        logger.info(`  ${filePrint} ${logger.dim('no changes')}`);
+      }
+
+      successCount++;
+    } catch (error) {
+      logger.error(`  ${fileName}: ${getErrorMessage(error)}`);
+      errorCount++;
     }
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('file(s) failed')) {
-      throw error;
-    }
-    throw new Error(`Compilation failed: ${getErrorMessage(error)}`);
+  }
+
+  // Summary
+  const elapsed = totalTimer.elapsed();
+  const formatNote = verbose ? '' : ` (${moduleFormat.toUpperCase()})`;
+  logger.newline();
+  if (errorCount > 0) {
+    logger.log(`  ${successCount} compiled, ${errorCount} failed${formatNote} in ${elapsed}`);
+    throw new Error(`${errorCount} file(s) failed to compile`);
+  } else {
+    logger.log(`  ${successCount} file${successCount !== 1 ? 's' : ''} compiled${formatNote} in ${elapsed}`);
   }
 }
 
@@ -291,11 +300,11 @@ export async function compileInngestTarget(
   const filePath = path.resolve(input);
 
   if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${filePath}`);
+    throw new Error(`File not found: ${displayPath(filePath)}`);
   }
 
   logger.section('Compiling to Inngest');
-  logger.info(`Input: ${filePath}`);
+  logger.info(`Input: ${displayPath(filePath)}`);
   logger.info(`Target: Inngest (per-node step.run)`);
   logger.newline();
 
@@ -346,7 +355,7 @@ export async function compileInngestTarget(
   const outputPath = filePath.replace(/\.ts$/, '.inngest.ts');
 
   if (options.dryRun) {
-    logger.success(`Would generate: ${outputPath}`);
+    logger.success(`Would generate: ${displayPath(outputPath)}`);
     logger.newline();
     logger.section('Preview');
     const lines = code.split('\n');
@@ -357,7 +366,7 @@ export async function compileInngestTarget(
     }
   } else {
     fs.writeFileSync(outputPath, code, 'utf8');
-    logger.success(`Compiled: ${outputPath}`);
+    logger.success(`Compiled: ${displayPath(outputPath)}`);
   }
 
   logger.newline();

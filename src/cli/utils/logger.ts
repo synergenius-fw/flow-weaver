@@ -3,37 +3,33 @@
  * CLI logging utility with colors and formatting
  */
 
-// ANSI color support - respects NO_COLOR env var and non-TTY
-const USE_COLOR = !process.env.NO_COLOR && process.stdout.isTTY !== false;
+import pc from 'picocolors';
 
-const RESET = USE_COLOR ? '\x1b[0m' : '';
-const GREEN = USE_COLOR ? '\x1b[32m' : '';
-const RED = USE_COLOR ? '\x1b[31m' : '';
-const YELLOW = USE_COLOR ? '\x1b[33m' : '';
-const BLUE = USE_COLOR ? '\x1b[34m' : '';
-const BOLD = USE_COLOR ? '\x1b[1m' : '';
-const DIM = USE_COLOR ? '\x1b[2m' : '';
+const isTTY = process.stdout.isTTY === true;
+
+// Spinner frames
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 export const logger = {
   info(message: string): void {
-    console.log(`${BLUE}ℹ ${message}${RESET}`);
+    console.log(`${pc.blue('ℹ')} ${message}`);
   },
 
   success(message: string): void {
-    console.log(`${GREEN}✓ ${message}${RESET}`);
+    console.log(`${pc.green('✓')} ${message}`);
   },
 
   error(message: string): void {
-    console.error(`${RED}✗ ${message}${RESET}`);
+    console.error(`${pc.red('✗')} ${message}`);
   },
 
   warn(message: string): void {
-    console.warn(`${YELLOW}⚠ ${message}${RESET}`);
+    console.warn(`${pc.yellow('⚠')} ${message}`);
   },
 
   debug(message: string): void {
     if (process.env.DEBUG) {
-      console.log(`${DIM}🔍 ${message}${RESET}`);
+      console.log(`${pc.dim('🔍')} ${pc.dim(message)}`);
     }
   },
 
@@ -47,10 +43,103 @@ export const logger = {
 
   section(title: string): void {
     console.log();
-    console.log(`${BOLD}━━━ ${title} ━━━${RESET}`);
+    console.log(`  ${pc.bold(title)}`);
+    console.log();
   },
 
   progress(current: number, total: number, item: string): void {
-    console.log(`[${current}/${total}] ${item}`);
+    console.log(`${pc.dim(`[${current}/${total}]`)} ${item}`);
+  },
+
+  // --- Formatting helpers ---
+
+  dim(message: string): string {
+    return pc.dim(message);
+  },
+
+  bold(message: string): string {
+    return pc.bold(message);
+  },
+
+  highlight(value: string): string {
+    return pc.cyan(value);
+  },
+
+  // --- Branded output ---
+
+  banner(version: string): void {
+    console.log(`  ${pc.bold(pc.cyan('flow-weaver'))} ${pc.dim(`v${version}`)}`);
+  },
+
+  // --- Table output ---
+
+  table(rows: [string, string, string?][]): void {
+    if (rows.length === 0) return;
+    const col0 = Math.max(...rows.map((r) => r[0].length)) + 2;
+    const col1 = Math.max(...rows.map((r) => r[1].length)) + 2;
+    for (const [label, value, status] of rows) {
+      const line = `  ${label.padEnd(col0)}${value.padEnd(col1)}${status ?? ''}`;
+      console.log(line);
+    }
+  },
+
+  // --- Spinner ---
+
+  spinner(message: string): { stop: (msg?: string) => void; fail: (msg?: string) => void; update: (msg: string) => void } {
+    if (!isTTY) {
+      // Non-TTY: print a static line
+      process.stderr.write(`  ${message}\n`);
+      return {
+        stop(msg?: string) { if (msg) process.stderr.write(`  ${pc.green('✓')} ${msg}\n`); },
+        fail(msg?: string) { if (msg) process.stderr.write(`  ${pc.red('✗')} ${msg}\n`); },
+        update() {},
+      };
+    }
+
+    let frame = 0;
+    let text = message;
+    const interval = setInterval(() => {
+      const spinner = pc.cyan(SPINNER_FRAMES[frame % SPINNER_FRAMES.length]);
+      process.stderr.write(`\r\x1b[K  ${spinner} ${text}`);
+      frame++;
+    }, 80);
+
+    const clear = () => {
+      clearInterval(interval);
+      process.stderr.write('\r\x1b[K');
+    };
+
+    return {
+      stop(msg?: string) {
+        clear();
+        if (msg) process.stderr.write(`  ${pc.green('✓')} ${msg}\n`);
+      },
+      fail(msg?: string) {
+        clear();
+        if (msg) process.stderr.write(`  ${pc.red('✗')} ${msg}\n`);
+      },
+      update(msg: string) {
+        text = msg;
+      },
+    };
+  },
+
+  // --- Timer ---
+
+  timer(): { elapsed: () => string; ms: () => number } {
+    const start = performance.now();
+    return {
+      elapsed(): string {
+        const ms = performance.now() - start;
+        if (ms < 1000) return `${Math.round(ms)}ms`;
+        if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+        const mins = Math.floor(ms / 60_000);
+        const secs = Math.round((ms % 60_000) / 1000);
+        return `${mins}m ${secs}s`;
+      },
+      ms(): number {
+        return Math.round(performance.now() - start);
+      },
+    };
   },
 };

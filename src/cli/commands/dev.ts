@@ -18,7 +18,16 @@ function timestamp(): string {
   const h = String(now.getHours()).padStart(2, '0');
   const m = String(now.getMinutes()).padStart(2, '0');
   const s = String(now.getSeconds()).padStart(2, '0');
-  return `[${h}:${m}:${s}]`;
+  return `${h}:${m}:${s}`;
+}
+
+function cycleSeparator(file?: string): void {
+  const ts = timestamp();
+  const pad = '─'.repeat(40);
+  logger.log(`\n  ${logger.dim(`─── ${ts} ${pad}`)}`);
+  if (file) {
+    logger.log(`  ${logger.dim('File changed:')} ${path.basename(file)}`);
+  }
 }
 
 export interface DevOptions {
@@ -88,9 +97,10 @@ async function compileAndRun(
   };
 
   try {
+    const ct = logger.timer();
     await compileCommand(filePath, compileOpts);
     if (!options.json) {
-      logger.success('Compiled successfully');
+      logger.success(`Compiled in ${ct.elapsed()}`);
     }
   } catch (error) {
     const errorMsg = getErrorMessage(error);
@@ -136,8 +146,6 @@ async function compileAndRun(
       );
     } else {
       logger.success(`Workflow "${result.functionName}" completed in ${result.executionTime}ms`);
-      logger.newline();
-      logger.section('Result');
       logger.log(JSON.stringify(result.result, null, 2));
     }
     return true;
@@ -343,10 +351,8 @@ async function runInngestDevMode(
   });
 
   watcher.on('change', async (file) => {
-    logger.newline();
-    logger.info(`${timestamp()} File changed: ${path.basename(file)}`);
+    cycleSeparator(file);
     logger.info('Recompiling and restarting server...');
-    logger.newline();
     await restartServer();
   });
 
@@ -425,9 +431,7 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
 
   watcher.on('change', async (file) => {
     if (!options.json) {
-      logger.newline();
-      logger.info(`${timestamp()} File changed: ${path.basename(file)}`);
-      logger.newline();
+      cycleSeparator(file);
     }
 
     await compileAndRun(filePath, params, options);

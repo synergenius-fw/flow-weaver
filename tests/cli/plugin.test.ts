@@ -13,9 +13,18 @@ vi.mock('../../src/cli/utils/logger.js', () => ({
     success: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
+    debug: vi.fn(),
     log: vi.fn(),
     newline: vi.fn(),
     section: vi.fn(),
+    progress: vi.fn(),
+    dim: vi.fn((s: string) => s),
+    bold: vi.fn((s: string) => s),
+    highlight: vi.fn((s: string) => s),
+    banner: vi.fn(),
+    table: vi.fn(),
+    spinner: vi.fn(() => ({ stop: vi.fn(), fail: vi.fn(), update: vi.fn() })),
+    timer: vi.fn(() => ({ elapsed: () => '0ms', ms: () => 0 })),
   },
 }));
 

@@ -62,10 +62,23 @@ const program = new Command();
 program
   .name('flow-weaver')
   .description('Flow Weaver Annotations - Compile and validate workflow files')
-  .version(version, '-v, --version', 'Output the current version');
+  .option('-v, --version', 'Output the current version')
+  .on('option:version', () => {
+    logger.banner(version);
+    process.exit(0);
+  })
+  .configureHelp({
+    sortSubcommands: false,
+    subcommandTerm: (cmd) => cmd.name() + (cmd.usage() ? ' ' + cmd.usage() : ''),
+  });
+
+// Track whether our action handler already printed the error,
+// so Commander's own error handling doesn't duplicate it.
+let actionErrorHandled = false;
 
 program.configureOutput({
   writeErr: (str) => {
+    if (actionErrorHandled) return;
     const trimmed = str.replace(/^error:\s*/i, '').trimEnd();
     if (trimmed) {
       logger.error(trimmed);
@@ -73,6 +86,22 @@ program.configureOutput({
   },
   writeOut: (str) => process.stdout.write(str),
 });
+
+/**
+ * Wraps a command action with centralized error handling.
+ * Catches errors, prints them once, sets the flag to prevent Commander duplication.
+ */
+function wrapAction<T extends unknown[]>(fn: (...args: T) => Promise<void>) {
+  return async (...args: T) => {
+    try {
+      await fn(...args);
+    } catch (error) {
+      actionErrorHandled = true;
+      logger.error(getErrorMessage(error));
+      process.exit(1);
+    }
+  };
+}
 
 // Compile command
 program
@@ -95,14 +124,9 @@ program
   .option('--typed-events', 'Generate Zod event schemas from workflow @param annotations')
   .option('--retries <n>', 'Number of retries per function (Inngest target only)', parseInt)
   .option('--timeout <duration>', 'Function timeout (e.g. "30m", "1h")')
-  .action(async (input: string, options) => {
-    try {
-      await compileCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  .action(wrapAction(async (input: string, options) => {
+    await compileCommand(input, options);
+  }));
 
 // Strip command
 program
@@ -111,14 +135,9 @@ program
   .option('-o, --output <path>', 'Output directory (default: in-place)')
   .option('--dry-run', 'Preview without writing', false)
   .option('--verbose', 'Verbose output', false)
-  .action(async (input: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, options) => {
       await stripCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Describe command
 program
@@ -128,14 +147,9 @@ program
   .option('-n, --node <id>', 'Focus on a specific node')
   .option('--compile', 'Also update runtime markers in the source file')
   .option('-w, --workflow-name <name>', 'Specific workflow name to describe')
-  .action(async (input: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, options) => {
       await describeCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Diagram command
 program
@@ -148,17 +162,12 @@ program
   .option('--workflow-name <name>', 'Specific workflow to render')
   .option('-f, --format <format>', 'Output format: svg (default), html, ascii, ascii-compact, text', 'svg')
   .option('-o, --output <file>', 'Write output to file instead of stdout')
-  .action(async (input: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, options) => {
       if (options.width) options.width = Number(options.width);
       if (options.padding) options.padding = Number(options.padding);
       options.showPortLabels = options.portLabels;
       await diagramCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Diff command
 program
@@ -167,14 +176,9 @@ program
   .option('-f, --format <format>', 'Output format: text (default), json, compact', 'text')
   .option('-w, --workflow-name <name>', 'Specific workflow name to compare')
   .option('--exit-zero', 'Exit 0 even when differences are found', false)
-  .action(async (file1: string, file2: string, options) => {
-    try {
+  .action(wrapAction(async (file1: string, file2: string, options) => {
       await diffCommand(file1, file2, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Validate command
 program
@@ -185,28 +189,18 @@ program
   .option('--json', 'Output results as JSON', false)
   .option('-w, --workflow-name <name>', 'Specific workflow name to validate')
   .option('--strict', 'Treat type coercion warnings as errors', false)
-  .action(async (input: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, options) => {
       await validateCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Doctor command
 program
   .command('doctor')
   .description('Check project environment and configuration for flow-weaver compatibility')
   .option('--json', 'Output results as JSON', false)
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await doctorCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Init command
 program
@@ -222,14 +216,9 @@ program
   .option('--no-git', 'Skip git init')
   .option('--force', 'Overwrite existing files', false)
   .option('--json', 'Output results as JSON', false)
-  .action(async (directory: string | undefined, options) => {
-    try {
+  .action(wrapAction(async (directory: string | undefined, options) => {
       await initCommand(directory, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Watch command
 program
@@ -241,14 +230,9 @@ program
   .option('--verbose', 'Verbose output', false)
   .option('-w, --workflow-name <name>', 'Specific workflow name to compile')
   .option('-f, --format <format>', 'Module format: esm, cjs, or auto (default: auto)', 'auto')
-  .action(async (input: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, options) => {
       await watchCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Dev command (watch + compile + run)
 program
@@ -265,28 +249,18 @@ program
   .option('--target <target>', 'Compilation target: typescript or inngest (default: typescript)')
   .option('--framework <framework>', 'Framework for serve handler (inngest target only)', 'express')
   .option('--port <port>', 'Port for dev server (inngest target only)', (v: string) => parseInt(v, 10), 3000)
-  .action(async (input: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, options) => {
       await devCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Listen command
 program
   .command('listen')
   .description('Connect to Studio and stream integration events as JSON lines')
   .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await listenCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Tunnel command
 program
@@ -295,14 +269,9 @@ program
   .requiredOption('-k, --key <apiKey>', 'API key for cloud authentication (fw_xxxx)')
   .option('-c, --cloud <url>', 'Cloud server URL', 'https://flowweaver.dev')
   .option('-d, --dir <path>', 'Project directory', process.cwd())
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await tunnelCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // MCP server command
 program
@@ -310,14 +279,9 @@ program
   .description('Start MCP server for Claude Code integration')
   .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
   .option('--stdio', 'Run in MCP stdio mode (skip interactive registration)')
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await mcpServerCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // MCP setup command
 program
@@ -326,14 +290,9 @@ program
   .option('--tool <tools...>', 'Specific tools to configure (claude, cursor, vscode, windsurf, codex, openclaw)')
   .option('--all', 'Configure all detected tools without prompting')
   .option('--list', 'List detected tools without configuring')
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await mcpSetupCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // UI command group (send commands to Studio)
 const uiCmd = program.command('ui').description('Send commands to Studio');
@@ -342,66 +301,41 @@ uiCmd
   .command('focus-node <nodeId>')
   .description('Select and center a node in Studio')
   .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(async (nodeId: string, options) => {
-    try {
+  .action(wrapAction(async (nodeId: string, options) => {
       await uiFocusNode(nodeId, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 uiCmd
   .command('add-node <nodeTypeName>')
   .description('Add a node at viewport center')
   .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(async (nodeTypeName: string, options) => {
-    try {
+  .action(wrapAction(async (nodeTypeName: string, options) => {
       await uiAddNode(nodeTypeName, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 uiCmd
   .command('open-workflow <filePath>')
   .description('Open a workflow file in Studio')
   .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(async (filePath: string, options) => {
-    try {
+  .action(wrapAction(async (filePath: string, options) => {
       await uiOpenWorkflow(filePath, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 uiCmd
   .command('get-state')
   .description('Return current workflow state from Studio')
   .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await uiGetState(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 uiCmd
   .command('batch <json>')
   .description('Execute a batch of commands with auto-snapshot rollback')
   .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(async (json: string, options) => {
-    try {
+  .action(wrapAction(async (json: string, options) => {
       await uiBatch(json, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Create command (with subcommands)
 const createCmd = program.command('create').description('Create workflows or nodes from templates');
@@ -419,14 +353,9 @@ createCmd
   .option('--nodes <names>', 'Comma-separated node function names (e.g., "fetch,parse,store")')
   .option('--input <name>', 'Custom input port name (default: "data")')
   .option('--output <name>', 'Custom output port name (default: "result")')
-  .action(async (template: string, file: string, options) => {
-    try {
+  .action(wrapAction(async (template: string, file: string, options) => {
       await createWorkflowCommand(template, file, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 createCmd
   .command('node <name> <file>')
@@ -436,28 +365,18 @@ createCmd
   .option('-p, --preview', 'Preview generated code without writing', false)
   .option('--strategy <strategy>', 'Template strategy (e.g. mock, callback, webhook)')
   .option('--config <json>', 'Additional configuration (JSON)')
-  .action(async (name: string, file: string, options) => {
-    try {
+  .action(wrapAction(async (name: string, file: string, options) => {
       await createNodeCommand(name, file, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Templates command
 program
   .command('templates')
   .description('List available templates')
   .option('--json', 'Output as JSON', false)
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await templatesCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Grammar command
 program
@@ -467,14 +386,9 @@ program
   )
   .option('-f, --format <format>', 'Output format: html (default), ebnf', 'html')
   .option('-o, --output <path>', 'Write output to file instead of stdout')
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await grammarCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Pattern command (with subcommands)
 const patternCmd = program.command('pattern').description('Work with reusable workflow patterns');
@@ -483,14 +397,9 @@ patternCmd
   .command('list <path>')
   .description('List patterns in a file or directory')
   .option('--json', 'Output as JSON', false)
-  .action(async (inputPath: string, options) => {
-    try {
+  .action(wrapAction(async (inputPath: string, options) => {
       await patternListCommand(inputPath, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 patternCmd
   .command('apply <pattern-file> <target-file>')
@@ -498,14 +407,9 @@ patternCmd
   .option('-p, --preview', 'Preview changes without writing', false)
   .option('--prefix <prefix>', 'Prefix for node instance IDs')
   .option('-n, --name <name>', 'Specific pattern name to apply')
-  .action(async (patternFile: string, targetFile: string, options) => {
-    try {
+  .action(wrapAction(async (patternFile: string, targetFile: string, options) => {
       await patternApplyCommand(patternFile, targetFile, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 patternCmd
   .command('extract <source-file>')
@@ -514,14 +418,9 @@ patternCmd
   .requiredOption('-o, --output <file>', 'Output pattern file')
   .option('-n, --name <name>', 'Pattern name')
   .option('-p, --preview', 'Preview pattern without writing', false)
-  .action(async (sourceFile: string, options) => {
-    try {
+  .action(wrapAction(async (sourceFile: string, options) => {
       await patternExtractCommand(sourceFile, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Run command
 program
@@ -541,14 +440,9 @@ program
   .option('--checkpoint', 'Enable checkpointing to disk after each node')
   .option('--resume [file]', 'Resume from a checkpoint file (auto-detects latest if no file)')
   .option('-b, --breakpoint <nodeIds...>', 'Set initial breakpoints (repeatable)')
-  .action(async (input: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, options) => {
       await runCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Serve command
 program
@@ -561,8 +455,7 @@ program
   .option('--precompile', 'Precompile all workflows on startup', false)
   .option('--cors <origin>', 'CORS origin', '*')
   .option('--swagger', 'Enable Swagger UI at /docs', false)
-  .action(async (directory: string | undefined, options) => {
-    try {
+  .action(wrapAction(async (directory: string | undefined, options) => {
       await serveCommand(directory, {
         port: parseInt(options.port, 10),
         host: options.host,
@@ -572,11 +465,7 @@ program
         cors: options.cors,
         swagger: options.swagger,
       });
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Export command
 program
@@ -591,14 +480,9 @@ program
   .option('--workflows <names>', 'Comma-separated list of workflows to export (used with --multi)')
   .option('--docs', 'Include API documentation routes (/docs and /openapi.json)', false)
   .option('--durable-steps', 'Use deep generator with per-node Inngest steps for durability (inngest target only)', false)
-  .action(async (input: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, options) => {
       await exportCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // OpenAPI command
 program
@@ -610,14 +494,9 @@ program
   .option('--description <desc>', 'API description')
   .option('-f, --format <format>', 'Output format: json (default), yaml', 'json')
   .option('--server <url>', 'Server URL')
-  .action(async (directory: string, options) => {
-    try {
+  .action(wrapAction(async (directory: string, options) => {
       await openapiCommand(directory, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Plugin command group
 const pluginCmd = program.command('plugin').description('Scaffold and manage external plugins');
@@ -629,14 +508,9 @@ pluginCmd
   .option('--no-system', 'Skip generating a system module')
   .option('-p, --preview', 'Preview generated files without writing', false)
   .option('--force', 'Overwrite existing files', false)
-  .action(async (name: string, options) => {
-    try {
+  .action(wrapAction(async (name: string, options) => {
       await pluginInitCommand(name, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Migrate command
 program
@@ -644,14 +518,9 @@ program
   .description('Migrate workflow files to current syntax via parse → regenerate round-trip')
   .option('--dry-run', 'Preview changes without writing files', false)
   .option('--diff', 'Show semantic diff before/after', false)
-  .action(async (glob: string, options) => {
-    try {
+  .action(wrapAction(async (glob: string, options) => {
       await migrateCommand(glob, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Status command
 program
@@ -659,14 +528,9 @@ program
   .description('Report implementation progress for stub workflows')
   .option('-w, --workflow-name <name>', 'Specific workflow name')
   .option('--json', 'Output as JSON', false)
-  .action(async (input: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, options) => {
       await statusCommand(input, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Implement command
 program
@@ -674,14 +538,9 @@ program
   .description('Replace a stub node with a real function skeleton')
   .option('-w, --workflow-name <name>', 'Specific workflow name')
   .option('-p, --preview', 'Preview the generated code without writing', false)
-  .action(async (input: string, node: string, options) => {
-    try {
+  .action(wrapAction(async (input: string, node: string, options) => {
       await implementCommand(input, node, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Changelog command
 program
@@ -690,14 +549,9 @@ program
   .option('--last-tag', 'From last git tag to HEAD', false)
   .option('--since <date>', 'Date-based range (e.g., "2024-01-01")')
   .option('-r, --range <range>', 'Custom git range (e.g., "v0.1.0..HEAD")')
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await changelogCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Docs command: flow-weaver docs [topic] | flow-weaver docs search <query>
 program
@@ -705,8 +559,7 @@ program
   .description('Browse reference documentation')
   .option('--json', 'Output as JSON', false)
   .option('--compact', 'Return compact LLM-friendly version', false)
-  .action(async (args: string[], options) => {
-    try {
+  .action(wrapAction(async (args: string[], options) => {
       if (args.length === 0) {
         await docsListCommand(options);
       } else if (args[0] === 'search') {
@@ -719,11 +572,7 @@ program
       } else {
         await docsReadCommand(args[0], options);
       }
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Context command: generate LLM context bundles
 program
@@ -735,14 +584,9 @@ program
   .option('--no-grammar', 'Omit EBNF grammar section')
   .option('-o, --output <path>', 'Write to file instead of stdout')
   .option('--list', 'List available presets and exit')
-  .action(async (preset: string | undefined, options) => {
-    try {
+  .action(wrapAction(async (preset: string | undefined, options) => {
       await contextCommand(preset, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 // Marketplace command group
 const marketCmd = program.command('market').description('Discover, install, and publish marketplace packages');
@@ -753,55 +597,35 @@ marketCmd
   .option('-d, --description <desc>', 'Package description')
   .option('-a, --author <author>', 'Author name')
   .option('-y, --yes', 'Skip prompts and use defaults', false)
-  .action(async (name: string, options) => {
-    try {
+  .action(wrapAction(async (name: string, options) => {
       await marketInitCommand(name, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 marketCmd
   .command('pack [directory]')
   .description('Validate and generate flowweaver.manifest.json')
   .option('--json', 'Output results as JSON', false)
   .option('--verbose', 'Show parse warnings', false)
-  .action(async (directory: string | undefined, options) => {
-    try {
+  .action(wrapAction(async (directory: string | undefined, options) => {
       await marketPackCommand(directory, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 marketCmd
   .command('publish [directory]')
   .description('Pack and publish to npm')
   .option('--dry-run', 'Preview without publishing', false)
   .option('--tag <tag>', 'npm dist-tag')
-  .action(async (directory: string | undefined, options) => {
-    try {
+  .action(wrapAction(async (directory: string | undefined, options) => {
       await marketPublishCommand(directory, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 marketCmd
   .command('install <package>')
   .description('Install a marketplace package')
   .option('--json', 'Output results as JSON', false)
-  .action(async (packageSpec: string, options) => {
-    try {
+  .action(wrapAction(async (packageSpec: string, options) => {
       await marketInstallCommand(packageSpec, options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 marketCmd
   .command('search [query]')
@@ -809,103 +633,48 @@ marketCmd
   .option('-l, --limit <number>', 'Max results', '20')
   .option('-r, --registry <url>', 'Custom registry search URL (e.g., private npm registry)')
   .option('--json', 'Output as JSON', false)
-  .action(async (query: string | undefined, options) => {
-    try {
+  .action(wrapAction(async (query: string | undefined, options) => {
       await marketSearchCommand(query, { ...options, limit: parseInt(options.limit, 10) });
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
 marketCmd
   .command('list')
   .description('List installed marketplace packages')
   .option('--json', 'Output as JSON', false)
-  .action(async (options) => {
-    try {
+  .action(wrapAction(async (options) => {
       await marketListCommand(options);
-    } catch (error) {
-      logger.error(`Command failed: ${getErrorMessage(error)}`);
-      process.exit(1);
-    }
-  });
+  }));
 
-// Help command (default commander behavior)
-program.on('--help', () => {
-  logger.newline();
-  logger.section('Examples');
-  logger.log('  $ flow-weaver compile my-workflow.ts');
-  logger.log("  $ flow-weaver compile '**/*.ts' -o .output");
-  logger.log('  $ flow-weaver compile my-workflow.ts --format cjs');
-  logger.log('  $ flow-weaver describe workflow.ts');
-  logger.log('  $ flow-weaver describe workflow.ts --format mermaid');
-  logger.log('  $ flow-weaver describe workflow.ts --node validator');
-  logger.log('  $ flow-weaver diagram workflow.ts');
-  logger.log('  $ flow-weaver diagram workflow.ts --theme light -o diagram.svg');
-  logger.log('  $ flow-weaver diagram workflow.ts --format html -o diagram.html');
-  logger.log('  $ flow-weaver diff workflow-v1.ts workflow-v2.ts');
-  logger.log('  $ flow-weaver diff workflow-v1.ts workflow-v2.ts --format json');
-  logger.log("  $ flow-weaver validate '**/*.ts'");
-  logger.log("  $ flow-weaver watch 'src/**/*.ts' -o dist");
-  logger.log('  $ flow-weaver create workflow simple my-workflow.ts');
-  logger.log('  $ flow-weaver create workflow ai-agent agent.ts --provider openai --model gpt-4o');
-  logger.log('  $ flow-weaver create node myProcessor my-workflow.ts');
-  logger.log('  $ flow-weaver templates');
-  logger.log('  $ flow-weaver pattern list ./patterns');
-  logger.log('  $ flow-weaver pattern apply pattern.ts workflow.ts');
-  logger.log('  $ flow-weaver pattern extract workflow.ts --nodes a,b -o extracted.ts');
-  logger.log('  $ flow-weaver init my-project');
-  logger.log('  $ flow-weaver init --template ai-agent -y');
-  logger.log('  $ flow-weaver init my-project --format cjs');
-  logger.log('  $ flow-weaver doctor');
-  logger.log('  $ flow-weaver doctor --json');
-  logger.newline();
-  logger.section('Plugin Commands');
-  logger.log('  $ flow-weaver plugin init my-plugin');
-  logger.log('  $ flow-weaver plugin init my-plugin --area sidebar --no-system');
-  logger.log('  $ flow-weaver plugin init my-plugin --preview');
-  logger.newline();
-  logger.section('Deployment Commands');
-  logger.log('  $ flow-weaver run workflow.ts --params \'{"a": 5}\'');
-  logger.log('  $ flow-weaver serve ./workflows --port 8080');
-  logger.log('  $ flow-weaver export workflow.ts --target vercel --output api/');
-  logger.log('  $ flow-weaver export workflows.ts --target lambda --output dist/ --multi');
-  logger.log('  $ flow-weaver export workflows.ts --target lambda --output dist/ --multi --docs');
-  logger.log('  $ flow-weaver export workflow.ts --target inngest --output dist/ --durable-steps');
-  logger.log('  $ flow-weaver compile workflow.ts --target inngest');
-  logger.log('  $ flow-weaver openapi ./workflows --output api-spec.json');
-  logger.newline();
-  logger.section('Marketplace Commands');
-  logger.log('  $ flow-weaver market init openai');
-  logger.log('  $ flow-weaver market pack');
-  logger.log('  $ flow-weaver market publish');
-  logger.log('  $ flow-weaver market publish --dry-run');
-  logger.log('  $ flow-weaver market install flowweaver-pack-openai');
-  logger.log('  $ flow-weaver market search openai');
-  logger.log('  $ flow-weaver market list');
-  logger.newline();
-  logger.section('Documentation');
-  logger.log('  $ flow-weaver docs');
-  logger.log('  $ flow-weaver docs read error-codes');
-  logger.log('  $ flow-weaver docs read scaffold --compact');
-  logger.log('  $ flow-weaver docs search "missing workflow"');
-  logger.log('  $ flow-weaver docs read error-codes --json');
-  logger.newline();
-  logger.section('Migration & Changelog');
-  logger.log("  $ flow-weaver migrate '**/*.ts'");
-  logger.log("  $ flow-weaver migrate '**/*.ts' --dry-run");
-  logger.log("  $ flow-weaver migrate 'src/**/*.ts' --diff");
-  logger.log('  $ flow-weaver changelog --last-tag');
-  logger.log('  $ flow-weaver changelog --range v0.1.0..HEAD');
-  logger.log('  $ flow-weaver changelog --since 2024-01-01');
-  logger.newline();
-});
+// Concise examples appended to --help
+program.addHelpText('after', `
+Examples:
+
+  $ flow-weaver compile my-workflow.ts
+  $ flow-weaver validate 'src/**/*.ts'
+  $ flow-weaver run workflow.ts --params '{"a": 5}'
+  $ flow-weaver describe workflow.ts --format ascii-compact
+  $ flow-weaver init my-project
+
+  Run flow-weaver <command> --help for detailed usage.
+`);
+
+// Show concise welcome when no command specified (before parse to avoid Commander error handling)
+if (!process.argv.slice(2).length) {
+  logger.banner(version);
+  console.log();
+  console.log('  Usage: flow-weaver <command> [options]');
+  console.log();
+  console.log('  Get started:');
+  console.log('    init [dir]        Create a new project');
+  console.log('    compile <input>   Compile workflow files');
+  console.log('    validate <input>  Validate without compiling');
+  console.log('    run <input>       Execute a workflow');
+  console.log('    doctor            Check project environment');
+  console.log();
+  console.log('  Run ' + logger.highlight('flow-weaver --help') + ' for all commands.');
+  console.log();
+  process.exit(0);
+}
 
 // Parse arguments
 program.parse(process.argv);
-
-// Show help if no command specified
-if (!process.argv.slice(2).length) {
-  program.outputHelp();
-}
