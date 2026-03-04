@@ -7,7 +7,7 @@
  * Exports to GitHub Actions or GitLab CI via `fw_export`.
  */
 
-import type { WorkflowTemplate, WorkflowTemplateOptions, ConfigSchema } from '../index';
+import type { WorkflowTemplate, WorkflowTemplateOptions, ConfigSchema } from '../../../cli/templates/index';
 
 const configSchema: ConfigSchema = {
   platform: {

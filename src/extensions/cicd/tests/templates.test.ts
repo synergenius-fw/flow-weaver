@@ -7,11 +7,14 @@
  * because secret connections were dropped during parsing.
  */
 
+// Load CI/CD extension (registers tag handlers, validation rules, templates)
+import '../register';
+
 import { describe, it, expect } from 'vitest';
-import { workflowTemplates } from '../../src/cli/templates/index';
-import { parser } from '../../src/parser';
-import { validateWorkflow } from '../../src/api/validate';
-import { isCICDWorkflow, getDeclaredSecrets, getReferencedSecrets } from '../../src/validation/cicd-detection';
+import { getAllWorkflowTemplates } from '../../../cli/templates/index';
+import { parser } from '../../../parser';
+import { validateWorkflow } from '../../../api/validate';
+import { isCICDWorkflow, getDeclaredSecrets, getReferencedSecrets } from '../detection';
 
 const CICD_TEMPLATE_IDS = [
   'cicd-test-deploy',
@@ -23,7 +26,7 @@ const CICD_TEMPLATE_IDS = [
 describe('CI/CD template validation', () => {
   for (const templateId of CICD_TEMPLATE_IDS) {
     describe(templateId, () => {
-      const template = workflowTemplates.find(t => t.id === templateId);
+      const template = getAllWorkflowTemplates().find(t => t.id === templateId);
 
       it('should exist in the template registry', () => {
         expect(template).toBeDefined();

@@ -10,9 +10,11 @@ import type { TDataType, TPortConfig, TMergeStrategy, TNodeTagAST } from './ast/
 import {
   isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort,
   KNOWN_NODETYPE_TAGS, KNOWN_WORKFLOW_TAGS, KNOWN_PATTERN_TAGS, STANDARD_JSDOC_TAGS,
+  getKnownWorkflowTags,
 } from './constants';
 import { inferDataTypeFromTS } from './type-mappings';
 import { findClosestMatches } from './utils/string-distance';
+import type { TagHandlerRegistry } from './parser/tag-registry';
 import {
   parsePortLine,
   parseNodeLine,
@@ -267,26 +269,6 @@ export interface JSDocWorkflowConfig {
   /** @throttle annotation — rate limiting */
   throttle?: { limit: number; period?: string };
 
-  // ── CI/CD annotations ────────────────────────────────────────────
-  /** @secret declarations */
-  secrets?: Array<{ name: string; description?: string; platform?: 'github' | 'gitlab' | 'all'; scope?: string }>;
-  /** @runner default execution environment */
-  runner?: string;
-  /** @cache configurations */
-  caches?: Array<{ strategy: string; path?: string; key?: string }>;
-  /** @artifact declarations */
-  artifacts?: Array<{ name: string; path: string; retention?: number }>;
-  /** @environment declarations */
-  environments?: Array<{ name: string; url?: string; reviewers?: number }>;
-  /** @matrix strategy */
-  matrix?: { dimensions: Record<string, string[]>; include?: Record<string, string>[]; exclude?: Record<string, string>[] };
-  /** @service containers */
-  services?: Array<{ name: string; image: string; env?: Record<string, string>; ports?: string[] }>;
-  /** @concurrency control */
-  concurrency?: { group: string; cancelInProgress?: boolean };
-  /** Extended CI/CD triggers from @trigger push/pull_request/dispatch/tag */
-  cicdTriggers?: Array<{ type: 'push' | 'pull_request' | 'schedule' | 'dispatch' | 'tag'; branches?: string[]; paths?: string[]; pathsIgnore?: string[]; pattern?: string; types?: string[]; cron?: string; inputs?: Record<string, { description?: string; required?: boolean; default?: string; type?: string }> }>;
-
   // ── Per-target deployment config from @deploy annotations ──────
   /** @deploy target key=value pairs */
   deploy?: Record<string, Record<string, unknown>>;
@@ -303,9 +285,11 @@ export interface JSDocPatternConfig {
 
 export class JSDocParser {
   /**
-   * Parse @flowWeaver nodeType from JSDoc comments
+   * Parse @flowWeaver nodeType from JSDoc comments.
+   * When a TagHandlerRegistry is provided, unknown tags are checked against it
+   * before being reported as warnings.
    */
-  parseNodeType(func: FunctionLike, warnings: string[]): JSDocNodeTypeConfig | null {
+  parseNodeType(func: FunctionLike, warnings: string[], tagRegistry?: TagHandlerRegistry): JSDocNodeTypeConfig | null {
     const jsdocs = func.getJsDocs();
     if (jsdocs.length === 0) return null;
 
@@ -425,10 +409,14 @@ export class JSDocParser {
           this.parseDeployTag(tag, config.deploy);
           break;
 
-        default:
+        default: {
           // D: Context validation - tags that belong to other block types
           if (tagName === 'param' || tagName === 'returns' || tagName === 'return') {
             warnings.push(`@${tagName} is for workflows, not node types. Use @input/@output instead.`);
+          } else if (tagRegistry && tagRegistry.has(tagName)) {
+            // Delegate to pack-contributed tag handler
+            if (!config.deploy) config.deploy = {};
+            tagRegistry.handle(tagName, comment, 'nodeType', config.deploy, warnings);
           } else if (!KNOWN_NODETYPE_TAGS.has(tagName) && !STANDARD_JSDOC_TAGS.has(tagName)) {
             // C: Unknown tag detection with suggestions
             const suggestions = findClosestMatches(tagName, [...KNOWN_NODETYPE_TAGS]);
@@ -436,6 +424,7 @@ export class JSDocParser {
             warnings.push(`Unknown annotation @${tagName} in nodeType block.${hint}`);
           }
           break;
+        }
       }
     });
 
@@ -443,9 +432,11 @@ export class JSDocParser {
   }
 
   /**
-   * Parse @flowWeaver workflow from JSDoc comments
+   * Parse @flowWeaver workflow from JSDoc comments.
+   * When a TagHandlerRegistry is provided, unknown tags are checked against it
+   * before being reported as warnings.
    */
-  parseWorkflow(func: FunctionLike, warnings: string[]): JSDocWorkflowConfig | null {
+  parseWorkflow(func: FunctionLike, warnings: string[], tagRegistry?: TagHandlerRegistry): JSDocWorkflowConfig | null {
     const jsdocs = func.getJsDocs();
     if (jsdocs.length === 0) return null;
 
@@ -546,7 +537,7 @@ export class JSDocParser {
           break;
 
         case 'trigger':
-          this.parseTriggerTag(tag, config, warnings);
+          this.parseTriggerTag(tag, config, warnings, tagRegistry);
           break;
 
         case 'cancelOn':
@@ -570,17 +561,9 @@ export class JSDocParser {
           this.parseThrottleTag(tag, config, warnings);
           break;
 
-        // ── CI/CD + deployment annotations (delegated to helper) ──
         case 'deploy':
-        case 'secret':
-        case 'runner':
-        case 'cache':
-        case 'artifact':
-        case 'environment':
-        case 'matrix':
-        case 'service':
-        case 'concurrency':
-          this.handleDeploymentTag(tagName, tag, config, warnings);
+          config.deploy = config.deploy || {};
+          this.parseDeployTag(tag, config.deploy);
           break;
 
         case 'param':
@@ -592,19 +575,27 @@ export class JSDocParser {
           this.parseReturnTag(tag, config, func, warnings);
           break;
 
-        default:
+        default: {
           // D: Context validation - tags that belong to other block types
           if (tagName === 'color' || tagName === 'icon' || tagName === 'tag') {
             warnings.push(`@${tagName} is for node types, not workflows. Use it on @flowWeaver nodeType instead.`);
           } else if (tagName === 'input' || tagName === 'output' || tagName === 'step') {
             warnings.push(`@${tagName} is for node types, not workflows. Use @param/@returns for workflows.`);
-          } else if (!KNOWN_WORKFLOW_TAGS.has(tagName) && !STANDARD_JSDOC_TAGS.has(tagName)) {
-            // C: Unknown tag detection with suggestions
-            const suggestions = findClosestMatches(tagName, [...KNOWN_WORKFLOW_TAGS]);
-            const hint = suggestions.length > 0 ? ` Did you mean @${suggestions[0]}?` : '';
-            warnings.push(`Unknown annotation @${tagName} in workflow block.${hint}`);
+          } else if (tagRegistry && tagRegistry.has(tagName)) {
+            // Delegate to pack-contributed tag handler
+            if (!config.deploy) config.deploy = {};
+            tagRegistry.handle(tagName, comment, 'workflow', config.deploy, warnings);
+          } else {
+            const knownTags = getKnownWorkflowTags(tagRegistry?.getRegisteredTags());
+            if (!knownTags.has(tagName) && !STANDARD_JSDOC_TAGS.has(tagName)) {
+              // C: Unknown tag detection with suggestions
+              const suggestions = findClosestMatches(tagName, [...knownTags]);
+              const hint = suggestions.length > 0 ? ` Did you mean @${suggestions[0]}?` : '';
+              warnings.push(`Unknown annotation @${tagName} in workflow block.${hint}`);
+            }
           }
           break;
+        }
       }
     });
 
@@ -1442,77 +1433,29 @@ export class JSDocParser {
 
   /**
    * Parse @trigger tag using Chevrotain parser.
+   * Delegates unrecognized trigger formats to the tag registry (e.g. CI/CD triggers).
    */
-  private parseTriggerTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
+  private parseTriggerTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[], tagRegistry?: TagHandlerRegistry): void {
     const comment = (tag.getCommentText() || '').trim();
 
-    // Check for CI/CD trigger types first (push, pull_request, dispatch, tag, schedule)
-    const cicdTriggerMatch = comment.match(/^(push|pull_request|dispatch|tag|schedule)\b(.*)?$/);
-    if (cicdTriggerMatch) {
-      this.parseCICDTrigger(cicdTriggerMatch[1], cicdTriggerMatch[2]?.trim() || '', config, warnings);
-      return;
-    }
-
-    // Also detect cron="..." as a schedule trigger for CI/CD
-    const cronOnlyMatch = comment.match(/^cron\s*=\s*"([^"]+)"/);
-    if (cronOnlyMatch && !comment.includes('event=')) {
-      // Could be CI/CD schedule or existing FW cron — store both
-      config.cicdTriggers = config.cicdTriggers || [];
-      config.cicdTriggers.push({ type: 'schedule', cron: cronOnlyMatch[1] });
-    }
-
-    // Existing FW trigger parsing (event= and/or cron=)
+    // Try core FW trigger parsing first (event= and/or cron=)
     const result = parseTriggerLine(`@trigger ${comment}`, warnings);
-    if (!result) {
-      // If it was a CI/CD trigger we already handled, don't warn
-      if (cicdTriggerMatch) return;
-      warnings.push(`Invalid @trigger format: @trigger ${comment}`);
+    if (result) {
+      // Merge: multiple @trigger tags accumulate (event + cron can be separate tags)
+      config.trigger = config.trigger || {};
+      if (result.event) config.trigger.event = result.event;
+      if (result.cron) config.trigger.cron = result.cron;
       return;
     }
-    // Merge: multiple @trigger tags accumulate (event + cron can be separate tags)
-    config.trigger = config.trigger || {};
-    if (result.event) config.trigger.event = result.event;
-    if (result.cron) config.trigger.cron = result.cron;
-  }
 
-  /**
-   * Parse a CI/CD-specific trigger type (push, pull_request, dispatch, tag, schedule).
-   */
-  private parseCICDTrigger(type: string, rest: string, config: JSDocWorkflowConfig, _warnings: string[]): void {
-    config.cicdTriggers = config.cicdTriggers || [];
-
-    const triggerType = type as 'push' | 'pull_request' | 'schedule' | 'dispatch' | 'tag';
-    const trigger: { type: 'push' | 'pull_request' | 'schedule' | 'dispatch' | 'tag'; branches?: string[]; paths?: string[]; pathsIgnore?: string[]; pattern?: string; types?: string[]; cron?: string; inputs?: Record<string, { description?: string; required?: boolean; default?: string; type?: string }> } = { type: triggerType };
-
-    // Parse key="value" pairs from rest
-    const branchesMatch = rest.match(/branches\s*=\s*"([^"]+)"/);
-    if (branchesMatch) trigger.branches = branchesMatch[1].split(',').map(b => b.trim());
-
-    const pathsMatch = rest.match(/(?<![a-z])paths\s*=\s*"([^"]+)"/);
-    if (pathsMatch) trigger.paths = pathsMatch[1].split(',').map(p => p.trim());
-
-    const pathsIgnoreMatch = rest.match(/paths-ignore\s*=\s*"([^"]+)"/);
-    if (pathsIgnoreMatch) trigger.pathsIgnore = pathsIgnoreMatch[1].split(',').map(p => p.trim());
-
-    const typesMatch = rest.match(/types\s*=\s*"([^"]+)"/);
-    if (typesMatch) trigger.types = typesMatch[1].split(',').map(t => t.trim());
-
-    const patternMatch = rest.match(/pattern\s*=\s*"([^"]+)"/);
-    if (patternMatch) trigger.pattern = patternMatch[1];
-
-    const cronMatch = rest.match(/cron\s*=\s*"([^"]+)"/);
-    if (cronMatch) trigger.cron = cronMatch[1];
-
-    const inputsMatch = rest.match(/inputs\s*=\s*"([^"]+)"/);
-    if (inputsMatch) {
-      trigger.inputs = {};
-      for (const input of inputsMatch[1].split(',')) {
-        const name = input.trim();
-        if (name) trigger.inputs[name] = {};
-      }
+    // Not a core trigger. Delegate to domain-specific handlers (e.g. CI/CD).
+    if (tagRegistry && tagRegistry.has('_cicdTrigger')) {
+      if (!config.deploy) config.deploy = {};
+      tagRegistry.handle('_cicdTrigger', comment, 'workflow', config.deploy, warnings);
+      return;
     }
 
-    config.cicdTriggers.push(trigger);
+    warnings.push(`Invalid @trigger format: @trigger ${comment}`);
   }
 
   /**
@@ -1539,47 +1482,6 @@ export class JSDocParser {
       return;
     }
     config.throttle = result;
-  }
-
-  // ── Deployment dispatch + @deploy parser ───────────────────────────
-
-  /**
-   * Dispatch a CI/CD or @deploy tag to the appropriate parser.
-   * Consolidates all deployment-related cases from the main switch.
-   */
-  private handleDeploymentTag(tagName: string, tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    switch (tagName) {
-      case 'deploy':
-        config.deploy = config.deploy || {};
-        this.parseDeployTag(tag, config.deploy);
-        break;
-      case 'secret':
-        this.parseSecretTag(tag, config, warnings);
-        break;
-      case 'runner': {
-        const comment = (tag.getCommentText() || '').trim().replace(/^["']|["']$/g, '');
-        if (comment) config.runner = comment;
-        break;
-      }
-      case 'cache':
-        this.parseCacheTag(tag, config, warnings);
-        break;
-      case 'artifact':
-        this.parseArtifactTag(tag, config, warnings);
-        break;
-      case 'environment':
-        this.parseEnvironmentTag(tag, config, warnings);
-        break;
-      case 'matrix':
-        this.parseMatrixTag(tag, config, warnings);
-        break;
-      case 'service':
-        this.parseServiceTag(tag, config, warnings);
-        break;
-      case 'concurrency':
-        this.parseConcurrencyTag(tag, config, warnings);
-        break;
-    }
   }
 
   /**
@@ -1636,247 +1538,6 @@ export class JSDocParser {
         }
       }
     }
-  }
-
-  // ── CI/CD annotation parsers ───────────────────────────────────────
-
-  /**
-   * Parse @secret tag.
-   * Format: @secret NAME - description
-   * Optional: @secret NAME scope="deploy" platform="github" - description
-   */
-  private parseSecretTag(_tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    const comment = (_tag.getCommentText() || '').trim();
-    if (!comment) {
-      warnings.push('Empty @secret tag. Expected: @secret SECRET_NAME - description');
-      return;
-    }
-    // Parse: NAME [key=value ...] [- description]
-    const match = comment.match(/^(\S+)(.*?)(?:\s+-\s+(.*))?$/);
-    if (!match) {
-      warnings.push(`Invalid @secret format: @secret ${comment}`);
-      return;
-    }
-    const name = match[1];
-    const attrs = match[2] || '';
-    const description = match[3]?.trim();
-
-    const secret: { name: string; description?: string; platform?: 'github' | 'gitlab' | 'all'; scope?: string } = { name };
-    if (description) secret.description = description;
-
-    // Parse optional key=value attributes
-    const scopeMatch = attrs.match(/scope\s*=\s*"([^"]+)"/);
-    if (scopeMatch) secret.scope = scopeMatch[1];
-    const platformMatch = attrs.match(/platform\s*=\s*"([^"]+)"/);
-    if (platformMatch) {
-      const validPlatforms = ['github', 'gitlab', 'all'] as const;
-      const p = platformMatch[1] as (typeof validPlatforms)[number];
-      if (validPlatforms.includes(p)) {
-        secret.platform = p;
-      } else {
-        warnings.push(`Invalid @secret platform "${platformMatch[1]}". Must be: github, gitlab, or all`);
-      }
-    }
-
-    config.secrets = config.secrets || [];
-    config.secrets.push(secret);
-  }
-
-  /**
-   * Parse @cache tag.
-   * Format: @cache strategy [key="file"] [path="dir"]
-   */
-  private parseCacheTag(_tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    const comment = (_tag.getCommentText() || '').trim();
-    if (!comment) {
-      warnings.push('Empty @cache tag. Expected: @cache npm key="package-lock.json"');
-      return;
-    }
-    const parts = comment.match(/^(\S+)(.*)?$/);
-    if (!parts) {
-      warnings.push(`Invalid @cache format: @cache ${comment}`);
-      return;
-    }
-    const cache: { strategy: string; path?: string; key?: string } = { strategy: parts[1] };
-    const rest = parts[2] || '';
-    const keyMatch = rest.match(/key\s*=\s*"([^"]+)"/);
-    if (keyMatch) cache.key = keyMatch[1];
-    const pathMatch = rest.match(/path\s*=\s*"([^"]+)"/);
-    if (pathMatch) cache.path = pathMatch[1];
-
-    config.caches = config.caches || [];
-    config.caches.push(cache);
-  }
-
-  /**
-   * Parse @artifact tag.
-   * Format: @artifact name path="dist/" [retention=5]
-   */
-  private parseArtifactTag(_tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    const comment = (_tag.getCommentText() || '').trim();
-    if (!comment) {
-      warnings.push('Empty @artifact tag. Expected: @artifact name path="dist/"');
-      return;
-    }
-    const nameMatch = comment.match(/^(\S+)/);
-    if (!nameMatch) {
-      warnings.push(`Invalid @artifact format: @artifact ${comment}`);
-      return;
-    }
-    const pathMatch = comment.match(/path\s*=\s*"([^"]+)"/);
-    if (!pathMatch) {
-      warnings.push(`@artifact requires path="...": @artifact ${comment}`);
-      return;
-    }
-    const artifact: { name: string; path: string; retention?: number } = {
-      name: nameMatch[1],
-      path: pathMatch[1],
-    };
-    const retentionMatch = comment.match(/retention\s*=\s*(\d+)/);
-    if (retentionMatch) artifact.retention = parseInt(retentionMatch[1], 10);
-
-    config.artifacts = config.artifacts || [];
-    config.artifacts.push(artifact);
-  }
-
-  /**
-   * Parse @environment tag.
-   * Format: @environment name [url="..."] [reviewers=N]
-   */
-  private parseEnvironmentTag(_tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    const comment = (_tag.getCommentText() || '').trim();
-    if (!comment) {
-      warnings.push('Empty @environment tag. Expected: @environment production url="https://app.com"');
-      return;
-    }
-    const nameMatch = comment.match(/^(\S+)/);
-    if (!nameMatch) {
-      warnings.push(`Invalid @environment format: @environment ${comment}`);
-      return;
-    }
-    const env: { name: string; url?: string; reviewers?: number } = { name: nameMatch[1] };
-    const urlMatch = comment.match(/url\s*=\s*"([^"]+)"/);
-    if (urlMatch) env.url = urlMatch[1];
-    const reviewersMatch = comment.match(/reviewers\s*=\s*(\d+)/);
-    if (reviewersMatch) env.reviewers = parseInt(reviewersMatch[1], 10);
-
-    config.environments = config.environments || [];
-    config.environments.push(env);
-  }
-
-  /**
-   * Parse @matrix tag.
-   * Format: @matrix dim1="val1,val2" dim2="val3,val4"
-   * Or: @matrix include dim1="val1" dim2="val2"
-   * Or: @matrix exclude dim1="val1" dim2="val2"
-   */
-  private parseMatrixTag(_tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    const comment = (_tag.getCommentText() || '').trim();
-    if (!comment) {
-      warnings.push('Empty @matrix tag. Expected: @matrix node="18,20,22" os="ubuntu-latest"');
-      return;
-    }
-    config.matrix = config.matrix || { dimensions: {} };
-
-    // Check for include/exclude prefix
-    const isInclude = comment.startsWith('include ');
-    const isExclude = comment.startsWith('exclude ');
-
-    if (isInclude || isExclude) {
-      const rest = comment.slice(isInclude ? 8 : 8);
-      const entry: Record<string, string> = {};
-      const kvRegex = /(\w[\w-]*)\s*=\s*"([^"]+)"/g;
-      let m: RegExpExecArray | null;
-      while ((m = kvRegex.exec(rest)) !== null) {
-        entry[m[1]] = m[2];
-      }
-      if (Object.keys(entry).length > 0) {
-        if (isInclude) {
-          config.matrix.include = config.matrix.include || [];
-          config.matrix.include.push(entry);
-        } else {
-          config.matrix.exclude = config.matrix.exclude || [];
-          config.matrix.exclude.push(entry);
-        }
-      }
-      return;
-    }
-
-    // Regular dimensions: key="val1,val2"
-    const kvRegex = /(\w[\w-]*)\s*=\s*"([^"]+)"/g;
-    let m: RegExpExecArray | null;
-    while ((m = kvRegex.exec(comment)) !== null) {
-      config.matrix.dimensions[m[1]] = m[2].split(',').map(v => v.trim());
-    }
-  }
-
-  /**
-   * Parse @service tag.
-   * Format: @service name image="..." [env="K=V,K2=V2"] [ports="5432:5432"]
-   */
-  private parseServiceTag(_tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    const comment = (_tag.getCommentText() || '').trim();
-    if (!comment) {
-      warnings.push('Empty @service tag. Expected: @service postgres image="postgres:16"');
-      return;
-    }
-    const nameMatch = comment.match(/^(\S+)/);
-    if (!nameMatch) {
-      warnings.push(`Invalid @service format: @service ${comment}`);
-      return;
-    }
-    const imageMatch = comment.match(/image\s*=\s*"([^"]+)"/);
-    if (!imageMatch) {
-      warnings.push(`@service requires image="...": @service ${comment}`);
-      return;
-    }
-    const svc: { name: string; image: string; env?: Record<string, string>; ports?: string[] } = {
-      name: nameMatch[1],
-      image: imageMatch[1],
-    };
-    const envMatch = comment.match(/env\s*=\s*"([^"]+)"/);
-    if (envMatch) {
-      svc.env = {};
-      for (const pair of envMatch[1].split(',')) {
-        const [k, ...vParts] = pair.split('=');
-        if (k && vParts.length > 0) svc.env[k.trim()] = vParts.join('=').trim();
-      }
-    }
-    const portsMatch = comment.match(/ports\s*=\s*"([^"]+)"/);
-    if (portsMatch) {
-      svc.ports = portsMatch[1].split(',').map(p => p.trim());
-    }
-
-    config.services = config.services || [];
-    config.services.push(svc);
-  }
-
-  /**
-   * Parse @concurrency tag.
-   * Format: @concurrency group="name" [cancel-in-progress=true]
-   */
-  private parseConcurrencyTag(_tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    const comment = (_tag.getCommentText() || '').trim();
-    if (!comment) {
-      warnings.push('Empty @concurrency tag. Expected: @concurrency group="deploy"');
-      return;
-    }
-    const groupMatch = comment.match(/group\s*=\s*"([^"]+)"/);
-    if (!groupMatch) {
-      // Try bare word: @concurrency deploy
-      const bareMatch = comment.match(/^(\S+)/);
-      if (bareMatch) {
-        config.concurrency = { group: bareMatch[1], cancelInProgress: false };
-      } else {
-        warnings.push(`Invalid @concurrency format: @concurrency ${comment}`);
-      }
-      return;
-    }
-    const cancelMatch = comment.match(/cancel-in-progress\s*=\s*(true|false)/);
-    config.concurrency = {
-      group: groupMatch[1],
-      cancelInProgress: cancelMatch ? cancelMatch[1] === 'true' : false,
-    };
   }
 
   /**

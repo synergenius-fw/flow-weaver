@@ -5,7 +5,7 @@
  * test → deploy-staging → deploy-production (with environment protection)
  */
 
-import type { WorkflowTemplate, WorkflowTemplateOptions, ConfigSchema } from '../index';
+import type { WorkflowTemplate, WorkflowTemplateOptions, ConfigSchema } from '../../../cli/templates/index';
 
 const configSchema: ConfigSchema = {
   platform: {

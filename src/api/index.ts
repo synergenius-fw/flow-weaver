@@ -81,6 +81,7 @@ export {
 export { type ParseResult, parseWorkflow } from './parse';
 export { transformWorkflow } from './transform';
 export { type ValidationResult, validateWorkflow } from './validate';
+export { validationRuleRegistry } from './validation-registry';
 
 export * from './manipulation';
 export {

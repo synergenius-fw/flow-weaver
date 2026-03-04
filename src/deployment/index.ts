@@ -109,16 +109,18 @@ export {
 } from './targets/base.js';
 
 // Utilities needed by export target packs
-export { isCICDWorkflow } from '../validation/cicd-detection.js';
+/** @deprecated Import from '@synergenius/flow-weaver/extensions/cicd' instead */
+export { isCICDWorkflow } from '../extensions/cicd/detection.js';
 export { generateStandaloneRuntimeModule } from '../api/inline-runtime.js';
 
+/** @deprecated Import from '@synergenius/flow-weaver/extensions/cicd' instead */
 export {
   BaseCICDTarget,
   NODE_ACTION_MAP,
   type CICDStep,
   type CICDJob,
   type ActionMapping,
-} from './targets/cicd-base.js';
+} from '../extensions/cicd/base-target.js';
 
 import * as path from 'path';
 import { pathToFileURL } from 'url';

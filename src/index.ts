@@ -63,6 +63,12 @@ export * from './api';
 export { parser, resolveNpmNodeTypes } from './parser';
 export type { TExternalNodeType } from './parser';
 
+// Extension registries
+export { TagHandlerRegistry } from './parser/tag-registry';
+export type { TTagHandlerFn, TTagHandlerContext } from './parser/tag-registry';
+export { ValidationRuleRegistry } from './validation/rule-registry';
+export type { TValidationRuleSet } from './validation/rule-registry';
+
 // AST Types
 export type {
   TConnectionAST,

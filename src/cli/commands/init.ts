@@ -11,13 +11,13 @@ import input from '@inquirer/input';
 import select, { Separator } from '@inquirer/select';
 import confirm from '@inquirer/confirm';
 import { ExitPromptError } from '@inquirer/core';
-import { getWorkflowTemplate, workflowTemplates } from '../templates/index.js';
+import { getWorkflowTemplate, getAllWorkflowTemplates } from '../templates/index.js';
 import { logger } from '../utils/logger.js';
 import { compileCommand } from './compile.js';
 import { runMcpSetupFromInit, CLI_TOOL_BINARY, detectCliTools } from './mcp-setup.js';
 import type { ToolId } from './mcp-setup.js';
 import type { TModuleFormat } from '../../ast/types.js';
-import type { PersonaId, UseCaseId } from './init-personas.js';
+import type { PersonaId } from './init-personas.js';
 import {
   PERSONA_CHOICES,
   PERSONA_CONFIRMATIONS,
@@ -60,7 +60,7 @@ export interface InitConfig {
   git: boolean;
   force: boolean;
   persona: PersonaId;
-  useCase?: UseCaseId;
+  useCase?: string;
   /** Free-text description when user picked "Something else" */
   useCaseDescription?: string;
   mcp: boolean;
@@ -104,9 +104,11 @@ export function isNonInteractive(): boolean {
   return !process.stdin.isTTY;
 }
 
-const VALID_TEMPLATES = workflowTemplates.map((t) => t.id);
+// Dynamic: includes core templates plus any registered by extensions
+const VALID_TEMPLATES = getAllWorkflowTemplates().map((t) => t.id);
 const VALID_PERSONAS: PersonaId[] = ['nocode', 'vibecoder', 'lowcode', 'expert'];
-const VALID_USE_CASES: UseCaseId[] = ['data', 'ai', 'api', 'automation', 'cicd', 'minimal'];
+// Dynamic: includes core use cases plus any registered by extensions
+const VALID_USE_CASES: string[] = USE_CASE_CHOICES.map((c) => c.value);
 
 // ── Config resolution (prompts) ──────────────────────────────────────────────
 
@@ -169,7 +171,7 @@ export async function resolveInitConfig(
 
   // 3. Template selection (persona-dependent)
   let template: string;
-  let useCase: UseCaseId | undefined;
+  let useCase: string | undefined;
 
   if (hasExplicitTemplate) {
     // Direct --template flag bypasses everything
@@ -203,11 +205,6 @@ export async function resolveInitConfig(
           { value: 'webhook', name: 'webhook', description: 'HTTP webhook handler' },
           new Separator('── Utility ──'),
           { value: 'error-handler', name: 'error-handler', description: 'Error handling and recovery' },
-          new Separator('── CI/CD ──'),
-          { value: 'cicd-test-deploy', name: 'cicd-test-deploy', description: 'Test and deploy pipeline' },
-          { value: 'cicd-docker', name: 'cicd-docker', description: 'Docker build and push' },
-          { value: 'cicd-multi-env', name: 'cicd-multi-env', description: 'Multi-environment deploy' },
-          { value: 'cicd-matrix', name: 'cicd-matrix', description: 'Matrix build strategy' },
         ],
         default: 'sequential',
       });
@@ -215,14 +212,14 @@ export async function resolveInitConfig(
   } else {
     // Non-expert: use-case categories
     if (options.useCase) {
-      if (!VALID_USE_CASES.includes(options.useCase as UseCaseId)) {
+      if (!VALID_USE_CASES.includes(options.useCase)) {
         throw new Error(`Unknown use case "${options.useCase}". Available: ${VALID_USE_CASES.join(', ')}`);
       }
-      useCase = options.useCase as UseCaseId;
+      useCase = options.useCase;
     } else if (skipPrompts) {
       useCase = 'data';
     } else {
-      useCase = await select<UseCaseId>({
+      useCase = await select<string>({
         message: 'What are you building?',
         choices: USE_CASE_CHOICES,
         default: 'data',

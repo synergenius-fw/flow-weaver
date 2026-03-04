@@ -9,6 +9,9 @@
 // Must be imported first: sets up env vars before picocolors reads them
 import './env-setup.js';
 
+// Load built-in extensions (CI/CD, etc.) before any commands run
+import '../extensions/index.js';
+
 import { Command, Option } from 'commander';
 import { compileCommand } from './commands/compile.js';
 import { createWorkflowCommand, createNodeCommand } from './commands/create.js';

@@ -13,6 +13,10 @@ import type {
   TMarketplaceManifest,
   TMarketplacePackageInfo,
   TInstalledPackage,
+  TManifestTagHandler,
+  TManifestValidationRuleSet,
+  TManifestDocTopic,
+  TManifestInitContribution,
 } from './types.js';
 
 const MARKETPLACE_KEYWORD = 'flowweaver-marketplace-pack';
@@ -150,4 +154,129 @@ export function getInstalledPackageManifest(
   } catch {
     return null;
   }
+}
+
+// ── Extension point discovery (manifest v2) ──────────────────────────────────
+
+export type TDiscoveredTagHandler = TManifestTagHandler & {
+  /** Absolute path to the handler module */
+  absoluteFile: string;
+  /** Package name this handler belongs to */
+  packageName: string;
+};
+
+export type TDiscoveredValidationRuleSet = TManifestValidationRuleSet & {
+  /** Absolute path to the rule set module */
+  absoluteFile: string;
+  /** Package name this rule set belongs to */
+  packageName: string;
+};
+
+export type TDiscoveredDocTopic = TManifestDocTopic & {
+  /** Absolute path to the markdown file */
+  absoluteFile: string;
+  /** Package name this doc belongs to */
+  packageName: string;
+};
+
+export type TDiscoveredInitContribution = TManifestInitContribution & {
+  /** Package name this contribution belongs to */
+  packageName: string;
+};
+
+/**
+ * Discover all tag handlers from installed pack manifests.
+ */
+export async function discoverTagHandlers(
+  projectDir: string,
+): Promise<TDiscoveredTagHandler[]> {
+  const packages = await listInstalledPackages(projectDir);
+  const handlers: TDiscoveredTagHandler[] = [];
+
+  for (const pkg of packages) {
+    const manifest = pkg.manifest;
+    if (!manifest.tagHandlers) continue;
+
+    for (const handler of manifest.tagHandlers) {
+      handlers.push({
+        ...handler,
+        absoluteFile: path.join(pkg.path, handler.file),
+        packageName: pkg.name,
+      });
+    }
+  }
+
+  return handlers;
+}
+
+/**
+ * Discover all validation rule sets from installed pack manifests.
+ */
+export async function discoverValidationRuleSets(
+  projectDir: string,
+): Promise<TDiscoveredValidationRuleSet[]> {
+  const packages = await listInstalledPackages(projectDir);
+  const ruleSets: TDiscoveredValidationRuleSet[] = [];
+
+  for (const pkg of packages) {
+    const manifest = pkg.manifest;
+    if (!manifest.validationRuleSets) continue;
+
+    for (const ruleSet of manifest.validationRuleSets) {
+      ruleSets.push({
+        ...ruleSet,
+        absoluteFile: path.join(pkg.path, ruleSet.file),
+        packageName: pkg.name,
+      });
+    }
+  }
+
+  return ruleSets;
+}
+
+/**
+ * Discover all doc topics from installed pack manifests.
+ */
+export async function discoverDocTopics(
+  projectDir: string,
+): Promise<TDiscoveredDocTopic[]> {
+  const packages = await listInstalledPackages(projectDir);
+  const topics: TDiscoveredDocTopic[] = [];
+
+  for (const pkg of packages) {
+    const manifest = pkg.manifest;
+    if (!manifest.docs) continue;
+
+    for (const doc of manifest.docs) {
+      topics.push({
+        ...doc,
+        absoluteFile: path.join(pkg.path, doc.file),
+        packageName: pkg.name,
+      });
+    }
+  }
+
+  return topics;
+}
+
+/**
+ * Discover all init contributions from installed pack manifests.
+ */
+export async function discoverInitContributions(
+  projectDir: string,
+): Promise<TDiscoveredInitContribution[]> {
+  const packages = await listInstalledPackages(projectDir);
+  const contributions: TDiscoveredInitContribution[] = [];
+
+  for (const pkg of packages) {
+    const manifest = pkg.manifest;
+    if (!manifest.initContributions) continue;
+
+    contributions.push({
+      ...manifest.initContributions,
+      packageName: pkg.name,
+    });
+  }
+
+  return contributions;
 }

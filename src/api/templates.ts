@@ -8,8 +8,8 @@
  */
 
 import {
-  workflowTemplates,
   nodeTemplates,
+  getAllWorkflowTemplates,
   getWorkflowTemplate as getWorkflowTemplateById,
   getNodeTemplate as getNodeTemplateById,
   type WorkflowTemplate,
@@ -32,7 +32,7 @@ export type { WorkflowTemplate, NodeTemplate, WorkflowTemplateOptions };
  * ```
  */
 export function listWorkflowTemplates(): WorkflowTemplate[] {
-  return workflowTemplates;
+  return getAllWorkflowTemplates();
 }
 
 /**

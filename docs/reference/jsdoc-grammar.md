@@ -564,6 +564,105 @@ concurrencyTag ::= "@concurrency" IDENTIFIER [ "cancel-in-progress=" ( "true" | 
 @concurrency ci-main
 ```
 
+## @job
+
+Configures per-job settings. The name must match a `[job: "name"]` attribute used on `@node` declarations.
+
+```
+jobTag         ::= "@job" IDENTIFIER { IDENTIFIER "=" ( STRING | IDENTIFIER | INTEGER ) }
+```
+
+Recognized keys: `retry` (number), `allow_failure` (boolean), `timeout` (string), `runner` (string), `tags` (comma-list), `coverage` (string), `reports` (comma-list of type=path), `rules` (string), `extends` (string), `before_script` (comma-list), `variables` (comma-list of KEY=VALUE).
+
+**Examples:**
+
+```
+@job build retry=2 timeout="10m"
+@job test-unit coverage='/Coverage: (\d+)%/' reports="junit=test-results.xml"
+@job deploy allow_failure=true rules="$CI_COMMIT_BRANCH == main"
+@job lint tags="docker,linux" extends=".base-lint"
+```
+
+## @stage
+
+Declares a pipeline stage for GitLab CI grouping. Multiple `@stage` annotations define stage ordering.
+
+```
+stageTag       ::= "@stage" IDENTIFIER
+```
+
+**Examples:**
+
+```
+@stage test
+@stage build
+@stage deploy
+```
+
+## @variables
+
+Sets workflow-level environment variables. Applied as defaults to all jobs.
+
+```
+variablesTag   ::= "@variables" { IDENTIFIER "=" ( STRING | IDENTIFIER ) }
+```
+
+**Examples:**
+
+```
+@variables NODE_ENV="production" CI="true"
+```
+
+## @before_script
+
+Sets workflow-level setup commands. Applied as defaults to all jobs.
+
+```
+beforeScriptTag ::= "@before_script" ( STRING | TEXT )
+```
+
+**Examples:**
+
+```
+@before_script "npm ci"
+@before_script npm ci
+```
+
+## @tags
+
+Sets workflow-level runner tags. Applied as defaults to all jobs.
+
+```
+tagsTag        ::= "@tags" { IDENTIFIER }
+```
+
+Tags can be space-separated or comma-separated.
+
+**Examples:**
+
+```
+@tags docker linux
+@tags docker,linux,arm64
+```
+
+## @includes
+
+Declares external configuration files to include (GitLab CI). Ignored for GitHub Actions.
+
+```
+includesTag    ::= "@includes" ( "local" | "template" | "remote" | "project" ) "=" STRING
+                   [ "file=" STRING ] [ "ref=" STRING ]
+```
+
+**Examples:**
+
+```
+@includes local="ci/shared-templates.yml"
+@includes template="Auto-DevOps.gitlab-ci.yml"
+@includes remote="https://example.com/ci.yml"
+@includes project="other-group/other-project" file="ci/shared.yml" ref="main"
+```
+
 ---
 
 # Pattern Tags

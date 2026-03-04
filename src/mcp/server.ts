@@ -1,3 +1,6 @@
+// Load built-in extensions (CI/CD, etc.) before tool registration
+import '../extensions/index.js';
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { McpServerOptions, EventFilterConfig } from './types.js';
