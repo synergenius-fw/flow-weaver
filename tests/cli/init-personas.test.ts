@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   PERSONA_CHOICES,
+  PERSONA_CONFIRMATIONS,
   USE_CASE_CHOICES,
   USE_CASE_TEMPLATES,
   selectTemplateForPersona,
@@ -15,6 +16,12 @@ import {
   generateExampleWorkflow,
   printNextSteps,
   FILE_DESCRIPTIONS,
+  generateAgentPrompt,
+  generateEditorPrompt,
+  generateSetupPromptFile,
+  printCopyablePrompt,
+  AGENT_LAUNCH_DEFAULTS,
+  AGENT_CONTEXT_PRESETS,
 } from '../../src/cli/commands/init-personas';
 import type { PersonaId, UseCaseId } from '../../src/cli/commands/init-personas';
 import { workflowTemplates } from '../../src/cli/templates/index';
@@ -405,5 +412,251 @@ describe('printNextSteps', () => {
       const output = logs.join('\n');
       expect(output).toContain('npm run dev');
     }
+  });
+
+  it('should skip persona guidance when agentLaunched is true', () => {
+    logs = [];
+    printNextSteps({ ...baseOpts, persona: 'nocode', agentLaunched: true });
+    const output = logs.join('\n');
+    // Should still show workflow preview and next steps
+    expect(output).toContain('Your workflow');
+    expect(output).toContain('npm run dev');
+    // Should NOT show persona-specific guidance
+    expect(output).not.toContain('AI-assisted building');
+  });
+});
+
+// ── PERSONA_CONFIRMATIONS ────────────────────────────────────────────────────
+
+describe('PERSONA_CONFIRMATIONS', () => {
+  it('should have entries for all personas', () => {
+    expect(PERSONA_CONFIRMATIONS.nocode).toBeTruthy();
+    expect(PERSONA_CONFIRMATIONS.vibecoder).toBeTruthy();
+    expect(PERSONA_CONFIRMATIONS.lowcode).toBeTruthy();
+    expect(PERSONA_CONFIRMATIONS.expert).toBeNull();
+  });
+});
+
+// ── AGENT_LAUNCH_DEFAULTS ────────────────────────────────────────────────────
+
+describe('AGENT_LAUNCH_DEFAULTS', () => {
+  it('should default to true for nocode, vibecoder, lowcode', () => {
+    expect(AGENT_LAUNCH_DEFAULTS.nocode).toBe(true);
+    expect(AGENT_LAUNCH_DEFAULTS.vibecoder).toBe(true);
+    expect(AGENT_LAUNCH_DEFAULTS.lowcode).toBe(true);
+  });
+
+  it('should default to false for expert', () => {
+    expect(AGENT_LAUNCH_DEFAULTS.expert).toBe(false);
+  });
+});
+
+// ── generateAgentPrompt ──────────────────────────────────────────────────────
+
+describe('generateAgentPrompt', () => {
+  it('should interpolate project name and template', () => {
+    const prompt = generateAgentPrompt('my-app', 'nocode', 'sequential');
+    expect(prompt).toContain('my-app');
+    expect(prompt).toContain('sequential');
+  });
+
+  it('should produce different prompts per persona', () => {
+    const nocode = generateAgentPrompt('test', 'nocode', 'sequential');
+    const vibecoder = generateAgentPrompt('test', 'vibecoder', 'sequential');
+    const lowcode = generateAgentPrompt('test', 'lowcode', 'sequential');
+    const expert = generateAgentPrompt('test', 'expert', 'sequential');
+    // All should be unique
+    const set = new Set([nocode, vibecoder, lowcode, expert]);
+    expect(set.size).toBe(4);
+  });
+
+  it('nocode prompt should mention plain language', () => {
+    const prompt = generateAgentPrompt('test', 'nocode', 'ai-agent');
+    expect(prompt).toContain('plain language');
+    expect(prompt).toContain("Don't show code");
+  });
+
+  it('vibecoder prompt should mention collaboration', () => {
+    const prompt = generateAgentPrompt('test', 'vibecoder', 'ai-agent');
+    expect(prompt).toContain('together');
+    expect(prompt).toContain('comfortable reading');
+  });
+
+  it('lowcode prompt should mention templates', () => {
+    const prompt = generateAgentPrompt('test', 'lowcode', 'sequential');
+    expect(prompt).toContain('template');
+    expect(prompt).toContain('customize');
+  });
+
+  it('expert prompt should be concise (excluding bootstrap)', () => {
+    const prompt = generateAgentPrompt('test', 'expert', 'sequential');
+    // The main body after the bootstrap line should be short
+    const body = prompt.split('\n\n').slice(1).join('\n\n');
+    expect(body.length).toBeLessThan(200);
+  });
+
+  it('nocode prompt should include fw_context with core preset', () => {
+    const prompt = generateAgentPrompt('test', 'nocode', 'sequential');
+    expect(prompt).toContain('fw_context(preset="core"');
+    expect(prompt).toContain('profile="assistant"');
+  });
+
+  it('vibecoder prompt should include fw_context with authoring preset', () => {
+    const prompt = generateAgentPrompt('test', 'vibecoder', 'sequential');
+    expect(prompt).toContain('fw_context(preset="authoring"');
+  });
+
+  it('lowcode prompt should include fw_context with authoring preset', () => {
+    const prompt = generateAgentPrompt('test', 'lowcode', 'sequential');
+    expect(prompt).toContain('fw_context(preset="authoring"');
+  });
+
+  it('expert prompt should include fw_context with authoring preset', () => {
+    const prompt = generateAgentPrompt('test', 'expert', 'sequential');
+    expect(prompt).toContain('fw_context(preset="authoring"');
+  });
+
+  it('all prompts should start with fw_context bootstrap', () => {
+    for (const persona of ['nocode', 'vibecoder', 'lowcode', 'expert'] as PersonaId[]) {
+      const prompt = generateAgentPrompt('test', persona, 'sequential');
+      expect(prompt).toMatch(/^Before doing anything else, call fw_context/);
+    }
+  });
+});
+
+// ── generateEditorPrompt ─────────────────────────────────────────────────────
+
+describe('generateEditorPrompt', () => {
+  it('should include project name and template', () => {
+    const prompt = generateEditorPrompt('my-app', 'nocode', 'sequential');
+    expect(prompt).toContain('my-app');
+    expect(prompt).toContain('sequential');
+  });
+
+  it('should produce different prompts per persona', () => {
+    const nocode = generateEditorPrompt('test', 'nocode', 'sequential');
+    const expert = generateEditorPrompt('test', 'expert', 'sequential');
+    expect(nocode).not.toBe(expert);
+  });
+
+  it('nocode prompt should mention no code', () => {
+    const prompt = generateEditorPrompt('test', 'nocode', 'sequential');
+    expect(prompt).toContain('no code');
+  });
+
+  it('should include fw_context call for all personas', () => {
+    for (const persona of ['nocode', 'vibecoder', 'lowcode', 'expert'] as PersonaId[]) {
+      const prompt = generateEditorPrompt('test', persona, 'sequential');
+      expect(prompt).toContain('fw_context');
+    }
+  });
+
+  it('nocode editor prompt should use core preset', () => {
+    const prompt = generateEditorPrompt('test', 'nocode', 'sequential');
+    expect(prompt).toContain('preset="core"');
+  });
+
+  it('expert editor prompt should use authoring preset', () => {
+    const prompt = generateEditorPrompt('test', 'expert', 'sequential');
+    expect(prompt).toContain('preset="authoring"');
+  });
+});
+
+// ── generateSetupPromptFile ──────────────────────────────────────────────────
+
+describe('generateSetupPromptFile', () => {
+  it('should include project name as heading', () => {
+    const content = generateSetupPromptFile('my-app', 'nocode', 'sequential', ['package.json', 'src/main.ts']);
+    expect(content).toContain('# my-app Setup');
+  });
+
+  it('should include the agent prompt', () => {
+    const content = generateSetupPromptFile('my-app', 'nocode', 'sequential', []);
+    expect(content).toContain('plain language');
+  });
+
+  it('should list files created', () => {
+    const content = generateSetupPromptFile('my-app', 'expert', 'sequential', ['package.json', 'src/main.ts']);
+    expect(content).toContain('`package.json`');
+    expect(content).toContain('`src/main.ts`');
+  });
+
+  it('should mention MCP tools', () => {
+    const content = generateSetupPromptFile('my-app', 'expert', 'sequential', []);
+    expect(content).toContain('fw_diagram');
+    expect(content).toContain('fw_modify');
+  });
+
+  it('should mention deleting after use', () => {
+    const content = generateSetupPromptFile('my-app', 'expert', 'sequential', []);
+    expect(content).toContain('Delete this file');
+  });
+
+  it('should embed Flow Weaver reference documentation', () => {
+    const content = generateSetupPromptFile('my-app', 'nocode', 'sequential', []);
+    expect(content).toContain('## Flow Weaver Reference');
+    // Should contain actual documentation content (annotation grammar, concepts)
+    expect(content).toContain('@flowWeaver');
+  });
+
+  it('should include fw_context bootstrap in the agent prompt section', () => {
+    const content = generateSetupPromptFile('my-app', 'nocode', 'sequential', []);
+    expect(content).toContain('fw_context(preset="core"');
+  });
+});
+
+// ── AGENT_CONTEXT_PRESETS ─────────────────────────────────────────────────────
+
+describe('AGENT_CONTEXT_PRESETS', () => {
+  it('should have entries for all personas', () => {
+    const personas: PersonaId[] = ['nocode', 'vibecoder', 'lowcode', 'expert'];
+    for (const persona of personas) {
+      expect(AGENT_CONTEXT_PRESETS[persona]).toBeTruthy();
+    }
+  });
+
+  it('nocode should use core preset', () => {
+    expect(AGENT_CONTEXT_PRESETS.nocode).toBe('core');
+  });
+
+  it('vibecoder, lowcode, expert should use authoring preset', () => {
+    expect(AGENT_CONTEXT_PRESETS.vibecoder).toBe('authoring');
+    expect(AGENT_CONTEXT_PRESETS.lowcode).toBe('authoring');
+    expect(AGENT_CONTEXT_PRESETS.expert).toBe('authoring');
+  });
+});
+
+// ── printCopyablePrompt ──────────────────────────────────────────────────────
+
+describe('printCopyablePrompt', () => {
+  let logs: string[];
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+
+  beforeEach(() => {
+    logs = [];
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    console.warn = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+  });
+
+  afterEach(() => {
+    console.log = originalLog;
+    console.warn = originalWarn;
+  });
+
+  it('should print a bordered box', () => {
+    printCopyablePrompt('Hello world');
+    const output = logs.join('\n');
+    expect(output).toContain('┌');
+    expect(output).toContain('┘');
+    expect(output).toContain('Hello world');
+  });
+
+  it('should handle multi-line prompts', () => {
+    printCopyablePrompt('Line 1\nLine 2\nLine 3');
+    const output = logs.join('\n');
+    expect(output).toContain('Line 1');
+    expect(output).toContain('Line 2');
+    expect(output).toContain('Line 3');
   });
 });

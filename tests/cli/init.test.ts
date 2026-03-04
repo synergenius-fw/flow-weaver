@@ -17,6 +17,7 @@ import {
   runGitInit,
   initCommand,
   resolveInitConfig,
+  handleAgentHandoff,
 } from '../../src/cli/commands/init';
 import type { TModuleFormat } from '../../src/ast/types';
 
@@ -915,5 +916,49 @@ describe('initCommand --json with persona', () => {
     const report = JSON.parse(logs.join(''));
     expect(report.persona).toBe('nocode');
     expect(report.template).toBe('ai-agent');
+  });
+
+  it('should include agentLaunched: false in JSON report with --yes', async () => {
+    const dir = makeFixture('init-json-agent');
+    const logs: string[] = [];
+    const originalLog = console.log;
+    const originalCwd = process.cwd;
+
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    process.cwd = () => dir;
+
+    try {
+      await initCommand(dir, {
+        yes: true,
+        json: true,
+        install: false,
+        git: false,
+      });
+    } finally {
+      console.log = originalLog;
+      process.cwd = originalCwd;
+    }
+
+    const report = JSON.parse(logs.join(''));
+    expect(report.agentLaunched).toBe(false);
+  });
+});
+
+// ── handleAgentHandoff ────────────────────────────────────────────────────────
+
+describe('handleAgentHandoff', () => {
+  it('should return false when no tools available', async () => {
+    const dir = makeFixture('agent-handoff-empty');
+    // Mock confirm/select to avoid TTY prompts
+    const result = await handleAgentHandoff({
+      projectName: 'test',
+      persona: 'expert',
+      template: 'sequential',
+      targetDir: dir,
+      cliTools: [],
+      guiTools: [],
+      filesCreated: ['package.json'],
+    });
+    expect(result).toBe(false);
   });
 });

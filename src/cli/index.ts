@@ -224,6 +224,7 @@ program
   .option('--use-case <category>', 'Use case: data, ai, api, automation, cicd, minimal')
   .option('--mcp', 'Auto-configure MCP for AI editors after scaffolding')
   .option('--no-mcp', 'Skip MCP setup prompt')
+  .option('--no-agent', 'Skip post-init agent launch prompt')
   .option('--install', 'Run npm install after scaffolding')
   .option('--no-install', 'Skip npm install')
   .option('--git', 'Initialize a git repository')

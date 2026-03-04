@@ -5,6 +5,7 @@
 
 import { logger } from '../utils/logger.js';
 import { workflowTemplates } from '../templates/index.js';
+import { buildContext } from '../../context/index.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,11 +15,19 @@ export type UseCaseId = 'data' | 'ai' | 'api' | 'automation' | 'cicd' | 'minimal
 // ── Prompt choices ───────────────────────────────────────────────────────────
 
 export const PERSONA_CHOICES = [
-  { value: 'nocode' as PersonaId, name: 'AI does everything', description: 'Describe in plain language, AI writes the code' },
-  { value: 'vibecoder' as PersonaId, name: 'AI-assisted coding', description: 'Work with AI tools, iterate by describing changes' },
-  { value: 'lowcode' as PersonaId, name: 'Template-based', description: 'Pick a template, customize the generated code' },
-  { value: 'expert' as PersonaId, name: 'Full TypeScript', description: 'Write workflows from scratch with the full CLI' },
+  { value: 'nocode' as PersonaId, name: 'AI does everything', description: 'Describe in plain language, AI builds the workflow. Guided setup included.' },
+  { value: 'vibecoder' as PersonaId, name: 'AI-assisted coding', description: 'Collaborate with AI, iterate by describing changes. Hands-on setup with AI.' },
+  { value: 'lowcode' as PersonaId, name: 'Template-based', description: 'Pick a template, customize the code. AI helps with initial setup.' },
+  { value: 'expert' as PersonaId, name: 'Full TypeScript', description: 'Write workflows from scratch. Minimal setup, full control.' },
 ];
+
+/** One-liner printed after persona selection to set expectations. null = skip. */
+export const PERSONA_CONFIRMATIONS: Record<PersonaId, string | null> = {
+  nocode: 'AI will handle the code. You describe, it builds.',
+  vibecoder: 'You and AI will build this together.',
+  lowcode: 'Starting from a template, you customize from there.',
+  expert: null,
+};
 
 export const USE_CASE_CHOICES = [
   { value: 'data' as UseCaseId, name: 'Data pipeline', description: 'Process, transform, and validate data' },
@@ -332,10 +341,12 @@ export interface PrintNextStepsOptions {
   workflowCode: string | null;
   workflowFile: string;
   mcpConfigured?: string[];
+  /** When true, skip persona-specific guidance (the agent handles it) */
+  agentLaunched?: boolean;
 }
 
 export function printNextSteps(opts: PrintNextStepsOptions): void {
-  const { projectName, persona, displayDir, installSkipped, workflowCode, workflowFile } = opts;
+  const { projectName, persona, displayDir, installSkipped, workflowCode, workflowFile, agentLaunched } = opts;
 
   // Workflow preview
   if (workflowCode) {
@@ -373,15 +384,17 @@ export function printNextSteps(opts: PrintNextStepsOptions): void {
   }
   logger.log('    npm run dev');
 
-  // Persona-specific guidance
-  if (persona === 'nocode') {
-    printNocodeGuidance(projectName);
-  } else if (persona === 'vibecoder') {
-    printVibecoderGuidance();
-  } else if (persona === 'lowcode') {
-    printLowcodeGuidance();
-  } else {
-    printExpertGuidance();
+  // Persona-specific guidance (skip if agent was launched, it handles this)
+  if (!agentLaunched) {
+    if (persona === 'nocode') {
+      printNocodeGuidance(projectName);
+    } else if (persona === 'vibecoder') {
+      printVibecoderGuidance();
+    } else if (persona === 'lowcode') {
+      printLowcodeGuidance();
+    } else {
+      printExpertGuidance();
+    }
   }
 
   logger.newline();
@@ -440,3 +453,178 @@ function pad(name: string, width: number): string {
   const padding = Math.max(1, width - name.length - 4); // 4 for "src/" prefix
   return ' '.repeat(padding);
 }
+
+// ── Agent handoff ─────────────────────────────────────────────────────────────
+
+/** Maps each persona to the fw_context preset used for agent knowledge bootstrap. */
+export const AGENT_CONTEXT_PRESETS: Record<PersonaId, string> = {
+  nocode: 'core',
+  vibecoder: 'authoring',
+  lowcode: 'authoring',
+  expert: 'authoring',
+};
+
+const AGENT_PROMPTS: Record<PersonaId, string> = {
+  nocode: `Before doing anything else, call fw_context(preset="core", profile="assistant") to learn Flow Weaver's annotation syntax and workflow conventions.
+
+I just created a new Flow Weaver project called "{name}" using the {template} template.
+Help me set it up step by step:
+
+1. Show the current workflow as a diagram (use fw_diagram, ascii-compact)
+2. Walk me through what each step does in plain language
+3. Ask me what I want this workflow to do
+4. Based on my answer:
+   - Customize the workflow (add/remove/rename steps with fw_modify)
+   - Implement each step with real working code (fw_implement_node)
+   - Set up supporting files if needed (.env template, basic tests)
+5. Show the final result as a step list and diagram
+
+Keep everything in plain language. Don't show code unless I ask.`,
+
+  vibecoder: `Before doing anything else, call fw_context(preset="authoring", profile="assistant") to load Flow Weaver reference.
+
+I just created a new Flow Weaver project called "{name}" using the {template} template.
+Let's set it up together:
+
+1. Show the workflow diagram and briefly explain the structure
+2. Ask what I want to build, then iterate with me
+3. Customize the workflow, implement the nodes, add supporting files
+4. Show code when it's relevant, I'm comfortable reading and tweaking it
+5. Show the final diagram when we're done`,
+
+  lowcode: `Before doing anything else, call fw_context(preset="authoring", profile="assistant") to load Flow Weaver reference.
+
+I just created a new Flow Weaver project called "{name}" using the {template} template.
+Help me customize it:
+
+1. Show the workflow diagram and explain what the template gives me
+2. Ask what I want this workflow to do
+3. Customize: rename nodes, adjust connections, implement the functions
+4. Add supporting files if needed (.env, tests)
+5. Show the final diagram
+
+I prefer working from templates and making targeted changes.`,
+
+  expert: `Before doing anything else, call fw_context(preset="authoring", profile="assistant") to load Flow Weaver reference.
+
+New Flow Weaver project "{name}" (template: {template}).
+Show the workflow diagram and current implementation status (fw_workflow_status).
+Then ask what I'd like to build.`,
+};
+
+/**
+ * Generate the initial prompt for a CLI agent (Claude Code, Codex).
+ * Interpolates project name and template into the persona-specific template.
+ */
+export function generateAgentPrompt(projectName: string, persona: PersonaId, template: string): string {
+  return AGENT_PROMPTS[persona]
+    .replace(/\{name\}/g, projectName)
+    .replace(/\{template\}/g, template);
+}
+
+/**
+ * Generate a shorter prompt suitable for pasting into a GUI editor.
+ * Persona-aware but more concise than the full agent prompt.
+ */
+export function generateEditorPrompt(projectName: string, persona: PersonaId, template: string): string {
+  const preset = AGENT_CONTEXT_PRESETS[persona];
+  const bootstrap = `Start by calling fw_context(preset="${preset}", profile="assistant") to learn Flow Weaver.`;
+  if (persona === 'nocode') {
+    return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template. Show me the workflow diagram, walk me through what each step does in plain language, then ask me what I want to build. Keep it simple, no code.`;
+  }
+  if (persona === 'vibecoder') {
+    return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template. Show me the workflow diagram, then let's iterate on it together. I'll describe what I want and you handle the implementation.`;
+  }
+  if (persona === 'lowcode') {
+    return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template. Show me the workflow diagram and explain the template, then help me customize it for my use case.`;
+  }
+  return `${bootstrap}\nFlow Weaver project "${projectName}" (template: ${template}). Show the workflow diagram and implementation status.`;
+}
+
+/**
+ * Generate the full content for a PROJECT_SETUP.md file.
+ * Includes the agent prompt plus project context.
+ */
+export function generateSetupPromptFile(
+  projectName: string,
+  persona: PersonaId,
+  template: string,
+  filesCreated: string[],
+): string {
+  const prompt = generateAgentPrompt(projectName, persona, template);
+
+  // Embed Flow Weaver knowledge directly so the file is self-contained.
+  // GUI editors may not have MCP tools configured when first reading this file.
+  const contextResult = buildContext({ preset: 'core', profile: 'assistant' });
+
+  const lines = [
+    `# ${projectName} Setup`,
+    '',
+    'Paste this into your AI editor chat, or ask it to "follow the instructions in PROJECT_SETUP.md".',
+    '',
+    '---',
+    '',
+    prompt,
+    '',
+    '---',
+    '',
+    '## Flow Weaver Reference',
+    '',
+    'The following is embedded Flow Weaver documentation so you can work with this project',
+    'even before MCP tools are connected. For deeper topics, call `fw_docs` once MCP is available.',
+    '',
+    contextResult.content,
+    '',
+    '---',
+    '',
+    '## Project context',
+    '',
+    `- **Template**: ${template}`,
+    `- **Persona**: ${persona}`,
+    '',
+    '### Files created',
+    '',
+    ...filesCreated.map((f) => `- \`${f}\``),
+    '',
+    '### Available Flow Weaver MCP tools',
+    '',
+    'Your AI editor has access to 48 Flow Weaver tools including:',
+    '- `fw_diagram` - Generate workflow diagrams',
+    '- `fw_modify` / `fw_modify_batch` - Add/remove/rename nodes and connections',
+    '- `fw_implement_node` - Write function bodies for stub nodes',
+    '- `fw_validate` - Check for errors',
+    '- `fw_compile` - Generate executable code',
+    '- `fw_describe` - Inspect workflow structure',
+    '',
+    '*Delete this file after your initial setup is complete.*',
+    '',
+  ];
+  return lines.join('\n');
+}
+
+/**
+ * Print a copyable prompt in a bordered box.
+ */
+export function printCopyablePrompt(prompt: string): void {
+  const lines = prompt.split('\n');
+  const maxLen = Math.max(...lines.map((l) => l.length));
+  const width = Math.min(maxLen + 4, 72);
+
+  logger.newline();
+  logger.log(`  ${logger.bold('Paste this into your AI editor to get started:')}`);
+  logger.newline();
+  logger.log(`  ${'┌' + '─'.repeat(width) + '┐'}`);
+  for (const line of lines) {
+    const padded = line + ' '.repeat(Math.max(0, width - 2 - line.length));
+    logger.log(`  │ ${padded} │`);
+  }
+  logger.log(`  ${'└' + '─'.repeat(width) + '┘'}`);
+}
+
+/** Default for the "Launch agent?" confirm prompt per persona */
+export const AGENT_LAUNCH_DEFAULTS: Record<PersonaId, boolean> = {
+  nocode: true,
+  vibecoder: true,
+  lowcode: true,
+  expert: false,
+};

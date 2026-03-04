@@ -20,6 +20,15 @@ const MCP_ENTRY = { command: MCP_COMMAND, args: [...MCP_ARGS] };
 
 export type ToolId = 'claude' | 'cursor' | 'vscode' | 'windsurf' | 'codex' | 'openclaw';
 
+/** Tools that can be spawned as interactive CLI sessions */
+export const CLI_TOOL_IDS: ReadonlySet<ToolId> = new Set(['claude', 'codex']);
+
+/** Binary name to spawn for each CLI tool */
+export const CLI_TOOL_BINARY: Partial<Record<ToolId, string>> = {
+  claude: 'claude',
+  codex: 'codex',
+};
+
 export interface McpSetupDeps {
   execCommand: (cmd: string) => Promise<{ stdout: string; exitCode: number }>;
   fileExists: (filePath: string) => Promise<boolean>;
@@ -327,6 +336,10 @@ async function configureTool(tool: ToolDefinition, deps: McpSetupDeps): Promise<
 export interface McpSetupFromInitResult {
   configured: string[];
   failed: string[];
+  /** Tool IDs that can be spawned as interactive CLI sessions (e.g. claude, codex) */
+  cliTools: ToolId[];
+  /** Tool IDs that are GUI-only editors (e.g. cursor, vscode, windsurf) */
+  guiTools: ToolId[];
 }
 
 /**
@@ -361,7 +374,14 @@ export async function runMcpSetupFromInit(
     }
   }
 
-  return { configured, failed };
+  // Classify configured/detected tools as CLI or GUI
+  const allConfiguredIds = detected
+    .filter((t) => t.detected && (t.configured || configured.includes(t.displayName)))
+    .map((t) => t.id);
+  const cliTools = allConfiguredIds.filter((id) => CLI_TOOL_IDS.has(id));
+  const guiTools = allConfiguredIds.filter((id) => !CLI_TOOL_IDS.has(id));
+
+  return { configured, failed, cliTools, guiTools };
 }
 
 // ── Command ──────────────────────────────────────────────────────────────────
