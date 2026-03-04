@@ -604,18 +604,35 @@ export function generateSetupPromptFile(
 
 /**
  * Print a copyable prompt in a bordered box.
+ * Long lines are word-wrapped to fit within the box.
  */
 export function printCopyablePrompt(prompt: string): void {
-  const lines = prompt.split('\n');
-  const maxLen = Math.max(...lines.map((l) => l.length));
-  const width = Math.min(maxLen + 4, 72);
+  const maxInner = 70; // content width inside the box
+  const wrapped: string[] = [];
+  for (const raw of prompt.split('\n')) {
+    if (raw.length <= maxInner) {
+      wrapped.push(raw);
+    } else {
+      // Word-wrap at maxInner
+      let remaining = raw;
+      while (remaining.length > maxInner) {
+        let breakAt = remaining.lastIndexOf(' ', maxInner);
+        if (breakAt <= 0) breakAt = maxInner;
+        wrapped.push(remaining.slice(0, breakAt));
+        remaining = remaining.slice(breakAt).replace(/^ /, '');
+      }
+      if (remaining) wrapped.push(remaining);
+    }
+  }
+
+  const width = maxInner + 2; // +2 for padding inside borders
 
   logger.newline();
   logger.log(`  ${logger.bold('Paste this into your AI editor to get started:')}`);
   logger.newline();
   logger.log(`  ${'┌' + '─'.repeat(width) + '┐'}`);
-  for (const line of lines) {
-    const padded = line + ' '.repeat(Math.max(0, width - 2 - line.length));
+  for (const line of wrapped) {
+    const padded = line + ' '.repeat(Math.max(0, maxInner - line.length));
     logger.log(`  │ ${padded} │`);
   }
   logger.log(`  ${'└' + '─'.repeat(width) + '┘'}`);
