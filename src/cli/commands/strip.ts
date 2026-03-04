@@ -37,6 +37,7 @@ export async function stripCommand(input: string, options: StripOptions = {}): P
     process.exit(1);
   }
 
+  const t = logger.timer();
   let stripped = 0;
   let skipped = 0;
 
@@ -75,5 +76,5 @@ export async function stripCommand(input: string, options: StripOptions = {}): P
     }
   }
 
-  logger.success(`${stripped} file${stripped !== 1 ? 's' : ''} stripped, ${skipped} skipped`);
+  logger.success(`${stripped} file${stripped !== 1 ? 's' : ''} stripped, ${skipped} skipped in ${t.elapsed()}`);
 }

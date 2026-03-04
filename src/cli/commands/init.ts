@@ -413,29 +413,26 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
     // Post-scaffold actions
     let installResult: { success: boolean; error?: string } | undefined;
     if (config.install) {
-      if (!options.json) {
-        logger.info('Installing dependencies...');
-      }
+      const spinner = !options.json ? logger.spinner('Installing dependencies...') : null;
       installResult = runNpmInstall(config.targetDir);
+      if (spinner) {
+        if (installResult.success) spinner.stop('Dependencies installed');
+        else spinner.fail(`npm install failed: ${installResult.error}`);
+      }
     }
 
     let gitResult: { success: boolean; error?: string } | undefined;
     if (config.git) {
-      if (!options.json) {
-        logger.info('Initializing git repository...');
-      }
       gitResult = runGitInit(config.targetDir);
     }
 
-    // Auto-compile the workflow so `npm start` works immediately
-    const workflowFile = `${config.projectName}-workflow.ts`;
-    const workflowPath = path.join(config.targetDir, 'src', workflowFile);
     // Auto-compile the workflow so `npm start` works immediately.
     // Skip in JSON mode since compileCommand writes to logger.
+    const workflowFile = `${config.projectName}-workflow.ts`;
+    const workflowPath = path.join(config.targetDir, 'src', workflowFile);
     let compileResult: { success: boolean; error?: string } | undefined;
     if (!options.json && fs.existsSync(workflowPath)) {
       try {
-        logger.info('Compiling workflow...');
         await compileCommand(workflowPath, { format: config.format });
         compileResult = { success: true };
       } catch (err) {
@@ -461,26 +458,17 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
     }
 
     // Human output
-    logger.section('Project created');
+    logger.newline();
+    logger.success(`Created ${logger.highlight(config.projectName)} ${logger.dim(`(${config.template}, ${config.format.toUpperCase()})`)}`);
 
-    for (const file of filesCreated) {
-      logger.success(`Created ${file}`);
-    }
-    for (const file of filesSkipped) {
-      logger.warn(`Skipped ${file} (already exists)`);
-    }
-
-    if (installResult) {
-      if (installResult.success) {
-        logger.success('Dependencies installed');
-      } else {
-        logger.warn(`npm install failed: ${installResult.error}`);
-      }
+    logger.log(`  ${filesCreated.join(', ')}`);
+    if (filesSkipped.length > 0) {
+      logger.warn(`Skipped ${filesSkipped.length} existing file(s)`);
     }
 
     if (gitResult) {
       if (gitResult.success) {
-        logger.success('Git repository initialized');
+        logger.success('Git initialized');
       } else {
         logger.warn(`git init failed: ${gitResult.error}`);
       }
@@ -488,14 +476,14 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
 
     if (compileResult) {
       if (compileResult.success) {
-        logger.success('Workflow compiled (npm start works immediately)');
+        logger.success('Workflow compiled');
       } else {
-        logger.warn(`Workflow compile failed: ${compileResult.error}`);
+        logger.warn(`Compile failed: ${compileResult.error}`);
       }
     }
 
     logger.newline();
-    logger.section('Next steps');
+    logger.log(`  ${logger.bold('Next steps')}`);
 
     const relDir = path.relative(process.cwd(), config.targetDir);
     const displayDir =

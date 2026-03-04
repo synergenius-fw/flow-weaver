@@ -41,6 +41,14 @@ vi.mock('../../src/cli/utils/logger.js', () => ({
     log: vi.fn(),
     newline: vi.fn(),
     section: vi.fn(),
+    progress: vi.fn(),
+    dim: vi.fn((s: string) => s),
+    bold: vi.fn((s: string) => s),
+    highlight: vi.fn((s: string) => s),
+    banner: vi.fn(),
+    table: vi.fn(),
+    spinner: vi.fn(() => ({ stop: vi.fn(), fail: vi.fn(), update: vi.fn() })),
+    timer: vi.fn(() => ({ elapsed: () => '0ms', ms: () => 0 })),
   },
 }));
 
@@ -107,7 +115,7 @@ describe('migrateCommand', () => {
     await migrateCommand('**/*.ts');
 
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('0 file(s) updated')
+      expect.stringContaining('0 file(s) migrated')
     );
     expect(logger.info).toHaveBeenCalledWith(
       expect.stringContaining('1 already current')
@@ -135,7 +143,7 @@ describe('migrateCommand', () => {
     expect(updated).toBe('// new workflow syntax');
     expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('migrated'));
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('1 file(s) updated')
+      expect.stringContaining('1 file(s) migrated')
     );
   });
 
@@ -161,7 +169,7 @@ describe('migrateCommand', () => {
     expect(content).toBe(originalContent);
     expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('would be updated'));
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('Dry run complete')
+      expect.stringContaining('Dry run:')
     );
   });
 
@@ -218,7 +226,7 @@ describe('migrateCommand', () => {
     await migrateCommand('**/*.ts');
 
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('1 file(s) updated')
+      expect.stringContaining('1 file(s) migrated')
     );
     expect(logger.info).toHaveBeenCalledWith(
       expect.stringContaining('1 already current')
@@ -289,7 +297,7 @@ describe('migrateCommand', () => {
     await migrateCommand('**/*.ts');
 
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('Migration complete')
+      expect.stringContaining('migrated')
     );
   });
 
@@ -311,7 +319,7 @@ describe('migrateCommand', () => {
     await migrateCommand('**/*.ts', { dryRun: true });
 
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('Dry run complete')
+      expect.stringContaining('Dry run:')
     );
   });
 });
