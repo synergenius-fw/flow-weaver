@@ -51,11 +51,14 @@ export function renderSVG(graph: DiagramGraph, options: DiagramOptions = {}): st
   parts.push(`  .port-type-label { font-size: 10px; font-weight: 600; }`);
   parts.push(`</style>`);
 
-  // Defs (dot grid pattern + connection gradients)
+  // Defs (dot grid pattern + node shadow filter + connection gradients)
   parts.push(`<defs>`);
   parts.push(`  <pattern id="dot-grid" width="20" height="20" patternUnits="userSpaceOnUse">`);
-  parts.push(`    <circle cx="10" cy="10" r="1.5" fill="${theme.dotColor}" opacity="0.6"/>`);
+  parts.push(`    <circle cx="10" cy="10" r="1.5" fill="${theme.dotColor}" opacity="${theme.dotOpacity}"/>`);
   parts.push(`  </pattern>`);
+  parts.push(`  <filter id="node-shadow" x="-10%" y="-10%" width="130%" height="140%">`);
+  parts.push(`    <feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="${theme.nodeShadowOpacity}" flood-color="#000"/>`);
+  parts.push(`  </filter>`);
   for (let i = 0; i < allConnections.length; i++) {
     const conn = allConnections[i];
     parts.push(`  <linearGradient id="conn-grad-${i}" x1="0%" y1="0%" x2="100%" y2="0%">`);
@@ -141,7 +144,7 @@ function renderScopeConnection(parts: string[], conn: DiagramConnection, allConn
 function renderNodeBody(parts: string[], node: DiagramNode, theme: ThemePalette, indent: string): void {
   const strokeColor = node.color !== '#334155' ? node.color : theme.nodeIconColor;
   parts.push(
-    `${indent}<rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="${BORDER_RADIUS}" fill="${theme.nodeFill}" stroke="${strokeColor}" stroke-width="2"/>`,
+    `${indent}<rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="${BORDER_RADIUS}" fill="${theme.nodeFill}" stroke="${strokeColor}" stroke-width="2" filter="url(#node-shadow)"/>`,
   );
 
   const iconPath = NODE_ICON_PATHS[node.icon] ?? NODE_ICON_PATHS.code;
@@ -167,7 +170,7 @@ function renderNode(
     // Scoped node: body rect only (no icon), then scope internals
     const strokeColor = node.color !== '#334155' ? node.color : theme.nodeIconColor;
     parts.push(
-      `    <rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="${BORDER_RADIUS}" fill="${theme.nodeFill}" stroke="${strokeColor}" stroke-width="2"/>`,
+      `    <rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="${BORDER_RADIUS}" fill="${theme.nodeFill}" stroke="${strokeColor}" stroke-width="2" filter="url(#node-shadow)"/>`,
     );
     renderScopedContent(parts, node, theme, themeName, allConnections);
   } else {

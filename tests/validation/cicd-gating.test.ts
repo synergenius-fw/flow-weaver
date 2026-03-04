@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { isCICDWorkflow, getJobNames, getDeclaredSecrets, getReferencedSecrets } from '../../src/validation/cicd-detection';
 import { getCICDValidationRules } from '../../src/validation/cicd-rules';
 import { validateWorkflow } from '../../src/api/validate';
+import { parser } from '../../src/parser';
 import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST, TConnectionAST } from '../../src/ast/types';
 
 // ---------------------------------------------------------------------------
@@ -300,5 +301,119 @@ describe('CI/CD validation gating in validateWorkflow()', () => {
   it('getCICDValidationRules() should return rules', () => {
     const rules = getCICDValidationRules();
     expect(rules.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// End-to-end: secret:NAME parsed from source through full pipeline
+// ---------------------------------------------------------------------------
+
+describe('secret:NAME end-to-end parsing', () => {
+  const cicdSource = `
+/**
+ * @flowWeaver nodeType
+ * @input execute - Run flag
+ * @input token - Auth token
+ * @output onSuccess - Done
+ * @output onFailure - Failed
+ */
+declare function deploy(execute: boolean, token: string): { onSuccess: boolean; onFailure: boolean };
+
+/**
+ * @flowWeaver workflow
+ * @secret DEPLOY_TOKEN - Deployment auth token
+ * @node d deploy [job: "deploy"]
+ * @connect Start.execute -> d.execute
+ * @connect secret:DEPLOY_TOKEN -> d.token
+ * @connect d.onSuccess -> Exit.onSuccess
+ */
+export function cicdPipeline(execute: boolean): { onSuccess: boolean } {
+  throw new Error('stub');
+}
+`;
+
+  it('should parse secret:NAME connections into the AST', () => {
+    const result = parser.parseFromString(cicdSource);
+    expect(result.errors).toEqual([]);
+    const wf = result.workflows[0];
+    const secretConn = wf.connections.find(c => c.from.node.startsWith('secret:'));
+    expect(secretConn).toBeDefined();
+    expect(secretConn!.from.node).toBe('secret:DEPLOY_TOKEN');
+    expect(secretConn!.from.port).toBe('value');
+    expect(secretConn!.to.node).toBe('d');
+    expect(secretConn!.to.port).toBe('token');
+  });
+
+  it('should detect declared and referenced secrets correctly', () => {
+    const result = parser.parseFromString(cicdSource);
+    const wf = result.workflows[0];
+    expect(getDeclaredSecrets(wf)).toEqual(['DEPLOY_TOKEN']);
+    expect(getReferencedSecrets(wf)).toEqual(['DEPLOY_TOKEN']);
+  });
+
+  it('should catch undeclared secrets via CICD_SECRET_NOT_DECLARED', () => {
+    const undeclaredSource = `
+/**
+ * @flowWeaver nodeType
+ * @input execute - Run flag
+ * @input token - Auth token
+ * @output onSuccess - Done
+ * @output onFailure - Failed
+ */
+declare function deploy(execute: boolean, token: string): { onSuccess: boolean; onFailure: boolean };
+
+/**
+ * @flowWeaver workflow
+ * @node d deploy [job: "deploy"]
+ * @connect Start.execute -> d.execute
+ * @connect secret:MISSING_SECRET -> d.token
+ * @connect d.onSuccess -> Exit.onSuccess
+ */
+export function cicdPipeline2(execute: boolean): { onSuccess: boolean } {
+  throw new Error('stub');
+}
+`;
+    const result = parser.parseFromString(undeclaredSource);
+    expect(result.errors).toEqual([]);
+    const wf = result.workflows[0];
+
+    // The workflow must be detected as CI/CD (it has a job attribute)
+    expect(isCICDWorkflow(wf)).toBe(true);
+
+    const validation = validateWorkflow(wf);
+    const secretErrors = validation.errors.filter(e => e.code === 'CICD_SECRET_NOT_DECLARED');
+    expect(secretErrors.length).toBe(1);
+    expect(secretErrors[0].message).toContain('MISSING_SECRET');
+  });
+
+  it('should catch unused secrets via CICD_SECRET_UNUSED', () => {
+    const unusedSource = `
+/**
+ * @flowWeaver nodeType
+ * @input execute - Run flag
+ * @output onSuccess - Done
+ * @output onFailure - Failed
+ */
+declare function build(execute: boolean): { onSuccess: boolean; onFailure: boolean };
+
+/**
+ * @flowWeaver workflow
+ * @secret UNUSED_TOKEN - Never wired
+ * @node b build [job: "build"]
+ * @connect Start.execute -> b.execute
+ * @connect b.onSuccess -> Exit.onSuccess
+ */
+export function cicdPipeline3(execute: boolean): { onSuccess: boolean } {
+  throw new Error('stub');
+}
+`;
+    const result = parser.parseFromString(unusedSource);
+    expect(result.errors).toEqual([]);
+    const wf = result.workflows[0];
+
+    const validation = validateWorkflow(wf);
+    const unusedWarnings = validation.warnings.filter(e => e.code === 'CICD_SECRET_UNUSED');
+    expect(unusedWarnings.length).toBe(1);
+    expect(unusedWarnings[0].message).toContain('UNUSED_TOKEN');
   });
 });

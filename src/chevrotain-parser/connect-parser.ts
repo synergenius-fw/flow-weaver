@@ -49,15 +49,28 @@ class ConnectParser extends CstParser {
     });
   });
 
-  // node.port or node.port:scope
+  // node.port, node.port:scope, or pseudo-node (secret:NAME)
   private portRef = this.RULE('portRef', () => {
     this.CONSUME(Identifier, { LABEL: 'nodeId' });
-    this.CONSUME(Dot);
-    this.CONSUME2(Identifier, { LABEL: 'portName' });
-    this.OPTION(() => {
-      this.CONSUME(Colon);
-      this.CONSUME3(Identifier, { LABEL: 'scopeName' });
-    });
+    this.OR([
+      {
+        ALT: () => {
+          this.CONSUME(Dot);
+          this.CONSUME2(Identifier, { LABEL: 'portName' });
+          this.OPTION(() => {
+            this.CONSUME(Colon);
+            this.CONSUME3(Identifier, { LABEL: 'scopeName' });
+          });
+        },
+      },
+      {
+        // pseudo-node: secret:NAME (nodeId="secret", colon, pseudoName="NAME")
+        ALT: () => {
+          this.CONSUME2(Colon, { LABEL: 'pseudoColon' });
+          this.CONSUME4(Identifier, { LABEL: 'pseudoName' });
+        },
+      },
+    ]);
   });
 }
 
@@ -86,8 +99,10 @@ interface ConnectLineContext {
 
 interface PortRefContext {
   nodeId: CstNodeWithImage[];
-  portName: CstNodeWithImage[];
+  portName?: CstNodeWithImage[];
   scopeName?: CstNodeWithImage[];
+  pseudoColon?: CstNodeWithImage[];
+  pseudoName?: CstNodeWithImage[];
 }
 
 class ConnectVisitor extends BaseVisitor {
@@ -114,7 +129,12 @@ class ConnectVisitor extends BaseVisitor {
 
   portRef(ctx: PortRefContext): PortReference {
     const nodeId = ctx.nodeId[0].image;
-    const portName = ctx.portName[0].image;
+    // Pseudo-node branch: secret:NAME -> { nodeId: "secret:NAME", portName: "value" }
+    if (ctx.pseudoColon) {
+      const pseudoName = ctx.pseudoName![0].image;
+      return { nodeId: `${nodeId}:${pseudoName}`, portName: 'value' };
+    }
+    const portName = ctx.portName![0].image;
     const scope = ctx.scopeName?.[0]?.image;
     return { nodeId, portName, scope };
   }

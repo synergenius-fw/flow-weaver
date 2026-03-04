@@ -124,9 +124,38 @@ describe('renderSVG', () => {
     expect(svg).toContain('opacity="0.5"');
   });
 
-  it('does not include drop shadow filter', () => {
+  it('includes node-shadow filter definition', () => {
     const svg = renderSVG(simpleGraph());
-    expect(svg).not.toContain('filter id="shadow"');
+    expect(svg).toContain('filter id="node-shadow"');
+    expect(svg).toContain('<feDropShadow');
+  });
+
+  it('applies node-shadow filter to node body rects', () => {
+    const svg = renderSVG(simpleGraph());
+    expect(svg).toContain('filter="url(#node-shadow)"');
+  });
+
+  it('uses themed nodeShadowOpacity in the shadow filter', () => {
+    const darkSvg = renderSVG(simpleGraph());
+    expect(darkSvg).toContain('flood-opacity="0.15"');
+
+    const lightSvg = renderSVG(simpleGraph(), { theme: 'light' });
+    expect(lightSvg).toContain('flood-opacity="0.08"');
+  });
+
+  it('uses themed dotOpacity for dot grid pattern', () => {
+    const darkTheme = getTheme('dark');
+    const darkSvg = renderSVG(simpleGraph());
+    // The dot pattern circle (r="1.5") should use the dark theme's dotOpacity
+    const darkCircleLine = darkSvg.split('\n').find(l => l.includes('r="1.5"') && l.includes('opacity='));
+    expect(darkCircleLine).toBeTruthy();
+    expect(darkCircleLine).toContain(`opacity="${darkTheme.dotOpacity}"`);
+
+    const lightTheme = getTheme('light');
+    const lightSvg = renderSVG(simpleGraph(), { theme: 'light' });
+    const lightCircleLine = lightSvg.split('\n').find(l => l.includes('r="1.5"') && l.includes('opacity='));
+    expect(lightCircleLine).toBeTruthy();
+    expect(lightCircleLine).toContain(`opacity="${lightTheme.dotOpacity}"`);
   });
 
   it('renders Exit onFailure port in failure color (red), not STEP color (green)', () => {
@@ -149,6 +178,14 @@ describe('renderSVG', () => {
 
 describe('renderSVG — scoped workflows', () => {
   const scopedGraph = () => buildDiagramGraph(createScopedWorkflow());
+
+  it('applies node-shadow filter to scoped parent rect', () => {
+    const svg = renderSVG(scopedGraph());
+    // Scoped parent rects should also have the shadow filter
+    const shadowFilterCount = (svg.match(/filter="url\(#node-shadow\)"/g) || []).length;
+    // At least one for the scoped parent + child nodes
+    expect(shadowFilterCount).toBeGreaterThanOrEqual(2);
+  });
 
   it('renders scope area with dashed inner rectangle', () => {
     const svg = renderSVG(scopedGraph());

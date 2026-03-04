@@ -7,6 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { pathToFileURL } from 'url';
 import * as YAML from 'js-yaml';
 import type { DeploymentConfig, PartialDeploymentConfig, CliConfigOverrides } from './types.js';
 import { DEFAULT_CONFIG, getDefaultConfig } from './defaults.js';
@@ -125,7 +126,7 @@ async function loadConfigFromPath(filePath: string): Promise<PartialDeploymentCo
   // TypeScript files - dynamic import
   if (ext === '.ts') {
     try {
-      const module = await import(absolutePath);
+      const module = await import(pathToFileURL(absolutePath).href);
       return (module.default || module) as PartialDeploymentConfig;
     } catch {
       // Config file loading failed, skip it

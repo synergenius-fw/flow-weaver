@@ -74,4 +74,6 @@ export interface ThemePalette {
   labelBadgeBorder: string;
   nodeIconColor: string;
   scopeAreaStroke: string;
+  nodeShadowOpacity: number;
+  dotOpacity: number;
 }
