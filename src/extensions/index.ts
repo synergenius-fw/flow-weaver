@@ -1,12 +1,15 @@
 /**
  * Extension bootstrap loader.
  *
- * Side-effect imports for built-in extensions. Each extension self-registers
- * through the existing registry infrastructure (tag handlers, validation rules,
- * doc topics, templates, init use cases).
+ * Previously loaded built-in CI/CD and Inngest extensions via side-effect
+ * imports. Both have been extracted to marketplace packs:
  *
- * CLI and MCP entry points import this file once at startup.
+ * - CI/CD: @synergenius/flowweaver-pack-cicd
+ * - Inngest: @synergenius/flowweaver-pack-inngest
+ *
+ * Extensions are now discovered via marketplace pack discovery in the parser
+ * (loadPackHandlers) or registered by packs during installation.
+ *
+ * This file is kept as a no-op to avoid breaking CLI/MCP entry points that
+ * import it. It can be removed once those imports are cleaned up.
  */
-
-import './cicd/register.js';
-import './inngest/register.js';
