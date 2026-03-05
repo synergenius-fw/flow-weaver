@@ -86,6 +86,13 @@ function deployS3(accessKey: string = '', secretKey: string = ''): { result: str
 `
       : '';
 
+    const stageAnnotations = hasDeploy
+      ? ` * @stage test\n * @stage build\n * @stage deploy\n`
+      : ` * @stage test\n * @stage build\n`;
+    const jobAnnotations = hasDeploy
+      ? ` * @job test retry=1\n * @job build timeout="10m"\n * @job deploy allow_failure=false\n`
+      : ` * @job test retry=1\n * @job build timeout="10m"\n`;
+
     return `/** @flowWeaver nodeType
  * @expression
  * @label Checkout code
@@ -124,6 +131,7 @@ ${deployStub}
  * @secret NPM_TOKEN - npm auth token${deploySecret}
  * @cache npm key="package-lock.json"
  *
+${stageAnnotations}${jobAnnotations} *
  * @node co checkout [job: "test"] [position: 270 0]
  * @node setup setupNode [job: "test"] [position: 540 0]
  * @node install npmInstall [job: "test"] [position: 810 0]

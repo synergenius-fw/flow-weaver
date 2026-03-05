@@ -352,6 +352,20 @@ function parseJob(text: string, d: DeployMap, warnings: string[]): void {
         jc.rules = jc.rules || [];
         jc.rules.push({ if: value });
         break;
+      case 'when': {
+        // Modifier: sets `when` on the last rule, or creates a standalone rule
+        jc.rules = jc.rules || [];
+        if (jc.rules.length === 0) jc.rules.push({});
+        jc.rules[jc.rules.length - 1].when = value;
+        break;
+      }
+      case 'changes': {
+        // Modifier: sets `changes` on the last rule
+        jc.rules = jc.rules || [];
+        if (jc.rules.length === 0) jc.rules.push({});
+        jc.rules[jc.rules.length - 1].changes = value.split(',').map(s => s.trim()).filter(Boolean);
+        break;
+      }
       case 'reports': {
         jc.reports = jc.reports || [];
         for (const pair of value.split(',')) {

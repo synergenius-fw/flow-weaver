@@ -190,7 +190,7 @@ export const NODE_ACTION_MAP: Record<string, ActionMapping> = {
   },
   'slack-notify': {
     githubAction: 'slackapi/slack-github-action@v1',
-    gitlabScript: ['curl -X POST -H "Content-type: application/json" --data "{\\\"text\\\":\\\"Pipeline complete\\\"}" $SLACK_WEBHOOK_URL'],
+    gitlabScript: ["curl -X POST -H 'Content-type: application/json' --data '{\"text\":\"Pipeline complete\"}' $SLACK_WEBHOOK_URL"],
     label: 'Send Slack notification',
   },
   'health-check': {
@@ -352,11 +352,11 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
     if (stages && stages.length > 0) {
       const depthMap = this.computeJobDepths(jobs);
 
-      for (const jc of jobConfigs || []) {
-        const job = jobs.find(j => j.id === jc.id);
-        if (job && !job.stage) {
+      // Match ALL jobs by name prefix to stages, not just configured ones
+      for (const job of jobs) {
+        if (!job.stage) {
           for (const s of stages) {
-            if (jc.id === s.name || jc.id.startsWith(s.name + '-') || jc.id.startsWith(s.name + '_')) {
+            if (job.id === s.name || job.id.startsWith(s.name + '-') || job.id.startsWith(s.name + '_')) {
               job.stage = s.name;
               break;
             }

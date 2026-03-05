@@ -136,7 +136,9 @@ export async function exportCommand(input: string, options: ExportOptions): Prom
       (f) =>
         f.path.endsWith('handler.ts') ||
         f.path.endsWith(`${result.workflow}.ts`) ||
-        f.path.endsWith('index.ts')
+        f.path.endsWith('index.ts') ||
+        f.path.endsWith('.yml') ||
+        f.path.endsWith('.yaml')
     );
     if (handlerFile) {
       // Show first 40 lines of handler
@@ -146,6 +148,15 @@ export async function exportCommand(input: string, options: ExportOptions): Prom
       if (lines.length > 40) {
         logger.info(`... (${lines.length - 40} more lines)`);
       }
+    }
+  }
+
+  // Show warnings about unsupported annotations
+  if (result.warnings && result.warnings.length > 0) {
+    logger.newline();
+    logger.section('Warnings');
+    for (const warning of result.warnings) {
+      logger.warn(warning);
     }
   }
 
