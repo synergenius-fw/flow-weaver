@@ -61,7 +61,7 @@ describe('deployment module re-exports', () => {
     expect(mod.ExportTargetRegistry).toBeDefined();
   });
 
-  it('does not export target classes or CI/CD base (moved to extensions/cicd)', async () => {
+  it('does not export target classes or CI/CD base (moved to marketplace packs)', async () => {
     const mod = await import('../../src/deployment/index');
     expect((mod as any).BaseCICDTarget).toBeUndefined();
     expect((mod as any).LambdaTarget).toBeUndefined();

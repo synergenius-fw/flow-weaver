@@ -125,8 +125,44 @@ export class AnnotationParser {
   /** Tag handler registry. Defaults to the global singleton (pre-populated by extensions). */
   tagRegistry: TagHandlerRegistry = tagHandlerRegistry;
 
+  /** Tracks which projectDirs have already had their pack handlers loaded. */
+  private loadedPackDirs = new Set<string>();
+
   constructor() {
     this.project = getSharedProject();
+  }
+
+  /**
+   * Discover and register tag handlers from installed marketplace packs.
+   * Results are cached per projectDir so repeated parse calls skip the scan.
+   */
+  async loadPackHandlers(projectDir: string): Promise<void> {
+    if (this.loadedPackDirs.has(projectDir)) return;
+    this.loadedPackDirs.add(projectDir);
+
+    const { discoverTagHandlers } = await import('./marketplace/registry.js');
+    const handlers = await discoverTagHandlers(projectDir);
+
+    for (const discovered of handlers) {
+      // Skip if these tags are already registered (e.g. by side-effect imports)
+      if (discovered.tags.every((t) => this.tagRegistry.has(t))) continue;
+
+      try {
+        const { pathToFileURL } = await import('node:url');
+        const mod = await import(pathToFileURL(discovered.absoluteFile).href);
+        const handlerFn = discovered.exportName ? mod[discovered.exportName] : mod.default;
+        if (typeof handlerFn === 'function') {
+          this.tagRegistry.register(
+            discovered.tags,
+            discovered.namespace,
+            discovered.scope,
+            handlerFn,
+          );
+        }
+      } catch {
+        // Skip handlers that fail to load (pack may not be built)
+      }
+    }
   }
 
   private computeHash(content: string): string {

@@ -93,7 +93,7 @@ export async function validateCommand(input: string, options: ValidateOptions = 
 
       try {
         // Parse the workflow
-        const parseResult = await parseWorkflow(file, { workflowName });
+        const parseResult = await parseWorkflow(file, { workflowName, projectDir: process.cwd() });
 
         if (parseResult.warnings.length > 0) {
           if (!json && !quiet) {

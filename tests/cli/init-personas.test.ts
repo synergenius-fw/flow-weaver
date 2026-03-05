@@ -24,7 +24,6 @@ import {
   AGENT_CONTEXT_PRESETS,
 } from '../../src/cli/commands/init-personas';
 import type { PersonaId, UseCaseId } from '../../src/cli/commands/init-personas';
-import '../../src/extensions/cicd/register';
 import { getAllWorkflowTemplates } from '../../src/cli/templates/index';
 
 // ── PERSONA_CHOICES ──────────────────────────────────────────────────────────
@@ -52,8 +51,8 @@ describe('PERSONA_CHOICES', () => {
 // ── USE_CASE_CHOICES ─────────────────────────────────────────────────────────
 
 describe('USE_CASE_CHOICES', () => {
-  it('should have 6 use cases', () => {
-    expect(USE_CASE_CHOICES).toHaveLength(6);
+  it('should have 5 use cases', () => {
+    expect(USE_CASE_CHOICES).toHaveLength(5);
   });
 
   it('should include all use case IDs', () => {
@@ -62,7 +61,6 @@ describe('USE_CASE_CHOICES', () => {
     expect(ids).toContain('ai');
     expect(ids).toContain('api');
     expect(ids).toContain('automation');
-    expect(ids).toContain('cicd');
     expect(ids).toContain('minimal');
   });
 });
@@ -138,7 +136,6 @@ describe('selectTemplateForPersona', () => {
     ['nocode', 'ai', 'ai-agent'],
     ['nocode', 'api', 'webhook'],
     ['nocode', 'automation', 'conditional'],
-    ['nocode', 'cicd', 'cicd-test-deploy'],
     ['nocode', 'minimal', 'sequential'],
     ['vibecoder', 'data', 'sequential'],
     ['vibecoder', 'ai', 'ai-agent'],

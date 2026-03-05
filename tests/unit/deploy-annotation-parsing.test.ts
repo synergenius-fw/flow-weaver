@@ -5,14 +5,15 @@
  * - parseDeployTag() value coercion (boolean, number, string, string[])
  * - Workflow-level @deploy parsing → ast.options.deploy
  * - NodeType-level @deploy parsing → nodeTypeAST.deploy
- * - CI/CD domain tags grouped under cicd? wrapper
  * - @deploy in KNOWN_WORKFLOW_TAGS and KNOWN_NODETYPE_TAGS
+ *
+ * CI/CD-specific tag tests (@secret, @runner, @cache, etc.) live in
+ * @synergenius/flowweaver-pack-cicd since that's where the tag handler is now.
  */
 
 import { describe, it, expect } from 'vitest';
 import { AnnotationParser } from '../../src/parser';
 import { KNOWN_WORKFLOW_TAGS, KNOWN_NODETYPE_TAGS } from '../../src/constants';
-import '../../src/extensions/cicd/register';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -370,114 +371,3 @@ function plainNode(): {} { return {}; }
   });
 });
 
-// ---------------------------------------------------------------------------
-// CI/CD domain tags grouped under cicd? wrapper
-// ---------------------------------------------------------------------------
-
-describe('CI/CD domain tags grouped under cicd wrapper', () => {
-  it('should group @secret under options.cicd.secrets', () => {
-    const result = parseWorkflowSource(`
-/**
- * @flowWeaver workflow
- * @secret NPM_TOKEN "NPM publish token"
- * @node a testNode [position: 0 0]
- * @path Start -> a -> Exit
- */
-export function myWorkflow() {}
-
-/** @flowWeaver nodeType
- * @expression
- */
-function testNode(): {} { return {}; }
-`);
-    const wf = result.workflows[0];
-    expect(wf.options?.cicd?.secrets).toBeDefined();
-    expect(wf.options?.cicd?.secrets?.[0]?.name).toBe('NPM_TOKEN');
-  });
-
-  it('should group @runner under options.cicd.runner', () => {
-    const result = parseWorkflowSource(`
-/**
- * @flowWeaver workflow
- * @runner ubuntu-22.04
- * @node a testNode [position: 0 0]
- * @path Start -> a -> Exit
- */
-export function myWorkflow() {}
-
-/** @flowWeaver nodeType
- * @expression
- */
-function testNode(): {} { return {}; }
-`);
-    const wf = result.workflows[0];
-    expect(wf.options?.cicd?.runner).toBe('ubuntu-22.04');
-  });
-
-  it('should not populate cicd if no CI/CD annotations present', () => {
-    const result = parseWorkflowSource(`
-/**
- * @flowWeaver workflow
- * @node a testNode [position: 0 0]
- * @path Start -> a -> Exit
- */
-export function myWorkflow() {}
-
-/** @flowWeaver nodeType
- * @expression
- */
-function testNode(): {} { return {}; }
-`);
-    const wf = result.workflows[0];
-    expect(wf.options?.cicd).toBeUndefined();
-  });
-
-  it('should group @cache under options.cicd.caches', () => {
-    const result = parseWorkflowSource(`
-/**
- * @flowWeaver workflow
- * @cache npm path="~/.npm" key="package-lock.json"
- * @node a testNode [position: 0 0]
- * @path Start -> a -> Exit
- */
-export function myWorkflow() {}
-
-/** @flowWeaver nodeType
- * @expression
- */
-function testNode(): {} { return {}; }
-`);
-    const wf = result.workflows[0];
-    expect(wf.options?.cicd?.caches).toBeDefined();
-    expect(wf.options?.cicd?.caches?.[0]?.strategy).toBe('npm');
-    expect(wf.options?.cicd?.caches?.[0]?.path).toBe('~/.npm');
-    expect(wf.options?.cicd?.caches?.[0]?.key).toBe('package-lock.json');
-  });
-
-  it('should coexist cicd and deploy on the same workflow', () => {
-    const result = parseWorkflowSource(`
-/**
- * @flowWeaver workflow
- * @secret DEPLOY_KEY "SSH deploy key"
- * @runner ubuntu-latest
- * @deploy github-actions runner="ubuntu-22.04"
- * @deploy inngest durableSteps=true
- * @node a testNode [position: 0 0]
- * @path Start -> a -> Exit
- */
-export function myWorkflow() {}
-
-/** @flowWeaver nodeType
- * @expression
- */
-function testNode(): {} { return {}; }
-`);
-    const wf = result.workflows[0];
-    // CI/CD domain
-    expect(wf.options?.cicd?.secrets?.[0]?.name).toBe('DEPLOY_KEY');
-    expect(wf.options?.cicd?.runner).toBe('ubuntu-latest');
-    // Per-target deploy
-    expect(wf.options?.deploy?.['github-actions']?.runner).toBe('ubuntu-22.04');
-    expect(wf.options?.deploy?.inngest?.durableSteps).toBe(true);
-  });
-});
