@@ -194,11 +194,17 @@ export function registerWorkflowTemplates(templates: WorkflowTemplate[]): void {
 export async function loadPackTemplates(projectDir: string): Promise<void> {
   try {
     const { listInstalledPackages } = await import('../../marketplace/registry.js');
+    const { registerPackUseCase } = await import('../commands/init-personas.js');
     const packages = await listInstalledPackages(projectDir);
 
     for (const pkg of packages) {
       const contributions = pkg.manifest.initContributions;
       if (!contributions?.templates) continue;
+
+      // Register use case if declared
+      if (contributions.useCase) {
+        registerPackUseCase(contributions.useCase, contributions.templates);
+      }
 
       // Pack templates must be exported from the pack's main entry point
       // or from a templates.js file alongside the manifest
@@ -213,7 +219,9 @@ export async function loadPackTemplates(projectDir: string): Promise<void> {
         if (mod.workflowTemplates && Array.isArray(mod.workflowTemplates)) {
           for (const tmpl of mod.workflowTemplates) {
             if (contributions.templates.includes(tmpl.id)) {
-              packWorkflowTemplates.push(tmpl);
+              if (!packWorkflowTemplates.some((t) => t.id === tmpl.id)) {
+                packWorkflowTemplates.push(tmpl);
+              }
             }
           }
         }

@@ -11,7 +11,7 @@ import input from '@inquirer/input';
 import select, { Separator } from '@inquirer/select';
 import confirm from '@inquirer/confirm';
 import { ExitPromptError } from '@inquirer/core';
-import { getWorkflowTemplate, getAllWorkflowTemplates } from '../templates/index.js';
+import { getWorkflowTemplate, getAllWorkflowTemplates, loadPackTemplates } from '../templates/index.js';
 import { logger } from '../utils/logger.js';
 import { compileCommand } from './compile.js';
 import { runMcpSetupFromInit, CLI_TOOL_BINARY, detectCliTools } from './mcp-setup.js';
@@ -104,11 +104,15 @@ export function isNonInteractive(): boolean {
   return !process.stdin.isTTY;
 }
 
-// Dynamic: includes core templates plus any registered by extensions
-const VALID_TEMPLATES = getAllWorkflowTemplates().map((t) => t.id);
+// Dynamic: includes core templates plus any registered by extensions/packs
+function getValidTemplates(): string[] {
+  return getAllWorkflowTemplates().map((t) => t.id);
+}
 const VALID_PERSONAS: PersonaId[] = ['nocode', 'vibecoder', 'lowcode', 'expert'];
-// Dynamic: includes core use cases plus any registered by extensions
-const VALID_USE_CASES: string[] = USE_CASE_CHOICES.map((c) => c.value);
+// Dynamic: includes core use cases plus any registered by extensions/packs
+function getValidUseCases(): string[] {
+  return USE_CASE_CHOICES.map((c) => c.value);
+}
 
 // ── Config resolution (prompts) ──────────────────────────────────────────────
 
@@ -176,8 +180,8 @@ export async function resolveInitConfig(
   if (hasExplicitTemplate) {
     // Direct --template flag bypasses everything
     template = options.template!;
-    if (!VALID_TEMPLATES.includes(template)) {
-      throw new Error(`Unknown template "${template}". Available: ${VALID_TEMPLATES.join(', ')}`);
+    if (!getValidTemplates().includes(template)) {
+      throw new Error(`Unknown template "${template}". Available: ${getValidTemplates().join(', ')}`);
     }
   } else if (persona === 'expert') {
     // Expert: show today's flat template list
@@ -209,8 +213,8 @@ export async function resolveInitConfig(
   } else {
     // Non-expert: use-case categories
     if (options.useCase) {
-      if (!VALID_USE_CASES.includes(options.useCase)) {
-        throw new Error(`Unknown use case "${options.useCase}". Available: ${VALID_USE_CASES.join(', ')}`);
+      if (!getValidUseCases().includes(options.useCase)) {
+        throw new Error(`Unknown use case "${options.useCase}". Available: ${getValidUseCases().join(', ')}`);
       }
       useCase = options.useCase;
     } else if (skipPrompts) {
@@ -614,6 +618,9 @@ export async function handleAgentHandoff(opts: AgentHandoffOptions): Promise<boo
 
 export async function initCommand(dirArg: string | undefined, options: InitOptions): Promise<void> {
   try {
+    // Load templates contributed by installed marketplace packs
+    await loadPackTemplates(process.cwd());
+
     const config = await resolveInitConfig(dirArg, options);
 
     // Validate target directory
