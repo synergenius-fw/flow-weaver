@@ -279,39 +279,8 @@ describe('Template code generation', () => {
     });
   });
 
-  describe('ai-agent-durable template', () => {
-    const template = getWorkflowTemplate('ai-agent-durable')!;
-
-    it('should generate with default options', () => {
-      const code = template.generate({ workflowName: 'durableAgent' });
-      expect(code).toContain('function durableAgent');
-    });
-
-    it('should generate with openai provider', () => {
-      const code = template.generate({
-        workflowName: 'durableAgent',
-        config: { provider: 'openai', model: 'gpt-4o' },
-      });
-      expect(code).toContain('OPENAI PROVIDER');
-    });
-  });
-
-  describe('ai-pipeline-durable template', () => {
-    const template = getWorkflowTemplate('ai-pipeline-durable')!;
-
-    it('should generate with default options', () => {
-      const code = template.generate({ workflowName: 'durablePipeline' });
-      expect(code).toContain('function durablePipeline');
-    });
-
-    it('should generate with anthropic provider', () => {
-      const code = template.generate({
-        workflowName: 'durablePipeline',
-        config: { provider: 'anthropic' },
-      });
-      expect(code).toContain('ANTHROPIC PROVIDER');
-    });
-  });
+  // ai-agent-durable and ai-pipeline-durable templates are contributed by
+  // flowweaver-pack-inngest and tested there.
 
   describe('node templates', () => {
     it('should generate validator node', () => {

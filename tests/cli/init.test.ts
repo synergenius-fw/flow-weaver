@@ -252,8 +252,7 @@ describe('template integration', () => {
     'aggregator',
     'webhook',
     'error-handler',
-    'ai-agent-durable',
-    'ai-pipeline-durable',
+    // ai-agent-durable and ai-pipeline-durable are contributed by flowweaver-pack-inngest
   ])('should generate workflow files for template "%s"', (template) => {
     const files = cachedGenerateProjectFiles('test', template);
     const workflow = files['src/test-workflow.ts'];

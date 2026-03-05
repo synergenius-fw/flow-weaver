@@ -56,19 +56,7 @@ describe('template regressions', () => {
     );
   });
 
-  describe('durable pipeline regex escaping', () => {
-    // BUG: ai-pipeline-durable template had triple-escaped backticks in regex:
-    //   content.match(/\\\`\\\`\\\`/) which doesn't match markdown fences
-    // FIX: Simplified to proper template literal escaping
-    it('should generate valid regex for markdown fence detection', () => {
-      const code = generateWorkflowFromTemplate('ai-pipeline-durable', {
-        workflowName: 'testPipeline',
-      });
-      // Should contain a regex that matches markdown code fences (```json ... ```)
-      // Should NOT contain triple-escaped backticks
-      expect(code).not.toContain('\\\\\\`');
-    });
-  });
+  // durable pipeline regex escaping: tested in flowweaver-pack-inngest
 
   describe('ReAct workflow completeness', () => {
     // BUG: Original ai-react template had no actual loop, wrong port types,
@@ -146,7 +134,8 @@ describe('agent rule integration regressions', () => {
       expect(code).toContain('__fw_llm_provider__');
     });
 
-    it.each(['ai-agent', 'ai-agent-durable', 'ai-react', 'ai-pipeline-durable', 'ai-chat', 'ai-rag'])(
+    // ai-agent-durable and ai-pipeline-durable are tested in flowweaver-pack-inngest
+    it.each(['ai-agent', 'ai-react', 'ai-chat', 'ai-rag'])(
       '%s workflow template should use globalThis fallback',
       (templateId) => {
         const code = generateWorkflowFromTemplate(templateId, { workflowName: 'test' });

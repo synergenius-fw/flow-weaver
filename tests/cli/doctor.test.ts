@@ -673,19 +673,6 @@ describe('checkDeploymentProfiles', () => {
     expect(result.message).toContain('default');
   });
 
-  it('should fail when a profile has an invalid target value', () => {
-    const dir = makeFixture('profiles-bad-target', {
-      '.flowweaver/deployment/manifest.yaml': YAML.dump({
-        activeProfile: 'default',
-        profiles: ['default'],
-      }),
-      '.flowweaver/deployment/default.yaml': YAML.dump({
-        target: 'heroku',
-        serviceName: 'test',
-      }),
-    });
-    const result = checkDeploymentProfiles(dir);
-    expect(result.status).toBe('fail');
-    expect(result.message).toContain('target');
-  });
+  // Target validation is now dynamic (checked at export time via target registry),
+  // so any non-empty string target passes the doctor check.
 });
