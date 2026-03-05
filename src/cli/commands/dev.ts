@@ -10,7 +10,7 @@ import { executeWorkflowFromFile } from '../../mcp/workflow-executor.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import { getFriendlyError } from '../../friendly-errors.js';
-import { devModeRegistry } from '../../generator/dev-mode-registry.js';
+import { devModeRegistry, type DevModeOptions } from '../../generator/dev-mode-registry.js';
 
 function timestamp(): string {
   const now = new Date();
@@ -29,29 +29,17 @@ function cycleSeparator(file?: string): void {
   }
 }
 
-export interface DevOptions {
+export interface DevOptions extends DevModeOptions {
   /** Input parameters as JSON string */
   params?: string;
   /** Path to JSON file containing input parameters */
   paramsFile?: string;
-  /** Specific workflow name to run (if file contains multiple workflows) */
-  workflow?: string;
-  /** Run in production mode (no trace events) */
-  production?: boolean;
   /** Module format for generated code */
   format?: 'esm' | 'cjs' | 'auto';
   /** Omit redundant @param/@returns annotations */
   clean?: boolean;
-  /** Run once then exit (for testing) */
-  once?: boolean;
-  /** Output result as JSON (for scripting) */
-  json?: boolean;
   /** Compilation target (default: typescript in-place) */
   target?: string;
-  /** Framework for serve handler */
-  framework?: 'next' | 'express' | 'hono' | 'fastify' | 'remix';
-  /** Port for the dev server */
-  port?: number;
 }
 
 /**
@@ -182,6 +170,10 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
     if (provider) {
       return provider.run(filePath, options);
     }
+    const available = devModeRegistry.getNames();
+    throw new Error(
+      `Unknown dev target "${options.target}". ${available.length ? `Available: ${available.join(', ')}` : 'No dev mode providers registered. Install a pack that provides one.'}`
+    );
   }
 
   const params = parseParams(options);

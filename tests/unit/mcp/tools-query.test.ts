@@ -62,12 +62,21 @@ vi.mock('../../../src/diff/formatDiff.js', () => ({
   formatDiff: (...args: unknown[]) => mockFormatDiff(...args),
 }));
 
-// ── Mock inngest generator ───────────────────────────────────────────────────
-const mockGenerateInngestFunction = vi.fn();
+// ── Mock compile target registry ────────────────────────────────────────────
+const mockCompileTargetCompile = vi.fn();
 
-vi.mock('../../../src/generator/inngest.js', () => ({
-  generateInngestFunction: (...args: unknown[]) => mockGenerateInngestFunction(...args),
-}));
+vi.mock('../../../src/generator/compile-target-registry.js', () => {
+  const mockTarget = {
+    name: 'inngest',
+    compile: (...args: unknown[]) => mockCompileTargetCompile(...args),
+  };
+  return {
+    compileTargetRegistry: {
+      get: (name: string) => name === 'inngest' ? mockTarget : undefined,
+      getNames: () => ['inngest'],
+    },
+  };
+});
 
 // ── Mock parser ──────────────────────────────────────────────────────────────
 const mockAnnotationParserParse = vi.fn();
@@ -420,7 +429,7 @@ describe('tools-query', () => {
           { name: 'myWf', functionName: 'myWf', nodeTypes: [], options: {} },
         ],
       });
-      mockGenerateInngestFunction.mockReturnValue('// inngest code');
+      mockCompileTargetCompile.mockReturnValue('// inngest code');
 
       const result = parseResult(
         await callCompile({ filePath: '/tmp/wf.ts', target: 'inngest', write: false }),
@@ -467,7 +476,7 @@ describe('tools-query', () => {
           { name: 'beta', functionName: 'beta', nodeTypes: [], options: {} },
         ],
       });
-      mockGenerateInngestFunction.mockReturnValue('code');
+      mockCompileTargetCompile.mockReturnValue('code');
 
       const result = parseResult(
         await callCompile({
@@ -507,7 +516,7 @@ describe('tools-query', () => {
         errors: [],
         workflows: [{ name: 'wf', functionName: 'wf', nodeTypes: [] }],
       });
-      mockGenerateInngestFunction.mockReturnValue('code');
+      mockCompileTargetCompile.mockReturnValue('code');
 
       await callCompile({
         filePath: '/tmp/wf.ts',
@@ -519,7 +528,7 @@ describe('tools-query', () => {
       });
 
       // Verify the workflow object was mutated with overrides
-      const wfArg = mockGenerateInngestFunction.mock.calls[0][0];
+      const wfArg = mockCompileTargetCompile.mock.calls[0][0];
       expect(wfArg.options.trigger.cron).toBe('0 9 * * *');
       expect(wfArg.options.retries).toBe(3);
       expect(wfArg.options.timeout).toBe('30m');
@@ -530,7 +539,7 @@ describe('tools-query', () => {
         errors: [],
         workflows: [{ name: 'wf', functionName: 'wf', nodeTypes: [], options: {} }],
       });
-      mockGenerateInngestFunction.mockReturnValue('code');
+      mockCompileTargetCompile.mockReturnValue('code');
 
       await callCompile({
         filePath: '/tmp/wf.ts',
@@ -541,7 +550,7 @@ describe('tools-query', () => {
         typedEvents: true,
       });
 
-      const opts = mockGenerateInngestFunction.mock.calls[0][2];
+      const opts = mockCompileTargetCompile.mock.calls[0][2];
       expect(opts.serveHandler).toBe(true);
       expect(opts.framework).toBe('next');
       expect(opts.typedEvents).toBe(true);
