@@ -74,6 +74,8 @@ export interface ExportArtifacts {
   workflowName: string;
   /** Entry point file */
   entryPoint: string;
+  /** Warnings about unsupported or dropped annotations */
+  warnings?: string[];
 }
 
 /**

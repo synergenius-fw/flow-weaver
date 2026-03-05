@@ -62,6 +62,8 @@ export interface ExportResult {
   workflows?: string[];
   /** OpenAPI spec (if generated) */
   openApiSpec?: object;
+  /** Warnings about unsupported or dropped annotations */
+  warnings?: string[];
 }
 
 /**
@@ -201,6 +203,7 @@ async function exportSingleWorkflowViaRegistry(
     files,
     workflow: workflow.name,
     description: workflow.description,
+    warnings: artifacts.warnings,
   };
 }
 
@@ -290,6 +293,7 @@ async function exportMultiWorkflowViaRegistry(
     files,
     workflow: serviceName,
     workflows: selectedWorkflows.map((w) => w.name),
+    warnings: artifacts.warnings,
   };
 }
 

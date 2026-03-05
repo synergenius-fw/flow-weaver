@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { AnnotationParser } from '../../src/parser';
 import { KNOWN_WORKFLOW_TAGS, KNOWN_NODETYPE_TAGS } from '../../src/constants';
+import '../../src/extensions/cicd/register';
 
 // ---------------------------------------------------------------------------
 // Helpers

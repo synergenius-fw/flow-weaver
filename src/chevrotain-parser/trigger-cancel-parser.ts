@@ -261,6 +261,13 @@ export function parseTriggerLine(input: string, warnings: string[]): TriggerPars
 
   const result = visitorInstance.visit(cst) as TriggerParseResult;
 
+  // Empty result means the parser consumed @trigger but found no event=/cron= assignments.
+  // Return null so the caller can delegate to domain-specific handlers (e.g. CI/CD triggers
+  // like @trigger push, @trigger pull_request, etc.)
+  if (!result.event && !result.cron) {
+    return null;
+  }
+
   // Validate cron expression
   if (result.cron && !CRON_REGEX.test(result.cron)) {
     warnings.push(`Invalid cron expression: "${result.cron}". Expected 5 fields (minute hour day month weekday).`);
