@@ -5,7 +5,7 @@
  * preamble into a single markdown document suitable for LLM consumption.
  */
 
-import { readTopic, listTopics } from '../docs/index.js';
+import { readTopic, listTopics, getPackDocTopics } from '../docs/index.js';
 import { getAllGrammars, serializedToEBNF } from '../chevrotain-parser/grammar-diagrams.js';
 
 // ---------------------------------------------------------------------------
@@ -13,7 +13,7 @@ import { getAllGrammars, serializedToEBNF } from '../chevrotain-parser/grammar-d
 // ---------------------------------------------------------------------------
 
 export type ContextProfile = 'standalone' | 'assistant';
-export type ContextPreset = 'core' | 'authoring' | 'full' | 'ops' | 'cicd';
+export type ContextPreset = 'core' | 'authoring' | 'full' | 'ops';
 
 export interface ContextOptions {
   preset?: ContextPreset;
@@ -50,7 +50,6 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'patterns',
   ],
   ops: [
-    'cicd',
     'cli-reference',
     'compilation',
     'deployment',
@@ -64,7 +63,6 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'jsdoc-grammar',
     'advanced-annotations',
     'built-in-nodes',
-    'cicd',
     'cli-reference',
     'compilation',
     'debugging',
@@ -77,7 +75,6 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'patterns',
     'scaffold',
   ],
-  cicd: ['concepts', 'jsdoc-grammar', 'cicd', 'deployment', 'scaffold'],
 };
 
 export const PRESET_NAMES = Object.keys(PRESETS) as ContextPreset[];
@@ -119,7 +116,7 @@ Tool quick reference:
 - fw_compile: Generate executable TypeScript from annotations
 - fw_docs: Look up reference docs by topic slug
 - fw_scaffold: Create from templates (sequential, foreach, ai-agent, cicd-test-deploy, cicd-docker, etc.)
-- fw_export: Deploy to cloud (lambda, vercel, cloudflare) or generate CI/CD pipelines (github-actions, gitlab-ci)
+- fw_export: Deploy to cloud or generate CI/CD pipelines (targets depend on installed packs)
 
 Flow Weaver can also generate CI/CD pipelines. Use @secret, @runner, @trigger,
 @cache, @matrix, and [job: "name"] annotations to define pipeline structure,
@@ -139,7 +136,13 @@ export function resolveTopics(
   add?: string[]
 ): string[] {
   const base = explicit ?? PRESETS[preset];
-  const combined = add ? [...base, ...add] : base;
+
+  // Append pack doc topics that declare this preset
+  const packSlugs = getPackDocTopics()
+    .filter((t) => t.presets?.includes(preset))
+    .map((t) => t.slug);
+
+  const combined = [...base, ...packSlugs, ...(add ?? [])];
   // Deduplicate while preserving order
   return [...new Set(combined)];
 }

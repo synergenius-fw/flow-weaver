@@ -2,7 +2,7 @@ import { getMockConfig, lookupMock } from './mock-types.js';
 
 /**
  * @flowWeaver nodeType
- * @input functionId - Inngest function ID (e.g. "my-service/sub-workflow")
+ * @input functionId - Function ID of the workflow to invoke (e.g. "my-service/sub-workflow")
  * @input payload - Data to pass as event.data to the invoked function
  * @input [timeout] - Max wait time (e.g. "1h")
  * @output result - Return value from the invoked function

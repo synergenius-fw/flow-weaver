@@ -28,7 +28,7 @@ stripping happens at code-generation time inside `inline-runtime.ts`.
 `function-registry.ts`, `builtin-functions.ts`, `parameter-resolver.ts`
 
 These are not inlined. They only appear when using a multi-workflow HTTP deployment
-target (`--target lambda|vercel|cloudflare|inngest --multi`). In that case the compiler
+target (`--target <target> --multi`). In that case the compiler
 copies them into the output directory and the generated handler imports them with a
 relative path:
 

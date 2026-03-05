@@ -17,9 +17,6 @@ describe('deployment module re-exports', () => {
     const mod = await import('../../src/deployment/index');
     expect(mod.CliRequestAdapter).toBeDefined();
     expect(mod.HttpRequestAdapter).toBeDefined();
-    expect(mod.LambdaRequestAdapter).toBeDefined();
-    expect(mod.VercelRequestAdapter).toBeDefined();
-    expect(mod.CloudflareRequestAdapter).toBeDefined();
     expect(typeof mod.createAdapter).toBe('function');
   });
 
@@ -27,8 +24,6 @@ describe('deployment module re-exports', () => {
     const mod = await import('../../src/deployment/index');
     expect(typeof mod.formatCliResponse).toBe('function');
     expect(typeof mod.formatHttpResponse).toBe('function');
-    expect(typeof mod.formatLambdaResponse).toBe('function');
-    expect(typeof mod.formatCloudflareResponse).toBe('function');
     expect(typeof mod.formatError).toBe('function');
   });
 

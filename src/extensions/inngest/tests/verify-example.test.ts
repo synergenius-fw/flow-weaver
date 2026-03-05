@@ -2,8 +2,8 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, it, expect } from 'vitest';
-import { parser } from '../../src/parser';
-import { generateInngestFunction } from '../../src/generator/inngest';
+import { parser } from '../../../parser';
+import { generateInngestFunction } from '../generator';
 
 describe('example-inngest-approval', () => {
   it('generates valid Inngest code with no undefined sources', () => {

@@ -390,10 +390,18 @@ export type TNodeInstanceAST = {
   sourceLocation?: TSourceLocation;
   /** Reserved for plugin extensibility */
   metadata?: TNodeMetadata;
-  /** CI/CD job group this node belongs to (from [job: "name"] attribute) */
+  /**
+   * CI/CD job group this node belongs to (from [job: "name"] attribute).
+   * @deprecated Use `deploy?.['cicd']?.job` instead. Kept for backwards compatibility.
+   */
   job?: string;
-  /** CI/CD environment for this node's job (from [environment: "name"] attribute) */
+  /**
+   * CI/CD environment for this node's job (from [environment: "name"] attribute).
+   * @deprecated Use `deploy?.['cicd']?.environment` instead. Kept for backwards compatibility.
+   */
   environment?: string;
+  /** Per-target deploy config contributed by packs (e.g., deploy['cicd'].job) */
+  deploy?: Record<string, Record<string, unknown>>;
 };
 
 /**
@@ -434,7 +442,10 @@ export type TWorkflowOptions = {
 
   // ── CI/CD domain annotations (shared across CI/CD targets) ─────
 
-  /** CI/CD pipeline configuration from @secret, @cache, @artifact, etc. */
+  /**
+   * CI/CD pipeline configuration from @secret, @cache, @artifact, etc.
+   * @deprecated Use `deploy?.['cicd']` instead. Kept for backwards compatibility.
+   */
   cicd?: TCICDOptions;
 
   // ── Per-target deployment config from @deploy annotations ──────
@@ -446,7 +457,8 @@ export type TWorkflowOptions = {
 /**
  * CI/CD domain options — shared across all CI/CD export targets.
  * Populated from @secret, @runner, @cache, @artifact, @environment,
- * @matrix, @service, @concurrency annotations.
+ * @matrix, @service, @concurrency, @job, @stage, @variables,
+ * @before_script, @tags, @includes annotations.
  */
 export type TCICDOptions = {
   /** Secret declarations for CI/CD pipelines */
@@ -467,6 +479,18 @@ export type TCICDOptions = {
   concurrency?: { group: string; cancelInProgress?: boolean };
   /** Extended CI/CD triggers (push, PR, dispatch, tag) */
   triggers?: TCICDTrigger[];
+  /** Per-job configuration from @job annotations */
+  jobs?: TCICDJobConfig[];
+  /** Workflow-level default variables from @variables */
+  variables?: Record<string, string>;
+  /** Workflow-level before_script commands from @before_script */
+  beforeScript?: string[];
+  /** Workflow-level runner tags from @tags */
+  tags?: string[];
+  /** GitLab template includes from @includes */
+  includes?: TCICDInclude[];
+  /** Pipeline stage declarations from @stage */
+  stages?: TCICDStage[];
 };
 
 // ── CI/CD Types ──────────────────────────────────────────────────────
@@ -553,6 +577,74 @@ export type TCICDTrigger = {
   cron?: string;
   /** Dispatch inputs */
   inputs?: Record<string, { description?: string; required?: boolean; default?: string; type?: string }>;
+};
+
+/** Per-job configuration from @job annotation */
+export type TCICDJobConfig = {
+  /** Job identifier (must match a [job: "name"] on @node declarations) */
+  id: string;
+  /** Maximum retry count on failure */
+  retry?: number;
+  /** Whether this job can fail without failing the pipeline */
+  allowFailure?: boolean;
+  /** Job-level timeout duration (e.g., "30m", "1h") */
+  timeout?: string;
+  /** Key-value environment variables */
+  variables?: Record<string, string>;
+  /** Runner selection tags */
+  tags?: string[];
+  /** Setup commands run before the main script */
+  beforeScript?: string[];
+  /** Conditional execution rules */
+  rules?: TCICDJobRule[];
+  /** Coverage regex pattern */
+  coverage?: string;
+  /** Test/coverage report declarations */
+  reports?: TCICDReport[];
+  /** Per-job runner override */
+  runner?: string;
+  /** GitLab template to extend */
+  extends?: string;
+};
+
+/** Conditional execution rule for a CI/CD job */
+export type TCICDJobRule = {
+  /** Condition expression (e.g., '$CI_COMMIT_BRANCH == "main"') */
+  if?: string;
+  /** When to run: always, never, manual, delayed */
+  when?: 'always' | 'never' | 'manual' | 'delayed';
+  /** Whether failure is allowed when this rule matches */
+  allowFailure?: boolean;
+  /** Variables to set when this rule matches */
+  variables?: Record<string, string>;
+  /** Changed file patterns that trigger this rule */
+  changes?: string[];
+};
+
+/** Report declaration for a CI/CD job */
+export type TCICDReport = {
+  /** Report type (junit, cobertura, codequality, sast, etc.) */
+  type: string;
+  /** Report file path */
+  path: string;
+};
+
+/** GitLab include directive from @includes annotation */
+export type TCICDInclude = {
+  /** Include type */
+  type: 'local' | 'project' | 'remote' | 'template';
+  /** File path or URL */
+  file: string;
+  /** Project path (for type=project) */
+  project?: string;
+  /** Git ref (for type=project) */
+  ref?: string;
+};
+
+/** Pipeline stage declaration from @stage annotation */
+export type TCICDStage = {
+  /** Stage name */
+  name: string;
 };
 
 /**

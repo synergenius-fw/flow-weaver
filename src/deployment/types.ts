@@ -10,7 +10,7 @@ import type { ExecutionTraceEvent } from '../mcp/workflow-executor.js';
 /**
  * Source of a workflow execution request
  */
-export type ExecutionSource = 'cli' | 'http' | 'lambda' | 'vercel' | 'cloudflare';
+export type ExecutionSource = 'cli' | 'http' | (string & {});
 
 /**
  * Runtime environment
@@ -153,52 +153,6 @@ export interface HttpInput {
 }
 
 /**
- * Input from AWS Lambda
- */
-export interface LambdaInput {
-  /** Raw event body (JSON string or parsed object) */
-  body?: string | Record<string, unknown>;
-  /** Path parameters */
-  pathParameters?: Record<string, string>;
-  /** Query string parameters */
-  queryStringParameters?: Record<string, string>;
-  /** Request headers */
-  headers?: Record<string, string>;
-  /** Request context */
-  requestContext?: {
-    requestId?: string;
-    stage?: string;
-  };
-}
-
-/**
- * Input from Vercel serverless function
- */
-export interface VercelInput {
-  /** Request method */
-  method: string;
-  /** Request body (already parsed) */
-  body: Record<string, unknown>;
-  /** Query parameters */
-  query: Record<string, string | string[]>;
-  /** Request headers */
-  headers: Record<string, string | string[]>;
-}
-
-/**
- * Input from Cloudflare Worker
- */
-export interface CloudflareInput {
-  /** Request object */
-  request: {
-    method: string;
-    url: string;
-    headers: Headers;
-    json: () => Promise<Record<string, unknown>>;
-  };
-}
-
-/**
  * Generic adapter input type
  */
-export type AdapterInput = CliInput | HttpInput | LambdaInput | VercelInput | CloudflareInput;
+export type AdapterInput = CliInput | HttpInput;

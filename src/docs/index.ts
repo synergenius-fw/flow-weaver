@@ -147,47 +147,86 @@ function splitSections(body: string): DocSection[] {
 // ---------------------------------------------------------------------------
 
 /**
- * List all available documentation topics.
+ * List all available documentation topics, including pack-contributed ones.
  */
 export function listTopics(): DocTopic[] {
   const docsDir = getDocsDir();
-  if (!fs.existsSync(docsDir)) return [];
+  const coreTopics: DocTopic[] = [];
 
-  const files = fs.readdirSync(docsDir).filter((f) => f.endsWith('.md')).sort();
-  return files.map((file) => {
-    const raw = fs.readFileSync(path.join(docsDir, file), 'utf-8');
-    const { frontmatter } = parseFrontmatter(raw);
-    return {
-      slug: file.replace(/\.md$/, ''),
-      name: frontmatter.name,
-      description: frontmatter.description,
-      keywords: frontmatter.keywords,
-    };
-  });
+  if (fs.existsSync(docsDir)) {
+    const files = fs.readdirSync(docsDir).filter((f) => f.endsWith('.md')).sort();
+    for (const file of files) {
+      const raw = fs.readFileSync(path.join(docsDir, file), 'utf-8');
+      const { frontmatter } = parseFrontmatter(raw);
+      coreTopics.push({
+        slug: file.replace(/\.md$/, ''),
+        name: frontmatter.name,
+        description: frontmatter.description,
+        keywords: frontmatter.keywords,
+      });
+    }
+  }
+
+  // Append pack-contributed topics (no slug collisions with core)
+  const coreSlugs = new Set(coreTopics.map((t) => t.slug));
+  for (const packTopic of packDocTopics) {
+    if (!coreSlugs.has(packTopic.slug)) {
+      coreTopics.push({
+        slug: packTopic.slug,
+        name: packTopic.name,
+        description: packTopic.description,
+        keywords: packTopic.keywords,
+      });
+    }
+  }
+
+  return coreTopics;
 }
 
 /**
  * Read a single documentation topic.
+ * Checks core docs first, then falls back to pack-contributed topics.
  * @param slug - Topic slug (filename without .md)
  * @param compact - If true, return a compact LLM-friendly version
  */
 export function readTopic(slug: string, compact?: boolean): DocContent | null {
+  // Try core docs first
   const docsDir = getDocsDir();
-  const filePath = path.join(docsDir, `${slug}.md`);
-  if (!fs.existsSync(filePath)) return null;
+  const coreFilePath = path.join(docsDir, `${slug}.md`);
+  if (fs.existsSync(coreFilePath)) {
+    const raw = fs.readFileSync(coreFilePath, 'utf-8');
+    const { frontmatter, body } = parseFrontmatter(raw);
+    const content = compact ? buildCompactContent(frontmatter, body) : body.trim();
+    return {
+      slug,
+      name: frontmatter.name,
+      description: frontmatter.description,
+      keywords: frontmatter.keywords,
+      content,
+    };
+  }
 
-  const raw = fs.readFileSync(filePath, 'utf-8');
-  const { frontmatter, body } = parseFrontmatter(raw);
+  // Check pack-contributed topics
+  const packTopic = packDocTopics.find((t) => t.slug === slug);
+  if (packTopic && fs.existsSync(packTopic.filePath)) {
+    const raw = fs.readFileSync(packTopic.filePath, 'utf-8');
+    const { frontmatter, body } = parseFrontmatter(raw);
+    const content = compact
+      ? buildCompactContent(
+          { name: frontmatter.name || packTopic.name, description: frontmatter.description || packTopic.description, keywords: frontmatter.keywords.length > 0 ? frontmatter.keywords : packTopic.keywords },
+          body,
+        )
+      : body.trim();
+    return {
+      slug,
+      name: frontmatter.name || packTopic.name,
+      description: frontmatter.description || packTopic.description,
+      keywords: frontmatter.keywords.length > 0 ? frontmatter.keywords : packTopic.keywords,
+      content,
+    };
+  }
 
-  const content = compact ? buildCompactContent(frontmatter, body) : body.trim();
-
-  return {
-    slug,
-    name: frontmatter.name,
-    description: frontmatter.description,
-    keywords: frontmatter.keywords,
-    content,
-  };
+  return null;
 }
 
 /**
@@ -228,7 +267,11 @@ export function searchDocs(query: string): SearchResult[] {
       queryTerms.some((term) => kw.toLowerCase().includes(term))
     );
 
-    const filePath = path.join(docsDir, `${topic.slug}.md`);
+    // Resolve the file path: core topics live in docsDir, pack topics have their own path
+    const packTopic = packDocTopics.find((p) => p.slug === topic.slug);
+    const filePath = packTopic ? packTopic.filePath : path.join(docsDir, `${topic.slug}.md`);
+    if (!fs.existsSync(filePath)) continue;
+
     const raw = fs.readFileSync(filePath, 'utf-8');
     const { body } = parseFrontmatter(raw);
     const sections = splitSections(body);
@@ -280,6 +323,55 @@ export function searchDocs(query: string): SearchResult[] {
   // Sort by relevance descending
   results.sort((a, b) => b.relevance - a.relevance);
   return results;
+}
+
+// ---------------------------------------------------------------------------
+// Pack-contributed doc topics
+// ---------------------------------------------------------------------------
+
+/** Registered pack doc topics. Populated by registerPackDocTopics(). */
+const packDocTopics: Array<{
+  slug: string;
+  name: string;
+  description: string;
+  keywords: string[];
+  presets: string[];
+  filePath: string;
+}> = [];
+
+/**
+ * Register doc topics from installed pack manifests.
+ * These appear alongside core topics in listTopics() and readTopic().
+ */
+export function registerPackDocTopics(
+  topics: Array<{
+    slug: string;
+    name: string;
+    description?: string;
+    keywords?: string[];
+    presets?: string[];
+    absoluteFile: string;
+  }>,
+): void {
+  for (const t of topics) {
+    // Avoid duplicates (same slug)
+    if (packDocTopics.some((p) => p.slug === t.slug)) continue;
+    packDocTopics.push({
+      slug: t.slug,
+      name: t.name,
+      description: t.description ?? '',
+      keywords: t.keywords ?? [],
+      presets: t.presets ?? [],
+      filePath: t.absoluteFile,
+    });
+  }
+}
+
+/**
+ * List pack-contributed doc topics. Used internally by listTopics() and readTopic().
+ */
+export function getPackDocTopics(): typeof packDocTopics {
+  return packDocTopics;
 }
 
 // ---------------------------------------------------------------------------

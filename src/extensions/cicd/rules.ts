@@ -2,38 +2,35 @@
  * CI/CD-Specific Validation Rules
  *
  * Custom TValidationRule implementations for CI/CD pipeline workflows.
- * These run AFTER the built-in validator via the api/validate.ts custom rules injection.
+ * Registered through the ValidationRuleRegistry by the CI/CD extension.
  *
  * Rules:
  * 1. CICD_SECRET_NOT_DECLARED - secret:X referenced but no @secret X declared
  * 2. CICD_SECRET_UNUSED - @secret X declared but never wired
- * 3. CICD_TRIGGER_MISSING - No trigger annotations — pipeline would never run
- * 4. CICD_JOB_MISSING_RUNNER - Job has no runner (uses workflow default or none)
- * 5. CICD_ARTIFACT_CROSS_JOB - Data flows between jobs without @artifact declaration
- * 6. CICD_CIRCULAR_JOB_DEPS - Job dependency cycle detected
- * 7. CICD_MATRIX_WITH_ENVIRONMENT - Matrix + environment = N approval prompts
+ * 3. CICD_TRIGGER_MISSING - No trigger annotations
+ * 4. CICD_JOB_MISSING_RUNNER - Job has no runner
+ * 5. CICD_ARTIFACT_CROSS_JOB - Data flows between jobs without @artifact
+ * 6. CICD_CIRCULAR_JOB_DEPS - Job dependency cycle
+ * 7. CICD_MATRIX_WITH_ENVIRONMENT - Matrix + environment = N approvals
+ * 8. CICD_JOB_CONFIG_ORPHAN - @job config references non-existent job
+ * 9. CICD_STAGE_ORPHAN - @stage has no matching jobs
  */
 
 import type {
   TValidationRule,
   TValidationError,
   TWorkflowAST,
-} from '../ast/types';
+} from '../../ast/types';
 import {
   getDeclaredSecrets,
   getReferencedSecrets,
   getJobNames,
-} from './cicd-detection';
+} from './detection';
 
 // ---------------------------------------------------------------------------
 // Rule 1: Secret Not Declared
 // ---------------------------------------------------------------------------
 
-/**
- * A `secret:X` pseudo-node is referenced in @connect but no `@secret X` is declared.
- * This means the export target won't know about the secret and can't generate
- * proper environment variable references.
- */
 export const secretNotDeclaredRule: TValidationRule = {
   name: 'CICD_SECRET_NOT_DECLARED',
   validate(ast: TWorkflowAST): TValidationError[] {
@@ -59,10 +56,6 @@ export const secretNotDeclaredRule: TValidationRule = {
 // Rule 2: Secret Unused
 // ---------------------------------------------------------------------------
 
-/**
- * A `@secret X` is declared but never wired via `@connect secret:X -> ...`.
- * The secret might be intentional (used in a shell-command step) or a leftover.
- */
 export const secretUnusedRule: TValidationRule = {
   name: 'CICD_SECRET_UNUSED',
   validate(ast: TWorkflowAST): TValidationError[] {
@@ -88,15 +81,10 @@ export const secretUnusedRule: TValidationRule = {
 // Rule 3: Trigger Missing
 // ---------------------------------------------------------------------------
 
-/**
- * A CI/CD workflow with no trigger annotations would never run automatically.
- * Needs at least one @trigger (push, pull_request, schedule, dispatch, or tag).
- */
 export const triggerMissingRule: TValidationRule = {
   name: 'CICD_TRIGGER_MISSING',
   validate(ast: TWorkflowAST): TValidationError[] {
     const triggers = ast.options?.cicd?.triggers || [];
-    // Also check for FW-style triggers (event=, cron=)
     const fwTrigger = ast.options?.trigger;
 
     if (triggers.length === 0 && !fwTrigger) {
@@ -118,11 +106,6 @@ export const triggerMissingRule: TValidationRule = {
 // Rule 4: Job Missing Runner
 // ---------------------------------------------------------------------------
 
-/**
- * A job (group of nodes with same [job: "name"]) has no explicit runner
- * and the workflow has no default @runner. The export target will use a
- * platform default, which may not be what the user expects.
- */
 export const jobMissingRunnerRule: TValidationRule = {
   name: 'CICD_JOB_MISSING_RUNNER',
   validate(ast: TWorkflowAST): TValidationError[] {
@@ -130,10 +113,8 @@ export const jobMissingRunnerRule: TValidationRule = {
     const defaultRunner = ast.options?.cicd?.runner;
     const jobNames = getJobNames(ast);
 
-    // If there's a default runner, all jobs are covered
     if (defaultRunner) return [];
 
-    // If there are jobs but no default runner, warn
     if (jobNames.length > 0) {
       errors.push({
         type: 'warning',
@@ -150,27 +131,19 @@ export const jobMissingRunnerRule: TValidationRule = {
 // Rule 5: Artifact Cross-Job
 // ---------------------------------------------------------------------------
 
-/**
- * Data flows between nodes in different jobs via connections, but no @artifact
- * is declared. In CI/CD, each job runs in a fresh environment — data must be
- * explicitly passed via artifacts.
- */
 export const artifactCrossJobRule: TValidationRule = {
   name: 'CICD_ARTIFACT_CROSS_JOB',
   validate(ast: TWorkflowAST): TValidationError[] {
     const errors: TValidationError[] = [];
     const artifacts = ast.options?.cicd?.artifacts || [];
 
-    // Build node -> job map
     const nodeJob = new Map<string, string>();
     for (const inst of ast.instances) {
       if (inst.job) nodeJob.set(inst.id, inst.job);
     }
 
-    // Check connections between nodes in different jobs
     const crossJobPairs = new Set<string>();
     for (const conn of ast.connections) {
-      // Skip secret: pseudo-nodes and Start/Exit
       if (conn.from.node.startsWith('secret:')) continue;
       if (conn.from.node === 'Start' || conn.to.node === 'Exit') continue;
 
@@ -185,7 +158,6 @@ export const artifactCrossJobRule: TValidationRule = {
       }
     }
 
-    // If there are cross-job data flows but no artifacts declared, warn
     if (crossJobPairs.size > 0 && artifacts.length === 0) {
       const pairs = Array.from(crossJobPairs);
       errors.push({
@@ -203,22 +175,16 @@ export const artifactCrossJobRule: TValidationRule = {
 // Rule 6: Circular Job Dependencies
 // ---------------------------------------------------------------------------
 
-/**
- * Job dependencies (derived from @path connections between jobs) form a cycle.
- * CI/CD platforms reject circular job dependencies.
- */
 export const circularJobDepsRule: TValidationRule = {
   name: 'CICD_CIRCULAR_JOB_DEPS',
   validate(ast: TWorkflowAST): TValidationError[] {
     const errors: TValidationError[] = [];
 
-    // Build node -> job map
     const nodeJob = new Map<string, string>();
     for (const inst of ast.instances) {
       if (inst.job) nodeJob.set(inst.id, inst.job);
     }
 
-    // Build job dependency graph from connections
     const jobDeps = new Map<string, Set<string>>();
     for (const conn of ast.connections) {
       if (conn.from.node.startsWith('secret:')) continue;
@@ -233,7 +199,6 @@ export const circularJobDepsRule: TValidationRule = {
       }
     }
 
-    // Detect cycles using DFS
     const visited = new Set<string>();
     const inStack = new Set<string>();
 
@@ -263,7 +228,7 @@ export const circularJobDepsRule: TValidationRule = {
           code: 'CICD_CIRCULAR_JOB_DEPS',
           message: `Circular dependency detected involving job '${job}'. CI/CD platforms require a directed acyclic graph of job dependencies.`,
         });
-        break; // Report once
+        break;
       }
     }
 
@@ -275,10 +240,6 @@ export const circularJobDepsRule: TValidationRule = {
 // Rule 7: Matrix with Environment
 // ---------------------------------------------------------------------------
 
-/**
- * Using @matrix with @environment protection means each matrix combination
- * triggers an approval prompt. For a 3x2 matrix, that's 6 prompts.
- */
 export const matrixWithEnvironmentRule: TValidationRule = {
   name: 'CICD_MATRIX_WITH_ENVIRONMENT',
   validate(ast: TWorkflowAST): TValidationError[] {
@@ -287,7 +248,6 @@ export const matrixWithEnvironmentRule: TValidationRule = {
     const environments = ast.options?.cicd?.environments || [];
 
     if (matrix && environments.length > 0) {
-      // Calculate matrix size
       const dimensions = matrix.include
         ? matrix.include.length
         : Object.values(matrix.dimensions || {}).reduce(
@@ -309,10 +269,65 @@ export const matrixWithEnvironmentRule: TValidationRule = {
 };
 
 // ---------------------------------------------------------------------------
+// Rule 8: Job Config Orphan
+// ---------------------------------------------------------------------------
+
+export const jobConfigOrphanRule: TValidationRule = {
+  name: 'CICD_JOB_CONFIG_ORPHAN',
+  validate(ast: TWorkflowAST): TValidationError[] {
+    const errors: TValidationError[] = [];
+    const jobConfigs = ast.options?.cicd?.jobs || [];
+    const actualJobs = new Set(getJobNames(ast));
+
+    for (const jc of jobConfigs) {
+      if (!actualJobs.has(jc.id)) {
+        errors.push({
+          type: 'warning',
+          code: 'CICD_JOB_CONFIG_ORPHAN',
+          message: `@job '${jc.id}' is configured but no node uses [job: "${jc.id}"]. Check for typos or add a node with that job attribute.`,
+        });
+      }
+    }
+
+    return errors;
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Rule 9: Stage Orphan
+// ---------------------------------------------------------------------------
+
+export const stageOrphanRule: TValidationRule = {
+  name: 'CICD_STAGE_ORPHAN',
+  validate(ast: TWorkflowAST): TValidationError[] {
+    const errors: TValidationError[] = [];
+    const stages = ast.options?.cicd?.stages || [];
+    if (stages.length === 0) return [];
+
+    const jobNames = getJobNames(ast);
+    if (jobNames.length === 0) return [];
+
+    for (const stage of stages) {
+      const hasMatch = jobNames.some(
+        j => j === stage.name || j.startsWith(stage.name + '-') || j.startsWith(stage.name + '_'),
+      );
+      if (!hasMatch && jobNames.length > 0) {
+        errors.push({
+          type: 'warning',
+          code: 'CICD_STAGE_ORPHAN',
+          message: `Stage '${stage.name}' has no jobs matching by name prefix. Jobs will be assigned by dependency depth.`,
+        });
+      }
+    }
+
+    return errors;
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-/** All CI/CD validation rules */
 export const cicdValidationRules: TValidationRule[] = [
   secretNotDeclaredRule,
   secretUnusedRule,
@@ -321,12 +336,10 @@ export const cicdValidationRules: TValidationRule[] = [
   artifactCrossJobRule,
   circularJobDepsRule,
   matrixWithEnvironmentRule,
+  jobConfigOrphanRule,
+  stageOrphanRule,
 ];
 
-/**
- * Get all CI/CD validation rules.
- * Convenience function for passing to validateWorkflow().
- */
 export function getCICDValidationRules(): TValidationRule[] {
   return cicdValidationRules;
 }

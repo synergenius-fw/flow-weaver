@@ -37,7 +37,7 @@ These annotations are placed inside `@flowWeaver workflow` JSDoc blocks alongsid
 
 ### @trigger (CI/CD mode)
 
-Defines when the pipeline runs. When the value is `push`, `pull_request`, `dispatch`, `tag`, or `schedule`, the parser treats it as a CI/CD trigger rather than an Inngest event trigger.
+Defines when the pipeline runs. When the value is `push`, `pull_request`, `dispatch`, `tag`, or `schedule`, the parser treats it as a CI/CD trigger rather than a runtime event trigger.
 
 ```
 @trigger push branches="main,develop"
@@ -135,6 +135,92 @@ Controls concurrent pipeline runs.
 ```
 
 The first argument is the concurrency group name. `cancel-in-progress` cancels queued runs when a new one starts.
+
+### @job
+
+Configures per-job settings. The first argument is the job name (must match a `[job: "name"]` used on `@node` declarations). Remaining arguments are key=value pairs.
+
+```
+@job build retry=2 timeout="10m"
+@job test-unit coverage='/Coverage: (\d+)%/' reports="junit=test-results.xml"
+@job test-e2e allow_failure=true timeout="30m"
+@job deploy rules="$CI_COMMIT_BRANCH == main" tags="production" extends=".deploy-base"
+@job lint runner="macos-latest"
+```
+
+Supported keys:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `retry` | number | Maximum retry count on failure |
+| `allow_failure` | boolean | Job can fail without failing the pipeline |
+| `timeout` | string | Job timeout duration ("5m", "1h", "1h30m") |
+| `runner` | string | Runner override for this specific job |
+| `tags` | comma-list | Runner selection tags (e.g. "docker,linux") |
+| `coverage` | string | Coverage regex pattern (GitLab CI) |
+| `reports` | comma-list | Report declarations as type=path (e.g. "junit=results.xml") |
+| `rules` | string | Conditional execution rule (e.g. "$CI_COMMIT_BRANCH == main") |
+| `extends` | string | GitLab CI template to extend (e.g. ".deploy-base") |
+| `before_script` | comma-list | Setup commands before main script |
+| `variables` | comma-list | Environment variables as KEY=VALUE pairs |
+
+Multiple `@job` annotations for the same job name are merged. You can split attributes across lines:
+
+```
+@job deploy retry=2
+@job deploy tags="production"
+```
+
+### @stage
+
+Declares pipeline stages for GitLab CI. When present, jobs are grouped into named stages instead of the default one-job-per-stage behavior.
+
+```
+@stage test
+@stage build
+@stage deploy
+```
+
+Jobs are assigned to stages by name prefix matching: a job named `test-unit` matches stage `test`, `build-docker` matches stage `build`. Jobs that don't match any stage by prefix are assigned by dependency depth (depth 0 gets the first stage, depth 1 the second, etc.).
+
+Stage ordering follows declaration order.
+
+### @variables
+
+Sets workflow-level environment variables applied to all jobs as defaults. Jobs with explicit variables (via `@job`) are not overwritten.
+
+```
+@variables NODE_ENV="production" CI="true"
+```
+
+### @before_script
+
+Sets workflow-level setup commands run before each job's main script. Applied as defaults to jobs without their own `before_script`.
+
+```
+@before_script "npm ci"
+```
+
+### @tags
+
+Sets workflow-level runner tags applied to all jobs as defaults. Jobs with explicit tags (via `@job`) are not overwritten.
+
+```
+@tags docker linux
+```
+
+In GitHub Actions, tags translate to `runs-on: [self-hosted, tag1, tag2]`. In GitLab CI, they become `tags: [tag1, tag2]`.
+
+### @includes
+
+Declares external configuration files to include (GitLab CI feature). Ignored for GitHub Actions export.
+
+```
+@includes local="ci/shared-templates.yml"
+@includes template="Auto-DevOps.gitlab-ci.yml"
+@includes remote="https://example.com/ci.yml"
+@includes project="other-group/other-project" file="ci/shared.yml" ref="main"
+```
 
 ---
 
@@ -243,6 +329,17 @@ declare function deploySsh(sshKey: string): { result: string };
  * @secret DEPLOY_KEY - SSH key for production deploy
  * @cache npm key="package-lock.json"
  * @artifact dist path="dist/" retention=5
+ * @tags docker linux
+ * @variables NODE_ENV="production"
+ * @before_script "npm ci"
+ *
+ * @stage test
+ * @stage build
+ * @stage deploy
+ *
+ * @job test retry=1 coverage='/Coverage: (\d+)%/' reports="junit=test-results.xml"
+ * @job build retry=2 timeout="10m"
+ * @job deploy allow_failure=false rules="$CI_COMMIT_BRANCH == main"
  *
  * @node co gitCheckout [job: "test"]
  * @node setup setupNode [job: "test"]
@@ -274,17 +371,19 @@ flow-weaver export pipeline.ts --target github-actions --output .github/workflow
 
 ## Validation Rules
 
-Seven CI/CD-specific validation rules run automatically when the workflow contains CI/CD annotations:
+Nine CI/CD-specific validation rules run automatically when the workflow contains CI/CD annotations:
 
 | Rule | Severity | What it catches |
 |------|----------|-----------------|
 | `CICD_SECRET_NOT_DECLARED` | error | `@connect secret:X` used but no `@secret X` declared |
 | `CICD_SECRET_UNUSED` | warning | `@secret X` declared but never wired via `@connect secret:X` |
-| `CICD_JOB_EMPTY` | warning | Job name used in `[job: "name"]` but no nodes assigned |
-| `CICD_ARTIFACT_ORPHANED` | warning | `@artifact` declared but not referenced by any job |
-| `CICD_MATRIX_EMPTY` | warning | `@matrix` with no dimensions |
-| `CICD_SERVICE_NO_IMAGE` | error | `@service` without `image="..."` |
-| `CICD_ENVIRONMENT_UNDECLARED` | warning | `[environment: "name"]` on a node but no `@environment` declared |
+| `CICD_TRIGGER_MISSING` | warning | No trigger annotations, pipeline would never run automatically |
+| `CICD_JOB_MISSING_RUNNER` | warning | No `@runner` and jobs have no explicit runner |
+| `CICD_ARTIFACT_CROSS_JOB` | warning | Data flows between jobs but no `@artifact` declared |
+| `CICD_CIRCULAR_JOB_DEPS` | error | Job dependency cycle detected |
+| `CICD_MATRIX_WITH_ENVIRONMENT` | warning | `@matrix` with `@environment` triggers N approval prompts |
+| `CICD_JOB_CONFIG_ORPHAN` | warning | `@job X` references a job not used by any node |
+| `CICD_STAGE_ORPHAN` | warning | `@stage X` declared but no job matches by name prefix |
 
 ---
 

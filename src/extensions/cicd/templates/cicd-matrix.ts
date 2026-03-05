@@ -5,7 +5,7 @@
  * multiple Node.js versions and/or operating systems.
  */
 
-import type { WorkflowTemplate, WorkflowTemplateOptions, ConfigSchema } from '../index';
+import type { WorkflowTemplate, WorkflowTemplateOptions, ConfigSchema } from '../../../cli/templates/index';
 
 const configSchema: ConfigSchema = {
   platform: {

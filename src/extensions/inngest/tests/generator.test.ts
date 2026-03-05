@@ -9,8 +9,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { describe, it, expect, afterAll } from 'vitest';
-import { generateInngestFunction, type InngestGenerationOptions } from '../../src/generator/inngest';
-import { parser } from '../../src/parser';
+import { generateInngestFunction, type InngestGenerationOptions } from '../generator';
+import { parser } from '../../../parser';
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-inngest-gen-'));
 

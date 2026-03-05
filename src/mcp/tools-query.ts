@@ -19,7 +19,7 @@ import { WorkflowDiffer } from '../diff/WorkflowDiffer.js';
 import { formatDiff } from '../diff/formatDiff.js';
 import { makeToolResult, makeErrorResult, addHintsToItems } from './response-utils.js';
 import { getFriendlyError } from '../friendly-errors.js';
-import { generateInngestFunction } from '../generator/inngest.js';
+import { compileTargetRegistry } from '../generator/compile-target-registry.js';
 import { AnnotationParser } from '../parser.js';
 
 /** Detect MULTIPLE_WORKFLOWS_FOUND marker in parse errors and return the right error code */
@@ -185,7 +185,7 @@ export function registerQueryTools(mcp: McpServer): void {
     'fw_compile',
     'Compile a workflow to executable code. Only regenerates code inside @flow-weaver-runtime ' +
       'and @flow-weaver-body marker sections — user code outside markers is preserved. ' +
-      'Set production: true to strip debug instrumentation. Use target=inngest for per-node step.run() durability.',
+      'Set production: true to strip debug instrumentation. Custom targets are available via registered extensions.',
     {
       filePath: z.string().describe('Path to the workflow file'),
       write: z.boolean().optional().describe('Whether to write the output file (default: true)'),
@@ -195,9 +195,9 @@ export function registerQueryTools(mcp: McpServer): void {
         .describe('Production mode — no debug events (default: false)'),
       workflowName: z.string().optional().describe('Specific workflow name'),
       target: z
-        .enum(['typescript', 'inngest'])
+        .string()
         .optional()
-        .describe('Compilation target: typescript (default) or inngest (per-node step.run)'),
+        .describe('Compilation target: typescript (default) or a registered extension target'),
       cron: z.string().optional().describe('Cron schedule expression (e.g. "0 9 * * *"). Overrides @trigger annotation.'),
       serve: z.boolean().optional().describe('Generate serve() handler for HTTP framework integration'),
       framework: z.enum(['next', 'express', 'hono', 'fastify', 'remix']).optional().describe('Framework adapter for serve handler (requires serve=true)'),
@@ -210,7 +210,7 @@ export function registerQueryTools(mcp: McpServer): void {
       write?: boolean;
       production?: boolean;
       workflowName?: string;
-      target?: 'typescript' | 'inngest';
+      target?: string;
       cron?: string;
       serve?: boolean;
       framework?: 'next' | 'express' | 'hono' | 'fastify' | 'remix';
@@ -221,10 +221,18 @@ export function registerQueryTools(mcp: McpServer): void {
       try {
         const filePath = path.resolve(args.filePath);
 
-        if (args.target === 'inngest') {
-          // Use deep Inngest generator
-          const parser = new AnnotationParser();
-          const parseResult = parser.parse(filePath);
+        const customTarget = args.target && args.target !== 'typescript'
+          ? compileTargetRegistry.get(args.target)
+          : undefined;
+
+        if (args.target && args.target !== 'typescript') {
+          if (!customTarget) {
+            const available = compileTargetRegistry.getNames();
+            return makeErrorResult('COMPILE_ERROR', `Unknown compile target: ${args.target}. Available: typescript${available.length ? ', ' + available.join(', ') : ''}`);
+          }
+
+          const annotationParser = new AnnotationParser();
+          const parseResult = annotationParser.parse(filePath);
 
           if (parseResult.errors.length > 0) {
             return makeErrorResult('PARSE_ERROR', `Parse errors:\n${parseResult.errors.join('\n')}`);
@@ -258,21 +266,21 @@ export function registerQueryTools(mcp: McpServer): void {
             workflow.options.timeout = args.timeout;
           }
 
-          const code = generateInngestFunction(workflow, allNodeTypes, {
+          const code = customTarget.compile(workflow, allNodeTypes, {
             production: args.production ?? false,
             typedEvents: args.typedEvents,
             serveHandler: args.serve,
             framework: args.framework,
           });
 
-          const outputFile = filePath.replace(/\.ts$/, '.inngest.ts');
+          const outputFile = filePath.replace(/\.ts$/, `.${args.target}.ts`);
           if (args.write !== false) {
             const fs = await import('fs');
             fs.writeFileSync(outputFile, code, 'utf8');
           }
 
           return makeToolResult({
-            target: 'inngest',
+            target: args.target,
             outputFile,
             workflowName: workflow.name,
             code: args.write === false ? code : undefined,

@@ -72,7 +72,7 @@ describe('USE_CASE_TEMPLATES', () => {
   const validTemplateIds = new Set(workflowTemplates.map((t) => t.id));
 
   it('should have mappings for all use cases', () => {
-    const useCases: UseCaseId[] = ['data', 'ai', 'api', 'automation', 'cicd', 'minimal'];
+    const useCases: UseCaseId[] = ['data', 'ai', 'api', 'automation', 'minimal'];
     for (const uc of useCases) {
       expect(USE_CASE_TEMPLATES[uc]).toBeDefined();
       expect(USE_CASE_TEMPLATES[uc].default).toBeTruthy();

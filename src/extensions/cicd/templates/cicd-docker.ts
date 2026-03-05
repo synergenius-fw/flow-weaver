@@ -5,7 +5,7 @@
  * checkout → docker-login → docker-build → docker-push
  */
 
-import type { WorkflowTemplate, WorkflowTemplateOptions, ConfigSchema } from '../index';
+import type { WorkflowTemplate, WorkflowTemplateOptions, ConfigSchema } from '../../../cli/templates/index';
 
 const configSchema: ConfigSchema = {
   platform: {

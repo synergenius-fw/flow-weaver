@@ -70,6 +70,14 @@
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
+    },
+    "./extensions/inngest": {
+      "types": "./dist/extensions/inngest/index.d.ts",
+      "default": "./dist/extensions/inngest/index.js"
+    },
+    "./extensions/cicd": {
+      "types": "./dist/extensions/cicd/index.d.ts",
+      "default": "./dist/extensions/cicd/index.js"
     }
   },
   "bin": {

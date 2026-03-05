@@ -6,20 +6,23 @@
  * (github-actions, gitlab-ci) are marketplace packs.
  */
 
+// Load CI/CD extension (registers tag handlers, validation rules)
+import '../register';
+
 import { describe, it, expect } from 'vitest';
-import { parser } from '../../../src/parser';
-import { workflowTemplates } from '../../../src/cli/templates/index';
+import { parser } from '../../../parser';
+import { getAllWorkflowTemplates } from '../../../cli/templates/index';
 import {
   BaseCICDTarget,
   NODE_ACTION_MAP,
   type CICDJob,
   type CICDStep,
-} from '../../../src/deployment/targets/cicd-base';
+} from '../base-target';
 import type {
   ExportOptions,
   ExportArtifacts,
   DeployInstructions,
-} from '../../../src/deployment/targets/base';
+} from '../../../deployment/targets/base';
 
 /** Minimal concrete subclass to access protected methods */
 class TestCICDTarget extends BaseCICDTarget {
@@ -62,7 +65,7 @@ describe('CI/CD job graph from templates', () => {
 
   for (const templateId of CICD_TEMPLATES) {
     describe(templateId, () => {
-      const template = workflowTemplates.find((t) => t.id === templateId)!;
+      const template = getAllWorkflowTemplates().find((t) => t.id === templateId)!;
       const code = template.generate({ workflowName: 'testPipeline' });
       const result = parser.parseFromString(code);
       const ast = result.workflows[0];
@@ -116,7 +119,7 @@ describe('CI/CD job graph from templates', () => {
 
 describe('resolveJobSecrets', () => {
   it('should wire secret connections into job.secrets and step.env', () => {
-    const template = workflowTemplates.find((t) => t.id === 'cicd-test-deploy')!;
+    const template = getAllWorkflowTemplates().find((t) => t.id === 'cicd-test-deploy')!;
     const code = template.generate({ workflowName: 'testPipeline' });
     const result = parser.parseFromString(code);
     const ast = result.workflows[0];

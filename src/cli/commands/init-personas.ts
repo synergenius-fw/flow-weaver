@@ -5,13 +5,13 @@
 
 import { execSync } from 'child_process';
 import { logger } from '../utils/logger.js';
-import { workflowTemplates } from '../templates/index.js';
+import { getAllWorkflowTemplates } from '../templates/index.js';
 import { buildContext } from '../../context/index.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type PersonaId = 'nocode' | 'vibecoder' | 'lowcode' | 'expert';
-export type UseCaseId = 'data' | 'ai' | 'api' | 'automation' | 'cicd' | 'minimal';
+export type UseCaseId = 'data' | 'ai' | 'api' | 'automation' | 'minimal';
 
 // ── Prompt choices ───────────────────────────────────────────────────────────
 
@@ -35,7 +35,6 @@ export const USE_CASE_CHOICES = [
   { value: 'ai' as UseCaseId, name: 'AI agent', description: 'LLM with tools, reasoning, or retrieval' },
   { value: 'api' as UseCaseId, name: 'API / webhook', description: 'HTTP endpoints and integrations' },
   { value: 'automation' as UseCaseId, name: 'Automation', description: 'Conditional logic, error handling, routing' },
-  { value: 'cicd' as UseCaseId, name: 'CI/CD pipeline', description: 'Test, build, and deploy workflows' },
   { value: 'minimal' as UseCaseId, name: 'Something else', description: 'Start with a minimal template' },
 ];
 
@@ -46,14 +45,42 @@ export interface UseCaseMapping {
   all: string[];
 }
 
-export const USE_CASE_TEMPLATES: Record<UseCaseId, UseCaseMapping> = {
+export const USE_CASE_TEMPLATES: Record<string, UseCaseMapping> = {
   data: { default: 'sequential', all: ['sequential', 'foreach', 'aggregator'] },
   ai: { default: 'ai-agent', all: ['ai-agent', 'ai-react', 'ai-rag', 'ai-chat'] },
   api: { default: 'webhook', all: ['webhook'] },
   automation: { default: 'conditional', all: ['conditional', 'error-handler'] },
-  cicd: { default: 'cicd-test-deploy', all: ['cicd-test-deploy', 'cicd-docker', 'cicd-multi-env', 'cicd-matrix'] },
   minimal: { default: 'sequential', all: ['sequential'] },
 };
+
+/**
+ * Register a use case contributed by a pack.
+ * Adds the use case choice and template mapping so it appears in fw init.
+ */
+export function registerPackUseCase(
+  useCase: { id: string; name: string; description: string },
+  templates: string[],
+): void {
+  // Add to choices if not already present
+  if (!USE_CASE_CHOICES.some((c) => c.value === useCase.id)) {
+    // Insert before "minimal" (last entry)
+    const minimalIdx = USE_CASE_CHOICES.findIndex((c) => c.value === 'minimal');
+    const entry = { value: useCase.id, name: useCase.name, description: useCase.description } as (typeof USE_CASE_CHOICES)[number];
+    if (minimalIdx >= 0) {
+      USE_CASE_CHOICES.splice(minimalIdx, 0, entry);
+    } else {
+      USE_CASE_CHOICES.push(entry);
+    }
+  }
+
+  // Add template mapping
+  if (!USE_CASE_TEMPLATES[useCase.id] && templates.length > 0) {
+    USE_CASE_TEMPLATES[useCase.id] = {
+      default: templates[0],
+      all: templates,
+    };
+  }
+}
 
 /**
  * Select the template for a given persona and use-case.
@@ -62,7 +89,7 @@ export const USE_CASE_TEMPLATES: Record<UseCaseId, UseCaseMapping> = {
  */
 export function selectTemplateForPersona(
   persona: PersonaId,
-  useCase: UseCaseId,
+  useCase: UseCaseId | string,
 ): { template: string; choices?: string[] } {
   const mapping = USE_CASE_TEMPLATES[useCase];
   if (!mapping) {
@@ -82,7 +109,7 @@ export function selectTemplateForPersona(
  */
 export function getTemplateSubChoices(templateIds: string[]): Array<{ value: string; name: string; description: string }> {
   return templateIds.map((id) => {
-    const tmpl = workflowTemplates.find((t) => t.id === id);
+    const tmpl = getAllWorkflowTemplates().find((t) => t.id === id);
     return {
       value: id,
       name: id,

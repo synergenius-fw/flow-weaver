@@ -14,14 +14,6 @@ import { aiChatTemplate } from './workflows/ai-chat';
 import { aggregatorTemplate } from './workflows/aggregator';
 import { webhookTemplate } from './workflows/webhook';
 import { errorHandlerTemplate } from './workflows/error-handler';
-import { aiAgentDurableTemplate } from './workflows/ai-agent-durable';
-import { aiPipelineDurableTemplate } from './workflows/ai-pipeline-durable';
-
-// Import CI/CD workflow templates
-import { cicdTestDeployTemplate } from './workflows/cicd-test-deploy';
-import { cicdDockerTemplate } from './workflows/cicd-docker';
-import { cicdMultiEnvTemplate } from './workflows/cicd-multi-env';
-import { cicdMatrixTemplate } from './workflows/cicd-matrix';
 
 // Import node templates
 import { validatorNodeTemplate } from './nodes/validator';
@@ -131,12 +123,6 @@ export const workflowTemplates: WorkflowTemplate[] = [
   aggregatorTemplate,
   webhookTemplate,
   errorHandlerTemplate,
-  aiAgentDurableTemplate,
-  aiPipelineDurableTemplate,
-  cicdTestDeployTemplate,
-  cicdDockerTemplate,
-  cicdMultiEnvTemplate,
-  cicdMatrixTemplate,
 ];
 
 /**
@@ -158,10 +144,12 @@ export const nodeTemplates: NodeTemplate[] = [
 ];
 
 /**
- * Get a workflow template by ID
+ * Get a workflow template by ID.
+ * Checks both core templates and any dynamically loaded pack templates.
  */
 export function getWorkflowTemplate(id: string): WorkflowTemplate | undefined {
-  return workflowTemplates.find((t) => t.id === id);
+  return workflowTemplates.find((t) => t.id === id)
+    ?? packWorkflowTemplates.find((t) => t.id === id);
 }
 
 /**
@@ -169,6 +157,73 @@ export function getWorkflowTemplate(id: string): WorkflowTemplate | undefined {
  */
 export function getNodeTemplate(id: string): NodeTemplate | undefined {
   return nodeTemplates.find((t) => t.id === id);
+}
+
+/**
+ * Dynamically loaded pack templates. Populated by loadPackTemplates().
+ */
+const packWorkflowTemplates: WorkflowTemplate[] = [];
+
+/**
+ * Get all workflow templates including pack-contributed ones.
+ */
+export function getAllWorkflowTemplates(): WorkflowTemplate[] {
+  return [...workflowTemplates, ...packWorkflowTemplates];
+}
+
+/**
+ * Register workflow templates contributed by a built-in extension.
+ * Unlike loadPackTemplates (which scans npm packages), this is for
+ * in-tree extensions that register at bootstrap time.
+ */
+export function registerWorkflowTemplates(templates: WorkflowTemplate[]): void {
+  for (const tmpl of templates) {
+    if (!packWorkflowTemplates.some((t) => t.id === tmpl.id)) {
+      packWorkflowTemplates.push(tmpl);
+    }
+  }
+}
+
+/**
+ * Load workflow templates from installed pack manifests.
+ * Templates declared in `initContributions.templates` are dynamically imported
+ * and appended to the available template list.
+ *
+ * @param projectDir - Project root to scan for installed packs
+ */
+export async function loadPackTemplates(projectDir: string): Promise<void> {
+  try {
+    const { listInstalledPackages } = await import('../../marketplace/registry.js');
+    const packages = await listInstalledPackages(projectDir);
+
+    for (const pkg of packages) {
+      const contributions = pkg.manifest.initContributions;
+      if (!contributions?.templates) continue;
+
+      // Pack templates must be exported from the pack's main entry point
+      // or from a templates.js file alongside the manifest
+      try {
+        const templatesPath = await import('path').then((p) =>
+          p.join(pkg.path, 'templates.js'),
+        );
+        const { existsSync } = await import('fs');
+        if (!existsSync(templatesPath)) continue;
+
+        const mod = await import(templatesPath);
+        if (mod.workflowTemplates && Array.isArray(mod.workflowTemplates)) {
+          for (const tmpl of mod.workflowTemplates) {
+            if (contributions.templates.includes(tmpl.id)) {
+              packWorkflowTemplates.push(tmpl);
+            }
+          }
+        }
+      } catch {
+        // Skip packs that fail to load templates
+      }
+    }
+  } catch {
+    // Marketplace scanning not available (e.g., no node_modules)
+  }
 }
 
 /**

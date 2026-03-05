@@ -12,8 +12,8 @@ import type { TDataType } from '../ast/types.js';
 
 /** Auto-generated manifest describing a marketplace package's contents. */
 export type TMarketplaceManifest = {
-  /** Manifest schema version (currently 1) */
-  manifestVersion: 1;
+  /** Manifest schema version */
+  manifestVersion: 1 | 2;
   /** npm package name */
   name: string;
   /** Semver version */
@@ -32,6 +32,14 @@ export type TMarketplaceManifest = {
   patterns: TManifestPattern[];
   /** Export targets provided by this package */
   exportTargets?: TManifestExportTarget[];
+  /** Tag handlers contributed by this pack (v2) */
+  tagHandlers?: TManifestTagHandler[];
+  /** Validation rule sets contributed by this pack (v2) */
+  validationRuleSets?: TManifestValidationRuleSet[];
+  /** Documentation topics contributed by this pack (v2) */
+  docs?: TManifestDocTopic[];
+  /** Init contributions: use cases and templates (v2) */
+  initContributions?: TManifestInitContribution;
   /** External dependency information */
   dependencies?: {
     /** Flow Weaver peer dependency constraints */
@@ -45,7 +53,7 @@ export type TMarketplaceManifest = {
 
 /** An export target provided by a marketplace package. */
 export type TManifestExportTarget = {
-  /** Target identifier (e.g. "lambda", "azure-pipelines") */
+  /** Target identifier */
   name: string;
   /** Human-readable description */
   description?: string;
@@ -170,6 +178,77 @@ export type TInstalledPackage = {
   manifest: TMarketplaceManifest;
   /** Absolute path to the package in node_modules */
   path: string;
+};
+
+// ── Pack extension points (manifest v2) ──────────────────────────────────────
+
+/**
+ * A tag handler contributed by a pack. Declares which JSDoc tags the pack handles,
+ * the deploy namespace to store results in, and the JS file exporting the handler.
+ */
+export type TManifestTagHandler = {
+  /** Tag name(s) this handler processes (e.g., "secret", "runner") */
+  tags: string[];
+  /** Deploy namespace for storing parsed data (e.g., "cicd") */
+  namespace: string;
+  /** Applicable scope: workflow-level tags, nodeType-level tags, or both */
+  scope: 'workflow' | 'nodeType' | 'both';
+  /** Relative path to the compiled JS file exporting the handler function */
+  file: string;
+  /** Named export from the file (default: "default") */
+  exportName?: string;
+};
+
+/**
+ * A validation rule set contributed by a pack. Declares a detect function
+ * and rules export for conditional validation.
+ */
+export type TManifestValidationRuleSet = {
+  /** Human-readable name for this rule set */
+  name: string;
+  /** Deploy namespace this rule set applies to (e.g., "cicd") */
+  namespace: string;
+  /** Relative path to the compiled JS file exporting detect and getRules */
+  file: string;
+  /** Named export for the detect function (default: "detect") */
+  detectExport?: string;
+  /** Named export for the getRules function (default: "getRules") */
+  rulesExport?: string;
+};
+
+/**
+ * A documentation topic contributed by a pack.
+ */
+export type TManifestDocTopic = {
+  /** Topic slug (used in fw_docs read) */
+  slug: string;
+  /** Human-readable topic name */
+  name: string;
+  /** Topic description */
+  description?: string;
+  /** Search keywords */
+  keywords?: string[];
+  /** Context presets this topic should be included in */
+  presets?: string[];
+  /** Relative path to the markdown file */
+  file: string;
+};
+
+/**
+ * Init contributions from a pack: use case entries and template IDs.
+ */
+export type TManifestInitContribution = {
+  /** Use case entry for fw init prompts */
+  useCase?: {
+    /** Use case ID (must be unique across all packs) */
+    id: string;
+    /** Display name */
+    name: string;
+    /** Brief description */
+    description: string;
+  };
+  /** Template IDs this pack provides (must match IDs in the template registry) */
+  templates?: string[];
 };
 
 // ── Init scaffold ────────────────────────────────────────────────────────────

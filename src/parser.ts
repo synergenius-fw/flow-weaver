@@ -29,6 +29,7 @@ import { getPackageExports } from './npm-packages';
 import { getSharedProject } from './shared-project';
 import { LRUCache } from './utils/lru-cache';
 import { COERCION_NODE_TYPES, COERCE_TYPE_MAP } from './built-in-nodes/coercion-types';
+import { tagHandlerRegistry, type TagHandlerRegistry } from './parser/tag-registry';
 
 export interface ParseResult {
   workflows: TWorkflowAST[];
@@ -120,6 +121,9 @@ export class AnnotationParser {
       result: ParseResult;
     }
   >(100);
+
+  /** Tag handler registry. Defaults to the global singleton (pre-populated by extensions). */
+  tagRegistry: TagHandlerRegistry = tagHandlerRegistry;
 
   constructor() {
     this.project = getSharedProject();
@@ -778,7 +782,7 @@ export class AnnotationParser {
     const nodeTypes: TNodeTypeAST[] = [];
     extractFunctionLikes(sourceFile).forEach((fn: FunctionLike) => {
       // Parse JSDoc comments
-      const config = jsdocParser.parseNodeType(fn, warnings);
+      const config = jsdocParser.parseNodeType(fn, warnings, this.tagRegistry);
       if (!config) {
         const jsdocText = fn.getJsDocs().map((d) => d.getFullText()).join('');
         if (jsdocText.includes('@flowWeaver nodeType')) {
@@ -976,7 +980,7 @@ export class AnnotationParser {
   ): TWorkflowAST[] {
     const workflows: TWorkflowAST[] = [];
     extractFunctionLikes(sourceFile).forEach((fn: FunctionLike) => {
-      const config = jsdocParser.parseWorkflow(fn, warnings);
+      const config = jsdocParser.parseWorkflow(fn, warnings, this.tagRegistry);
       if (!config) return;
 
       const functionName = fn.getName() || 'anonymous';
@@ -1043,7 +1047,7 @@ export class AnnotationParser {
       .filter((name): name is string => !!name);
     allFunctions.forEach((fn: FunctionLike) => {
       // Parse JSDoc comments
-      const config = jsdocParser.parseWorkflow(fn, warnings);
+      const config = jsdocParser.parseWorkflow(fn, warnings, this.tagRegistry);
       if (!config) {
         const jsdocText = fn.getJsDocs().map((d) => d.getFullText()).join('');
         if (jsdocText.includes('@flowWeaver workflow')) {
@@ -1266,11 +1270,7 @@ export class AnnotationParser {
         ...(Object.keys(ui).length > 0 && { ui }),
         ...((config.strictTypes !== undefined || config.autoConnect ||
              config.trigger || config.cancelOn || config.retries !== undefined ||
-             config.timeout || config.throttle ||
-             config.secrets || config.runner || config.caches || config.artifacts ||
-             config.environments || config.matrix || config.services ||
-             config.concurrency || config.cicdTriggers ||
-             config.deploy) && {
+             config.timeout || config.throttle || config.deploy) && {
           options: {
             ...(config.strictTypes !== undefined && { strictTypes: config.strictTypes }),
             ...(config.autoConnect && { autoConnect: true }),
@@ -1279,21 +1279,9 @@ export class AnnotationParser {
             ...(config.retries !== undefined && { retries: config.retries }),
             ...(config.timeout && { timeout: config.timeout }),
             ...(config.throttle && { throttle: config.throttle }),
-            // CI/CD domain options (grouped)
-            ...((config.secrets || config.runner || config.caches || config.artifacts ||
-                 config.environments || config.matrix || config.services ||
-                 config.concurrency || config.cicdTriggers) && {
-              cicd: {
-                ...(config.secrets && { secrets: config.secrets }),
-                ...(config.runner && { runner: config.runner }),
-                ...(config.caches && { caches: config.caches }),
-                ...(config.artifacts && { artifacts: config.artifacts }),
-                ...(config.environments && { environments: config.environments }),
-                ...(config.matrix && { matrix: config.matrix }),
-                ...(config.services && { services: config.services }),
-                ...(config.concurrency && { concurrency: config.concurrency }),
-                ...(config.cicdTriggers && { triggers: config.cicdTriggers }),
-              },
+            // CI/CD data comes from deploy['cicd'] (populated by extension tag handler)
+            ...(config.deploy?.['cicd'] && {
+              cicd: config.deploy['cicd'] as Record<string, unknown>,
             }),
             // Per-target deployment config
             ...(config.deploy && { deploy: config.deploy }),

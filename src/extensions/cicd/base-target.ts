@@ -7,7 +7,7 @@
  *
  * Key responsibilities:
  * - Build job graph from AST (group nodes by @job, compute dependencies)
- * - Resolve secret wiring (secret: pseudo-node connections → job env vars)
+ * - Resolve secret wiring (secret: pseudo-node connections -> job env vars)
  * - Inject artifact upload/download steps between jobs
  * - Generate SECRETS_SETUP.md documentation
  */
@@ -38,7 +38,7 @@ import {
   type BundleArtifacts,
   type BundleWorkflow,
   type BundleNodeType,
-} from './base.js';
+} from '../../deployment/targets/base.js';
 
 // ---------------------------------------------------------------------------
 // CI/CD-Specific Types
@@ -82,6 +82,28 @@ export interface CICDJob {
   uploadArtifacts?: TCICDArtifact[];
   /** Artifact names to download before this job */
   downloadArtifacts?: string[];
+  /** Maximum retry count on failure (from @job) */
+  retry?: number;
+  /** Whether this job can fail without failing the pipeline (from @job) */
+  allowFailure?: boolean;
+  /** Job-level timeout duration (from @job) */
+  timeout?: string;
+  /** Environment variables (from @job or @variables) */
+  variables?: Record<string, string>;
+  /** Runner selection tags (from @job or @tags) */
+  tags?: string[];
+  /** Setup commands before main script (from @job or @before_script) */
+  beforeScript?: string[];
+  /** Conditional execution rules (from @job) */
+  rules?: Array<{ if?: string; when?: string; allowFailure?: boolean; variables?: Record<string, string>; changes?: string[] }>;
+  /** Coverage regex pattern (from @job) */
+  coverage?: string;
+  /** Test/coverage report declarations (from @job) */
+  reports?: Array<{ type: string; path: string }>;
+  /** GitLab template to extend (from @job) */
+  extends?: string;
+  /** Explicit stage name (from @stage) */
+  stage?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,10 +123,6 @@ export interface ActionMapping {
   label?: string;
 }
 
-/**
- * Default mapping from FW node types to CI/CD platform actions.
- * Unknown node types fall back to a TODO placeholder.
- */
 export const NODE_ACTION_MAP: Record<string, ActionMapping> = {
   checkout: {
     githubAction: 'actions/checkout@v4',
@@ -172,7 +190,7 @@ export const NODE_ACTION_MAP: Record<string, ActionMapping> = {
   },
   'slack-notify': {
     githubAction: 'slackapi/slack-github-action@v1',
-    gitlabScript: ['curl -X POST -H "Content-type: application/json" --data "{\"text\":\"Pipeline complete\"}" $SLACK_WEBHOOK_URL'],
+    gitlabScript: ['curl -X POST -H "Content-type: application/json" --data "{\\\"text\\\":\\\"Pipeline complete\\\"}" $SLACK_WEBHOOK_URL'],
     label: 'Send Slack notification',
   },
   'health-check': {
@@ -192,12 +210,6 @@ export const NODE_ACTION_MAP: Record<string, ActionMapping> = {
 // ---------------------------------------------------------------------------
 
 export abstract class BaseCICDTarget extends BaseExportTarget {
-  /**
-   * CI/CD targets don't compile workflows — they read the AST and generate YAML.
-   * The generate() method must be implemented by each platform target.
-   */
-
-  // Not used by CI/CD targets (they don't produce serverless handlers)
   async generateMultiWorkflow(
     _workflows: CompiledWorkflow[],
     _options: ExportOptions,
@@ -224,18 +236,10 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
   // Shared CI/CD Logic
   // ---------------------------------------------------------------------------
 
-  /**
-   * Resolve the action mapping for a node type.
-   * Priority: @deploy annotations on the node type → NODE_ACTION_MAP fallback → undefined.
-   *
-   * This makes marketplace packages self-describing: a node type with
-   * `@deploy github-actions action="actions/checkout@v4"` contributes its own mapping.
-   */
   protected resolveActionMapping(
     step: CICDStep,
     targetName: string,
   ): ActionMapping | undefined {
-    // 1. Check @deploy annotations on the node type
     const deployConfig = step.nodeTypeDeploy?.[targetName];
     if (deployConfig) {
       return {
@@ -255,27 +259,17 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
       };
     }
 
-    // 2. Fall back to built-in NODE_ACTION_MAP
-    // Try exact match first, then normalize camelCase to kebab-case
-    // (templates use camelCase function names like npmInstall, map uses kebab-case npm-install)
     return NODE_ACTION_MAP[step.nodeType]
       || NODE_ACTION_MAP[step.nodeType.replace(/([A-Z])/g, '-$1').toLowerCase()];
   }
 
-  /**
-   * Build the job graph from the workflow AST.
-   * Groups nodes by their [job: "name"] attribute and computes dependencies
-   * from connections between nodes in different jobs.
-   */
   protected buildJobGraph(ast: TWorkflowAST): CICDJob[] {
-    // Build node type lookup for @deploy annotations
     const nodeTypeLookup = new Map<string, TNodeTypeAST>();
     for (const nt of ast.nodeTypes) {
       nodeTypeLookup.set(nt.name, nt);
       if (nt.functionName !== nt.name) nodeTypeLookup.set(nt.functionName, nt);
     }
 
-    // Group instances by job
     const jobMap = new Map<string, TNodeInstanceAST[]>();
     const defaultRunner = ast.options?.cicd?.runner;
 
@@ -285,13 +279,11 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
       jobMap.get(jobName)!.push(inst);
     }
 
-    // Build node -> job lookup
     const nodeJob = new Map<string, string>();
     for (const inst of ast.instances) {
       nodeJob.set(inst.id, inst.job || 'default');
     }
 
-    // Build job dependency graph from connections
     const jobDeps = new Map<string, Set<string>>();
     for (const conn of ast.connections) {
       if (conn.from.node.startsWith('secret:')) continue;
@@ -306,10 +298,8 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
       }
     }
 
-    // Convert to CICDJob array
     const jobs: CICDJob[] = [];
     for (const [jobId, instances] of jobMap) {
-      // Determine environment from first instance with one
       const environment = instances.find((i) => i.environment)?.environment;
 
       const steps: CICDStep[] = instances.map((inst) => {
@@ -337,13 +327,70 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
       });
     }
 
-    // Topologically sort jobs so dependencies come first
+    // Apply @job configs
+    const jobConfigs = ast.options?.cicd?.jobs;
+    if (jobConfigs) {
+      for (const jc of jobConfigs) {
+        const job = jobs.find(j => j.id === jc.id);
+        if (!job) continue;
+        if (jc.retry !== undefined) job.retry = jc.retry;
+        if (jc.allowFailure !== undefined) job.allowFailure = jc.allowFailure;
+        if (jc.timeout) job.timeout = jc.timeout;
+        if (jc.variables) job.variables = { ...job.variables, ...jc.variables };
+        if (jc.tags) job.tags = jc.tags;
+        if (jc.beforeScript) job.beforeScript = jc.beforeScript;
+        if (jc.rules) job.rules = jc.rules;
+        if (jc.coverage) job.coverage = jc.coverage;
+        if (jc.reports) job.reports = jc.reports;
+        if (jc.runner) job.runner = jc.runner;
+        if (jc.extends) job.extends = jc.extends;
+      }
+    }
+
+    // Apply @stage assignments
+    const stages = ast.options?.cicd?.stages;
+    if (stages && stages.length > 0) {
+      const depthMap = this.computeJobDepths(jobs);
+
+      for (const jc of jobConfigs || []) {
+        const job = jobs.find(j => j.id === jc.id);
+        if (job && !job.stage) {
+          for (const s of stages) {
+            if (jc.id === s.name || jc.id.startsWith(s.name + '-') || jc.id.startsWith(s.name + '_')) {
+              job.stage = s.name;
+              break;
+            }
+          }
+        }
+      }
+
+      for (const job of jobs) {
+        if (!job.stage) {
+          const depth = depthMap.get(job.id) || 0;
+          job.stage = stages[Math.min(depth, stages.length - 1)].name;
+        }
+      }
+    }
+
+    // Apply workflow-level defaults
+    const cicd = ast.options?.cicd;
+    if (cicd) {
+      for (const job of jobs) {
+        if (cicd.variables && !job.variables) {
+          job.variables = { ...cicd.variables };
+        }
+        if (cicd.beforeScript && !job.beforeScript) {
+          job.beforeScript = [...cicd.beforeScript];
+        }
+        if (cicd.tags && !job.tags) {
+          job.tags = [...cicd.tags];
+        }
+      }
+    }
+
     return this.topoSortJobs(jobs);
   }
 
-  /**
-   * Topologically sort jobs so that dependencies come first.
-   */
   private topoSortJobs(jobs: CICDJob[]): CICDJob[] {
     const jobMap = new Map(jobs.map((j) => [j.id, j]));
     const visited = new Set<string>();
@@ -367,22 +414,41 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
     return sorted;
   }
 
-  /**
-   * Map secret:NAME connections to the jobs that need them.
-   * Populates job.secrets and step.env for each secret connection.
-   */
+  private computeJobDepths(jobs: CICDJob[]): Map<string, number> {
+    const depths = new Map<string, number>();
+
+    function depth(jobId: string, visited: Set<string>): number {
+      if (depths.has(jobId)) return depths.get(jobId)!;
+      if (visited.has(jobId)) return 0;
+      visited.add(jobId);
+      const job = jobs.find(j => j.id === jobId);
+      if (!job || job.needs.length === 0) {
+        depths.set(jobId, 0);
+        return 0;
+      }
+      const maxDep = Math.max(...job.needs.map(n => depth(n, visited)));
+      const d = maxDep + 1;
+      depths.set(jobId, d);
+      return d;
+    }
+
+    for (const job of jobs) {
+      depth(job.id, new Set());
+    }
+
+    return depths;
+  }
+
   protected resolveJobSecrets(
     jobs: CICDJob[],
     ast: TWorkflowAST,
     renderSecretRef: (name: string) => string,
   ): void {
-    // Build node -> job lookup
     const nodeJob = new Map<string, string>();
     for (const inst of ast.instances) {
       nodeJob.set(inst.id, inst.job || 'default');
     }
 
-    // Build step lookup
     const stepMap = new Map<string, CICDStep>();
     for (const job of jobs) {
       for (const step of job.steps) {
@@ -390,7 +456,6 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
       }
     }
 
-    // Process secret connections
     for (const conn of ast.connections) {
       if (!conn.from.node.startsWith('secret:')) continue;
 
@@ -404,36 +469,27 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
       const job = jobs.find((j) => j.id === jobId);
       if (!job) continue;
 
-      // Add secret to job
       if (!job.secrets.includes(secretName)) {
         job.secrets.push(secretName);
       }
 
-      // Add env var to the step
       const step = stepMap.get(targetNode);
       if (step) {
         step.env = step.env || {};
-        // Convert port name to env var (e.g., npmToken -> NPM_TOKEN or use secret name directly)
         step.env[targetPort.replace(/([A-Z])/g, '_$1').toUpperCase().replace(/^_/, '')] =
           renderSecretRef(secretName);
       }
     }
   }
 
-  /**
-   * Add artifact upload/download steps between jobs.
-   */
   protected injectArtifactSteps(jobs: CICDJob[], artifacts: TCICDArtifact[]): void {
     if (artifacts.length === 0) return;
 
-    // For each job that has dependencies, check if any dependency produces artifacts
     for (const job of jobs) {
       if (job.needs.length === 0) continue;
 
-      // Check if any needed job produces artifacts
       const neededJobs = jobs.filter((j) => job.needs.includes(j.id));
       for (const needed of neededJobs) {
-        // Find artifacts that match the producing job
         const jobArtifacts = artifacts.filter(
           (a) => !a.name || needed.steps.some((s) => s.nodeType === a.name),
         );
@@ -448,9 +504,6 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
     }
   }
 
-  /**
-   * Generate SECRETS_SETUP.md with per-secret setup instructions.
-   */
   protected generateSecretsDoc(secrets: TCICDSecret[], platform: string): string {
     if (secrets.length === 0) return '';
 

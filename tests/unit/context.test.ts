@@ -144,9 +144,8 @@ describe('PRESETS', () => {
     }
   });
 
-  it('cicd preset includes cicd and deployment topics', () => {
-    expect(PRESETS.cicd).toContain('cicd');
-    expect(PRESETS.cicd).toContain('deployment');
-    expect(PRESETS.cicd).toContain('jsdoc-grammar');
+  it('cicd topics are contributed by extension via registerPackDocTopics', () => {
+    // CI/CD is now an extension; its preset contribution is
+    // verified through pack doc topic registration in extension tests.
   });
 });

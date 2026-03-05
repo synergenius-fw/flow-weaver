@@ -6,7 +6,7 @@ import { exportWorkflow, type ExportTarget } from '../../export/index.js';
 import { logger } from '../utils/logger.js';
 
 export interface ExportOptions {
-  /** Target platform (lambda, vercel, cloudflare, inngest) */
+  /** Target platform (provided by installed packs) */
   target: string;
   /** Output directory */
   output: string;
@@ -24,7 +24,7 @@ export interface ExportOptions {
   workflows?: string;
   /** Include API documentation routes (/docs and /openapi.json) */
   docs?: boolean;
-  /** Use deep generator with per-node Inngest steps for durability (inngest target only) */
+  /** Use deep generator with per-node durable steps */
   durableSteps?: boolean;
 }
 
@@ -36,32 +36,23 @@ export interface ExportOptions {
  *
  * @example
  * ```bash
- * # Export for Vercel
- * flow-weaver export workflow.ts --target vercel --output api/
- *
- * # Export for AWS Lambda
- * flow-weaver export workflow.ts --target lambda --output dist/lambda/
- *
- * # Export for Cloudflare Workers
- * flow-weaver export workflow.ts --target cloudflare --output workers/
+ * # Export for a target (install the corresponding pack first)
+ * flow-weaver export workflow.ts --target <target> --output dist/
  *
  * # Export specific workflow from multi-workflow file
- * flow-weaver export multi-workflow.ts --target vercel --output api/ --workflow calculate
+ * flow-weaver export multi-workflow.ts --target <target> --output api/ --workflow calculate
  *
- * # Export all workflows as a single service (multi-workflow mode)
- * flow-weaver export workflows.ts --target lambda --output dist/ --multi
- *
- * # Export specific workflows from a file as a service
- * flow-weaver export workflows.ts --target lambda --output dist/ --multi --workflows "workflowA,workflowB"
+ * # Export all workflows as a single service
+ * flow-weaver export workflows.ts --target <target> --output dist/ --multi
  *
  * # Export with API documentation routes
- * flow-weaver export workflow.ts --target lambda --output dist/ --docs
+ * flow-weaver export workflow.ts --target <target> --output dist/ --docs
  * ```
  */
 export async function exportCommand(input: string, options: ExportOptions): Promise<void> {
   // Validate target is provided
   if (!options.target) {
-    throw new Error('--target is required. Install a target pack (e.g. npm install flowweaver-pack-lambda)');
+    throw new Error('--target is required. Install a target pack first.');
   }
 
   const isDryRun = options.dryRun ?? false;
@@ -90,7 +81,7 @@ export async function exportCommand(input: string, options: ExportOptions): Prom
     logger.info('Include docs: Yes (/docs and /openapi.json routes)');
   }
   if (options.durableSteps) {
-    logger.info('Durable steps: Yes (per-node step.run for Inngest)');
+    logger.info('Durable steps: Yes');
   }
   if (isDryRun) {
     logger.info('Mode: DRY RUN (no files will be written)');
