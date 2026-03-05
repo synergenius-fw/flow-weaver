@@ -13,6 +13,11 @@ export interface ParseOptions extends Partial<ASTParseOptions> {
    * Useful for files that only contain node type definitions.
    */
   nodeTypesOnly?: boolean;
+  /**
+   * Project root directory. When set, tag handlers from installed
+   * marketplace packs are discovered and registered before parsing.
+   */
+  projectDir?: string;
 }
 
 export interface ParseResult {
@@ -58,6 +63,11 @@ export async function parseWorkflow(
   let availableWorkflows: string[] = [];
 
   try {
+    // Load marketplace pack tag handlers before parsing
+    if (options?.projectDir) {
+      await parser.loadPackHandlers(options.projectDir);
+    }
+
     // Parse the file to extract nodes and workflows
     const parsed = parser.parse(filePath);
     warnings.push(...parsed.warnings);

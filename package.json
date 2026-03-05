@@ -71,13 +71,17 @@
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"
     },
-    "./extensions/inngest": {
-      "types": "./dist/extensions/inngest/index.d.ts",
-      "default": "./dist/extensions/inngest/index.js"
+    "./generator": {
+      "types": "./dist/generator/index.d.ts",
+      "default": "./dist/generator/index.js"
     },
-    "./extensions/cicd": {
-      "types": "./dist/extensions/cicd/index.d.ts",
-      "default": "./dist/extensions/cicd/index.js"
+    "./constants": {
+      "types": "./dist/constants.d.ts",
+      "default": "./dist/constants.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/exports.d.ts",
+      "default": "./dist/cli/exports.js"
     }
   },
   "bin": {

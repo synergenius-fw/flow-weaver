@@ -150,7 +150,7 @@ export async function compileCommand(input: string, options: CompileOptions = {}
       }
 
       // Parse the workflow
-      const parseResult = await parseWorkflow(file, { workflowName });
+      const parseResult = await parseWorkflow(file, { workflowName, projectDir: cwd });
 
       if (parseResult.warnings.length > 0 && verbose) {
         logger.warn(`Parse warnings in ${fileName}:`);
@@ -317,6 +317,7 @@ export async function compileCustomTarget(
   logger.newline();
 
   const annotationParser = new AnnotationParser();
+  await annotationParser.loadPackHandlers(process.cwd());
   const parseResult = annotationParser.parse(filePath);
 
   if (parseResult.errors.length > 0) {

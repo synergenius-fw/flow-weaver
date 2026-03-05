@@ -909,6 +909,8 @@ export type TParseOptions = {
   includeLocations?: boolean;
   validate?: boolean;
   validationRules?: TValidationRule[];
+  /** Project root directory. When set, pack tag handlers are discovered from node_modules/. */
+  projectDir?: string;
 };
 
 export type TValidationRule = {
