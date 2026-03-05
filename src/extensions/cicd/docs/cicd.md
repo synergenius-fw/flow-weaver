@@ -37,7 +37,7 @@ These annotations are placed inside `@flowWeaver workflow` JSDoc blocks alongsid
 
 ### @trigger (CI/CD mode)
 
-Defines when the pipeline runs. When the value is `push`, `pull_request`, `dispatch`, `tag`, or `schedule`, the parser treats it as a CI/CD trigger rather than an Inngest event trigger.
+Defines when the pipeline runs. When the value is `push`, `pull_request`, `dispatch`, `tag`, or `schedule`, the parser treats it as a CI/CD trigger rather than a runtime event trigger.
 
 ```
 @trigger push branches="main,develop"

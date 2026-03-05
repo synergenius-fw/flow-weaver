@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   formatCliResponse,
   formatHttpResponse,
-  formatLambdaResponse,
-  formatCloudflareResponse,
   formatError,
 } from '../../../src/deployment/core/formatters.js';
 import type { WorkflowResponse } from '../../../src/deployment/types.js';
@@ -279,67 +277,6 @@ describe('formatHttpResponse', () => {
 
     expect(result.body.workflow).toBe('test-workflow');
     expect(result.body.executionTime).toBe(10);
-  });
-});
-
-// ── formatLambdaResponse ────────────────────────────────────────────────────
-
-describe('formatLambdaResponse', () => {
-  it('stringifies the body from formatHttpResponse', () => {
-    const result = formatLambdaResponse(makeSuccessResponse());
-
-    expect(typeof result.body).toBe('string');
-    const parsed = JSON.parse(result.body);
-    expect(parsed.success).toBe(true);
-    expect(parsed.result).toBe('hello');
-  });
-
-  it('preserves statusCode from formatHttpResponse', () => {
-    const response = makeErrorResponse({
-      error: { message: 'Not found', code: 'WORKFLOW_NOT_FOUND' },
-    });
-    const result = formatLambdaResponse(response);
-
-    expect(result.statusCode).toBe(404);
-  });
-
-  it('preserves headers from formatHttpResponse', () => {
-    const result = formatLambdaResponse(makeSuccessResponse());
-
-    expect(result.headers['Content-Type']).toBe('application/json');
-    expect(result.headers['X-Request-Id']).toBe('req-001');
-  });
-});
-
-// ── formatCloudflareResponse ────────────────────────────────────────────────
-
-describe('formatCloudflareResponse', () => {
-  it('returns stringified body and init with status', () => {
-    const result = formatCloudflareResponse(makeSuccessResponse());
-
-    expect(typeof result.body).toBe('string');
-    const parsed = JSON.parse(result.body);
-    expect(parsed.success).toBe(true);
-
-    expect(result.init.status).toBe(200);
-  });
-
-  it('passes headers through init', () => {
-    const result = formatCloudflareResponse(makeSuccessResponse());
-
-    expect(result.init.headers).toBeDefined();
-    const headers = result.init.headers as Record<string, string>;
-    expect(headers['Content-Type']).toBe('application/json');
-    expect(headers['X-Request-Id']).toBe('req-001');
-  });
-
-  it('maps error codes to correct status', () => {
-    const response = makeErrorResponse({
-      error: { message: 'Bad', code: 'VALIDATION_ERROR' },
-    });
-    const result = formatCloudflareResponse(response);
-
-    expect(result.init.status).toBe(400);
   });
 });
 

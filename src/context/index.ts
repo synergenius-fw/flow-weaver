@@ -116,7 +116,7 @@ Tool quick reference:
 - fw_compile: Generate executable TypeScript from annotations
 - fw_docs: Look up reference docs by topic slug
 - fw_scaffold: Create from templates (sequential, foreach, ai-agent, cicd-test-deploy, cicd-docker, etc.)
-- fw_export: Deploy to cloud (lambda, vercel, cloudflare) or generate CI/CD pipelines (github-actions, gitlab-ci)
+- fw_export: Deploy to cloud or generate CI/CD pipelines (targets depend on installed packs)
 
 Flow Weaver can also generate CI/CD pipelines. Use @secret, @runner, @trigger,
 @cache, @matrix, and [job: "name"] annotations to define pipeline structure,

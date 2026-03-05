@@ -214,7 +214,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     syntax: 'flow-weaver export <file> -t <target> -o <path> [options]',
     description: 'Export workflow as serverless function',
     options: [
-      { flags: '-t, --target', arg: 'lambda|vercel|cloudflare', description: 'Target platform', required: true },
+      { flags: '-t, --target', arg: '<target>', description: 'Target platform (provided by installed packs)', required: true },
       { flags: '-o, --output', arg: '<path>', description: 'Output directory', required: true },
       { flags: '-w, --workflow', arg: '<name>', description: 'Specific workflow to export' },
       { flags: '-p, --production', description: 'Production mode', defaultValue: 'true' },

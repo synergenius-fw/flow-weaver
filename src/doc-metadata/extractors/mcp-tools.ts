@@ -665,9 +665,8 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'target',
         type: 'string',
-        description: 'Target deployment platform',
+        description: 'Target deployment platform (provided by installed packs)',
         required: true,
-        enum: ['lambda', 'vercel', 'cloudflare'],
       },
       {
         name: 'outputDir',

@@ -14,8 +14,6 @@ import { aiChatTemplate } from './workflows/ai-chat';
 import { aggregatorTemplate } from './workflows/aggregator';
 import { webhookTemplate } from './workflows/webhook';
 import { errorHandlerTemplate } from './workflows/error-handler';
-import { aiAgentDurableTemplate } from './workflows/ai-agent-durable';
-import { aiPipelineDurableTemplate } from './workflows/ai-pipeline-durable';
 
 // Import node templates
 import { validatorNodeTemplate } from './nodes/validator';
@@ -125,8 +123,6 @@ export const workflowTemplates: WorkflowTemplate[] = [
   aggregatorTemplate,
   webhookTemplate,
   errorHandlerTemplate,
-  aiAgentDurableTemplate,
-  aiPipelineDurableTemplate,
 ];
 
 /**

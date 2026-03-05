@@ -1,12 +1,12 @@
 /**
  * Durable AI Pipeline Template
- * Sequential data processing pipeline with durability annotations for Inngest compilation.
+ * Sequential data processing pipeline with durability annotations.
  * Each node maps to a checkpointed step — if step 3 fails, it retries from step 3, not from scratch.
  */
-import type { WorkflowTemplate, WorkflowTemplateOptions } from '../index';
-import { getProviderCode } from '../providers';
-import { aiConfigSchema } from './ai-agent';
-import { LLM_CORE_TYPES, LLM_MOCK_PROVIDER } from '../shared/llm-types';
+import type { WorkflowTemplate, WorkflowTemplateOptions } from '../../../cli/templates/index';
+import { getProviderCode } from '../../../cli/templates/providers';
+import { aiConfigSchema } from '../../../cli/templates/workflows/ai-agent';
+import { LLM_CORE_TYPES, LLM_MOCK_PROVIDER } from '../../../cli/templates/shared/llm-types';
 
 export const aiPipelineDurableTemplate: WorkflowTemplate = {
   id: 'ai-pipeline-durable',
@@ -35,11 +35,11 @@ ${LLM_MOCK_PROVIDER}
 // Durable Data Pipeline
 // ============================================================
 //
-// Each node becomes a checkpointed step when compiled to Inngest.
-// If step 3 fails, it retries from step 3 — not from scratch.
+// Each node becomes a checkpointed step when compiled to a durable target.
+// If step 3 fails, it retries from step 3, not from scratch.
 //
 // Compile:  flow-weaver compile <file>
-// Export:   fw export --target inngest
+// Export:   fw export --target <target>
 //
 // Flow: fetchData → extract (LLM) → validate → save
 //                                      ↓ onFailure
@@ -288,7 +288,7 @@ async function saveResult(
 
 /**
  * Durable Data Pipeline — sequential fetch, extract, validate, save.
- * Each node becomes a checkpointed step when compiled to Inngest.
+ * Each node becomes a checkpointed step when compiled to a durable target.
  *
  * @flowWeaver workflow
  * @trigger event="pipeline/start"

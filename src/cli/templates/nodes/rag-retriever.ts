@@ -40,7 +40,7 @@ const MOCK_DOCUMENTS: Record<string, RetrievedDocument[]> = {
     { text: 'Flow Weaver compiles workflows to standalone TypeScript functions.', score: 0.95, metadata: { source: 'docs/overview.md' } },
     { text: 'The compiler validates connections at compile time, catching errors before runtime.', score: 0.88, metadata: { source: 'docs/compiler.md' } },
     { text: 'Workflows are standard TypeScript files with JSDoc annotations.', score: 0.82, metadata: { source: 'docs/authoring.md' } },
-    { text: 'Deploy compiled workflows to Lambda, Vercel, Cloudflare, or Inngest.', score: 0.75, metadata: { source: 'docs/deployment.md' } },
+    { text: 'Deploy compiled workflows to any supported target via installed packs.', score: 0.75, metadata: { source: 'docs/deployment.md' } },
     { text: 'The visual editor provides bidirectional editing — code changes update the canvas and vice versa.', score: 0.71, metadata: { source: 'docs/editor.md' } },
   ],
 };

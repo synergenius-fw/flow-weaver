@@ -19,9 +19,6 @@ export type {
   ValidationError,
   CliInput,
   HttpInput,
-  LambdaInput,
-  VercelInput,
-  CloudflareInput,
   AdapterInput,
 } from './types.js';
 
@@ -33,9 +30,6 @@ export {
   type RequestAdapter,
   CliRequestAdapter,
   HttpRequestAdapter,
-  LambdaRequestAdapter,
-  VercelRequestAdapter,
-  CloudflareRequestAdapter,
   createAdapter,
 } from './core/adapters.js';
 
@@ -43,8 +37,6 @@ export {
 export {
   formatCliResponse,
   formatHttpResponse,
-  formatLambdaResponse,
-  formatCloudflareResponse,
   formatError,
   type CliOutputOptions,
 } from './core/formatters.js';

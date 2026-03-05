@@ -106,5 +106,6 @@ export * from './templates';
 export * from './patterns';
 
 // Re-exports needed by export target packs
-export { generateInngestFunction } from '../generator/inngest.js';
 export { AnnotationParser } from '../parser.js';
+export { compileTargetRegistry, type CompileTarget } from '../generator/compile-target-registry.js';
+export { devModeRegistry, type DevModeProvider, type DevModeOptions } from '../generator/dev-mode-registry.js';

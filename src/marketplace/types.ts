@@ -53,7 +53,7 @@ export type TMarketplaceManifest = {
 
 /** An export target provided by a marketplace package. */
 export type TManifestExportTarget = {
-  /** Target identifier (e.g. "lambda", "azure-pipelines") */
+  /** Target identifier */
   name: string;
   /** Human-readable description */
   description?: string;

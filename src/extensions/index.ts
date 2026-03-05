@@ -9,3 +9,4 @@
  */
 
 import './cicd/register.js';
+import './inngest/register.js';

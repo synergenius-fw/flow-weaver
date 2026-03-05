@@ -14,8 +14,7 @@ import { AnnotationParser } from '../parser.js';
  * Export target identifier.
  *
  * Widened to `string` so marketplace packs can register arbitrary targets
- * without modifying core. Well-known built-in names (when packs are installed):
- * 'lambda', 'vercel', 'cloudflare', 'inngest', 'github-actions', 'gitlab-ci'
+ * without modifying core.
  */
 export type ExportTarget = string;
 
@@ -43,7 +42,7 @@ export interface ExportOptions {
   workflows?: string[];
   /** Include API documentation routes */
   includeDocs?: boolean;
-  /** Use deep generator with per-node Inngest steps for durability (inngest target only) */
+  /** Use deep generator with per-node durable steps (target-specific) */
   durableSteps?: boolean;
 }
 

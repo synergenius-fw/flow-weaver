@@ -1490,8 +1490,8 @@ export class JSDocParser {
    *
    * Examples:
    *   @deploy github-actions action="actions/checkout@v4"
-   *   @deploy inngest durableSteps=true framework="next" retries=3
-   *   @deploy lambda memory=256 timeout=30
+   *   @deploy my-target durableSteps=true framework="next" retries=3
+   *   @deploy another-target memory=256 timeout=30
    *
    * Values are auto-coerced: "true"/"false" → boolean, numeric strings → number.
    */
