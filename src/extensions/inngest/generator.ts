@@ -15,8 +15,8 @@
  * @module generator/inngest
  */
 
-import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST } from '../ast/types';
-import { toValidIdentifier } from './code-utils';
+import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST } from '../../ast/types';
+import { toValidIdentifier } from '../../generator/code-utils';
 import {
   buildControlFlowGraph,
   detectBranchingChains,
@@ -24,7 +24,7 @@ import {
   findNodesInBranch,
   performKahnsTopologicalSort,
   isPerPortScopedChild,
-} from './control-flow';
+} from '../../generator/control-flow';
 import {
   RESERVED_NODE_NAMES,
   RESERVED_PORT_NAMES,
@@ -33,7 +33,7 @@ import {
   isExecutePort,
   isSuccessPort,
   isFailurePort,
-} from '../constants';
+} from '../../constants';
 
 // ---------------------------------------------------------------------------
 // Types

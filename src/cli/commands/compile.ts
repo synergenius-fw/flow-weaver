@@ -14,7 +14,7 @@ import { getErrorMessage } from '../../utils/error-utils.js';
 import { getFriendlyError } from '../../friendly-errors.js';
 import type { TModuleFormat } from '../../ast/types.js';
 import { detectProjectModuleFormat } from './doctor.js';
-import { generateInngestFunction } from '../../generator/inngest.js';
+import { compileTargetRegistry } from '../../generator/compile-target-registry.js';
 import { AnnotationParser } from '../../parser.js';
 
 /** Show path relative to cwd for cleaner output */
@@ -52,13 +52,9 @@ export interface CompileOptions {
    * Useful for vibe coders who don't use the visual editor.
    */
   clean?: boolean;
-  /**
-   * Compilation target.
-   * - 'typescript' (default): Standard in-place compilation
-   * - 'inngest': Generate Inngest function with per-node step.run() for durability
-   */
-  target?: 'typescript' | 'inngest';
-  /** Override @trigger cron from CLI (Inngest target only) */
+  /** Compilation target. 'typescript' (default) or a registered extension target. */
+  target?: string;
+  /** Override @trigger cron from CLI */
   cron?: string;
   /** Generate serve() handler */
   serve?: boolean;
@@ -88,9 +84,9 @@ function resolveModuleFormat(format: string | undefined, cwd: string): TModuleFo
 export async function compileCommand(input: string, options: CompileOptions = {}): Promise<void> {
   const { production = false, sourceMap = false, strict = false, verbose = false, workflowName, dryRun = false, format, inlineRuntime = false, clean = false, target } = options;
 
-  // Handle Inngest target compilation
-  if (target === 'inngest') {
-    return compileInngestTarget(input, { production, verbose, workflowName, dryRun });
+  // Handle custom compile target
+  if (target && target !== 'typescript') {
+    return compileCustomTarget(target, input, { production, verbose, workflowName, dryRun, cron: options.cron, serve: options.serve, framework: options.framework, typedEvents: options.typedEvents, retries: options.retries, timeout: options.timeout });
   }
 
   // Resolve module format (auto-detect if not specified)
@@ -289,9 +285,10 @@ export async function compileCommand(input: string, options: CompileOptions = {}
 }
 
 /**
- * Compile a workflow file to Inngest function code with per-node step.run().
+ * Compile a workflow file using a registered custom compile target.
  */
-export async function compileInngestTarget(
+export async function compileCustomTarget(
+  target: string,
   input: string,
   options: {
     production: boolean; verbose?: boolean; workflowName?: string; dryRun?: boolean;
@@ -299,19 +296,28 @@ export async function compileInngestTarget(
     typedEvents?: boolean; retries?: number; timeout?: string;
   }
 ): Promise<void> {
+  const customTarget = compileTargetRegistry.get(target);
+  if (!customTarget) {
+    const available = compileTargetRegistry.getNames();
+    const hint = available.length > 0
+      ? ` Available targets: typescript, ${available.join(', ')}`
+      : ' No custom targets registered.';
+    throw new Error(`Unknown compile target: ${target}.${hint}`);
+  }
+
   const filePath = path.resolve(input);
 
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${displayPath(filePath)}`);
   }
 
-  logger.section('Compiling to Inngest');
+  logger.section(`Compiling to ${target}`);
   logger.info(`Input: ${displayPath(filePath)}`);
-  logger.info(`Target: Inngest (per-node step.run)`);
+  logger.info(`Target: ${target}`);
   logger.newline();
 
-  const parser = new AnnotationParser();
-  const parseResult = parser.parse(filePath);
+  const annotationParser = new AnnotationParser();
+  const parseResult = annotationParser.parse(filePath);
 
   if (parseResult.errors.length > 0) {
     const msgs = parseResult.errors.map((e) => `  ${e}`).join('\n');
@@ -347,14 +353,14 @@ export async function compileInngestTarget(
     workflow.options.timeout = options.timeout;
   }
 
-  const code = generateInngestFunction(workflow, allNodeTypes, {
+  const code = customTarget.compile(workflow, allNodeTypes, {
     production: options.production,
     typedEvents: options.typedEvents,
     serveHandler: options.serve,
     framework: options.framework,
   });
 
-  const outputPath = filePath.replace(/\.ts$/, '.inngest.ts');
+  const outputPath = filePath.replace(/\.ts$/, `.${target}.ts`);
 
   if (options.dryRun) {
     logger.success(`Would generate: ${displayPath(outputPath)}`);
@@ -373,6 +379,5 @@ export async function compileInngestTarget(
 
   logger.newline();
   logger.section('Summary');
-  logger.success(`Workflow "${workflow.name}" compiled to Inngest function`);
-  logger.info('Each node is wrapped in step.run() for per-node durability');
+  logger.success(`Workflow "${workflow.name}" compiled to ${target} target`);
 }

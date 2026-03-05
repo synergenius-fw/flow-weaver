@@ -513,7 +513,8 @@ export function checkTsxAvailable(cwd: string): CheckResult {
 // ── Config health checks ─────────────────────────────────────────────────────
 
 const VALID_FILE_TYPES = ['ts', 'tsx', 'js', 'jsx'];
-const VALID_TARGETS = ['lambda', 'vercel', 'cloudflare'];
+// Target validation is skipped — valid targets are discovered dynamically
+// from installed packs at export time.
 
 function readYaml(filePath: string): { data: unknown; error?: string } {
   try {
@@ -689,10 +690,10 @@ export function checkDeploymentProfiles(cwd: string): CheckResult {
     }
 
     const config = data as Record<string, unknown>;
-    if (config.target && !VALID_TARGETS.includes(config.target as string)) {
-      invalid.push(
-        `${profile} (invalid target "${config.target}" — must be: ${VALID_TARGETS.join(', ')})`
-      );
+    // Target names are validated at export time via the target registry.
+    // We only check that the value is a non-empty string here.
+    if (config.target && typeof config.target !== 'string') {
+      invalid.push(`${profile} (target must be a string)`);
     }
   }
 

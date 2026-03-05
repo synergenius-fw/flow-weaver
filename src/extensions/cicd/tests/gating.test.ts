@@ -8,12 +8,15 @@
  * - getDeclaredSecrets() and getReferencedSecrets() with cicd? wrapper
  */
 
+// Load CI/CD extension (registers tag handlers, validation rules)
+import '../register';
+
 import { describe, it, expect } from 'vitest';
-import { isCICDWorkflow, getJobNames, getDeclaredSecrets, getReferencedSecrets } from '../../src/validation/cicd-detection';
-import { getCICDValidationRules } from '../../src/validation/cicd-rules';
-import { validateWorkflow } from '../../src/api/validate';
-import { parser } from '../../src/parser';
-import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST, TConnectionAST } from '../../src/ast/types';
+import { isCICDWorkflow, getJobNames, getDeclaredSecrets, getReferencedSecrets } from '../detection';
+import { getCICDValidationRules } from '../rules';
+import { validateWorkflow } from '../../../api/validate';
+import { parser } from '../../../parser';
+import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST, TConnectionAST } from '../../../ast/types';
 
 // ---------------------------------------------------------------------------
 // Test helpers

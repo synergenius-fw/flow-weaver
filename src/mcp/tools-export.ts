@@ -16,12 +16,12 @@ import { makeToolResult, makeErrorResult } from './response-utils.js';
 export function registerExportTools(mcp: McpServer): void {
   mcp.tool(
     'fw_export',
-    'Export workflows as serverless functions (lambda, vercel, cloudflare, inngest) or CI/CD pipelines (github-actions, gitlab-ci). Generates platform-native config files and deploy instructions.',
+    'Export workflows as serverless deployments. Generates platform-native config files and deploy instructions. Available targets depend on installed packs.',
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       target: z
         .string()
-        .describe('Deployment target platform (e.g. lambda, vercel, cloudflare, inngest, github-actions, gitlab-ci). Run with --list-targets to see installed targets.'),
+        .describe('Deployment target platform. Run with --list-targets to see installed targets.'),
       outputDir: z.string().describe('Output directory for generated files'),
       serviceName: z
         .string()
@@ -46,7 +46,7 @@ export function registerExportTools(mcp: McpServer): void {
       durableSteps: z
         .boolean()
         .optional()
-        .describe('Use deep generator with per-node Inngest steps for durability (inngest target only)'),
+        .describe('Use deep generator with per-node durable steps'),
     },
     async (args: {
       filePath: string;

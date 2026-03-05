@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { NODE_ACTION_MAP } from '../../../src/deployment/targets/cicd-base';
+import { NODE_ACTION_MAP } from '../base-target';
 
 /** Simulate the normalization done by resolveActionMapping */
 function lookupAction(nodeType: string) {

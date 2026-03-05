@@ -9,6 +9,9 @@
 // Must be imported first: sets up env vars before picocolors reads them
 import './env-setup.js';
 
+// Load built-in extensions (CI/CD, etc.) before any commands run
+import '../extensions/index.js';
+
 import { Command, Option } from 'commander';
 import { compileCommand } from './commands/compile.js';
 import { createWorkflowCommand, createNodeCommand } from './commands/create.js';
@@ -122,12 +125,12 @@ program
   .option('--strict', 'Treat type coercion warnings as errors', false)
   .option('--inline-runtime', 'Force inline runtime even when @synergenius/flow-weaver package is installed', false)
   .option('--clean', 'Omit redundant @param/@returns annotations from compiled output', false)
-  .option('--target <target>', 'Compilation target: typescript (default) or inngest (per-node step.run)')
-  .option('--cron <schedule>', 'Set cron trigger schedule (Inngest target only)')
+  .option('--target <target>', 'Compilation target: typescript (default) or a registered extension target')
+  .option('--cron <schedule>', 'Set cron trigger schedule')
   .option('--serve', 'Generate serve() handler for HTTP event reception')
   .option('--framework <name>', 'Framework adapter for serve handler (next, express, hono, fastify, remix)')
   .option('--typed-events', 'Generate Zod event schemas from workflow @param annotations')
-  .option('--retries <n>', 'Number of retries per function (Inngest target only)', parseInt)
+  .option('--retries <n>', 'Number of retries per function', parseInt)
   .option('--timeout <duration>', 'Function timeout (e.g. "30m", "1h")')
   .action(wrapAction(async (input: string, options) => {
     if (options.workflow) options.workflowName = options.workflow;
@@ -262,9 +265,9 @@ program
   .option('--clean', 'Omit redundant @param/@returns annotations', false)
   .option('--once', 'Run once then exit', false)
   .option('--json', 'Output result as JSON', false)
-  .option('--target <target>', 'Compilation target: typescript or inngest (default: typescript)')
-  .option('--framework <framework>', 'Framework for serve handler (inngest target only)', 'express')
-  .option('--port <port>', 'Port for dev server (inngest target only)', (v: string) => parseInt(v, 10), 3000)
+  .option('--target <target>', 'Compilation target (default: typescript)')
+  .option('--framework <framework>', 'Framework for serve handler', 'express')
+  .option('--port <port>', 'Port for dev server', (v: string) => parseInt(v, 10), 3000)
   .action(wrapAction(async (input: string, options) => {
       await devCommand(input, options);
   }));
@@ -495,7 +498,7 @@ program
   .option('--multi', 'Export all workflows in file as a single multi-workflow service', false)
   .option('--workflows <names>', 'Comma-separated list of workflows to export (used with --multi)')
   .option('--docs', 'Include API documentation routes (/docs and /openapi.json)', false)
-  .option('--durable-steps', 'Use deep generator with per-node Inngest steps for durability (inngest target only)', false)
+  .option('--durable-steps', 'Use deep generator with per-node durable steps', false)
   .action(wrapAction(async (input: string, options) => {
       await exportCommand(input, options);
   }));

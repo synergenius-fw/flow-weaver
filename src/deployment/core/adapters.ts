@@ -14,9 +14,6 @@ import type {
   ValidationError,
   CliInput,
   HttpInput,
-  LambdaInput,
-  VercelInput,
-  CloudflareInput,
   Environment,
 } from '../types.js';
 
@@ -195,126 +192,17 @@ export class HttpRequestAdapter extends BaseRequestAdapter<HttpInput> {
 }
 
 /**
- * AWS Lambda request adapter
- *
- * Parses API Gateway event into a WorkflowRequest
- */
-export class LambdaRequestAdapter extends BaseRequestAdapter<LambdaInput> {
-  parseRequest(input: LambdaInput): WorkflowRequest {
-    // Parse body
-    let params: Record<string, unknown> = {};
-    if (typeof input.body === 'string') {
-      try {
-        params = JSON.parse(input.body || '{}');
-      } catch {
-        params = {};
-      }
-    } else if (input.body && typeof input.body === 'object') {
-      params = input.body;
-    }
-
-    // Get workflow ID from path parameters
-    const workflowId =
-      input.pathParameters?.name ||
-      input.pathParameters?.workflow ||
-      input.pathParameters?.id ||
-      '';
-
-    const includeTrace = input.queryStringParameters?.trace === 'true';
-    const isProduction =
-      input.requestContext?.stage === 'prod' || input.requestContext?.stage === 'production';
-
-    return {
-      workflowId,
-      params,
-      context: this.createContext('lambda', {
-        requestId: input.requestContext?.requestId,
-        includeTrace,
-        environment: isProduction ? 'production' : 'development',
-      }),
-    };
-  }
-}
-
-/**
- * Vercel serverless function request adapter
- */
-export class VercelRequestAdapter extends BaseRequestAdapter<VercelInput> {
-  parseRequest(input: VercelInput): WorkflowRequest {
-    // Workflow ID comes from the file-based routing in Vercel
-    // The caller should provide it, or we extract from query
-    const workflowId = (input.query.workflow as string) || (input.query.name as string) || '';
-
-    const includeTrace = input.query.trace === 'true';
-
-    return {
-      workflowId,
-      params: input.body || {},
-      context: this.createContext('vercel', {
-        requestId: input.headers['x-vercel-id'] as string | undefined,
-        includeTrace,
-      }),
-    };
-  }
-}
-
-/**
- * Cloudflare Workers request adapter
- */
-export class CloudflareRequestAdapter extends BaseRequestAdapter<CloudflareInput> {
-  async parseRequestAsync(input: CloudflareInput): Promise<WorkflowRequest> {
-    // Parse body
-    let params: Record<string, unknown> = {};
-    try {
-      params = await input.request.json();
-    } catch {
-      params = {};
-    }
-
-    // Extract workflow ID from URL path
-    const url = new URL(input.request.url);
-    const pathParts = url.pathname.split('/').filter(Boolean);
-    const workflowId = pathParts[pathParts.length - 1] || '';
-
-    const includeTrace = url.searchParams.get('trace') === 'true';
-
-    return {
-      workflowId,
-      params,
-      context: this.createContext('cloudflare', {
-        requestId: input.request.headers.get('cf-ray') || undefined,
-        includeTrace,
-      }),
-    };
-  }
-
-  // Sync version throws - use parseRequestAsync for Cloudflare
-  parseRequest(_input: CloudflareInput): WorkflowRequest {
-    throw new Error('Use parseRequestAsync for Cloudflare Workers');
-  }
-}
-
-/**
  * Create the appropriate adapter for a given source
  */
 export function createAdapter(source: 'cli'): CliRequestAdapter;
 export function createAdapter(source: 'http'): HttpRequestAdapter;
-export function createAdapter(source: 'lambda'): LambdaRequestAdapter;
-export function createAdapter(source: 'vercel'): VercelRequestAdapter;
-export function createAdapter(source: 'cloudflare'): CloudflareRequestAdapter;
 export function createAdapter(
-  source: 'cli' | 'http' | 'lambda' | 'vercel' | 'cloudflare'
+  source: 'cli' | 'http'
 ): RequestAdapter<unknown> {
   switch (source) {
     case 'cli':
       return new CliRequestAdapter();
     case 'http':
       return new HttpRequestAdapter();
-    case 'lambda':
-      return new LambdaRequestAdapter();
-    case 'vercel':
-      return new VercelRequestAdapter();
-    case 'cloudflare':
-      return new CloudflareRequestAdapter();
   }
 }

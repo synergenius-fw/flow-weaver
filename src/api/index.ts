@@ -81,6 +81,7 @@ export {
 export { type ParseResult, parseWorkflow } from './parse';
 export { transformWorkflow } from './transform';
 export { type ValidationResult, validateWorkflow } from './validate';
+export { validationRuleRegistry } from './validation-registry';
 
 export * from './manipulation';
 export {
@@ -105,5 +106,6 @@ export * from './templates';
 export * from './patterns';
 
 // Re-exports needed by export target packs
-export { generateInngestFunction } from '../generator/inngest.js';
 export { AnnotationParser } from '../parser.js';
+export { compileTargetRegistry, type CompileTarget } from '../generator/compile-target-registry.js';
+export { devModeRegistry, type DevModeProvider, type DevModeOptions } from '../generator/dev-mode-registry.js';

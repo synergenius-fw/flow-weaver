@@ -8,8 +8,7 @@
 import type { TValidationRule, TWorkflowAST } from "../ast";
 import { validator, type TValidationError } from "../validator";
 import { getAgentValidationRules } from "../validation/agent-rules";
-import { getCICDValidationRules } from "../validation/cicd-rules";
-import { isCICDWorkflow } from "../validation/cicd-detection";
+import { validationRuleRegistry } from "./validation-registry";
 
 export interface ValidationResult {
   valid: boolean;
@@ -20,8 +19,8 @@ export interface ValidationResult {
 /**
  * Validates a workflow AST
  *
- * Runs the built-in validator, then agent-specific rules, then any custom rules.
- * Agent rules are always applied automatically.
+ * Runs the built-in validator, then agent-specific rules, then registry rules
+ * (pack-contributed), then any custom rules.
  *
  * @param ast - The workflow AST to validate
  * @param options - Validation options: custom rules and/or draft mode
@@ -34,10 +33,11 @@ export function validateWorkflow(
   // Use the consolidated validator
   const result = validator.validate(ast, { mode: options?.mode });
 
-  // Apply agent-specific rules, CI/CD rules (only if workflow is CI/CD), and custom rules
+  // Apply agent-specific rules, registry rules (pack-contributed,
+  // including CI/CD when applicable), and custom rules
   const allRules = [
     ...getAgentValidationRules(),
-    ...(isCICDWorkflow(ast) ? getCICDValidationRules() : []),
+    ...validationRuleRegistry.getApplicableRules(ast),
     ...(options?.customRules || []),
   ];
   for (const rule of allRules) {

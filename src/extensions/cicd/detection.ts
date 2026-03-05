@@ -7,7 +7,7 @@
  * @concurrency, [job: "..."], or CI/CD trigger types (push, pull_request, etc.)
  */
 
-import type { TWorkflowAST } from '../ast/types';
+import type { TWorkflowAST } from '../../ast/types';
 
 /**
  * Check if a workflow is a CI/CD pipeline.
@@ -30,6 +30,12 @@ export function isCICDWorkflow(ast: TWorkflowAST): boolean {
     if (cicd.services && cicd.services.length > 0) return true;
     if (cicd.concurrency) return true;
     if (cicd.triggers && cicd.triggers.length > 0) return true;
+    if (cicd.jobs && cicd.jobs.length > 0) return true;
+    if (cicd.variables && Object.keys(cicd.variables).length > 0) return true;
+    if (cicd.beforeScript && cicd.beforeScript.length > 0) return true;
+    if (cicd.tags && cicd.tags.length > 0) return true;
+    if (cicd.includes && cicd.includes.length > 0) return true;
+    if (cicd.stages && cicd.stages.length > 0) return true;
   }
 
   // Check node-level CI/CD annotations

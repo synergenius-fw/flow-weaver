@@ -34,9 +34,8 @@ export const humanApprovalNodeTemplate: NodeTemplate = {
 // APPROVAL TYPES
 // ============================================================
 //
-// On Inngest targets, consider using the built-in waitForEvent node instead —
-// it maps to step.waitForEvent() for zero-cost durable pauses.
-// See: https://www.inngest.com/docs/reference/functions/step-wait-for-event
+// On durable targets, consider using the built-in waitForEvent node instead.
+// It maps to a platform-native durable pause for zero-cost waiting.
 
 ${APPROVAL_TYPES}
 

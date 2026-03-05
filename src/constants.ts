@@ -180,9 +180,6 @@ export const KNOWN_WORKFLOW_TAGS = new Set([
   'node', 'position', 'connect', 'scope', 'map', 'path', 'fanOut', 'fanIn',
   'coerce', 'trigger', 'cancelOn', 'retries', 'timeout', 'throttle', 'param',
   'return', 'returns',
-  // CI/CD annotations
-  'secret', 'runner', 'cache', 'artifact', 'environment', 'matrix',
-  'service', 'concurrency',
   // Deployment annotations
   'deploy',
 ]);
@@ -195,3 +192,12 @@ export const STANDARD_JSDOC_TAGS = new Set([
   'example', 'see', 'deprecated', 'type', 'typedef', 'template',
   'link', 'since', 'version', 'author',
 ]);
+
+/**
+ * Build a dynamic known-workflow-tags set that includes core tags
+ * plus any extra tags contributed by pack registries.
+ */
+export function getKnownWorkflowTags(extraTags?: string[]): Set<string> {
+  if (!extraTags || extraTags.length === 0) return KNOWN_WORKFLOW_TAGS;
+  return new Set([...KNOWN_WORKFLOW_TAGS, ...extraTags]);
+}

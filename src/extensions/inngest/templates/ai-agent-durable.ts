@@ -1,12 +1,12 @@
 /**
  * Durable AI Agent Template
- * Linear agent pipeline with durability annotations for Inngest compilation.
- * Each node maps to a checkpointed step when compiled with: fw export --target inngest
+ * Linear agent pipeline with durability annotations.
+ * Each node maps to a checkpointed step when compiled to a durable target.
  */
-import type { WorkflowTemplate, WorkflowTemplateOptions } from '../index';
-import { getProviderCode } from '../providers';
-import { aiConfigSchema } from './ai-agent';
-import { LLM_CORE_TYPES, LLM_MOCK_PROVIDER_WITH_TOOLS } from '../shared/llm-types';
+import type { WorkflowTemplate, WorkflowTemplateOptions } from '../../../cli/templates/index';
+import { getProviderCode } from '../../../cli/templates/providers';
+import { aiConfigSchema } from '../../../cli/templates/workflows/ai-agent';
+import { LLM_CORE_TYPES, LLM_MOCK_PROVIDER_WITH_TOOLS } from '../../../cli/templates/shared/llm-types';
 
 export const aiAgentDurableTemplate: WorkflowTemplate = {
   id: 'ai-agent-durable',
@@ -35,11 +35,11 @@ ${LLM_MOCK_PROVIDER_WITH_TOOLS}
 // Durable AI Agent
 // ============================================================
 //
-// Each node becomes a checkpointed step when compiled to Inngest.
-// If a step fails, it retries from that step — not from scratch.
+// Each node becomes a checkpointed step when compiled to a durable target.
+// If a step fails, it retries from that step, not from scratch.
 //
 // Compile:  flow-weaver compile <file>
-// Export:   fw export --target inngest
+// Export:   fw export --target <target>
 //
 // Flow: classify → executeTool → requestApproval → respond
 
@@ -86,7 +86,7 @@ const TOOL_IMPLEMENTATIONS: Record<string, ToolFn> = {
  * APPROVAL BACKEND (mock — replace with real backend)
  * ============================================================
  *
- * On Inngest targets, this node compiles to step.waitForEvent().
+ * On durable targets, this node compiles to a platform-native wait primitive.
  * The function pauses (zero compute cost) until an approval event arrives.
  */
 
@@ -300,7 +300,7 @@ async function respond(
 
 /**
  * Durable AI Agent — linear pipeline with tool calling and human approval.
- * Each node becomes a checkpointed step when compiled to Inngest.
+ * Each node becomes a checkpointed step when compiled to a durable target.
  *
  * @flowWeaver workflow
  * @trigger event="agent/request"

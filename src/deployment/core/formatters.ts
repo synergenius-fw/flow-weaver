@@ -153,41 +153,6 @@ export function formatHttpResponse<T>(response: WorkflowResponse<T>): {
 }
 
 /**
- * Format response for AWS Lambda (API Gateway response format)
- */
-export function formatLambdaResponse<T>(response: WorkflowResponse<T>): {
-  statusCode: number;
-  headers: Record<string, string>;
-  body: string;
-} {
-  const httpResponse = formatHttpResponse(response);
-
-  return {
-    statusCode: httpResponse.statusCode,
-    headers: httpResponse.headers,
-    body: JSON.stringify(httpResponse.body),
-  };
-}
-
-/**
- * Format response for Cloudflare Workers (returns Response object constructor args)
- */
-export function formatCloudflareResponse<T>(response: WorkflowResponse<T>): {
-  body: string;
-  init: ResponseInit;
-} {
-  const httpResponse = formatHttpResponse(response);
-
-  return {
-    body: JSON.stringify(httpResponse.body),
-    init: {
-      status: httpResponse.statusCode,
-      headers: httpResponse.headers,
-    },
-  };
-}
-
-/**
  * Format error for consistent error responses
  */
 export function formatError(
