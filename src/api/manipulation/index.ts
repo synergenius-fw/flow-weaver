@@ -37,7 +37,7 @@ export {
   generateUniqueNodeId,
   assertNodeExists,
   assertNodeNotExists,
-} from "./validation";
+} from "../helpers";
 
 // Re-export workflow-level operations
 export {

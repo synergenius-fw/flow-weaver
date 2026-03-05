@@ -51,7 +51,7 @@ export function validateWorkflowAsync(
   nodeTypes: TNodeTypeAST[]
 ): { shouldBeAsync: boolean; warning?: string } {
   const computedAsync = shouldWorkflowBeAsync(workflow, nodeTypes);
-  const userAsync = workflow.userSpecifiedAsync ?? true; // Default to async for backwards compat
+  const userAsync = workflow.userSpecifiedAsync ?? true;
 
   if (!userAsync && computedAsync) {
     // User wrote sync function, but workflow contains async nodes

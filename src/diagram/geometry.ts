@@ -164,11 +164,6 @@ export function computeConnectionPath(sx: number, sy: number, tx: number, ty: nu
   return path;
 }
 
-/** @deprecated Use computeConnectionPath instead */
-export function computeBezierPath(sx: number, sy: number, tx: number, ty: number): string {
-  return computeConnectionPath(sx, sy, tx, ty);
-}
-
 // ---- Port ordering helpers ----
 
 /**
