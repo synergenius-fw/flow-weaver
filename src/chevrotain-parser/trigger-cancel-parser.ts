@@ -249,13 +249,8 @@ export function parseTriggerLine(input: string, warnings: string[]): TriggerPars
   const cst = parserInstance.triggerLine();
 
   if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to parse trigger line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @trigger event="name" or @trigger cron="expr"`
-    );
+    // Don't warn here — return null so domain-specific handlers (e.g. CI/CD)
+    // get a chance to parse the trigger. The caller can warn if nothing handles it.
     return null;
   }
 

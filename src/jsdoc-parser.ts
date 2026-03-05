@@ -1441,6 +1441,14 @@ export class JSDocParser {
     // Try core FW trigger parsing first (event= and/or cron=)
     const result = parseTriggerLine(`@trigger ${comment}`, warnings);
     if (result) {
+      // Warn if the event name matches a CI/CD trigger keyword (likely user error)
+      const cicdKeywords = ['push', 'pull_request', 'dispatch', 'tag', 'schedule'];
+      if (result.event && cicdKeywords.includes(result.event)) {
+        warnings.push(
+          `@trigger event="${result.event}" is treated as an Inngest event trigger, not a CI/CD trigger. ` +
+          `For CI/CD, use: @trigger ${result.event}`
+        );
+      }
       // Merge: multiple @trigger tags accumulate (event + cron can be separate tags)
       config.trigger = config.trigger || {};
       if (result.event) config.trigger.event = result.event;

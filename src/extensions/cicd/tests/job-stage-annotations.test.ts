@@ -728,3 +728,144 @@ describe('CICD_STAGE_ORPHAN validation rule', () => {
     expect(errors.length).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// v0.17.4 audit regression tests
+// ---------------------------------------------------------------------------
+
+describe('v0.17.4 audit: CI/CD tag parsing produces AST output', () => {
+  // Audit #1: CI/CD tags parse but produce no YAML output
+  it('should populate ast.options.cicd for all CI/CD tags', () => {
+    const result = parseWorkflowSource(`
+      /**
+       * @flowWeaver workflow
+       * @name pipeline
+       * @trigger push branches="main"
+       * @runner ubuntu-latest
+       * @secret DEPLOY_KEY
+       * @stage build
+       * @stage deploy
+       * @job build timeout="10m"
+       * @job deploy allow_failure=false
+       * @variables NODE_ENV=production
+       * @before_script npm ci
+       * @tags docker,linux
+       * @includes local="shared/ci-templates.yml"
+       */
+      declare function pipeline(execute: boolean): { done: string };
+    `);
+    const cicd = result.workflows[0].options?.cicd;
+    expect(cicd).toBeDefined();
+    expect(cicd!.triggers).toHaveLength(1);
+    expect(cicd!.triggers![0].type).toBe('push');
+    expect(cicd!.runner).toBe('ubuntu-latest');
+    expect(cicd!.secrets).toHaveLength(1);
+    expect(cicd!.stages).toHaveLength(2);
+    expect(cicd!.jobs).toHaveLength(2);
+    expect(cicd!.variables).toEqual({ NODE_ENV: 'production' });
+    expect(cicd!.beforeScript).toEqual(['npm ci']);
+    expect(cicd!.tags).toEqual(['docker', 'linux']);
+    expect(cicd!.includes).toEqual([{ type: 'local', file: 'shared/ci-templates.yml' }]);
+  });
+
+  // Audit #2: @trigger push should not emit misleading warning
+  it('should parse @trigger push with no warnings', () => {
+    const result = parseWorkflowSource(`
+      /**
+       * @flowWeaver workflow
+       * @name pipeline
+       * @trigger push
+       */
+      declare function pipeline(execute: boolean): { done: string };
+    `);
+    expect(result.warnings).toHaveLength(0);
+    expect(result.workflows[0].options?.cicd?.triggers).toHaveLength(1);
+    expect(result.workflows[0].options?.cicd?.triggers![0].type).toBe('push');
+  });
+
+  it('should parse @trigger pull_request with no warnings', () => {
+    const result = parseWorkflowSource(`
+      /**
+       * @flowWeaver workflow
+       * @name pipeline
+       * @trigger pull_request types="opened,synchronize"
+       */
+      declare function pipeline(execute: boolean): { done: string };
+    `);
+    expect(result.warnings).toHaveLength(0);
+    expect(result.workflows[0].options?.cicd?.triggers![0].type).toBe('pull_request');
+  });
+
+  // Audit #4/#5: @runner and @stage should populate correctly (not fall back to defaults)
+  it('should populate runner and stages without falling back', () => {
+    const result = parseWorkflowSource(`
+      /**
+       * @flowWeaver workflow
+       * @name pipeline
+       * @trigger push
+       * @runner node:22
+       * @stage build
+       * @stage test
+       * @stage deploy
+       */
+      declare function pipeline(execute: boolean): { done: string };
+    `);
+    const cicd = result.workflows[0].options?.cicd;
+    expect(cicd!.runner).toBe('node:22');
+    expect(cicd!.stages).toHaveLength(3);
+    expect(cicd!.stages!.map(s => s.name)).toEqual(['build', 'test', 'deploy']);
+  });
+
+  // Audit #7: @trigger event="push" should warn about CI/CD ambiguity
+  it('should warn when @trigger event="push" looks like a CI/CD trigger', () => {
+    const result = parseWorkflowSource(`
+      /**
+       * @flowWeaver workflow
+       * @name pipeline
+       * @trigger event="push"
+       */
+      declare function pipeline(execute: boolean): { done: string };
+    `);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('CI/CD');
+    expect(result.warnings[0]).toContain('@trigger push');
+    // Should be stored as Inngest trigger, not CI/CD
+    expect(result.workflows[0].options?.trigger?.event).toBe('push');
+    expect(result.workflows[0].options?.cicd?.triggers).toBeUndefined();
+  });
+
+  it('should NOT warn for @trigger event="agent/request" (valid Inngest event)', () => {
+    const result = parseWorkflowSource(`
+      /**
+       * @flowWeaver workflow
+       * @name pipeline
+       * @trigger event="agent/request"
+       */
+      declare function pipeline(execute: boolean): { done: string };
+    `);
+    expect(result.warnings).toHaveLength(0);
+    expect(result.workflows[0].options?.trigger?.event).toBe('agent/request');
+  });
+
+  // CI/CD detection should work when tags are populated
+  it('should detect CI/CD workflow from any single annotation', () => {
+    const cases = [
+      '@secret TOKEN',
+      '@runner ubuntu-latest',
+      '@stage build',
+      '@variables FOO=bar',
+      '@trigger push',
+    ];
+    for (const tag of cases) {
+      const result = parseWorkflowSource(`
+        /**
+         * @flowWeaver workflow
+         * @name pipeline
+         * ${tag}
+         */
+        declare function pipeline(execute: boolean): { done: string };
+      `);
+      expect(isCICDWorkflow(result.workflows[0])).toBe(true);
+    }
+  });
+});
