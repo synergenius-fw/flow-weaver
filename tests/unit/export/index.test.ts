@@ -69,11 +69,6 @@ vi.mock('../../../src/generated-branding.js', () => ({
   }),
 }));
 
-// Mock the Inngest deep generator
-vi.mock('../../../src/generator/inngest.js', () => ({
-  generateInngestFunction: vi.fn().mockReturnValue('// inngest deep handler code'),
-}));
-
 // Mock the deployment module to provide a controlled target registry
 vi.mock('../../../src/deployment/index.js', () => ({
   createTargetRegistry: vi.fn().mockResolvedValue(mockRegistry),

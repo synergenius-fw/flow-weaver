@@ -24,7 +24,8 @@ import {
   AGENT_CONTEXT_PRESETS,
 } from '../../src/cli/commands/init-personas';
 import type { PersonaId, UseCaseId } from '../../src/cli/commands/init-personas';
-import { workflowTemplates } from '../../src/cli/templates/index';
+import '../../src/extensions/cicd/register';
+import { getAllWorkflowTemplates } from '../../src/cli/templates/index';
 
 // ── PERSONA_CHOICES ──────────────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ describe('USE_CASE_CHOICES', () => {
 // ── USE_CASE_TEMPLATES ───────────────────────────────────────────────────────
 
 describe('USE_CASE_TEMPLATES', () => {
-  const validTemplateIds = new Set(workflowTemplates.map((t) => t.id));
+  const validTemplateIds = new Set(getAllWorkflowTemplates().map((t) => t.id));
 
   it('should have mappings for all use cases', () => {
     const useCases: UseCaseId[] = ['data', 'ai', 'api', 'automation', 'minimal'];

@@ -18,6 +18,10 @@ export type {
   TMarketplacePackageInfo,
   TInstalledPackage,
   TMarketInitConfig,
+  TManifestTagHandler,
+  TManifestValidationRuleSet,
+  TManifestDocTopic,
+  TManifestInitContribution,
 } from './types.js';
 
 export {
@@ -34,5 +38,13 @@ export {
   searchPackages,
   listInstalledPackages,
   getInstalledPackageManifest,
+  discoverTagHandlers,
+  discoverValidationRuleSets,
+  discoverDocTopics,
+  discoverInitContributions,
   type SearchOptions,
+  type TDiscoveredTagHandler,
+  type TDiscoveredValidationRuleSet,
+  type TDiscoveredDocTopic,
+  type TDiscoveredInitContribution,
 } from './registry.js';

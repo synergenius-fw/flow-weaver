@@ -135,8 +135,39 @@ function refreshBinSymlinks(): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Copy non-TS assets from src/extensions/ to dist/extensions/
+// ---------------------------------------------------------------------------
+
+function copyExtensionAssets(): void {
+  const srcExtensions = path.join(libraryDir, 'src', 'extensions');
+  const distExtensions = path.join(distDir, 'extensions');
+
+  if (!fs.existsSync(srcExtensions)) return;
+
+  const assetExts = ['.md', '.json', '.yaml', '.yml'];
+  const assets = collectFiles(srcExtensions, assetExts);
+
+  let copied = 0;
+  for (const asset of assets) {
+    // Skip test fixtures
+    if (asset.includes('/tests/')) continue;
+
+    const relative = path.relative(srcExtensions, asset);
+    const dest = path.join(distExtensions, relative);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(asset, dest);
+    copied++;
+  }
+
+  if (copied > 0) {
+    console.log(`Extension assets: ${copied} file(s) copied to dist/`);
+  }
+}
+
 // Main
 fixEsmImports();
+copyExtensionAssets();
 
 if (isMonorepoContext()) {
   refreshBinSymlinks();

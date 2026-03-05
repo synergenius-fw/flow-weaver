@@ -69,8 +69,8 @@ export function renderSVG(graph: DiagramGraph, options: DiagramOptions = {}): st
   parts.push(`</defs>`);
 
   // Background
-  parts.push(`<rect width="${vbWidth}" height="${vbHeight}" fill="${theme.background}"/>`);
-  parts.push(`<rect width="${vbWidth}" height="${vbHeight}" fill="url(#dot-grid)"/>`);
+  parts.push(`<rect x="${vbX}" y="${vbY}" width="${vbWidth}" height="${vbHeight}" fill="${theme.background}"/>`);
+  parts.push(`<rect x="${vbX}" y="${vbY}" width="${vbWidth}" height="${vbHeight}" fill="url(#dot-grid)"/>`);
 
   // Connections
   parts.push(`<g class="connections">`);
