@@ -252,7 +252,7 @@ export abstract class BaseCICDTarget extends BaseExportTarget {
         gitlabScript: deployConfig.script
           ? (Array.isArray(deployConfig.script)
               ? deployConfig.script as string[]
-              : [deployConfig.script as string])
+              : (deployConfig.script as string).split('\n'))
           : undefined,
         gitlabImage: deployConfig.image as string | undefined,
         label: (deployConfig.label as string | undefined) || step.name,
