@@ -42,6 +42,13 @@ export const cicdMultiEnvTemplate: WorkflowTemplate = {
       .map((env) => ` * @environment ${env} url="https://${env}.example.com"`)
       .join('\n');
 
+    const stageAnnotations = ` * @stage test\n * @stage build\n * @stage deploy\n`;
+    const jobAnnotations = [
+      ` * @job test retry=1`,
+      ` * @job build timeout="10m"`,
+      ...envs.map((env) => ` * @job deploy-${env} allow_failure=${env === 'staging' ? 'true' : 'false'}`),
+    ].join('\n');
+
     let x = 270;
     const nodeAnnotations: string[] = [];
     const pathParts: string[] = ['Start'];
@@ -99,6 +106,8 @@ function deploySsh(sshKey: string = ''): { result: string } { return { result: '
 ${envAnnotations}
  * @cache npm key="package-lock.json"
  * @artifact dist path="dist/" retention=3
+ *
+${stageAnnotations}${jobAnnotations}
  *
 ${nodeAnnotations.join('\n')}
  *

@@ -572,7 +572,9 @@ Configures per-job settings. The name must match a `[job: "name"]` attribute use
 jobTag         ::= "@job" IDENTIFIER { IDENTIFIER "=" ( STRING | IDENTIFIER | INTEGER ) }
 ```
 
-Recognized keys: `retry` (number), `allow_failure` (boolean), `timeout` (string), `runner` (string), `tags` (comma-list), `coverage` (string), `reports` (comma-list of type=path), `rules` (string), `extends` (string), `before_script` (comma-list), `variables` (comma-list of KEY=VALUE).
+Recognized keys: `retry` (number), `allow_failure` (boolean), `timeout` (string), `runner` (string), `tags` (comma-list), `coverage` (string), `reports` (comma-list of type=path), `rules` (string), `when` (rule modifier), `changes` (rule modifier, comma-list), `extends` (string), `before_script` (comma-list), `variables` (comma-list of KEY=VALUE).
+
+The `when` and `changes` keys are rule modifiers: they apply to the most recently declared `rules` entry for that job. If no `rules` entry exists yet, one is created automatically.
 
 **Examples:**
 
@@ -580,6 +582,8 @@ Recognized keys: `retry` (number), `allow_failure` (boolean), `timeout` (string)
 @job build retry=2 timeout="10m"
 @job test-unit coverage='/Coverage: (\d+)%/' reports="junit=test-results.xml"
 @job deploy allow_failure=true rules="$CI_COMMIT_BRANCH == main"
+@job deploy rules="$CI_COMMIT_BRANCH == main" when=manual
+@job deploy rules="$CI_COMMIT_TAG" changes="src/**,lib/**"
 @job lint tags="docker,linux" extends=".base-lint"
 ```
 

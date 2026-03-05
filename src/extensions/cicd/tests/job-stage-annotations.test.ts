@@ -199,6 +199,39 @@ describe('@job annotation parsing', () => {
     expect(lintJob?.rules?.[0]?.if).toContain('CI_COMMIT_BRANCH');
   });
 
+  it('should parse @job rules with when modifier', () => {
+    const result = parseWorkflowSource(twoJobWorkflow(
+      '@job lint rules="$CI_COMMIT_BRANCH == main" when=manual',
+    ));
+    const wf = result.workflows[0];
+    const lintJob = wf.options?.cicd?.jobs?.find(j => j.id === 'lint');
+    expect(lintJob?.rules).toBeDefined();
+    expect(lintJob?.rules?.[0]?.if).toContain('CI_COMMIT_BRANCH');
+    expect(lintJob?.rules?.[0]?.when).toBe('manual');
+  });
+
+  it('should parse @job rules with changes modifier', () => {
+    const result = parseWorkflowSource(twoJobWorkflow(
+      '@job lint rules="$CI_COMMIT_BRANCH == main" changes="src/**,lib/**"',
+    ));
+    const wf = result.workflows[0];
+    const lintJob = wf.options?.cicd?.jobs?.find(j => j.id === 'lint');
+    expect(lintJob?.rules).toBeDefined();
+    expect(lintJob?.rules?.[0]?.if).toContain('CI_COMMIT_BRANCH');
+    expect(lintJob?.rules?.[0]?.changes).toEqual(['src/**', 'lib/**']);
+  });
+
+  it('should create a standalone rule from when= without prior rules=', () => {
+    const result = parseWorkflowSource(twoJobWorkflow(
+      '@job lint when=manual',
+    ));
+    const wf = result.workflows[0];
+    const lintJob = wf.options?.cicd?.jobs?.find(j => j.id === 'lint');
+    expect(lintJob?.rules).toBeDefined();
+    expect(lintJob?.rules?.[0]?.when).toBe('manual');
+    expect(lintJob?.rules?.[0]?.if).toBeUndefined();
+  });
+
   it('should parse @job with runner override', () => {
     const result = parseWorkflowSource(twoJobWorkflow(
       '@job lint runner="macos-latest"',
