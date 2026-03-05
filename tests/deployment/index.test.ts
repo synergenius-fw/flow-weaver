@@ -55,15 +55,15 @@ describe('deployment module re-exports', () => {
     expect(mod.schemaConverter).toBeDefined();
   });
 
-  it('exports base target classes and CI/CD base', async () => {
+  it('exports base target classes', async () => {
     const mod = await import('../../src/deployment/index');
-    expect(mod.BaseCICDTarget).toBeDefined();
     expect(mod.BaseExportTarget).toBeDefined();
     expect(mod.ExportTargetRegistry).toBeDefined();
   });
 
-  it('no longer exports removed target classes', async () => {
+  it('does not export target classes or CI/CD base (moved to extensions/cicd)', async () => {
     const mod = await import('../../src/deployment/index');
+    expect((mod as any).BaseCICDTarget).toBeUndefined();
     expect((mod as any).LambdaTarget).toBeUndefined();
     expect((mod as any).VercelTarget).toBeUndefined();
     expect((mod as any).CloudflareTarget).toBeUndefined();

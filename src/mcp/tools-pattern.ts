@@ -17,7 +17,7 @@ import {
   removeConnection as manipRemoveConnection,
   setNodePosition as manipSetNodePosition,
   setNodeLabel as manipSetNodeLabel,
-} from '../api/manipulation.js';
+} from '../api/manipulation/index.js';
 import { findIsolatedNodes } from '../api/query.js';
 import { AnnotationParser } from '../parser.js';
 import { makeToolResult, makeErrorResult, addHintsToItems } from './response-utils.js';

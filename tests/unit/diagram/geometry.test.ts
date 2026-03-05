@@ -3,7 +3,6 @@ import {
   computeNodeDimensions,
   computePortPositions,
   computeConnectionPath,
-  computeBezierPath,
   buildDiagramGraph,
   PORT_SIZE,
   PORT_GAP,
@@ -99,11 +98,6 @@ describe('computeConnectionPath', () => {
     expect(nearPath).not.toBe(farPath);
   });
 
-  it('legacy computeBezierPath delegates to computeConnectionPath', () => {
-    const legacyPath = computeBezierPath(0, 0, 200, 100);
-    const newPath = computeConnectionPath(0, 0, 200, 100);
-    expect(legacyPath).toBe(newPath);
-  });
 });
 
 describe('buildDiagramGraph', () => {

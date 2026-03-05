@@ -1211,7 +1211,7 @@ export class ExportTargetRegistry {
 
   /**
    * Register a target factory. The target is only instantiated on first use.
-   * Also accepts a pre-instantiated target for backwards compatibility.
+   * Also accepts a pre-instantiated target.
    */
   register(nameOrTarget: string | ExportTarget, factory?: () => ExportTarget): void {
     if (typeof nameOrTarget === 'string') {

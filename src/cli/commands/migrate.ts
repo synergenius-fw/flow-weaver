@@ -50,7 +50,7 @@ export async function migrateCommand(
     try {
       const sourceCode = fs.readFileSync(filePath, 'utf8');
 
-      // Parse with current parser (backward-compatible — adds defaults for missing fields)
+      // Parse with current parser (adds defaults for missing fields)
       const parseResult = await parseWorkflow(filePath);
 
       if (parseResult.errors.length > 0) {

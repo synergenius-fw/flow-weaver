@@ -308,24 +308,6 @@ export type TPortConfig = {
     expression?: string; // Required when type is "expression"
   };
 
-  /**
-   * Legacy field - use `constant` instead
-   * @deprecated Use `constant` with type and value instead
-   */
-  evaluateConstantAs?: {
-    type: string;
-    expression?: string;
-    value?: TSerializableValue;
-  };
-
-  /**
-   * Legacy field - use `executionSignal` instead
-   * @deprecated Use `executionSignal` with type and expression instead
-   */
-  evaluateExecutionSignalAs?: {
-    type: string;
-    expression?: string;
-  };
 };
 
 /**
@@ -390,15 +372,9 @@ export type TNodeInstanceAST = {
   sourceLocation?: TSourceLocation;
   /** Reserved for plugin extensibility */
   metadata?: TNodeMetadata;
-  /**
-   * CI/CD job group this node belongs to (from [job: "name"] attribute).
-   * @deprecated Use `deploy?.['cicd']?.job` instead. Kept for backwards compatibility.
-   */
+  /** CI/CD job group this node belongs to (from [job: "name"] attribute). */
   job?: string;
-  /**
-   * CI/CD environment for this node's job (from [environment: "name"] attribute).
-   * @deprecated Use `deploy?.['cicd']?.environment` instead. Kept for backwards compatibility.
-   */
+  /** CI/CD environment for this node's job (from [environment: "name"] attribute). */
   environment?: string;
   /** Per-target deploy config contributed by packs (e.g., deploy['cicd'].job) */
   deploy?: Record<string, Record<string, unknown>>;
@@ -442,10 +418,7 @@ export type TWorkflowOptions = {
 
   // ── CI/CD domain annotations (shared across CI/CD targets) ─────
 
-  /**
-   * CI/CD pipeline configuration from @secret, @cache, @artifact, etc.
-   * @deprecated Use `deploy?.['cicd']` instead. Kept for backwards compatibility.
-   */
+  /** CI/CD pipeline configuration from @secret, @cache, @artifact, etc. */
   cicd?: TCICDOptions;
 
   // ── Per-target deployment config from @deploy annotations ──────

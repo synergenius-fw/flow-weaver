@@ -168,7 +168,7 @@ export {
   parseReturnTypeFields,
   parseFunctionSignature,
   parseReturnFields,
-} from './jsdoc-port-sync';
+} from './jsdoc-port-sync/index';
 
 // Templates (for workflow/node creation)
 export {
