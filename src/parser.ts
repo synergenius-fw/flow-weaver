@@ -280,7 +280,9 @@ export class AnnotationParser {
 
     const workflows = this.extractWorkflows(sourceFile, nodeTypes, filePath, errors, warnings);
     const patterns = this.extractPatterns(sourceFile, nodeTypes, filePath, errors, warnings);
-    const result = { workflows, nodeTypes, patterns, errors, warnings };
+    // Deduplicate warnings (extractWorkflowSignatures + extractWorkflows both parse JSDoc)
+    const dedupedWarnings = [...new Set(warnings)];
+    const result = { workflows, nodeTypes, patterns, errors, warnings: dedupedWarnings };
 
     // Clean up source file to prevent ts-morph Project bloat
     // (results are captured in the returned AST, source file is no longer needed)
@@ -344,12 +346,14 @@ export class AnnotationParser {
     // (tests create many unique virtual paths that accumulate)
     this.project.removeSourceFile(sourceFile);
 
+    // Deduplicate warnings (extractWorkflowSignatures + extractWorkflows both parse JSDoc)
+    const dedupedWarnings = [...new Set(warnings)];
     return {
       workflows,
       nodeTypes,
       patterns,
       errors,
-      warnings,
+      warnings: dedupedWarnings,
     };
   }
 
