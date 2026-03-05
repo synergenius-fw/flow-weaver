@@ -155,7 +155,7 @@ export type TBuildNodeArgsOptions = {
  *
  * ## Resolution Priority (per port):
  * 1. **Skip Ports**: If port is in skipPorts set, use pre-declared variable
- * 2. **Instance Expression**: Check instance.config.portConfigs for evaluateConstantAs
+ * 2. **Instance Expression**: Check instance.config.portConfigs for constant expressions
  * 3. **Connection**: Get value from connected output port via ctx.getVariable()
  * 4. **Node Type Expression**: Check nodeType.inputs[port].expression
  * 5. **Default Value**: Use nodeType.inputs[port].default if available
@@ -170,7 +170,7 @@ export type TBuildNodeArgsOptions = {
  * ## STEP Port Execution Strategies:
  * - **CONJUNCTION (AND)**: `execute = stepA && stepB && stepC`
  * - **DISJUNCTION (OR)**: `execute = stepA || stepB || stepC`
- * - **CUSTOM**: Uses evaluateExecutionSignalAs expression
+ * - **CUSTOM**: Uses executionSignal expression
  *
  * @param opts - Configuration object with node, workflow, and generation settings
  * @param opts.node - The node type definition with input/output port specs

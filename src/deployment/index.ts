@@ -100,22 +100,7 @@ export {
   ExportTargetRegistry,
 } from './targets/base.js';
 
-// Utilities needed by export target packs.
-// Re-export through the extension barrel so the CI/CD tag handlers are
-// registered as a side effect. Without this, parseWorkflow() silently
-// drops all CI/CD annotations when called from pack code.
-/** @deprecated Import from '@synergenius/flow-weaver/extensions/cicd' instead */
-export { isCICDWorkflow } from '../extensions/cicd/index.js';
 export { generateStandaloneRuntimeModule } from '../api/inline-runtime.js';
-
-/** @deprecated Import from '@synergenius/flow-weaver/extensions/cicd' instead */
-export {
-  BaseCICDTarget,
-  NODE_ACTION_MAP,
-  type CICDStep,
-  type CICDJob,
-  type ActionMapping,
-} from '../extensions/cicd/index.js';
 
 import * as path from 'path';
 import { pathToFileURL } from 'url';
