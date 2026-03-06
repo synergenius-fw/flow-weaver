@@ -361,17 +361,17 @@ describe('Manifest v2 types', () => {
     expect(manifest.initContributions?.useCase?.id).toBe('testing');
   });
 
-  it('accepts manifestVersion 1 without extension fields', () => {
+  it('accepts manifest without extension fields', () => {
     const manifest: TMarketplaceManifest = {
-      manifestVersion: 1,
-      name: 'flowweaver-pack-legacy',
+      manifestVersion: 2,
+      name: 'flowweaver-pack-minimal',
       version: '1.0.0',
       nodeTypes: [],
       workflows: [],
       patterns: [],
     };
 
-    expect(manifest.manifestVersion).toBe(1);
+    expect(manifest.manifestVersion).toBe(2);
     expect(manifest.tagHandlers).toBeUndefined();
   });
 });

@@ -22,7 +22,7 @@ import { validatePackage } from '../../../src/marketplace/validator.js';
 
 function makeManifest(overrides?: Partial<TMarketplaceManifest>): TMarketplaceManifest {
   return {
-    manifestVersion: 1,
+    manifestVersion: 2,
     name: 'flowweaver-pack-test',
     version: '1.0.0',
     nodeTypes: [

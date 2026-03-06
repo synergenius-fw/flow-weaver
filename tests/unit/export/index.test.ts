@@ -49,6 +49,7 @@ vi.mock('fs', async () => {
 // Mock the annotation parser. Use a class-like constructor that delegates to mockParseFn.
 vi.mock('../../../src/parser.js', () => {
   class MockAnnotationParser {
+    async loadPackHandlers(_dir: string) { /* no-op in tests */ }
     parse(...args: any[]) {
       return mockParseFn(...args);
     }
