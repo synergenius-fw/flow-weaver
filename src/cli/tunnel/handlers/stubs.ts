@@ -3,9 +3,11 @@
  * Matches the no-op return values from flow-weaver-platform/src/routes/studio-rpc.ts.
  */
 
+import * as os from 'node:os';
 import type { HandlerFn } from '../dispatch.js';
 
 const stub = (value: unknown): HandlerFn => () => Promise.resolve(value);
+const lazyStub = (fn: () => unknown): HandlerFn => () => Promise.resolve(fn());
 
 export const stubHandlers: Record<string, HandlerFn> = {
   // --- Completions / Quick Info ---
@@ -46,8 +48,8 @@ export const stubHandlers: Record<string, HandlerFn> = {
   exportBundle: stub({ success: true }),
 
   // --- Misc ---
-  getUserDataPath: stub('/tmp'),
-  getTempDirectory: stub('/tmp'),
+  getUserDataPath: lazyStub(() => os.tmpdir()),
+  getTempDirectory: lazyStub(() => os.tmpdir()),
   openDirectoryInExplorer: stub({ success: true }),
   checkDeployPrerequisites: stub({ success: true }),
   appendToLog: stub(undefined),

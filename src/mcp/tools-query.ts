@@ -51,7 +51,7 @@ export function registerQueryTools(mcp: McpServer): void {
     }) => {
       try {
         const filePath = path.resolve(args.filePath);
-        const parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName });
+        const parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName, projectDir: path.dirname(filePath) });
 
         // If no workflows found, try node-type-only mode
         if (
@@ -59,7 +59,7 @@ export function registerQueryTools(mcp: McpServer): void {
           parseResult.errors.some((e) => typeof e === 'string' && e.includes('No workflows found'))
         ) {
           try {
-            const ntResult = await parseWorkflow(filePath, { nodeTypesOnly: true });
+            const ntResult = await parseWorkflow(filePath, { nodeTypesOnly: true, projectDir: path.dirname(filePath) });
             if (ntResult.errors.length === 0 && ntResult.ast.nodeTypes?.length > 0) {
               return makeToolResult({
                 nodeTypesOnly: true,
@@ -112,7 +112,7 @@ export function registerQueryTools(mcp: McpServer): void {
     async (args: { filePath: string; workflowName?: string }) => {
       try {
         const filePath = path.resolve(args.filePath);
-        const parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName });
+        const parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName, projectDir: path.dirname(filePath) });
 
         // If no workflows found, try node-type-only mode
         if (
@@ -120,7 +120,7 @@ export function registerQueryTools(mcp: McpServer): void {
           parseResult.errors.some((e) => typeof e === 'string' && e.includes('No workflows found'))
         ) {
           try {
-            const ntResult = await parseWorkflow(filePath, { nodeTypesOnly: true });
+            const ntResult = await parseWorkflow(filePath, { nodeTypesOnly: true, projectDir: path.dirname(filePath) });
             if (ntResult.errors.length === 0 && ntResult.ast.nodeTypes?.length > 0) {
               const count = ntResult.ast.nodeTypes.length;
               return makeToolResult({
@@ -324,9 +324,11 @@ export function registerQueryTools(mcp: McpServer): void {
       workflowName?: string;
     }) => {
       try {
+        const file1 = path.resolve(args.file1);
+        const file2 = path.resolve(args.file2);
         const [result1, result2] = await Promise.all([
-          parseWorkflow(path.resolve(args.file1), { workflowName: args.workflowName }),
-          parseWorkflow(path.resolve(args.file2), { workflowName: args.workflowName }),
+          parseWorkflow(file1, { workflowName: args.workflowName, projectDir: path.dirname(file1) }),
+          parseWorkflow(file2, { workflowName: args.workflowName, projectDir: path.dirname(file2) }),
         ]);
         if (result1.errors.length > 0) {
           return makeErrorResult(
@@ -381,7 +383,7 @@ export function registerQueryTools(mcp: McpServer): void {
     async (args: { filePath: string; query: string; nodeId?: string; workflowName?: string }) => {
       try {
         const filePath = path.resolve(args.filePath);
-        let parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName });
+        let parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName, projectDir: path.dirname(filePath) });
 
         // For node-types query, fall back to nodeTypesOnly mode if no workflows found
         if (
@@ -390,7 +392,7 @@ export function registerQueryTools(mcp: McpServer): void {
           parseResult.errors.some((e) => typeof e === 'string' && e.includes('No workflows found'))
         ) {
           try {
-            const ntResult = await parseWorkflow(filePath, { nodeTypesOnly: true });
+            const ntResult = await parseWorkflow(filePath, { nodeTypesOnly: true, projectDir: path.dirname(filePath) });
             if (ntResult.errors.length === 0) {
               parseResult = ntResult;
             }
