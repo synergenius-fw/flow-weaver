@@ -481,13 +481,49 @@ These annotations go on `@flowWeaver nodeType` blocks:
 | `@name` | Override display name | `@name MyCustomName` |
 | `@label` | Human-readable label | `@label Fetch with Timeout` |
 | `@description` | Node description | `@description Validates expense data` |
-| `@color` | Custom color | `@color "#ff6b35"` |
+| `@color` | Custom color | `@color purple` or `@color "#ff6b35"` |
 | `@icon` | Custom icon | `@icon "database"` |
 | `@tag` | Visual tag/badge | `@tag async` or `@tag beta "Experimental"` |
 | `@scope` | Provides a named scope | `@scope processItem` |
 | `@expression` | Expression mode (simplified signature) | `@expression` |
 | `@executeWhen` | Execution strategy | `@executeWhen DISJUNCTION` |
 | `@pullExecution` | Lazy evaluation | `@pullExecution execute` |
+
+---
+
+## Available Colors
+
+Named colors adapt to the diagram theme (dark/light). You can also pass any hex color directly (e.g. `@color "#ff6b35"`).
+
+`blue` · `purple` · `cyan` · `orange` · `pink` · `green` · `red` · `yellow` · `teal` (alias for cyan)
+
+## Available Icons
+
+Icons render inside the node body in SVG diagrams. Names correspond to Material Symbols (outlined, weight 500).
+
+**AI & ML:** `psychology` · `smartToy` · `autoAwesome` · `modelTraining` · `science` · `biotech`
+
+**Data & storage:** `database` · `dataObject` · `tableChart` · `token` · `storage` · `memory`
+
+**Cloud & network:** `api` · `webhook` · `cloudSync` · `cloudUpload` · `cloudDownload` · `dns` · `router` · `http` · `link`
+
+**Security & auth:** `key` · `shield` · `vpnKey` · `verified` · `security` · `policy` · `adminPanelSettings`
+
+**Logic & flow:** `altRoute` · `callSplit` · `callMerge` · `rule` · `filterAlt` · `repeat` · `sort`
+
+**Actions & status:** `bolt` · `build` · `rocketLaunch` · `send` · `sync` · `refresh`
+
+**Communication:** `notifications` · `email` · `campaign`
+
+**Scheduling:** `event` · `schedule` · `timer`
+
+**General tools:** `terminal` · `settings` · `tune` · `search` · `save` · `upload` · `download` · `edit` · `delete`
+
+**Status:** `checkCircle` · `error` · `warning` · `info` · `help` · `visibility`
+
+**Files:** `folder` · `description` · `attachFile`
+
+**Structural:** `code` (default) · `flow` (workflow nodes) · `startNode` · `exitNode`
 
 ---
 

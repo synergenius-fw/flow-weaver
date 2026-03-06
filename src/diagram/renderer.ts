@@ -1,5 +1,5 @@
 import type { DiagramGraph, DiagramNode, DiagramConnection, DiagramOptions, DiagramPort, ThemePalette } from './types';
-import { getTheme, getPortColor, getPortRingColor, TYPE_ABBREVIATIONS, NODE_ICON_PATHS } from './theme';
+import { getTheme, getPortColor, getPortRingColor, TYPE_ABBREVIATIONS, NODE_ICON_PATHS, NODE_DEFAULT_COLOR } from './theme';
 import { PORT_RADIUS, BORDER_RADIUS, LABEL_HEIGHT, LABEL_GAP, SCOPE_PORT_COLUMN, measureText } from './geometry';
 
 function escapeXml(str: string): string {
@@ -142,13 +142,13 @@ function renderScopeConnection(parts: string[], conn: DiagramConnection, allConn
 
 /** Render node body rect + icon */
 function renderNodeBody(parts: string[], node: DiagramNode, theme: ThemePalette, indent: string): void {
-  const strokeColor = node.color !== '#334155' ? node.color : theme.nodeIconColor;
+  const strokeColor = node.color !== NODE_DEFAULT_COLOR ? node.color : theme.nodeIconColor;
   parts.push(
     `${indent}<rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="${BORDER_RADIUS}" fill="${theme.nodeFill}" stroke="${strokeColor}" stroke-width="2" filter="url(#node-shadow)"/>`,
   );
 
   const iconPath = NODE_ICON_PATHS[node.icon] ?? NODE_ICON_PATHS.code;
-  const iconColor = node.color !== '#334155' ? node.color : theme.nodeIconColor;
+  const iconColor = node.color !== NODE_DEFAULT_COLOR ? node.color : theme.nodeIconColor;
   const iconSize = 40;
   const iconX = node.x + (node.width - iconSize) / 2;
   const iconY = node.y + (node.height - iconSize) / 2;
@@ -167,8 +167,8 @@ function renderNode(
   parts.push(`  <g data-node-id="${escapeXml(node.id)}">`);
 
   if (node.scopeChildren && node.scopeChildren.length > 0) {
-    // Scoped node: body rect only (no icon), then scope internals
-    const strokeColor = node.color !== '#334155' ? node.color : theme.nodeIconColor;
+    // Scoped node: body rect only (icon omitted — children occupy the inner area)
+    const strokeColor = node.color !== NODE_DEFAULT_COLOR ? node.color : theme.nodeIconColor;
     parts.push(
       `    <rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="${BORDER_RADIUS}" fill="${theme.nodeFill}" stroke="${strokeColor}" stroke-width="2" filter="url(#node-shadow)"/>`,
     );
@@ -238,7 +238,7 @@ function renderNodeLabel(parts: string[], node: DiagramNode, theme: ThemePalette
 
   parts.push(`    <g data-label-for="${escapeXml(node.id)}">`);
   parts.push(`      <rect x="${labelBgX}" y="${labelBgY}" width="${labelBgWidth}" height="${labelBgHeight}" rx="6" fill="${theme.labelBadgeFill}" opacity="0.8"/>`);
-  parts.push(`      <text class="node-label" x="${labelTextX}" y="${labelBgY + labelBgHeight / 2 + 6}" text-anchor="${labelAnchor}" fill="${node.color !== '#334155' ? node.color : theme.labelColor}">${labelText}</text>`);
+  parts.push(`      <text class="node-label" x="${labelTextX}" y="${labelBgY + labelBgHeight / 2 + 6}" text-anchor="${labelAnchor}" fill="${node.color !== NODE_DEFAULT_COLOR ? node.color : theme.labelColor}">${labelText}</text>`);
   parts.push(`    </g>`);
 }
 

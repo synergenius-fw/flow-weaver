@@ -9,6 +9,7 @@ import {
   NODE_MIN_WIDTH,
   NODE_MIN_HEIGHT,
 } from '../../../src/diagram/geometry';
+import { NODE_DEFAULT_COLOR } from '../../../src/diagram/theme';
 import type { DiagramNode, DiagramPort } from '../../../src/diagram/types';
 import { createSimpleWorkflow, createParallelWorkflow, createScopedWorkflow, createPositionedWorkflow } from '../../helpers/test-fixtures';
 
@@ -18,7 +19,7 @@ function makePort(name: string, direction: 'INPUT' | 'OUTPUT'): DiagramPort {
 
 function makeNode(id: string, inputs: DiagramPort[], outputs: DiagramPort[], isVirtual = false): DiagramNode {
   return {
-    id, label: id, color: '#334155', icon: '', isVirtual,
+    id, label: id, color: NODE_DEFAULT_COLOR, icon: '', isVirtual,
     inputs, outputs,
     x: 0, y: 0, width: NODE_MIN_WIDTH, height: NODE_MIN_HEIGHT,
   };

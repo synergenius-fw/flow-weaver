@@ -244,7 +244,7 @@ Multiple attribute brackets are allowed (zero or more). Attributes can be split 
 @node myAdd Add [minimized, label: "Compact"]
 @node myAdd Add [pullExecution: trigger]
 @node myAdd Add [size: 200 150]
-@node myAdd Add [color: "#ff0000", icon: "math-plus"]
+@node myAdd Add [color: "red", icon: "database"]
 @node myAdd Add [tags: "math" "Math operation", "transform"]
 @node myAdd Add [position: 180 0]
 @node myAdd Add [label: "hi"] [color: "#f00"] [position: 360 0]
