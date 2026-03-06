@@ -332,6 +332,91 @@ describe('Chevrotain Port Parser', () => {
     });
   });
 
+  describe('custom metadata attributes', () => {
+    it('should parse @output with artifactPath', () => {
+      const result = parsePortLine('@output buildDir [artifactPath:"dist/"]', w);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'buildDir',
+        customMetadata: { artifactPath: 'dist/' },
+      });
+    });
+
+    it('should parse @output with dotenv:true', () => {
+      const result = parsePortLine('@output version [dotenv:true]', w);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'version',
+        customMetadata: { dotenv: true },
+      });
+    });
+
+    it('should parse mixed built-in and custom attributes', () => {
+      const result = parsePortLine('@output result [order:0, artifactPath:"build/"]', w);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'result',
+        order: 0,
+        customMetadata: { artifactPath: 'build/' },
+      });
+    });
+
+    it('should parse @input with custom metadata', () => {
+      const result = parsePortLine('@input config [artifactPath:"config/"]', w);
+      expect(result).toEqual({
+        type: 'input',
+        name: 'config',
+        customMetadata: { artifactPath: 'config/' },
+      });
+    });
+
+    it('should parse custom attribute with false value', () => {
+      const result = parsePortLine('@output out [dotenv:false]', w);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'out',
+        customMetadata: { dotenv: false },
+      });
+    });
+
+    it('should parse custom attribute with identifier value', () => {
+      const result = parsePortLine('@output out [format:json]', w);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'out',
+        customMetadata: { format: 'json' },
+      });
+    });
+
+    it('should parse custom attribute with integer value', () => {
+      const result = parsePortLine('@output out [retention:7]', w);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'out',
+        customMetadata: { retention: 7 },
+      });
+    });
+
+    it('should parse multiple custom attributes', () => {
+      const result = parsePortLine('@output out [artifactPath:"dist/", dotenv:true]', w);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'out',
+        customMetadata: { artifactPath: 'dist/', dotenv: true },
+      });
+    });
+
+    it('should parse custom metadata with description', () => {
+      const result = parsePortLine('@output build [artifactPath:"dist/"] - Build output', w);
+      expect(result).toEqual({
+        type: 'output',
+        name: 'build',
+        customMetadata: { artifactPath: 'dist/' },
+        description: 'Build output',
+      });
+    });
+  });
+
   describe('Edge cases', () => {
     it('should return null for non-port lines', () => {
       expect(parsePortLine('@node myNode type', w)).toBeNull();

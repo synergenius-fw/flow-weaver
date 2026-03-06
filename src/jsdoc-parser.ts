@@ -799,7 +799,7 @@ export class JSDocParser {
       return;
     }
 
-    const { name, defaultValue, isOptional, scope, order, mergeStrategy, hidden, description } = result;
+    const { name, defaultValue, isOptional, scope, order, mergeStrategy, hidden, description, customMetadata } = result;
 
     // Infer type from signature or scope callback return type
     let type: TDataType;
@@ -881,7 +881,9 @@ export class JSDocParser {
       ...(scope && { scope }),
       ...(mergeStrategy && { mergeStrategy: mergeStrategy as TMergeStrategy }),
       ...(hidden && { hidden }),
-      ...(order !== undefined && { metadata: { order } }),
+      ...((order !== undefined || customMetadata) && {
+        metadata: { ...(order !== undefined && { order }), ...customMetadata },
+      }),
       ...(tsType && { tsType }),
     };
   }
@@ -903,7 +905,7 @@ export class JSDocParser {
       return;
     }
 
-    const { name, scope, order, hidden, description } = result;
+    const { name, scope, order, hidden, description, customMetadata } = result;
 
     // Infer type from return type or scope callback parameter
     let type: TDataType;
@@ -975,7 +977,9 @@ export class JSDocParser {
       label: description?.trim(),
       ...(scope && { scope }),
       ...(hidden && { hidden }),
-      ...(order !== undefined && { metadata: { order } }),
+      ...((order !== undefined || customMetadata) && {
+        metadata: { ...(order !== undefined && { order }), ...customMetadata },
+      }),
       ...(tsType && { tsType }),
     };
   }
@@ -1036,7 +1040,7 @@ export class JSDocParser {
       return;
     }
 
-    const { name, order, description } = result;
+    const { name, order, description, customMetadata } = result;
 
     // Infer type from return type signature
     let type: TDataType = 'ANY';
@@ -1064,7 +1068,9 @@ export class JSDocParser {
     config.returnPorts[name] = {
       dataType: type,
       label: description?.trim(),
-      ...(order !== undefined && { metadata: { order } }),
+      ...((order !== undefined || customMetadata) && {
+        metadata: { ...(order !== undefined && { order }), ...customMetadata },
+      }),
     };
   }
 
