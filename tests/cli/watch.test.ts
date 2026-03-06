@@ -12,6 +12,12 @@ const TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-watch-${process.pid}`);
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const CLI_ENTRY = path.join(PROJECT_ROOT, 'src/cli/index.ts');
 
+// Build a clean env for spawned CLI processes: strip VITEST* vars so the
+// CLI entry guard doesn't skip program.parse().
+const cliEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')),
+);
+
 // Setup and cleanup
 beforeAll(() => {
   fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -97,6 +103,7 @@ export function watchTestWorkflow(execute: boolean): Promise<{ onSuccess: boolea
 
       watchProcess = spawn('npx', ['tsx', CLI_ENTRY, 'watch', testFile], {
         cwd: PROJECT_ROOT,
+        env: cliEnv,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
 
@@ -156,6 +163,7 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
 
       watchProcess = spawn('npx', ['tsx', CLI_ENTRY, 'watch', testFile], {
         cwd: PROJECT_ROOT,
+        env: cliEnv,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
 
@@ -199,6 +207,7 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
 
       watchProcess = spawn('npx', ['tsx', CLI_ENTRY, 'watch', '/nonexistent/file.ts'], {
         cwd: PROJECT_ROOT,
+        env: cliEnv,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
 

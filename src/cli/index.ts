@@ -697,5 +697,12 @@ if (!process.argv.slice(2).length) {
   process.exit(0);
 }
 
-// Parse arguments
-program.parse(process.argv);
+// Register pack-contributed CLI commands, then parse.
+// Skip when loaded inside vitest's worker (coverage instrumentation).
+if (!process.env['VITEST']) {
+  (async () => {
+    const { registerPackCommands } = await import('./pack-commands.js');
+    await registerPackCommands(program);
+    program.parse(process.argv);
+  })();
+}

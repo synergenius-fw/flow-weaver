@@ -40,6 +40,14 @@ export type TMarketplaceManifest = {
   docs?: TManifestDocTopic[];
   /** Init contributions: use cases and templates (v2) */
   initContributions?: TManifestInitContribution;
+  /** CLI entrypoint module for pack-contributed commands */
+  cliEntrypoint?: string;
+  /** CLI commands contributed by this pack */
+  cliCommands?: TManifestCliCommand[];
+  /** MCP entrypoint module for pack-contributed tools */
+  mcpEntrypoint?: string;
+  /** MCP tools contributed by this pack */
+  mcpTools?: TManifestMcpTool[];
   /** External dependency information */
   dependencies?: {
     /** Flow Weaver peer dependency constraints */
@@ -249,6 +257,34 @@ export type TManifestInitContribution = {
   };
   /** Template IDs this pack provides (must match IDs in the template registry) */
   templates?: string[];
+};
+
+// ── CLI extension ────────────────────────────────────────────────────────────
+
+/** A CLI command contributed by a pack. Registered under the pack namespace. */
+export type TManifestCliCommand = {
+  /** Command name (e.g., "run", "history") */
+  name: string;
+  /** Human-readable description */
+  description: string;
+  /** Usage string for positional args (e.g., "<file>", "[id]") */
+  usage?: string;
+  /** Command options */
+  options?: Array<{
+    flags: string;
+    description: string;
+    default?: string | number | boolean;
+  }>;
+};
+
+// ── MCP extension ────────────────────────────────────────────────────────────
+
+/** An MCP tool contributed by a pack. */
+export type TManifestMcpTool = {
+  /** Tool name (e.g., "fw_weaver_run") */
+  name: string;
+  /** Human-readable description */
+  description: string;
 };
 
 // ── Init scaffold ────────────────────────────────────────────────────────────

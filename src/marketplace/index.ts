@@ -22,6 +22,8 @@ export type {
   TManifestValidationRuleSet,
   TManifestDocTopic,
   TManifestInitContribution,
+  TManifestCliCommand,
+  TManifestMcpTool,
 } from './types.js';
 
 export {
