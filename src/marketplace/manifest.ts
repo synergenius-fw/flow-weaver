@@ -188,8 +188,21 @@ export async function generateManifest(
     }
   }
 
+  // Preserve v2 extension fields from the existing manifest so that
+  // re-running pack:manifest doesn't wipe manually declared tagHandlers,
+  // validationRuleSets, docs, exportTargets, initContributions, etc.
+  const existing = readManifest(directory);
+  const v2Fields: Partial<TMarketplaceManifest> = {};
+  if (existing) {
+    if (existing.tagHandlers) v2Fields.tagHandlers = existing.tagHandlers;
+    if (existing.validationRuleSets) v2Fields.validationRuleSets = existing.validationRuleSets;
+    if (existing.exportTargets) v2Fields.exportTargets = existing.exportTargets;
+    if (existing.docs) v2Fields.docs = existing.docs;
+    if (existing.initContributions) v2Fields.initContributions = existing.initContributions;
+  }
+
   const manifest: TMarketplaceManifest = {
-    manifestVersion: 1,
+    manifestVersion: 2,
     name: pkg.name ?? 'unknown',
     version: pkg.version ?? '0.0.0',
     ...(pkg.description && { description: pkg.description }),
@@ -198,6 +211,7 @@ export async function generateManifest(
     nodeTypes: allNodeTypes,
     workflows: allWorkflows,
     patterns: allPatterns,
+    ...v2Fields,
     ...(Object.keys(pkg.dependencies ?? {}).length > 0 && {
       dependencies: {
         npm: pkg.dependencies,
@@ -224,7 +238,7 @@ export function readManifest(directory: string): TMarketplaceManifest | null {
 
 function emptyManifest(name: string, version: string): TMarketplaceManifest {
   return {
-    manifestVersion: 1,
+    manifestVersion: 2,
     name,
     version,
     nodeTypes: [],

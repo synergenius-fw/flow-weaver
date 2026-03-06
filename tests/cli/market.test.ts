@@ -323,7 +323,7 @@ describe('marketListCommand', () => {
     fs.mkdirSync(pkgDir, { recursive: true });
 
     const manifest = {
-      manifestVersion: 1,
+      manifestVersion: 2,
       name: 'flowweaver-pack-mock',
       version: '2.0.0',
       nodeTypes: [{ name: 'MockNode', inputs: [], outputs: [] }],
