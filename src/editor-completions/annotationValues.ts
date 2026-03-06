@@ -104,9 +104,9 @@ const ANNOTATION_VALUES: Record<string, FlowWeaverCompletion[]> = {
       sortOrder: 4,
     },
     {
-      label: 'teal',
-      detail: 'Teal node color',
-      insertText: 'teal',
+      label: 'cyan',
+      detail: 'Cyan node color',
+      insertText: 'cyan',
       insertTextFormat: 'plain',
       kind: 'value',
       sortOrder: 5,

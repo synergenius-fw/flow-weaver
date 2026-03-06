@@ -215,5 +215,46 @@ describe("Shared Port Ordering Utilities", () => {
       // data port gets 0
       expect(ports.data.metadata?.order).toBe(0);
     });
+
+    it("should not collide implicit mandatory orders with explicit regular orders", () => {
+      const ports: Record<string, TPortDefinition> = {
+        onSuccess: { dataType: "STEP" },
+        onFailure: { dataType: "STEP" },
+        result: { dataType: "ANY", metadata: { order: 1 } },
+      };
+
+      assignImplicitPortOrders(ports);
+
+      // result has explicit order 1; mandatory ports must not also get 1
+      const orders = [
+        ports.onSuccess.metadata?.order,
+        ports.onFailure.metadata?.order,
+        ports.result.metadata?.order,
+      ];
+      // All orders must be unique
+      expect(new Set(orders).size).toBe(orders.length);
+      // result keeps its explicit order
+      expect(ports.result.metadata?.order).toBe(1);
+    });
+
+    it("should produce unique orders when explicit orders interleave with mandatory ports", () => {
+      const ports: Record<string, TPortDefinition> = {
+        execute: { dataType: "STEP" },
+        onSuccess: { dataType: "STEP" },
+        onFailure: { dataType: "STEP" },
+        data: { dataType: "STRING", metadata: { order: 0 } },
+        isValid: { dataType: "BOOLEAN", metadata: { order: 3 } },
+        error: { dataType: "STRING" },
+      };
+
+      assignImplicitPortOrders(ports);
+
+      const allOrders = Object.values(ports).map((p) => p.metadata?.order as number);
+      // All orders must be unique (no collisions)
+      expect(new Set(allOrders).size).toBe(allOrders.length);
+      // Explicit orders preserved
+      expect(ports.data.metadata?.order).toBe(0);
+      expect(ports.isValid.metadata?.order).toBe(3);
+    });
   });
 });

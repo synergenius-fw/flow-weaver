@@ -34,16 +34,18 @@ const LIGHT_FAILURE_COLOR = '#e34646'; // red-shade-2
 // Dark: border = X-dark-shade-1 (base), icon = X-dark-shade-3
 // Light: border = X-shade-2
 
+export const NODE_DEFAULT_COLOR = '#334155';
+
 export const NODE_VARIANT_COLORS: Record<string, { border: string; darkBorder: string }> = {
   blue:   { border: '#548ce3', darkBorder: '#5e9eff' },   // blue-shade-2 / blue-dark-shade-1
   purple: { border: '#9f5fe3', darkBorder: '#b36bff' },   // purple-shade-2 / purple-dark-shade-1
   cyan:   { border: '#63ccc4', darkBorder: '#6fe5dc' },   // cyan-shade-2 / cyan-dark-shade-1
+  teal:   { border: '#63ccc4', darkBorder: '#6fe5dc' },   // alias for cyan
   orange: { border: '#e3732d', darkBorder: '#ff8133' },   // orange-shade-2 / orange-dark-shade-1
   pink:   { border: '#e349c2', darkBorder: '#ff52da' },   // pink-shade-2 / pink-dark-shade-1
   green:  { border: '#0ec850', darkBorder: '#10e15a' },   // green-shade-2 / green-dark-shade-1
   red:    { border: '#e34646', darkBorder: '#ff4f4f' },   // red-shade-2 / red-dark-shade-1
   yellow: { border: '#e3a82b', darkBorder: '#ffbd30' },   // yellow-shade-2 / yellow-dark-shade-1
-  teal:   { border: '#3db0a8', darkBorder: '#4dc7be' },   // teal-shade-2 / teal-dark-shade-1
 };
 
 // ---- Theme palettes (exact values from token system) ----

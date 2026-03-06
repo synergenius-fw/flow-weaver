@@ -814,7 +814,7 @@ export type TNodeTagAST = {
 
 /** Visual customization for node types */
 export type TNodeVisualsAST = {
-  /** Theme color: blue, purple, teal, orange, pink, green */
+  /** Theme color: blue, purple, cyan, orange, pink, green, red, yellow (teal is an alias for cyan) */
   color?: string;
   /** Icon preset name */
   icon?: string;
