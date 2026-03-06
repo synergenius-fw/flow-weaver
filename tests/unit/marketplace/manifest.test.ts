@@ -344,6 +344,90 @@ describe('marketplace/manifest', () => {
       expect(nt.visuals!.tags).toHaveLength(1);
     });
 
+    it('preserves v2 extension fields from existing manifest on regeneration', async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'package.json'),
+        JSON.stringify({ name: 'flowweaver-pack-cicd', version: '0.3.0' }),
+      );
+      fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+      mockGlob.mockResolvedValue([]);
+
+      // Write an existing manifest with v2 extension fields
+      const existingManifest: TMarketplaceManifest = {
+        manifestVersion: 2,
+        name: 'flowweaver-pack-cicd',
+        version: '0.2.0',
+        nodeTypes: [],
+        workflows: [],
+        patterns: [],
+        tagHandlers: [
+          {
+            tags: ['secret', 'runner'],
+            namespace: 'cicd',
+            scope: 'workflow',
+            file: 'dist/tag-handler.js',
+            exportName: 'cicdTagHandler',
+          },
+        ],
+        validationRuleSets: [
+          {
+            name: 'CI/CD Rules',
+            namespace: 'cicd',
+            file: 'dist/rules.js',
+          },
+        ],
+        exportTargets: [
+          {
+            name: 'github-actions',
+            file: 'dist/target.js',
+          },
+        ],
+        docs: [
+          {
+            slug: 'cicd',
+            name: 'CI/CD Pipelines',
+            file: 'docs/cicd.md',
+          },
+        ],
+        initContributions: {
+          useCase: { id: 'cicd', name: 'CI/CD', description: 'Build pipelines' },
+          templates: ['cicd-basic'],
+        },
+      };
+      writeManifest(tmpDir, existingManifest);
+
+      const result = await generateManifest({ directory: tmpDir });
+
+      // Version should come from package.json, not old manifest
+      expect(result.manifest.version).toBe('0.3.0');
+
+      // All v2 extension fields must survive regeneration
+      expect(result.manifest.tagHandlers).toEqual(existingManifest.tagHandlers);
+      expect(result.manifest.validationRuleSets).toEqual(existingManifest.validationRuleSets);
+      expect(result.manifest.exportTargets).toEqual(existingManifest.exportTargets);
+      expect(result.manifest.docs).toEqual(existingManifest.docs);
+      expect(result.manifest.initContributions).toEqual(existingManifest.initContributions);
+    });
+
+    it('does not inject v2 fields when no existing manifest exists', async () => {
+      fs.writeFileSync(
+        path.join(tmpDir, 'package.json'),
+        JSON.stringify({ name: 'flowweaver-pack-new', version: '0.1.0' }),
+      );
+      fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+      mockGlob.mockResolvedValue([]);
+
+      // No existing manifest on disk
+
+      const result = await generateManifest({ directory: tmpDir });
+
+      expect(result.manifest.tagHandlers).toBeUndefined();
+      expect(result.manifest.validationRuleSets).toBeUndefined();
+      expect(result.manifest.exportTargets).toBeUndefined();
+      expect(result.manifest.docs).toBeUndefined();
+      expect(result.manifest.initContributions).toBeUndefined();
+    });
+
     it('uses custom srcDir and distDir', async () => {
       fs.writeFileSync(
         path.join(tmpDir, 'package.json'),

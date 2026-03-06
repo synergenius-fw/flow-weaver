@@ -173,6 +173,38 @@ describe('ValidationRuleRegistry', () => {
     expect(rules).toContain(rule1);
     expect(rules).toContain(rule2);
   });
+
+  it('registers rule set with detect and getRules as separate functions (manifest discovery pattern)', () => {
+    // This mirrors how loadPackHandlers() registers discovered rule sets:
+    // it imports detect and getRules separately from the module.
+    const detectFn = (ast: TWorkflowAST) => !!ast.options?.deploy?.['disc'];
+    const getRulesFn = () => [{ name: 'DISC_RULE', validate: () => [] as any[] }];
+
+    registry.register({
+      name: 'discovered-rules',
+      namespace: 'disc',
+      detect: detectFn,
+      getRules: getRulesFn,
+    });
+
+    const astWith: TWorkflowAST = {
+      type: 'Workflow',
+      sourceFile: 'test.ts',
+      name: 'test',
+      functionName: 'test',
+      nodeTypes: [],
+      instances: [],
+      connections: [],
+      startPorts: {},
+      exitPorts: {},
+      imports: [],
+      options: { deploy: { disc: { enabled: true } } },
+    };
+
+    const rules = registry.getApplicableRules(astWith);
+    expect(rules).toHaveLength(1);
+    expect(rules[0].name).toBe('DISC_RULE');
+  });
 });
 
 // ---------------------------------------------------------------------------
