@@ -82,6 +82,10 @@
     "./cli": {
       "types": "./dist/cli/exports.d.ts",
       "default": "./dist/cli/exports.js"
+    },
+    "./executor": {
+      "types": "./dist/mcp/workflow-executor.d.ts",
+      "default": "./dist/mcp/workflow-executor.js"
     }
   },
   "bin": {
