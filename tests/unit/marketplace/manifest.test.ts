@@ -382,7 +382,7 @@ describe('marketplace/manifest', () => {
   describe('readManifest / writeManifest', () => {
     it('writes and reads a manifest round-trip', () => {
       const manifest: TMarketplaceManifest = {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: 'flowweaver-pack-round-trip',
         version: '2.0.0',
         description: 'A test package',
@@ -415,7 +415,7 @@ describe('marketplace/manifest', () => {
 
     it('writeManifest creates properly formatted JSON with trailing newline', () => {
       const manifest: TMarketplaceManifest = {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: 'test',
         version: '1.0.0',
         nodeTypes: [],
