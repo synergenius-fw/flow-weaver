@@ -137,6 +137,7 @@ Expression nodes are pure functions where:
   - Primitive/array return -> single output port
   - Object return `{ a, b }` -> one port per property
 - Best for: transformers, math, utilities, data mapping, async fetchers, API calls
+- Optional `@color` and `@icon` annotations customize the node's appearance in SVG diagrams (see `advanced-annotations` for available values)
 
 > **Start with expression mode.** Only switch to normal mode when you need to return data alongside a failure (error-with-data patterns) or for void side-effect functions. Expression nodes handle success/failure branching automatically — throw to trigger the `onFailure` path.
 

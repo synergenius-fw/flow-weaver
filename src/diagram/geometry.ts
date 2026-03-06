@@ -1,7 +1,7 @@
 import type { TWorkflowAST, TNodeTypeAST, TPortDefinition, TDataType } from '../ast/types';
 import { isStartNode, isExitNode, isExecutePort, isSuccessPort, isFailurePort, SCOPED_PORT_NAMES, isScopedStartPort, isScopedSuccessPort, isScopedFailurePort } from '../constants';
 import { assignImplicitPortOrders } from '../utils/port-ordering';
-import { getPortColor, NODE_VARIANT_COLORS, TYPE_ABBREVIATIONS } from './theme';
+import { getPortColor, NODE_VARIANT_COLORS, NODE_DEFAULT_COLOR, TYPE_ABBREVIATIONS } from './theme';
 import { layoutWorkflow } from './layout';
 import { calculateOrthogonalPathSafe, TrackAllocator } from './orthogonal-router';
 import type { NodeBox } from './orthogonal-router';
@@ -856,7 +856,7 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
   diagramNodes.set('Start', {
     id: 'Start',
     label: 'Start',
-    color: '#334155',
+    color: NODE_DEFAULT_COLOR,
     icon: 'startNode',
     isVirtual: true,
     inputs: [],
@@ -880,7 +880,7 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
   diagramNodes.set('Exit', {
     id: 'Exit',
     label: 'Exit',
-    color: '#334155',
+    color: NODE_DEFAULT_COLOR,
     icon: 'exitNode',
     isVirtual: true,
     inputs: exitInputs,
@@ -1253,7 +1253,7 @@ function filterNonScopedPorts(ports: Record<string, TPortDefinition>): Record<st
 }
 
 function resolveNodeColor(color?: string, theme: 'dark' | 'light' = 'dark'): string {
-  if (!color) return '#334155';
+  if (!color) return NODE_DEFAULT_COLOR;
   const variant = NODE_VARIANT_COLORS[color];
   if (variant) return theme === 'dark' ? variant.darkBorder : variant.border;
   return color;
