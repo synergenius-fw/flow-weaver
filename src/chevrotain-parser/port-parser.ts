@@ -62,6 +62,7 @@ export interface PortParseResult {
   mergeStrategy?: string;
   hidden?: boolean;
   description?: string;
+  customMetadata?: Record<string, string | boolean | number>;
 }
 
 // =============================================================================
@@ -164,6 +165,7 @@ class PortParser extends CstParser {
           { ALT: () => this.SUBRULE(this.typeAttr) },
           { ALT: () => this.SUBRULE(this.mergeStrategyAttr) },
           { ALT: () => this.SUBRULE(this.hiddenAttr) },
+          { ALT: () => this.SUBRULE(this.customAttr) },
         ]);
       },
     });
@@ -201,6 +203,19 @@ class PortParser extends CstParser {
   // hidden (standalone keyword, no value needed)
   private hiddenAttr = this.RULE('hiddenAttr', () => {
     this.CONSUME(HiddenKeyword);
+  });
+
+  // customAttr: key:value pairs for arbitrary metadata (e.g., artifactPath:"dist/")
+  private customAttr = this.RULE('customAttr', () => {
+    this.CONSUME(Identifier, { LABEL: 'customKey' });
+    this.CONSUME(Colon);
+    this.OR([
+      { ALT: () => this.CONSUME(StringLiteral, { LABEL: 'customStrVal' }) },
+      { ALT: () => this.CONSUME(TrueKeyword, { LABEL: 'customTrue' }) },
+      { ALT: () => this.CONSUME(FalseKeyword, { LABEL: 'customFalse' }) },
+      { ALT: () => this.CONSUME2(Identifier, { LABEL: 'customIdVal' }) },
+      { ALT: () => this.CONSUME(Integer, { LABEL: 'customIntVal' }) },
+    ]);
   });
 
   // - description text
@@ -310,6 +325,16 @@ interface MetadataBracketContext {
   typeAttr?: CstNode[];
   mergeStrategyAttr?: CstNode[];
   hiddenAttr?: CstNode[];
+  customAttr?: CstNode[];
+}
+
+interface CustomAttrContext {
+  customKey: CstNodeWithImage[];
+  customStrVal?: CstNodeWithImage[];
+  customTrue?: CstNodeWithImage[];
+  customFalse?: CstNodeWithImage[];
+  customIdVal?: CstNodeWithImage[];
+  customIntVal?: CstNodeWithImage[];
 }
 
 interface OrderAttrContext {
@@ -379,6 +404,7 @@ class PortVisitor extends BaseVisitor {
     }
 
     let hidden: boolean | undefined;
+    let customMetadata: Record<string, string | boolean | number> | undefined;
 
     if (ctx.metadataBracket) {
       // Handle multiple metadata brackets (e.g., [order:1] [placement:TOP])
@@ -389,6 +415,9 @@ class PortVisitor extends BaseVisitor {
         if (metadata.dataType !== undefined) dataType = metadata.dataType;
         if (metadata.mergeStrategy !== undefined) mergeStrategy = metadata.mergeStrategy;
         if (metadata.hidden) hidden = true;
+        if (metadata.customMetadata) {
+          customMetadata = { ...customMetadata, ...metadata.customMetadata };
+        }
       }
     }
 
@@ -408,6 +437,7 @@ class PortVisitor extends BaseVisitor {
       ...(mergeStrategy && { mergeStrategy }),
       ...(hidden && { hidden }),
       ...(description && { description }),
+      ...(customMetadata && { customMetadata }),
     };
   }
 
@@ -424,6 +454,7 @@ class PortVisitor extends BaseVisitor {
     }
 
     let hidden: boolean | undefined;
+    let customMetadata: Record<string, string | boolean | number> | undefined;
 
     if (ctx.metadataBracket) {
       // Handle multiple metadata brackets (e.g., [order:1] [placement:TOP])
@@ -433,6 +464,9 @@ class PortVisitor extends BaseVisitor {
         if (metadata.placement !== undefined) placement = metadata.placement;
         if (metadata.dataType !== undefined) dataType = metadata.dataType;
         if (metadata.hidden) hidden = true;
+        if (metadata.customMetadata) {
+          customMetadata = { ...customMetadata, ...metadata.customMetadata };
+        }
       }
     }
 
@@ -449,6 +483,7 @@ class PortVisitor extends BaseVisitor {
       ...(dataType && { dataType }),
       ...(hidden && { hidden }),
       ...(description && { description }),
+      ...(customMetadata && { customMetadata }),
     };
   }
 
@@ -477,12 +512,14 @@ class PortVisitor extends BaseVisitor {
     dataType?: string;
     mergeStrategy?: string;
     hidden?: boolean;
+    customMetadata?: Record<string, string | boolean | number>;
   } {
     let order: number | undefined;
     let placement: 'TOP' | 'BOTTOM' | undefined;
     let dataType: string | undefined;
     let mergeStrategy: string | undefined;
     let hidden: boolean | undefined;
+    let customMetadata: Record<string, string | boolean | number> | undefined;
 
     if (ctx.orderAttr) {
       for (const attr of ctx.orderAttr) {
@@ -512,7 +549,15 @@ class PortVisitor extends BaseVisitor {
       hidden = true;
     }
 
-    return { order, placement, dataType, mergeStrategy, hidden };
+    if (ctx.customAttr) {
+      customMetadata = customMetadata || {};
+      for (const attr of ctx.customAttr) {
+        const { key, value } = this.visit(attr);
+        customMetadata[key] = value;
+      }
+    }
+
+    return { order, placement, dataType, mergeStrategy, hidden, customMetadata };
   }
 
   orderAttr(ctx: OrderAttrContext): number {
@@ -533,6 +578,29 @@ class PortVisitor extends BaseVisitor {
 
   mergeStrategyAttr(ctx: MergeStrategyAttrContext): string {
     return ctx.mergeStrategyValue[0].image;
+  }
+
+  customAttr(ctx: CustomAttrContext): { key: string; value: string | boolean | number } {
+    const key = ctx.customKey[0].image;
+    let value: string | boolean | number;
+
+    if (ctx.customStrVal) {
+      // Remove quotes from string literal
+      const raw = ctx.customStrVal[0].image;
+      value = raw.slice(1, -1);
+    } else if (ctx.customTrue) {
+      value = true;
+    } else if (ctx.customFalse) {
+      value = false;
+    } else if (ctx.customIntVal) {
+      value = parseInt(ctx.customIntVal[0].image, 10);
+    } else if (ctx.customIdVal) {
+      value = ctx.customIdVal[0].image;
+    } else {
+      value = '';
+    }
+
+    return { key, value };
   }
 
   descriptionClause(ctx: DescriptionClauseContext): string {

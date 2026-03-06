@@ -20,7 +20,9 @@ export default defineConfig({
     // Suppress console output from tests (debug logs, parser warnings, etc.)
     onConsoleLog: () => false,
 
-    // Setup files
+    // Global setup (runs before any imports - generates build artifacts)
+    globalSetup: ['./tests/global-setup.ts'],
+    // Per-file setup
     setupFiles: ['./tests/setup.ts'],
 
     // Coverage
