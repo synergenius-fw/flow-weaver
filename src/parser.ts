@@ -140,15 +140,16 @@ export class AnnotationParser {
     if (this.loadedPackDirs.has(projectDir)) return;
     this.loadedPackDirs.add(projectDir);
 
-    const { discoverTagHandlers } = await import('./marketplace/registry.js');
-    const handlers = await discoverTagHandlers(projectDir);
+    const { discoverTagHandlers, discoverValidationRuleSets } = await import('./marketplace/registry.js');
+    const { pathToFileURL } = await import('node:url');
 
+    // Load tag handlers
+    const handlers = await discoverTagHandlers(projectDir);
     for (const discovered of handlers) {
       // Skip if these tags are already registered (e.g. by side-effect imports)
       if (discovered.tags.every((t) => this.tagRegistry.has(t))) continue;
 
       try {
-        const { pathToFileURL } = await import('node:url');
         const mod = await import(pathToFileURL(discovered.absoluteFile).href);
         const handlerFn = discovered.exportName ? mod[discovered.exportName] : mod.default;
         if (typeof handlerFn === 'function') {
@@ -161,6 +162,27 @@ export class AnnotationParser {
         }
       } catch {
         // Skip handlers that fail to load (pack may not be built)
+      }
+    }
+
+    // Load validation rule sets
+    const { validationRuleRegistry } = await import('./api/validation-registry.js');
+    const ruleSets = await discoverValidationRuleSets(projectDir);
+    for (const ruleSet of ruleSets) {
+      try {
+        const mod = await import(pathToFileURL(ruleSet.absoluteFile).href);
+        const detectFn = mod[ruleSet.detectExport ?? 'detect'];
+        const getRulesFn = mod[ruleSet.rulesExport ?? 'getRules'];
+        if (typeof detectFn === 'function' && typeof getRulesFn === 'function') {
+          validationRuleRegistry.register({
+            name: ruleSet.name,
+            namespace: ruleSet.namespace,
+            detect: detectFn,
+            getRules: getRulesFn,
+          });
+        }
+      } catch {
+        // Skip rule sets that fail to load
       }
     }
   }
