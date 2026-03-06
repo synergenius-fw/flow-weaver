@@ -26,8 +26,10 @@ export function resolvePath(workspaceRoot: string, studioPath: string): string {
     return resolved;
   }
 
+  // Normalize backslashes to forward slashes (Windows clients may send them)
+  let normalized = studioPath.replace(/\\/g, '/');
+
   // Strip /cloud prefix if present
-  let normalized = studioPath;
   if (normalized.startsWith('/cloud')) {
     normalized = normalized.slice('/cloud'.length);
   }
@@ -57,5 +59,6 @@ export function toVirtualPath(workspaceRoot: string, realPath: string): string {
   if (rel.startsWith('..')) {
     return '/' + path.basename(realPath);
   }
-  return '/' + rel;
+  // Always use forward slashes in virtual paths (Windows path.relative uses backslashes)
+  return '/' + rel.replace(/\\/g, '/');
 }
