@@ -136,8 +136,8 @@ afterAll(() => {
 
 describe('CLI entrypoint (src/cli/index.ts)', () => {
   it('should import without throwing', async () => {
-    // The dynamic import triggers module-scope code: command registration + parse
-    // With argv = ['node', 'flow-weaver'] and no subcommand, Commander shows help
+    // The dynamic import triggers module-scope code (command registration).
+    // The parse IIFE is skipped under VITEST to avoid process.exit side effects.
     await expect(import('../../src/cli/index.js')).resolves.toBeDefined();
   });
 });
