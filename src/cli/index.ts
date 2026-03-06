@@ -698,8 +698,15 @@ if (!process.argv.slice(2).length) {
 }
 
 // Register pack-contributed CLI commands, then parse.
-// Skip when loaded by vitest for coverage instrumentation.
-if (!process.env['VITEST']) {
+// Only run when this file is the actual CLI entry point, not when imported
+// by vitest for coverage instrumentation. Check argv[1] for our CLI path
+// since VITEST env var would leak into spawned child processes in tests.
+const isCLIEntry = process.argv[1] &&
+  (process.argv[1].endsWith('/cli/index.ts') ||
+   process.argv[1].endsWith('/cli/index.js') ||
+   process.argv[1].endsWith('flow-weaver'));
+
+if (isCLIEntry) {
   (async () => {
     const { registerPackCommands } = await import('./pack-commands.js');
     await registerPackCommands(program);
