@@ -195,12 +195,7 @@ try {
 } finally {
   fs.unlinkSync(notesFile);
 }
-success(`Release ${tag} published on GitHub`);
-
-// 6. Publish to npm
-info('Publishing to npm...');
-run('npm publish --access public', { stdio: 'inherit' });
-success(`Published ${pkg.name}@${newVersion} to npm`);
+success(`Release ${tag} published on GitHub (npm publish handled by CI)`);
 
 // Cleanup: delete release branch
 try {
