@@ -10,8 +10,48 @@
  */
 
 import * as path from 'path';
+import { createRequire } from 'node:module';
 import type { Command } from 'commander';
 import { listInstalledPackages } from '../marketplace/registry.js';
+import type { TInstalledPackage } from '../marketplace/types.js';
+
+function getEngineVersion(): string {
+  try {
+    const req = createRequire(import.meta.url);
+    const pkg = req('../../package.json');
+    return pkg.version as string;
+  } catch {
+    return '0.0.0';
+  }
+}
+
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function checkPackEngineVersion(pkg: TInstalledPackage): void {
+  const required = pkg.manifest.engineVersion;
+  if (!required) return;
+
+  const minVersion = required.replace(/^>=?\s*/, '');
+  const current = getEngineVersion();
+  if (current === '0.0.0') return; // dev mode, skip check
+
+  if (compareVersions(current, minVersion) < 0) {
+    console.warn(
+      `\x1b[33mWarning: ${pkg.name} requires flow-weaver >=${minVersion} but ${current} is installed.\x1b[0m`,
+    );
+    console.warn(
+      `\x1b[33mRun: npm install @synergenius/flow-weaver@latest\x1b[0m`,
+    );
+  }
+}
 
 /**
  * Derive a short namespace from a pack's npm name.
@@ -35,6 +75,8 @@ export async function registerPackCommands(program: Command): Promise<void> {
   for (const pkg of packages) {
     const manifest = pkg.manifest;
     if (!manifest.cliEntrypoint || !manifest.cliCommands?.length) continue;
+
+    checkPackEngineVersion(pkg);
 
     const namespace = deriveNamespace(pkg.name);
     const entrypointPath = path.join(pkg.path, manifest.cliEntrypoint);
