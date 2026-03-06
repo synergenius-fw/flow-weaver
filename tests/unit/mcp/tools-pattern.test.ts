@@ -59,7 +59,7 @@ const mockManipRemoveConnection = vi.fn();
 const mockManipSetNodePosition = vi.fn();
 const mockManipSetNodeLabel = vi.fn();
 
-vi.mock('../../../src/api/manipulation.js', () => ({
+vi.mock('../../../src/api/manipulation/index.js', () => ({
   addNode: (...args: unknown[]) => mockManipAddNode(...args),
   removeNode: (...args: unknown[]) => mockManipRemoveNode(...args),
   renameNode: (...args: unknown[]) => mockManipRenameNode(...args),
