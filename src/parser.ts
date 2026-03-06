@@ -428,11 +428,25 @@ export class AnnotationParser {
   private resolveModulePath(moduleSpecifier: string, currentDir: string): string | null {
     const extensions = ['.ts', '.tsx', '.js', '.jsx'];
 
-    // If already has extension, check if exists
+    // If already has extension, check if exists (with ESM .js → .ts fallback)
     const hasExtension = extensions.some((ext) => moduleSpecifier.endsWith(ext));
     if (hasExtension) {
       const fullPath = path.resolve(currentDir, moduleSpecifier);
-      return fs.existsSync(fullPath) ? fullPath : null;
+      if (fs.existsSync(fullPath)) return fullPath;
+
+      // ESM convention: TypeScript files use .js extensions in imports.
+      // If the .js file doesn't exist, try the .ts/.tsx equivalent.
+      if (moduleSpecifier.endsWith('.js')) {
+        const tsPath = fullPath.replace(/\.js$/, '.ts');
+        if (fs.existsSync(tsPath)) return tsPath;
+        const tsxPath = fullPath.replace(/\.js$/, '.tsx');
+        if (fs.existsSync(tsxPath)) return tsxPath;
+      } else if (moduleSpecifier.endsWith('.jsx')) {
+        const tsxPath = fullPath.replace(/\.jsx$/, '.tsx');
+        if (fs.existsSync(tsxPath)) return tsxPath;
+      }
+
+      return null;
     }
 
     // Try each extension in order
