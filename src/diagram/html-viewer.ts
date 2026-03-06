@@ -566,7 +566,10 @@ path[data-source].port-hover { opacity: 1; }
     portConnections[tgt].push(src);
   });
 
-  // ---- Connection path computation (from geometry.ts) ----
+  // ---- Connection path computation (bezier from geometry.ts + orthogonal router) ----
+  var TRACK_SPACING = 15, EDGE_OFFSET = 5, MAX_CANDIDATES = 5;
+  var MIN_SEG_LEN = 3, JOG_THRESHOLD = 10, ORTHO_THRESHOLD = 300;
+
   function quadCurveControl(ax, ay, bx, by, ux, uy) {
     var dn = Math.abs(ay - by);
     return [bx + (ux * dn) / Math.abs(uy), ay];
@@ -596,24 +599,373 @@ path[data-source].port-hover { opacity: 1; }
       ' L ' + hx + ',' + hy;
   }
 
-  // ---- Port position + connection path indexes ----
+  // ---- Orthogonal router (ported from orthogonal-router.ts) ----
+  function createAllocator() {
+    var claims = [], vclaims = [];
+    function isOcc(xn, xx, y) {
+      for (var i = 0; i < claims.length; i++) {
+        var c = claims[i];
+        if (c.xn < xx && c.xx > xn && Math.abs(c.y - y) < TRACK_SPACING) return true;
+      }
+      return false;
+    }
+    function isOccV(yn, yx, x) {
+      for (var i = 0; i < vclaims.length; i++) {
+        var c = vclaims[i];
+        if (c.yn < yx && c.yx > yn && Math.abs(c.x - x) < TRACK_SPACING) return true;
+      }
+      return false;
+    }
+    function blockedByNode(xn, xx, y, boxes) {
+      for (var i = 0; i < boxes.length; i++) {
+        var b = boxes[i]; if (xn < b.r && xx > b.l && y >= b.t && y <= b.b) return true;
+      }
+      return false;
+    }
+    function blockedByNodeV(yn, yx, x, boxes) {
+      for (var i = 0; i < boxes.length; i++) {
+        var b = boxes[i]; if (x >= b.l && x <= b.r && yn < b.b && yx > b.t) return true;
+      }
+      return false;
+    }
+    function countHCross(xn, xx, y) {
+      var n = 0;
+      for (var i = 0; i < vclaims.length; i++) {
+        var c = vclaims[i]; if (c.x > xn && c.x < xx && y >= c.yn && y <= c.yx) n++;
+      }
+      return n;
+    }
+    function countVCross(yn, yx, x) {
+      var n = 0;
+      for (var i = 0; i < claims.length; i++) {
+        var c = claims[i]; if (c.y > yn && c.y < yx && x >= c.xn && x <= c.xx) n++;
+      }
+      return n;
+    }
+    return {
+      findFreeY: function(xn, xx, cy, nb) {
+        var free = function(y) { return !isOcc(xn, xx, y) && (!nb || !blockedByNode(xn, xx, y, nb)); };
+        if (free(cy)) return cy;
+        var cands = [];
+        for (var off = TRACK_SPACING; off < 800 && cands.length < MAX_CANDIDATES * 2; off += TRACK_SPACING) {
+          if (free(cy - off)) cands.push({ y: cy - off, d: off });
+          if (free(cy + off)) cands.push({ y: cy + off, d: off });
+        }
+        if (!cands.length) return cy;
+        var best = cands[0].y, bc = countHCross(xn, xx, cands[0].y), bd = cands[0].d;
+        for (var i = 1; i < cands.length; i++) {
+          var cr = countHCross(xn, xx, cands[i].y);
+          if (cr < bc || (cr === bc && cands[i].d < bd)) { best = cands[i].y; bc = cr; bd = cands[i].d; }
+        }
+        return best;
+      },
+      findFreeX: function(yn, yx, cx, nb) {
+        var free = function(x) { return !isOccV(yn, yx, x) && (!nb || !blockedByNodeV(yn, yx, x, nb)); };
+        if (free(cx)) return cx;
+        var cands = [];
+        for (var off = TRACK_SPACING; off < 800 && cands.length < MAX_CANDIDATES * 2; off += TRACK_SPACING) {
+          if (free(cx - off)) cands.push({ x: cx - off, d: off });
+          if (free(cx + off)) cands.push({ x: cx + off, d: off });
+        }
+        if (!cands.length) return cx;
+        var best = cands[0].x, bc = countVCross(yn, yx, cands[0].x), bd = cands[0].d;
+        for (var i = 1; i < cands.length; i++) {
+          var cr = countVCross(yn, yx, cands[i].x);
+          if (cr < bc || (cr === bc && cands[i].d < bd)) { best = cands[i].x; bc = cr; bd = cands[i].d; }
+        }
+        return best;
+      },
+      claim: function(xn, xx, y) { claims.push({ xn: xn, xx: xx, y: y }); },
+      claimV: function(yn, yx, x) { vclaims.push({ yn: yn, yx: yx, x: x }); }
+    };
+  }
+
+  function inflateBox(b, pad) { return { l: b.x - pad, r: b.x + b.w + pad, t: b.y - pad, b: b.y + b.h + pad }; }
+  function segOvlp(xn, xx, y, bx) { return xn < bx.r && xx > bx.l && y >= bx.t && y <= bx.b; }
+  function vSegClear(x, yn, yx, boxes) {
+    for (var i = 0; i < boxes.length; i++) { var b = boxes[i]; if (x >= b.l && x <= b.r && yn < b.b && yx > b.t) return false; }
+    return true;
+  }
+
+  function findClearY(xn, xx, cy, boxes) {
+    var blocked = function(y) { for (var i = 0; i < boxes.length; i++) if (segOvlp(xn, xx, y, boxes[i])) return true; return false; };
+    if (!blocked(cy)) return cy;
+    var edges = [];
+    for (var i = 0; i < boxes.length; i++) { var b = boxes[i]; if (xn < b.r && xx > b.l) { edges.push(b.t); edges.push(b.b); } }
+    if (!edges.length) return cy;
+    edges.sort(function(a, b) { return a - b; });
+    var best = cy, bd = Infinity;
+    for (var i = 0; i < edges.length; i++) {
+      var vals = [edges[i] - EDGE_OFFSET, edges[i] + EDGE_OFFSET];
+      for (var j = 0; j < 2; j++) { if (!blocked(vals[j])) { var d = Math.abs(vals[j] - cy); if (d < bd) { bd = d; best = vals[j]; } } }
+    }
+    if (bd === Infinity) {
+      var mn = Math.min.apply(null, edges) - EDGE_OFFSET * 2, mx = Math.max.apply(null, edges) + EDGE_OFFSET * 2;
+      best = Math.abs(mn - cy) <= Math.abs(mx - cy) ? mn : mx;
+      if (blocked(best)) { for (var off = TRACK_SPACING; off < 800; off += TRACK_SPACING) { if (!blocked(best - off)) { best -= off; break; } if (!blocked(best + off)) { best += off; break; } } }
+    }
+    return best;
+  }
+
+  function findClearX(yn, yx, cx, boxes) {
+    var blocked = function(x) { for (var i = 0; i < boxes.length; i++) { var b = boxes[i]; if (x >= b.l && x <= b.r && yn < b.b && yx > b.t) return true; } return false; };
+    if (!blocked(cx)) return cx;
+    var edges = [];
+    for (var i = 0; i < boxes.length; i++) { var b = boxes[i]; if (yn < b.b && yx > b.t) { edges.push(b.l); edges.push(b.r); } }
+    if (!edges.length) return cx;
+    edges.sort(function(a, b) { return a - b; });
+    var best = cx, bd = Infinity;
+    for (var i = 0; i < edges.length; i++) {
+      var vals = [edges[i] - EDGE_OFFSET, edges[i] + EDGE_OFFSET];
+      for (var j = 0; j < 2; j++) { if (!blocked(vals[j])) { var d = Math.abs(vals[j] - cx); if (d < bd) { bd = d; best = vals[j]; } } }
+    }
+    if (bd === Infinity) {
+      var mn = Math.min.apply(null, edges) - EDGE_OFFSET * 2, mx = Math.max.apply(null, edges) + EDGE_OFFSET * 2;
+      best = Math.abs(mn - cx) <= Math.abs(mx - cx) ? mn : mx;
+      if (blocked(best)) { for (var off = TRACK_SPACING; off < 800; off += TRACK_SPACING) { if (!blocked(best - off)) { best -= off; break; } if (!blocked(best + off)) { best += off; break; } } }
+    }
+    return best;
+  }
+
+  function simplifyWaypoints(pts) {
+    if (pts.length <= 2) return pts;
+    var jogFound = true;
+    while (jogFound) {
+      jogFound = false;
+      for (var i = 0; i < pts.length - 3; i++) {
+        var a = pts[i], b = pts[i+1], c = pts[i+2], d = pts[i+3];
+        var jogH = Math.abs(b[1] - c[1]);
+        if (Math.abs(a[1] - b[1]) < 0.5 && Math.abs(b[0] - c[0]) < 0.5 && Math.abs(c[1] - d[1]) < 0.5 && jogH > 0.5 && jogH < JOG_THRESHOLD) {
+          var mid = (b[1] + c[1]) / 2, snap = Math.abs(a[1] - mid) <= Math.abs(d[1] - mid) ? a[1] : d[1];
+          pts = pts.slice(); pts[i+1] = [b[0], snap]; pts[i+2] = [c[0], snap]; jogFound = true; break;
+        }
+        var jogW = Math.abs(b[0] - c[0]);
+        if (Math.abs(a[0] - b[0]) < 0.5 && Math.abs(b[1] - c[1]) < 0.5 && Math.abs(c[0] - d[0]) < 0.5 && jogW > 0.5 && jogW < JOG_THRESHOLD) {
+          var mid = (b[0] + c[0]) / 2, snap = Math.abs(a[0] - mid) <= Math.abs(d[0] - mid) ? a[0] : d[0];
+          pts = pts.slice(); pts[i+1] = [snap, b[1]]; pts[i+2] = [snap, c[1]]; jogFound = true; break;
+        }
+      }
+    }
+    var res = [pts[0]];
+    for (var i = 1; i < pts.length - 1; i++) {
+      var prev = res[res.length - 1], cur = pts[i], next = pts[i+1];
+      if (Math.abs(prev[0] - cur[0]) + Math.abs(prev[1] - cur[1]) < MIN_SEG_LEN) continue;
+      var sameX = Math.abs(prev[0] - cur[0]) < 0.01 && Math.abs(cur[0] - next[0]) < 0.01;
+      var sameY = Math.abs(prev[1] - cur[1]) < 0.01 && Math.abs(cur[1] - next[1]) < 0.01;
+      if (!sameX && !sameY) res.push(cur);
+    }
+    res.push(pts[pts.length - 1]);
+    return res;
+  }
+
+  function waypointsToPath(wp, cr) {
+    if (wp.length < 2) return '';
+    if (wp.length === 2) return 'M ' + wp[0][0] + ',' + wp[0][1] + ' L ' + wp[1][0] + ',' + wp[1][1];
+    var radii = [];
+    for (var i = 0; i < wp.length; i++) radii[i] = 0;
+    for (var i = 1; i < wp.length - 1; i++) {
+      var p = wp[i-1], c = wp[i], n = wp[i+1];
+      var lp = Math.sqrt((p[0]-c[0])*(p[0]-c[0]) + (p[1]-c[1])*(p[1]-c[1]));
+      var ln = Math.sqrt((n[0]-c[0])*(n[0]-c[0]) + (n[1]-c[1])*(n[1]-c[1]));
+      radii[i] = (lp < 0.01 || ln < 0.01) ? 0 : Math.min(cr, lp / 2, ln / 2);
+    }
+    for (var i = 1; i < wp.length - 2; i++) {
+      var c = wp[i], n = wp[i+1];
+      var sl = Math.sqrt((n[0]-c[0])*(n[0]-c[0]) + (n[1]-c[1])*(n[1]-c[1]));
+      var tot = radii[i] + radii[i+1];
+      if (tot > sl && tot > 0) { var sc = sl / tot; radii[i] *= sc; radii[i+1] *= sc; }
+    }
+    var path = 'M ' + wp[0][0] + ',' + wp[0][1];
+    for (var i = 1; i < wp.length - 1; i++) {
+      var p = wp[i-1], c = wp[i], n = wp[i+1], r = radii[i];
+      if (r < 2) { path += ' L ' + c[0] + ',' + c[1]; continue; }
+      var dpx = p[0]-c[0], dpy = p[1]-c[1], dnx = n[0]-c[0], dny = n[1]-c[1];
+      var lp = Math.sqrt(dpx*dpx + dpy*dpy), ln = Math.sqrt(dnx*dnx + dny*dny);
+      var upx = dpx/lp, upy = dpy/lp, unx = dnx/ln, uny = dny/ln;
+      var asx = c[0] + upx*r, asy = c[1] + upy*r, aex = c[0] + unx*r, aey = c[1] + uny*r;
+      var cross = dpx*dny - dpy*dnx, sweep = cross > 0 ? 0 : 1;
+      path += ' L ' + asx + ',' + asy + ' A ' + r + ' ' + r + ' 0 0 ' + sweep + ' ' + aex + ',' + aey;
+    }
+    path += ' L ' + wp[wp.length-1][0] + ',' + wp[wp.length-1][1];
+    return path;
+  }
+
+  function computeWaypoints(from, to, nboxes, srcId, tgtId, pad, exitStub, entryStub, alloc) {
+    var isSelf = srcId === tgtId;
+    var iboxes = [];
+    for (var i = 0; i < nboxes.length; i++) {
+      var b = nboxes[i];
+      if (isSelf || (b.id !== srcId && b.id !== tgtId)) iboxes.push(inflateBox(b, pad));
+    }
+    var se = [from[0] + exitStub, from[1]], sn = [to[0] - entryStub, to[1]];
+    var xn = Math.min(se[0], sn[0]), xx = Math.max(se[0], sn[0]);
+
+    if (!isSelf && to[0] > from[0]) {
+      var cy = (from[1] + to[1]) / 2;
+      var intBoxes = [];
+      for (var i = 0; i < iboxes.length; i++) { var b = iboxes[i]; if (b.l < xx && b.r > xn) intBoxes.push(b); }
+      if (intBoxes.length >= 2) {
+        var ct = Infinity, cb = -Infinity;
+        for (var i = 0; i < intBoxes.length; i++) { ct = Math.min(ct, intBoxes[i].t); cb = Math.max(cb, intBoxes[i].b); }
+        if (cy > ct && cy < cb) { cy = (cy - ct <= cb - cy) ? ct - pad : cb + pad; }
+      }
+      var clearY = findClearY(xn, xx, cy, iboxes);
+      if (Math.abs(from[1] - to[1]) < JOG_THRESHOLD && Math.abs(clearY - from[1]) < JOG_THRESHOLD) return null;
+
+      var midX = (se[0] + sn[0]) / 2, ymn = Math.min(from[1], to[1]), ymx = Math.max(from[1], to[1]);
+      var cmx = findClearX(ymn, ymx, midX, iboxes);
+      var fmx = alloc.findFreeX(ymn, ymx, cmx, iboxes);
+      if (ymx - ymn >= JOG_THRESHOLD && fmx > se[0] && fmx < sn[0] &&
+          vSegClear(fmx, ymn, ymx, iboxes) &&
+          alloc.findFreeY(from[0], fmx, from[1], iboxes) === from[1] &&
+          alloc.findFreeY(fmx, to[0], to[1], iboxes) === to[1]) {
+        alloc.claim(from[0], fmx, from[1]); alloc.claim(fmx, to[0], to[1]); alloc.claimV(ymn, ymx, fmx);
+        return simplifyWaypoints([from, [fmx, from[1]], [fmx, to[1]], to]);
+      }
+
+      clearY = alloc.findFreeY(xn, xx, clearY, iboxes);
+      if (Math.abs(clearY - from[1]) < JOG_THRESHOLD && !iboxes.some(function(b) { return segOvlp(xn, xx, from[1], b); })) clearY = from[1];
+      else if (Math.abs(clearY - to[1]) < JOG_THRESHOLD && !iboxes.some(function(b) { return segOvlp(xn, xx, to[1], b); })) clearY = to[1];
+      alloc.claim(xn, xx, clearY);
+
+      var eymn = Math.min(from[1], clearY), eymx = Math.max(from[1], clearY);
+      var exX = findClearX(eymn, eymx, se[0], iboxes); exX = alloc.findFreeX(eymn, eymx, exX, iboxes);
+      if (exX < from[0]) { exX = se[0]; if (!vSegClear(exX, eymn, eymx, iboxes)) { exX = findClearX(eymn, eymx, se[0] + TRACK_SPACING, iboxes); exX = alloc.findFreeX(eymn, eymx, exX, iboxes); } }
+      alloc.claimV(eymn, eymx, exX);
+
+      var nymn = Math.min(to[1], clearY), nymx = Math.max(to[1], clearY);
+      var nxX = findClearX(nymn, nymx, sn[0], iboxes); nxX = alloc.findFreeX(nymn, nymx, nxX, iboxes);
+      if (nxX > to[0]) { nxX = sn[0]; if (!vSegClear(nxX, nymn, nymx, iboxes)) { nxX = findClearX(nymn, nymx, sn[0] - TRACK_SPACING, iboxes); nxX = alloc.findFreeX(nymn, nymx, nxX, iboxes); } }
+      alloc.claimV(nymn, nymx, nxX);
+
+      return simplifyWaypoints([from, [exX, from[1]], [exX, clearY], [nxX, clearY], [nxX, to[1]], to]);
+    } else {
+      var srcBox = null, tgtBox = null;
+      for (var i = 0; i < nboxes.length; i++) { if (nboxes[i].id === srcId) srcBox = nboxes[i]; if (nboxes[i].id === tgtId) tgtBox = nboxes[i]; }
+      var corBoxes = []; for (var i = 0; i < iboxes.length; i++) { var b = iboxes[i]; if (b.l < xx && b.r > xn) corBoxes.push(b); }
+      var bots = corBoxes.map(function(b) { return b.b; }), tops = corBoxes.map(function(b) { return b.t; });
+      if (srcBox) { bots.push(srcBox.y + srcBox.h + pad); tops.push(srcBox.y - pad); }
+      if (tgtBox) { bots.push(tgtBox.y + tgtBox.h + pad); tops.push(tgtBox.y - pad); }
+      var maxBot = Math.max.apply(null, bots.concat([from[1] + 50, to[1] + 50]));
+      var minTop = Math.min.apply(null, tops.concat([from[1] - 50, to[1] - 50]));
+      var avgY = (from[1] + to[1]) / 2;
+      var escBelow = maxBot + pad, escAbove = minTop - pad;
+      var escY = Math.abs(escAbove - avgY) <= Math.abs(escBelow - avgY) ? escAbove : escBelow;
+      escY = findClearY(xn, xx, escY, iboxes); escY = alloc.findFreeY(xn, xx, escY, iboxes); alloc.claim(xn, xx, escY);
+
+      var bymn = Math.min(from[1], escY), bymx = Math.max(from[1], escY);
+      var bexX = findClearX(bymn, bymx, se[0], iboxes); bexX = alloc.findFreeX(bymn, bymx, bexX, iboxes); alloc.claimV(bymn, bymx, bexX);
+
+      var bnmn = Math.min(to[1], escY), bnmx = Math.max(to[1], escY);
+      var bnxX = findClearX(bnmn, bnmx, sn[0], iboxes); bnxX = alloc.findFreeX(bnmn, bnmx, bnxX, iboxes); alloc.claimV(bnmn, bnmx, bnxX);
+
+      return simplifyWaypoints([from, [bexX, from[1]], [bexX, escY], [bnxX, escY], [bnxX, to[1]], to]);
+    }
+  }
+
+  function calcOrthogonalPath(from, to, nboxes, srcId, tgtId, fromIdx, toIdx, alloc) {
+    var pad = 15, stubLen = 20, stubSpc = 12, maxStub = 80, cr = 10;
+    var exitStub = Math.min(stubLen + fromIdx * stubSpc, maxStub);
+    var entryStub = Math.min(stubLen + toIdx * stubSpc, maxStub);
+    try {
+      var wp = computeWaypoints(from, to, nboxes, srcId, tgtId, pad, exitStub, entryStub, alloc);
+      if (!wp) return null;
+      var p = waypointsToPath(wp, cr);
+      return (p && p.length >= 5) ? p : null;
+    } catch (e) { return null; }
+  }
+
+  // ---- Port position + node box + connection path indexes ----
   var portPositions = {};
   content.querySelectorAll('[data-port-id]').forEach(function(el) {
     var id = el.getAttribute('data-port-id');
     portPositions[id] = { cx: parseFloat(el.getAttribute('cx')), cy: parseFloat(el.getAttribute('cy')) };
   });
 
+  // Extract node bounding boxes from SVG rect elements
+  var nodeBoxMap = {};
+  content.querySelectorAll('.nodes [data-node-id]').forEach(function(g) {
+    var nid = g.getAttribute('data-node-id');
+    var rect = g.querySelector(':scope > rect');
+    if (!rect) return;
+    nodeBoxMap[nid] = {
+      id: nid,
+      x: parseFloat(rect.getAttribute('x')),
+      y: parseFloat(rect.getAttribute('y')),
+      w: parseFloat(rect.getAttribute('width')),
+      h: parseFloat(rect.getAttribute('height'))
+    };
+  });
+
+  // Build port-to-node mapping and compute port indices within each node
+  var portNodeMap = {};
+  var portIndexMap = {};
+  content.querySelectorAll('[data-port-id]').forEach(function(el) {
+    var id = el.getAttribute('data-port-id');
+    var dir = el.getAttribute('data-direction');
+    var parts = id.split('.');
+    var nodeId = parts[0];
+    portNodeMap[id] = nodeId;
+    if (!portIndexMap[nodeId]) portIndexMap[nodeId] = { input: [], output: [] };
+    portIndexMap[nodeId][dir].push(id);
+  });
+
   var nodeOffsets = {};
   var connIndex = [];
   content.querySelectorAll('path[data-source]').forEach(function(p) {
     var src = p.getAttribute('data-source'), tgt = p.getAttribute('data-target');
-    connIndex.push({ el: p, src: src, tgt: tgt, srcNode: src.split('.')[0], tgtNode: tgt.split('.')[0], scopeOf: p.getAttribute('data-scope') || null });
+    var srcNode = src.split('.')[0], tgtNode = tgt.split('.')[0];
+    var srcIdx = portIndexMap[srcNode] ? portIndexMap[srcNode].output.indexOf(src) : 0;
+    var tgtIdx = portIndexMap[tgtNode] ? portIndexMap[tgtNode].input.indexOf(tgt) : 0;
+    connIndex.push({ el: p, src: src, tgt: tgt, srcNode: srcNode, tgtNode: tgtNode,
+      scopeOf: p.getAttribute('data-scope') || null, srcIdx: Math.max(0, srcIdx), tgtIdx: Math.max(0, tgtIdx) });
   });
 
   // Snapshot of original port positions for reset
   var origPortPositions = {};
   for (var pid in portPositions) {
     origPortPositions[pid] = { cx: portPositions[pid].cx, cy: portPositions[pid].cy };
+  }
+  var origNodeBoxMap = {};
+  for (var nid in nodeBoxMap) {
+    var b = nodeBoxMap[nid];
+    origNodeBoxMap[nid] = { id: b.id, x: b.x, y: b.y, w: b.w, h: b.h };
+  }
+
+  // ---- Recalculate all connection paths using orthogonal + bezier routing ----
+  function recalcAllPaths() {
+    var boxes = [];
+    for (var nid in nodeBoxMap) boxes.push(nodeBoxMap[nid]);
+    var sorted = connIndex.slice().sort(function(a, b) {
+      var spa = portPositions[a.src] && portPositions[a.tgt] ? Math.abs(portPositions[a.tgt].cx - portPositions[a.src].cx) : 0;
+      var spb = portPositions[b.src] && portPositions[b.tgt] ? Math.abs(portPositions[b.tgt].cx - portPositions[b.src].cx) : 0;
+      if (Math.abs(spa - spb) > 1) return spa - spb;
+      var sxa = portPositions[a.src] ? portPositions[a.src].cx : 0, sxb = portPositions[b.src] ? portPositions[b.src].cx : 0;
+      if (Math.abs(sxa - sxb) > 1) return sxa - sxb;
+      var sya = portPositions[a.src] ? portPositions[a.src].cy : 0, syb = portPositions[b.src] ? portPositions[b.src].cy : 0;
+      return sya - syb;
+    });
+    var alloc = createAllocator();
+    for (var i = 0; i < sorted.length; i++) {
+      var c = sorted[i];
+      var sp = portPositions[c.src], tp = portPositions[c.tgt];
+      if (!sp || !tp) continue;
+      var sx = sp.cx, sy = sp.cy, tx = tp.cx, ty = tp.cy;
+      // For scope connections, use parent-local coords
+      if (c.scopeOf) {
+        var pOff = nodeOffsets[c.scopeOf] || { dx: 0, dy: 0 };
+        sx -= pOff.dx; sy -= pOff.dy; tx -= pOff.dx; ty -= pOff.dy;
+      }
+      var ddx = tx - sx, ddy = ty - sy, dist = Math.sqrt(ddx * ddx + ddy * ddy);
+      var path;
+      if (dist > ORTHO_THRESHOLD) {
+        path = calcOrthogonalPath([sx, sy], [tx, ty], boxes, c.srcNode, c.tgtNode, c.srcIdx, c.tgtIdx, alloc);
+        if (!path) path = computeConnectionPath(sx, sy, tx, ty);
+      } else {
+        path = computeConnectionPath(sx, sy, tx, ty);
+      }
+      c.el.setAttribute('d', path);
+    }
   }
 
   function resetLayout() {
@@ -634,10 +986,11 @@ path[data-source].port-hover { opacity: 1; }
     for (var pid in origPortPositions) {
       portPositions[pid] = { cx: origPortPositions[pid].cx, cy: origPortPositions[pid].cy };
     }
-    connIndex.forEach(function(c) {
-      var sp = portPositions[c.src], tp = portPositions[c.tgt];
-      if (sp && tp) c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
-    });
+    for (var nid in origNodeBoxMap) {
+      var b = origNodeBoxMap[nid];
+      nodeBoxMap[nid] = { id: b.id, x: b.x, y: b.y, w: b.w, h: b.h };
+    }
+    recalcAllPaths();
     fitToView();
   }
   document.getElementById('btn-reset').addEventListener('click', resetLayout);
@@ -707,39 +1060,24 @@ path[data-source].port-hover { opacity: 1; }
       });
     }
 
-    // Recalculate affected connection paths (skip scope connections when parent is dragged — they move with the group transform)
-    connIndex.forEach(function(c) {
-      if (c.scopeOf === nodeId) return;
-      if (c.srcNode === nodeId || c.tgtNode === nodeId) {
-        var sp = portPositions[c.src], tp = portPositions[c.tgt];
-        if (sp && tp) {
-          if (c.scopeOf) {
-            // Scope connection paths live inside the parent group; use parent-local coords
-            var pOff = nodeOffsets[c.scopeOf] || { dx: 0, dy: 0 };
-            c.el.setAttribute('d', computeConnectionPath(sp.cx - pOff.dx, sp.cy - pOff.dy, tp.cx - pOff.dx, tp.cy - pOff.dy));
-          } else {
-            c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
-          }
+    // Update node box positions for orthogonal routing
+    if (nodeBoxMap[nodeId]) {
+      var nb = origNodeBoxMap[nodeId];
+      if (nb) nodeBoxMap[nodeId] = { id: nb.id, x: nb.x + off.dx, y: nb.y + off.dy, w: nb.w, h: nb.h };
+    }
+    if (nodeG) {
+      var children = nodeG.querySelectorAll(':scope > g[data-node-id]');
+      children.forEach(function(childG) {
+        var childId = childG.getAttribute('data-node-id');
+        var cnb = origNodeBoxMap[childId];
+        if (cnb && nodeOffsets[childId]) {
+          nodeBoxMap[childId] = { id: cnb.id, x: cnb.x + nodeOffsets[childId].dx, y: cnb.y + nodeOffsets[childId].dy, w: cnb.w, h: cnb.h };
         }
-      }
-      if (nodeG) {
-        var children = nodeG.querySelectorAll(':scope > g[data-node-id]');
-        children.forEach(function(childG) {
-          var childId = childG.getAttribute('data-node-id');
-          if (c.srcNode === childId || c.tgtNode === childId) {
-            var sp = portPositions[c.src], tp = portPositions[c.tgt];
-            if (sp && tp) {
-              if (c.scopeOf) {
-                var pOff = nodeOffsets[c.scopeOf] || { dx: 0, dy: 0 };
-                c.el.setAttribute('d', computeConnectionPath(sp.cx - pOff.dx, sp.cy - pOff.dy, tp.cx - pOff.dx, tp.cy - pOff.dy));
-              } else {
-                c.el.setAttribute('d', computeConnectionPath(sp.cx, sp.cy, tp.cx, tp.cy));
-              }
-            }
-          }
-        });
-      }
-    });
+      });
+    }
+
+    // Recalculate all connection paths with orthogonal routing
+    recalcAllPaths();
   }
 
   var allLabelIds = Object.keys(labelMap);
