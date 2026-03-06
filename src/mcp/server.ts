@@ -20,6 +20,7 @@ import { registerDebugTools } from './tools-debug.js';
 import { registerContextTools } from './tools-context.js';
 import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
+import { registerPackMcpTools } from './pack-tools.js';
 
 function parseEventFilterFromEnv(): Partial<EventFilterConfig> {
   const filter: Partial<EventFilterConfig> = {};
@@ -89,6 +90,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   registerContextTools(mcp);
   registerResources(mcp, connection, buffer);
   registerPrompts(mcp);
+  await registerPackMcpTools(mcp);
 
   // Connect transport (only in stdio MCP mode)
   if (!options._testDeps && options.stdio) {
