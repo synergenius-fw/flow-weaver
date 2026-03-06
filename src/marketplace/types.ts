@@ -13,7 +13,7 @@ import type { TDataType } from '../ast/types.js';
 /** Auto-generated manifest describing a marketplace package's contents. */
 export type TMarketplaceManifest = {
   /** Manifest schema version */
-  manifestVersion: 1 | 2;
+  manifestVersion: 2;
   /** npm package name */
   name: string;
   /** Semver version */
