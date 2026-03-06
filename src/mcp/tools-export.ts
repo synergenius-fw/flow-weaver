@@ -89,7 +89,7 @@ export function registerExportTools(mcp: McpServer): void {
         // 3. Parse the file to discover workflows and node types
         let parseResult;
         try {
-          parseResult = await parseWorkflow(filePath, { nodeTypesOnly: false });
+          parseResult = await parseWorkflow(filePath, { nodeTypesOnly: false, projectDir: path.dirname(filePath) });
         } catch (err) {
           return makeErrorResult(
             'PARSE_ERROR',
@@ -100,7 +100,7 @@ export function registerExportTools(mcp: McpServer): void {
         if (parseResult.errors.length > 0) {
           // Try node-types-only parse
           try {
-            const ntResult = await parseWorkflow(filePath, { nodeTypesOnly: true });
+            const ntResult = await parseWorkflow(filePath, { nodeTypesOnly: true, projectDir: path.dirname(filePath) });
             if (ntResult.errors.length === 0) {
               parseResult = ntResult;
             }

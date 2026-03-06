@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+import * as path from 'node:path';
 import { parseWorkflow, type ParseResult } from "./api/parse";
 import { validateWorkflow, type ValidationResult } from "./api/validate";
 import { generateCode, type GenerateResult } from "./api/generate";
@@ -81,7 +82,7 @@ export class WorkflowGenerator {
   private async parseWithLogging(filePath: string, workflowName: string): Promise<ParseResult> {
     console.log("Parsing annotations...");
 
-    const parseResult = await parseWorkflow(filePath, { workflowName });
+    const parseResult = await parseWorkflow(filePath, { workflowName, projectDir: path.dirname(filePath) });
 
     if (parseResult.errors.length > 0) {
       console.error(`\\n❌ ${parseResult.errors.length} parse error(s):`);
