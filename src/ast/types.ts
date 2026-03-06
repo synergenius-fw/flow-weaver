@@ -484,10 +484,14 @@ export type TCICDSecret = {
 export type TCICDCache = {
   /** Cache strategy name (e.g., npm, pip, custom) */
   strategy: string;
-  /** Cache path override */
+  /** Cache path override (comma-separated for multiple paths) */
   path?: string;
   /** Cache key file (e.g., package-lock.json) */
   key?: string;
+  /** Cache policy (pull, push, pull-push) */
+  policy?: string;
+  /** Files to use for cache key generation */
+  files?: string[];
 };
 
 /** Artifact declaration from @artifact annotation */
