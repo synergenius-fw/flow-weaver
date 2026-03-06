@@ -1070,6 +1070,7 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
   }
 
   // Build NodeBox array for orthogonal routing (after coordinate normalization)
+  // Include scope children so the router can route around them
   const nodeBoxes: NodeBox[] = nodes.map(node => ({
     id: node.id,
     x: node.x,
@@ -1077,6 +1078,13 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     width: node.width,
     height: node.height,
   }));
+  for (const node of nodes) {
+    if (node.scopeChildren) {
+      for (const child of node.scopeChildren) {
+        nodeBoxes.push({ id: child.id, x: child.x, y: child.y, width: child.width, height: child.height });
+      }
+    }
+  }
 
   // Sort connections: short spans first, then by source X, then by source Y
   // (matching original editor for deterministic track allocation)
@@ -1162,18 +1170,112 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     });
   }
 
-  // Recompute scope connection paths after normalization
+  // Recompute scope connection paths with the same routing logic as external connections
   for (const node of nodes) {
-    if (node.scopeConnections && node.scopePorts && node.scopeChildren) {
-      const childMap = new Map<string, DiagramNode>();
-      for (const c of node.scopeChildren) childMap.set(c.id, c);
+    if (!node.scopeConnections || !node.scopePorts || !node.scopeChildren) continue;
 
-      for (const conn of node.scopeConnections) {
-        const sPort = findScopePort(conn.fromNode, conn.fromPort, node, childMap, 'output');
-        const tPort = findScopePort(conn.toNode, conn.toPort, node, childMap, 'input');
-        if (sPort && tPort) {
-          conn.path = computeConnectionPath(sPort.cx, sPort.cy, tPort.cx, tPort.cy);
-        }
+    const childMap = new Map<string, DiagramNode>();
+    for (const c of node.scopeChildren) childMap.set(c.id, c);
+
+    // Collect scope connections with resolved ports and port indices
+    type ScopePending = {
+      conn: DiagramConnection;
+      sourcePort: DiagramPort;
+      targetPort: DiagramPort;
+      fromNodeId: string;
+      toNodeId: string;
+      fromPortIndex: number;
+      toPortIndex: number;
+    };
+    const scopePending: ScopePending[] = [];
+
+    for (const conn of node.scopeConnections) {
+      const sPort = findScopePort(conn.fromNode, conn.fromPort, node, childMap, 'output');
+      const tPort = findScopePort(conn.toNode, conn.toPort, node, childMap, 'input');
+      if (!sPort || !tPort) continue;
+
+      let fromPortIndex = 0;
+      let toPortIndex = 0;
+      if (conn.fromNode === node.id) {
+        fromPortIndex = node.scopePorts!.outputs.indexOf(sPort);
+      } else {
+        const fromChild = childMap.get(conn.fromNode);
+        if (fromChild) fromPortIndex = fromChild.outputs.indexOf(sPort);
+      }
+      if (conn.toNode === node.id) {
+        toPortIndex = node.scopePorts!.inputs.indexOf(tPort);
+      } else {
+        const toChild = childMap.get(conn.toNode);
+        if (toChild) toPortIndex = toChild.inputs.indexOf(tPort);
+      }
+
+      scopePending.push({
+        conn, sourcePort: sPort, targetPort: tPort,
+        fromNodeId: conn.fromNode, toNodeId: conn.toNode,
+        fromPortIndex: Math.max(0, fromPortIndex),
+        toPortIndex: Math.max(0, toPortIndex),
+      });
+    }
+
+    // Sort: short spans first, then by source X, then source Y
+    scopePending.sort((a, b) => {
+      const aSpan = Math.abs(a.targetPort.cx - a.sourcePort.cx);
+      const bSpan = Math.abs(b.targetPort.cx - b.sourcePort.cx);
+      if (Math.abs(aSpan - bSpan) > 1) return aSpan - bSpan;
+      if (Math.abs(a.sourcePort.cx - b.sourcePort.cx) > 1) return a.sourcePort.cx - b.sourcePort.cx;
+      return a.sourcePort.cy - b.sourcePort.cy;
+    });
+
+    // Fan-out/fan-in consistency: force all to curves if any in the group is short
+    const spSrcKey = (sp: ScopePending) => `s:${sp.fromNodeId}.${sp.conn.fromPort}`;
+    const spTgtKey = (sp: ScopePending) => `t:${sp.toNodeId}.${sp.conn.toPort}`;
+    const spTgtNodeKey = (sp: ScopePending) => `n:${sp.toNodeId}`;
+    const spGroups = new Map<string, ScopePending[]>();
+    for (const sp of scopePending) {
+      for (const key of [spSrcKey(sp), spTgtKey(sp), spTgtNodeKey(sp)]) {
+        if (!spGroups.has(key)) spGroups.set(key, []);
+        spGroups.get(key)!.push(sp);
+      }
+    }
+    const spForceCurveKeys = new Set<string>();
+    for (const [key, group] of spGroups) {
+      if (group.length < 2) continue;
+      const anyShort = group.some(sp => {
+        const ddx = sp.targetPort.cx - sp.sourcePort.cx;
+        const ddy = sp.targetPort.cy - sp.sourcePort.cy;
+        return Math.sqrt(ddx * ddx + ddy * ddy) <= ORTHOGONAL_DISTANCE_THRESHOLD;
+      });
+      if (anyShort) spForceCurveKeys.add(key);
+    }
+    const spForceCurveSet = new Set<ScopePending>();
+    for (const sp of scopePending) {
+      if (spForceCurveKeys.has(spSrcKey(sp)) || spForceCurveKeys.has(spTgtKey(sp)) || spForceCurveKeys.has(spTgtNodeKey(sp))) {
+        spForceCurveSet.add(sp);
+      }
+    }
+
+    // Route each scope connection
+    for (const sp of scopePending) {
+      const sx = sp.sourcePort.cx;
+      const sy = sp.sourcePort.cy;
+      const tx = sp.targetPort.cx;
+      const ty = sp.targetPort.cy;
+      const ddx = tx - sx;
+      const ddy = ty - sy;
+      const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+      const useCurve = spForceCurveSet.has(sp);
+
+      if (!useCurve && dist > ORTHOGONAL_DISTANCE_THRESHOLD) {
+        const orthoPath = calculateOrthogonalPathSafe(
+          [sx, sy], [tx, ty],
+          nodeBoxes,
+          sp.fromNodeId, sp.toNodeId,
+          { fromPortIndex: sp.fromPortIndex, toPortIndex: sp.toPortIndex },
+          allocator,
+        );
+        sp.conn.path = orthoPath ?? computeConnectionPath(sx, sy, tx, ty);
+      } else {
+        sp.conn.path = computeConnectionPath(sx, sy, tx, ty);
       }
     }
   }

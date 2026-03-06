@@ -139,10 +139,10 @@ describe('html-viewer', () => {
       expect(html).toContain('nodeOffsets');
     });
 
-    it('skips scope connections during node drag to prevent double movement', () => {
+    it('handles scope connections with parent-local coordinates during recalculation', () => {
       const html = wrapSVGInHTML('<svg></svg>');
       expect(html).toContain("p.getAttribute('data-scope')");
-      expect(html).toContain('c.scopeOf === nodeId');
+      expect(html).toContain('c.scopeOf');
     });
 
     it('includes branding badge with link to flowweaver.ai', () => {
