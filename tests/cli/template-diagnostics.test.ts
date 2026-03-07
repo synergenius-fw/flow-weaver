@@ -7,6 +7,7 @@
 
 import { parser } from "../../src/parser";
 import { validator } from "../../src/validator";
+import { validateWorkflow } from "../../src/api/validate";
 import {
   listWorkflowTemplates,
   listNodeTemplates,
@@ -131,6 +132,50 @@ describe("Template Diagnostics", () => {
           }
 
           expect(stepMismatchErrors).toEqual([]);
+        });
+
+        it("should parse without warnings", () => {
+          const parseResult = parser.parse(testFilePath);
+
+          if (parseResult.warnings.length > 0) {
+            console.error(`Parse warnings for ${template.id}:`);
+            parseResult.warnings.forEach((w) => {
+              console.error(`  - ${w}`);
+            });
+          }
+
+          expect(parseResult.warnings).toEqual([]);
+        });
+
+        it("should validate without errors (full validation incl. agent rules)", () => {
+          const parseResult = parser.parse(testFilePath);
+          const workflow = parseResult.workflows[0];
+          const result = validateWorkflow(workflow);
+
+          if (!result.valid) {
+            console.error(`Full validation errors for ${template.id}:`);
+            result.errors.forEach((err) => {
+              console.error(`  - [${err.code}] ${err.message}`);
+            });
+          }
+
+          expect(result.errors).toEqual([]);
+          expect(result.valid).toBe(true);
+        });
+
+        it("should validate without warnings (full validation)", () => {
+          const parseResult = parser.parse(testFilePath);
+          const workflow = parseResult.workflows[0];
+          const result = validateWorkflow(workflow);
+
+          if (result.warnings.length > 0) {
+            console.error(`Full validation warnings for ${template.id}:`);
+            result.warnings.forEach((w) => {
+              console.error(`  - [${w.code}] ${w.message}`);
+            });
+          }
+
+          expect(result.warnings).toEqual([]);
         });
       });
     });

@@ -254,25 +254,25 @@ async function act(
  * ReAct Agent — iterative Thought→Action→Observation loop
  *
  * @flowWeaver workflow
- * @node loop reactLoop [size: 450 250] [position: -150 0]
- * @node thinking think loop.step [position: -80 30]
- * @node acting act loop.step [position: 130 30]
+ * @node loop reactLoop [position: -150 0] [color: "purple"] [icon: "psychology"]
+ * @node thinking think loop.step [color: "blue"] [icon: "autoAwesome"]
+ * @node acting act loop.step [color: "orange"] [icon: "bolt"]
  * @position Start -400 0
  * @position Exit 350 0
  * @connect Start.execute -> loop.execute
  * @connect Start.task -> loop.task
- * @connect loop.start -> thinking.execute
- * @connect loop.messages -> thinking.messages
+ * @connect loop.start:step -> thinking.execute
+ * @connect loop.messages:step -> thinking.messages
  * @connect thinking.onSuccess -> acting.execute
  * @connect thinking.action -> acting.action
  * @connect thinking.actionInput -> acting.actionInput
- * @connect thinking.thought -> loop.thought
- * @connect thinking.action -> loop.action
- * @connect thinking.actionInput -> loop.actionInput
- * @connect thinking.onFailure -> loop.failure
- * @connect acting.observation -> loop.observation
- * @connect acting.onSuccess -> loop.success
- * @connect acting.onFailure -> loop.failure
+ * @connect thinking.thought -> loop.thought:step
+ * @connect thinking.action -> loop.action:step
+ * @connect thinking.actionInput -> loop.actionInput:step
+ * @connect thinking.onFailure -> loop.failure:step
+ * @connect acting.observation -> loop.observation:step
+ * @connect acting.onSuccess -> loop.success:step
+ * @connect acting.onFailure -> loop.failure:step
  * @connect loop.onSuccess -> Exit.onSuccess
  * @connect loop.onFailure -> Exit.onFailure
  * @connect loop.answer -> Exit.answer

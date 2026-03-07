@@ -109,8 +109,8 @@ function tryOperation(
 
 /**
  * @flowWeaver workflow
- * @node loop retryLoop [size: 300 200] [position: -90 0]
- * @node tryOp tryOperation loop.attempt [position: 90 0]
+ * @node loop retryLoop [position: -90 0] [color: "orange"] [icon: "refresh"]
+ * @node tryOp tryOperation loop.attempt [color: "blue"] [icon: "playArrow"]
  * @position Start -450 0
  * @position Exit 360 0
  * @connect Start.execute -> loop.execute

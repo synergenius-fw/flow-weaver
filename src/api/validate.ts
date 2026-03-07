@@ -51,6 +51,23 @@ export function validateWorkflow(
     }
   }
 
+  // Filter warnings from additional rules through per-instance suppressWarnings
+  // (core validator already filters its own warnings, but agent/registry rules
+  // run after the core validator and need the same treatment)
+  const suppressMap = new Map<string, Set<string>>();
+  for (const inst of ast.instances) {
+    if (inst.config?.suppressWarnings?.length) {
+      suppressMap.set(inst.id, new Set(inst.config.suppressWarnings));
+    }
+  }
+  if (suppressMap.size > 0) {
+    result.warnings = result.warnings.filter((w) => {
+      if (!w.node) return true;
+      const codes = suppressMap.get(w.node);
+      return !codes || !codes.has(w.code);
+    });
+  }
+
   // Re-evaluate validity
   result.valid = result.errors.length === 0;
 

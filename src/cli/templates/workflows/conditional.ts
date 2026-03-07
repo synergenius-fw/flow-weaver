@@ -109,9 +109,9 @@ function handleFailure(
 
 /**
  * @flowWeaver workflow
- * @node router evaluateCondition [position: -180 0]
- * @node successHandler handleSuccess [position: 90 -90]
- * @node failureHandler handleFailure [position: 90 90]
+ * @node router evaluateCondition [position: -180 0] [color: "orange"] [icon: "altRoute"] [suppress: "UNUSED_OUTPUT_PORT"]
+ * @node successHandler handleSuccess [position: 90 -90] [color: "green"] [icon: "checkCircle"]
+ * @node failureHandler handleFailure [position: 90 90] [color: "red"] [icon: "error"]
  * @position Start -450 0
  * @position Exit 360 0
  * @connect Start.execute -> router.execute

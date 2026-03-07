@@ -1050,7 +1050,7 @@ export class JSDocParser {
     } else if (func) {
       const returnType = func.getReturnType();
       const returnTypeText = returnType.getText();
-      const fieldMatch = returnTypeText.match(new RegExp(`${name}\\s*:\\s*([^;},]+)`));
+      const fieldMatch = returnTypeText.match(new RegExp(`${name}\\??\\s*:\\s*([^;},]+)`));
       if (fieldMatch) {
         type = inferDataTypeFromTS(fieldMatch[1].trim());
       } else {
@@ -1127,7 +1127,7 @@ export class JSDocParser {
           /^\{\s*\[[\w]+:\s*string\]:\s*(never|any|unknown);\s*\}$/.test(paramTypeText)
         );
         if (!isCatchAllRecord) {
-          const fieldMatch = paramTypeText.match(new RegExp(`${name}\\s*:\\s*([^;},]+)`));
+          const fieldMatch = paramTypeText.match(new RegExp(`${name}\\??\\s*:\\s*([^;},]+)`));
           if (fieldMatch) {
             type = inferDataTypeFromTS(fieldMatch[1].trim());
           } else {
