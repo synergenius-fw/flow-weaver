@@ -2345,7 +2345,12 @@ export class AnnotationParser {
     const firstParamType = firstParam.getType();
     const firstParamTypeText = firstParamType.getText();
 
-    if (firstParamName === 'execute' && firstParamTypeText === 'boolean') {
+    // Accept "execute: any" (from compiled .js files where types are stripped)
+    // when JSDoc @param confirms it as a step port.
+    const isExecutePort = firstParamName === 'execute' &&
+      (firstParamTypeText === 'boolean' || (firstParamTypeText === 'any' && config?.startPorts?.['execute']));
+
+    if (isExecutePort) {
       // Correct new format: first param is execute
       // Check if JSDoc has explicit metadata override for execute port (from @param annotation)
       if (config?.startPorts && config.startPorts['execute']) {
