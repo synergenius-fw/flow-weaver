@@ -271,9 +271,28 @@ export function generateControlFlowWithExecutionContext(
     });
   });
 
+  // Promote nodes that appear in BOTH success and failure regions of the same
+  // branching node. These nodes execute regardless of which branch is taken,
+  // so they must not be nested inside either branch (which would cause duplicate
+  // variable declarations and cancelled events for nodes that actually run).
+  const nodesInBothBranches = new Set<string>();
+  branchRegions.forEach((region) => {
+    region.successNodes.forEach((nodeId) => {
+      if (region.failureNodes.has(nodeId)) {
+        nodesInBothBranches.add(nodeId);
+      }
+    });
+  });
+  branchRegions.forEach((region) => {
+    nodesInBothBranches.forEach((nodeId) => {
+      region.successNodes.delete(nodeId);
+      region.failureNodes.delete(nodeId);
+    });
+  });
+
   // Promote nodes that have DATA dependencies on nodes outside their branch.
   // Without this, STEP-nesting places the node before its data providers are generated.
-  const nodesPromotedFromBranches = new Set<string>();
+  const nodesPromotedFromBranches = new Set<string>(nodesInBothBranches);
   branchRegions.forEach((region, branchNodeId) => {
     const allBranchNodes = new Set([...region.successNodes, ...region.failureNodes]);
 
@@ -475,7 +494,9 @@ export function generateControlFlowWithExecutionContext(
             }
           });
           if (stepSourceConditions.length > 0) {
-            const condition = stepSourceConditions.join(' && ');
+            const condition = stepSourceConditions.length === 1
+              ? stepSourceConditions[0]
+              : stepSourceConditions.join(' || ');
             lines.push(`  if (${condition}) {`);
             chainIndent = '    ';
             chainNeedsClose = true;
@@ -518,7 +539,9 @@ export function generateControlFlowWithExecutionContext(
           }
         });
         if (stepSourceConditions.length > 0) {
-          const condition = stepSourceConditions.join(' && ');
+          const condition = stepSourceConditions.length === 1
+            ? stepSourceConditions[0]
+            : stepSourceConditions.join(' || ');
           lines.push(`  if (${condition}) {`);
           branchIndent = '    ';
           branchNeedsClose = true;
