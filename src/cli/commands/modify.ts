@@ -60,6 +60,7 @@ export async function modifyRemoveConnectionCommand(
   logger.success(`Removed connection ${opts.from} -> ${opts.to} from ${file}`);
 }
 
+
 export async function modifyRenameNodeCommand(
   file: string,
   opts: { oldId: string; newId: string },
