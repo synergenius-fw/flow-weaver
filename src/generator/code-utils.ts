@@ -327,31 +327,55 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
         const nonNullAssert = isConstSource ? '' : '!';
         const portType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
 
+        // For optional ports on non-const sources, guard against undefined execution index.
+        // This is critical for DISJUNCTION nodes where the source may not have executed.
+        const needsGuard = portConfig.optional && !isConstSource;
+
         // For FUNCTION type ports, add resolution step to handle registry IDs
         if (portConfig.dataType === 'FUNCTION') {
           const rawVarName = `${varName}_raw`;
-          lines.push(
-            `${indent}const ${rawVarName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} });`
-          );
-          lines.push(
-            `${indent}const ${varName}_resolved = resolveFunction(${rawVarName});`
-          );
-          lines.push(
-            `${indent}const ${varName} = ${varName}_resolved.fn as ${portType};`
-          );
+          if (needsGuard) {
+            lines.push(
+              `${indent}const ${rawVarName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) : undefined;`
+            );
+            lines.push(
+              `${indent}const ${varName}_resolved = ${rawVarName} !== undefined ? resolveFunction(${rawVarName}) : undefined;`
+            );
+            lines.push(
+              `${indent}const ${varName} = ${varName}_resolved?.fn as ${portType};`
+            );
+          } else {
+            lines.push(
+              `${indent}const ${rawVarName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} });`
+            );
+            lines.push(
+              `${indent}const ${varName}_resolved = resolveFunction(${rawVarName});`
+            );
+            lines.push(
+              `${indent}const ${varName} = ${varName}_resolved.fn as ${portType};`
+            );
+          }
         } else {
           // Check for coercion (explicit or auto)
           const sourceDataType = resolveSourcePortDataType(workflow, sourceNode, sourcePort);
           const coerceExpr = getCoercionWrapper(connection, sourceDataType, portConfig.dataType);
-          const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} })`;
-          if (coerceExpr) {
+          if (needsGuard) {
+            const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} })`;
+            const wrappedExpr = coerceExpr ? `${coerceExpr}(${getExpr})` : getExpr;
             lines.push(
-              `${indent}const ${varName} = ${coerceExpr}(${getExpr}) as ${portType};`
+              `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${wrappedExpr} as ${portType} : undefined;`
             );
           } else {
-            lines.push(
-              `${indent}const ${varName} = ${getExpr} as ${portType};`
-            );
+            const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} })`;
+            if (coerceExpr) {
+              lines.push(
+                `${indent}const ${varName} = ${coerceExpr}(${getExpr}) as ${portType};`
+              );
+            } else {
+              lines.push(
+                `${indent}const ${varName} = ${getExpr} as ${portType};`
+              );
+            }
           }
         }
       } else {
