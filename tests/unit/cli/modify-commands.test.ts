@@ -7,6 +7,9 @@ import {
   modifyRemoveNodeCommand,
   modifyAddConnectionCommand,
   modifyRemoveConnectionCommand,
+  modifyRenameNodeCommand,
+  modifySetPositionCommand,
+  modifySetLabelCommand,
 } from '../../../src/cli/commands/modify';
 import { applyModifyOperation, validateModifyParams } from '../../../src/api/modify-operation';
 import { AnnotationParser } from '../../../src/parser';
@@ -186,6 +189,44 @@ describe('modify removeConnection', () => {
              c.to.node === 'b' && c.to.port === 'value'
     );
     expect(hasConn).toBe(false);
+  });
+});
+
+describe('modify renameNode', () => {
+  it('renames a node and updates connections', async () => {
+    await modifyRenameNodeCommand(workflowFile, { oldId: 'a', newId: 'alpha' });
+
+    const result = parseFile();
+    const wf = result.workflows[0];
+    const nodeIds = wf.instances.map((i) => i.id);
+    expect(nodeIds).toContain('alpha');
+    expect(nodeIds).not.toContain('a');
+
+    const hasConnectionFromAlpha = wf.connections.some((c) => c.from.node === 'alpha');
+    expect(hasConnectionFromAlpha).toBe(true);
+  });
+});
+
+describe('modify setPosition', () => {
+  it('sets node position', async () => {
+    await modifySetPositionCommand(workflowFile, { nodeId: 'a', x: '500', y: '300' });
+
+    const result = parseFile();
+    const wf = result.workflows[0];
+    const inst = wf.instances.find((i) => i.id === 'a');
+    expect(inst?.config?.x).toBe(500);
+    expect(inst?.config?.y).toBe(300);
+  });
+});
+
+describe('modify setLabel', () => {
+  it('sets node label', async () => {
+    await modifySetLabelCommand(workflowFile, { nodeId: 'a', label: 'My Processor' });
+
+    const result = parseFile();
+    const wf = result.workflows[0];
+    const inst = wf.instances.find((i) => i.id === 'a');
+    expect(inst?.config?.label).toBe('My Processor');
   });
 });
 

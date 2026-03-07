@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { parseWorkflow } from '../../api/index.js';
 import { generateInPlace } from '../../api/generate-in-place.js';
-import { applyModifyOperation } from '../../api/modify-operation.js';
+import { applyModifyOperation, validateModifyParams } from '../../api/modify-operation.js';
 import { logger } from '../utils/logger.js';
 
 async function readParseModifyWrite(
@@ -10,6 +10,10 @@ async function readParseModifyWrite(
   operation: string,
   params: Record<string, unknown>,
 ): Promise<void> {
+  const validation = validateModifyParams(operation, params);
+  if (!validation.success) {
+    throw new Error(validation.error);
+  }
   const filePath = path.resolve(file);
   const source = fs.readFileSync(filePath, 'utf-8');
   const parseResult = await parseWorkflow(filePath);
@@ -54,4 +58,32 @@ export async function modifyRemoveConnectionCommand(
 ): Promise<void> {
   await readParseModifyWrite(file, 'removeConnection', { from: opts.from, to: opts.to });
   logger.success(`Removed connection ${opts.from} -> ${opts.to} from ${file}`);
+}
+
+export async function modifyRenameNodeCommand(
+  file: string,
+  opts: { oldId: string; newId: string },
+): Promise<void> {
+  await readParseModifyWrite(file, 'renameNode', { oldId: opts.oldId, newId: opts.newId });
+  logger.success(`Renamed node "${opts.oldId}" to "${opts.newId}" in ${file}`);
+}
+
+export async function modifySetPositionCommand(
+  file: string,
+  opts: { nodeId: string; x: string; y: string },
+): Promise<void> {
+  await readParseModifyWrite(file, 'setNodePosition', {
+    nodeId: opts.nodeId,
+    x: Number(opts.x),
+    y: Number(opts.y),
+  });
+  logger.success(`Set position of "${opts.nodeId}" to (${opts.x}, ${opts.y}) in ${file}`);
+}
+
+export async function modifySetLabelCommand(
+  file: string,
+  opts: { nodeId: string; label: string },
+): Promise<void> {
+  await readParseModifyWrite(file, 'setNodeLabel', { nodeId: opts.nodeId, label: opts.label });
+  logger.success(`Set label of "${opts.nodeId}" to "${opts.label}" in ${file}`);
 }

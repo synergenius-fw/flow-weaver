@@ -51,6 +51,9 @@ import {
   modifyRemoveNodeCommand,
   modifyAddConnectionCommand,
   modifyRemoveConnectionCommand,
+  modifyRenameNodeCommand,
+  modifySetPositionCommand,
+  modifySetLabelCommand,
 } from './commands/modify.js';
 import {
   marketInitCommand,
@@ -434,6 +437,37 @@ modifyCmd
   .requiredOption('--to <node.port>', 'Target (e.g. nodeB.input)')
   .action(wrapAction(async (options) => {
     await modifyRemoveConnectionCommand(options.file, options);
+  }));
+
+modifyCmd
+  .command('renameNode')
+  .description('Rename a node instance (updates all connections)')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--oldId <id>', 'Current node ID')
+  .requiredOption('--newId <id>', 'New node ID')
+  .action(wrapAction(async (options) => {
+    await modifyRenameNodeCommand(options.file, options);
+  }));
+
+modifyCmd
+  .command('setPosition')
+  .description('Set position of a node instance')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--nodeId <id>', 'Node instance ID')
+  .requiredOption('--x <number>', 'X coordinate')
+  .requiredOption('--y <number>', 'Y coordinate')
+  .action(wrapAction(async (options) => {
+    await modifySetPositionCommand(options.file, options);
+  }));
+
+modifyCmd
+  .command('setLabel')
+  .description('Set display label for a node instance')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--nodeId <id>', 'Node instance ID')
+  .requiredOption('--label <text>', 'Display label')
+  .action(wrapAction(async (options) => {
+    await modifySetLabelCommand(options.file, options);
   }));
 
 // Templates command

@@ -34,7 +34,7 @@ Complete reference for all `flow-weaver` CLI commands.
 | `changelog` | Generate changelog from git |
 | `market` | Marketplace packages |
 | `plugin` | External plugins |
-| `modify` | Add/remove nodes and connections |
+| `modify` | Add/remove/rename nodes, connections, positions, and labels |
 | `implement` | Replace stub node with function skeleton |
 | `status` | Report implementation progress |
 | `context` | Generate LLM context bundle |
@@ -514,12 +514,39 @@ flow-weaver modify removeConnection --file <path> --from <node.port> --to <node.
 
 Removes an existing connection.
 
+#### modify renameNode
+
+```bash
+flow-weaver modify renameNode --file <path> --oldId <id> --newId <id>
+```
+
+Renames a node instance and updates all connections that reference it.
+
+#### modify setPosition
+
+```bash
+flow-weaver modify setPosition --file <path> --nodeId <id> --x <number> --y <number>
+```
+
+Sets the canvas position of a node instance.
+
+#### modify setLabel
+
+```bash
+flow-weaver modify setLabel --file <path> --nodeId <id> --label <text>
+```
+
+Sets the display label for a node instance.
+
 **Examples:**
 ```bash
 flow-weaver modify addNode --file workflow.ts --nodeId validator --nodeType validateInput
 flow-weaver modify addConnection --file workflow.ts --from Start.data --to validator.input
 flow-weaver modify removeNode --file workflow.ts --nodeId oldStep
 flow-weaver modify removeConnection --file workflow.ts --from a.output --to b.input
+flow-weaver modify renameNode --file workflow.ts --oldId step1 --newId validateStep
+flow-weaver modify setPosition --file workflow.ts --nodeId step1 --x 200 --y 100
+flow-weaver modify setLabel --file workflow.ts --nodeId step1 --label "Validate Input"
 ```
 
 ---
