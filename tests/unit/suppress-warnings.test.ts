@@ -162,6 +162,7 @@ describe('suppress annotation in validator', () => {
     expect(unusedWarnings.length).toBeGreaterThanOrEqual(1);
   });
 
+<<<<<<< HEAD
   it('does not suppress warnings with a non-matching code', () => {
     const nodeType = makeNodeType('Producer', {
       data: { dataType: 'STRING' },
