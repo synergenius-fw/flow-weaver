@@ -84,6 +84,7 @@ export { type ValidationResult, validateWorkflow } from './validate';
 export { validationRuleRegistry } from './validation-registry';
 
 export * from './manipulation';
+export { applyModifyOperation, validateModifyParams } from './modify-operation';
 export {
   withValidation,
   withMinimalValidation,

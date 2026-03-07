@@ -118,6 +118,16 @@ function preflight(): void {
   } catch {
     fail('GitHub CLI (gh) is required but not found. Install it: https://cli.github.com');
   }
+
+  // Check that sibling pack peerDependencies are satisfiable
+  const checkScript = path.join(__dirname, 'check-pack-versions.ts');
+  if (fs.existsSync(checkScript)) {
+    try {
+      run(`npx tsx "${checkScript}"`);
+    } catch {
+      fail('Pack peerDependency check failed. Fix version mismatches before releasing.');
+    }
+  }
 }
 
 // ── Main ─────────────────────────────────────────────────────────────

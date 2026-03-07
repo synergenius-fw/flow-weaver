@@ -159,6 +159,80 @@ The `market pack` command validates packages against additional rules beyond sta
 
 ---
 
+## Custom Tag Handlers
+
+Tag handlers let packs extend the parser with custom JSDoc annotations. When the parser encounters a tag it doesn't recognize natively, it delegates to registered pack handlers before emitting "Unknown annotation" warnings.
+
+The CI/CD pack (`flowweaver-pack-cicd`) is the primary example: it registers handlers for `@secret`, `@runner`, `@cache`, `@artifact`, and other CI/CD tags.
+
+### Writing a handler
+
+A tag handler is a function matching the `TTagHandlerFn` signature:
+
+```typescript
+import type { TTagHandlerFn } from '@synergenius/flow-weaver/api';
+
+export const myHandler: TTagHandlerFn = (tagName, comment, ctx) => {
+  // tagName: the tag without '@', e.g. "secret"
+  // comment: everything after the tag on that line
+  // ctx.deploy: the deploy map for your namespace (mutate it directly)
+  // ctx.warnings: push parser warnings here
+
+  const value = comment.trim();
+  if (!value) {
+    ctx.warnings.push(`Empty @${tagName} tag`);
+    return;
+  }
+
+  const items = (ctx.deploy['items'] as string[]) ?? [];
+  items.push(value);
+  ctx.deploy['items'] = items;
+};
+```
+
+The handler receives one call per tag occurrence. Parsed data goes into `ctx.deploy`, which maps to `workflow.deploy[namespace]` or `nodeType.deploy[namespace]` in the final AST.
+
+### Declaring handlers in the manifest
+
+Add a `tagHandlers` entry to your `flowweaver.manifest.json`:
+
+```json
+{
+  "manifestVersion": 2,
+  "tagHandlers": [
+    {
+      "tags": ["secret", "runner", "cache"],
+      "namespace": "cicd",
+      "scope": "both",
+      "file": "dist/tag-handler.js",
+      "exportName": "cicdTagHandler"
+    }
+  ]
+}
+```
+
+Fields:
+
+| Field | Description |
+|-------|-------------|
+| `tags` | Tag names this handler processes (without the `@` prefix) |
+| `namespace` | Key in the deploy map where parsed data is stored |
+| `scope` | `workflow` for workflow-level tags, `nodeType` for node type tags, `both` for either |
+| `file` | Relative path to the compiled JS file exporting the handler |
+| `exportName` | Named export from the file (omit for `default` export) |
+
+### Handler scope
+
+A handler scoped to `workflow` only runs for tags inside `@flowWeaver workflow` blocks. A handler scoped to `nodeType` only runs inside `@flowWeaver nodeType` blocks. Use `both` when your tags are valid in either context.
+
+If a tag appears in the wrong scope, the parser emits a warning and skips the handler call.
+
+### How discovery works
+
+When `parseWorkflow()` is called with a `projectDir` option (or when the CLI runs from a project directory), the parser scans `node_modules` for installed packs with a `flowweaver.manifest.json`. It reads the `tagHandlers` array from each manifest, dynamically imports the handler files, and registers them in the `TagHandlerRegistry`. This scan runs once per project directory and is cached for subsequent parse calls.
+
+---
+
 ## External Plugins
 
 Plugins extend the Flow Weaver Studio IDE with custom UI components, system logic, and integrations.
