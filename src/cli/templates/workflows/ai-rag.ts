@@ -165,6 +165,7 @@ Answer:\`;
  * @connect Start.question -> generator.question
  * @connect retriever.context -> generator.context
  * @connect retriever.onSuccess -> generator.execute
+ * @connect retriever.onFailure -> Exit.onFailure
  * @connect generator.answer -> Exit.answer
  * @connect generator.sourcesUsed -> Exit.sourcesUsed
  * @connect generator.onSuccess -> Exit.onSuccess
