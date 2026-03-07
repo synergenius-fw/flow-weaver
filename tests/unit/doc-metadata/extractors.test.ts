@@ -582,7 +582,7 @@ describe('VALIDATION_CODES', () => {
   it('categories are drawn from the allowed set', () => {
     const allowed = new Set([
       'structural', 'naming', 'connection', 'type',
-      'node-ref', 'graph', 'data-flow', 'agent',
+      'node-ref', 'graph', 'data-flow', 'agent', 'design',
     ]);
     for (const entry of VALIDATION_CODES) {
       expect(allowed.has(entry.category)).toBe(true);

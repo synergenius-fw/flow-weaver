@@ -72,6 +72,22 @@ export const ERROR_HINTS: Record<string, string> = {
     'Add a retry or fallback node between the LLM onFailure and Exit. Consider a second LLM provider as fallback',
   AGENT_TOOL_NO_OUTPUT_HANDLING:
     'Use fw_modify(operation="addConnection") to wire tool output ports to downstream nodes',
+
+  // Design quality rules
+  DESIGN_ASYNC_NO_ERROR_PATH:
+    'Use fw_modify(operation="addConnection", params={from:"<nodeId>.onFailure", to:"Exit.onFailure"}) or add a retry/error handler',
+  DESIGN_SCOPE_NO_FAILURE_EXIT:
+    'Use fw_modify(operation="addConnection", params={from:"<nodeId>.onFailure", to:"Exit.onFailure"}) to surface scope failures',
+  DESIGN_UNBOUNDED_RETRY:
+    'Add a maxAttempts or retries input port to the retry node type to bound the loop',
+  DESIGN_FANOUT_NO_FANIN:
+    'Add a merge node downstream where parallel branches converge before Exit',
+  DESIGN_EXIT_DATA_UNREACHABLE:
+    'Use fw_modify(operation="addConnection") to connect a node output to this Exit port, or add a pull-execution node',
+  DESIGN_PULL_CANDIDATE:
+    'Add [pullExecution: execute] to the @node annotation so the node runs on demand',
+  DESIGN_PULL_UNUSED:
+    'Connect a data output from this node to a downstream consumer, or remove pullExecution',
 };
 
 /**

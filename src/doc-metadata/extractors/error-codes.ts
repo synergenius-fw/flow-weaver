@@ -21,7 +21,8 @@ export interface TValidationCodeDoc {
     | 'node-ref'
     | 'graph'
     | 'data-flow'
-    | 'agent';
+    | 'agent'
+    | 'design';
 }
 
 export const VALIDATION_CODES: TValidationCodeDoc[] = [
@@ -342,5 +343,56 @@ export const VALIDATION_CODES: TValidationCodeDoc[] = [
     title: 'Tool Results Discarded',
     description: 'Tool executor data outputs all unconnected',
     category: 'agent',
+  },
+
+  // ── Design ──────────────────────────────────────────────────────────
+  {
+    code: 'DESIGN_ASYNC_NO_ERROR_PATH',
+    severity: 'warning',
+    title: 'Async Node Missing Error Path',
+    description: 'Async node has no onFailure connection',
+    category: 'design',
+  },
+  {
+    code: 'DESIGN_SCOPE_NO_FAILURE_EXIT',
+    severity: 'warning',
+    title: 'Scope Missing Failure Exit',
+    description: 'Scope node has no failure path out',
+    category: 'design',
+  },
+  {
+    code: 'DESIGN_UNBOUNDED_RETRY',
+    severity: 'warning',
+    title: 'Unbounded Retry Loop',
+    description: 'Retry scope has no visible attempt limit',
+    category: 'design',
+  },
+  {
+    code: 'DESIGN_FANOUT_NO_FANIN',
+    severity: 'warning',
+    title: 'Fan-Out Without Fan-In',
+    description: 'Fan-out to multiple step targets with no merge back',
+    category: 'design',
+  },
+  {
+    code: 'DESIGN_EXIT_DATA_UNREACHABLE',
+    severity: 'warning',
+    title: 'Exit Data Unreachable',
+    description: 'Exit data port has no connection and no pull-execution provider',
+    category: 'design',
+  },
+  {
+    code: 'DESIGN_PULL_CANDIDATE',
+    severity: 'warning',
+    title: 'Pull Execution Candidate',
+    description: 'Node has no step trigger but its outputs are consumed downstream',
+    category: 'design',
+  },
+  {
+    code: 'DESIGN_PULL_UNUSED',
+    severity: 'warning',
+    title: 'Unused Pull Execution',
+    description: 'Pull-execution node has no downstream consumers',
+    category: 'design',
   },
 ];

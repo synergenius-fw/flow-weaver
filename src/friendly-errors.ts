@@ -576,6 +576,79 @@ const errorMappers: Record<string, ErrorMapper> = {
     };
   },
 
+  // ── Design quality rules ─────────────────────────────────────────────
+
+  DESIGN_ASYNC_NO_ERROR_PATH(error) {
+    const nodeName = error.node || 'unknown';
+    return {
+      title: 'Async Node Missing Error Path',
+      explanation: `Async node '${nodeName}' has no onFailure connection. Async operations (network calls, file I/O, AI calls) can fail, and errors will be silently lost.`,
+      fix: `Connect ${nodeName}.onFailure to an error handler, retry node, or Exit.onFailure.`,
+      code: error.code,
+    };
+  },
+
+  DESIGN_SCOPE_NO_FAILURE_EXIT(error) {
+    const nodeName = error.node || 'unknown';
+    return {
+      title: 'Scope Missing Failure Exit',
+      explanation: `Scope node '${nodeName}' has no failure path out. If all iterations fail, execution stalls with no error surfaced upstream.`,
+      fix: `Connect ${nodeName}.onFailure to an error handler or Exit.onFailure so scope failures propagate.`,
+      code: error.code,
+    };
+  },
+
+  DESIGN_UNBOUNDED_RETRY(error) {
+    const nodeName = error.node || 'unknown';
+    return {
+      title: 'Unbounded Retry Loop',
+      explanation: `Scope node '${nodeName}' looks like a retry loop but has no visible attempt limit input. This could loop indefinitely on persistent failures.`,
+      fix: `Add a maxAttempts or retries input port to the node type, or use a counter to break out of the loop after N attempts.`,
+      code: error.code,
+    };
+  },
+
+  DESIGN_FANOUT_NO_FANIN(error) {
+    const nodeName = error.node || 'unknown';
+    return {
+      title: 'Fan-Out Without Fan-In',
+      explanation: `Node '${nodeName}' fans out to multiple step targets, but those paths never merge back to a shared downstream node. Data from parallel branches may be lost.`,
+      fix: `Add a merge node downstream where the parallel branches converge, or wire them to a shared node before Exit.`,
+      code: error.code,
+    };
+  },
+
+  DESIGN_EXIT_DATA_UNREACHABLE(error) {
+    const quoted = extractQuoted(error.message);
+    const portName = quoted[0] || 'unknown';
+    return {
+      title: 'Exit Data Unreachable',
+      explanation: `Exit port '${portName}' has no incoming data connection and no pull-execution node provides it. The workflow will return undefined for this output.`,
+      fix: `Connect a node's data output to Exit.${portName}, or add a pull-execution node that computes this value on demand.`,
+      code: error.code,
+    };
+  },
+
+  DESIGN_PULL_CANDIDATE(error) {
+    const nodeName = error.node || 'unknown';
+    return {
+      title: 'Pull Execution Candidate',
+      explanation: `Node '${nodeName}' has no incoming step connection but its data outputs are consumed downstream. Without a step trigger or pullExecution, this node may never execute.`,
+      fix: `Add [pullExecution: execute] to the @node annotation so the node runs on demand when downstream nodes read its output.`,
+      code: error.code,
+    };
+  },
+
+  DESIGN_PULL_UNUSED(error) {
+    const nodeName = error.node || 'unknown';
+    return {
+      title: 'Unused Pull Execution',
+      explanation: `Node '${nodeName}' is marked with pullExecution but no downstream node reads its data output. The node will never execute since pull execution requires a consumer.`,
+      fix: `Connect a data output from '${nodeName}' to a downstream node, or remove the pullExecution config if the node isn't needed.`,
+      code: error.code,
+    };
+  },
+
   COERCE_TYPE_MISMATCH(error) {
     const coerceMatch = error.message.match(/`as (\w+)`/);
     const coerceType = coerceMatch?.[1] || 'unknown';

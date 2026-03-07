@@ -8,6 +8,7 @@
 import type { TValidationRule, TWorkflowAST } from "../ast";
 import { validator, type TValidationError } from "../validator";
 import { getAgentValidationRules } from "../validation/agent-rules";
+import { getDesignValidationRules } from "../validation/design-rules";
 import { validationRuleRegistry } from "./validation-registry";
 
 export interface ValidationResult {
@@ -37,6 +38,7 @@ export function validateWorkflow(
   // including CI/CD when applicable), and custom rules
   const allRules = [
     ...getAgentValidationRules(),
+    ...getDesignValidationRules(),
     ...validationRuleRegistry.getApplicableRules(ast),
     ...(options?.customRules || []),
   ];
