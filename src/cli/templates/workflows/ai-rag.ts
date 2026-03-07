@@ -155,7 +155,7 @@ Answer:\`;
  * RAG Pipeline for knowledge-based Q&A
  *
  * @flowWeaver workflow
- * @node retriever retrieve [position: -50 0] [color: "teal"] [icon: "search"] [suppress: "UNUSED_OUTPUT_PORT"]
+ * @node retriever retrieve [position: -50 0] [color: "teal"] [icon: "search"] [suppress: "UNUSED_OUTPUT_PORT", "DESIGN_ASYNC_NO_ERROR_PATH"]
  * @node generator generate [position: 200 0] [color: "purple"] [icon: "autoAwesome"]
  * @position Start -300 0
  * @position Exit 400 0

@@ -104,6 +104,7 @@ const TOOL_IMPLEMENTATIONS: Record<string, (input: string) => Promise<string>> =
  * @label ReAct Loop
  * @input execute [order:0] - Execute
  * @input task [order:1] - Task for the agent
+ * @input [maxSteps] [order:2] - Maximum reasoning steps (default: 10)
  * @input success scope:step [order:0] - Iteration succeeded
  * @input failure scope:step [order:1] - Iteration failed
  * @input thought scope:step [order:2] - Agent's reasoning
@@ -119,6 +120,7 @@ const TOOL_IMPLEMENTATIONS: Record<string, (input: string) => Promise<string>> =
 async function reactLoop(
   execute: boolean,
   task: string,
+  maxSteps: number = MAX_STEPS,
   step: (start: boolean, messages: LLMMessage[]) => Promise<{
     success: boolean;
     failure: boolean;
@@ -134,7 +136,7 @@ async function reactLoop(
 
   const messages: LLMMessage[] = [{ role: 'user', content: task }];
 
-  for (let i = 0; i < MAX_STEPS; i++) {
+  for (let i = 0; i < maxSteps; i++) {
     const result = await step(true, messages);
 
     if (result.failure) {

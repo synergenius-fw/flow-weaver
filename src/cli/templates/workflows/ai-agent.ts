@@ -139,6 +139,7 @@ const TOOL_IMPLEMENTATIONS: Record<string, ToolFn> = {
  * @flowWeaver nodeType
  * @label Agent Loop
  * @input userMessage [order:1] - User's input message
+ * @input [maxIterations] [order:2] - Maximum loop iterations (default: 10)
  * @input success scope:iteration [order:0] - From LLM onSuccess
  * @input failure scope:iteration [order:1] - From LLM onFailure
  * @input llmResponse scope:iteration [order:2] - LLM response
@@ -153,6 +154,7 @@ const TOOL_IMPLEMENTATIONS: Record<string, ToolFn> = {
 async function agentLoop(
   execute: boolean,
   userMessage: string,
+  maxIterations: number = MAX_ITERATIONS,
   iteration: (start: boolean, state: AgentState) => Promise<{
     success: boolean;
     failure: boolean;
@@ -171,7 +173,7 @@ async function agentLoop(
     terminated: false,
   };
 
-  while (state.iteration < MAX_ITERATIONS) {
+  while (state.iteration < maxIterations) {
     const result = await iteration(true, state);
 
     state.iteration++;
@@ -309,6 +311,7 @@ async function executeTools(
  * @connect llm.onSuccess -> loop.success:iteration
  * @connect llm.onFailure -> loop.failure:iteration
  * @connect tools.messages -> loop.toolMessages:iteration
+ * @connect tools.onFailure -> loop.failure:iteration
  * @connect loop.response -> Exit.response
  * @connect loop.onSuccess -> Exit.onSuccess
  * @connect loop.onFailure -> Exit.onFailure

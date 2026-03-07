@@ -120,6 +120,7 @@ function aggregateResults(
  * @connect iterator.results -> Exit.results
  * @connect iterator.results -> aggregator.results
  * @connect iterator.onSuccess -> aggregator.execute
+ * @connect iterator.onFailure -> aggregator.execute
  * @connect aggregator.successCount -> Exit.successCount
  * @connect aggregator.failedCount -> Exit.failedCount
  * @connect aggregator.onSuccess -> Exit.onSuccess
