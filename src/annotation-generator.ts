@@ -705,6 +705,13 @@ export function generateNodeInstanceTag(instance: TNodeInstanceAST): string {
     tagsAttr = ` [tags: ${tagEntries}]`;
   }
 
+  // Generate [suppress: "CODE", "CODE2"] attribute if present
+  let suppressAttr = '';
+  if (instance.config?.suppressWarnings?.length) {
+    const codes = instance.config.suppressWarnings.map(c => `"${c}"`).join(', ');
+    suppressAttr = ` [suppress: ${codes}]`;
+  }
+
   // Generate [size: width height] attribute if present
   let sizeAttr = '';
   if (instance.config?.width !== undefined && instance.config?.height !== undefined) {
@@ -717,7 +724,7 @@ export function generateNodeInstanceTag(instance: TNodeInstanceAST): string {
     positionAttr = ` [position: ${Math.round(instance.config.x)} ${Math.round(instance.config.y)}]`;
   }
 
-  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${sizeAttr}${positionAttr}`;
+  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${suppressAttr}${sizeAttr}${positionAttr}`;
 }
 
 /**

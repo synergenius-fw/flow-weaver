@@ -423,6 +423,17 @@ Visual tags/badges on the instance. Each tag has a label string and optional too
 @node myNode MyType [tags: "async" "Runs asynchronously", "beta"]
 ```
 
+### Suppress Warnings (`[suppress: ...]`)
+
+Silences specific validator warnings on a per-instance basis. Useful when a warning is intentional, such as output ports that are deliberately left unconnected in CI/CD workflows where data is discarded by design.
+
+```typescript
+@node fetch fetchData [suppress: "UNUSED_OUTPUT_PORT"]
+@node check runCheck [suppress: "UNUSED_OUTPUT_PORT", "UNREACHABLE_EXIT_PORT"]
+```
+
+The suppression is scoped to the annotated instance only. Other instances of the same type still produce warnings normally. The codes correspond to the warning codes listed in the error codes reference.
+
 ### Combining Attributes
 
 Multiple attribute brackets can appear on the same `@node`:

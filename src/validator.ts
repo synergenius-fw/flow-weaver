@@ -283,6 +283,21 @@ export class WorkflowValidator {
       this.warnings.push(...promoted);
     }
 
+    // Filter out warnings suppressed by per-instance [suppress: "CODE"] annotations
+    const suppressMap = new Map<string, Set<string>>();
+    for (const inst of workflow.instances) {
+      if (inst.config?.suppressWarnings?.length) {
+        suppressMap.set(inst.id, new Set(inst.config.suppressWarnings));
+      }
+    }
+    if (suppressMap.size > 0) {
+      this.warnings = this.warnings.filter((w) => {
+        if (!w.node) return true;
+        const codes = suppressMap.get(w.node);
+        return !codes || !codes.has(w.code);
+      });
+    }
+
     // Attach doc URLs to diagnostics that have mapped error codes
     for (const diag of [...this.errors, ...this.warnings]) {
       if (!diag.docUrl && ERROR_DOC_URLS[diag.code]) {

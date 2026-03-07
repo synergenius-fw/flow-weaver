@@ -47,6 +47,15 @@ import { contextCommand } from './commands/context.js';
 import { statusCommand } from './commands/status.js';
 import { implementCommand } from './commands/implement.js';
 import {
+  modifyAddNodeCommand,
+  modifyRemoveNodeCommand,
+  modifyAddConnectionCommand,
+  modifyRemoveConnectionCommand,
+  modifyRenameNodeCommand,
+  modifySetPositionCommand,
+  modifySetLabelCommand,
+} from './commands/modify.js';
+import {
   marketInitCommand,
   marketPackCommand,
   marketPublishCommand,
@@ -388,6 +397,79 @@ createCmd
       await createNodeCommand(name, file, options);
   }));
 
+// Modify command (with subcommands)
+const modifyCmd = program.command('modify').description('Modify workflow structure');
+
+modifyCmd
+  .command('addNode')
+  .description('Add a node instance to a workflow')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--nodeId <id>', 'Node instance ID')
+  .requiredOption('--nodeType <type>', 'Node type name')
+  .action(wrapAction(async (options) => {
+    await modifyAddNodeCommand(options.file, options);
+  }));
+
+modifyCmd
+  .command('removeNode')
+  .description('Remove a node instance from a workflow')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--nodeId <id>', 'Node instance ID')
+  .action(wrapAction(async (options) => {
+    await modifyRemoveNodeCommand(options.file, options);
+  }));
+
+modifyCmd
+  .command('addConnection')
+  .description('Add a connection between nodes')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--from <node.port>', 'Source (e.g. nodeA.output)')
+  .requiredOption('--to <node.port>', 'Target (e.g. nodeB.input)')
+  .action(wrapAction(async (options) => {
+    await modifyAddConnectionCommand(options.file, options);
+  }));
+
+modifyCmd
+  .command('removeConnection')
+  .description('Remove a connection between nodes')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--from <node.port>', 'Source (e.g. nodeA.output)')
+  .requiredOption('--to <node.port>', 'Target (e.g. nodeB.input)')
+  .action(wrapAction(async (options) => {
+    await modifyRemoveConnectionCommand(options.file, options);
+  }));
+
+modifyCmd
+  .command('renameNode')
+  .description('Rename a node instance (updates all connections)')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--oldId <id>', 'Current node ID')
+  .requiredOption('--newId <id>', 'New node ID')
+  .action(wrapAction(async (options) => {
+    await modifyRenameNodeCommand(options.file, options);
+  }));
+
+modifyCmd
+  .command('setPosition')
+  .description('Set position of a node instance')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--nodeId <id>', 'Node instance ID')
+  .requiredOption('--x <number>', 'X coordinate')
+  .requiredOption('--y <number>', 'Y coordinate')
+  .action(wrapAction(async (options) => {
+    await modifySetPositionCommand(options.file, options);
+  }));
+
+modifyCmd
+  .command('setLabel')
+  .description('Set display label for a node instance')
+  .requiredOption('--file <path>', 'Workflow file')
+  .requiredOption('--nodeId <id>', 'Node instance ID')
+  .requiredOption('--label <text>', 'Display label')
+  .action(wrapAction(async (options) => {
+    await modifySetLabelCommand(options.file, options);
+  }));
+
 // Templates command
 program
   .command('templates')
@@ -554,13 +636,18 @@ program
 
 // Implement command
 program
-  .command('implement <input> <node>')
+  .command('implement <input> [node]')
   .description('Replace a stub node with a real function skeleton')
   .option('-w, --workflow <name>', 'Specific workflow name')
+  .option('--nodeId <id>', 'Node to implement (alternative to positional arg)')
   .option('-p, --preview', 'Preview the generated code without writing', false)
-  .action(wrapAction(async (input: string, node: string, options) => {
+  .action(wrapAction(async (input: string, node: string | undefined, options) => {
+      const nodeName = node ?? options.nodeId;
+      if (!nodeName) {
+        throw new Error('Node name is required (as positional arg or --nodeId flag)');
+      }
       if (options.workflow) options.workflowName = options.workflow;
-      await implementCommand(input, node, options);
+      await implementCommand(input, nodeName, options);
   }));
 
 // Changelog command

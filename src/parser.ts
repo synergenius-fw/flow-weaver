@@ -1216,6 +1216,7 @@ export class AnnotationParser {
             ...(inst.tags && inst.tags.length > 0 && { tags: inst.tags }),
             ...(inst.width && { width: inst.width }),
             ...(inst.height && { height: inst.height }),
+            ...(inst.suppressWarnings?.length && { suppressWarnings: inst.suppressWarnings }),
           },
           ...(inst.sourceLocation && {
             sourceLocation: { file: filePath, ...inst.sourceLocation },

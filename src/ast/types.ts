@@ -336,6 +336,8 @@ export type TNodeInstanceConfig = {
   minimized?: boolean;
   width?: number;
   height?: number;
+  /** Warning codes to suppress for this instance (e.g., ["UNUSED_OUTPUT_PORT"]) */
+  suppressWarnings?: string[];
 };
 
 /**

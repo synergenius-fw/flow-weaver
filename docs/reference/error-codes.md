@@ -540,7 +540,7 @@ const fetchData = (execute: boolean, url: string, apiKey: string) => { ... };
 | Severity      | Warning                                                                                                                                                                                                                                 |
 | Meaning       | A node's data output port is never connected to anything. The data produced by this port is discarded.                                                                                                                                  |
 | Common Causes | The node produces an output that is not needed by the current workflow. A connection from this port was removed but the port still exists. Control flow ports (`onSuccess`, `onFailure`) and scoped ports are excluded from this check. |
-| Fix           | If the output is needed, connect it to a downstream node or to `Exit`. If not needed, the warning can be ignored, but it may indicate an incomplete workflow.                                                                           |
+| Fix           | If the output is needed, connect it to a downstream node or to `Exit`. If the output is intentionally discarded, add `[suppress: "UNUSED_OUTPUT_PORT"]` to the `@node` annotation to silence this warning for that instance. |
 
 #### UNREACHABLE_EXIT_PORT (warning)
 

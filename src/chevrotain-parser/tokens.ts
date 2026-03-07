@@ -251,6 +251,11 @@ export const TagsPrefix = createToken({
   pattern: /tags:/,
 });
 
+export const SuppressPrefix = createToken({
+  name: 'SuppressPrefix',
+  pattern: /suppress:/,
+});
+
 export const EventEq = createToken({
   name: 'EventEq',
   pattern: /event=/,
@@ -465,6 +470,7 @@ export const allTokens = [
   JobPrefix,
   EnvironmentAttrPrefix,
   TagsPrefix,
+  SuppressPrefix,
   EventEq,
   CronEq,
   MatchEq,

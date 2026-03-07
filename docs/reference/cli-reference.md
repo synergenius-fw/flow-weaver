@@ -1,7 +1,7 @@
 ---
 name: CLI Reference
 description: Complete reference for all Flow Weaver CLI commands, flags, and options
-keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, plugin, grammar, changelog, openapi, pattern, create, templates, context]
+keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, plugin, grammar, changelog, openapi, pattern, create, templates, context, modify, implement, status]
 ---
 
 # CLI Reference
@@ -34,6 +34,9 @@ Complete reference for all `flow-weaver` CLI commands.
 | `changelog` | Generate changelog from git |
 | `market` | Marketplace packages |
 | `plugin` | External plugins |
+| `modify` | Add/remove/rename nodes, connections, positions, and labels |
+| `implement` | Replace stub node with function skeleton |
+| `status` | Report implementation progress |
 | `context` | Generate LLM context bundle |
 | `docs` | Browse reference documentation |
 | `ui` | Send commands to the editor |
@@ -472,6 +475,120 @@ flow-weaver create node myProcessor my-workflow.ts
 flow-weaver create node apiClient my-workflow.ts --template http
 flow-weaver create node checker my-workflow.ts --template validator
 ```
+
+---
+
+### modify
+
+Modify workflow structure programmatically. Parses the file, applies the operation, and regenerates the JSDoc annotations in place. Useful for scripting, CI pipelines, and the genesis self-evolution system.
+
+#### modify addNode
+
+```bash
+flow-weaver modify addNode --file <path> --nodeId <id> --nodeType <type>
+```
+
+Adds a new node instance to the workflow. Auto-positions to the right of the rightmost existing node. Warns if the node type isn't defined in the file.
+
+#### modify removeNode
+
+```bash
+flow-weaver modify removeNode --file <path> --nodeId <id>
+```
+
+Removes a node instance and all connections attached to it.
+
+#### modify addConnection
+
+```bash
+flow-weaver modify addConnection --file <path> --from <node.port> --to <node.port>
+```
+
+Adds a connection between two ports. Both nodes must exist. Port names are validated against the node type definition when available.
+
+#### modify removeConnection
+
+```bash
+flow-weaver modify removeConnection --file <path> --from <node.port> --to <node.port>
+```
+
+Removes an existing connection.
+
+#### modify renameNode
+
+```bash
+flow-weaver modify renameNode --file <path> --oldId <id> --newId <id>
+```
+
+Renames a node instance and updates all connections that reference it.
+
+#### modify setPosition
+
+```bash
+flow-weaver modify setPosition --file <path> --nodeId <id> --x <number> --y <number>
+```
+
+Sets the canvas position of a node instance.
+
+#### modify setLabel
+
+```bash
+flow-weaver modify setLabel --file <path> --nodeId <id> --label <text>
+```
+
+Sets the display label for a node instance.
+
+**Examples:**
+```bash
+flow-weaver modify addNode --file workflow.ts --nodeId validator --nodeType validateInput
+flow-weaver modify addConnection --file workflow.ts --from Start.data --to validator.input
+flow-weaver modify removeNode --file workflow.ts --nodeId oldStep
+flow-weaver modify removeConnection --file workflow.ts --from a.output --to b.input
+flow-weaver modify renameNode --file workflow.ts --oldId step1 --newId validateStep
+flow-weaver modify setPosition --file workflow.ts --nodeId step1 --x 200 --y 100
+flow-weaver modify setLabel --file workflow.ts --nodeId step1 --label "Validate Input"
+```
+
+---
+
+### implement
+
+Replace a stub node (`declare function`) with a real function skeleton containing the correct signature, JSDoc annotations, and return type.
+
+```bash
+flow-weaver implement <input> <node> [options]
+flow-weaver implement <input> --nodeId <id> [options]
+```
+
+The node can be specified as a positional argument or with the `--nodeId` flag.
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-w, --workflow <name>` | Specific workflow name | — |
+| `--nodeId <id>` | Node to implement (alternative to positional arg) | — |
+| `-p, --preview` | Preview without writing | `false` |
+
+**Examples:**
+```bash
+flow-weaver implement workflow.ts validateInput
+flow-weaver implement workflow.ts --nodeId validateInput
+flow-weaver implement workflow.ts myNode --preview
+```
+
+---
+
+### status
+
+Report implementation progress for stub workflows. Shows which nodes are implemented vs still declared as stubs.
+
+```bash
+flow-weaver status <input> [options]
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-w, --workflow <name>` | Specific workflow name | — |
+| `--json` | Output as JSON | `false` |
 
 ---
 
