@@ -470,7 +470,6 @@ modifyCmd
     await modifySetLabelCommand(options.file, options);
   }));
 
-
 // Templates command
 program
   .command('templates')
