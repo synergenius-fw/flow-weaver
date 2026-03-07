@@ -631,6 +631,73 @@ These codes apply to AI agent workflows that use LLM, tool-executor, and memory 
 >
 > **What to do:** Connect the tool executor's data output ports (e.g., `result`) to downstream nodes that consume the data.
 
+### Design Quality Rules
+
+These rules detect common workflow design problems that compile fine but indicate poor structure. All are warnings or info-level, suppressible with `@suppress`.
+
+#### DESIGN_ASYNC_NO_ERROR_PATH (warning)
+
+| Field         | Value                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Severity      | Warning                                                                                                                                                       |
+| Meaning       | An async node has no onFailure connection. Async operations (network calls, file I/O, AI calls) can fail, and errors will be silently lost.                  |
+| Common Causes | Adding an async node and connecting onSuccess but forgetting to wire onFailure.                                                                              |
+| Fix           | Connect the node's `onFailure` port to an error handler, retry node, or `Exit.onFailure`.                                                                   |
+
+#### DESIGN_SCOPE_NO_FAILURE_EXIT (warning)
+
+| Field         | Value                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Severity      | Warning                                                                                                                                                       |
+| Meaning       | A scope node (retry/forEach) has no failure path out. If all iterations fail, execution stalls with no error surfaced upstream.                               |
+| Common Causes | Creating a forEach or retry scope and only wiring the success path.                                                                                          |
+| Fix           | Connect the scope node's `onFailure` port to propagate errors.                                                                                               |
+
+#### DESIGN_UNBOUNDED_RETRY (warning)
+
+| Field         | Value                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Severity      | Warning                                                                                                                                                       |
+| Meaning       | A scope node with retry/loop semantics (detected by name) has no visible attempt limit input. This could loop indefinitely on persistent failures.            |
+| Common Causes | Creating a custom retry loop without a maxAttempts or retries parameter.                                                                                     |
+| Fix           | Add a `maxAttempts` or `retries` input port to the node type, or use a counter to break out.                                                                 |
+
+#### DESIGN_FANOUT_NO_FANIN (warning)
+
+| Field         | Value                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Severity      | Warning                                                                                                                                                       |
+| Meaning       | A node fans out to 3+ step targets, but those paths never converge to a shared downstream node. Data from parallel branches may be lost.                     |
+| Common Causes | Dispatching work to multiple parallel branches without a merge point before Exit.                                                                             |
+| Fix           | Add a merge node downstream where parallel branches converge, or use a merge strategy on the target port.                                                    |
+
+#### DESIGN_EXIT_DATA_UNREACHABLE (warning)
+
+| Field         | Value                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Severity      | Warning                                                                                                                                                       |
+| Meaning       | An Exit data port has no incoming connection and no pull-execution node provides it. Extends UNREACHABLE_EXIT_PORT with pull-execution awareness.             |
+| Common Causes | Declaring an exit port but never connecting any node output to it, and no pull-execution node wires to it.                                                   |
+| Fix           | Connect a node's data output to the Exit port, or add a pull-execution node that computes the value on demand.                                               |
+
+#### DESIGN_PULL_CANDIDATE (warning)
+
+| Field         | Value                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Severity      | Warning                                                                                                                                                       |
+| Meaning       | A node has no incoming step connection but its data outputs are consumed downstream. Without pullExecution, the node may never execute.                       |
+| Common Causes | Adding a node and connecting its data outputs to downstream nodes but forgetting a step trigger or pullExecution config.                                      |
+| Fix           | Add `[pullExecution: execute]` to the `@node` annotation so the node runs on demand.                                                                        |
+
+#### DESIGN_PULL_UNUSED (warning)
+
+| Field         | Value                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Severity      | Warning                                                                                                                                                       |
+| Meaning       | A node is marked with pullExecution but no downstream node reads its data output. Pull execution requires a consumer to trigger.                              |
+| Common Causes | Setting pullExecution on a node but then not connecting any of its data outputs.                                                                              |
+| Fix           | Connect a data output to a downstream node, or remove the pullExecution config if the node isn't needed.                                                     |
+
 ---
 
 ## Quick Reference: Error Severity Summary
@@ -690,4 +757,11 @@ These codes apply to AI agent workflows that use LLM, tool-executor, and memory 
 | AGENT_MISSING_MEMORY_IN_LOOP | Loop has LLM but no conversation memory node |
 | AGENT_LLM_NO_FALLBACK | LLM onFailure routes directly to Exit |
 | AGENT_TOOL_NO_OUTPUT_HANDLING | Tool executor data outputs all unconnected |
+| DESIGN_ASYNC_NO_ERROR_PATH | Async node has no onFailure connection |
+| DESIGN_SCOPE_NO_FAILURE_EXIT | Scope node has no failure path out |
+| DESIGN_UNBOUNDED_RETRY | Retry scope has no visible attempt limit |
+| DESIGN_FANOUT_NO_FANIN | Fan-out to multiple step targets with no merge back |
+| DESIGN_EXIT_DATA_UNREACHABLE | Exit data port unreachable (pull-execution aware) |
+| DESIGN_PULL_CANDIDATE | Node has no step trigger but outputs are consumed |
+| DESIGN_PULL_UNUSED | Pull-execution node has no downstream consumers |
 <!-- AUTO:END warning_summary_table -->
