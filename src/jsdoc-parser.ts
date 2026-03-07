@@ -209,6 +209,7 @@ export interface JSDocWorkflowConfig {
     job?: string;
     /** CI/CD deployment environment */
     environment?: string;
+    suppressWarnings?: string[];
   }>;
   connections?: Array<{
     from: { node: string; port: string; scope?: string };
@@ -1207,6 +1208,7 @@ export class JSDocParser {
       tags,
       job,
       environment,
+      suppress,
     } = result;
 
     // Capture source location from tag
@@ -1261,6 +1263,7 @@ export class JSDocParser {
       ...(position && { x: position.x, y: position.y }),
       ...(job && { job }),
       ...(environment && { environment }),
+      ...(suppress && suppress.length > 0 && { suppressWarnings: suppress }),
       sourceLocation: { line, column: 0 },
     });
   }

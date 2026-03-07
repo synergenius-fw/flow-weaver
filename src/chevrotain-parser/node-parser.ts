@@ -24,6 +24,7 @@ import {
   JobPrefix,
   EnvironmentAttrPrefix,
   TagsPrefix,
+  SuppressPrefix,
   StringLiteral,
   LBracket,
   RBracket,
@@ -61,6 +62,8 @@ export interface NodeParseResult {
   job?: string;
   /** CI/CD deployment environment */
   environment?: string;
+  /** Warning codes to suppress for this instance */
+  suppress?: string[];
 }
 
 // =============================================================================
@@ -116,6 +119,7 @@ class NodeParser extends CstParser {
           { ALT: () => this.SUBRULE(this.jobAttr) },
           { ALT: () => this.SUBRULE(this.environmentAttr) },
           { ALT: () => this.SUBRULE(this.tagsAttr) },
+          { ALT: () => this.SUBRULE(this.suppressAttr) },
         ]);
       },
     });
@@ -258,6 +262,17 @@ class NodeParser extends CstParser {
     });
   });
 
+  // suppress: "CODE", "CODE2"
+  private suppressAttr = this.RULE('suppressAttr', () => {
+    this.CONSUME(SuppressPrefix);
+    this.AT_LEAST_ONE_SEP({
+      SEP: Comma,
+      DEF: () => {
+        this.CONSUME(StringLiteral, { LABEL: 'suppressCode' });
+      },
+    });
+  });
+
   // "label" ["tooltip"]
   private tagEntry = this.RULE('tagEntry', () => {
     this.CONSUME(StringLiteral, { LABEL: 'tagLabel' });
@@ -310,6 +325,11 @@ interface AttributeBracketContext {
   jobAttr?: CstNode[];
   environmentAttr?: CstNode[];
   tagsAttr?: CstNode[];
+  suppressAttr?: CstNode[];
+}
+
+interface SuppressAttrContext {
+  suppressCode: CstNodeWithImage[];
 }
 
 interface LabelAttrContext {
@@ -412,6 +432,7 @@ class NodeVisitor extends BaseVisitor {
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
     let job: string | undefined;
     let environment: string | undefined;
+    let suppress: string[] | undefined;
 
     if (ctx.parentScopeRef) {
       parentScope = this.visit(ctx.parentScopeRef);
@@ -433,6 +454,7 @@ class NodeVisitor extends BaseVisitor {
         if (attrs.tags) tags = [...(tags || []), ...attrs.tags];
         if (attrs.job) job = attrs.job;
         if (attrs.environment) environment = attrs.environment;
+        if (attrs.suppress) suppress = [...(suppress || []), ...attrs.suppress];
       }
     }
 
@@ -453,6 +475,7 @@ class NodeVisitor extends BaseVisitor {
       ...(tags && { tags }),
       ...(job && { job }),
       ...(environment && { environment }),
+      ...(suppress && { suppress }),
     };
   }
 
@@ -476,6 +499,7 @@ class NodeVisitor extends BaseVisitor {
     tags?: Array<{ label: string; tooltip?: string }>;
     job?: string;
     environment?: string;
+    suppress?: string[];
   } {
     let label: string | undefined;
     let expressions: Record<string, string> | undefined;
@@ -490,6 +514,7 @@ class NodeVisitor extends BaseVisitor {
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
     let job: string | undefined;
     let environment: string | undefined;
+    let suppress: string[] | undefined;
 
     if (ctx.labelAttr) {
       for (const attr of ctx.labelAttr) {
@@ -571,6 +596,13 @@ class NodeVisitor extends BaseVisitor {
       }
     }
 
+    if (ctx.suppressAttr) {
+      for (const attr of ctx.suppressAttr) {
+        const codes = this.visit(attr);
+        suppress = [...(suppress || []), ...codes];
+      }
+    }
+
     return {
       label,
       expressions,
@@ -585,6 +617,7 @@ class NodeVisitor extends BaseVisitor {
       tags,
       job,
       environment,
+      suppress,
     };
   }
 
@@ -695,6 +728,10 @@ class NodeVisitor extends BaseVisitor {
 
   environmentAttr(ctx: EnvironmentAttrContext): string {
     return this.unescapeString(ctx.environmentValue[0].image);
+  }
+
+  suppressAttr(ctx: SuppressAttrContext): string[] {
+    return ctx.suppressCode.map((tok) => this.unescapeString(tok.image));
   }
 
   tagsAttr(ctx: TagsAttrContext): Array<{ label: string; tooltip?: string }> {
