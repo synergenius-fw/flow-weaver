@@ -848,8 +848,8 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
   const diagramNodes = new Map<string, DiagramNode>();
 
   // Start node — ensure mandatory execute STEP port exists
-  const allStartPorts: Record<string, TPortDefinition> = { ...ast.startPorts };
-  if (!allStartPorts.execute) {
+  const allStartPorts: Record<string, TPortDefinition> = filterHiddenPorts({ ...ast.startPorts });
+  if (!allStartPorts.execute && !ast.startPorts.execute?.hidden) {
     allStartPorts.execute = { dataType: 'STEP' };
   }
   const startOutputs = orderedPorts(allStartPorts, 'OUTPUT');
@@ -867,13 +867,13 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
   });
 
   // Exit node — ensure mandatory onSuccess/onFailure STEP ports exist
-  const allExitPorts: Record<string, TPortDefinition> = { ...ast.exitPorts };
-  if (!allExitPorts.onSuccess) {
+  const allExitPorts: Record<string, TPortDefinition> = filterHiddenPorts({ ...ast.exitPorts });
+  if (!allExitPorts.onSuccess && !ast.exitPorts.onSuccess?.hidden) {
     allExitPorts.onSuccess = { dataType: 'STEP', isControlFlow: true };
   }
-  if (!allExitPorts.onFailure) {
+  if (!allExitPorts.onFailure && !ast.exitPorts.onFailure?.hidden) {
     allExitPorts.onFailure = { dataType: 'STEP', isControlFlow: true, failure: true };
-  } else {
+  } else if (allExitPorts.onFailure) {
     allExitPorts.onFailure = { ...allExitPorts.onFailure, failure: true };
   }
   const exitInputs = orderedPorts(allExitPorts, 'INPUT');

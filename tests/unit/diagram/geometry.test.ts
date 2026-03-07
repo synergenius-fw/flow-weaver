@@ -357,6 +357,38 @@ describe('buildDiagramGraph — scoped workflows', () => {
   });
 });
 
+describe('hidden ports on Start and Exit', () => {
+  it('filters hidden ports from Start outputs', () => {
+    const ast = createSimpleWorkflow();
+    ast.startPorts.hiddenParam = { dataType: 'STRING', hidden: true };
+    ast.startPorts.visibleParam = { dataType: 'STRING' };
+    const graph = buildDiagramGraph(ast);
+
+    const start = graph.nodes.find(n => n.id === 'Start')!;
+    expect(start.outputs.find(p => p.name === 'hiddenParam')).toBeUndefined();
+    expect(start.outputs.find(p => p.name === 'visibleParam')).toBeDefined();
+  });
+
+  it('filters hidden ports from Exit inputs', () => {
+    const ast = createSimpleWorkflow();
+    ast.exitPorts.onFailure = { dataType: 'STEP', isControlFlow: true, failure: true, hidden: true };
+    ast.exitPorts.summary = { dataType: 'STRING' };
+    const graph = buildDiagramGraph(ast);
+
+    const exit = graph.nodes.find(n => n.id === 'Exit')!;
+    expect(exit.inputs.find(p => p.name === 'onFailure')).toBeUndefined();
+    expect(exit.inputs.find(p => p.name === 'summary')).toBeDefined();
+  });
+
+  it('still adds mandatory onSuccess when not hidden', () => {
+    const ast = createSimpleWorkflow();
+    // No explicit onSuccess in exitPorts, should be auto-added
+    const graph = buildDiagramGraph(ast);
+    const exit = graph.nodes.find(n => n.id === 'Exit')!;
+    expect(exit.inputs.find(p => p.name === 'onSuccess')).toBeDefined();
+  });
+});
+
 describe('[size: W H] annotation', () => {
   it('applies config width/height to a regular node', () => {
     const ast = createSimpleWorkflow();

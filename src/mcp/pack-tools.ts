@@ -6,20 +6,10 @@
  */
 
 import * as path from 'path';
-import { createRequire } from 'node:module';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { listInstalledPackages } from '../marketplace/registry.js';
 import type { TInstalledPackage } from '../marketplace/types.js';
-
-function getEngineVersion(): string {
-  try {
-    const req = createRequire(import.meta.url);
-    const pkg = req('../../package.json');
-    return pkg.version as string;
-  } catch {
-    return '0.0.0';
-  }
-}
+import { VERSION } from '../generated-version.js';
 
 function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map(Number);
@@ -36,8 +26,7 @@ function checkPackEngineVersion(pkg: TInstalledPackage): void {
   if (!required) return;
 
   const minVersion = required.replace(/^>=?\s*/, '');
-  const current = getEngineVersion();
-  if (current === '0.0.0') return;
+  const current = VERSION;
 
   if (compareVersions(current, minVersion) < 0) {
     process.stderr.write(
