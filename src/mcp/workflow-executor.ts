@@ -137,7 +137,37 @@ export async function executeWorkflowFromFile(
         esModuleInterop: true,
       },
     });
-    fs.writeFileSync(tmpFile, jsOutput.outputText, 'utf8');
+
+    // When source lives under src/, rewrite relative imports to point to
+    // dist/ equivalents so Node.js ESM resolver finds the compiled JS files.
+    // This happens with marketplace packs that ship TS source for parsing
+    // but only have compiled JS in dist/.
+    let transpiledOutput = jsOutput.outputText;
+    const srcDir = path.dirname(tmpTsFile);
+    if (srcDir.includes(`${path.sep}src${path.sep}`)) {
+      const distDir = srcDir.replace(`${path.sep}src${path.sep}`, `${path.sep}dist${path.sep}`);
+      transpiledOutput = transpiledOutput.replace(
+        /from\s+['"](\.[^'"]+)['"]/g,
+        (_match, specifier: string) => {
+          const resolvedSrc = path.resolve(srcDir, specifier);
+          // Only rewrite if the source .js file doesn't exist but the dist equivalent does
+          if (!fs.existsSync(resolvedSrc)) {
+            const distEquivalent = resolvedSrc.replace(
+              `${path.sep}src${path.sep}`,
+              `${path.sep}dist${path.sep}`,
+            );
+            if (fs.existsSync(distEquivalent)) {
+              const relative = path.relative(srcDir, distEquivalent);
+              const normalized = relative.startsWith('.') ? relative : `./${relative}`;
+              return `from '${normalized}'`;
+            }
+          }
+          return _match;
+        },
+      );
+    }
+
+    fs.writeFileSync(tmpFile, transpiledOutput, 'utf8');
 
     // Create debugger to capture trace events
     const trace: ExecutionTraceEvent[] = [];
