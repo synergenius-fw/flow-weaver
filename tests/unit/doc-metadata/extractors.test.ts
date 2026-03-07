@@ -125,7 +125,7 @@ describe('MCP Tools extractor', () => {
     const noParamTools = MCP_TOOLS.filter((t) => t.params.length === 0);
     expect(noParamTools.length).toBeGreaterThan(0);
     const names = noParamTools.map((t) => t.name);
-    expect(names).toContain('fw_debug_list');
+    expect(names).toContain('fw_list_debug_sessions');
   });
 
   it('fw_describe has filePath as a required string param', () => {
