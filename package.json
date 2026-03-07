@@ -86,6 +86,10 @@
     "./executor": {
       "types": "./dist/mcp/workflow-executor.d.ts",
       "default": "./dist/mcp/workflow-executor.js"
+    },
+    "./context": {
+      "types": "./dist/context/index.d.ts",
+      "default": "./dist/context/index.js"
     }
   },
   "bin": {
