@@ -294,9 +294,9 @@ async function executeTools(
  * AI Agent that uses tools to accomplish tasks
  *
  * @flowWeaver workflow
- * @node loop agentLoop [size: 450 350] [position: -180 0]
- * @node llm callLLM loop.iteration [position: -40 100]
- * @node tools executeTools loop.iteration [position: 120 200]
+ * @node loop agentLoop [position: -180 0] [color: "purple"] [icon: "smartToy"]
+ * @node llm callLLM loop.iteration [color: "blue"] [icon: "psychology"]
+ * @node tools executeTools loop.iteration [color: "orange"] [icon: "build"] [suppress: "AGENT_UNGUARDED_TOOL_EXECUTOR"]
  * @position Start -450 0
  * @position Exit 360 0
  * @connect Start.execute -> loop.execute

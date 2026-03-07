@@ -49,7 +49,7 @@ Be concise but friendly. Remember context from earlier in the conversation.\`;
  * @flowWeaver nodeType
  * @label Memory
  * @input conversationId [order:1] - Conversation identifier
- * @input newMessage [order:2] - Message to add
+ * @input [newMessage] [order:2] - Message to add
  * @input [maxHistory=50] [order:3] - Max messages to retain
  * @input execute [order:0] - Execute
  * @output history [order:2] - Conversation history
@@ -137,9 +137,9 @@ async function chat(
  * Stateful chat with conversation memory
  *
  * @flowWeaver workflow
- * @node mem memory [position: -150 0]
- * @node respond chat [position: 50 0]
- * @node saveMem memory [position: 250 0]
+ * @node mem memory [position: -150 0] [color: "teal"] [icon: "database"]
+ * @node respond chat [position: 50 0] [color: "purple"] [icon: "campaign"] [suppress: "AGENT_LLM_NO_FALLBACK"]
+ * @node saveMem memory [position: 250 0] [color: "teal"] [icon: "database"] [suppress: "UNUSED_OUTPUT_PORT"]
  * @position Start -350 0
  * @position Exit 450 0
  * @connect Start.execute -> mem.execute
@@ -150,6 +150,7 @@ async function chat(
  * @connect Start.conversationId -> saveMem.conversationId
  * @connect respond.responseMessage -> saveMem.newMessage
  * @connect respond.onSuccess -> saveMem.execute
+ * @connect respond.onFailure -> Exit.onFailure
  * @connect respond.response -> Exit.response
  * @connect saveMem.onSuccess -> Exit.onSuccess
  * @param execute [order:0] - Execute

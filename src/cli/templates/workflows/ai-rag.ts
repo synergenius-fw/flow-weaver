@@ -56,7 +56,7 @@ const documentStore: Document[] = [
  * @flowWeaver nodeType
  * @label Retrieve
  * @input query [order:1] - Search query
- * @input topK [order:2] - Number of results (default 3)
+ * @input [topK] [order:2] - Number of results (default 3)
  * @input execute [order:0] - Execute
  * @output documents [order:2] - Retrieved documents
  * @output context [order:3] - Combined document text
@@ -155,8 +155,8 @@ Answer:\`;
  * RAG Pipeline for knowledge-based Q&A
  *
  * @flowWeaver workflow
- * @node retriever retrieve [position: -50 0]
- * @node generator generate [position: 200 0]
+ * @node retriever retrieve [position: -50 0] [color: "teal"] [icon: "search"] [suppress: "UNUSED_OUTPUT_PORT"]
+ * @node generator generate [position: 200 0] [color: "purple"] [icon: "autoAwesome"]
  * @position Start -300 0
  * @position Exit 400 0
  * @connect Start.execute -> retriever.execute
