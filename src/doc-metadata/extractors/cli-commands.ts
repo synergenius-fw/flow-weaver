@@ -8,7 +8,6 @@
 
 import { workflowTemplates, nodeTemplates } from '../../cli/templates/index.js';
 import type { TCliCommandDoc } from '../types.js';
-import { DEFAULT_SERVER_URL } from '../../defaults.js';
 
 /**
  * CLI command definitions - single source of truth for CLI documentation
@@ -19,6 +18,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'compile',
     syntax: 'flow-weaver compile <file> [options]',
     description: 'Compile workflow source file',
+    botCompatible: true,
     options: [
       { flags: '-o, --output', arg: '<path>', description: 'Output file or directory' },
       { flags: '-p, --production', description: 'Production build (no debug events)' },
@@ -34,6 +34,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'validate',
     syntax: 'flow-weaver validate <file> [options]',
     description: 'Validate workflow without compiling',
+    botCompatible: true,
     options: [
       { flags: '-w, --workflow-name', arg: '<name>', description: 'Target specific workflow' },
       { flags: '--json', description: 'Output as JSON', exclusive: 'output-mode' },
@@ -46,6 +47,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'describe',
     syntax: 'flow-weaver describe <file> [options]',
     description: 'Output workflow structure in LLM-friendly formats (JSON, text, mermaid)',
+    botCompatible: true,
     options: [
       { flags: '-f, --format', arg: 'json|text|mermaid|paths', description: 'Output format (paths: enumerate all Start-to-Exit paths via DFS)' },
       { flags: '-w, --workflow-name', arg: '<name>', description: 'Target workflow' },
@@ -57,6 +59,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'run',
     syntax: 'flow-weaver run <file> [options]',
     description: 'Execute a workflow file directly',
+    botCompatible: true,
     options: [
       { flags: '-w, --workflow', arg: '<name>', description: 'Specific workflow to run' },
       { flags: '--params', arg: '<json>', description: 'Input parameters as JSON string', exclusive: 'params' },
@@ -87,6 +90,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'create workflow',
     syntax: 'flow-weaver create workflow <template> <file> [options]',
     description: 'Create new workflow from template',
+    botCompatible: true,
     group: 'create',
     positionalChoices: {
       template: workflowTemplates.map(t => ({ id: t.id, label: t.id })),
@@ -108,6 +112,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'create node',
     syntax: 'flow-weaver create node <name> <file> [options]',
     description: 'Create a node type from template',
+    botCompatible: true,
     group: 'create',
     options: [
       { flags: '-t, --template', arg: nodeTemplates.map(t => t.id).join('|'), description: 'Node template to use', defaultValue: 'processor' },
@@ -121,6 +126,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'templates',
     syntax: 'flow-weaver templates [--json]',
     description: `List available workflow templates (${workflowTemplates.length} total)`,
+    botCompatible: true,
     listStyle: 'definition',
     options: [
       { flags: '--json', description: 'Output as JSON' },
@@ -141,6 +147,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'pattern list',
     syntax: 'flow-weaver pattern list <path> [--json]',
     description: 'List patterns in file or directory',
+    botCompatible: true,
     group: 'pattern',
     options: [
       { flags: '--json', description: 'Output as JSON' },
@@ -150,6 +157,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'pattern apply',
     syntax: 'flow-weaver pattern apply <pattern-file> <target-file> [options]',
     description: 'Apply a pattern to a workflow file',
+    botCompatible: true,
     group: 'pattern',
     options: [
       { flags: '-p, --preview', description: 'Preview changes without writing' },
@@ -161,6 +169,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'pattern extract',
     syntax: 'flow-weaver pattern extract <source-file> --nodes <ids> -o <file> [options]',
     description: 'Extract nodes as reusable pattern',
+    botCompatible: true,
     group: 'pattern',
     options: [
       { flags: '--nodes', arg: '<ids>', description: 'Comma-separated list of node IDs to extract', required: true },
@@ -203,9 +212,34 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'doctor',
     syntax: 'flow-weaver doctor [--json]',
     description: 'Check project environment and configuration. Validates Node.js version, TypeScript, package installation, and tsconfig.json settings.',
+    botCompatible: true,
     options: [
       { flags: '--json', description: 'Output results as JSON' },
     ],
+  },
+
+  // ── Context ─────────────────────────────────────────────────────
+  {
+    name: 'context',
+    syntax: 'flow-weaver context [preset] [options]',
+    description: 'Generate LLM context bundle from documentation and grammar',
+    botCompatible: true,
+    options: [
+      { flags: '--profile', arg: 'standalone|assistant', description: 'Output profile', defaultValue: 'standalone' },
+      { flags: '--topics', arg: '<slugs>', description: 'Comma-separated topic slugs (overrides preset)' },
+      { flags: '--add', arg: '<slugs>', description: 'Extra topic slugs to add to preset' },
+      { flags: '--no-grammar', description: 'Omit EBNF grammar section' },
+      { flags: '-o, --output', arg: '<path>', description: 'Write to file instead of stdout' },
+      { flags: '--list', description: 'List available presets and exit' },
+    ],
+    positionalChoices: {
+      preset: [
+        { id: 'core', label: 'core' },
+        { id: 'authoring', label: 'authoring' },
+        { id: 'ops', label: 'ops' },
+        { id: 'full', label: 'full' },
+      ],
+    },
   },
 
   // ── Export & generation ────────────────────────────────────────
@@ -213,6 +247,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'export',
     syntax: 'flow-weaver export <file> -t <target> -o <path> [options]',
     description: 'Export workflow as serverless function',
+    botCompatible: true,
     options: [
       { flags: '-t, --target', arg: '<target>', description: 'Target platform (provided by installed packs)', required: true },
       { flags: '-o, --output', arg: '<path>', description: 'Output directory', required: true },
@@ -228,6 +263,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'diff',
     syntax: 'flow-weaver diff <file1> <file2> [options]',
     description: 'Semantic diff between two workflow files',
+    botCompatible: true,
     options: [
       { flags: '-f, --format', arg: 'text|json|compact', description: 'Output format', defaultValue: 'text' },
       { flags: '-w, --workflow-name', arg: '<name>', description: 'Specific workflow to compare' },
@@ -259,67 +295,11 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
 
   // ── Integration commands ───────────────────────────────────────
   {
-    name: 'listen',
-    syntax: 'flow-weaver listen [options]',
-    description: 'Connect to the editor and stream integration events as JSON lines',
-    options: [
-      { flags: '-s, --server', arg: '<url>', description: 'Editor URL', defaultValue: DEFAULT_SERVER_URL },
-    ],
-  },
-  {
     name: 'mcp-server',
     syntax: 'flow-weaver mcp-server [options]',
     description: 'Start MCP server for Claude Code integration',
     options: [
-      { flags: '-s, --server', arg: '<url>', description: 'Editor URL', defaultValue: DEFAULT_SERVER_URL },
       { flags: '--stdio', description: 'Run in MCP stdio mode (skip interactive registration)' },
-    ],
-  },
-
-  // ── UI subcommands ─────────────────────────────────────────────
-  {
-    name: 'ui focus-node',
-    syntax: 'flow-weaver ui focus-node <nodeId> [options]',
-    description: 'Select and center a node in the editor',
-    group: 'ui',
-    options: [
-      { flags: '-s, --server', arg: '<url>', description: 'Editor URL', defaultValue: DEFAULT_SERVER_URL },
-    ],
-  },
-  {
-    name: 'ui add-node',
-    syntax: 'flow-weaver ui add-node <nodeTypeName> [options]',
-    description: 'Add a node at viewport center',
-    group: 'ui',
-    options: [
-      { flags: '-s, --server', arg: '<url>', description: 'Editor URL', defaultValue: DEFAULT_SERVER_URL },
-    ],
-  },
-  {
-    name: 'ui open-workflow',
-    syntax: 'flow-weaver ui open-workflow <filePath> [options]',
-    description: 'Open a workflow file in the editor',
-    group: 'ui',
-    options: [
-      { flags: '-s, --server', arg: '<url>', description: 'Editor URL', defaultValue: DEFAULT_SERVER_URL },
-    ],
-  },
-  {
-    name: 'ui get-state',
-    syntax: 'flow-weaver ui get-state [options]',
-    description: 'Return current workflow state from the editor',
-    group: 'ui',
-    options: [
-      { flags: '-s, --server', arg: '<url>', description: 'Editor URL', defaultValue: DEFAULT_SERVER_URL },
-    ],
-  },
-  {
-    name: 'ui batch',
-    syntax: 'flow-weaver ui batch <json> [options]',
-    description: 'Execute a batch of commands with auto-snapshot rollback',
-    group: 'ui',
-    options: [
-      { flags: '-s, --server', arg: '<url>', description: 'Editor URL', defaultValue: DEFAULT_SERVER_URL },
     ],
   },
 
@@ -342,6 +322,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     name: 'migrate',
     syntax: 'flow-weaver migrate <glob> [options]',
     description: 'Migrate workflow files to current syntax via parse → regenerate round-trip',
+    botCompatible: true,
     options: [
       { flags: '--dry-run', description: 'Preview changes without writing files' },
       { flags: '--diff', description: 'Show semantic diff before/after' },

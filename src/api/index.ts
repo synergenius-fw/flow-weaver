@@ -105,6 +105,7 @@ export * from './builder';
 export * from './workflow-file-operations';
 export * from './templates';
 export * from './patterns';
+export { type CommandResult, runCommand, getAvailableCommands } from './command-runner';
 
 // Re-exports needed by export target packs
 export { AnnotationParser } from '../parser.js';

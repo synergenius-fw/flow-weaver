@@ -29,10 +29,7 @@ import { doctorCommand } from './commands/doctor.js';
 import { initCommand } from './commands/init.js';
 import { watchCommand } from './commands/watch.js';
 import { devCommand } from './commands/dev.js';
-import { listenCommand } from './commands/listen.js';
-import { tunnelCommand } from './commands/tunnel.js';
 import { mcpServerCommand } from '../mcp/server.js';
-import { uiFocusNode, uiAddNode, uiOpenWorkflow, uiGetState, uiBatch } from './commands/ui.js';
 import { grammarCommand } from './commands/grammar.js';
 import { runCommand } from './commands/run.js';
 import { serveCommand } from './commands/serve.js';
@@ -66,7 +63,7 @@ import {
 import { mcpSetupCommand } from './commands/mcp-setup.js';
 import { logger } from './utils/logger.js';
 import { getErrorMessage } from '../utils/error-utils.js';
-import { DEFAULT_SERVER_URL } from '../defaults.js';
+
 
 // Version is injected at build time by Vite
 declare const __CLI_VERSION__: string;
@@ -281,31 +278,10 @@ program
       await devCommand(input, options);
   }));
 
-// Listen command
-program
-  .command('listen')
-  .description('Connect to Studio and stream integration events as JSON lines')
-  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(wrapAction(async (options) => {
-      await listenCommand(options);
-  }));
-
-// Tunnel command
-program
-  .command('tunnel')
-  .description('Connect cloud Studio to your local project directory')
-  .requiredOption('-k, --key <apiKey>', 'API key for cloud authentication (fw_xxxx)')
-  .option('-c, --cloud <url>', 'Cloud server URL', 'https://flowweaver.dev')
-  .option('-d, --dir <path>', 'Project directory', process.cwd())
-  .action(wrapAction(async (options) => {
-      await tunnelCommand(options);
-  }));
-
 // MCP server command
 program
   .command('mcp-server')
   .description('Start MCP server for Claude Code integration')
-  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
   .option('--stdio', 'Run in MCP stdio mode (skip interactive registration)')
   .action(wrapAction(async (options) => {
       await mcpServerCommand(options);
@@ -320,49 +296,6 @@ program
   .option('--list', 'List detected tools without configuring')
   .action(wrapAction(async (options) => {
       await mcpSetupCommand(options);
-  }));
-
-// UI command group (send commands to Studio)
-const uiCmd = program.command('ui').description('Send commands to Studio');
-
-uiCmd
-  .command('focus-node <nodeId>')
-  .description('Select and center a node in Studio')
-  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(wrapAction(async (nodeId: string, options) => {
-      await uiFocusNode(nodeId, options);
-  }));
-
-uiCmd
-  .command('add-node <nodeTypeName>')
-  .description('Add a node at viewport center')
-  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(wrapAction(async (nodeTypeName: string, options) => {
-      await uiAddNode(nodeTypeName, options);
-  }));
-
-uiCmd
-  .command('open-workflow <filePath>')
-  .description('Open a workflow file in Studio')
-  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(wrapAction(async (filePath: string, options) => {
-      await uiOpenWorkflow(filePath, options);
-  }));
-
-uiCmd
-  .command('get-state')
-  .description('Return current workflow state from Studio')
-  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(wrapAction(async (options) => {
-      await uiGetState(options);
-  }));
-
-uiCmd
-  .command('batch <json>')
-  .description('Execute a batch of commands with auto-snapshot rollback')
-  .option('-s, --server <url>', 'Studio URL', DEFAULT_SERVER_URL)
-  .action(wrapAction(async (json: string, options) => {
-      await uiBatch(json, options);
   }));
 
 // Create command (with subcommands)

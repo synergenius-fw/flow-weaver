@@ -126,4 +126,6 @@ export interface TCliCommandDoc {
   listStyle?: string;
   /** Valid choices for positional arguments — keyed by arg name */
   positionalChoices?: Record<string, { id: string; label: string }[]>;
+  /** Whether the command is available for programmatic bot/agent use via runCommand */
+  botCompatible?: boolean;
 }
