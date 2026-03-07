@@ -230,6 +230,7 @@ describe('modify setLabel', () => {
   });
 });
 
+
 describe('chained operations', () => {
   it('add node then connect it', async () => {
     await modifyAddNodeCommand(workflowFile, { nodeId: 'c', nodeType: 'processor' });
