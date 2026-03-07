@@ -761,7 +761,7 @@ These rules detect common workflow design problems that compile fine but indicat
 | DESIGN_SCOPE_NO_FAILURE_EXIT | Scope node has no failure path out |
 | DESIGN_UNBOUNDED_RETRY | Retry scope has no visible attempt limit |
 | DESIGN_FANOUT_NO_FANIN | Fan-out to multiple step targets with no merge back |
-| DESIGN_EXIT_DATA_UNREACHABLE | Exit data port unreachable (pull-execution aware) |
-| DESIGN_PULL_CANDIDATE | Node has no step trigger but outputs are consumed |
+| DESIGN_EXIT_DATA_UNREACHABLE | Exit data port has no connection and no pull-execution provider |
+| DESIGN_PULL_CANDIDATE | Node has no step trigger but its outputs are consumed downstream |
 | DESIGN_PULL_UNUSED | Pull-execution node has no downstream consumers |
 <!-- AUTO:END warning_summary_table -->
