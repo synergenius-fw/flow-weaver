@@ -105,7 +105,7 @@ function aggregateResults(
 
 /**
  * @flowWeaver workflow
- * @node iterator forEachItem [position: -90 0] [color: "purple"] [icon: "repeat"]
+ * @node iterator forEachItem [position: -90 0] [color: "purple"] [icon: "repeat"] [suppress: "DESIGN_SCOPE_NO_FAILURE_EXIT"]
  * @node processor processItem iterator.processItem [color: "blue"] [icon: "settings"]
  * @node aggregator aggregateResults [position: 270 0] [color: "teal"] [icon: "inventory"]
  * @position Start -450 0
@@ -120,7 +120,6 @@ function aggregateResults(
  * @connect iterator.results -> Exit.results
  * @connect iterator.results -> aggregator.results
  * @connect iterator.onSuccess -> aggregator.execute
- * @connect iterator.onFailure -> aggregator.execute
  * @connect aggregator.successCount -> Exit.successCount
  * @connect aggregator.failedCount -> Exit.failedCount
  * @connect aggregator.onSuccess -> Exit.onSuccess

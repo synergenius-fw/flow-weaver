@@ -71,7 +71,7 @@ export const LLM_MOCK_PROVIDER = `const createMockProvider = (): LLMProvider => 
   async chat(messages) {
     const lastMessage = messages[messages.length - 1];
     return {
-      content: \`[Mock response to: \${lastMessage.content.slice(0, 50)}...]\`,
+      content: \`[Mock response to: \${(lastMessage?.content ?? '').slice(0, 50)}...]\`,
       toolCalls: [],
       finishReason: 'stop',
       usage: { promptTokens: 10, completionTokens: 20 },
