@@ -212,8 +212,8 @@ attributeBracket ::= "[" nodeAttr { "," nodeAttr } "]"
 
 nodeAttr       ::= labelAttr | exprAttr | portOrderAttr | portLabelAttr
                  | minimizedAttr | pullExecutionAttr | sizeAttr
-                 | colorAttr | iconAttr | tagsAttr | positionAttr
-                 | jobAttr | environmentAttr
+                 | colorAttr | iconAttr | tagsAttr | suppressAttr
+                 | positionAttr | jobAttr | environmentAttr
 
 labelAttr      ::= "label:" STRING
 exprAttr       ::= "expr:" IDENTIFIER "=" STRING { "," IDENTIFIER "=" STRING }
@@ -229,6 +229,7 @@ tagEntry       ::= STRING [ STRING ]
 positionAttr   ::= "position:" INTEGER INTEGER
 jobAttr        ::= "job:" STRING
 environmentAttr ::= "environment:" STRING
+suppressAttr   ::= "suppress:" STRING { "," STRING }
 ```
 
 Multiple attribute brackets are allowed (zero or more). Attributes can be split across brackets or combined in one.
@@ -250,6 +251,7 @@ Multiple attribute brackets are allowed (zero or more). Attributes can be split 
 @node myAdd Add [label: "hi"] [color: "#f00"] [position: 360 0]
 @node build npmBuild [job: "build"]
 @node deploy deploySsh [job: "deploy"] [environment: "production"]
+@node fetch fetchData [suppress: "UNUSED_OUTPUT_PORT"]
 ```
 
 ## @connect

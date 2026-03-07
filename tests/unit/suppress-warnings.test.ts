@@ -162,6 +162,40 @@ describe('suppress annotation in validator', () => {
     expect(unusedWarnings.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('does not suppress warnings with a non-matching code', () => {
+    const nodeType = makeNodeType('Producer', {
+      data: { dataType: 'STRING' },
+    });
+
+    const workflow: TWorkflowAST = {
+      type: 'Workflow',
+      name: 'test',
+      functionName: 'test',
+      sourceFile: 'test.ts',
+      nodeTypes: [nodeType],
+      instances: [
+        {
+          type: 'NodeInstance',
+          id: 'producer1',
+          nodeType: 'Producer',
+          config: { suppressWarnings: ['SOME_UNRELATED_CODE'] },
+        },
+      ],
+      connections: [
+        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'producer1', port: 'execute' } },
+        { type: 'Connection', from: { node: 'producer1', port: 'onSuccess' }, to: { node: 'Exit', port: 'execute' } },
+      ],
+      startPorts: { execute: { dataType: 'STEP' } },
+      exitPorts: { execute: { dataType: 'STEP' } },
+    };
+
+    const validator = new WorkflowValidator();
+    const result = validator.validate(workflow);
+
+    const unusedWarnings = result.warnings.filter(w => w.code === 'UNUSED_OUTPUT_PORT' && w.node === 'producer1');
+    expect(unusedWarnings.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('suppress on node A does not affect warnings on node B', () => {
     const nodeType = makeNodeType('Producer', {
       data: { dataType: 'STRING' },
