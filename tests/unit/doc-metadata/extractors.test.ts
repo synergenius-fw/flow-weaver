@@ -84,7 +84,6 @@ describe('MCP Tools extractor', () => {
     expect(names).toContain('fw_modify');
     expect(names).toContain('fw_modify_batch');
     expect(names).toContain('fw_export');
-    expect(names).toContain('fw_execute_workflow');
   });
 
   it('every tool has a non-empty name, description, and category', () => {
@@ -125,10 +124,8 @@ describe('MCP Tools extractor', () => {
   it('tools with no params have an empty array', () => {
     const noParamTools = MCP_TOOLS.filter((t) => t.params.length === 0);
     expect(noParamTools.length).toBeGreaterThan(0);
-    // fw_get_state and fw_get_workflow_details have no params
     const names = noParamTools.map((t) => t.name);
-    expect(names).toContain('fw_get_state');
-    expect(names).toContain('fw_get_workflow_details');
+    expect(names).toContain('fw_debug_list');
   });
 
   it('fw_describe has filePath as a required string param', () => {
