@@ -28,11 +28,11 @@ describe('registerPackCommands', () => {
 
   it('does nothing when packs have no cliCommands', async () => {
     mockList.mockResolvedValue([{
-      name: '@synergenius/flowweaver-pack-test',
+      name: '@synergenius/flow-weaver-pack-test',
       version: '1.0.0',
       manifest: {
         manifestVersion: 1,
-        name: '@synergenius/flowweaver-pack-test',
+        name: '@synergenius/flow-weaver-pack-test',
         version: '1.0.0',
         nodeTypes: [],
         workflows: [],
@@ -46,11 +46,11 @@ describe('registerPackCommands', () => {
 
   it('registers subcommand group from pack namespace', async () => {
     mockList.mockResolvedValue([{
-      name: '@synergenius/flowweaver-pack-weaver',
+      name: '@synergenius/flow-weaver-pack-weaver',
       version: '0.4.0',
       manifest: {
         manifestVersion: 1,
-        name: '@synergenius/flowweaver-pack-weaver',
+        name: '@synergenius/flow-weaver-pack-weaver',
         version: '0.4.0',
         nodeTypes: [],
         workflows: [],
@@ -76,11 +76,11 @@ describe('registerPackCommands', () => {
 
   it('derives namespace correctly from scoped package', async () => {
     mockList.mockResolvedValue([{
-      name: '@myorg/flowweaver-pack-gitlab-ci',
+      name: '@myorg/flow-weaver-pack-gitlab-ci',
       version: '1.0.0',
       manifest: {
         manifestVersion: 1,
-        name: '@myorg/flowweaver-pack-gitlab-ci',
+        name: '@myorg/flow-weaver-pack-gitlab-ci',
         version: '1.0.0',
         nodeTypes: [],
         workflows: [],
@@ -99,11 +99,11 @@ describe('registerPackCommands', () => {
 
   it('derives namespace correctly from unscoped package', async () => {
     mockList.mockResolvedValue([{
-      name: 'flowweaver-pack-docker',
+      name: 'flow-weaver-pack-docker',
       version: '1.0.0',
       manifest: {
         manifestVersion: 1,
-        name: 'flowweaver-pack-docker',
+        name: 'flow-weaver-pack-docker',
         version: '1.0.0',
         nodeTypes: [],
         workflows: [],
@@ -128,11 +128,11 @@ describe('registerPackCommands', () => {
 
   it('registers commands with usage and options', async () => {
     mockList.mockResolvedValue([{
-      name: '@synergenius/flowweaver-pack-test',
+      name: '@synergenius/flow-weaver-pack-test',
       version: '1.0.0',
       manifest: {
         manifestVersion: 1,
-        name: '@synergenius/flowweaver-pack-test',
+        name: '@synergenius/flow-weaver-pack-test',
         version: '1.0.0',
         nodeTypes: [],
         workflows: [],

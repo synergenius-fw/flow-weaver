@@ -56,7 +56,7 @@ describe('template regressions', () => {
     );
   });
 
-  // durable pipeline regex escaping: tested in flowweaver-pack-inngest
+  // durable pipeline regex escaping: tested in flow-weaver-pack-inngest
 
   describe('ReAct workflow completeness', () => {
     // BUG: Original ai-react template had no actual loop, wrong port types,
@@ -134,7 +134,7 @@ describe('agent rule integration regressions', () => {
       expect(code).toContain('__fw_llm_provider__');
     });
 
-    // ai-agent-durable and ai-pipeline-durable are tested in flowweaver-pack-inngest
+    // ai-agent-durable and ai-pipeline-durable are tested in flow-weaver-pack-inngest
     it.each(['ai-agent', 'ai-react', 'ai-chat', 'ai-rag'])(
       '%s workflow template should use globalThis fallback',
       (templateId) => {

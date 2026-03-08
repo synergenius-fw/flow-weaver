@@ -64,7 +64,7 @@ describe('marketInitCommand', () => {
     const capture = captureLogs();
 
     try {
-      const pkgName = 'flowweaver-pack-test-init';
+      const pkgName = 'flow-weaver-pack-test-init';
       // process.cwd is mocked to MARKET_TEMP_DIR, so path.resolve(name)
       // naturally resolves to path.join(MARKET_TEMP_DIR, name)
       const targetDir = path.join(MARKET_TEMP_DIR, pkgName);
@@ -114,13 +114,13 @@ describe('marketInitCommand', () => {
     }
   });
 
-  it('should auto-prefix package name with flowweaver-pack-', async () => {
+  it('should auto-prefix package name with flow-weaver-pack-', async () => {
     const { marketInitCommand } = await import('../../src/cli/commands/market');
     const capture = captureLogs();
 
     try {
       const rawName = 'my-custom-tool';
-      const expectedName = `flowweaver-pack-${rawName}`;
+      const expectedName = `flow-weaver-pack-${rawName}`;
       const targetDir = path.join(MARKET_TEMP_DIR, expectedName);
 
       if (fs.existsSync(targetDir)) {
@@ -141,7 +141,7 @@ describe('marketInitCommand', () => {
     const capture = captureLogs();
 
     try {
-      const pkgName = 'flowweaver-pack-nonempty';
+      const pkgName = 'flow-weaver-pack-nonempty';
       const targetDir = path.join(MARKET_TEMP_DIR, pkgName);
 
       // Create non-empty directory
@@ -182,7 +182,7 @@ describe('marketPackCommand', () => {
       fs.writeFileSync(
         path.join(dir, 'package.json'),
         JSON.stringify({
-          name: 'flowweaver-pack-json-test',
+          name: 'flow-weaver-pack-json-test',
           version: '1.0.0',
           flowWeaver: { type: 'marketplace-pack', engineVersion: '>=0.1.0' },
         })
@@ -211,7 +211,7 @@ describe('marketPackCommand', () => {
       fs.writeFileSync(
         path.join(dir, 'package.json'),
         JSON.stringify({
-          name: 'flowweaver-pack-human-test',
+          name: 'flow-weaver-pack-human-test',
           version: '1.0.0',
           flowWeaver: { type: 'marketplace-pack', engineVersion: '>=0.1.0' },
         })
@@ -254,7 +254,7 @@ describe('marketSearchCommand', () => {
         objects: [
           {
             package: {
-              name: 'flowweaver-pack-test',
+              name: 'flow-weaver-pack-test',
               version: '1.0.0',
               description: 'A test pack',
               keywords: ['flowweaver-marketplace-pack'],
@@ -274,7 +274,7 @@ describe('marketSearchCommand', () => {
       expect(capture.logs.length).toBeGreaterThan(0);
       const output = JSON.parse(capture.logs.join(''));
       expect(Array.isArray(output)).toBe(true);
-      expect(output[0].name).toBe('flowweaver-pack-test');
+      expect(output[0].name).toBe('flow-weaver-pack-test');
     } finally {
       capture.restore();
     }
@@ -317,14 +317,14 @@ describe('marketListCommand', () => {
   });
 
   it('should output JSON when --json is set with packages', async () => {
-    // Create a real node_modules/flowweaver-pack-mock with manifest
+    // Create a real node_modules/flow-weaver-pack-mock with manifest
     const listDir = path.join(MARKET_TEMP_DIR, 'list-json');
-    const pkgDir = path.join(listDir, 'node_modules', 'flowweaver-pack-mock');
+    const pkgDir = path.join(listDir, 'node_modules', 'flow-weaver-pack-mock');
     fs.mkdirSync(pkgDir, { recursive: true });
 
     const manifest = {
       manifestVersion: 2,
-      name: 'flowweaver-pack-mock',
+      name: 'flow-weaver-pack-mock',
       version: '2.0.0',
       nodeTypes: [{ name: 'MockNode', inputs: [], outputs: [] }],
       workflows: [],
@@ -332,7 +332,7 @@ describe('marketListCommand', () => {
     };
     fs.writeFileSync(path.join(pkgDir, 'flowweaver.manifest.json'), JSON.stringify(manifest));
     fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify({
-      name: 'flowweaver-pack-mock',
+      name: 'flow-weaver-pack-mock',
       version: '2.0.0',
     }));
 
@@ -347,7 +347,7 @@ describe('marketListCommand', () => {
       expect(capture.logs.length).toBeGreaterThan(0);
       const output = JSON.parse(capture.logs.join(''));
       expect(Array.isArray(output)).toBe(true);
-      expect(output[0].name).toBe('flowweaver-pack-mock');
+      expect(output[0].name).toBe('flow-weaver-pack-mock');
       expect(output[0].nodeTypes).toBe(1);
     } finally {
       capture.restore();
@@ -364,41 +364,41 @@ describe('resolvePackageName', () => {
 
   it('should handle tarball paths', () => {
     // The function is not exported, so test the expected behavior:
-    // flowweaver-pack-test-1.0.0.tgz -> flowweaver-pack-test
-    const spec = 'flowweaver-pack-test-1.0.0.tgz';
+    // flow-weaver-pack-test-1.0.0.tgz -> flow-weaver-pack-test
+    const spec = 'flow-weaver-pack-test-1.0.0.tgz';
     const base = path.basename(spec, '.tgz');
     const match = base.match(/^(.+)-\d+\.\d+\.\d+/);
     expect(match).not.toBeNull();
-    expect(match![1]).toBe('flowweaver-pack-test');
+    expect(match![1]).toBe('flow-weaver-pack-test');
   });
 
   it('should handle scoped packages with version', () => {
-    const spec = '@synergenius/flowweaver-pack-core@1.2.3';
+    const spec = '@synergenius/flow-weaver-pack-core@1.2.3';
     // For scoped: first @ is part of scope, second @ separates version
     const atIndex = spec.indexOf('@', 1);
     const name = atIndex > 0 ? spec.slice(0, atIndex) : spec;
-    expect(name).toBe('@synergenius/flowweaver-pack-core');
+    expect(name).toBe('@synergenius/flow-weaver-pack-core');
   });
 
   it('should handle unscoped packages with version', () => {
-    const spec = 'flowweaver-pack-test@2.0.0';
+    const spec = 'flow-weaver-pack-test@2.0.0';
     const atIndex = spec.indexOf('@');
     const name = atIndex > 0 ? spec.slice(0, atIndex) : spec;
-    expect(name).toBe('flowweaver-pack-test');
+    expect(name).toBe('flow-weaver-pack-test');
   });
 
   it('should handle bare package names', () => {
-    const spec = 'flowweaver-pack-test';
+    const spec = 'flow-weaver-pack-test';
     const atIndex = spec.indexOf('@');
     const name = atIndex > 0 ? spec.slice(0, atIndex) : spec;
-    expect(name).toBe('flowweaver-pack-test');
+    expect(name).toBe('flow-weaver-pack-test');
   });
 
   it('should handle .tar.gz tarballs', () => {
-    const spec = 'flowweaver-pack-utils-0.5.0.tar.gz';
+    const spec = 'flow-weaver-pack-utils-0.5.0.tar.gz';
     const base = path.basename(spec, '.tar.gz');
     const match = base.match(/^(.+)-\d+\.\d+\.\d+/);
     expect(match).not.toBeNull();
-    expect(match![1]).toBe('flowweaver-pack-utils');
+    expect(match![1]).toBe('flow-weaver-pack-utils');
   });
 });

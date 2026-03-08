@@ -280,7 +280,7 @@ describe('Template code generation', () => {
   });
 
   // ai-agent-durable and ai-pipeline-durable templates are contributed by
-  // flowweaver-pack-inngest and tested there.
+  // flow-weaver-pack-inngest and tested there.
 
   describe('node templates', () => {
     it('should generate validator node', () => {
