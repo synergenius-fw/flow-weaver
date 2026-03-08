@@ -23,7 +23,7 @@ import { validatePackage } from '../../../src/marketplace/validator.js';
 function makeManifest(overrides?: Partial<TMarketplaceManifest>): TMarketplaceManifest {
   return {
     manifestVersion: 2,
-    name: 'flowweaver-pack-test',
+    name: 'flow-weaver-pack-test',
     version: '1.0.0',
     nodeTypes: [
       {
@@ -45,7 +45,7 @@ function makeManifest(overrides?: Partial<TMarketplaceManifest>): TMarketplaceMa
 
 function makePackageJson(overrides?: Record<string, unknown>): Record<string, unknown> {
   return {
-    name: 'flowweaver-pack-test',
+    name: 'flow-weaver-pack-test',
     version: '1.0.0',
     keywords: ['flowweaver-marketplace-pack'],
     flowWeaver: { engineVersion: '>=0.9.0' },
@@ -112,22 +112,6 @@ describe('validatePackage', () => {
   // ── PKG-005: Package name pattern ────────────────────────────────────────
 
   describe('PKG-005: package name format', () => {
-    it('accepts unscoped flowweaver-pack-* names', async () => {
-      setupFs(makePackageJson({ name: 'flowweaver-pack-openai' }));
-      const result = await validatePackage(DIR, makeManifest());
-
-      const codes = result.issues.map((i) => i.code);
-      expect(codes).not.toContain('PKG-005');
-    });
-
-    it('accepts scoped @org/flowweaver-pack-* names', async () => {
-      setupFs(makePackageJson({ name: '@myorg/flowweaver-pack-openai' }));
-      const result = await validatePackage(DIR, makeManifest());
-
-      const codes = result.issues.map((i) => i.code);
-      expect(codes).not.toContain('PKG-005');
-    });
-
     it('accepts unscoped flow-weaver-pack-* names', async () => {
       setupFs(makePackageJson({ name: 'flow-weaver-pack-openai' }));
       const result = await validatePackage(DIR, makeManifest());
@@ -142,6 +126,13 @@ describe('validatePackage', () => {
 
       const codes = result.issues.map((i) => i.code);
       expect(codes).not.toContain('PKG-005');
+    });
+
+    it('rejects old flowweaver-pack-* naming (no backwards compat)', async () => {
+      setupFs(makePackageJson({ name: 'flowweaver-pack-openai' }));
+      const result = await validatePackage(DIR, makeManifest());
+
+      expect(result.issues.find((i) => i.code === 'PKG-005')).toBeDefined();
     });
 
     it('rejects names that do not match the pattern', async () => {

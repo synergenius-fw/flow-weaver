@@ -25,11 +25,11 @@ describe('registerPackMcpTools', () => {
 
   it('does nothing when packs have no mcpEntrypoint', async () => {
     mockList.mockResolvedValue([{
-      name: '@synergenius/flowweaver-pack-test',
+      name: '@synergenius/flow-weaver-pack-test',
       version: '1.0.0',
       manifest: {
         manifestVersion: 1,
-        name: '@synergenius/flowweaver-pack-test',
+        name: '@synergenius/flow-weaver-pack-test',
         version: '1.0.0',
         nodeTypes: [],
         workflows: [],
@@ -43,11 +43,11 @@ describe('registerPackMcpTools', () => {
 
   it('does nothing when packs have empty mcpTools', async () => {
     mockList.mockResolvedValue([{
-      name: '@synergenius/flowweaver-pack-test',
+      name: '@synergenius/flow-weaver-pack-test',
       version: '1.0.0',
       manifest: {
         manifestVersion: 1,
-        name: '@synergenius/flowweaver-pack-test',
+        name: '@synergenius/flow-weaver-pack-test',
         version: '1.0.0',
         nodeTypes: [],
         workflows: [],
@@ -71,11 +71,11 @@ describe('registerPackMcpTools', () => {
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
     mockList.mockResolvedValue([{
-      name: '@synergenius/flowweaver-pack-broken',
+      name: '@synergenius/flow-weaver-pack-broken',
       version: '1.0.0',
       manifest: {
         manifestVersion: 1,
-        name: '@synergenius/flowweaver-pack-broken',
+        name: '@synergenius/flow-weaver-pack-broken',
         version: '1.0.0',
         nodeTypes: [],
         workflows: [],

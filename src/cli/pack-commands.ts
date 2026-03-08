@@ -49,7 +49,7 @@ function checkPackEngineVersion(pkg: TInstalledPackage): void {
  */
 function deriveNamespace(packageName: string): string {
   const base = packageName.replace(/^@[^/]+\//, '');
-  return base.replace(/^(flowweaver|flow-weaver)-pack-/, '');
+  return base.replace(/^flow-weaver-pack-/, '');
 }
 
 export async function registerPackCommands(program: Command): Promise<void> {

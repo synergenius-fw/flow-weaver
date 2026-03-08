@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Check that sibling flowweaver-pack-* repos have peerDependencies satisfiable
+ * Check that sibling flow-weaver-pack-* repos have peerDependencies satisfiable
  * by the current flow-weaver core version.
  *
  * Usage:
@@ -70,10 +70,10 @@ const coreVersion = corePkg.version;
 const coreName = corePkg.name;
 
 // Find sibling pack directories
-const siblings = fs.readdirSync(parentDir).filter((name) => name.startsWith('flowweaver-pack-'));
+const siblings = fs.readdirSync(parentDir).filter((name) => name.startsWith('flow-weaver-pack-'));
 
 if (siblings.length === 0) {
-  console.log('No sibling flowweaver-pack-* directories found.');
+  console.log('No sibling flow-weaver-pack-* directories found.');
   process.exit(0);
 }
 
@@ -90,7 +90,7 @@ for (const dir of siblings) {
 
   for (const [dep, range] of Object.entries(peerDeps) as [string, string][]) {
     // Only check flow-weaver core and other sibling packs
-    if (dep !== coreName && !dep.includes('flowweaver-pack-')) continue;
+    if (dep !== coreName && !dep.includes('flow-weaver-pack-')) continue;
 
     let targetVersion: string;
     if (dep === coreName) {
