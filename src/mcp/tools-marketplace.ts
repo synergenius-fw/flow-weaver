@@ -69,7 +69,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
     'fw_market_install',
     'Install a Flow Weaver marketplace package via npm. After installation, the package\'s node types, workflows, and patterns become available for use.',
     {
-      package: z.string().describe('Package name or specifier (e.g., "flowweaver-pack-openai" or "flowweaver-pack-openai@1.0.0")'),
+      package: z.string().describe('Package name or specifier (e.g., "flow-weaver-pack-openai" or "flow-weaver-pack-openai@1.0.0")'),
     },
     async (args: { package: string }) => {
       try {

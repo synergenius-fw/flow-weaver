@@ -82,7 +82,7 @@ export async function exportWorkflow(options: ExportOptions): Promise<ExportResu
     const available = registry.getNames();
     throw new Error(
       available.length === 0
-        ? `No export targets installed. Install a target pack (e.g. npm install flowweaver-pack-${options.target})`
+        ? `No export targets installed. Install a target pack (e.g. npm install flow-weaver-pack-${options.target})`
         : `Unknown target "${options.target}". Installed: ${available.join(', ')}`
     );
   }

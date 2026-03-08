@@ -81,7 +81,7 @@ export function registerExportTools(mcp: McpServer): void {
           return makeErrorResult(
             'INVALID_TARGET',
             available.length === 0
-              ? `No export targets installed. Install a target pack (e.g. npm install flowweaver-pack-${args.target})`
+              ? `No export targets installed. Install a target pack (e.g. npm install flow-weaver-pack-${args.target})`
               : `Unknown target: "${args.target}". Installed: ${available.join(', ')}`
           );
         }

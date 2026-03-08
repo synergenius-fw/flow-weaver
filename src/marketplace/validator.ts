@@ -15,7 +15,7 @@ function issue(code: string, severity: TValidationSeverity, message: string): TV
   return { code, severity, message };
 }
 
-const PACK_NAME_RE = /^(@[^/]+\/)?(flowweaver|flow-weaver)-pack-.+$/;
+const PACK_NAME_RE = /^(@[^/]+\/)?flow-weaver-pack-.+$/;
 const MARKETPLACE_KEYWORD = 'flowweaver-marketplace-pack';
 
 // ── Package-level rules ──────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ function validatePackageJson(
 ): TValidationIssue[] {
   const issues: TValidationIssue[] = [];
 
-  // PKG-005: Name must match flowweaver-pack-* or @*/flowweaver-pack-*
+  // PKG-005: Name must match flow-weaver-pack-* or @*/flow-weaver-pack-*
   const name = pkg.name as string | undefined;
   if (!name || !PACK_NAME_RE.test(name)) {
     issues.push(

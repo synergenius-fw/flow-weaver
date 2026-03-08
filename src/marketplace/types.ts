@@ -1,7 +1,7 @@
 /**
  * Marketplace types for Flow Weaver package distribution.
  *
- * Packages follow the naming convention `flowweaver-pack-*` and use
+ * Packages follow the naming convention `flow-weaver-pack-*` and use
  * npm as the distribution backbone. The manifest is auto-generated
  * from source annotations via the parser.
  */
@@ -290,7 +290,7 @@ export type TManifestMcpTool = {
 // ── Init scaffold ────────────────────────────────────────────────────────────
 
 export type TMarketInitConfig = {
-  /** Package name (e.g., flowweaver-pack-openai) */
+  /** Package name (e.g., flow-weaver-pack-openai) */
   name: string;
   /** Target directory */
   directory: string;

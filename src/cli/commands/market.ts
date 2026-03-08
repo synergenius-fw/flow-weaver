@@ -31,9 +31,9 @@ export interface MarketInitOptions {
  */
 export async function marketInitCommand(name: string, options: MarketInitOptions = {}): Promise<void> {
   // Validate name
-  if (!name.startsWith('flowweaver-pack-')) {
-    const suggested = `flowweaver-pack-${name}`;
-    logger.warn(`Name should follow "flowweaver-pack-*" convention, using "${suggested}"`);
+  if (!name.startsWith('flow-weaver-pack-')) {
+    const suggested = `flow-weaver-pack-${name}`;
+    logger.warn(`Name should follow "flow-weaver-pack-*" convention, using "${suggested}"`);
     name = suggested;
   }
 
@@ -71,7 +71,7 @@ export async function marketInitCommand(name: string, options: MarketInitOptions
   }
 
   // package.json
-  const shortName = name.replace(/^flowweaver-pack-/, '');
+  const shortName = name.replace(/^flow-weaver-pack-/, '');
   const pkg = {
     name,
     version: '1.0.0',
@@ -515,7 +515,7 @@ function resolvePackageName(spec: string): string {
   if (spec.endsWith('.tgz') || spec.endsWith('.tar.gz')) {
     // For local tarballs, try to extract the package name
     const base = path.basename(spec, spec.endsWith('.tar.gz') ? '.tar.gz' : '.tgz');
-    // flowweaver-pack-test-1.0.0 → flowweaver-pack-test
+    // flow-weaver-pack-test-1.0.0 → flow-weaver-pack-test
     const match = base.match(/^(.+)-\d+\.\d+\.\d+/);
     return match ? match[1] : base;
   }
