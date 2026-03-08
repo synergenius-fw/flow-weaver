@@ -15,7 +15,7 @@ function issue(code: string, severity: TValidationSeverity, message: string): TV
   return { code, severity, message };
 }
 
-const PACK_NAME_RE = /^(@[^/]+\/)?flow-weaver-pack-.+$/;
+const PACK_NAME_RE = /^(@[^/]+\/)?(flowweaver|flow-weaver)-pack-.+$/;
 const MARKETPLACE_KEYWORD = 'flowweaver-marketplace-pack';
 
 // ── Package-level rules ──────────────────────────────────────────────────────

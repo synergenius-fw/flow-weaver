@@ -21,7 +21,7 @@ import type {
 
 const MARKETPLACE_KEYWORD = 'flowweaver-marketplace-pack';
 const NPM_SEARCH_URL = 'https://registry.npmjs.org/-/v1/search';
-const PACK_NAME_RE = /^(@[^/]+\/)?flow-weaver-pack-.+$/;
+const PACK_NAME_RE = /^(@[^/]+\/)?(flowweaver|flow-weaver)-pack-.+$/;
 
 // ── npm search ───────────────────────────────────────────────────────────────
 
@@ -96,8 +96,10 @@ export async function listInstalledPackages(
   const nodeModules = path.join(projectDir, 'node_modules');
   if (!fs.existsSync(nodeModules)) return [];
 
-  // Look for flow-weaver-pack-* and @*/flow-weaver-pack-* directories
+  // Look for both flowweaver-pack-* and flow-weaver-pack-* directories
   const patterns = [
+    path.join(nodeModules, 'flowweaver-pack-*', 'flowweaver.manifest.json'),
+    path.join(nodeModules, '@*', 'flowweaver-pack-*', 'flowweaver.manifest.json'),
     path.join(nodeModules, 'flow-weaver-pack-*', 'flowweaver.manifest.json'),
     path.join(nodeModules, '@*', 'flow-weaver-pack-*', 'flowweaver.manifest.json'),
   ];
