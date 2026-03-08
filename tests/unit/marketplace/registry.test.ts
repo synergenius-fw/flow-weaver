@@ -255,11 +255,13 @@ describe('listInstalledPackages', () => {
 
     await listInstalledPackages('/project');
 
-    // Called once per pattern (unscoped and scoped)
-    expect(mockGlob).toHaveBeenCalledTimes(2);
+    // Called once per pattern (unscoped and scoped, for both naming conventions)
+    expect(mockGlob).toHaveBeenCalledTimes(4);
     const patterns = mockGlob.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(patterns.some((p: string) => p.includes('flowweaver-pack-*') && !p.includes('@*'))).toBe(true);
     expect(patterns.some((p: string) => p.includes('@*') && p.includes('flowweaver-pack-*'))).toBe(true);
+    expect(patterns.some((p: string) => p.includes('flow-weaver-pack-*') && !p.includes('@*'))).toBe(true);
+    expect(patterns.some((p: string) => p.includes('@*') && p.includes('flow-weaver-pack-*'))).toBe(true);
   });
 
   it('returns installed packages with manifest and version from package.json', async () => {
@@ -273,6 +275,8 @@ describe('listInstalledPackages', () => {
 
     mockGlob
       .mockResolvedValueOnce([manifestPath])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     readFileSyncMock.mockImplementation((p: string) => {
@@ -307,6 +311,8 @@ describe('listInstalledPackages', () => {
 
     mockGlob
       .mockResolvedValueOnce([manifestPath])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     readFileSyncMock.mockImplementation((p: string) => {
@@ -334,7 +340,9 @@ describe('listInstalledPackages', () => {
 
     mockGlob
       .mockResolvedValueOnce([mp1])
-      .mockResolvedValueOnce([mp2]);
+      .mockResolvedValueOnce([mp2])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
 
     readFileSyncMock.mockImplementation((p: string) => {
       if (p === mp1) return JSON.stringify(m1);
@@ -356,6 +364,8 @@ describe('listInstalledPackages', () => {
     const manifestPath = '/project/node_modules/flowweaver-pack-bad/flowweaver.manifest.json';
     mockGlob
       .mockResolvedValueOnce([manifestPath])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     const results = await listInstalledPackages('/project');
