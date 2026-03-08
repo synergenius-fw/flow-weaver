@@ -696,7 +696,7 @@ flow-weaver export workflow.ts --target inngest --output dist/ --durable-steps
 flow-weaver export workflow.ts --target cloudflare --output worker/
 ```
 
-> Available targets depend on installed `flowweaver-pack-*` packages. See [Deployment](deployment) for installation instructions and target-specific details.
+> Available targets depend on installed `flow-weaver-pack-*` packages. See [Deployment](deployment) for installation instructions and target-specific details.
 
 ---
 

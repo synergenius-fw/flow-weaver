@@ -29,7 +29,7 @@ describe('marketplace types', () => {
   it('TMarketplaceManifest accepts CLI and MCP fields', () => {
     const manifest: TMarketplaceManifest = {
       manifestVersion: 1,
-      name: 'flowweaver-pack-test',
+      name: 'flow-weaver-pack-test',
       version: '1.0.0',
       nodeTypes: [],
       workflows: [],
@@ -46,7 +46,7 @@ describe('marketplace types', () => {
   it('TMarketplaceManifest works without CLI and MCP fields', () => {
     const manifest: TMarketplaceManifest = {
       manifestVersion: 1,
-      name: 'flowweaver-pack-basic',
+      name: 'flow-weaver-pack-basic',
       version: '1.0.0',
       nodeTypes: [],
       workflows: [],

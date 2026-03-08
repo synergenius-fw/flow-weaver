@@ -250,9 +250,9 @@ The scope's output ports become callback parameters, and input ports become retu
 Same workflow source, multiple deployment targets. Export targets are provided by marketplace packs — install the ones you need:
 
 ```bash
-npm install @synergenius/flowweaver-pack-lambda @synergenius/flowweaver-pack-vercel \
-  @synergenius/flowweaver-pack-cloudflare @synergenius/flowweaver-pack-inngest \
-  @synergenius/flowweaver-pack-github-actions @synergenius/flowweaver-pack-gitlab-ci
+npm install @synergenius/flow-weaver-pack-lambda @synergenius/flow-weaver-pack-vercel \
+  @synergenius/flow-weaver-pack-cloudflare @synergenius/flow-weaver-pack-inngest \
+  @synergenius/flow-weaver-pack-github-actions @synergenius/flow-weaver-pack-gitlab-ci
 ```
 
 ```bash

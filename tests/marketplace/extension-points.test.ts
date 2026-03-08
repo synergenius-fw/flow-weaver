@@ -347,7 +347,7 @@ describe('Manifest v2 types', () => {
   it('accepts manifestVersion 2 with extension fields', () => {
     const manifest: TMarketplaceManifest = {
       manifestVersion: 2,
-      name: 'flowweaver-pack-test',
+      name: 'flow-weaver-pack-test',
       version: '1.0.0',
       nodeTypes: [],
       workflows: [],
@@ -396,7 +396,7 @@ describe('Manifest v2 types', () => {
   it('accepts manifest without extension fields', () => {
     const manifest: TMarketplaceManifest = {
       manifestVersion: 2,
-      name: 'flowweaver-pack-minimal',
+      name: 'flow-weaver-pack-minimal',
       version: '1.0.0',
       nodeTypes: [],
       workflows: [],

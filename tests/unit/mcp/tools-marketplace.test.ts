@@ -68,7 +68,7 @@ describe('tools-marketplace', () => {
     it('returns matching packages', async () => {
       mockSearchPackages.mockResolvedValue([
         {
-          name: 'flowweaver-pack-openai',
+          name: 'flow-weaver-pack-openai',
           version: '1.2.0',
           description: 'OpenAI node types',
           official: true,
@@ -107,7 +107,7 @@ describe('tools-marketplace', () => {
 
     it('searches with no query to browse all packages', async () => {
       mockSearchPackages.mockResolvedValue([
-        { name: 'flowweaver-pack-a', version: '1.0.0', description: 'A', official: false, publisher: 'user' },
+        { name: 'flow-weaver-pack-a', version: '1.0.0', description: 'A', official: false, publisher: 'user' },
       ]);
 
       const result = parseResult(await callSearch({}));
@@ -149,7 +149,7 @@ describe('tools-marketplace', () => {
         patterns: [{ name: 'retry', description: 'Retry pattern' }],
       });
 
-      const result = parseResult(await callInstall({ package: 'flowweaver-pack-openai' }));
+      const result = parseResult(await callInstall({ package: 'flow-weaver-pack-openai' }));
       expect(result.success).toBe(true);
       const data = result.data as {
         installed: string;
@@ -158,7 +158,7 @@ describe('tools-marketplace', () => {
         workflows: unknown[];
         patterns: unknown[];
       };
-      expect(data.installed).toBe('flowweaver-pack-openai');
+      expect(data.installed).toBe('flow-weaver-pack-openai');
       expect(data.version).toBe('2.0.0');
       expect(data.nodeTypes).toHaveLength(1);
       expect(data.workflows).toHaveLength(1);
@@ -180,30 +180,30 @@ describe('tools-marketplace', () => {
       mockExecSync.mockReturnValue(Buffer.from('ok'));
       mockGetInstalledPackageManifest.mockReturnValue(null);
 
-      const result = parseResult(await callInstall({ package: '@scope/flowweaver-pack' }));
+      const result = parseResult(await callInstall({ package: '@scope/flow-weaver-pack' }));
       expect(result.success).toBe(true);
       const data = result.data as { installed: string };
-      expect(data.installed).toBe('@scope/flowweaver-pack');
+      expect(data.installed).toBe('@scope/flow-weaver-pack');
     });
 
     it('strips version from scoped package specifier', async () => {
       mockExecSync.mockReturnValue(Buffer.from('ok'));
       mockGetInstalledPackageManifest.mockReturnValue(null);
 
-      const result = parseResult(await callInstall({ package: '@scope/flowweaver-pack@1.0.0' }));
+      const result = parseResult(await callInstall({ package: '@scope/flow-weaver-pack@1.0.0' }));
       expect(result.success).toBe(true);
       const data = result.data as { installed: string };
-      expect(data.installed).toBe('@scope/flowweaver-pack');
+      expect(data.installed).toBe('@scope/flow-weaver-pack');
     });
 
     it('strips version from unscoped package specifier', async () => {
       mockExecSync.mockReturnValue(Buffer.from('ok'));
       mockGetInstalledPackageManifest.mockReturnValue(null);
 
-      const result = parseResult(await callInstall({ package: 'flowweaver-pack-x@2.3.1' }));
+      const result = parseResult(await callInstall({ package: 'flow-weaver-pack-x@2.3.1' }));
       expect(result.success).toBe(true);
       const data = result.data as { installed: string };
-      expect(data.installed).toBe('flowweaver-pack-x');
+      expect(data.installed).toBe('flow-weaver-pack-x');
     });
 
     it('handles npm install failure', async () => {
@@ -229,9 +229,9 @@ describe('tools-marketplace', () => {
     it('returns installed packages with manifests', async () => {
       mockListInstalledPackages.mockResolvedValue([
         {
-          name: 'flowweaver-pack-openai',
+          name: 'flow-weaver-pack-openai',
           version: '1.0.0',
-          path: '/project/node_modules/flowweaver-pack-openai',
+          path: '/project/node_modules/flow-weaver-pack-openai',
           manifest: {
             nodeTypes: [{ name: 'Chat', description: 'LLM chat' }],
             workflows: [],
@@ -249,9 +249,9 @@ describe('tools-marketplace', () => {
     it('maps workflows and patterns from installed packages', async () => {
       mockListInstalledPackages.mockResolvedValue([
         {
-          name: 'flowweaver-pack-full',
+          name: 'flow-weaver-pack-full',
           version: '2.0.0',
-          path: '/project/node_modules/flowweaver-pack-full',
+          path: '/project/node_modules/flow-weaver-pack-full',
           manifest: {
             nodeTypes: [{ name: 'NodeA', description: 'A node' }],
             workflows: [

@@ -8,7 +8,7 @@
  * - @deploy in KNOWN_WORKFLOW_TAGS and KNOWN_NODETYPE_TAGS
  *
  * CI/CD-specific tag tests (@secret, @runner, @cache, etc.) live in
- * @synergenius/flowweaver-pack-cicd since that's where the tag handler is now.
+ * @synergenius/flow-weaver-pack-cicd since that's where the tag handler is now.
  */
 
 import { describe, it, expect } from 'vitest';
