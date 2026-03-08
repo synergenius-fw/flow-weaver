@@ -184,55 +184,8 @@ export function registerWorkflowTemplates(templates: WorkflowTemplate[]): void {
   }
 }
 
-/**
- * Load workflow templates from installed pack manifests.
- * Templates declared in `initContributions.templates` are dynamically imported
- * and appended to the available template list.
- *
- * @param projectDir - Project root to scan for installed packs
- */
-export async function loadPackTemplates(projectDir: string): Promise<void> {
-  try {
-    const { listInstalledPackages } = await import('../../marketplace/registry.js');
-    const { registerPackUseCase } = await import('../commands/init-personas.js');
-    const packages = await listInstalledPackages(projectDir);
-
-    for (const pkg of packages) {
-      const contributions = pkg.manifest.initContributions;
-      if (!contributions?.templates) continue;
-
-      // Register use case if declared
-      if (contributions.useCase) {
-        registerPackUseCase(contributions.useCase, contributions.templates);
-      }
-
-      // Pack templates must be exported from the pack's main entry point
-      // or from a templates.js file alongside the manifest
-      try {
-        const templatesPath = await import('path').then((p) =>
-          p.join(pkg.path, 'templates.js'),
-        );
-        const { existsSync } = await import('fs');
-        if (!existsSync(templatesPath)) continue;
-
-        const mod = await import(templatesPath);
-        if (mod.workflowTemplates && Array.isArray(mod.workflowTemplates)) {
-          for (const tmpl of mod.workflowTemplates) {
-            if (contributions.templates.includes(tmpl.id)) {
-              if (!packWorkflowTemplates.some((t) => t.id === tmpl.id)) {
-                packWorkflowTemplates.push(tmpl);
-              }
-            }
-          }
-        }
-      } catch {
-        // Skip packs that fail to load templates
-      }
-    }
-  } catch {
-    // Marketplace scanning not available (e.g., no node_modules)
-  }
-}
+// loadPackTemplates has been moved to ./pack-loader.ts to keep Node.js-only
+// imports (marketplace, fs, child_process) out of the browser bundle.
 
 /**
  * Convert a string to camelCase
