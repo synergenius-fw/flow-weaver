@@ -21,7 +21,7 @@ import type {
 
 const MARKETPLACE_KEYWORD = 'flowweaver-marketplace-pack';
 const NPM_SEARCH_URL = 'https://registry.npmjs.org/-/v1/search';
-const PACK_NAME_RE = /^(@[^/]+\/)?flowweaver-pack-.+$/;
+const PACK_NAME_RE = /^(@[^/]+\/)?(flowweaver|flow-weaver)-pack-.+$/;
 
 // ── npm search ───────────────────────────────────────────────────────────────
 
