@@ -14,8 +14,8 @@ import {
   getAllWorkflowTemplates,
   getWorkflowTemplate,
   registerWorkflowTemplates,
-  loadPackTemplates,
 } from '../../src/cli/templates/index';
+import { loadPackTemplates } from '../../src/cli/templates/pack-loader';
 import type { WorkflowTemplate } from '../../src/cli/templates/index';
 import {
   USE_CASE_CHOICES,
