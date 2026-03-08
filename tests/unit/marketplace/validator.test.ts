@@ -128,6 +128,22 @@ describe('validatePackage', () => {
       expect(codes).not.toContain('PKG-005');
     });
 
+    it('accepts unscoped flow-weaver-pack-* names', async () => {
+      setupFs(makePackageJson({ name: 'flow-weaver-pack-openai' }));
+      const result = await validatePackage(DIR, makeManifest());
+
+      const codes = result.issues.map((i) => i.code);
+      expect(codes).not.toContain('PKG-005');
+    });
+
+    it('accepts scoped @org/flow-weaver-pack-* names', async () => {
+      setupFs(makePackageJson({ name: '@myorg/flow-weaver-pack-openai' }));
+      const result = await validatePackage(DIR, makeManifest());
+
+      const codes = result.issues.map((i) => i.code);
+      expect(codes).not.toContain('PKG-005');
+    });
+
     it('rejects names that do not match the pattern', async () => {
       setupFs(makePackageJson({ name: 'my-cool-package' }));
       const result = await validatePackage(DIR, makeManifest());
