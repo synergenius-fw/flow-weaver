@@ -3,7 +3,7 @@
  *
  * Scans for packs with cliCommands in their manifest. For each pack,
  * registers a Commander subcommand group under the pack namespace
- * (e.g., @synergenius/flowweaver-pack-weaver -> "weaver").
+ * (e.g., @synergenius/flow-weaver-pack-weaver -> "weaver").
  *
  * Command handlers are lazy: the pack's cliEntrypoint is only imported
  * when the user actually invokes a pack command.
@@ -44,12 +44,12 @@ function checkPackEngineVersion(pkg: TInstalledPackage): void {
 
 /**
  * Derive a short namespace from a pack's npm name.
- * @synergenius/flowweaver-pack-weaver -> weaver
- * flowweaver-pack-gitlab-ci -> gitlab-ci
+ * @synergenius/flow-weaver-pack-weaver -> weaver
+ * flow-weaver-pack-gitlab-ci -> gitlab-ci
  */
 function deriveNamespace(packageName: string): string {
   const base = packageName.replace(/^@[^/]+\//, '');
-  return base.replace(/^flowweaver-pack-/, '');
+  return base.replace(/^flow-weaver-pack-/, '');
 }
 
 export async function registerPackCommands(program: Command): Promise<void> {
