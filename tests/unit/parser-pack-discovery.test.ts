@@ -17,13 +17,13 @@ const FIXTURES_DIR = path.join(os.tmpdir(), 'fw-test-pack-discovery');
 
 function setupFakePack(): void {
   // Create a fake pack in node_modules with a tag handler
-  const packDir = path.join(FIXTURES_DIR, 'node_modules', 'flowweaver-pack-test');
+  const packDir = path.join(FIXTURES_DIR, 'node_modules', 'flow-weaver-pack-test');
   fs.mkdirSync(path.join(packDir, 'dist'), { recursive: true });
 
   // Write manifest declaring a tag handler and a validation rule set
   const manifest = {
     manifestVersion: 2,
-    name: 'flowweaver-pack-test',
+    name: 'flow-weaver-pack-test',
     version: '0.1.0',
     nodeTypes: [],
     workflows: [],
@@ -53,7 +53,7 @@ function setupFakePack(): void {
   );
   fs.writeFileSync(
     path.join(packDir, 'package.json'),
-    JSON.stringify({ name: 'flowweaver-pack-test', version: '0.1.0' }),
+    JSON.stringify({ name: 'flow-weaver-pack-test', version: '0.1.0' }),
   );
 
   // Write the handler module
@@ -106,7 +106,7 @@ describe('parser pack discovery', () => {
     expect(parser.tagRegistry.has('customtag')).toBe(true);
 
     // Remove the pack directory to prove we're using cache
-    const packDir = path.join(FIXTURES_DIR, 'node_modules', 'flowweaver-pack-test');
+    const packDir = path.join(FIXTURES_DIR, 'node_modules', 'flow-weaver-pack-test');
     const manifestPath = path.join(packDir, 'flowweaver.manifest.json');
     const original = fs.readFileSync(manifestPath, 'utf-8');
     fs.unlinkSync(manifestPath);
@@ -153,11 +153,11 @@ describe('parser pack discovery', () => {
 
   it('silently skips packs with missing handler files', async () => {
     const brokenDir = path.join(os.tmpdir(), 'fw-test-pack-broken');
-    fs.mkdirSync(path.join(brokenDir, 'node_modules', 'flowweaver-pack-broken'), { recursive: true });
+    fs.mkdirSync(path.join(brokenDir, 'node_modules', 'flow-weaver-pack-broken'), { recursive: true });
 
     const manifest = {
       manifestVersion: 2,
-      name: 'flowweaver-pack-broken',
+      name: 'flow-weaver-pack-broken',
       version: '0.1.0',
       nodeTypes: [],
       workflows: [],
@@ -173,12 +173,12 @@ describe('parser pack discovery', () => {
       ],
     };
     fs.writeFileSync(
-      path.join(brokenDir, 'node_modules', 'flowweaver-pack-broken', 'flowweaver.manifest.json'),
+      path.join(brokenDir, 'node_modules', 'flow-weaver-pack-broken', 'flowweaver.manifest.json'),
       JSON.stringify(manifest),
     );
     fs.writeFileSync(
-      path.join(brokenDir, 'node_modules', 'flowweaver-pack-broken', 'package.json'),
-      JSON.stringify({ name: 'flowweaver-pack-broken', version: '0.1.0' }),
+      path.join(brokenDir, 'node_modules', 'flow-weaver-pack-broken', 'package.json'),
+      JSON.stringify({ name: 'flow-weaver-pack-broken', version: '0.1.0' }),
     );
 
     const parser = new AnnotationParser();
@@ -216,8 +216,8 @@ describe('parser pack discovery', () => {
     fs.mkdirSync(freshDir, { recursive: true });
 
     // Copy the fake pack into this fresh dir
-    const srcPack = path.join(FIXTURES_DIR, 'node_modules', 'flowweaver-pack-test');
-    const dstPack = path.join(freshDir, 'node_modules', 'flowweaver-pack-test');
+    const srcPack = path.join(FIXTURES_DIR, 'node_modules', 'flow-weaver-pack-test');
+    const dstPack = path.join(freshDir, 'node_modules', 'flow-weaver-pack-test');
     fs.cpSync(srcPack, dstPack, { recursive: true });
 
     await parser.loadPackHandlers(freshDir);
@@ -247,12 +247,12 @@ describe('parser pack discovery', () => {
 
   it('skips validation rule sets with missing detect or getRules exports', async () => {
     const badDir = path.join(os.tmpdir(), 'fw-test-pack-bad-rules-' + Date.now());
-    const packDir = path.join(badDir, 'node_modules', 'flowweaver-pack-badrules');
+    const packDir = path.join(badDir, 'node_modules', 'flow-weaver-pack-badrules');
     fs.mkdirSync(path.join(packDir, 'dist'), { recursive: true });
 
     const manifest = {
       manifestVersion: 2,
-      name: 'flowweaver-pack-badrules',
+      name: 'flow-weaver-pack-badrules',
       version: '0.1.0',
       nodeTypes: [],
       workflows: [],
@@ -268,7 +268,7 @@ describe('parser pack discovery', () => {
       ],
     };
     fs.writeFileSync(path.join(packDir, 'flowweaver.manifest.json'), JSON.stringify(manifest));
-    fs.writeFileSync(path.join(packDir, 'package.json'), JSON.stringify({ name: 'flowweaver-pack-badrules', version: '0.1.0' }));
+    fs.writeFileSync(path.join(packDir, 'package.json'), JSON.stringify({ name: 'flow-weaver-pack-badrules', version: '0.1.0' }));
     // Module exists but doesn't export the expected functions
     fs.writeFileSync(path.join(packDir, 'dist', 'rules.js'), 'export const unrelated = 42;');
 

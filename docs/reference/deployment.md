@@ -14,14 +14,14 @@ Export targets are provided by marketplace packs. Install the ones you need:
 
 ```bash
 # Serverless targets
-npm install @synergenius/flowweaver-pack-lambda
-npm install @synergenius/flowweaver-pack-vercel
-npm install @synergenius/flowweaver-pack-cloudflare
-npm install @synergenius/flowweaver-pack-inngest
+npm install @synergenius/flow-weaver-pack-lambda
+npm install @synergenius/flow-weaver-pack-vercel
+npm install @synergenius/flow-weaver-pack-cloudflare
+npm install @synergenius/flow-weaver-pack-inngest
 
 # CI/CD targets
-npm install @synergenius/flowweaver-pack-github-actions
-npm install @synergenius/flowweaver-pack-gitlab-ci
+npm install @synergenius/flow-weaver-pack-github-actions
+npm install @synergenius/flow-weaver-pack-gitlab-ci
 ```
 
 The `export` command automatically discovers installed packs — no configuration needed.

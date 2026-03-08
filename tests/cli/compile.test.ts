@@ -606,7 +606,7 @@ export function dirWorkflow(execute: boolean): Promise<{ onSuccess: boolean; onF
     });
   });
 
-  // Inngest compile target tests are in flowweaver-pack-inngest
+  // Inngest compile target tests are in flow-weaver-pack-inngest
 
   describe('compileCommand error paths', () => {
     it('should report errors and throw with error count for files with parse errors', async () => {

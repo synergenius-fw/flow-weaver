@@ -1,12 +1,12 @@
 ---
 name: Marketplace
 description: Create, publish, install, and manage Flow Weaver marketplace packages and external plugins
-keywords: [marketplace, market, package, publish, install, search, npm, flowweaver-pack, plugin, init, manifest, node types, patterns, workflows, component, area, sandbox]
+keywords: [marketplace, market, package, publish, install, search, npm, flow-weaver-pack, plugin, init, manifest, node types, patterns, workflows, component, area, sandbox]
 ---
 
 # Marketplace
 
-The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node types, workflows, and patterns. Packages follow the `flowweaver-pack-*` naming convention and are discoverable via npm search.
+The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node types, workflows, and patterns. Packages follow the `flow-weaver-pack-*` naming convention and are discoverable via npm search.
 
 ## Overview
 
@@ -25,17 +25,17 @@ Flow Weaver provides 6 official export target packs:
 
 | Package | Target name | Description |
 |---------|-------------|-------------|
-| `@synergenius/flowweaver-pack-lambda` | `lambda` | AWS Lambda + API Gateway |
-| `@synergenius/flowweaver-pack-vercel` | `vercel` | Vercel serverless functions |
-| `@synergenius/flowweaver-pack-cloudflare` | `cloudflare` | Cloudflare Workers |
-| `@synergenius/flowweaver-pack-inngest` | `inngest` | Inngest durable functions |
-| `@synergenius/flowweaver-pack-github-actions` | `github-actions` | GitHub Actions CI/CD pipelines |
-| `@synergenius/flowweaver-pack-gitlab-ci` | `gitlab-ci` | GitLab CI/CD pipelines |
+| `@synergenius/flow-weaver-pack-lambda` | `lambda` | AWS Lambda + API Gateway |
+| `@synergenius/flow-weaver-pack-vercel` | `vercel` | Vercel serverless functions |
+| `@synergenius/flow-weaver-pack-cloudflare` | `cloudflare` | Cloudflare Workers |
+| `@synergenius/flow-weaver-pack-inngest` | `inngest` | Inngest durable functions |
+| `@synergenius/flow-weaver-pack-github-actions` | `github-actions` | GitHub Actions CI/CD pipelines |
+| `@synergenius/flow-weaver-pack-gitlab-ci` | `gitlab-ci` | GitLab CI/CD pipelines |
 
 Install with:
 
 ```bash
-npm install @synergenius/flowweaver-pack-lambda
+npm install @synergenius/flow-weaver-pack-lambda
 ```
 
 See [Deployment](deployment) for target-specific usage details.
@@ -65,8 +65,8 @@ flow-weaver market search openai --registry https://npm.internal.com
 Install a package:
 
 ```bash
-flow-weaver market install flowweaver-pack-openai
-flow-weaver market install flowweaver-pack-openai@1.0.0
+flow-weaver market install flow-weaver-pack-openai
+flow-weaver market install flow-weaver-pack-openai@1.0.0
 ```
 
 After installation, the package's node types, workflows, and patterns are available for use in your workflows via `@fwImport`.
@@ -77,7 +77,7 @@ After installation, the package's node types, workflows, and patterns are availa
 flow-weaver market list
 ```
 
-Shows all installed `flowweaver-pack-*` packages with their available node types, workflows, and patterns.
+Shows all installed `flow-weaver-pack-*` packages with their available node types, workflows, and patterns.
 
 ---
 
@@ -91,8 +91,8 @@ Create a new marketplace package:
 flow-weaver market init openai
 ```
 
-This creates a `flowweaver-pack-openai/` directory with:
-- `package.json` — Configured with `flowweaver-pack` keyword
+This creates a `flow-weaver-pack-openai/` directory with:
+- `package.json` — Configured with `flowweaver-marketplace-pack` keyword
 - `src/` — Source directory for node types, workflows, and patterns
 - `tsconfig.json` — TypeScript configuration
 
@@ -106,7 +106,7 @@ flow-weaver market init openai -y  # Skip prompts
 ### Package Structure
 
 ```
-flowweaver-pack-openai/
+flow-weaver-pack-openai/
   src/
     nodes/
       chat-completion.ts    # @flowWeaver nodeType functions
@@ -149,8 +149,8 @@ flow-weaver market publish --tag beta # Publish with dist-tag
 
 The `market pack` command validates packages against additional rules beyond standard workflow validation:
 
-- Package name must start with `flowweaver-pack-`
-- Must include `flowweaver-pack` keyword in `package.json`
+- Package name must start with `flow-weaver-pack-`
+- Must include `flowweaver-marketplace-pack` keyword in `package.json`
 - All exported node types must have proper annotations
 - All exported workflows must validate successfully
 - No conflicting node type names
@@ -163,7 +163,7 @@ The `market pack` command validates packages against additional rules beyond sta
 
 Tag handlers let packs extend the parser with custom JSDoc annotations. When the parser encounters a tag it doesn't recognize natively, it delegates to registered pack handlers before emitting "Unknown annotation" warnings.
 
-The CI/CD pack (`flowweaver-pack-cicd`) is the primary example: it registers handlers for `@secret`, `@runner`, `@cache`, `@artifact`, and other CI/CD tags.
+The CI/CD pack (`flow-weaver-pack-cicd`) is the primary example: it registers handlers for `@secret`, `@runner`, `@cache`, `@artifact`, and other CI/CD tags.
 
 ### Writing a handler
 

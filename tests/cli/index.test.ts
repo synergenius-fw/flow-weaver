@@ -677,9 +677,9 @@ describe('CLI command registration and parsing', () => {
     });
 
     it('should invoke market install', () => {
-      parseArgs('market', 'install', 'flowweaver-pack-openai');
+      parseArgs('market', 'install', 'flow-weaver-pack-openai');
       expect(mockMarketInstallCommand).toHaveBeenCalled();
-      expect(mockMarketInstallCommand.mock.calls[0][0]).toBe('flowweaver-pack-openai');
+      expect(mockMarketInstallCommand.mock.calls[0][0]).toBe('flow-weaver-pack-openai');
     });
 
     it('should invoke market search', () => {

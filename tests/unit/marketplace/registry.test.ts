@@ -25,7 +25,7 @@ import {
 function makeManifest(overrides?: Partial<TMarketplaceManifest>): TMarketplaceManifest {
   return {
     manifestVersion: 2,
-    name: 'flowweaver-pack-test',
+    name: 'flow-weaver-pack-test',
     version: '1.0.0',
     nodeTypes: [],
     workflows: [],
@@ -123,13 +123,13 @@ describe('searchPackages', () => {
     expect(calledUrl).toContain('my-registry.example.com');
   });
 
-  it('filters results to match flowweaver-pack-* naming', async () => {
+  it('filters results to match flow-weaver-pack-* naming', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(makeNpmSearchResponse([
-        { name: 'flowweaver-pack-openai', version: '1.0.0' },
+        { name: 'flow-weaver-pack-openai', version: '1.0.0' },
         { name: 'flowweaver-utils', version: '2.0.0' },
-        { name: '@org/flowweaver-pack-stripe', version: '0.5.0' },
+        { name: '@org/flow-weaver-pack-stripe', version: '0.5.0' },
         { name: 'unrelated-package', version: '3.0.0' },
       ])),
     });
@@ -139,8 +139,8 @@ describe('searchPackages', () => {
 
     expect(results).toHaveLength(2);
     expect(results.map((r) => r.name)).toEqual([
-      'flowweaver-pack-openai',
-      '@org/flowweaver-pack-stripe',
+      'flow-weaver-pack-openai',
+      '@org/flow-weaver-pack-stripe',
     ]);
   });
 
@@ -149,7 +149,7 @@ describe('searchPackages', () => {
       ok: true,
       json: () => Promise.resolve(makeNpmSearchResponse([
         {
-          name: 'flowweaver-pack-openai',
+          name: 'flow-weaver-pack-openai',
           version: '2.1.0',
           description: 'OpenAI integration',
           keywords: ['flowweaver-marketplace-pack', 'ai'],
@@ -162,7 +162,7 @@ describe('searchPackages', () => {
     const results = await searchPackages();
 
     expect(results[0]).toEqual({
-      name: 'flowweaver-pack-openai',
+      name: 'flow-weaver-pack-openai',
       version: '2.1.0',
       description: 'OpenAI integration',
       keywords: ['flowweaver-marketplace-pack', 'ai'],
@@ -175,7 +175,7 @@ describe('searchPackages', () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(makeNpmSearchResponse([
-        { name: '@synergenius/flowweaver-pack-core', version: '1.0.0' },
+        { name: '@synergenius/flow-weaver-pack-core', version: '1.0.0' },
       ])),
     });
     globalThis.fetch = mockFetch;
@@ -189,7 +189,7 @@ describe('searchPackages', () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(makeNpmSearchResponse([
-        { name: 'flowweaver-pack-community', version: '1.0.0' },
+        { name: 'flow-weaver-pack-community', version: '1.0.0' },
       ])),
     });
     globalThis.fetch = mockFetch;
@@ -226,7 +226,7 @@ describe('searchPackages', () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(makeNpmSearchResponse([
-        { name: 'flowweaver-pack-anon', version: '1.0.0' },
+        { name: 'flow-weaver-pack-anon', version: '1.0.0' },
       ])),
     });
     globalThis.fetch = mockFetch;
@@ -255,11 +255,9 @@ describe('listInstalledPackages', () => {
 
     await listInstalledPackages('/project');
 
-    // Called once per pattern (unscoped and scoped, for both naming conventions)
-    expect(mockGlob).toHaveBeenCalledTimes(4);
+    // Called once per pattern (unscoped and scoped)
+    expect(mockGlob).toHaveBeenCalledTimes(2);
     const patterns = mockGlob.mock.calls.map((c: unknown[]) => c[0] as string);
-    expect(patterns.some((p: string) => p.includes('flowweaver-pack-*') && !p.includes('@*'))).toBe(true);
-    expect(patterns.some((p: string) => p.includes('@*') && p.includes('flowweaver-pack-*'))).toBe(true);
     expect(patterns.some((p: string) => p.includes('flow-weaver-pack-*') && !p.includes('@*'))).toBe(true);
     expect(patterns.some((p: string) => p.includes('@*') && p.includes('flow-weaver-pack-*'))).toBe(true);
   });
@@ -270,13 +268,11 @@ describe('listInstalledPackages', () => {
 
     existsSyncMock.mockReturnValue(true);
 
-    const manifest = makeManifest({ name: 'flowweaver-pack-openai', version: '1.0.0' });
-    const manifestPath = '/project/node_modules/flowweaver-pack-openai/flowweaver.manifest.json';
+    const manifest = makeManifest({ name: 'flow-weaver-pack-openai', version: '1.0.0' });
+    const manifestPath = '/project/node_modules/flow-weaver-pack-openai/flowweaver.manifest.json';
 
     mockGlob
       .mockResolvedValueOnce([manifestPath])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     readFileSyncMock.mockImplementation((p: string) => {
@@ -289,10 +285,10 @@ describe('listInstalledPackages', () => {
 
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({
-      name: 'flowweaver-pack-openai',
+      name: 'flow-weaver-pack-openai',
       version: '1.2.3', // from package.json, not manifest
       manifest,
-      path: '/project/node_modules/flowweaver-pack-openai',
+      path: '/project/node_modules/flow-weaver-pack-openai',
     });
   });
 
@@ -300,8 +296,8 @@ describe('listInstalledPackages', () => {
     const existsSyncMock = fs.existsSync as ReturnType<typeof vi.fn>;
     const readFileSyncMock = fs.readFileSync as ReturnType<typeof vi.fn>;
 
-    const manifest = makeManifest({ name: 'flowweaver-pack-slim', version: '0.5.0' });
-    const manifestPath = '/project/node_modules/flowweaver-pack-slim/flowweaver.manifest.json';
+    const manifest = makeManifest({ name: 'flow-weaver-pack-slim', version: '0.5.0' });
+    const manifestPath = '/project/node_modules/flow-weaver-pack-slim/flowweaver.manifest.json';
 
     existsSyncMock.mockImplementation((p: string) => {
       if (p.endsWith('node_modules')) return true;
@@ -311,8 +307,6 @@ describe('listInstalledPackages', () => {
 
     mockGlob
       .mockResolvedValueOnce([manifestPath])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     readFileSyncMock.mockImplementation((p: string) => {
@@ -332,17 +326,15 @@ describe('listInstalledPackages', () => {
 
     existsSyncMock.mockReturnValue(true);
 
-    const m1 = makeManifest({ name: 'flowweaver-pack-a', version: '1.0.0' });
-    const m2 = makeManifest({ name: '@org/flowweaver-pack-b', version: '2.0.0' });
+    const m1 = makeManifest({ name: 'flow-weaver-pack-a', version: '1.0.0' });
+    const m2 = makeManifest({ name: '@org/flow-weaver-pack-b', version: '2.0.0' });
 
-    const mp1 = '/project/node_modules/flowweaver-pack-a/flowweaver.manifest.json';
-    const mp2 = '/project/node_modules/@org/flowweaver-pack-b/flowweaver.manifest.json';
+    const mp1 = '/project/node_modules/flow-weaver-pack-a/flowweaver.manifest.json';
+    const mp2 = '/project/node_modules/@org/flow-weaver-pack-b/flowweaver.manifest.json';
 
     mockGlob
       .mockResolvedValueOnce([mp1])
-      .mockResolvedValueOnce([mp2])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([mp2]);
 
     readFileSyncMock.mockImplementation((p: string) => {
       if (p === mp1) return JSON.stringify(m1);
@@ -354,18 +346,16 @@ describe('listInstalledPackages', () => {
     const results = await listInstalledPackages('/project');
 
     expect(results).toHaveLength(2);
-    expect(results.map((r) => r.name)).toEqual(['flowweaver-pack-a', '@org/flowweaver-pack-b']);
+    expect(results.map((r) => r.name)).toEqual(['flow-weaver-pack-a', '@org/flow-weaver-pack-b']);
   });
 
   it('skips malformed manifest files without throwing', async () => {
     (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
     (fs.readFileSync as ReturnType<typeof vi.fn>).mockImplementation(() => '{ broken json !!!');
 
-    const manifestPath = '/project/node_modules/flowweaver-pack-bad/flowweaver.manifest.json';
+    const manifestPath = '/project/node_modules/flow-weaver-pack-bad/flowweaver.manifest.json';
     mockGlob
       .mockResolvedValueOnce([manifestPath])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     const results = await listInstalledPackages('/project');
@@ -378,12 +368,12 @@ describe('listInstalledPackages', () => {
 
 describe('getInstalledPackageManifest', () => {
   it('returns the manifest when it exists', () => {
-    const manifest = makeManifest({ name: 'flowweaver-pack-test' });
+    const manifest = makeManifest({ name: 'flow-weaver-pack-test' });
 
     (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
     (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(manifest));
 
-    const result = getInstalledPackageManifest('/project', 'flowweaver-pack-test');
+    const result = getInstalledPackageManifest('/project', 'flow-weaver-pack-test');
 
     expect(result).toEqual(manifest);
   });
@@ -392,10 +382,10 @@ describe('getInstalledPackageManifest', () => {
     (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
     (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(makeManifest()));
 
-    getInstalledPackageManifest('/project', 'flowweaver-pack-test');
+    getInstalledPackageManifest('/project', 'flow-weaver-pack-test');
 
     expect(fs.readFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('node_modules/flowweaver-pack-test/flowweaver.manifest.json'),
+      expect.stringContaining('node_modules/flow-weaver-pack-test/flowweaver.manifest.json'),
       'utf-8',
     );
   });
@@ -404,10 +394,10 @@ describe('getInstalledPackageManifest', () => {
     (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
     (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify(makeManifest()));
 
-    getInstalledPackageManifest('/project', '@org/flowweaver-pack-x');
+    getInstalledPackageManifest('/project', '@org/flow-weaver-pack-x');
 
     expect(fs.readFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('node_modules/@org/flowweaver-pack-x/flowweaver.manifest.json'),
+      expect.stringContaining('node_modules/@org/flow-weaver-pack-x/flowweaver.manifest.json'),
       'utf-8',
     );
   });
@@ -415,7 +405,7 @@ describe('getInstalledPackageManifest', () => {
   it('returns null when the manifest file does not exist', () => {
     (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
 
-    const result = getInstalledPackageManifest('/project', 'flowweaver-pack-missing');
+    const result = getInstalledPackageManifest('/project', 'flow-weaver-pack-missing');
 
     expect(result).toBeNull();
     expect(fs.readFileSync).not.toHaveBeenCalled();
@@ -425,7 +415,7 @@ describe('getInstalledPackageManifest', () => {
     (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
     (fs.readFileSync as ReturnType<typeof vi.fn>).mockReturnValue('not valid json');
 
-    const result = getInstalledPackageManifest('/project', 'flowweaver-pack-broken');
+    const result = getInstalledPackageManifest('/project', 'flow-weaver-pack-broken');
 
     expect(result).toBeNull();
   });
@@ -436,7 +426,7 @@ describe('getInstalledPackageManifest', () => {
       throw new Error('EACCES: permission denied');
     });
 
-    const result = getInstalledPackageManifest('/project', 'flowweaver-pack-noperm');
+    const result = getInstalledPackageManifest('/project', 'flow-weaver-pack-noperm');
 
     expect(result).toBeNull();
   });

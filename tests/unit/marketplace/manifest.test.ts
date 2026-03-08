@@ -51,7 +51,7 @@ describe('marketplace/manifest', () => {
       fs.writeFileSync(
         path.join(tmpDir, 'package.json'),
         JSON.stringify({
-          name: 'flowweaver-pack-test',
+          name: 'flow-weaver-pack-test',
           version: '1.2.3',
           description: 'Test pack',
         }),
@@ -85,7 +85,7 @@ describe('marketplace/manifest', () => {
 
       const result = await generateManifest({ directory: tmpDir });
 
-      expect(result.manifest.name).toBe('flowweaver-pack-test');
+      expect(result.manifest.name).toBe('flow-weaver-pack-test');
       expect(result.manifest.version).toBe('1.2.3');
       expect(result.manifest.description).toBe('Test pack');
       expect(result.manifest.nodeTypes).toHaveLength(1);
@@ -347,7 +347,7 @@ describe('marketplace/manifest', () => {
     it('preserves v2 extension fields from existing manifest on regeneration', async () => {
       fs.writeFileSync(
         path.join(tmpDir, 'package.json'),
-        JSON.stringify({ name: 'flowweaver-pack-cicd', version: '0.3.0' }),
+        JSON.stringify({ name: 'flow-weaver-pack-cicd', version: '0.3.0' }),
       );
       fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
       mockGlob.mockResolvedValue([]);
@@ -355,7 +355,7 @@ describe('marketplace/manifest', () => {
       // Write an existing manifest with v2 extension fields
       const existingManifest: TMarketplaceManifest = {
         manifestVersion: 2,
-        name: 'flowweaver-pack-cicd',
+        name: 'flow-weaver-pack-cicd',
         version: '0.2.0',
         nodeTypes: [],
         workflows: [],
@@ -412,7 +412,7 @@ describe('marketplace/manifest', () => {
     it('does not inject v2 fields when no existing manifest exists', async () => {
       fs.writeFileSync(
         path.join(tmpDir, 'package.json'),
-        JSON.stringify({ name: 'flowweaver-pack-new', version: '0.1.0' }),
+        JSON.stringify({ name: 'flow-weaver-pack-new', version: '0.1.0' }),
       );
       fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
       mockGlob.mockResolvedValue([]);
@@ -467,7 +467,7 @@ describe('marketplace/manifest', () => {
     it('writes and reads a manifest round-trip', () => {
       const manifest: TMarketplaceManifest = {
         manifestVersion: 2,
-        name: 'flowweaver-pack-round-trip',
+        name: 'flow-weaver-pack-round-trip',
         version: '2.0.0',
         description: 'A test package',
         nodeTypes: [
