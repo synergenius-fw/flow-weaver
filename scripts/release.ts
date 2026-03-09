@@ -181,10 +181,10 @@ run(`gh pr merge ${releaseBranch} --squash --subject "Release ${tag}" --body "Bu
 
 // Poll until the PR is merged
 info('Waiting for CI to pass and PR to merge...');
-for (let i = 0; i < 60; i++) {
+for (let i = 0; i < 120; i++) {
   const state = run(`gh pr view ${releaseBranch} --json state --jq .state`);
   if (state === 'MERGED') break;
-  if (i === 59) fail('Timed out waiting for PR to merge (5 minutes). Check CI status.');
+  if (i === 119) fail('Timed out waiting for PR to merge (10 minutes). Check CI status.');
   execSync('sleep 5');
 }
 

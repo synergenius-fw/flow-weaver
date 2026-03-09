@@ -7,16 +7,27 @@ on:
     branches: [main]
 
 jobs:
-  check:
+  typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
       - run: npm install
       - run: npm run typecheck
       - run: npm run build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
 
       # Run tests with JSON reporter (for test count badge) and coverage (for Codecov)
       - run: npx vitest run --reporter=default --reporter=json --outputFile=test-results.json --coverage
