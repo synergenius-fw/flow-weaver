@@ -257,7 +257,7 @@ describe('marketSearchCommand', () => {
               name: 'flow-weaver-pack-test',
               version: '1.0.0',
               description: 'A test pack',
-              keywords: ['flowweaver-marketplace-pack'],
+              keywords: ['flow-weaver-marketplace-pack'],
             },
           },
         ],

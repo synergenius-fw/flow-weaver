@@ -47,7 +47,7 @@ function makePackageJson(overrides?: Record<string, unknown>): Record<string, un
   return {
     name: 'flow-weaver-pack-test',
     version: '1.0.0',
-    keywords: ['flowweaver-marketplace-pack'],
+    keywords: ['flow-weaver-marketplace-pack'],
     flowWeaver: { engineVersion: '>=0.9.0' },
     peerDependencies: { '@synergenius/flow-weaver': '>=0.9.0' },
     ...overrides,
@@ -155,7 +155,7 @@ describe('validatePackage', () => {
   // ── PKG-001: keywords must include marketplace keyword ───────────────────
 
   describe('PKG-001: marketplace keyword', () => {
-    it('passes when keywords include flowweaver-marketplace-pack', async () => {
+    it('passes when keywords include flow-weaver-marketplace-pack', async () => {
       setupFs(makePackageJson());
       const result = await validatePackage(DIR, makeManifest());
 

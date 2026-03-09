@@ -79,7 +79,7 @@ export async function marketInitCommand(name: string, options: MarketInitOptions
     type: 'module',
     main: './dist/index.js',
     types: './dist/index.d.ts',
-    keywords: ['flowweaver-marketplace-pack', 'flow-weaver', shortName],
+    keywords: ['flow-weaver-marketplace-pack', 'flow-weaver', shortName],
     flowWeaver: {
       type: 'marketplace-pack',
       engineVersion: '>=0.1.0',

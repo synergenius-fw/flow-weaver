@@ -16,7 +16,7 @@ function issue(code: string, severity: TValidationSeverity, message: string): TV
 }
 
 const PACK_NAME_RE = /^(@[^/]+\/)?flow-weaver-pack-.+$/;
-const MARKETPLACE_KEYWORD = 'flowweaver-marketplace-pack';
+const MARKETPLACE_KEYWORD = 'flow-weaver-marketplace-pack';
 
 // ── Package-level rules ──────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ function validatePackageJson(
     );
   }
 
-  // PKG-001: keywords must include flowweaver-marketplace-pack
+  // PKG-001: keywords must include flow-weaver-marketplace-pack
   const keywords = (pkg.keywords ?? []) as string[];
   if (!keywords.includes(MARKETPLACE_KEYWORD)) {
     issues.push(
