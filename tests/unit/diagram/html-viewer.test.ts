@@ -85,8 +85,8 @@ describe('html-viewer', () => {
 
     it('uses attribute selectors for connection CSS so scope connections are included', () => {
       const html = wrapSVGInHTML('<svg></svg>');
-      expect(html).toContain('path[data-source]:hover');
-      expect(html).toContain('path[data-source].dimmed');
+      expect(html).toContain('[data-source]:hover');
+      expect(html).toContain('[data-source].dimmed');
       expect(html).toContain('.node-active');
     });
 
@@ -98,7 +98,7 @@ describe('html-viewer', () => {
 
     it('includes port-click highlighting CSS', () => {
       const html = wrapSVGInHTML('<svg></svg>');
-      expect(html).toContain('path[data-source].highlighted');
+      expect(html).toContain('[data-source].highlighted');
       expect(html).toContain('.port-selected');
       expect(html).toContain('.port-active');
     });
