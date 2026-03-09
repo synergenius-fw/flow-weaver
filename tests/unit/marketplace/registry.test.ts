@@ -81,7 +81,7 @@ describe('searchPackages', () => {
     expect(mockFetch).toHaveBeenCalledOnce();
     const calledUrl = mockFetch.mock.calls[0][0] as string;
     expect(calledUrl).toContain('registry.npmjs.org');
-    expect(calledUrl).toContain('keywords%3Aflowweaver-marketplace-pack');
+    expect(calledUrl).toContain('keywords%3Aflow-weaver-marketplace-pack');
   });
 
   it('appends query text to search', async () => {
@@ -152,7 +152,7 @@ describe('searchPackages', () => {
           name: 'flow-weaver-pack-openai',
           version: '2.1.0',
           description: 'OpenAI integration',
-          keywords: ['flowweaver-marketplace-pack', 'ai'],
+          keywords: ['flow-weaver-marketplace-pack', 'ai'],
           publisher: 'jdoe',
         },
       ])),
@@ -165,7 +165,7 @@ describe('searchPackages', () => {
       name: 'flow-weaver-pack-openai',
       version: '2.1.0',
       description: 'OpenAI integration',
-      keywords: ['flowweaver-marketplace-pack', 'ai'],
+      keywords: ['flow-weaver-marketplace-pack', 'ai'],
       publisher: 'jdoe',
       official: false,
     });

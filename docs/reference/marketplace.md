@@ -92,7 +92,7 @@ flow-weaver market init openai
 ```
 
 This creates a `flow-weaver-pack-openai/` directory with:
-- `package.json` — Configured with `flowweaver-marketplace-pack` keyword
+- `package.json` — Configured with `flow-weaver-marketplace-pack` keyword
 - `src/` — Source directory for node types, workflows, and patterns
 - `tsconfig.json` — TypeScript configuration
 
@@ -150,7 +150,7 @@ flow-weaver market publish --tag beta # Publish with dist-tag
 The `market pack` command validates packages against additional rules beyond standard workflow validation:
 
 - Package name must start with `flow-weaver-pack-`
-- Must include `flowweaver-marketplace-pack` keyword in `package.json`
+- Must include `flow-weaver-marketplace-pack` keyword in `package.json`
 - All exported node types must have proper annotations
 - All exported workflows must validate successfully
 - No conflicting node type names
