@@ -1,4 +1,4 @@
-import type { DiagramGraph, DiagramNode, DiagramConnection, DiagramOptions, DiagramPort, ThemePalette } from './types';
+import type { DiagramGraph, DiagramNode, DiagramConnection, DiagramStub, DiagramOptions, DiagramPort, ThemePalette } from './types';
 import { getTheme, getPortColor, getPortRingColor, TYPE_ABBREVIATIONS, NODE_ICON_PATHS, NODE_DEFAULT_COLOR } from './theme';
 import { PORT_RADIUS, BORDER_RADIUS, LABEL_HEIGHT, LABEL_GAP, SCOPE_PORT_COLUMN, measureText } from './geometry';
 
@@ -72,11 +72,19 @@ export function renderSVG(graph: DiagramGraph, options: DiagramOptions = {}): st
   parts.push(`<rect x="${vbX}" y="${vbY}" width="${vbWidth}" height="${vbHeight}" fill="${theme.background}"/>`);
   parts.push(`<rect x="${vbX}" y="${vbY}" width="${vbWidth}" height="${vbHeight}" fill="url(#dot-grid)"/>`);
 
-  // Connections
+  // Connections + stubs (same layer, below nodes and labels)
   parts.push(`<g class="connections">`);
   for (let i = 0; i < graph.connections.length; i++) {
-    renderConnection(parts, graph.connections[i], i);
+    renderConnection(parts, graph.connections[i], i, !graph.connections[i].path);
   }
+  // Stubs sit alongside connection paths; short-distance ones start hidden for HTML viewer toggling
+  parts.push(`  <g class="stubs">`);
+  for (const conn of graph.connections) {
+    const hideStubs = !!conn.path;
+    if (conn.sourceStub) renderStub(parts, conn.sourceStub, conn, hideStubs);
+    if (conn.targetStub) renderStub(parts, conn.targetStub, conn, hideStubs);
+  }
+  parts.push(`  </g>`);
   parts.push(`</g>`);
 
   // Nodes (bodies, icons, port dots — no labels)
@@ -122,11 +130,26 @@ export function renderSVG(graph: DiagramGraph, options: DiagramOptions = {}): st
 
 // ---- Connection rendering ----
 
-function renderConnection(parts: string[], conn: DiagramConnection, gradIndex: number): void {
+function renderConnection(parts: string[], conn: DiagramConnection, gradIndex: number, hidden = false): void {
   const dashAttr = conn.isStepConnection ? '' : ' stroke-dasharray="8 4"';
+  const displayAttr = hidden ? ' display="none"' : '';
+  const pathD = conn.path || 'M0,0';
   parts.push(
-    `  <path d="${conn.path}" fill="none" stroke="url(#conn-grad-${gradIndex})" stroke-width="3"${dashAttr} stroke-linecap="round" data-source="${escapeXml(conn.fromNode)}.${escapeXml(conn.fromPort)}:output" data-target="${escapeXml(conn.toNode)}.${escapeXml(conn.toPort)}:input"/>`,
+    `  <path d="${pathD}" fill="none" stroke="url(#conn-grad-${gradIndex})" stroke-width="3"${dashAttr} stroke-linecap="round" data-source="${escapeXml(conn.fromNode)}.${escapeXml(conn.fromPort)}:output" data-target="${escapeXml(conn.toNode)}.${escapeXml(conn.toPort)}:input"${displayAttr}/>`,
   );
+}
+
+function renderStub(parts: string[], stub: DiagramStub, conn: DiagramConnection, hidden = false): void {
+  const dashAttr = stub.dashed ? ' stroke-dasharray="6 3"' : '';
+  const displayAttr = hidden ? ' display="none"' : '';
+  const dataAttrs = `data-source="${escapeXml(conn.fromNode)}.${escapeXml(conn.fromPort)}:output" data-target="${escapeXml(conn.toNode)}.${escapeXml(conn.toPort)}:input"`;
+  const isSource = stub.endX > stub.x; // source stubs go right
+  const stubDir = isSource ? 'source' : 'target';
+  parts.push(`  <g class="stub" data-stub="${stubDir}" ${dataAttrs}${displayAttr}>`);
+  const linecap = stub.dashed ? 'butt' : 'round';
+  parts.push(`    <line x1="${stub.x}" y1="${stub.y}" x2="${stub.endX}" y2="${stub.y}" stroke="${stub.color}" stroke-width="2"${dashAttr} stroke-linecap="${linecap}"/>`);
+  parts.push(`    <circle cx="${stub.endX}" cy="${stub.y}" r="3" fill="${stub.color}"/>`);
+  parts.push(`  </g>`);
 }
 
 function renderScopeConnection(parts: string[], conn: DiagramConnection, allConnections: DiagramConnection[], parentNodeId: string): void {
@@ -237,7 +260,7 @@ function renderNodeLabel(parts: string[], node: DiagramNode, theme: ThemePalette
   const labelAnchor = isScoped ? 'start' : 'middle';
 
   parts.push(`    <g data-label-for="${escapeXml(node.id)}">`);
-  parts.push(`      <rect x="${labelBgX}" y="${labelBgY}" width="${labelBgWidth}" height="${labelBgHeight}" rx="6" fill="${theme.labelBadgeFill}" opacity="0.8"/>`);
+  parts.push(`      <rect x="${labelBgX}" y="${labelBgY}" width="${labelBgWidth}" height="${labelBgHeight}" rx="6" fill="${theme.labelBadgeFill}" opacity="0.95"/>`);
   parts.push(`      <text class="node-label" x="${labelTextX}" y="${labelBgY + labelBgHeight / 2 + 6}" text-anchor="${labelAnchor}" fill="${node.color !== NODE_DEFAULT_COLOR ? node.color : theme.labelColor}">${labelText}</text>`);
   parts.push(`    </g>`);
 }
