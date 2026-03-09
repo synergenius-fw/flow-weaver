@@ -80,19 +80,19 @@ body {
   transition: opacity 0.15s ease-in-out;
 }
 
-/* Connection hover & dimming (attribute selector covers both main and scope connections) */
-path[data-source] { transition: opacity 0.2s ease, stroke-width 0.15s ease; }
-path[data-source]:hover { stroke-width: 4; cursor: pointer; }
-body.node-active path[data-source].dimmed,
-body.port-active path[data-source].dimmed { opacity: 0.1; }
-body.port-hovered path[data-source].dimmed { opacity: 0.25; }
+/* Connection hover & dimming (covers paths + stub lines) */
+[data-source] { transition: opacity 0.2s ease, stroke-width 0.15s ease; }
+[data-source]:hover { stroke-width: 4; cursor: pointer; }
+body.node-active [data-source].dimmed,
+body.port-active [data-source].dimmed { opacity: 0.1; }
+body.port-hovered [data-source].dimmed { opacity: 0.25; }
 
 /* Port circles are interactive */
 circle[data-port-id] { cursor: pointer; }
 circle[data-port-id]:hover { stroke-width: 3; filter: brightness(1.3); }
 
 /* Port-click highlighting */
-path[data-source].highlighted { opacity: 1; }
+[data-source].highlighted { opacity: 1; }
 circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); stroke-width: 4; }
 
 /* Node selection glow */
@@ -104,7 +104,7 @@ circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); 
 .node-glow { fill: none; pointer-events: none; animation: select-pop 0.3s ease-out forwards; }
 
 /* Port hover path highlight */
-path[data-source].port-hover { opacity: 1; }
+[data-source].port-hover { opacity: 1; }
 
 /* Node hover glow + draggable cursor */
 .nodes g[data-node-id] { cursor: grab; }
@@ -554,12 +554,16 @@ path[data-source].port-hover { opacity: 1; }
     labelMap[lbl.getAttribute('data-port-label')] = lbl;
   });
 
-  // Build adjacency: portId -> array of connected portIds
+  // Build adjacency: portId -> array of connected portIds (covers paths + stubs)
   var portConnections = {};
-  content.querySelectorAll('path[data-source]').forEach(function(p) {
+  var seenEdges = {};
+  content.querySelectorAll('[data-source]').forEach(function(p) {
     var src = p.getAttribute('data-source');
     var tgt = p.getAttribute('data-target');
     if (!src || !tgt) return;
+    var key = src + '|' + tgt;
+    if (seenEdges[key]) return; // avoid duplicates from path+stub pairs
+    seenEdges[key] = true;
     if (!portConnections[src]) portConnections[src] = [];
     if (!portConnections[tgt]) portConnections[tgt] = [];
     portConnections[src].push(tgt);
@@ -569,6 +573,7 @@ path[data-source].port-hover { opacity: 1; }
   // ---- Connection path computation (bezier from geometry.ts + orthogonal router) ----
   var TRACK_SPACING = 15, EDGE_OFFSET = 5, MAX_CANDIDATES = 5;
   var MIN_SEG_LEN = 3, JOG_THRESHOLD = 10, ORTHO_THRESHOLD = 300;
+  var STUB_THRESHOLD = 500, STUB_LEN = 30;
 
   function quadCurveControl(ax, ay, bx, by, ux, uy) {
     var dn = Math.abs(ay - by);
@@ -918,8 +923,66 @@ path[data-source].port-hover { opacity: 1; }
     var srcIdx = portIndexMap[srcNode] ? portIndexMap[srcNode].output.indexOf(src) : 0;
     var tgtIdx = portIndexMap[tgtNode] ? portIndexMap[tgtNode].input.indexOf(tgt) : 0;
     connIndex.push({ el: p, src: src, tgt: tgt, srcNode: srcNode, tgtNode: tgtNode,
-      scopeOf: p.getAttribute('data-scope') || null, srcIdx: Math.max(0, srcIdx), tgtIdx: Math.max(0, tgtIdx) });
+      scopeOf: p.getAttribute('data-scope') || null, srcIdx: Math.max(0, srcIdx), tgtIdx: Math.max(0, tgtIdx),
+      stubs: null });
   });
+
+  // Build stub index and link to connIndex entries.
+  // Compute labelOffset per stub (distance from port center to SVG stub start).
+  // In HTML, stubs start from port center; on label hover they push out past the badge.
+  var stubMap = {};
+  content.querySelectorAll('.stubs g.stub[data-source]').forEach(function(el) {
+    var src = el.getAttribute('data-source');
+    var tgt = el.getAttribute('data-target');
+    var key = src + '|' + tgt;
+    if (!stubMap[key]) stubMap[key] = { src: null, tgt: null, srcOff: 0, tgtOff: 0 };
+    var dir = el.getAttribute('data-stub');
+    var line = el.querySelector('line');
+    if (dir === 'source') {
+      stubMap[key].src = el;
+      if (line) {
+        var pp = portPositions[src];
+        if (pp) stubMap[key].srcOff = parseFloat(line.getAttribute('x1')) - pp.cx;
+      }
+    } else {
+      stubMap[key].tgt = el;
+      if (line) {
+        var pp = portPositions[tgt];
+        if (pp) stubMap[key].tgtOff = parseFloat(line.getAttribute('x1')) - pp.cx;
+      }
+    }
+  });
+  for (var ci = 0; ci < connIndex.length; ci++) {
+    var entry = connIndex[ci];
+    var stubKey = entry.src + '|' + entry.tgt;
+    if (stubMap[stubKey]) entry.stubs = stubMap[stubKey];
+  }
+
+  // Pull all visible stubs to port center on init (labels are hidden in HTML)
+  for (var si = 0; si < connIndex.length; si++) {
+    var sc = connIndex[si];
+    if (!sc.stubs) continue;
+    if (sc.stubs.src) {
+      var sLine = sc.stubs.src.querySelector('line');
+      var sCirc = sc.stubs.src.querySelector('circle');
+      var spp = portPositions[sc.src];
+      if (sLine && spp) {
+        sLine.setAttribute('x1', spp.cx); sLine.setAttribute('y1', spp.cy);
+        sLine.setAttribute('x2', spp.cx + STUB_LEN); sLine.setAttribute('y2', spp.cy);
+        if (sCirc) { sCirc.setAttribute('cx', spp.cx + STUB_LEN); sCirc.setAttribute('cy', spp.cy); }
+      }
+    }
+    if (sc.stubs.tgt) {
+      var tLine = sc.stubs.tgt.querySelector('line');
+      var tCirc = sc.stubs.tgt.querySelector('circle');
+      var tpp = portPositions[sc.tgt];
+      if (tLine && tpp) {
+        tLine.setAttribute('x1', tpp.cx); tLine.setAttribute('y1', tpp.cy);
+        tLine.setAttribute('x2', tpp.cx - STUB_LEN); tLine.setAttribute('y2', tpp.cy);
+        if (tCirc) { tCirc.setAttribute('cx', tpp.cx - STUB_LEN); tCirc.setAttribute('cy', tpp.cy); }
+      }
+    }
+  }
 
   // Snapshot of original port positions for reset
   var origPortPositions = {};
@@ -932,8 +995,10 @@ path[data-source].port-hover { opacity: 1; }
     origNodeBoxMap[nid] = { id: b.id, x: b.x, y: b.y, w: b.w, h: b.h };
   }
 
-  // ---- Recalculate all connection paths using orthogonal + bezier routing ----
+  // ---- Recalculate all connection paths + stubs using orthogonal + bezier routing ----
   function recalcAllPaths() {
+    // Cancel all running stub animations since we're hard-repositioning
+    for (var ak in activeAnims) { cancelAnimationFrame(activeAnims[ak]); delete activeAnims[ak]; }
     var boxes = [];
     for (var nid in nodeBoxMap) boxes.push(nodeBoxMap[nid]);
     var sorted = connIndex.slice().sort(function(a, b) {
@@ -956,15 +1021,46 @@ path[data-source].port-hover { opacity: 1; }
         var pOff = nodeOffsets[c.scopeOf] || { dx: 0, dy: 0 };
         sx -= pOff.dx; sy -= pOff.dy; tx -= pOff.dx; ty -= pOff.dy;
       }
-      var ddx = tx - sx, ddy = ty - sy, dist = Math.sqrt(ddx * ddx + ddy * ddy);
-      var path;
-      if (dist > ORTHO_THRESHOLD) {
-        path = calcOrthogonalPath([sx, sy], [tx, ty], boxes, c.srcNode, c.tgtNode, c.srcIdx, c.tgtIdx, alloc);
-        if (!path) path = computeConnectionPath(sx, sy, tx, ty);
+      var xDist = Math.abs(tx - sx);
+
+      if (xDist > STUB_THRESHOLD) {
+        // Stub mode: hide path, show and reposition stubs
+        c.el.setAttribute('display', 'none');
+        if (c.stubs) {
+          if (c.stubs.src) {
+            var sLen = isLabelVisible(c.src) ? c.stubs.srcOff + STUB_LEN : STUB_LEN;
+            var sLine = c.stubs.src.querySelector('line');
+            var sCirc = c.stubs.src.querySelector('circle');
+            if (sLine) { sLine.setAttribute('x1', sx); sLine.setAttribute('y1', sy); sLine.setAttribute('x2', sx + sLen); sLine.setAttribute('y2', sy); }
+            if (sCirc) { sCirc.setAttribute('cx', sx + sLen); sCirc.setAttribute('cy', sy); }
+            c.stubs.src.removeAttribute('display');
+          }
+          if (c.stubs.tgt) {
+            var tLen = isLabelVisible(c.tgt) ? c.stubs.tgtOff - STUB_LEN : -STUB_LEN;
+            var tLine = c.stubs.tgt.querySelector('line');
+            var tCirc = c.stubs.tgt.querySelector('circle');
+            if (tLine) { tLine.setAttribute('x1', tx); tLine.setAttribute('y1', ty); tLine.setAttribute('x2', tx + tLen); tLine.setAttribute('y2', ty); }
+            if (tCirc) { tCirc.setAttribute('cx', tx + tLen); tCirc.setAttribute('cy', ty); }
+            c.stubs.tgt.removeAttribute('display');
+          }
+        }
       } else {
-        path = computeConnectionPath(sx, sy, tx, ty);
+        // Path mode: show path, hide stubs
+        var ddx = tx - sx, ddy = ty - sy, dist = Math.sqrt(ddx * ddx + ddy * ddy);
+        var path;
+        if (dist > ORTHO_THRESHOLD) {
+          path = calcOrthogonalPath([sx, sy], [tx, ty], boxes, c.srcNode, c.tgtNode, c.srcIdx, c.tgtIdx, alloc);
+          if (!path) path = computeConnectionPath(sx, sy, tx, ty);
+        } else {
+          path = computeConnectionPath(sx, sy, tx, ty);
+        }
+        c.el.setAttribute('d', path);
+        c.el.removeAttribute('display');
+        if (c.stubs) {
+          if (c.stubs.src) c.stubs.src.setAttribute('display', 'none');
+          if (c.stubs.tgt) c.stubs.tgt.setAttribute('display', 'none');
+        }
       }
-      c.el.setAttribute('d', path);
     }
   }
 
@@ -1082,9 +1178,75 @@ path[data-source].port-hover { opacity: 1; }
 
   var allLabelIds = Object.keys(labelMap);
   var hoveredPort = null;
+  var hoveredNode = null;
+  var activeAnims = {};
 
-  function showLabel(id) { var l = labelMap[id]; if (l) { l.style.opacity = '1'; l.style.pointerEvents = 'auto'; } }
-  function hideLabel(id) { var l = labelMap[id]; if (l) { l.style.opacity = '0'; l.style.pointerEvents = 'none'; } }
+  // Build reverse map: portId -> array of { connEntry, isSource }
+  var portStubMap = {};
+  for (var psi = 0; psi < connIndex.length; psi++) {
+    var psc = connIndex[psi];
+    if (!psc.stubs) continue;
+    if (psc.stubs.src) {
+      if (!portStubMap[psc.src]) portStubMap[psc.src] = [];
+      portStubMap[psc.src].push({ c: psc, isSource: true });
+    }
+    if (psc.stubs.tgt) {
+      if (!portStubMap[psc.tgt]) portStubMap[psc.tgt] = [];
+      portStubMap[psc.tgt].push({ c: psc, isSource: false });
+    }
+  }
+
+  function isLabelVisible(id) {
+    var l = labelMap[id];
+    return l && l.style.opacity === '1';
+  }
+
+  // Batch mode: defer stub sync until all label changes are done
+  var stubSyncDeferred = false;
+  var stubSyncPorts = {};
+
+  function showLabel(id) {
+    var l = labelMap[id];
+    if (l) { l.style.opacity = '1'; l.style.pointerEvents = 'auto'; }
+    if (stubSyncDeferred) { stubSyncPorts[id] = true; }
+    else { syncStubsForPort(id); }
+  }
+  function hideLabel(id) {
+    var l = labelMap[id];
+    if (l) { l.style.opacity = '0'; l.style.pointerEvents = 'none'; }
+    if (stubSyncDeferred) { stubSyncPorts[id] = true; }
+    else { syncStubsForPort(id); }
+  }
+
+  // Batch label changes: do all shows/hides, then sync stubs once
+  function batchLabelChanges(fn) {
+    stubSyncDeferred = true;
+    stubSyncPorts = {};
+    fn();
+    stubSyncDeferred = false;
+    for (var pid in stubSyncPorts) syncStubsForPort(pid);
+  }
+
+  function syncStubsForPort(portId) {
+    var entries = portStubMap[portId];
+    if (!entries) return;
+    var visible = isLabelVisible(portId);
+    for (var ei = 0; ei < entries.length; ei++) {
+      growStub(entries[ei].c.stubs, entries[ei].c, entries[ei].isSource, visible);
+    }
+  }
+
+  // Safety net: verify all stubs match their port label visibility.
+  // Runs as a rAF so it fires after all events and microtasks settle.
+  var stubVerifyScheduled = false;
+  function scheduleStubVerify() {
+    if (stubVerifyScheduled) return;
+    stubVerifyScheduled = true;
+    requestAnimationFrame(function() {
+      stubVerifyScheduled = false;
+      for (var pid in portStubMap) syncStubsForPort(pid);
+    });
+  }
 
   function showLabelsFor(nodeId) {
     allLabelIds.forEach(function(id) {
@@ -1097,6 +1259,52 @@ path[data-source].port-hover { opacity: 1; }
     });
   }
 
+  // Animate a stub growing/shrinking. The line x1 stays at port center,
+  // x2 and circle cx extend to targetLen from port center (signed: positive=right, negative=left).
+  function animateStub(stubG, targetLen, key) {
+    if (!stubG) return;
+    var line = stubG.querySelector('line');
+    var circ = stubG.querySelector('circle');
+    if (!line) return;
+    var x1 = parseFloat(line.getAttribute('x1'));
+    var curX2 = parseFloat(line.getAttribute('x2'));
+    var curLen = curX2 - x1;
+    var goalX2 = x1 + targetLen;
+    if (Math.abs(curLen - targetLen) < 0.5) {
+      line.setAttribute('x2', goalX2);
+      if (circ) circ.setAttribute('cx', goalX2);
+      return;
+    }
+    if (activeAnims[key]) cancelAnimationFrame(activeAnims[key]);
+    var start = null, duration = 150, startLen = curLen;
+    function step(ts) {
+      if (!start) start = ts;
+      var t = Math.min((ts - start) / duration, 1);
+      t = t * (2 - t); // ease-out quad
+      var len = startLen + (targetLen - startLen) * t;
+      var x2 = x1 + len;
+      line.setAttribute('x2', x2);
+      if (circ) circ.setAttribute('cx', x2);
+      if (t < 1) activeAnims[key] = requestAnimationFrame(step);
+      else delete activeAnims[key];
+    }
+    activeAnims[key] = requestAnimationFrame(step);
+  }
+
+  function growStub(stubs, connEntry, isSource, grow) {
+    if (!stubs) return;
+    var stubG = isSource ? stubs.src : stubs.tgt;
+    if (!stubG) return;
+    var off = isSource ? stubs.srcOff : stubs.tgtOff;
+    // Source stubs grow right (+), target stubs grow left (-).
+    // off is already signed (positive for source, negative for target).
+    var shortLen = isSource ? STUB_LEN : -STUB_LEN;
+    var fullLen = off + shortLen;
+    var targetLen = grow ? fullLen : shortLen;
+    var key = connEntry.src + '|' + connEntry.tgt + (isSource ? ':s' : ':t');
+    animateStub(stubG, targetLen, key);
+  }
+
   // Node hover: show all port labels for the hovered node
   var nodeEls = content.querySelectorAll('.nodes g[data-node-id]');
   nodeEls.forEach(function(nodeG) {
@@ -1104,14 +1312,27 @@ path[data-source].port-hover { opacity: 1; }
     var parentNodeG = nodeG.parentElement ? nodeG.parentElement.closest('g[data-node-id]') : null;
     var parentId = parentNodeG ? parentNodeG.getAttribute('data-node-id') : null;
     nodeG.addEventListener('mouseenter', function() {
+      hoveredNode = nodeId;
       if (hoveredPort) return;
-      if (parentId) hideLabelsFor(parentId);
-      showLabelsFor(nodeId);
+      batchLabelChanges(function() {
+        if (parentId) hideLabelsFor(parentId);
+        showLabelsFor(nodeId);
+      });
+      scheduleStubVerify();
     });
     nodeG.addEventListener('mouseleave', function() {
-      if (hoveredPort) return;
-      hideLabelsFor(nodeId);
-      if (parentId) showLabelsFor(parentId);
+      // Defer so port mouseenter can set hoveredPort first
+      var nid = nodeId, pid = parentId;
+      if (hoveredNode === nodeId) hoveredNode = null;
+      Promise.resolve().then(function() {
+        if (hoveredPort) return;
+        if (hoveredNode === nid) return; // re-entered the node
+        batchLabelChanges(function() {
+          hideLabelsFor(nid);
+          if (pid) showLabelsFor(pid);
+        });
+        scheduleStubVerify();
+      });
     });
   });
 
@@ -1123,10 +1344,13 @@ path[data-source].port-hover { opacity: 1; }
 
     portEl.addEventListener('mouseenter', function() {
       hoveredPort = portId;
-      hideLabelsFor(nodeId);
-      peers.forEach(showLabel);
+      batchLabelChanges(function() {
+        hideLabelsFor(nodeId);
+        peers.forEach(showLabel);
+      });
+      scheduleStubVerify();
       document.body.classList.add('port-hovered');
-      content.querySelectorAll('path[data-source]').forEach(function(p) {
+      content.querySelectorAll('[data-source]').forEach(function(p) {
         if (p.getAttribute('data-source') === portId || p.getAttribute('data-target') === portId) {
           p.classList.remove('dimmed');
         } else {
@@ -1136,11 +1360,19 @@ path[data-source].port-hover { opacity: 1; }
     });
     portEl.addEventListener('mouseleave', function() {
       hoveredPort = null;
-      peers.forEach(hideLabel);
-      showLabelsFor(nodeId);
-      document.body.classList.remove('port-hovered');
-      content.querySelectorAll('path[data-source].dimmed').forEach(function(p) {
-        p.classList.remove('dimmed');
+      // Defer so if entering another port, its mouseenter sets hoveredPort first
+      var myPeers = peers, myNodeId = nodeId;
+      Promise.resolve().then(function() {
+        if (hoveredPort) return; // moved to another port
+        batchLabelChanges(function() {
+          myPeers.forEach(hideLabel);
+          showLabelsFor(myNodeId);
+        });
+        document.body.classList.remove('port-hovered');
+        content.querySelectorAll('[data-source].dimmed').forEach(function(p) {
+          p.classList.remove('dimmed');
+        });
+        scheduleStubVerify();
       });
     });
   });
@@ -1175,7 +1407,7 @@ path[data-source].port-hover { opacity: 1; }
     content.querySelectorAll('circle.port-selected').forEach(function(c) {
       c.classList.remove('port-selected');
     });
-    content.querySelectorAll('path[data-source].dimmed, path[data-source].highlighted').forEach(function(p) {
+    content.querySelectorAll('[data-source].dimmed, [data-source].highlighted').forEach(function(p) {
       p.classList.remove('dimmed');
       p.classList.remove('highlighted');
     });
@@ -1191,7 +1423,7 @@ path[data-source].port-hover { opacity: 1; }
     var portEl = content.querySelector('[data-port-id="' + CSS.escape(portId) + '"]');
     if (portEl) portEl.classList.add('port-selected');
 
-    content.querySelectorAll('path[data-source]').forEach(function(p) {
+    content.querySelectorAll('[data-source]').forEach(function(p) {
       if (p.getAttribute('data-source') === portId || p.getAttribute('data-target') === portId) {
         p.classList.add('highlighted');
       } else {
@@ -1211,7 +1443,7 @@ path[data-source].port-hover { opacity: 1; }
     infoPanel.classList.remove('fullscreen');
     btnExpand.innerHTML = expandIcon;
     removeNodeGlow();
-    content.querySelectorAll('path[data-source].dimmed').forEach(function(p) {
+    content.querySelectorAll('[data-source].dimmed').forEach(function(p) {
       p.classList.remove('dimmed');
     });
   }
@@ -1239,7 +1471,7 @@ path[data-source].port-hover { opacity: 1; }
     });
 
     // Connected paths
-    var allPaths = content.querySelectorAll('path[data-source]');
+    var allPaths = content.querySelectorAll('[data-source]');
     var connectedNodes = new Set();
     allPaths.forEach(function(p) {
       var src = p.getAttribute('data-source') || '';

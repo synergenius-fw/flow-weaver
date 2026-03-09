@@ -373,6 +373,100 @@ describe('calculateOrthogonalPath', () => {
     });
   });
 
+  describe('stub enforcement under track pressure', () => {
+    it('preserves exit stub when allocator would compress it inward', () => {
+      // Two connections from the same source area: the first claims a track,
+      // the second must not have its stub compressed below the intended length.
+      const from: Vec2 = [130, 140];
+      const to: Vec2 = [800, 200];
+      const boxes = [makeBox('A', 40, 70, 90, 140), makeBox('B', 800, 170)];
+
+      const allocator = new TrackAllocator();
+      const stubLength = 60;
+
+      // First connection claims a track near the stub zone
+      const path1 = calculateOrthogonalPath(
+        [130, 100], [800, 120], boxes, 'A', 'B',
+        { stubLength, cornerRadius: 0 },
+        allocator,
+      );
+      expect(path1).not.toBeNull();
+
+      // Second connection with same stub length
+      const path2 = calculateOrthogonalPath(
+        from, to, boxes, 'A', 'B',
+        { stubLength, cornerRadius: 0 },
+        allocator,
+      );
+      expect(path2).not.toBeNull();
+
+      // Extract the first L coordinate (the exit stub endpoint)
+      const coords2 = extractCoords(path2!);
+      // The first waypoint after the start should be at least stubLength away from the port
+      const exitX = coords2[1][0];
+      expect(exitX).toBeGreaterThanOrEqual(from[0] + stubLength);
+    });
+
+    it('preserves entry stub when allocator would compress it inward', () => {
+      const from: Vec2 = [130, 140];
+      const to: Vec2 = [800, 200];
+      const boxes = [makeBox('A', 40, 70, 90, 140), makeBox('B', 800, 170)];
+
+      const allocator = new TrackAllocator();
+      const stubLength = 60;
+
+      // First connection claims tracks
+      const path1 = calculateOrthogonalPath(
+        [130, 100], [800, 120], boxes, 'A', 'B',
+        { stubLength, cornerRadius: 0 },
+        allocator,
+      );
+      expect(path1).not.toBeNull();
+
+      // Second connection
+      const path2 = calculateOrthogonalPath(
+        from, to, boxes, 'A', 'B',
+        { stubLength, cornerRadius: 0 },
+        allocator,
+      );
+      expect(path2).not.toBeNull();
+
+      // The last waypoint before the endpoint should be at most stubLength away from the target
+      const coords2 = extractCoords(path2!);
+      const entryX = coords2[coords2.length - 2][0];
+      expect(entryX).toBeLessThanOrEqual(to[0] - stubLength);
+    });
+
+    it('stubs remain visible with many competing connections', () => {
+      const boxes = [makeBox('A', 40, 50, 90, 180), makeBox('B', 900, 80, 90, 180)];
+      const allocator = new TrackAllocator();
+      const stubLength = 50;
+
+      // Route 5 connections through the same corridor with Y offsets to avoid bezier fallback
+      const paths: string[] = [];
+      for (let i = 0; i < 5; i++) {
+        const fromY = 80 + i * 22;
+        const toY = 110 + i * 22;
+        const path = calculateOrthogonalPath(
+          [130, fromY], [900, toY], boxes, 'A', 'B',
+          { stubLength, fromPortIndex: i, cornerRadius: 0 },
+          allocator,
+        );
+        if (path) paths.push(path);
+      }
+
+      expect(paths.length).toBeGreaterThanOrEqual(3);
+
+      // Every routed path should have its exit stub preserved
+      for (const path of paths) {
+        const coords = extractCoords(path);
+        const portX = coords[0][0];
+        const turnX = coords[1][0];
+        expect(turnX - portX).toBeGreaterThanOrEqual(stubLength);
+      }
+    });
+  });
+
   describe('corner radius', () => {
     it('produces arc commands (A) in the path when corners are needed', () => {
       const from: Vec2 = [220, 50];

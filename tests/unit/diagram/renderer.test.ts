@@ -86,9 +86,9 @@ describe('renderSVG', () => {
 
   it('renders node labels with subtle background', () => {
     const svg = renderSVG(simpleGraph());
-    // Label background: a rect element with rx="6" and opacity 0.8
+    // Label background: a rect element with rx="6" and opacity 0.95
     expect(svg).toContain('rx="6"');
-    expect(svg).toContain('opacity="0.8"');
+    expect(svg).toContain('opacity="0.95"');
     expect(svg).toContain('class="node-label"');
     expect(svg).toContain('Start');
     expect(svg).toContain('Exit');

@@ -5,7 +5,7 @@ import { getPortColor, NODE_VARIANT_COLORS, NODE_DEFAULT_COLOR, TYPE_ABBREVIATIO
 import { layoutWorkflow } from './layout';
 import { calculateOrthogonalPathSafe, TrackAllocator } from './orthogonal-router';
 import type { NodeBox } from './orthogonal-router';
-import type { DiagramNode, DiagramPort, DiagramConnection, DiagramGraph, DiagramOptions } from './types';
+import type { DiagramNode, DiagramPort, DiagramConnection, DiagramStub, DiagramGraph, DiagramOptions } from './types';
 
 // ---- Constants (matching React component-node) ----
 
@@ -32,6 +32,14 @@ export const SCOPE_INNER_GAP_X = 240;    // horizontal gap between children insi
 // Routing mode threshold — connections longer than this use orthogonal routing
 // (midpoint of original 250–350 hysteresis thresholds)
 export const ORTHOGONAL_DISTANCE_THRESHOLD = 300;
+
+// Connections beyond this x-distance show as stubs only (no full path).
+// Must be higher than ORTHOGONAL_DISTANCE_THRESHOLD so adjacent-layer connections
+// still render their full orthogonal path.
+export const STUB_DISTANCE_THRESHOLD = 500;
+
+// Stub length for long-distance connections (short segment from port center outward)
+export const STUB_LENGTH = 30;
 
 // ---- Font metrics (Montserrat 600-weight, 10px — measured via SVG getBBox) ----
 
@@ -1144,9 +1152,36 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     const distance = Math.sqrt(dx * dx + dy * dy);
     const useCurve = forceCurveSet.has(pc);
 
+    const sourceColor = getPortColor(pc.sourcePort.dataType, pc.sourcePort.isFailure, themeName);
+    const targetColor = getPortColor(pc.targetPort.dataType, pc.targetPort.isFailure, themeName);
+    const xDistance = Math.abs(tx - sx);
+
+    // Always compute stubs so the HTML viewer can toggle between path/stubs on drag.
+    // In static SVG (labels always visible), stubs start after the port label badge.
+    // In HTML, stubs start from port center by default and push out when labels appear.
+    const dashed = pc.sourcePort.dataType !== 'STEP';
+    const srcLabelEnd = portLabelExtent(pc.sourcePort);
+    const tgtLabelEnd = portLabelExtent(pc.targetPort);
+    const sourceStub: DiagramStub = {
+      x: sx + srcLabelEnd, y: sy,
+      endX: sx + srcLabelEnd + STUB_LENGTH,
+      labelOffset: srcLabelEnd,
+      color: sourceColor,
+      dashed,
+    };
+    const targetStub: DiagramStub = {
+      x: tx - tgtLabelEnd, y: ty,
+      endX: tx - tgtLabelEnd - STUB_LENGTH,
+      labelOffset: tgtLabelEnd,
+      color: targetColor,
+      dashed,
+    };
+
     let path: string;
-    if (!useCurve && distance > ORTHOGONAL_DISTANCE_THRESHOLD) {
-      // Try orthogonal routing for long-distance connections
+    if (xDistance > STUB_DISTANCE_THRESHOLD) {
+      // Long-distance: static SVG hides the full path, only shows stubs
+      path = '';
+    } else if (!useCurve && distance > ORTHOGONAL_DISTANCE_THRESHOLD) {
       const orthoPath = calculateOrthogonalPathSafe(
         [sx, sy], [tx, ty],
         nodeBoxes,
@@ -1159,14 +1194,14 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
       path = computeConnectionPath(sx, sy, tx, ty);
     }
 
-    const sourceColor = getPortColor(pc.sourcePort.dataType, pc.sourcePort.isFailure, themeName);
-    const targetColor = getPortColor(pc.targetPort.dataType, pc.targetPort.isFailure, themeName);
     connections.push({
       fromNode: pc.fromNodeId, fromPort: pc.fromPortName,
       toNode: pc.toNodeId, toPort: pc.toPortName,
       sourceColor, targetColor,
       isStepConnection: pc.sourcePort.dataType === 'STEP',
       path,
+      sourceStub,
+      targetStub,
     });
   }
 
