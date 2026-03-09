@@ -2,7 +2,7 @@
  * Registry integration — npm search API + local package scanning.
  *
  * Uses the npm registry search endpoint filtered by the
- * `flowweaver-marketplace-pack` keyword for discovery, and scans
+ * `flow-weaver-marketplace-pack` keyword for discovery, and scans
  * `node_modules/` for locally installed packages.
  */
 
@@ -19,7 +19,7 @@ import type {
   TManifestInitContribution,
 } from './types.js';
 
-const MARKETPLACE_KEYWORD = 'flowweaver-marketplace-pack';
+const MARKETPLACE_KEYWORD = 'flow-weaver-marketplace-pack';
 const NPM_SEARCH_URL = 'https://registry.npmjs.org/-/v1/search';
 const PACK_NAME_RE = /^(@[^/]+\/)?flow-weaver-pack-.+$/;
 
