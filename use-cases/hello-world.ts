@@ -8,7 +8,7 @@
 //
 // Pattern: Start -> formatName -> buildGreeting -> Exit
 //
-// Run: flow-weaver run use-cases/hello-world.ts --params '{"firstName":"Jane","lastName":"Doe"}'
+// Run: fw run use-cases/hello-world.ts --params '{"firstName":"Jane","lastName":"Doe"}'
 // =============================================================================
 
 /**
@@ -41,5 +41,5 @@ export function helloWorld(
   execute: boolean,
   params: { firstName: string; lastName: string }
 ): { onSuccess: boolean; onFailure: boolean; message: string } {
-  throw new Error('Compile with: flow-weaver compile <file>');
+  throw new Error('Compile with: fw compile <file>');
 }

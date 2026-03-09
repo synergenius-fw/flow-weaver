@@ -25,13 +25,13 @@ Start -> validator -> enricher -> scorer -> Exit
 Use the CLI to generate a starting point:
 
 ```bash
-flow-weaver create workflow sequential my-workflow.ts
+fw create workflow sequential my-workflow.ts
 ```
 
 This creates `my-workflow.ts` with a linear pipeline skeleton. Preview before writing:
 
 ```bash
-flow-weaver create workflow sequential my-workflow.ts --preview
+fw create workflow sequential my-workflow.ts --preview
 ```
 
 Open the generated file. It contains a placeholder workflow function with a single node. You will replace and expand it in the following steps.
@@ -165,12 +165,12 @@ This is useful when:
 - You want to use popular libraries (lodash, date-fns, etc.) directly
 - You don't want to write wrapper boilerplate
 
-Port types are inferred from TypeScript definitions. See `flow-weaver docs jsdoc-grammar` for full syntax.
+Port types are inferred from TypeScript definitions. See `fw docs jsdoc-grammar` for full syntax.
 
 After adding each function, validate to catch errors early:
 
 ```bash
-flow-weaver validate my-workflow.ts
+fw validate my-workflow.ts
 ```
 
 # Step 3: Wire the Workflow
@@ -217,7 +217,7 @@ Key points:
 Run the validator to check for annotation errors, missing connections, and type mismatches:
 
 ```bash
-flow-weaver validate my-workflow.ts
+fw validate my-workflow.ts
 ```
 
 If everything is correct you will see a success message. If there are issues, the output describes each problem. Common things to check:
@@ -230,7 +230,7 @@ If everything is correct you will see a success message. If there are issues, th
 For machine-readable output (useful in CI):
 
 ```bash
-flow-weaver validate my-workflow.ts --json
+fw validate my-workflow.ts --json
 ```
 
 # Step 5: Compile
@@ -238,7 +238,7 @@ flow-weaver validate my-workflow.ts --json
 Generate the executable code:
 
 ```bash
-flow-weaver compile my-workflow.ts
+fw compile my-workflow.ts
 ```
 
 This compiles the workflow in-place, modifying the source file directly. The compiled file contains:
@@ -252,7 +252,7 @@ The generated function has the same signature as your placeholder, so existing i
 For production builds (no debug events):
 
 ```bash
-flow-weaver compile my-workflow.ts --production
+fw compile my-workflow.ts --production
 ```
 
 # Step 6: Run
@@ -294,7 +294,7 @@ When the workflow does not behave as expected, use these techniques:
 ## Verbose validation
 
 ```bash
-flow-weaver validate my-workflow.ts --verbose
+fw validate my-workflow.ts --verbose
 ```
 
 Shows detailed information about parsed annotations, port types, and connection resolution.
@@ -306,8 +306,8 @@ Open the compiled source file and read the execution logic. Each node call is vi
 ## Describe the workflow structure
 
 ```bash
-flow-weaver describe my-workflow.ts
-flow-weaver describe my-workflow.ts --format mermaid
+fw describe my-workflow.ts
+fw describe my-workflow.ts --format mermaid
 ```
 
 Outputs the workflow graph as JSON or as a Mermaid diagram for visual inspection.
@@ -461,10 +461,10 @@ export function processRecord(
 
 ```bash
 # Validate
-flow-weaver validate my-workflow.ts
+fw validate my-workflow.ts
 
 # Compile
-flow-weaver compile my-workflow.ts
+fw compile my-workflow.ts
 
 # Run (from another file or a script)
 npx ts-node -e "
@@ -478,10 +478,10 @@ npx ts-node -e "
 
 # Alternative: Dev Mode
 
-Instead of running validate, compile, and run separately, use `flow-weaver dev` to do all three in a single watch loop:
+Instead of running validate, compile, and run separately, use `fw dev` to do all three in a single watch loop:
 
 ```bash
-flow-weaver dev my-workflow.ts --params '{"record": {"name": "Alice", "age": 30, "email": "alice@edu.com"}}'
+fw dev my-workflow.ts --params '{"record": {"name": "Alice", "age": 30, "email": "alice@edu.com"}}'
 ```
 
 This watches for file changes, recompiles, and re-runs automatically.
@@ -491,23 +491,23 @@ This watches for file changes, recompiles, and re-runs automatically.
 Visualize your workflow as an SVG diagram:
 
 ```bash
-flow-weaver diagram my-workflow.ts -o my-workflow.svg
-flow-weaver diagram my-workflow.ts --theme light -o my-workflow.svg
+fw diagram my-workflow.ts -o my-workflow.svg
+fw diagram my-workflow.ts --theme light -o my-workflow.svg
 ```
 
 # Next Steps
 
 Now that you have a working workflow, explore these topics to go further:
 
-- **CLI Reference** (`flow-weaver docs cli-reference`) -- Complete reference for all CLI commands and flags
-- **Advanced Annotations** (`flow-weaver docs advanced-annotations`) -- Pull execution, merge strategies, auto-connect, path/map sugar
-- **Compilation** (`flow-weaver docs compilation`) -- TypeScript and Inngest compilation targets, production mode, serve handlers
-- **Deployment** (`flow-weaver docs deployment`) -- Export to Lambda, Vercel, Cloudflare, Inngest; HTTP serve mode
-- **Built-in Nodes** (`flow-weaver docs built-in-nodes`) -- delay, waitForEvent, invokeWorkflow nodes and the mock system for testing
-- **Marketplace** (`flow-weaver docs marketplace`) -- Install and publish reusable node type packages
-- **Patterns** (`flow-weaver docs patterns`) -- Extract reusable workflow fragments and apply them across projects
-- **Scoped ports and forEach** (`flow-weaver docs export-interface`) -- Iterate over arrays using scoped ports and callback parameters
-- **Expression nodes** (`flow-weaver docs node-conversion`) -- Write pure functions without `execute`/`onSuccess`/`onFailure` boilerplate
-- **Scaffolding templates** (`flow-weaver docs scaffold`) -- Generate workflows from templates like `sequential`, `foreach`, `conditional`, and more
-- **Debugging** (`flow-weaver docs debugging`) -- WebSocket debugger, validation diagnostics, and error resolution
-- **JSDoc grammar** (`flow-weaver docs jsdoc-grammar`) -- Full annotation syntax reference including metadata brackets, scope clauses, and positioning
+- **CLI Reference** (`fw docs cli-reference`) -- Complete reference for all CLI commands and flags
+- **Advanced Annotations** (`fw docs advanced-annotations`) -- Pull execution, merge strategies, auto-connect, path/map sugar
+- **Compilation** (`fw docs compilation`) -- TypeScript and Inngest compilation targets, production mode, serve handlers
+- **Deployment** (`fw docs deployment`) -- Export to Lambda, Vercel, Cloudflare, Inngest; HTTP serve mode
+- **Built-in Nodes** (`fw docs built-in-nodes`) -- delay, waitForEvent, invokeWorkflow nodes and the mock system for testing
+- **Marketplace** (`fw docs marketplace`) -- Install and publish reusable node type packages
+- **Patterns** (`fw docs patterns`) -- Extract reusable workflow fragments and apply them across projects
+- **Scoped ports and forEach** (`fw docs export-interface`) -- Iterate over arrays using scoped ports and callback parameters
+- **Expression nodes** (`fw docs node-conversion`) -- Write pure functions without `execute`/`onSuccess`/`onFailure` boilerplate
+- **Scaffolding templates** (`fw docs scaffold`) -- Generate workflows from templates like `sequential`, `foreach`, `conditional`, and more
+- **Debugging** (`fw docs debugging`) -- WebSocket debugger, validation diagnostics, and error resolution
+- **JSDoc grammar** (`fw docs jsdoc-grammar`) -- Full annotation syntax reference including metadata brackets, scope clauses, and positioning

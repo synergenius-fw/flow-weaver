@@ -53,7 +53,7 @@ The default `typescript` target generates code that runs directly in Node.js or 
 ### Example
 
 ```bash
-flow-weaver compile workflow.ts
+fw compile workflow.ts
 ```
 
 Generates code like:
@@ -79,7 +79,7 @@ export function myWorkflow(params: { data: string }) {
 The `inngest` target generates **durable functions** using [Inngest](https://www.inngest.com/). Each workflow node becomes a `step.run()` call, providing automatic retries, event-driven triggers, and crash recovery.
 
 ```bash
-flow-weaver compile workflow.ts --target inngest
+fw compile workflow.ts --target inngest
 ```
 
 ### Per-Node Durability
@@ -237,7 +237,7 @@ export async function expenseWorkflow(
 Strips all debug instrumentation from generated code. No `STATUS_CHANGED`, `VARIABLE_SET`, or `LOG_ERROR` events are emitted. Use this for deployed workflows.
 
 ```bash
-flow-weaver compile workflow.ts --production
+fw compile workflow.ts --production
 ```
 
 ### Source Maps (`--source-map`)
@@ -245,7 +245,7 @@ flow-weaver compile workflow.ts --production
 Generate source maps alongside compiled output:
 
 ```bash
-flow-weaver compile workflow.ts --source-map
+fw compile workflow.ts --source-map
 ```
 
 ### Module Format (`--format`)
@@ -259,7 +259,7 @@ Control the output module format:
 | `cjs` | CommonJS (`require`/`module.exports`) |
 
 ```bash
-flow-weaver compile workflow.ts --format cjs
+fw compile workflow.ts --format cjs
 ```
 
 ### Strict Mode (`--strict`)
@@ -267,7 +267,7 @@ flow-weaver compile workflow.ts --format cjs
 Promote type coercion warnings to errors:
 
 ```bash
-flow-weaver compile workflow.ts --strict
+fw compile workflow.ts --strict
 ```
 
 Equivalent to adding `@strictTypes` to the workflow annotation.
@@ -277,7 +277,7 @@ Equivalent to adding `@strictTypes` to the workflow annotation.
 Force inline runtime code even when `@synergenius/flow-weaver` is installed as a dependency. Normally the compiler generates an import; this flag embeds the runtime directly.
 
 ```bash
-flow-weaver compile workflow.ts --inline-runtime
+fw compile workflow.ts --inline-runtime
 ```
 
 ### Clean Output (`--clean`)
@@ -285,7 +285,7 @@ flow-weaver compile workflow.ts --inline-runtime
 Omit redundant `@param`/`@returns` annotations from the compiled output. Produces cleaner generated code.
 
 ```bash
-flow-weaver compile workflow.ts --clean
+fw compile workflow.ts --clean
 ```
 
 ### Dry Run (`--dry-run`)
@@ -293,7 +293,7 @@ flow-weaver compile workflow.ts --clean
 Preview compilation output without writing any files:
 
 ```bash
-flow-weaver compile workflow.ts --dry-run
+fw compile workflow.ts --dry-run
 ```
 
 ---
@@ -303,7 +303,7 @@ flow-weaver compile workflow.ts --dry-run
 Generate a complete HTTP handler for receiving Inngest events:
 
 ```bash
-flow-weaver compile workflow.ts --target inngest --serve --framework next
+fw compile workflow.ts --target inngest --serve --framework next
 ```
 
 ### Supported Frameworks
@@ -321,7 +321,7 @@ flow-weaver compile workflow.ts --target inngest --serve --framework next
 Generate Zod schemas for event validation from `@param` annotations:
 
 ```bash
-flow-weaver compile workflow.ts --target inngest --typed-events
+fw compile workflow.ts --target inngest --typed-events
 ```
 
 ---
@@ -337,7 +337,7 @@ Several Inngest annotations can be overridden from the CLI without modifying the
 | `--timeout <duration>` | `@timeout` |
 
 ```bash
-flow-weaver compile workflow.ts --target inngest --retries 5 --timeout "1h"
+fw compile workflow.ts --target inngest --retries 5 --timeout "1h"
 ```
 
 ---

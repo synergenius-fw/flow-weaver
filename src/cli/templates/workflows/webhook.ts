@@ -154,7 +154,7 @@ export ${asyncKeyword}function ${workflowName}(
   execute: boolean,
   params: { headers: Record<string, string>; body: any }
 ): ${returnType} {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }
 `.trim();
   },

@@ -141,7 +141,7 @@ export ${asyncKeyword}function ${workflowName}(
   execute: boolean,
   params: { data: any; maxRetries?: number }
 ): ${returnType} {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }
 `.trim();
   },

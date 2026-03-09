@@ -37,16 +37,16 @@ export interface ExportOptions {
  * @example
  * ```bash
  * # Export for a target (install the corresponding pack first)
- * flow-weaver export workflow.ts --target <target> --output dist/
+ * fw export workflow.ts --target <target> --output dist/
  *
  * # Export specific workflow from multi-workflow file
- * flow-weaver export multi-workflow.ts --target <target> --output api/ --workflow calculate
+ * fw export multi-workflow.ts --target <target> --output api/ --workflow calculate
  *
  * # Export all workflows as a single service
- * flow-weaver export workflows.ts --target <target> --output dist/ --multi
+ * fw export workflows.ts --target <target> --output dist/ --multi
  *
  * # Export with API documentation routes
- * flow-weaver export workflow.ts --target <target> --output dist/ --docs
+ * fw export workflow.ts --target <target> --output dist/ --docs
  * ```
  */
 export async function exportCommand(input: string, options: ExportOptions): Promise<void> {

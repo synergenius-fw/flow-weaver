@@ -93,7 +93,8 @@
     }
   },
   "bin": {
-    "flow-weaver": "./dist/cli/flow-weaver.mjs"
+    "flow-weaver": "./dist/cli/flow-weaver.mjs",
+    "fw": "./dist/cli/flow-weaver.mjs"
   },
   "files": [
     "dist",

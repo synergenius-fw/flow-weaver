@@ -267,9 +267,9 @@ export function generateReadme(projectName: string, persona: PersonaId, _templat
       'Browse and add more workflows:',
       '',
       '```sh',
-      'flow-weaver templates                         # List all templates',
-      'flow-weaver create workflow <template> <file>  # Add a workflow',
-      'flow-weaver describe src/*.ts --format ascii   # See workflow structure',
+      'fw templates                         # List all templates',
+      'fw create workflow <template> <file>  # Add a workflow',
+      'fw describe src/*.ts --format ascii   # See workflow structure',
       '```',
       '',
     );
@@ -292,8 +292,8 @@ export function generateReadme(projectName: string, persona: PersonaId, _templat
   lines.push(
     '## Learn more',
     '',
-    '- `flow-weaver docs` to browse reference documentation',
-    '- `flow-weaver mcp-setup` to connect AI editors',
+    '- `fw docs` to browse reference documentation',
+    '- `fw mcp-setup` to connect AI editors',
     '',
   );
 
@@ -353,7 +353,7 @@ export function ${fnName}(
   execute: boolean,
   params: { name: string }
 ): { onSuccess: boolean; onFailure: boolean; result: string } {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }
 `;
 }
@@ -446,9 +446,9 @@ function printNocodeGuidance(_projectName: string): void {
   logger.newline();
   logger.log(`  ${logger.bold('Useful commands')}`);
   logger.newline();
-  logger.log(`    flow-weaver run src/*.ts         ${logger.dim('Run your workflow')}`);
-  logger.log(`    flow-weaver diagram src/*.ts     ${logger.dim('See a visual diagram')}`);
-  logger.log(`    flow-weaver mcp-setup            ${logger.dim('Connect more AI editors')}`);
+  logger.log(`    fw run src/*.ts         ${logger.dim('Run your workflow')}`);
+  logger.log(`    fw diagram src/*.ts     ${logger.dim('See a visual diagram')}`);
+  logger.log(`    fw mcp-setup            ${logger.dim('Connect more AI editors')}`);
 }
 
 function printVibecoderGuidance(): void {
@@ -468,9 +468,9 @@ function printLowcodeGuidance(): void {
   logger.newline();
   logger.log(`  ${logger.bold('Explore and customize')}`);
   logger.newline();
-  logger.log(`    flow-weaver templates            ${logger.dim('List all 16 workflow templates')}`);
-  logger.log(`    flow-weaver describe src/*.ts     ${logger.dim('See the workflow structure')}`);
-  logger.log(`    flow-weaver docs annotations     ${logger.dim('Annotation reference')}`);
+  logger.log(`    fw templates            ${logger.dim('List all 16 workflow templates')}`);
+  logger.log(`    fw describe src/*.ts     ${logger.dim('See the workflow structure')}`);
+  logger.log(`    fw docs annotations     ${logger.dim('Annotation reference')}`);
   logger.newline();
   logger.log(`  Your project includes an example in ${logger.highlight('examples/')} to study.`);
   logger.log(`  With MCP connected, AI can help modify nodes and connections.`);
@@ -478,8 +478,8 @@ function printLowcodeGuidance(): void {
 
 function printExpertGuidance(): void {
   logger.newline();
-  logger.log(`    flow-weaver mcp-setup            ${logger.dim('Connect AI editors (Claude, Cursor, VS Code)')}`);
-  logger.log(`    flow-weaver docs                 ${logger.dim('Browse reference docs')}`);
+  logger.log(`    fw mcp-setup            ${logger.dim('Connect AI editors (Claude, Cursor, VS Code)')}`);
+  logger.log(`    fw docs                 ${logger.dim('Browse reference docs')}`);
 }
 
 /** Pad a filename to align descriptions */

@@ -225,5 +225,5 @@ Avoid: `process`, `module`, `require`, `exports`, `console`, `global`
 Always validate after changes:
 
 ```bash
-flow-weaver validate <file>
+fw validate <file>
 ```

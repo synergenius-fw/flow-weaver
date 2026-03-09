@@ -86,7 +86,7 @@ export async function marketInitCommand(name: string, options: MarketInitOptions
     },
     scripts: {
       build: 'tsc',
-      pack: 'flow-weaver market pack',
+      pack: 'fw market pack',
       prepublishOnly: 'npm run build && npm run pack',
     },
     ...(options.author && { author: options.author }),
@@ -178,7 +178,7 @@ A [Flow Weaver](https://github.com/synergenius-fw/flow-weaver) marketplace pack.
 ## Installation
 
 \`\`\`bash
-flow-weaver market install ${name}
+fw market install ${name}
 \`\`\`
 
 ## Contents
@@ -218,7 +218,7 @@ npm publish     # Publish to npm
   logger.log('  npm install');
   logger.log('  # Add your node types, workflows, and patterns to src/');
   logger.log('  npm run build');
-  logger.log('  flow-weaver market pack');
+  logger.log('  fw market pack');
   logger.log('  npm publish');
   logger.newline();
 }
@@ -398,7 +398,7 @@ export async function marketInstallCommand(packageSpec: string, options: MarketI
     displayManifestSummary(manifest);
   } else {
     logger.warn('No flowweaver.manifest.json found in package');
-    logger.info('The package may need to run "flow-weaver market pack" before publishing');
+    logger.info('The package may need to run "fw market pack" before publishing');
   }
 }
 
@@ -497,7 +497,7 @@ export async function marketListCommand(options: MarketListOptions = {}): Promis
 
   if (packages.length === 0) {
     logger.info('No marketplace packages installed');
-    logger.info('Use "flow-weaver market search" to find packages');
+    logger.info('Use "fw market search" to find packages');
     return;
   }
 

@@ -6,15 +6,15 @@ keywords: [scaffold, templates, create, generate, workflow, node, sequential, fo
 
 # Quick Start
 
-Use the `flow-weaver create` command to scaffold workflows and nodes from templates, or `flow-weaver init` to create a new project.
+Use the `fw create` command to scaffold workflows and nodes from templates, or `fw init` to create a new project.
 
 ## Create a Project
 
 ```bash
-flow-weaver init [directory] [options]
+fw init [directory] [options]
 ```
 
-Creates a new flow-weaver project with recommended structure, dependencies, and a starter workflow.
+Creates a new Flow Weaver project with recommended structure, dependencies, and a starter workflow.
 
 Options:
 - `--name <name>` / `-n` - Project name (defaults to directory name)
@@ -26,15 +26,15 @@ Options:
 - `--force` - Overwrite existing files
 
 ```bash
-flow-weaver init my-project
-flow-weaver init --template ai-agent -y
-flow-weaver init my-project --format cjs --no-git
+fw init my-project
+fw init --template ai-agent -y
+fw init my-project --format cjs --no-git
 ```
 
 ## Create Workflow
 
 ```bash
-flow-weaver create workflow <template> <file> [options]
+fw create workflow <template> <file> [options]
 ```
 
 Options:
@@ -50,14 +50,14 @@ Options:
 - `--config <json>` - Additional configuration as JSON
 
 ```bash
-flow-weaver create workflow ai-agent agent.ts --provider openai --model gpt-4o
-flow-weaver create workflow sequential pipeline.ts --nodes "fetch,parse,store" --async
+fw create workflow ai-agent agent.ts --provider openai --model gpt-4o
+fw create workflow sequential pipeline.ts --nodes "fetch,parse,store" --async
 ```
 
 ## Create Node
 
 ```bash
-flow-weaver create node <name> <file> [--template T] [--line N] [--preview]
+fw create node <name> <file> [--template T] [--line N] [--preview]
 ```
 
 Options:
@@ -72,7 +72,7 @@ Options:
 ## List Templates
 
 ```bash
-flow-weaver templates [--json]
+fw templates [--json]
 ```
 
 # Available Templates
@@ -117,39 +117,39 @@ flow-weaver templates [--json]
 
 ## Scaffold a workflow
 ```bash
-flow-weaver create workflow sequential my-workflow.ts
-flow-weaver validate my-workflow.ts
+fw create workflow sequential my-workflow.ts
+fw validate my-workflow.ts
 ```
 
 ## Scaffold an AI agent
 ```bash
-flow-weaver create workflow ai-agent agent.ts
+fw create workflow ai-agent agent.ts
 ```
 
 ## Add a node to existing file
 ```bash
-flow-weaver create node validateInput my-workflow.ts -t validator
-flow-weaver create node callLLM my-workflow.ts -t llm-call
+fw create node validateInput my-workflow.ts -t validator
+fw create node callLLM my-workflow.ts -t llm-call
 ```
 
 ## Insert at specific line
 ```bash
-flow-weaver create workflow sequential my-file.ts --line 10
+fw create workflow sequential my-file.ts --line 10
 ```
 
 ## Preview before writing
 ```bash
-flow-weaver create workflow foreach my-workflow.ts --preview
-flow-weaver create node myValidator file.ts -t validator --preview
+fw create workflow foreach my-workflow.ts --preview
+fw create node myValidator file.ts -t validator --preview
 ```
 
 # After Scaffolding
 
 1. **Customize** - Replace TODO comments with your logic
-2. **Validate** - Run `flow-weaver validate <file>`
-3. **Compile** - Run `flow-weaver compile <file>`
+2. **Validate** - Run `fw validate <file>`
+3. **Compile** - Run `fw compile <file>`
 
-See `flow-weaver docs iterative-development` for step-by-step workflow building.
+See `fw docs iterative-development` for step-by-step workflow building.
 
 ## Related Topics
 

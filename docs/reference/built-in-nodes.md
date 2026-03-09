@@ -139,13 +139,13 @@ interface FwMockConfig {
 Pass mock config directly:
 
 ```bash
-flow-weaver run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
+fw run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
 ```
 
 Or from a file:
 
 ```bash
-flow-weaver run workflow.ts --mocks-file mocks.json
+fw run workflow.ts --mocks-file mocks.json
 ```
 
 **mocks.json:**

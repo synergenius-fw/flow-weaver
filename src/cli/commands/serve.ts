@@ -33,19 +33,19 @@ export interface ServeOptions {
  * @example
  * ```bash
  * # Start server with current directory
- * flow-weaver serve
+ * fw serve
  *
  * # Specify workflow directory
- * flow-weaver serve ./workflows
+ * fw serve ./workflows
  *
  * # Custom port
- * flow-weaver serve --port 8080
+ * fw serve --port 8080
  *
  * # Production mode
- * flow-weaver serve --production --precompile
+ * fw serve --production --precompile
  *
  * # Disable hot reload
- * flow-weaver serve --no-watch
+ * fw serve --no-watch
  * ```
  */
 export async function serveCommand(dir: string | undefined, options: ServeOptions): Promise<void> {

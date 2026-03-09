@@ -2,7 +2,7 @@
  * Minimal hello-world — zero @input/@output needed.
  * Ports are auto-inferred from TypeScript function signatures.
  *
- * Run: flow-weaver run fixtures/basic/minimal-hello-world.ts --params '{"name":"World"}'
+ * Run: fw run fixtures/basic/minimal-hello-world.ts --params '{"name":"World"}'
  */
 
 /** @flowWeaver nodeType @expression */
@@ -28,5 +28,5 @@ export function helloWorld(
   execute: boolean,
   params: { name: string }
 ): { onSuccess: boolean; onFailure: boolean; message: string } {
-  throw new Error('Compile with: flow-weaver compile <file>');
+  throw new Error('Compile with: fw compile <file>');
 }

@@ -112,7 +112,7 @@ export interface TCliOptionDoc {
 export interface TCliCommandDoc {
   /** Command name, e.g. "compile", "create workflow", "ui focus-node" */
   name: string;
-  /** Full syntax string, e.g. "flow-weaver compile <input> [options]" */
+  /** Full syntax string, e.g. "fw compile <input> [options]" */
   syntax: string;
   /** Human-readable description */
   description: string;

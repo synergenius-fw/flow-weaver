@@ -186,7 +186,7 @@ export async function ${workflowName}(
   answer: string;
   sourcesUsed: number;
 }> {
-  throw new Error('Compile with: flow-weaver compile <file>');
+  throw new Error('Compile with: fw compile <file>');
 }
 `.trim();
   },

@@ -29,7 +29,7 @@ export async function contextCommand(
       logger.log(`  ${name.padEnd(maxName + 2)} ${topics.join(', ')}`);
     }
     logger.newline();
-    logger.log('  Usage: flow-weaver context [preset] [options]');
+    logger.log('  Usage: fw context [preset] [options]');
     logger.newline();
     return;
   }
@@ -68,5 +68,5 @@ export async function contextCommand(
 
   // Stats to stderr (doesn't pollute piped stdout)
   const stats = `${result.topicCount} topics, ${result.lineCount} lines (${result.profile} profile)`;
-  process.stderr.write(`flow-weaver context: ${stats}\n`);
+  process.stderr.write(`fw context: ${stats}\n`);
 }

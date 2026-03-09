@@ -79,7 +79,7 @@ export async function createWorkflowCommand(
   const templateDef = getWorkflowTemplate(template);
   if (!templateDef) {
     logger.error(`Unknown workflow template: ${template}`);
-    logger.info("Run 'flow-weaver templates' to see available templates");
+    logger.info("Run 'fw templates' to see available templates");
     process.exit(1);
   }
 
@@ -146,7 +146,7 @@ export async function createNodeCommand(
   const templateDef = getNodeTemplate(template);
   if (!templateDef) {
     logger.error(`Unknown node template: ${template}`);
-    logger.info("Run 'flow-weaver templates' to see available templates");
+    logger.info("Run 'fw templates' to see available templates");
     process.exit(1);
   }
 

@@ -256,7 +256,7 @@ describe('generateReadme', () => {
   it('should include template section for lowcode persona', () => {
     const readme = generateReadme('my-project', 'lowcode', 'sequential');
     expect(readme).toContain('Templates');
-    expect(readme).toContain('flow-weaver templates');
+    expect(readme).toContain('fw templates');
   });
 
   it('should be minimal for expert persona', () => {
@@ -378,7 +378,7 @@ describe('printNextSteps', () => {
     logs = [];
     printNextSteps({ ...baseOpts, persona: 'lowcode' });
     const output = logs.join('\n');
-    expect(output).toContain('flow-weaver templates');
+    expect(output).toContain('fw templates');
     expect(output).toContain('examples/');
     expect(output).toContain('MCP connected');
   });
@@ -387,8 +387,8 @@ describe('printNextSteps', () => {
     logs = [];
     printNextSteps({ ...baseOpts, persona: 'expert' });
     const output = logs.join('\n');
-    expect(output).toContain('flow-weaver mcp-setup');
-    expect(output).toContain('flow-weaver docs');
+    expect(output).toContain('fw mcp-setup');
+    expect(output).toContain('fw docs');
   });
 
   it('should show cd command when displayDir is set', () => {

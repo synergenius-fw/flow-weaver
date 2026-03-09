@@ -50,7 +50,7 @@ export function myWorkflow(
 Test:
 
 ```bash
-flow-weaver validate <file>
+fw validate <file>
 ```
 
 ### Phase 3: Create the Nodes
@@ -122,7 +122,7 @@ Add node instances with `@node` and connections with `@connect`:
 Test after each change:
 
 ```bash
-flow-weaver validate <file>
+fw validate <file>
 ```
 
 ### Phase 4: Finalizing
@@ -137,9 +137,9 @@ After everything is connected:
 Final validation:
 
 ```bash
-flow-weaver validate <file>
-flow-weaver compile <file>
-flow-weaver describe <file>  # Get workflow structure as JSON
+fw validate <file>
+fw compile <file>
+fw describe <file>  # Get workflow structure as JSON
 ```
 
 ## Common Mistakes
@@ -168,7 +168,7 @@ If the workflow should return values, connect them: `@connect lastNode.result ->
 
 ### 5. Not Validating After Each Change
 
-Always run `flow-weaver validate` after adding nodes/connections. Don't batch 10 changes then validate -- validate incrementally.
+Always run `fw validate` after adding nodes/connections. Don't batch 10 changes then validate -- validate incrementally.
 
 ### 6. Using Normal Mode When Expression Mode Works
 

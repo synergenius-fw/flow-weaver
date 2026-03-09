@@ -1,5 +1,5 @@
 /**
- * Regression tests for pack template loading in `flow-weaver init`.
+ * Regression tests for pack template loading in `fw init`.
  *
  * Validates that:
  * 1. registerWorkflowTemplates() makes templates visible to getAllWorkflowTemplates()

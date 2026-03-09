@@ -5,7 +5,7 @@
  *   Start → first node → second node → ... → Exit
  * Data ports are matched by name (output "x" connects to input "x" of next node).
  *
- * Run: flow-weaver run fixtures/basic/example-autoconnect.ts --params '{"text":"hello world"}'
+ * Run: fw run fixtures/basic/example-autoconnect.ts --params '{"text":"hello world"}'
  */
 
 /** @flowWeaver nodeType @expression */
@@ -35,5 +35,5 @@ export function textDecorator(
   execute: boolean,
   params: { text: string }
 ): { onSuccess: boolean; onFailure: boolean; boxed: string } {
-  throw new Error('Compile with: flow-weaver compile <file>');
+  throw new Error('Compile with: fw compile <file>');
 }

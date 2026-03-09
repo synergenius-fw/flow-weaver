@@ -14,7 +14,7 @@ import type { TDebugger } from '@synergenius/flow-weaver/runtime';
  *   Start → validator → transformer → outputter → Exit
  * Control flow (onSuccess→execute) and matching data ports are connected automatically.
  *
- * Run: flow-weaver run fixtures/basic/example-pipeline.ts --params '{"data":"hello world"}'
+ * Run: fw run fixtures/basic/example-pipeline.ts --params '{"data":"hello world"}'
  */
 
 /**

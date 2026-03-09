@@ -13,15 +13,15 @@
 //          retry:fail (max attempts) ------------------------> Exit
 //
 // Run (interactive):
-//   flow-weaver run use-cases/human-approval.ts --params '{"requesterId":"u_jane","item":"MacBook Pro 16\"","amount":3499,"justification":"Development machine for new hire"}'
+//   fw run use-cases/human-approval.ts --params '{"requesterId":"u_jane","item":"MacBook Pro 16\"","amount":3499,"justification":"Development machine for new hire"}'
 //
 // Run (approved mock):
-//   flow-weaver run use-cases/human-approval.ts \
+//   fw run use-cases/human-approval.ts \
 //     --params '{"requesterId":"u_jane","item":"MacBook Pro","amount":3499,"justification":"Dev machine"}' \
 //     --mocks '{"agents":{"human-reviewer":{"approved":true,"reviewer":"u_manager","note":"Go for it"}}}'
 //
 // Run (rejected mock):
-//   flow-weaver run use-cases/human-approval.ts \
+//   fw run use-cases/human-approval.ts \
 //     --params '{"requesterId":"u_jane","item":"MacBook Pro","amount":3499,"justification":"Dev machine"}' \
 //     --mocks '{"agents":{"human-reviewer":{"approved":false,"reviewer":"u_boss","note":"Over budget"}}}'
 // =============================================================================
@@ -334,5 +334,5 @@ export function purchaseApproval(
   status: string;
   reason: string;
 } {
-  throw new Error('Compile with: flow-weaver compile <file>');
+  throw new Error('Compile with: fw compile <file>');
 }

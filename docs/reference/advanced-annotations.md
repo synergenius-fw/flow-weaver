@@ -469,10 +469,10 @@ export function enrichPipeline(params: { data: string }) { ... }
 Most CLI commands accept `--workflow-name` or `-w` to target a specific workflow:
 
 ```bash
-flow-weaver compile multi.ts --workflow-name validatePipeline
-flow-weaver validate multi.ts -w enrichPipeline
-flow-weaver run multi.ts -w validatePipeline --params '{"data": "test"}'
-flow-weaver describe multi.ts --workflow-name enrichPipeline
+fw compile multi.ts --workflow-name validatePipeline
+fw validate multi.ts -w enrichPipeline
+fw run multi.ts -w validatePipeline --params '{"data": "test"}'
+fw describe multi.ts --workflow-name enrichPipeline
 ```
 
 Without this flag, all workflows in the file are processed.
