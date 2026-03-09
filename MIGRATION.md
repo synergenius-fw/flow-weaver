@@ -16,14 +16,14 @@ This means:
 
 ```bash
 # Migrate workflow files to current syntax
-flow-weaver migrate '**/*.ts'
-flow-weaver migrate '**/*.ts' --dry-run
-flow-weaver migrate 'src/**/*.ts' --diff
+fw migrate '**/*.ts'
+fw migrate '**/*.ts' --dry-run
+fw migrate 'src/**/*.ts' --diff
 
 # Generate a changelog from git history
-flow-weaver changelog --last-tag
-flow-weaver changelog --range v0.1.0..HEAD
-flow-weaver changelog --since 2024-01-01
+fw changelog --last-tag
+fw changelog --range v0.1.0..HEAD
+fw changelog --since 2024-01-01
 
 # Package the app for distribution
 npm run package
@@ -59,13 +59,13 @@ npm run test:integration
 
 ```bash
 # Preview what would change (no files written)
-flow-weaver migrate 'src/**/*.ts' --dry-run
+fw migrate 'src/**/*.ts' --dry-run
 
 # Migrate with semantic diff output
-flow-weaver migrate 'src/**/*.ts' --diff
+fw migrate 'src/**/*.ts' --diff
 
 # Migrate in-place
-flow-weaver migrate 'src/**/*.ts'
+fw migrate 'src/**/*.ts'
 ```
 
 ### MCP Tool

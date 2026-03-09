@@ -25,7 +25,7 @@ export function devTestWorkflow(
   execute: boolean,
   params: { name: string }
 ): { onSuccess: boolean; onFailure: boolean; message: string } {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }
 `;
 
@@ -47,7 +47,7 @@ export function brokenWorkflow(
   execute: boolean,
   params: { data: string }
 ): { onSuccess: boolean; onFailure: boolean; result: string } {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }
 `;
 

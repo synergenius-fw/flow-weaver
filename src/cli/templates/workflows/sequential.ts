@@ -115,7 +115,7 @@ export ${asyncKeyword}function ${workflowName}(
   execute: boolean,
   params: { data: any }
 ): ${returnType} {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }
 `.trim();
 }
@@ -188,7 +188,7 @@ export ${asyncKeyword}function ${workflowName}(
   execute: boolean,
   params: { ${inputPort}: any }
 ): ${returnType} {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }`.trim();
 }
 

@@ -63,10 +63,12 @@ The converter extracts the steps and decision points from your markdown and prod
 
 ```bash
 npm install @synergenius/flow-weaver
-npx flow-weaver init my-project
+npx fw init my-project
 cd my-project
-npx flow-weaver run workflows/example.ts --params '{"input": "value"}'
+npx fw run workflows/example.ts --params '{"input": "value"}'
 ```
+
+`fw` is the CLI command. `flow-weaver` also works as an alias.
 
 ## How It Works
 
@@ -119,8 +121,8 @@ export async function dataPipeline(
 ```
 
 ```bash
-npx flow-weaver compile data-pipeline.ts    # generates executable code in-place
-npx flow-weaver run data-pipeline.ts --params '{"rawData": "Hello World"}'
+npx fw compile data-pipeline.ts    # generates executable code in-place
+npx fw run data-pipeline.ts --params '{"rawData": "Hello World"}'
 ```
 
 The compiler fills in the function body while preserving your code outside the generated markers.
@@ -130,7 +132,7 @@ The compiler fills in the function body while preserving your code outside the g
 Flow Weaver includes an MCP server with 48 tools for Claude Code, Cursor, OpenClaw, or any MCP-compatible agent:
 
 ```bash
-npx flow-weaver mcp-server    # auto-registers with Claude Code
+npx fw mcp-server    # auto-registers with Claude Code
 ```
 
 | Capability | MCP Tools |
@@ -152,8 +154,8 @@ Design first, implement later. Describe the workflow shape (nodes, ports, execut
 ```bash
 # Via MCP: fw_create_model with nodes, inputs/outputs, and execution path
 # Via CLI:
-npx flow-weaver status my-workflow.ts      # shows stub vs implemented progress
-npx flow-weaver implement my-workflow.ts processData   # scaffolds a node body
+npx fw status my-workflow.ts      # shows stub vs implemented progress
+npx fw implement my-workflow.ts processData   # scaffolds a node body
 ```
 
 The graph is valid before any node has a real implementation. Fill in node bodies incrementally, check `status` to track progress. The architect defines the shape, developers fill in the logic.
@@ -163,10 +165,10 @@ The graph is valid before any node has a real implementation. Fill in node bodie
 Built-in templates for AI agent workflows:
 
 ```bash
-npx flow-weaver create workflow ai-agent my-agent.ts --provider openai --model gpt-4o
-npx flow-weaver create workflow ai-react react-agent.ts
-npx flow-weaver create workflow ai-rag rag-pipeline.ts
-npx flow-weaver create workflow ai-agent-durable durable-agent.ts
+npx fw create workflow ai-agent my-agent.ts --provider openai --model gpt-4o
+npx fw create workflow ai-react react-agent.ts
+npx fw create workflow ai-rag rag-pipeline.ts
+npx fw create workflow ai-agent-durable durable-agent.ts
 ```
 
 **12 workflow templates:**
@@ -257,22 +259,22 @@ npm install @synergenius/flow-weaver-pack-lambda @synergenius/flow-weaver-pack-v
 
 ```bash
 # Plain TypeScript (default)
-flow-weaver compile workflow.ts
+fw compile workflow.ts
 
 # Inngest durable functions (per-node step.run, retries, cron)
-flow-weaver compile workflow.ts --target inngest --retries 3 --cron "0 9 * * *"
+fw compile workflow.ts --target inngest --retries 3 --cron "0 9 * * *"
 
 # Serverless exports
-flow-weaver export workflow.ts --target lambda --output deploy/
-flow-weaver export workflow.ts --target vercel --output deploy/
-flow-weaver export workflow.ts --target cloudflare --output deploy/
+fw export workflow.ts --target lambda --output deploy/
+fw export workflow.ts --target vercel --output deploy/
+fw export workflow.ts --target cloudflare --output deploy/
 
 # CI/CD pipelines
-flow-weaver export workflow.ts --target github-actions --output .github/workflows/
-flow-weaver export workflow.ts --target gitlab-ci --output .
+fw export workflow.ts --target github-actions --output .github/workflows/
+fw export workflow.ts --target gitlab-ci --output .
 
 # HTTP server with OpenAPI docs
-flow-weaver serve ./workflows --port 3000 --swagger
+fw serve ./workflows --port 3000 --swagger
 ```
 
 Both the default TypeScript target and Inngest target parallelize independent nodes with `Promise.all()`. Inngest additionally wraps each node in `step.run()` for individual durability and generates typed Zod event schemas.
@@ -282,8 +284,8 @@ Both the default TypeScript target and Inngest target parallelize independent no
 Generate SVG or interactive HTML diagrams from any workflow:
 
 ```bash
-flow-weaver diagram workflow.ts -o workflow.svg --theme dark
-flow-weaver diagram workflow.ts -o workflow.html --format html
+fw diagram workflow.ts -o workflow.svg --theme dark
+fw diagram workflow.ts -o workflow.html --format html
 ```
 
 Customize node appearance with annotations:
@@ -341,56 +343,56 @@ const code = generateCode(ast);
 
 ```bash
 # Core
-flow-weaver compile <file>           # Compile to TypeScript or Inngest
-flow-weaver validate <file>          # Validate without compiling
-flow-weaver run <file>               # Execute a workflow
-flow-weaver dev <file>               # Watch + compile + run
-flow-weaver strip <file>             # Remove generated code sections
-flow-weaver describe <file>          # Structure output (json/text/mermaid)
-flow-weaver diagram <file>           # Generate SVG or interactive HTML diagram
-flow-weaver diff <f1> <f2>           # Semantic workflow comparison
+fw compile <file>           # Compile to TypeScript or Inngest
+fw validate <file>          # Validate without compiling
+fw run <file>               # Execute a workflow
+fw dev <file>               # Watch + compile + run
+fw strip <file>             # Remove generated code sections
+fw describe <file>          # Structure output (json/text/mermaid)
+fw diagram <file>           # Generate SVG or interactive HTML diagram
+fw diff <f1> <f2>           # Semantic workflow comparison
 
 # Model-driven
-flow-weaver status <file>            # Show stub vs implemented progress
-flow-weaver implement <file> <node>  # Scaffold a node body from its stub
+fw status <file>            # Show stub vs implemented progress
+fw implement <file> <node>  # Scaffold a node body from its stub
 
 # Scaffolding
-flow-weaver init [directory]         # Create new project
-flow-weaver create workflow <t> <f>  # Scaffold from template
-flow-weaver create node <name> <f>   # Scaffold node type
-flow-weaver templates                # List available templates
-flow-weaver doctor                   # Check project compatibility
-flow-weaver grammar                  # Output annotation grammar (EBNF/railroad)
+fw init [directory]         # Create new project
+fw create workflow <t> <f>  # Scaffold from template
+fw create node <name> <f>   # Scaffold node type
+fw templates                # List available templates
+fw doctor                   # Check project compatibility
+fw grammar                  # Output annotation grammar (EBNF/railroad)
 
 # Deploy
-flow-weaver serve [directory]        # HTTP server with Swagger UI
-flow-weaver export <file>            # Export to Lambda/Vercel/Cloudflare/Inngest/GitHub Actions/GitLab CI (via packs)
-flow-weaver openapi <directory>      # Generate OpenAPI spec
+fw serve [directory]        # HTTP server with Swagger UI
+fw export <file>            # Export to Lambda/Vercel/Cloudflare/Inngest/GitHub Actions/GitLab CI (via packs)
+fw openapi <directory>      # Generate OpenAPI spec
 
 # Patterns
-flow-weaver pattern list <path>      # List reusable patterns
-flow-weaver pattern apply <p> <t>    # Apply pattern to workflow
-flow-weaver pattern extract <src>    # Extract pattern from nodes
+fw pattern list <path>      # List reusable patterns
+fw pattern apply <p> <t>    # Apply pattern to workflow
+fw pattern extract <src>    # Extract pattern from nodes
 
 # Docs
-flow-weaver docs                     # List documentation topics
-flow-weaver docs read <topic>        # Read a topic
-flow-weaver docs search <query>      # Search documentation
+fw docs                     # List documentation topics
+fw docs read <topic>        # Read a topic
+fw docs search <query>      # Search documentation
 
 # Marketplace
-flow-weaver market search [query]    # Search npm for packages
-flow-weaver market install <pkg>     # Install a package
-flow-weaver market list              # List installed packages
-flow-weaver market init <name>       # Scaffold a marketplace package
-flow-weaver market pack              # Validate and generate manifest
-flow-weaver market publish           # Publish to npm
+fw market search [query]    # Search npm for packages
+fw market install <pkg>     # Install a package
+fw market list              # List installed packages
+fw market init <name>       # Scaffold a marketplace package
+fw market pack              # Validate and generate manifest
+fw market publish           # Publish to npm
 
 # Editor / IDE
-flow-weaver mcp-server               # Start MCP server for Claude Code
-flow-weaver listen                   # Stream editor events
-flow-weaver changelog                # Generate changelog from git history
-flow-weaver migrate <glob>           # Run migration transforms on workflow files
-flow-weaver plugin init <name>       # Scaffold an external plugin
+fw mcp-server               # Start MCP server for Claude Code
+fw listen                   # Stream editor events
+fw changelog                # Generate changelog from git history
+fw migrate <glob>           # Run migration transforms on workflow files
+fw plugin init <name>       # Scaffold an external plugin
 ```
 
 ## Built-in Nodes

@@ -16,7 +16,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Core commands ──────────────────────────────────────────────
   {
     name: 'compile',
-    syntax: 'flow-weaver compile <file> [options]',
+    syntax: 'fw compile <file> [options]',
     description: 'Compile workflow source file',
     botCompatible: true,
     options: [
@@ -32,7 +32,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'validate',
-    syntax: 'flow-weaver validate <file> [options]',
+    syntax: 'fw validate <file> [options]',
     description: 'Validate workflow without compiling',
     botCompatible: true,
     options: [
@@ -45,7 +45,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'describe',
-    syntax: 'flow-weaver describe <file> [options]',
+    syntax: 'fw describe <file> [options]',
     description: 'Output workflow structure in LLM-friendly formats (JSON, text, mermaid)',
     botCompatible: true,
     options: [
@@ -57,7 +57,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'run',
-    syntax: 'flow-weaver run <file> [options]',
+    syntax: 'fw run <file> [options]',
     description: 'Execute a workflow file directly',
     botCompatible: true,
     options: [
@@ -72,7 +72,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'serve',
-    syntax: 'flow-weaver serve [directory] [options]',
+    syntax: 'fw serve [directory] [options]',
     description: 'Start HTTP server exposing workflows as endpoints',
     options: [
       { flags: '-p, --port', arg: '<port>', description: 'Server port', defaultValue: '3000' },
@@ -88,7 +88,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Create subcommands ─────────────────────────────────────────
   {
     name: 'create workflow',
-    syntax: 'flow-weaver create workflow <template> <file> [options]',
+    syntax: 'fw create workflow <template> <file> [options]',
     description: 'Create new workflow from template',
     botCompatible: true,
     group: 'create',
@@ -110,7 +110,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'create node',
-    syntax: 'flow-weaver create node <name> <file> [options]',
+    syntax: 'fw create node <name> <file> [options]',
     description: 'Create a node type from template',
     botCompatible: true,
     group: 'create',
@@ -124,7 +124,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Templates (generated from registries) ──────────────────────
   {
     name: 'templates',
-    syntax: 'flow-weaver templates [--json]',
+    syntax: 'fw templates [--json]',
     description: `List available workflow templates (${workflowTemplates.length} total)`,
     botCompatible: true,
     listStyle: 'definition',
@@ -135,7 +135,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'Node Templates',
-    syntax: 'flow-weaver create node <name> <file> --template <type>',
+    syntax: 'fw create node <name> <file> --template <type>',
     description: `Create node types from templates (${nodeTemplates.length} total)`,
     listStyle: 'definition',
     options: [],
@@ -145,7 +145,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Pattern subcommands ────────────────────────────────────────
   {
     name: 'pattern list',
-    syntax: 'flow-weaver pattern list <path> [--json]',
+    syntax: 'fw pattern list <path> [--json]',
     description: 'List patterns in file or directory',
     botCompatible: true,
     group: 'pattern',
@@ -155,7 +155,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'pattern apply',
-    syntax: 'flow-weaver pattern apply <pattern-file> <target-file> [options]',
+    syntax: 'fw pattern apply <pattern-file> <target-file> [options]',
     description: 'Apply a pattern to a workflow file',
     botCompatible: true,
     group: 'pattern',
@@ -167,7 +167,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'pattern extract',
-    syntax: 'flow-weaver pattern extract <source-file> --nodes <ids> -o <file> [options]',
+    syntax: 'fw pattern extract <source-file> --nodes <ids> -o <file> [options]',
     description: 'Extract nodes as reusable pattern',
     botCompatible: true,
     group: 'pattern',
@@ -182,7 +182,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Project & dev commands ─────────────────────────────────────
   {
     name: 'init',
-    syntax: 'flow-weaver init [directory] [options]',
+    syntax: 'fw init [directory] [options]',
     description: 'Create a new flow-weaver project with templates and config',
     options: [
       { flags: '-n, --name', arg: '<name>', description: 'Project name (defaults to directory name)' },
@@ -197,7 +197,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'watch',
-    syntax: 'flow-weaver watch <file> [options]',
+    syntax: 'fw watch <file> [options]',
     description: 'Watch workflow files and recompile on changes',
     options: [
       { flags: '-o, --output', arg: '<path>', description: 'Output file or directory' },
@@ -210,7 +210,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'doctor',
-    syntax: 'flow-weaver doctor [--json]',
+    syntax: 'fw doctor [--json]',
     description: 'Check project environment and configuration. Validates Node.js version, TypeScript, package installation, and tsconfig.json settings.',
     botCompatible: true,
     options: [
@@ -221,7 +221,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Context ─────────────────────────────────────────────────────
   {
     name: 'context',
-    syntax: 'flow-weaver context [preset] [options]',
+    syntax: 'fw context [preset] [options]',
     description: 'Generate LLM context bundle from documentation and grammar',
     botCompatible: true,
     options: [
@@ -245,7 +245,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Export & generation ────────────────────────────────────────
   {
     name: 'export',
-    syntax: 'flow-weaver export <file> -t <target> -o <path> [options]',
+    syntax: 'fw export <file> -t <target> -o <path> [options]',
     description: 'Export workflow as serverless function',
     botCompatible: true,
     options: [
@@ -261,7 +261,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'diff',
-    syntax: 'flow-weaver diff <file1> <file2> [options]',
+    syntax: 'fw diff <file1> <file2> [options]',
     description: 'Semantic diff between two workflow files',
     botCompatible: true,
     options: [
@@ -272,7 +272,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'openapi',
-    syntax: 'flow-weaver openapi <directory> [options]',
+    syntax: 'fw openapi <directory> [options]',
     description: 'Generate OpenAPI specification from workflows',
     options: [
       { flags: '-o, --output', arg: '<path>', description: 'Output file path' },
@@ -285,7 +285,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'grammar',
-    syntax: 'flow-weaver grammar [options]',
+    syntax: 'fw grammar [options]',
     description: 'Output JSDoc annotation grammar specification',
     options: [
       { flags: '-f, --format', arg: 'html|ebnf', description: 'Output format', defaultValue: 'html' },
@@ -296,7 +296,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Integration commands ───────────────────────────────────────
   {
     name: 'mcp-server',
-    syntax: 'flow-weaver mcp-server [options]',
+    syntax: 'fw mcp-server [options]',
     description: 'Start MCP server for Claude Code integration',
     options: [
       { flags: '--stdio', description: 'Run in MCP stdio mode (skip interactive registration)' },
@@ -306,7 +306,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Plugin subcommands ─────────────────────────────────────────
   {
     name: 'plugin init',
-    syntax: 'flow-weaver plugin init <name> [options]',
+    syntax: 'fw plugin init <name> [options]',
     description: 'Scaffold a new external plugin',
     group: 'plugin',
     options: [
@@ -320,7 +320,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   // ── Migration & changelog ──────────────────────────────────────
   {
     name: 'migrate',
-    syntax: 'flow-weaver migrate <glob> [options]',
+    syntax: 'fw migrate <glob> [options]',
     description: 'Migrate workflow files to current syntax via parse → regenerate round-trip',
     botCompatible: true,
     options: [
@@ -330,7 +330,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   },
   {
     name: 'changelog',
-    syntax: 'flow-weaver changelog [options]',
+    syntax: 'fw changelog [options]',
     description: 'Generate changelog from git history, categorized by file path',
     options: [
       { flags: '--last-tag', description: 'From last git tag to HEAD', exclusive: 'range' },

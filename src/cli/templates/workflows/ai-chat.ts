@@ -169,7 +169,7 @@ export async function ${workflowName}(
   onFailure: boolean;
   response: string;
 }> {
-  throw new Error('Compile with: flow-weaver compile <file>');
+  throw new Error('Compile with: fw compile <file>');
 }
 `.trim();
   },

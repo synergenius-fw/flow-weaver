@@ -72,7 +72,7 @@ const version = typeof __CLI_VERSION__ !== 'undefined' ? __CLI_VERSION__ : '0.0.
 const program = new Command();
 
 program
-  .name('flow-weaver')
+  .name('fw')
   .description('Flow Weaver Annotations - Compile and validate workflow files')
   .option('-v, --version', 'Output the current version')
   .option('--no-color', 'Disable colors')
@@ -594,7 +594,7 @@ program
       await changelogCommand(options);
   }));
 
-// Docs command: flow-weaver docs [topic] | flow-weaver docs search <query>
+// Docs command: fw docs [topic] | fw docs search <query>
 program
   .command('docs [args...]')
   .description('Browse reference documentation')
@@ -606,7 +606,7 @@ program
       } else if (args[0] === 'search') {
         const query = args.slice(1).join(' ');
         if (!query) {
-          logger.error('Usage: flow-weaver docs search <query>');
+          logger.error('Usage: fw docs search <query>');
           process.exit(1);
         }
         await docsSearchCommand(query, options);
@@ -690,13 +690,13 @@ marketCmd
 program.addHelpText('after', `
 Examples:
 
-  $ flow-weaver compile my-workflow.ts
-  $ flow-weaver validate 'src/**/*.ts'
-  $ flow-weaver run workflow.ts --params '{"a": 5}'
-  $ flow-weaver describe workflow.ts --format ascii-compact
-  $ flow-weaver init my-project
+  $ fw compile my-workflow.ts
+  $ fw validate 'src/**/*.ts'
+  $ fw run workflow.ts --params '{"a": 5}'
+  $ fw describe workflow.ts --format ascii-compact
+  $ fw init my-project
 
-  Run flow-weaver <command> --help for detailed usage.
+  Run fw <command> --help for detailed usage.
 `);
 
 // Show concise welcome when no command specified (before parse to avoid Commander error handling)
@@ -712,7 +712,7 @@ if (!process.argv.slice(2).length) {
   console.log('    run <input>       Execute a workflow');
   console.log('    doctor            Check project environment');
   console.log();
-  console.log('  Run ' + logger.highlight('flow-weaver --help') + ' for all commands.');
+  console.log('  Run ' + logger.highlight('fw --help') + ' for all commands.');
   console.log();
   process.exit(0);
 }

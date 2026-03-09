@@ -32,13 +32,13 @@ export interface OpenAPIOptions {
  * @example
  * ```bash
  * # Generate JSON spec to stdout
- * flow-weaver openapi ./workflows
+ * fw openapi ./workflows
  *
  * # Generate YAML spec to file
- * flow-weaver openapi ./workflows --format yaml --output api-spec.yaml
+ * fw openapi ./workflows --format yaml --output api-spec.yaml
  *
  * # With custom title and version
- * flow-weaver openapi ./workflows --title "My API" --version "2.0.0"
+ * fw openapi ./workflows --title "My API" --version "2.0.0"
  * ```
  */
 export async function openapiCommand(dir: string, options: OpenAPIOptions): Promise<void> {

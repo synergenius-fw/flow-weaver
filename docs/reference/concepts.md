@@ -82,7 +82,7 @@ That is it. Two expression-mode functions, one workflow annotation, zero boilerp
 | Use delay/waitForEvent/mocks     | `built-in-nodes`             | debugging           |
 | Publish marketplace packages     | `marketplace`                | —                   |
 
-Use `flow-weaver docs <topic>` to read any topic.
+Use `fw docs <topic>` to read any topic.
 
 ## File Format
 
@@ -91,18 +91,18 @@ Workflows are TypeScript files with JSDoc annotations. Any `.ts`, `.tsx`, `.js`,
 ## CLI Commands
 
 ```bash
-flow-weaver validate <file>   # Check for errors (--json for machine parsing)
-flow-weaver compile <file>    # Generate executable code
-flow-weaver run <file>        # Execute a workflow directly. No compile step needed for testing.
-flow-weaver describe <file>   # Get workflow structure as JSON
-flow-weaver watch <file>      # Watch mode
-flow-weaver dev <file>        # Watch + compile + run in one command
-flow-weaver serve [dir]       # HTTP server exposing workflows as endpoints
-flow-weaver diagram <file>    # Generate SVG diagram
-flow-weaver export <file>     # Export as serverless function or CI/CD pipeline
-flow-weaver docs              # Browse documentation
-flow-weaver docs <topic>      # Read a specific topic
-flow-weaver docs search <q>   # Search across all docs
+fw validate <file>   # Check for errors (--json for machine parsing)
+fw compile <file>    # Generate executable code
+fw run <file>        # Execute a workflow directly. No compile step needed for testing.
+fw describe <file>   # Get workflow structure as JSON
+fw watch <file>      # Watch mode
+fw dev <file>        # Watch + compile + run in one command
+fw serve [dir]       # HTTP server exposing workflows as endpoints
+fw diagram <file>    # Generate SVG diagram
+fw export <file>     # Export as serverless function or CI/CD pipeline
+fw docs              # Browse documentation
+fw docs <topic>      # Read a specific topic
+fw docs search <q>   # Search across all docs
 ```
 
 Options: `-w/--workflow-name`, `--json`, `--format text|mermaid`. See `cli-reference` for all commands and flags.
@@ -350,7 +350,7 @@ Key points:
  */
 ```
 
-See `flow-weaver docs export-interface` for full scope documentation.
+See `fw docs export-interface` for full scope documentation.
 
 ## Node Positioning
 
@@ -372,48 +372,48 @@ Spacing: 180px horizontal (standard), 150px vertical for branches
 ### Recipe 1: Build a Workflow from Scratch
 
 ```
-1. flow-weaver create workflow sequential my-workflow.ts --preview   # preview the template
+1. fw create workflow sequential my-workflow.ts --preview   # preview the template
 2. Write the file with node types + workflow annotations
-3. flow-weaver validate my-workflow.ts                               # check for errors
+3. fw validate my-workflow.ts                               # check for errors
 4. Fix any errors, re-validate
-5. flow-weaver compile my-workflow.ts                                # generate executable code
-6. flow-weaver describe my-workflow.ts --format text                 # verify structure
+5. fw compile my-workflow.ts                                # generate executable code
+6. fw describe my-workflow.ts --format text                 # verify structure
 ```
 
 ### Recipe 2: Add a Node to Existing Workflow
 
 ```
-1. flow-weaver describe my-workflow.ts --format text   # understand current structure
+1. fw describe my-workflow.ts --format text   # understand current structure
 2. Edit the file: add @flowWeaver nodeType function + @node + @connect annotations
-3. flow-weaver validate my-workflow.ts                 # verify
+3. fw validate my-workflow.ts                 # verify
 ```
 
 ### Recipe 3: Debug a Broken Workflow
 
 ```
-1. flow-weaver validate my-workflow.ts                              # get all errors
-2. flow-weaver describe my-workflow.ts --format text                # get full picture
-3. Fix errors based on error codes (see: flow-weaver docs error-codes)
+1. fw validate my-workflow.ts                              # get all errors
+2. fw describe my-workflow.ts --format text                # get full picture
+3. Fix errors based on error codes (see: fw docs error-codes)
 ```
 
 ### Recipe 4: Add Iteration (ForEach)
 
 ```
-1. Read: flow-weaver docs export-interface              # scoped port syntax
+1. Read: fw docs export-interface              # scoped port syntax
 2. Edit file: add forEach node type with scope ports
 3. Edit file: add child node with parent scope reference
 4. Edit file: wire scoped connections (:scopeName suffix)
-5. flow-weaver validate my-workflow.ts                  # verify scope wiring
+5. fw validate my-workflow.ts                  # verify scope wiring
 ```
 
 ## Workflow Development Process
 
 1. **Create file** - Write TypeScript file with types and node functions
 2. **Add annotations** - `@flowWeaver nodeType` and `@flowWeaver workflow`
-3. **Validate** - `flow-weaver validate <file>`
-4. **Test** - Start with `flow-weaver run <file>` for quick testing. Compile only for production deployment.
-5. **Compile** - `flow-weaver compile <file>`
-6. **Inspect** - `flow-weaver describe <file>` for structure
+3. **Validate** - `fw validate <file>`
+4. **Test** - Start with `fw run <file>` for quick testing. Compile only for production deployment.
+5. **Compile** - `fw compile <file>`
+6. **Inspect** - `fw describe <file>` for structure
 
 ## Additional Annotations
 

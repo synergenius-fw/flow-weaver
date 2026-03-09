@@ -10,7 +10,7 @@
 // Pattern: Start -> validate -> normalize -> format -> Exit
 //          validate:fail --------------------------------> Exit
 //
-// Run: flow-weaver run use-cases/data-pipeline.ts --params '{"email":"jane@example.com","name":"jane doe"}'
+// Run: fw run use-cases/data-pipeline.ts --params '{"email":"jane@example.com","name":"jane doe"}'
 // =============================================================================
 
 // -- Normal-Mode Node (branching) --
@@ -107,5 +107,5 @@ export function contactPipeline(
   execute: boolean,
   params: { email: string; name: string }
 ): { onSuccess: boolean; onFailure: boolean; record: string; reason: string } {
-  throw new Error('Compile with: flow-weaver compile <file>');
+  throw new Error('Compile with: fw compile <file>');
 }

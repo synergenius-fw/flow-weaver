@@ -30,8 +30,8 @@ export async function docsListCommand(options: DocsCommandOptions): Promise<void
     logger.log(`  ${topic.slug.padEnd(maxSlug + 2)} ${topic.description}`);
   }
   logger.newline();
-  logger.log('  Usage: flow-weaver docs <topic>');
-  logger.log('  Search: flow-weaver docs search <query>');
+  logger.log('  Usage: fw docs <topic>');
+  logger.log('  Search: fw docs search <query>');
   logger.newline();
 }
 
@@ -42,7 +42,7 @@ export async function docsReadCommand(
   if (options.json) {
     const structured = readTopicStructured(topic);
     if (!structured) {
-      logger.error(`Unknown topic: "${topic}". Run "flow-weaver docs" to see available topics.`);
+      logger.error(`Unknown topic: "${topic}". Run "fw docs" to see available topics.`);
       process.exit(1);
     }
     process.stdout.write(JSON.stringify(structured, null, 2) + '\n');
@@ -51,7 +51,7 @@ export async function docsReadCommand(
 
   const doc = readTopic(topic, options.compact);
   if (!doc) {
-    logger.error(`Unknown topic: "${topic}". Run "flow-weaver docs" to see available topics.`);
+    logger.error(`Unknown topic: "${topic}". Run "fw docs" to see available topics.`);
     process.exit(1);
   }
 
@@ -99,6 +99,6 @@ export async function docsSearchCommand(
   }
 
   logger.log(`  ${results.length} matching section(s) across ${new Set(results.map((r) => r.slug)).size} topic(s).`);
-  logger.log('  Read a topic: flow-weaver docs <topic>');
+  logger.log('  Read a topic: fw docs <topic>');
   logger.newline();
 }
