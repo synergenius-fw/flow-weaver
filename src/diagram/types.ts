@@ -42,6 +42,15 @@ export interface DiagramNode {
   scopePorts?: { inputs: DiagramPort[]; outputs: DiagramPort[] };
 }
 
+export interface DiagramStub {
+  x: number;       // stub start x (after port label badge)
+  y: number;       // stub start y (same as port center y)
+  endX: number;    // stub endpoint x
+  labelOffset: number; // distance from port center to stub start
+  color: string;
+  dashed: boolean;
+}
+
 export interface DiagramConnection {
   fromNode: string;
   fromPort: string;
@@ -51,6 +60,8 @@ export interface DiagramConnection {
   targetColor: string;
   isStepConnection: boolean;
   path: string;
+  sourceStub?: DiagramStub;
+  targetStub?: DiagramStub;
 }
 
 export interface DiagramGraph {
