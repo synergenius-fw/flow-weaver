@@ -344,16 +344,16 @@ export function generateProjectFiles(
 
   // Package.json
   const scripts: Record<string, string> = {
-    dev: `npx flow-weaver compile src/${workflowFile} -o src && npx tsx src/main.ts`,
+    dev: `npx fw compile src/${workflowFile} -o src && npx tsx src/main.ts`,
     start: 'npx tsx src/main.ts',
-    compile: `npx flow-weaver compile src/${workflowFile} -o src`,
-    validate: `npx flow-weaver validate src/${workflowFile}`,
-    doctor: 'npx flow-weaver doctor',
+    compile: `npx fw compile src/${workflowFile} -o src`,
+    validate: `npx fw validate src/${workflowFile}`,
+    doctor: 'npx fw doctor',
   };
 
   // Add diagram script for non-expert personas
   if (persona !== 'expert') {
-    scripts.diagram = `npx flow-weaver diagram src/${workflowFile} --format ascii-compact`;
+    scripts.diagram = `npx fw diagram src/${workflowFile} --format ascii-compact`;
   }
 
   const packageJsonContent: Record<string, unknown> = {

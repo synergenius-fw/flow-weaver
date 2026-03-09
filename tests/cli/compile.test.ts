@@ -297,7 +297,7 @@ export function cleanTestWorkflow(
   execute: boolean,
   params: { name: string }
 ): { onSuccess: boolean; onFailure: boolean; message: string } {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }
 `;
 

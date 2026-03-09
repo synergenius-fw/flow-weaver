@@ -15,7 +15,7 @@ The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node 
 | **Node types** | Reusable `@flowWeaver nodeType` functions |
 | **Workflows** | Complete `@flowWeaver workflow` exports |
 | **Patterns** | Reusable `@flowWeaver pattern` fragments |
-| **Export targets** | Deployment targets for `flow-weaver export` |
+| **Export targets** | Deployment targets for `fw export` |
 
 A single package can contain any combination of these.
 
@@ -49,15 +49,15 @@ See [Deployment](deployment) for target-specific usage details.
 Find packages on npm:
 
 ```bash
-flow-weaver market search openai
-flow-weaver market search            # Browse all packages
-flow-weaver market search llm --limit 5
+fw market search openai
+fw market search            # Browse all packages
+fw market search llm --limit 5
 ```
 
 For private registries:
 
 ```bash
-flow-weaver market search openai --registry https://npm.internal.com
+fw market search openai --registry https://npm.internal.com
 ```
 
 ### Install
@@ -65,8 +65,8 @@ flow-weaver market search openai --registry https://npm.internal.com
 Install a package:
 
 ```bash
-flow-weaver market install flow-weaver-pack-openai
-flow-weaver market install flow-weaver-pack-openai@1.0.0
+fw market install flow-weaver-pack-openai
+fw market install flow-weaver-pack-openai@1.0.0
 ```
 
 After installation, the package's node types, workflows, and patterns are available for use in your workflows via `@fwImport`.
@@ -74,7 +74,7 @@ After installation, the package's node types, workflows, and patterns are availa
 ### List Installed
 
 ```bash
-flow-weaver market list
+fw market list
 ```
 
 Shows all installed `flow-weaver-pack-*` packages with their available node types, workflows, and patterns.
@@ -88,7 +88,7 @@ Shows all installed `flow-weaver-pack-*` packages with their available node type
 Create a new marketplace package:
 
 ```bash
-flow-weaver market init openai
+fw market init openai
 ```
 
 This creates a `flow-weaver-pack-openai/` directory with:
@@ -99,8 +99,8 @@ This creates a `flow-weaver-pack-openai/` directory with:
 Options:
 
 ```bash
-flow-weaver market init openai --description "OpenAI nodes for Flow Weaver" --author "Your Name"
-flow-weaver market init openai -y  # Skip prompts
+fw market init openai --description "OpenAI nodes for Flow Weaver" --author "Your Name"
+fw market init openai -y  # Skip prompts
 ```
 
 ### Package Structure
@@ -124,8 +124,8 @@ flow-weaver-pack-openai/
 Validate your package and generate the manifest:
 
 ```bash
-flow-weaver market pack
-flow-weaver market pack --verbose  # Show parse warnings
+fw market pack
+fw market pack --verbose  # Show parse warnings
 ```
 
 This:
@@ -138,9 +138,9 @@ This:
 Publish to npm:
 
 ```bash
-flow-weaver market publish
-flow-weaver market publish --dry-run  # Preview without publishing
-flow-weaver market publish --tag beta # Publish with dist-tag
+fw market publish
+fw market publish --dry-run  # Preview without publishing
+fw market publish --tag beta # Publish with dist-tag
 ```
 
 ---
@@ -240,7 +240,7 @@ Plugins extend the Flow Weaver Studio IDE with custom UI components, system logi
 ### Scaffold a Plugin
 
 ```bash
-flow-weaver plugin init my-plugin
+fw plugin init my-plugin
 ```
 
 Options:
@@ -267,7 +267,7 @@ Plugins register React components in specific areas of the Studio IDE:
 ### Plugin Structure
 
 ```bash
-flow-weaver plugin init my-plugin --area sidebar
+fw plugin init my-plugin --area sidebar
 ```
 
 Generates:

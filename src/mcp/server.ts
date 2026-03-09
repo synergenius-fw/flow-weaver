@@ -53,7 +53,7 @@ export async function mcpServerCommand(options: McpServerOptions): Promise<void>
     : (msg: string) => process.stdout.write(msg + '\n');
 
   if (!options.stdio) {
-    log('Tip: run "flow-weaver mcp-setup" to register with your AI tools.');
+    log('Tip: run "fw mcp-setup" to register with your AI tools.');
     log('Starting MCP server...');
   }
 

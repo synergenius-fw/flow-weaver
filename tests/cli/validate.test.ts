@@ -161,7 +161,7 @@ function double(x: number): number { return x * 2; }
  * @returns result
  */
 export function broken(execute: boolean, params: { value: number }): { onSuccess: boolean; onFailure: boolean; result: number } {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }`;
     const testFile = path.join(VALIDATE_TEMP_DIR, 'broken-validate.ts');
     fs.writeFileSync(testFile, code);

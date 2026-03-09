@@ -6,7 +6,9 @@ keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, expo
 
 # CLI Reference
 
-Complete reference for all `flow-weaver` CLI commands.
+Complete reference for all `fw` CLI commands.
+
+`fw` is the CLI command. `flow-weaver` also works as an alias.
 
 ## Quick Reference
 
@@ -52,7 +54,7 @@ Complete reference for all `flow-weaver` CLI commands.
 Compile workflow files to TypeScript. Inserts generated code into marker sections in the source file — user code outside markers is preserved.
 
 ```bash
-flow-weaver compile <input> [options]
+fw compile <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -77,11 +79,11 @@ flow-weaver compile <input> [options]
 
 **Examples:**
 ```bash
-flow-weaver compile my-workflow.ts
-flow-weaver compile '**/*.ts' -o .output
-flow-weaver compile my-workflow.ts --format cjs
-flow-weaver compile workflow.ts --target inngest --serve --framework next
-flow-weaver compile workflow.ts --production --clean
+fw compile my-workflow.ts
+fw compile '**/*.ts' -o .output
+fw compile my-workflow.ts --format cjs
+fw compile workflow.ts --target inngest --serve --framework next
+fw compile workflow.ts --production --clean
 ```
 
 > See also: [Compilation](compilation) for details on targets and Inngest integration.
@@ -93,7 +95,7 @@ flow-weaver compile workflow.ts --production --clean
 Validate workflow files without compiling. Reports errors and warnings with suggestions.
 
 ```bash
-flow-weaver validate <input> [options]
+fw validate <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -106,9 +108,9 @@ flow-weaver validate <input> [options]
 
 **Examples:**
 ```bash
-flow-weaver validate my-workflow.ts
-flow-weaver validate '**/*.ts' --verbose
-flow-weaver validate workflow.ts --json --strict
+fw validate my-workflow.ts
+fw validate '**/*.ts' --verbose
+fw validate workflow.ts --json --strict
 ```
 
 ---
@@ -118,7 +120,7 @@ flow-weaver validate workflow.ts --json --strict
 Remove generated code from compiled workflow files. Deletes the runtime section and replaces each workflow body with a `throw new Error('Not implemented')` placeholder. Useful for committing clean source files to version control.
 
 ```bash
-flow-weaver strip <input> [options]
+fw strip <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -129,9 +131,9 @@ flow-weaver strip <input> [options]
 
 **Examples:**
 ```bash
-flow-weaver strip my-workflow.ts
-flow-weaver strip '**/*.ts' --dry-run
-flow-weaver strip my-workflow.ts -o cleaned/
+fw strip my-workflow.ts
+fw strip '**/*.ts' --dry-run
+fw strip my-workflow.ts -o cleaned/
 ```
 
 ---
@@ -141,7 +143,7 @@ flow-weaver strip my-workflow.ts -o cleaned/
 Output workflow structure in LLM-friendly formats.
 
 ```bash
-flow-weaver describe <input> [options]
+fw describe <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -153,10 +155,10 @@ flow-weaver describe <input> [options]
 
 **Examples:**
 ```bash
-flow-weaver describe workflow.ts
-flow-weaver describe workflow.ts --format mermaid
-flow-weaver describe workflow.ts --node validator
-flow-weaver describe workflow.ts --format paths
+fw describe workflow.ts
+fw describe workflow.ts --format mermaid
+fw describe workflow.ts --node validator
+fw describe workflow.ts --format paths
 ```
 
 ---
@@ -166,7 +168,7 @@ flow-weaver describe workflow.ts --format paths
 Execute a workflow file directly. Compiles in memory and runs immediately.
 
 ```bash
-flow-weaver run <input> [options]
+fw run <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -187,14 +189,14 @@ flow-weaver run <input> [options]
 
 **Examples:**
 ```bash
-flow-weaver run workflow.ts --params '{"amount": 500}'
-flow-weaver run workflow.ts --params-file input.json --trace
-flow-weaver run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
-flow-weaver run workflow.ts --timeout 30000 --json
-flow-weaver run workflow.ts --debug
-flow-weaver run workflow.ts --checkpoint
-flow-weaver run workflow.ts --resume
-flow-weaver run workflow.ts --debug --breakpoint processData --breakpoint validate
+fw run workflow.ts --params '{"amount": 500}'
+fw run workflow.ts --params-file input.json --trace
+fw run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
+fw run workflow.ts --timeout 30000 --json
+fw run workflow.ts --debug
+fw run workflow.ts --checkpoint
+fw run workflow.ts --resume
+fw run workflow.ts --debug --breakpoint processData --breakpoint validate
 ```
 
 > See also: [Built-in Nodes](built-in-nodes) for mock configuration details, [Debugging](debugging) for debug REPL commands and checkpoint details.
@@ -208,7 +210,7 @@ flow-weaver run workflow.ts --debug --breakpoint processData --breakpoint valida
 Watch workflow files and recompile on changes.
 
 ```bash
-flow-weaver watch <input> [options]
+fw watch <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -222,8 +224,8 @@ flow-weaver watch <input> [options]
 
 **Examples:**
 ```bash
-flow-weaver watch my-workflow.ts
-flow-weaver watch 'src/**/*.ts' -o dist
+fw watch my-workflow.ts
+fw watch 'src/**/*.ts' -o dist
 ```
 
 ---
@@ -233,7 +235,7 @@ flow-weaver watch 'src/**/*.ts' -o dist
 Watch, compile, and run workflow on changes. Combines `watch` + `run` into a single command for rapid iteration.
 
 ```bash
-flow-weaver dev <input> [options]
+fw dev <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -252,9 +254,9 @@ flow-weaver dev <input> [options]
 
 **Examples:**
 ```bash
-flow-weaver dev workflow.ts --params '{"input": "hello"}'
-flow-weaver dev workflow.ts --once --json
-flow-weaver dev workflow.ts --target inngest --port 8080
+fw dev workflow.ts --params '{"input": "hello"}'
+fw dev workflow.ts --once --json
+fw dev workflow.ts --target inngest --port 8080
 ```
 
 ---
@@ -264,7 +266,7 @@ flow-weaver dev workflow.ts --target inngest --port 8080
 Start an HTTP server exposing workflows as REST endpoints. Supports hot reload, CORS, and Swagger UI.
 
 ```bash
-flow-weaver serve [directory] [options]
+fw serve [directory] [options]
 ```
 
 | Flag | Description | Default |
@@ -279,9 +281,9 @@ flow-weaver serve [directory] [options]
 
 **Examples:**
 ```bash
-flow-weaver serve ./workflows
-flow-weaver serve ./workflows --port 8080 --swagger
-flow-weaver serve --production --precompile --no-watch
+fw serve ./workflows
+fw serve ./workflows --port 8080 --swagger
+fw serve --production --precompile --no-watch
 ```
 
 > See also: [Deployment](deployment) for production serving and export.
@@ -293,7 +295,7 @@ flow-weaver serve --production --precompile --no-watch
 Connect to the editor and stream integration events as JSON lines.
 
 ```bash
-flow-weaver listen [options]
+fw listen [options]
 ```
 
 | Flag | Description | Default |
@@ -309,7 +311,7 @@ flow-weaver listen [options]
 Generate SVG diagram of a workflow.
 
 ```bash
-flow-weaver diagram <input> [options]
+fw diagram <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -323,9 +325,9 @@ flow-weaver diagram <input> [options]
 
 **Examples:**
 ```bash
-flow-weaver diagram workflow.ts
-flow-weaver diagram workflow.ts --theme light -o diagram.svg
-flow-weaver diagram workflow.ts --no-port-labels --width 1200
+fw diagram workflow.ts
+fw diagram workflow.ts --theme light -o diagram.svg
+fw diagram workflow.ts --no-port-labels --width 1200
 ```
 
 ---
@@ -335,7 +337,7 @@ flow-weaver diagram workflow.ts --no-port-labels --width 1200
 Output the JSDoc annotation grammar as HTML railroad diagrams or EBNF text.
 
 ```bash
-flow-weaver grammar [options]
+fw grammar [options]
 ```
 
 | Flag | Description | Default |
@@ -345,9 +347,9 @@ flow-weaver grammar [options]
 
 **Examples:**
 ```bash
-flow-weaver grammar
-flow-weaver grammar --format ebnf
-flow-weaver grammar -o grammar.html
+fw grammar
+fw grammar --format ebnf
+fw grammar -o grammar.html
 ```
 
 ---
@@ -359,7 +361,7 @@ flow-weaver grammar -o grammar.html
 Compare two workflow files semantically. Reports node type changes, instance changes, connection changes, and breaking changes.
 
 ```bash
-flow-weaver diff <file1> <file2> [options]
+fw diff <file1> <file2> [options]
 ```
 
 | Flag | Description | Default |
@@ -370,19 +372,19 @@ flow-weaver diff <file1> <file2> [options]
 
 **Examples:**
 ```bash
-flow-weaver diff workflow-v1.ts workflow-v2.ts
-flow-weaver diff workflow-v1.ts workflow-v2.ts --format json
-flow-weaver diff old.ts new.ts --exit-zero  # for CI pipelines
+fw diff workflow-v1.ts workflow-v2.ts
+fw diff workflow-v1.ts workflow-v2.ts --format json
+fw diff old.ts new.ts --exit-zero  # for CI pipelines
 ```
 
 ---
 
 ### doctor
 
-Check project environment and configuration for flow-weaver compatibility.
+Check project environment and configuration for Flow Weaver compatibility.
 
 ```bash
-flow-weaver doctor [options]
+fw doctor [options]
 ```
 
 | Flag | Description | Default |
@@ -395,10 +397,10 @@ flow-weaver doctor [options]
 
 ### init
 
-Create a new flow-weaver project with recommended structure.
+Create a new Flow Weaver project with recommended structure.
 
 ```bash
-flow-weaver init [directory] [options]
+fw init [directory] [options]
 ```
 
 | Flag | Description | Default |
@@ -416,9 +418,9 @@ flow-weaver init [directory] [options]
 
 **Examples:**
 ```bash
-flow-weaver init my-project
-flow-weaver init --template ai-agent -y
-flow-weaver init my-project --format cjs --no-git
+fw init my-project
+fw init --template ai-agent -y
+fw init my-project --format cjs --no-git
 ```
 
 ---
@@ -428,7 +430,7 @@ flow-weaver init my-project --format cjs --no-git
 Create a workflow from a template. Appends to existing files.
 
 ```bash
-flow-weaver create workflow <template> <file> [options]
+fw create workflow <template> <file> [options]
 ```
 
 | Flag | Description | Default |
@@ -446,9 +448,9 @@ flow-weaver create workflow <template> <file> [options]
 
 **Examples:**
 ```bash
-flow-weaver create workflow sequential my-workflow.ts
-flow-weaver create workflow ai-agent agent.ts --provider openai --model gpt-4o
-flow-weaver create workflow foreach pipeline.ts --nodes "fetch,parse,store" --async
+fw create workflow sequential my-workflow.ts
+fw create workflow ai-agent agent.ts --provider openai --model gpt-4o
+fw create workflow foreach pipeline.ts --nodes "fetch,parse,store" --async
 ```
 
 ---
@@ -458,7 +460,7 @@ flow-weaver create workflow foreach pipeline.ts --nodes "fetch,parse,store" --as
 Create a node type from a template. Appends to existing files.
 
 ```bash
-flow-weaver create node <name> <file> [options]
+fw create node <name> <file> [options]
 ```
 
 | Flag | Description | Default |
@@ -471,9 +473,9 @@ flow-weaver create node <name> <file> [options]
 
 **Examples:**
 ```bash
-flow-weaver create node myProcessor my-workflow.ts
-flow-weaver create node apiClient my-workflow.ts --template http
-flow-weaver create node checker my-workflow.ts --template validator
+fw create node myProcessor my-workflow.ts
+fw create node apiClient my-workflow.ts --template http
+fw create node checker my-workflow.ts --template validator
 ```
 
 ---
@@ -485,7 +487,7 @@ Modify workflow structure programmatically. Parses the file, applies the operati
 #### modify addNode
 
 ```bash
-flow-weaver modify addNode --file <path> --nodeId <id> --nodeType <type>
+fw modify addNode --file <path> --nodeId <id> --nodeType <type>
 ```
 
 Adds a new node instance to the workflow. Auto-positions to the right of the rightmost existing node. Warns if the node type isn't defined in the file.
@@ -493,7 +495,7 @@ Adds a new node instance to the workflow. Auto-positions to the right of the rig
 #### modify removeNode
 
 ```bash
-flow-weaver modify removeNode --file <path> --nodeId <id>
+fw modify removeNode --file <path> --nodeId <id>
 ```
 
 Removes a node instance and all connections attached to it.
@@ -501,7 +503,7 @@ Removes a node instance and all connections attached to it.
 #### modify addConnection
 
 ```bash
-flow-weaver modify addConnection --file <path> --from <node.port> --to <node.port>
+fw modify addConnection --file <path> --from <node.port> --to <node.port>
 ```
 
 Adds a connection between two ports. Both nodes must exist. Port names are validated against the node type definition when available.
@@ -509,7 +511,7 @@ Adds a connection between two ports. Both nodes must exist. Port names are valid
 #### modify removeConnection
 
 ```bash
-flow-weaver modify removeConnection --file <path> --from <node.port> --to <node.port>
+fw modify removeConnection --file <path> --from <node.port> --to <node.port>
 ```
 
 Removes an existing connection.
@@ -517,7 +519,7 @@ Removes an existing connection.
 #### modify renameNode
 
 ```bash
-flow-weaver modify renameNode --file <path> --oldId <id> --newId <id>
+fw modify renameNode --file <path> --oldId <id> --newId <id>
 ```
 
 Renames a node instance and updates all connections that reference it.
@@ -525,7 +527,7 @@ Renames a node instance and updates all connections that reference it.
 #### modify setPosition
 
 ```bash
-flow-weaver modify setPosition --file <path> --nodeId <id> --x <number> --y <number>
+fw modify setPosition --file <path> --nodeId <id> --x <number> --y <number>
 ```
 
 Sets the canvas position of a node instance.
@@ -533,7 +535,7 @@ Sets the canvas position of a node instance.
 #### modify setLabel
 
 ```bash
-flow-weaver modify setLabel --file <path> --nodeId <id> --label <text>
+fw modify setLabel --file <path> --nodeId <id> --label <text>
 ```
 
 Sets the display label for a node instance.
@@ -541,13 +543,13 @@ Sets the display label for a node instance.
 
 **Examples:**
 ```bash
-flow-weaver modify addNode --file workflow.ts --nodeId validator --nodeType validateInput
-flow-weaver modify addConnection --file workflow.ts --from Start.data --to validator.input
-flow-weaver modify removeNode --file workflow.ts --nodeId oldStep
-flow-weaver modify removeConnection --file workflow.ts --from a.output --to b.input
-flow-weaver modify renameNode --file workflow.ts --oldId step1 --newId validateStep
-flow-weaver modify setPosition --file workflow.ts --nodeId step1 --x 200 --y 100
-flow-weaver modify setLabel --file workflow.ts --nodeId step1 --label "Validate Input"
+fw modify addNode --file workflow.ts --nodeId validator --nodeType validateInput
+fw modify addConnection --file workflow.ts --from Start.data --to validator.input
+fw modify removeNode --file workflow.ts --nodeId oldStep
+fw modify removeConnection --file workflow.ts --from a.output --to b.input
+fw modify renameNode --file workflow.ts --oldId step1 --newId validateStep
+fw modify setPosition --file workflow.ts --nodeId step1 --x 200 --y 100
+fw modify setLabel --file workflow.ts --nodeId step1 --label "Validate Input"
 ```
 
 ---
@@ -557,8 +559,8 @@ flow-weaver modify setLabel --file workflow.ts --nodeId step1 --label "Validate 
 Replace a stub node (`declare function`) with a real function skeleton containing the correct signature, JSDoc annotations, and return type.
 
 ```bash
-flow-weaver implement <input> <node> [options]
-flow-weaver implement <input> --nodeId <id> [options]
+fw implement <input> <node> [options]
+fw implement <input> --nodeId <id> [options]
 ```
 
 The node can be specified as a positional argument or with the `--nodeId` flag.
@@ -571,9 +573,9 @@ The node can be specified as a positional argument or with the `--nodeId` flag.
 
 **Examples:**
 ```bash
-flow-weaver implement workflow.ts validateInput
-flow-weaver implement workflow.ts --nodeId validateInput
-flow-weaver implement workflow.ts myNode --preview
+fw implement workflow.ts validateInput
+fw implement workflow.ts --nodeId validateInput
+fw implement workflow.ts myNode --preview
 ```
 
 ---
@@ -583,7 +585,7 @@ flow-weaver implement workflow.ts myNode --preview
 Report implementation progress for stub workflows. Shows which nodes are implemented vs still declared as stubs.
 
 ```bash
-flow-weaver status <input> [options]
+fw status <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -598,7 +600,7 @@ flow-weaver status <input> [options]
 List available workflow and node templates.
 
 ```bash
-flow-weaver templates [options]
+fw templates [options]
 ```
 
 | Flag | Description | Default |
@@ -616,7 +618,7 @@ flow-weaver templates [options]
 List patterns in a file or directory.
 
 ```bash
-flow-weaver pattern list <path> [options]
+fw pattern list <path> [options]
 ```
 
 | Flag | Description | Default |
@@ -630,7 +632,7 @@ flow-weaver pattern list <path> [options]
 Apply a reusable pattern to a workflow file.
 
 ```bash
-flow-weaver pattern apply <pattern-file> <target-file> [options]
+fw pattern apply <pattern-file> <target-file> [options]
 ```
 
 | Flag | Description | Default |
@@ -646,7 +648,7 @@ flow-weaver pattern apply <pattern-file> <target-file> [options]
 Extract a pattern from selected workflow nodes.
 
 ```bash
-flow-weaver pattern extract <source-file> [options]
+fw pattern extract <source-file> [options]
 ```
 
 | Flag | Description | Default |
@@ -658,8 +660,8 @@ flow-weaver pattern extract <source-file> [options]
 
 **Examples:**
 ```bash
-flow-weaver pattern extract workflow.ts --nodes a,b -o extracted.ts
-flow-weaver pattern extract workflow.ts --nodes validator,transformer -o validate-transform.ts --name validateTransform
+fw pattern extract workflow.ts --nodes a,b -o extracted.ts
+fw pattern extract workflow.ts --nodes validator,transformer -o validate-transform.ts --name validateTransform
 ```
 
 > See also: [Patterns](patterns) for the full pattern system guide.
@@ -673,7 +675,7 @@ flow-weaver pattern extract workflow.ts --nodes validator,transformer -o validat
 Export workflow as a serverless function for cloud platforms.
 
 ```bash
-flow-weaver export <input> [options]
+fw export <input> [options]
 ```
 
 | Flag | Description | Default |
@@ -690,13 +692,13 @@ flow-weaver export <input> [options]
 
 **Examples:**
 ```bash
-flow-weaver export workflow.ts --target vercel --output api/
-flow-weaver export workflows.ts --target lambda --output dist/ --multi --docs
-flow-weaver export workflow.ts --target inngest --output dist/ --durable-steps
-flow-weaver export workflow.ts --target cloudflare --output worker/
+fw export workflow.ts --target vercel --output api/
+fw export workflows.ts --target lambda --output dist/ --multi --docs
+fw export workflow.ts --target inngest --output dist/ --durable-steps
+fw export workflow.ts --target cloudflare --output worker/
 ```
 
-> Available targets depend on installed `flow-weaver-pack-*` packages. See [Deployment](deployment) for installation instructions and target-specific details.
+> Available targets depend on installed `flow-weaver-pack-*` packages (the package names stay as-is). See [Deployment](deployment) for installation instructions and target-specific details.
 
 ---
 
@@ -705,7 +707,7 @@ flow-weaver export workflow.ts --target cloudflare --output worker/
 Generate OpenAPI specification from workflows in a directory.
 
 ```bash
-flow-weaver openapi <directory> [options]
+fw openapi <directory> [options]
 ```
 
 | Flag | Description | Default |
@@ -719,8 +721,8 @@ flow-weaver openapi <directory> [options]
 
 **Examples:**
 ```bash
-flow-weaver openapi ./workflows --output api-spec.json
-flow-weaver openapi ./workflows --format yaml --server https://api.example.com
+fw openapi ./workflows --output api-spec.json
+fw openapi ./workflows --format yaml --server https://api.example.com
 ```
 
 ---
@@ -732,7 +734,7 @@ flow-weaver openapi ./workflows --format yaml --server https://api.example.com
 Migrate workflow files to current syntax via parse-regenerate round-trip. Adds defaults for missing fields and transforms edge cases.
 
 ```bash
-flow-weaver migrate <glob> [options]
+fw migrate <glob> [options]
 ```
 
 | Flag | Description | Default |
@@ -744,9 +746,9 @@ Ignores `**/node_modules/**` and `**/*.generated.ts`.
 
 **Examples:**
 ```bash
-flow-weaver migrate '**/*.ts'
-flow-weaver migrate 'src/**/*.ts' --dry-run
-flow-weaver migrate '**/*.ts' --diff
+fw migrate '**/*.ts'
+fw migrate 'src/**/*.ts' --dry-run
+fw migrate '**/*.ts' --diff
 ```
 
 ---
@@ -758,7 +760,7 @@ flow-weaver migrate '**/*.ts' --diff
 Scaffold a new marketplace package.
 
 ```bash
-flow-weaver market init <name> [options]
+fw market init <name> [options]
 ```
 
 | Flag | Description | Default |
@@ -774,7 +776,7 @@ flow-weaver market init <name> [options]
 Validate and generate `flowweaver.manifest.json`.
 
 ```bash
-flow-weaver market pack [directory] [options]
+fw market pack [directory] [options]
 ```
 
 | Flag | Description | Default |
@@ -789,7 +791,7 @@ flow-weaver market pack [directory] [options]
 Pack and publish to npm.
 
 ```bash
-flow-weaver market publish [directory] [options]
+fw market publish [directory] [options]
 ```
 
 | Flag | Description | Default |
@@ -804,7 +806,7 @@ flow-weaver market publish [directory] [options]
 Install a marketplace package.
 
 ```bash
-flow-weaver market install <package> [options]
+fw market install <package> [options]
 ```
 
 | Flag | Description | Default |
@@ -818,7 +820,7 @@ flow-weaver market install <package> [options]
 Search npm for marketplace packages.
 
 ```bash
-flow-weaver market search [query] [options]
+fw market search [query] [options]
 ```
 
 | Flag | Description | Default |
@@ -834,7 +836,7 @@ flow-weaver market search [query] [options]
 List installed marketplace packages.
 
 ```bash
-flow-weaver market list [options]
+fw market list [options]
 ```
 
 | Flag | Description | Default |
@@ -852,7 +854,7 @@ flow-weaver market list [options]
 Scaffold a new external plugin with component area and optional system module.
 
 ```bash
-flow-weaver plugin init <name> [options]
+fw plugin init <name> [options]
 ```
 
 | Flag | Description | Default |
@@ -864,8 +866,8 @@ flow-weaver plugin init <name> [options]
 
 **Examples:**
 ```bash
-flow-weaver plugin init my-plugin
-flow-weaver plugin init my-plugin --area sidebar --no-system
+fw plugin init my-plugin
+fw plugin init my-plugin --area sidebar --no-system
 ```
 
 ---
@@ -877,7 +879,7 @@ flow-weaver plugin init my-plugin --area sidebar --no-system
 List available documentation topics.
 
 ```bash
-flow-weaver docs [list] [options]
+fw docs [list] [options]
 ```
 
 | Flag | Description | Default |
@@ -892,7 +894,7 @@ flow-weaver docs [list] [options]
 Read a documentation topic.
 
 ```bash
-flow-weaver docs read <topic> [options]
+fw docs read <topic> [options]
 ```
 
 | Flag | Description | Default |
@@ -907,7 +909,7 @@ flow-weaver docs read <topic> [options]
 Search across all documentation.
 
 ```bash
-flow-weaver docs search <query> [options]
+fw docs search <query> [options]
 ```
 
 | Flag | Description | Default |
@@ -916,10 +918,10 @@ flow-weaver docs search <query> [options]
 
 **Examples:**
 ```bash
-flow-weaver docs
-flow-weaver docs read error-codes
-flow-weaver docs read scaffold --compact
-flow-weaver docs search "missing workflow"
+fw docs
+fw docs read error-codes
+fw docs read scaffold --compact
+fw docs search "missing workflow"
 ```
 
 ---
@@ -929,7 +931,7 @@ flow-weaver docs search "missing workflow"
 Generate a self-contained LLM context bundle from documentation and annotation grammar. Two profiles control the output format: `standalone` produces a complete reference for pasting into any LLM, `assistant` produces a leaner version that assumes MCP tools are available.
 
 ```bash
-flow-weaver context [preset] [options]
+fw context [preset] [options]
 ```
 
 | Flag | Description | Default |
@@ -945,12 +947,12 @@ Built-in presets: `core` (concepts, grammar, tutorial), `authoring` (concepts, g
 
 **Examples:**
 ```bash
-flow-weaver context core | pbcopy
-flow-weaver context full -o .flow-weaver-context.md
-flow-weaver context authoring --profile assistant
-flow-weaver context --topics concepts,jsdoc-grammar,error-codes
-flow-weaver context core --add error-codes
-flow-weaver context --list
+fw context core | pbcopy
+fw context full -o .flow-weaver-context.md
+fw context authoring --profile assistant
+fw context --topics concepts,jsdoc-grammar,error-codes
+fw context core --add error-codes
+fw context --list
 ```
 
 ---
@@ -962,7 +964,7 @@ flow-weaver context --list
 Select and center a node in the editor.
 
 ```bash
-flow-weaver ui focus-node <nodeId> [options]
+fw ui focus-node <nodeId> [options]
 ```
 
 ### ui add-node
@@ -970,7 +972,7 @@ flow-weaver ui focus-node <nodeId> [options]
 Add a node type at viewport center.
 
 ```bash
-flow-weaver ui add-node <nodeTypeName> [options]
+fw ui add-node <nodeTypeName> [options]
 ```
 
 ### ui open-workflow
@@ -978,7 +980,7 @@ flow-weaver ui add-node <nodeTypeName> [options]
 Open a workflow file in the editor.
 
 ```bash
-flow-weaver ui open-workflow <filePath> [options]
+fw ui open-workflow <filePath> [options]
 ```
 
 ### ui get-state
@@ -986,7 +988,7 @@ flow-weaver ui open-workflow <filePath> [options]
 Return current workflow state from the editor.
 
 ```bash
-flow-weaver ui get-state [options]
+fw ui get-state [options]
 ```
 
 ### ui batch
@@ -994,7 +996,7 @@ flow-weaver ui get-state [options]
 Execute a batch of commands with auto-snapshot rollback.
 
 ```bash
-flow-weaver ui batch <json> [options]
+fw ui batch <json> [options]
 ```
 
 All UI commands accept:
@@ -1012,7 +1014,7 @@ All UI commands accept:
 Start MCP server for Claude Code integration.
 
 ```bash
-flow-weaver mcp-server [options]
+fw mcp-server [options]
 ```
 
 | Flag | Description | Default |
@@ -1027,7 +1029,7 @@ flow-weaver mcp-server [options]
 Generate changelog from git history, categorized by file path.
 
 ```bash
-flow-weaver changelog [options]
+fw changelog [options]
 ```
 
 | Flag | Description | Default |
@@ -1038,9 +1040,9 @@ flow-weaver changelog [options]
 
 **Examples:**
 ```bash
-flow-weaver changelog --last-tag
-flow-weaver changelog --range v0.1.0..HEAD
-flow-weaver changelog --since 2024-01-01
+fw changelog --last-tag
+fw changelog --range v0.1.0..HEAD
+fw changelog --since 2024-01-01
 ```
 
 ---

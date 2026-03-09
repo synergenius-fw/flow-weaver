@@ -6,7 +6,7 @@ keywords: [debug, troubleshooting, errors, WebSocket, diagnostics, runtime, vali
 
 # Flow Weaver Debugging Guide
 
-For error code lookup, use `flow-weaver docs error-codes`.
+For error code lookup, use `fw docs error-codes`.
 
 ---
 
@@ -14,11 +14,11 @@ For error code lookup, use `flow-weaver docs error-codes`.
 
 | Error                   | Fix                                                             |
 | ----------------------- | --------------------------------------------------------------- |
-| UNKNOWN_NODE_TYPE       | Check spelling, run `flow-weaver describe <file>`               |
+| UNKNOWN_NODE_TYPE       | Check spelling, run `fw describe <file>`               |
 | MISSING_REQUIRED_INPUT  | Add `@connect` or make port optional with `@input [name]`       |
 | STEP_PORT_TYPE_MISMATCH | STEP ports (execute/onSuccess/onFailure) only connect to STEP   |
 | CYCLE_DETECTED          | Use scoped forEach instead of graph loops                       |
-| UNKNOWN_SOURCE_PORT     | Check port name spelling, run `flow-weaver describe <file>`     |
+| UNKNOWN_SOURCE_PORT     | Check port name spelling, run `fw describe <file>`     |
 
 ---
 
@@ -30,13 +30,13 @@ Flow Weaver can emit real-time execution events over WebSocket for runtime debug
 
 ```bash
 # Compile the workflow (debug mode is the default)
-flow-weaver compile my-workflow.ts
+fw compile my-workflow.ts
 
 # Run with WebSocket debug target
 FLOW_WEAVER_DEBUG=ws://localhost:9000 node my-workflow.generated.js
 ```
 
-Production builds (`flow-weaver compile --production`) strip all debug event code.
+Production builds (`fw compile --production`) strip all debug event code.
 
 ### Event Types
 
@@ -63,7 +63,7 @@ START: What is the problem?
 |
 +-- "Compilation fails" (parse or validation errors)
 |   |
-|   +-- Run: flow-weaver validate <file> --verbose
+|   +-- Run: fw validate <file> --verbose
 |   |
 |   +-- Are there PARSE errors?
 |   |   |
@@ -75,7 +75,7 @@ START: What is the problem?
 |   |   |
 |   |   +-- NO --> Are there VALIDATION errors?
 |   |       |
-|   |       +-- YES --> Look up the error code: flow-weaver docs error-codes
+|   |       +-- YES --> Look up the error code: fw docs error-codes
 |   |       |           Common quick fixes:
 |   |       |           - UNKNOWN_*: Check spelling, use validator suggestions
 |   |       |           - MISSING_REQUIRED_INPUT: Add connection or default
@@ -148,35 +148,35 @@ START: What is the problem?
 
 ## CLI Debugging Commands
 
-### flow-weaver validate -- Validate a Workflow
+### fw validate -- Validate a Workflow
 
 The first command to use when something seems wrong. Returns all errors and warnings with codes, messages, and hints.
 
 ```bash
-flow-weaver validate src/workflows/my-workflow.ts
-flow-weaver validate src/workflows/my-workflow.ts --json    # machine-readable
-flow-weaver validate src/workflows/my-workflow.ts --verbose  # detailed diagnostics
+fw validate src/workflows/my-workflow.ts
+fw validate src/workflows/my-workflow.ts --json    # machine-readable
+fw validate src/workflows/my-workflow.ts --verbose  # detailed diagnostics
 ```
 
-### flow-weaver describe -- Understand Workflow Structure
+### fw describe -- Understand Workflow Structure
 
 Provides a full description of the workflow: nodes, connections, ports, types, and execution graph.
 
 ```bash
-flow-weaver describe src/workflows/my-workflow.ts                      # JSON
-flow-weaver describe src/workflows/my-workflow.ts --format text        # human-readable
-flow-weaver describe src/workflows/my-workflow.ts --format mermaid     # diagram
-flow-weaver describe src/workflows/my-workflow.ts --node fetcher1      # focus on a node
+fw describe src/workflows/my-workflow.ts                      # JSON
+fw describe src/workflows/my-workflow.ts --format text        # human-readable
+fw describe src/workflows/my-workflow.ts --format mermaid     # diagram
+fw describe src/workflows/my-workflow.ts --node fetcher1      # focus on a node
 ```
 
-### flow-weaver run --stream vs --trace
+### fw run --stream vs --trace
 
 Both flags give you execution trace data, but in different ways:
 
 **`--stream`** writes events to stderr in real-time as nodes execute. Each STATUS_CHANGED event prints the node ID, new status, and duration. Use this for live debugging during development — you can watch the workflow progress node by node.
 
 ```bash
-flow-weaver run workflow.ts --stream
+fw run workflow.ts --stream
 # Output (to stderr):
 #   [STATUS_CHANGED] fetcher: → RUNNING
 #   [STATUS_CHANGED] fetcher: → SUCCEEDED (142ms)
@@ -188,10 +188,10 @@ flow-weaver run workflow.ts --stream
 **`--trace`** collects all ExecutionTraceEvent objects during execution and includes them in the output after completion. Use this for post-mortem analysis or programmatic consumption (e.g., in CI or with `--json`).
 
 ```bash
-flow-weaver run workflow.ts --trace
+fw run workflow.ts --trace
 # Shows: "12 events captured" + first 5 events as summary
 
-flow-weaver run workflow.ts --trace --json | jq '.traceCount'
+fw run workflow.ts --trace --json | jq '.traceCount'
 # Outputs: 12
 ```
 
@@ -204,10 +204,10 @@ flow-weaver run workflow.ts --trace --json | jq '.traceCount'
 
 ### Diagnostic Strategy
 
-1. **flow-weaver validate** -- Get all errors and warnings. Fix errors first.
-2. **flow-weaver describe --format text** -- Full readable summary.
-3. **flow-weaver describe --node <id>** -- Trace data flow for a specific node.
-4. **flow-weaver describe --format mermaid** -- Visual graph for inspection.
+1. **fw validate** -- Get all errors and warnings. Fix errors first.
+2. **fw describe --format text** -- Full readable summary.
+3. **fw describe --node <id>** -- Trace data flow for a specific node.
+4. **fw describe --format mermaid** -- Visual graph for inspection.
 
 ---
 
@@ -253,8 +253,8 @@ Scoped ports use direction inversion: scoped OUTPUTS = data parent sends to chil
 When testing workflows that use `delay`, `waitForEvent`, `invokeWorkflow`, or `waitForAgent`, use mocks to avoid real side effects:
 
 ```bash
-flow-weaver run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
-flow-weaver run workflow.ts --mocks-file mocks.json
+fw run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
+fw run workflow.ts --mocks-file mocks.json
 ```
 
 Mock config structure:
@@ -276,7 +276,7 @@ The debug system intercepts execution at two points per node: before it runs (wh
 ### CLI Debug Mode
 
 ```bash
-flow-weaver run workflow.ts --debug --params '{"x": 5}'
+fw run workflow.ts --debug --params '{"x": 5}'
 ```
 
 This starts an interactive debug REPL. The workflow pauses before the first node and waits for your command:
@@ -320,7 +320,7 @@ Debug REPL commands:
 You can set breakpoints at startup with `--breakpoint`:
 
 ```bash
-flow-weaver run workflow.ts --debug --breakpoint processData --breakpoint formatOutput
+fw run workflow.ts --debug --breakpoint processData --breakpoint formatOutput
 ```
 
 ### MCP Debug Tools
@@ -366,7 +366,7 @@ Checkpointing writes workflow state to disk after each node completes. If the pr
 ### Enabling Checkpoints
 
 ```bash
-flow-weaver run workflow.ts --checkpoint --params '{"data": "large-dataset"}'
+fw run workflow.ts --checkpoint --params '{"data": "large-dataset"}'
 ```
 
 This creates a `.fw-checkpoints/` directory next to the workflow file containing one JSON file per run. The file is automatically deleted after successful completion, so you'll only see them after a crash.
@@ -375,13 +375,13 @@ This creates a `.fw-checkpoints/` directory next to the workflow file containing
 
 ```bash
 # Auto-detect the most recent checkpoint
-flow-weaver run workflow.ts --resume
+fw run workflow.ts --resume
 
 # Specify a checkpoint file
-flow-weaver run workflow.ts --resume .fw-checkpoints/myWorkflow-run-123.json
+fw run workflow.ts --resume .fw-checkpoints/myWorkflow-run-123.json
 
 # Resume in debug mode (step through from the resume point)
-flow-weaver run workflow.ts --resume --debug
+fw run workflow.ts --resume --debug
 ```
 
 Via MCP: `fw_resume_from_checkpoint(filePath: "workflow.ts")`.
@@ -416,10 +416,10 @@ Checkpoints live in `.fw-checkpoints/` next to the workflow file. Add this to `.
 
 ## Dev Mode
 
-Use `flow-weaver dev` to watch, compile, and run in a single command:
+Use `fw dev` to watch, compile, and run in a single command:
 
 ```bash
-flow-weaver dev workflow.ts --params '{"data": "test"}'
+fw dev workflow.ts --params '{"data": "test"}'
 ```
 
 This recompiles and re-runs automatically on every file save.

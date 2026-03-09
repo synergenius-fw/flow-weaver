@@ -33,13 +33,13 @@ The `export` command automatically discovers installed packs — no configuratio
 The `export` command generates platform-specific handler code, configuration files, and deploy instructions.
 
 ```bash
-flow-weaver export <input> --target <target> --output <dir>
+fw export <input> --target <target> --output <dir>
 ```
 
 ### AWS Lambda
 
 ```bash
-flow-weaver export workflow.ts --target lambda --output dist/
+fw export workflow.ts --target lambda --output dist/
 ```
 
 Generates:
@@ -50,7 +50,7 @@ Generates:
 ### Vercel
 
 ```bash
-flow-weaver export workflow.ts --target vercel --output api/
+fw export workflow.ts --target vercel --output api/
 ```
 
 Generates:
@@ -60,7 +60,7 @@ Generates:
 ### Cloudflare Workers
 
 ```bash
-flow-weaver export workflow.ts --target cloudflare --output worker/
+fw export workflow.ts --target cloudflare --output worker/
 ```
 
 Generates:
@@ -70,7 +70,7 @@ Generates:
 ### Inngest
 
 ```bash
-flow-weaver export workflow.ts --target inngest --output dist/
+fw export workflow.ts --target inngest --output dist/
 ```
 
 Generates:
@@ -80,13 +80,13 @@ Generates:
 Add `--durable-steps` for per-node `step.run()` durability:
 
 ```bash
-flow-weaver export workflow.ts --target inngest --output dist/ --durable-steps
+fw export workflow.ts --target inngest --output dist/ --durable-steps
 ```
 
 ### GitHub Actions
 
 ```bash
-flow-weaver export workflow.ts --target github-actions --output .github/workflows/
+fw export workflow.ts --target github-actions --output .github/workflows/
 ```
 
 Generates:
@@ -96,7 +96,7 @@ Generates:
 ### GitLab CI
 
 ```bash
-flow-weaver export workflow.ts --target gitlab-ci --output .
+fw export workflow.ts --target gitlab-ci --output .
 ```
 
 Generates:
@@ -115,10 +115,10 @@ Secrets are wired as pseudo-node connections: `@connect secret:TOKEN -> node.por
 
 ```bash
 # GitHub Actions
-flow-weaver export pipeline.ts --target github-actions --output .github/workflows/
+fw export pipeline.ts --target github-actions --output .github/workflows/
 
 # GitLab CI
-flow-weaver export pipeline.ts --target gitlab-ci --output .
+fw export pipeline.ts --target gitlab-ci --output .
 ```
 
 See the [CI/CD Pipelines](cicd) topic for the complete annotation reference, validation rules, and full examples.
@@ -130,7 +130,7 @@ See the [CI/CD Pipelines](cicd) topic for the complete annotation reference, val
 Export all workflows in a file as a **unified service** with routing, function registry, and optional API documentation:
 
 ```bash
-flow-weaver export workflows.ts --target lambda --output dist/ --multi
+fw export workflows.ts --target lambda --output dist/ --multi
 ```
 
 ### Features
@@ -140,7 +140,7 @@ flow-weaver export workflows.ts --target lambda --output dist/ --multi
 - **API docs** — Add `--docs` to include Swagger UI at `/docs` and OpenAPI spec at `/openapi.json`
 
 ```bash
-flow-weaver export workflows.ts --target vercel --output api/ --multi --docs
+fw export workflows.ts --target vercel --output api/ --multi --docs
 ```
 
 ### Selecting Workflows
@@ -148,17 +148,17 @@ flow-weaver export workflows.ts --target vercel --output api/ --multi --docs
 Export a subset of workflows from a multi-workflow file:
 
 ```bash
-flow-weaver export workflows.ts --target lambda --output dist/ --multi --workflows validatePipeline,enrichPipeline
+fw export workflows.ts --target lambda --output dist/ --multi --workflows validatePipeline,enrichPipeline
 ```
 
 ---
 
 ## HTTP Serve Mode
 
-Run workflows as HTTP endpoints locally or in production with `flow-weaver serve`:
+Run workflows as HTTP endpoints locally or in production with `fw serve`:
 
 ```bash
-flow-weaver serve [directory] [options]
+fw serve [directory] [options]
 ```
 
 ### Features
@@ -175,17 +175,17 @@ flow-weaver serve [directory] [options]
 
 Development server with hot reload:
 ```bash
-flow-weaver serve ./workflows
+fw serve ./workflows
 ```
 
 Production server:
 ```bash
-flow-weaver serve ./workflows --production --precompile --no-watch --port 8080
+fw serve ./workflows --production --precompile --no-watch --port 8080
 ```
 
 With Swagger UI:
 ```bash
-flow-weaver serve ./workflows --swagger
+fw serve ./workflows --swagger
 # Open http://localhost:3000/docs for API documentation
 ```
 
@@ -206,7 +206,7 @@ Content-Type: application/json
 Generate an OpenAPI specification from all workflows in a directory:
 
 ```bash
-flow-weaver openapi <directory> [options]
+fw openapi <directory> [options]
 ```
 
 The specification is derived from workflow `@param` and `@returns` annotations.
@@ -215,13 +215,13 @@ The specification is derived from workflow `@param` and `@returns` annotations.
 
 ```bash
 # JSON output (default)
-flow-weaver openapi ./workflows --output api-spec.json
+fw openapi ./workflows --output api-spec.json
 
 # YAML output
-flow-weaver openapi ./workflows --format yaml --output api-spec.yaml
+fw openapi ./workflows --format yaml --output api-spec.yaml
 
 # With server URL
-flow-weaver openapi ./workflows --server https://api.example.com --title "My API" --version "2.0.0"
+fw openapi ./workflows --server https://api.example.com --title "My API" --version "2.0.0"
 ```
 
 ### Generated Spec
@@ -236,10 +236,10 @@ Each workflow becomes an endpoint with:
 
 ## Dev Mode with Inngest
 
-For Inngest development, `flow-weaver dev` starts a local dev server with the Inngest Dev Server:
+For Inngest development, `fw dev` starts a local dev server with the Inngest Dev Server:
 
 ```bash
-flow-weaver dev workflow.ts --target inngest --port 8080 --framework express
+fw dev workflow.ts --target inngest --port 8080 --framework express
 ```
 
 This:
@@ -251,10 +251,10 @@ This:
 
 ## Deployment Checklist
 
-1. **Validate** — Run `flow-weaver validate workflow.ts --strict` before deploying
+1. **Validate** — Run `fw validate workflow.ts --strict` before deploying
 2. **Production compile** — Use `--production` to strip debug instrumentation
-3. **Test locally** — Use `flow-weaver serve` or `flow-weaver run` with mocks
-4. **Export** — Generate platform-specific code with `flow-weaver export`
+3. **Test locally** — Use `fw serve` or `fw run` with mocks
+4. **Export** — Generate platform-specific code with `fw export`
 5. **Deploy** — Follow platform-specific instructions in the generated output
 
 ---

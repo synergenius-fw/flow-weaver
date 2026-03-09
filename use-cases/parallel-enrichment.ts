@@ -9,7 +9,7 @@
 //
 // Pattern: Start -> [sentiment, readability, keywords] -> merge -> score -> Exit
 //
-// Run: flow-weaver run use-cases/parallel-enrichment.ts --params '{"text":"Great product, fast shipping! Highly recommend."}'
+// Run: fw run use-cases/parallel-enrichment.ts --params '{"text":"Great product, fast shipping! Highly recommend."}'
 // =============================================================================
 
 // -- Types --
@@ -232,5 +232,5 @@ export function contentAnalysis(
   grade: string;
   report: Record<string, unknown>;
 } {
-  throw new Error('Compile with: flow-weaver compile <file>');
+  throw new Error('Compile with: fw compile <file>');
 }

@@ -87,7 +87,7 @@ export function multiStepWorkflow(
   execute: boolean,
   params: { data: any }
 ): { onSuccess: boolean; onFailure: boolean; handled: string } {
-  throw new Error('Compile with: flow-weaver compile <file>');
+  throw new Error('Compile with: fw compile <file>');
 }
 `;
 

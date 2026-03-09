@@ -16,13 +16,13 @@ Patterns are reusable workflow fragments with boundary ports (`IN.`/`OUT.`) inst
 
 ```bash
 # List patterns in file or directory
-flow-weaver pattern list <path> [--json]
+fw pattern list <path> [--json]
 
 # Apply pattern to workflow
-flow-weaver pattern apply <pattern-file> <target-file> [--prefix p] [--name n] [--preview]
+fw pattern apply <pattern-file> <target-file> [--prefix p] [--name n] [--preview]
 
 # Extract pattern from workflow nodes
-flow-weaver pattern extract <source-file> --nodes a,b,c -o <output-file> [--name n] [--preview]
+fw pattern extract <source-file> --nodes a,b,c -o <output-file> [--name n] [--preview]
 ```
 
 ## Pattern Annotation
@@ -68,10 +68,10 @@ When applying a pattern:
 
 ```bash
 # Basic apply
-flow-weaver pattern apply pattern.ts workflow.ts
+fw pattern apply pattern.ts workflow.ts
 
 # With prefix to avoid conflicts
-flow-weaver pattern apply pattern.ts workflow.ts --prefix vt
+fw pattern apply pattern.ts workflow.ts --prefix vt
 
 # Output shows wiring instructions:
 # Applied pattern "validateTransform"
@@ -88,10 +88,10 @@ Extract nodes from an existing workflow to create a reusable pattern:
 
 ```bash
 # Extract specific nodes
-flow-weaver pattern extract my-workflow.ts --nodes validator,transformer -o my-pattern.ts
+fw pattern extract my-workflow.ts --nodes validator,transformer -o my-pattern.ts
 
 # Preview without writing
-flow-weaver pattern extract my-workflow.ts --nodes a,b -o output.ts --preview
+fw pattern extract my-workflow.ts --nodes a,b -o output.ts --preview
 ```
 
 The extractor:

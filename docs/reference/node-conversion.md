@@ -302,4 +302,4 @@ The compiler fully supports async expression nodes -- `await`, async detection, 
 
 # Post-Conversion Validation
 
-After conversion, run `flow-weaver validate <file>` to verify the converted node types are correctly parsed.
+After conversion, run `fw validate <file>` to verify the converted node types are correctly parsed.

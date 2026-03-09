@@ -1072,7 +1072,7 @@ export async function myWorkflow(execute: boolean) {
  * @connect Start.execute -> calc.execute
  */
 export function 02Sequential(execute: boolean, params: { a: number }) {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }`;
 
       // generateInPlace should throw or report no changes for invalid identifier
@@ -1093,7 +1093,7 @@ export function 02Sequential(execute: boolean, params: { a: number }) {
  * @connect adder.result -> Exit.result
  */
 export function calculate(execute: boolean, params: { a: number; b: number }) {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }`;
 
       const result = generateInPlace(sourceCode, ast);
@@ -2804,7 +2804,7 @@ export function paramTestWorkflow(
   execute: boolean,
   params: { value: number }
 ): { onSuccess: boolean; onFailure: boolean; result: number } {
-  throw new Error("Compile with: flow-weaver compile <file>");
+  throw new Error("Compile with: fw compile <file>");
 }
 `;
 

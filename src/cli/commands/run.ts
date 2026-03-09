@@ -67,19 +67,19 @@ export interface RunOptions {
  * @example
  * ```bash
  * # Basic execution
- * flow-weaver run workflow.ts
+ * fw run workflow.ts
  *
  * # With parameters
- * flow-weaver run workflow.ts --params '{"a": 5, "b": 3}'
+ * fw run workflow.ts --params '{"a": 5, "b": 3}'
  *
  * # From params file
- * flow-weaver run workflow.ts --params-file params.json
+ * fw run workflow.ts --params-file params.json
  *
  * # Specific workflow in multi-workflow file
- * flow-weaver run workflow.ts --workflow calculate
+ * fw run workflow.ts --workflow calculate
  *
  * # JSON output for scripting
- * flow-weaver run workflow.ts --json | jq '.result'
+ * fw run workflow.ts --json | jq '.result'
  * ```
  */
 export async function runCommand(input: string, options: RunOptions): Promise<void> {
