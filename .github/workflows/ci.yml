@@ -7,23 +7,74 @@ on:
     branches: [main]
 
 jobs:
-  check:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      is_release: ${{ steps.detect.outputs.is_release }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+
       - run: npm install
+
+      - name: Detect release PR
+        id: detect
+        run: |
+          if [[ "${{ github.head_ref }}" == release/* ]]; then
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - run: npm run typecheck
       - run: npm run build
 
-      # Run tests with JSON reporter (for test count badge) and coverage (for Codecov)
-      - run: npx vitest run --reporter=default --reporter=json --outputFile=test-results.json --coverage
+  test:
+    needs: build
+    if: needs.build.outputs.is_release == 'false'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm install
+
+      - name: Run tests (shard ${{ matrix.shard }}/3)
+        run: npx vitest run --shard=${{ matrix.shard }}/3 --reporter=default
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
-      # Upload coverage to Codecov
+  coverage:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm install
+
+      - name: Run tests with coverage
+        run: npx vitest run --reporter=default --reporter=json --outputFile=test-results.json --coverage
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
+
       - name: Upload coverage to Codecov
         if: always()
         uses: codecov/codecov-action@v5
@@ -32,16 +83,13 @@ jobs:
           files: coverage/lcov.info
           fail_ci_if_error: false
 
-      # Update test count badge via Gist (main branch only)
       - name: Extract test count
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: test-count
         run: |
           PASSED=$(jq '.numPassedTests' test-results.json)
           echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
 
       - name: Update test count badge
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: schneegans/dynamic-badges-action@v1.7.0
         with:
           auth: ${{ secrets.GIST_SECRET }}
@@ -50,3 +98,31 @@ jobs:
           label: tests
           message: "${{ steps.test-count.outputs.passed }} passed"
           color: brightgreen
+
+  check:
+    if: always()
+    needs: [build, test, coverage]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate results
+        run: |
+          echo "build: ${{ needs.build.result }}"
+          echo "test: ${{ needs.test.result }}"
+          echo "coverage: ${{ needs.coverage.result }}"
+
+          if [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "::error::Build failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.test.result }}" != "success" && "${{ needs.test.result }}" != "skipped" ]]; then
+            echo "::error::Tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.coverage.result }}" != "success" && "${{ needs.coverage.result }}" != "skipped" ]]; then
+            echo "::error::Coverage failed"
+            exit 1
+          fi
+
+          echo "All checks passed"
