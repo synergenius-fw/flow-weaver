@@ -31,6 +31,10 @@
       "types": "./dist/doc-metadata/index.d.ts",
       "default": "./dist/doc-metadata/index.js"
     },
+    "./docs": {
+      "types": "./dist/docs/index.d.ts",
+      "default": "./dist/docs/index.js"
+    },
     "./ast": {
       "types": "./dist/ast/index.d.ts",
       "default": "./dist/ast/index.js"
