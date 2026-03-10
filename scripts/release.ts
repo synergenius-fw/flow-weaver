@@ -1,18 +1,24 @@
 #!/usr/bin/env tsx
 /**
- * Release script — bump version, push, merge, tag, and create GitHub release.
+ * Release script -- bump version, create a PR, and let CI handle the rest.
  *
  * Usage:
- *   npm run release patch       # 0.2.1 → 0.2.2
- *   npm run release minor       # 0.2.1 → 0.3.0
- *   npm run release major       # 0.2.1 → 1.0.0
+ *   npm run release patch       # 0.2.1 -> 0.2.2
+ *   npm run release minor       # 0.2.1 -> 0.3.0
+ *   npm run release major       # 0.2.1 -> 1.0.0
  *   npm run release 0.5.0       # explicit version
  *
  * What it does:
  *   1. Bumps version in package.json
  *   2. Creates a release branch, commits, pushes
- *   3. Creates and merges a PR (squash)
- *   4. Tags the merge commit and creates a GitHub release with auto-generated notes
+ *   3. Creates a PR with auto-merge enabled
+ *
+ * What CI does after the PR merges:
+ *   - Release Drafter creates/updates a draft GitHub release
+ *   - Publishing the draft triggers npm publish via the npm-publish workflow
+ *
+ * After the PR merges, publish the draft release at:
+ *   https://github.com/synergenius-fw/flow-weaver/releases
  */
 
 import * as fs from 'fs';
@@ -51,7 +57,6 @@ function success(msg: string): void {
 // ── Version bumping ──────────────────────────────────────────────────
 
 function bumpVersion(current: string, bump: string): string {
-  // Explicit version
   if (/^\d+\.\d+\.\d+/.test(bump)) return bump;
 
   const [major, minor, patch] = current.split('.').map(Number);
@@ -67,59 +72,31 @@ function bumpVersion(current: string, bump: string): string {
   }
 }
 
-// ── Generate release notes from commits since last tag ───────────────
-
-function generateReleaseNotes(lastTag: string): string {
-  let commits: string;
-  try {
-    commits = run(`git log ${lastTag}..HEAD --oneline --no-merges`);
-  } catch {
-    commits = run('git log --oneline --no-merges -20');
-  }
-
-  if (!commits.trim()) return 'Maintenance release.';
-
-  const lines = commits
-    .split('\n')
-    .map((line) => {
-      // Strip commit hash, keep message
-      const msg = line.replace(/^[a-f0-9]+ /, '');
-      return `- ${msg}`;
-    });
-
-  return `### Changes\n\n${lines.join('\n')}`;
-}
-
 // ── Pre-flight checks ────────────────────────────────────────────────
 
 function preflight(): void {
-  // Must be on main
   const branch = run('git rev-parse --abbrev-ref HEAD');
   if (branch !== 'main') {
     fail(`Must be on main branch (currently on "${branch}")`);
   }
 
-  // Must be clean (allow untracked)
   const dirty = run('git diff --name-only');
   if (dirty) {
     fail(`Working tree has uncommitted changes:\n${dirty}\nCommit or stash them first.`);
   }
 
-  // Must be up to date with remote
   run('git fetch origin main');
   const behind = run('git rev-list HEAD..origin/main --count');
   if (behind !== '0') {
     fail(`Local main is ${behind} commit(s) behind origin. Run "git pull" first.`);
   }
 
-  // gh CLI must be available
   try {
     run('gh --version');
   } catch {
     fail('GitHub CLI (gh) is required but not found. Install it: https://cli.github.com');
   }
 
-  // Check that sibling pack peerDependencies are satisfiable
   const checkScript = path.join(__dirname, 'check-pack-versions.ts');
   if (fs.existsSync(checkScript)) {
     try {
@@ -140,7 +117,6 @@ if (!bump) {
 
 preflight();
 
-// Read current version
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
 const currentVersion = pkg.version;
 const newVersion = bumpVersion(currentVersion, bump);
@@ -149,12 +125,11 @@ const releaseBranch = `release/${tag}`;
 
 info(`Bumping ${currentVersion} → ${newVersion}`);
 
-// Check tag doesn't already exist
 try {
   run(`git rev-parse ${tag}`);
   fail(`Tag ${tag} already exists`);
 } catch {
-  // Good — tag doesn't exist
+  // Good
 }
 
 // 1. Bump version
@@ -169,48 +144,18 @@ run(`git commit -m "Release ${tag}"`);
 run(`git push -u origin ${releaseBranch}`);
 success(`Pushed ${releaseBranch}`);
 
-// 3. Create and merge PR
+// 3. Create PR with auto-merge
 const prUrl = run(
   `gh pr create --title "Release ${tag}" --body "Bump version to ${newVersion}" --base main --head ${releaseBranch}`
 );
 info(`PR created: ${prUrl}`);
 
-// Enable auto-merge (waits for CI to pass before merging)
-info('Enabling auto-merge (waiting for CI)...');
 run(`gh pr merge ${releaseBranch} --squash --subject "Release ${tag}" --body "Bump version to ${newVersion}" --auto`);
+success('Auto-merge enabled. CI will merge the PR when checks pass.');
 
-// Poll until the PR is merged
-info('Waiting for CI to pass and PR to merge...');
-for (let i = 0; i < 60; i++) {
-  const state = run(`gh pr view ${releaseBranch} --json state --jq .state`);
-  if (state === 'MERGED') break;
-  if (i === 59) fail('Timed out waiting for PR to merge (5 minutes). Check CI status.');
-  execSync('sleep 5');
-}
-
-success('PR merged');
-
-// 4. Pull the merge commit and tag it
+// Switch back to main so the working tree isn't stuck on the release branch
 run('git checkout main');
-run('git pull origin main');
 
-// 5. Create GitHub release with auto-generated notes
-const lastTag = run('git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo ""');
-const notes = generateReleaseNotes(lastTag || '');
-
-const notesFile = path.join(rootDir, '.release-notes.tmp');
-fs.writeFileSync(notesFile, notes);
-try {
-  run(`gh release create ${tag} --target main --title "${tag}" --notes-file ${notesFile}`);
-} finally {
-  fs.unlinkSync(notesFile);
-}
-success(`Release ${tag} published on GitHub (npm publish handled by CI)`);
-
-// Cleanup: delete release branch
-try {
-  run(`git branch -d ${releaseBranch}`);
-  run(`git push origin --delete ${releaseBranch}`);
-} catch {
-  // Non-critical
-}
+info('Once merged, publish the draft release at:');
+info('https://github.com/synergenius-fw/flow-weaver/releases');
+info('Publishing the draft triggers npm publish automatically.');
