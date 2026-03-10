@@ -28,7 +28,7 @@ describe('registerPackMcpTools', () => {
       name: '@synergenius/flow-weaver-pack-test',
       version: '1.0.0',
       manifest: {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: '@synergenius/flow-weaver-pack-test',
         version: '1.0.0',
         nodeTypes: [],
@@ -46,7 +46,7 @@ describe('registerPackMcpTools', () => {
       name: '@synergenius/flow-weaver-pack-test',
       version: '1.0.0',
       manifest: {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: '@synergenius/flow-weaver-pack-test',
         version: '1.0.0',
         nodeTypes: [],
@@ -74,7 +74,7 @@ describe('registerPackMcpTools', () => {
       name: '@synergenius/flow-weaver-pack-broken',
       version: '1.0.0',
       manifest: {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: '@synergenius/flow-weaver-pack-broken',
         version: '1.0.0',
         nodeTypes: [],

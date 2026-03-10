@@ -10,6 +10,7 @@
  */
 
 import * as path from 'path';
+import { pathToFileURL } from 'node:url';
 import type { Command } from 'commander';
 import { listInstalledPackages } from '../marketplace/registry.js';
 import type { TInstalledPackage } from '../marketplace/types.js';
@@ -97,7 +98,7 @@ export async function registerPackCommands(program: Command): Promise<void> {
       sub.allowUnknownOption(true);
       sub.action(async (...actionArgs: unknown[]) => {
         try {
-          const bridge = await import(entrypointPath);
+          const bridge = await import(pathToFileURL(entrypointPath).href);
           // Collect raw args from the sub command
           const rawArgs = sub.args ?? [];
           await bridge.handleCommand(cmd.name, rawArgs);

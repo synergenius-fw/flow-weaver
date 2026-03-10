@@ -158,7 +158,8 @@ export async function executeWorkflowFromFile(
             );
             if (fs.existsSync(distEquivalent)) {
               const relative = path.relative(srcDir, distEquivalent);
-              const normalized = relative.startsWith('.') ? relative : `./${relative}`;
+              const posixRelative = relative.replace(/\\/g, '/');
+              const normalized = posixRelative.startsWith('.') ? posixRelative : `./${posixRelative}`;
               return `from '${normalized}'`;
             }
           }
