@@ -31,7 +31,7 @@ describe('registerPackCommands', () => {
       name: '@synergenius/flow-weaver-pack-test',
       version: '1.0.0',
       manifest: {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: '@synergenius/flow-weaver-pack-test',
         version: '1.0.0',
         nodeTypes: [],
@@ -49,7 +49,7 @@ describe('registerPackCommands', () => {
       name: '@synergenius/flow-weaver-pack-weaver',
       version: '0.4.0',
       manifest: {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: '@synergenius/flow-weaver-pack-weaver',
         version: '0.4.0',
         nodeTypes: [],
@@ -79,7 +79,7 @@ describe('registerPackCommands', () => {
       name: '@myorg/flow-weaver-pack-gitlab-ci',
       version: '1.0.0',
       manifest: {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: '@myorg/flow-weaver-pack-gitlab-ci',
         version: '1.0.0',
         nodeTypes: [],
@@ -102,7 +102,7 @@ describe('registerPackCommands', () => {
       name: 'flow-weaver-pack-docker',
       version: '1.0.0',
       manifest: {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: 'flow-weaver-pack-docker',
         version: '1.0.0',
         nodeTypes: [],
@@ -131,7 +131,7 @@ describe('registerPackCommands', () => {
       name: '@synergenius/flow-weaver-pack-test',
       version: '1.0.0',
       manifest: {
-        manifestVersion: 1,
+        manifestVersion: 2,
         name: '@synergenius/flow-weaver-pack-test',
         version: '1.0.0',
         nodeTypes: [],

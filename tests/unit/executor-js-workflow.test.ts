@@ -89,7 +89,7 @@ export async function upperWorkflow(
       { production: true, includeTrace: false },
     );
 
-    expect(result.error).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>).error).toBeUndefined();
     expect(result.result).toBeDefined();
     const res = result.result as Record<string, unknown>;
     expect(res.onSuccess).toBe(true);

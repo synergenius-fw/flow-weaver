@@ -62,7 +62,7 @@ describe('Template execution smoke tests', () => {
         includeTrace: false,
       });
 
-      expect(result.error).toBeUndefined();
+      expect((result as unknown as Record<string, unknown>).error).toBeUndefined();
       expect(result.result).toBeDefined();
     }, 15_000);
   }
