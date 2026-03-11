@@ -25,16 +25,24 @@ export interface DetectedSugar {
 // =============================================================================
 
 /**
- * Validate that a @path macro's control-flow connections still exist
- * in the actual connection set. Also checks that all step nodes exist
- * as instances (or are Start/Exit).
+ * Validate that a @path macro's connections still exist in the actual
+ * connection set. Checks both control-flow AND data connections (scope
+ * walking). Also checks that all step nodes exist as instances (or are
+ * Start/Exit).
  *
  * Returns true if the path is still valid, false if it should be dropped.
+ *
+ * When nodeTypes/startPorts/exitPorts are provided, data connections are
+ * validated using the same scope-walking algorithm that expandPathMacros
+ * uses. Without them, only control-flow is checked (legacy behavior).
  */
 export function validatePathMacro(
   path: TPathMacro,
   connections: TConnectionAST[],
   instances: TNodeInstanceAST[],
+  nodeTypes?: TNodeTypeAST[],
+  startPorts?: Record<string, TPortDefinition>,
+  exitPorts?: Record<string, TPortDefinition>,
 ): boolean {
   const instanceIds = new Set(instances.map(inst => inst.id));
 
@@ -81,32 +89,117 @@ export function validatePathMacro(
     }
   }
 
+  // Validate data connections (scope walking) — same algorithm as
+  // expandPathMacros and detectSugarPatterns Step 3.
+  // If any data connection that the path would auto-generate is missing,
+  // the path is stale (a connection was explicitly removed).
+  if (nodeTypes && startPorts && exitPorts) {
+    const instanceMap = new Map(instances.map(inst => [inst.id, inst]));
+    const nodeTypeMap = new Map<string, TNodeTypeAST>();
+    for (const nt of nodeTypes) {
+      nodeTypeMap.set(nt.name, nt);
+      if (nt.functionName !== nt.name) {
+        nodeTypeMap.set(nt.functionName, nt);
+      }
+    }
+
+    const getNodeType = (nodeId: string): TNodeTypeAST | undefined => {
+      const inst = instanceMap.get(nodeId);
+      if (!inst) return undefined;
+      return nodeTypeMap.get(inst.nodeType);
+    };
+
+    const getOutputPorts = (nodeId: string): Record<string, TPortDefinition> => {
+      if (nodeId === 'Start') return startPorts;
+      const nt = getNodeType(nodeId);
+      return nt?.outputs || {};
+    };
+
+    const getInputPorts = (nodeId: string): Record<string, TPortDefinition> => {
+      if (nodeId === 'Exit') return exitPorts;
+      const nt = getNodeType(nodeId);
+      return nt?.inputs || {};
+    };
+
+    const { steps } = path;
+    for (let i = 0; i < steps.length - 1; i++) {
+      const nextId = steps[i + 1].node;
+      if (nextId === 'Exit') continue;
+
+      const nextInputs = getInputPorts(nextId);
+      for (const [inputName] of Object.entries(nextInputs)) {
+        if (isControlFlowPort(inputName)) continue;
+
+        // Walk backward through path steps to find nearest ancestor with same-name output
+        for (let j = i; j >= 0; j--) {
+          const ancestorId = steps[j].node;
+          const ancestorOutputs = getOutputPorts(ancestorId);
+          if (inputName in ancestorOutputs && !isControlFlowPort(inputName)) {
+            const key = `${ancestorId}.${inputName}->${nextId}.${inputName}`;
+            if (!connKeys.has(key)) {
+              return false;
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
   return true;
 }
 
 /**
- * Filter existing macros, removing any @path macros whose control-flow
- * connections no longer exist in the connection set.
+ * Filter existing macros, removing any @path macros whose connections
+ * (control-flow AND data) no longer exist in the connection set.
  * Non-path macros are passed through unchanged.
  */
 export function filterStaleMacros(
   macros: TWorkflowMacro[],
   connections: TConnectionAST[],
   instances: TNodeInstanceAST[],
+  nodeTypes?: TNodeTypeAST[],
+  startPorts?: Record<string, TPortDefinition>,
+  exitPorts?: Record<string, TPortDefinition>,
 ): TWorkflowMacro[] {
   const instanceIds = new Set(instances.map(i => i.id));
   instanceIds.add('Start');
   instanceIds.add('Exit');
 
+  // Build connection key set for quick lookup
+  const connKeys = new Set<string>();
+  for (const conn of connections) {
+    if (!conn.from.scope && !conn.to.scope) {
+      connKeys.add(`${conn.from.node}.${conn.from.port}->${conn.to.node}.${conn.to.port}`);
+    }
+  }
+
   return macros.filter(macro => {
-    if (macro.type === 'path') return validatePathMacro(macro, connections, instances);
+    if (macro.type === 'path') return validatePathMacro(macro, connections, instances, nodeTypes, startPorts, exitPorts);
     if (macro.type === 'fanOut') {
       if (!instanceIds.has(macro.source.node)) return false;
-      return macro.targets.every(t => instanceIds.has(t.node));
+      // Validate that all fanOut connections still exist
+      return macro.targets.every(t => {
+        if (!instanceIds.has(t.node)) return false;
+        const targetPort = t.port ?? macro.source.port;
+        return connKeys.has(`${macro.source.node}.${macro.source.port}->${t.node}.${targetPort}`);
+      });
     }
     if (macro.type === 'fanIn') {
       if (!instanceIds.has(macro.target.node)) return false;
-      return macro.sources.every(s => instanceIds.has(s.node));
+      // Validate that all fanIn connections still exist
+      return macro.sources.every(s => {
+        if (!instanceIds.has(s.node)) return false;
+        const sourcePort = s.port ?? macro.target.port;
+        return connKeys.has(`${s.node}.${sourcePort}->${macro.target.node}.${macro.target.port}`);
+      });
+    }
+    if (macro.type === 'coerce') {
+      // Validate that both coerce connections still exist:
+      // source -> coerceInstance.value AND coerceInstance.result -> target
+      const toCoerce = `${macro.source.node}.${macro.source.port}->${macro.instanceId}.value`;
+      const fromCoerce = `${macro.instanceId}.result->${macro.target.node}.${macro.target.port}`;
+      return connKeys.has(toCoerce) && connKeys.has(fromCoerce);
     }
     return true;
   });

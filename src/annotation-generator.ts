@@ -283,7 +283,20 @@ export class AnnotationGenerator {
       workflow.macros || [],
       workflow.connections,
       workflow.instances,
+      workflow.nodeTypes,
+      workflow.startPorts,
+      workflow.exitPorts,
     );
+
+    // Compute dropped coerce instance IDs — their connections must be excluded
+    const survivingCoerceIds = new Set<string>();
+    for (const macro of existingMacros) {
+      if (macro.type === 'coerce') survivingCoerceIds.add(macro.instanceId);
+    }
+    const droppedCoerceIds = new Set<string>();
+    for (const id of coerceInstanceIds) {
+      if (!survivingCoerceIds.has(id)) droppedCoerceIds.add(id);
+    }
 
     // Auto-detect @path sugar patterns from connections
     const detected = detectSugarPatterns(
@@ -343,10 +356,11 @@ export class AnnotationGenerator {
       lines.push(` * @position Exit ${Math.round(workflow.ui.exitNode.x)} ${Math.round(workflow.ui.exitNode.y)}`);
     }
 
-    // Add connections — skip connections covered by macros
+    // Add connections — skip connections covered by macros and dropped coerce connections
     if (!workflow.options?.autoConnect) {
       workflow.connections.forEach((conn) => {
         if (allMacros.length > 0 && isConnectionCoveredByMacroStatic(conn, allMacros)) return;
+        if (droppedCoerceIds.has(conn.from.node) || droppedCoerceIds.has(conn.to.node)) return;
         const fromScope = conn.from.scope ? `:${conn.from.scope}` : '';
         const toScope = conn.to.scope ? `:${conn.to.scope}` : '';
         lines.push(` * @connect ${conn.from.node}.${conn.from.port}${fromScope} -> ${conn.to.node}.${conn.to.port}${toScope}`);
