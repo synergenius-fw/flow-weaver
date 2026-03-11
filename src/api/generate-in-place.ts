@@ -1379,16 +1379,19 @@ function isConnectionCoveredByMacro(conn: TConnectionAST, macros: TWorkflowMacro
 function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: boolean } = {}): string {
   const lines: string[] = [];
 
-  // Build macro coverage sets for filtering (@map-specific)
+  // Build macro coverage sets for filtering (@map and @coerce)
   const macroInstanceIds = new Set<string>();
   const macroChildIds = new Set<string>();
   const macroScopeNames = new Set<string>();
+  const allCoerceInstanceIds = new Set<string>();
   if (ast.macros && ast.macros.length > 0) {
     for (const macro of ast.macros) {
       if (macro.type === 'map') {
         macroInstanceIds.add(macro.instanceId);
         macroChildIds.add(macro.childId);
         macroScopeNames.add(`${macro.instanceId}.iterate`);
+      } else if (macro.type === 'coerce') {
+        allCoerceInstanceIds.add(macro.instanceId);
       }
     }
   }
@@ -1471,10 +1474,11 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
   // Must happen before instance tags are generated so [position:] can be emitted.
   const autoPositions = computeAutoPositions(ast);
 
-  // Add node instances — skip synthetic MAP_ITERATOR instances, strip parent from macro children.
+  // Add node instances — skip synthetic MAP_ITERATOR/COERCION instances, strip parent from macro children.
   // Merge auto-computed positions into instance config (without mutating the AST).
   for (const instance of ast.instances) {
     if (macroInstanceIds.has(instance.id)) continue;
+    if (allCoerceInstanceIds.has(instance.id)) continue;
 
     // Merge auto-position into config if not already set
     let inst = instance;
@@ -1506,7 +1510,20 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
     ast.macros || [],
     ast.connections,
     ast.instances,
+    ast.nodeTypes,
+    ast.startPorts,
+    ast.exitPorts,
   );
+
+  // Compute dropped coerce instance IDs — their synthetic instances and connections must be excluded
+  const survivingCoerceIds = new Set<string>();
+  for (const macro of existingMacros) {
+    if (macro.type === 'coerce') survivingCoerceIds.add(macro.instanceId);
+  }
+  const droppedCoerceIds = new Set<string>();
+  for (const id of allCoerceInstanceIds) {
+    if (!survivingCoerceIds.has(id)) droppedCoerceIds.add(id);
+  }
 
   // Auto-detect @path sugar patterns from connections
   const detected = detectSugarPatterns(
@@ -1564,10 +1581,11 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
   }
 
   // Add connections (with scope suffix when present)
-  // Skip connections covered by @map macros and autoConnect-generated connections
+  // Skip connections covered by macros, autoConnect-generated connections, and dropped coerce connections
   if (!ast.options?.autoConnect) {
     for (const conn of ast.connections) {
       if (allMacros.length > 0 && isConnectionCoveredByMacro(conn, allMacros)) continue;
+      if (droppedCoerceIds.has(conn.from.node) || droppedCoerceIds.has(conn.to.node)) continue;
       const fromScope = conn.from.scope ? `:${conn.from.scope}` : '';
       const toScope = conn.to.scope ? `:${conn.to.scope}` : '';
       lines.push(
