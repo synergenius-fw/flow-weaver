@@ -1577,6 +1577,71 @@ export class WorkflowValidator {
         }
       }
     }
+
+    // Check: non-scoped connections must not cross scope boundaries
+    // when the parent is a scoped node type (has scoped ports).
+    // A child in scope "a" cannot connect to a child in scope "b" (or root),
+    // because they execute in separate callback contexts.
+    // Only applies to per-port scoped parents (not flat grouping scopes).
+    const parentOf = new Map<string, { id: string; scope: string } | undefined>();
+    for (const inst of workflow.instances) {
+      parentOf.set(inst.id, inst.parent ?? undefined);
+    }
+
+    // Build set of node IDs that are scoped parent types (have scoped ports)
+    const scopedParentIds = new Set<string>();
+    for (const inst of workflow.instances) {
+      const nt = instanceMap.get(inst.id);
+      if (!nt) continue;
+      const hasScopedPorts = [
+        ...Object.values(nt.inputs ?? {}),
+        ...Object.values(nt.outputs ?? {}),
+      ].some((p) => p.scope);
+      if (hasScopedPorts) scopedParentIds.add(inst.id);
+    }
+
+    for (const conn of workflow.connections) {
+      // Skip scoped connections (already validated above)
+      if (conn.from.scope || conn.to.scope) continue;
+
+      const fromParent = parentOf.get(conn.from.node);
+      const toParent = parentOf.get(conn.to.node);
+
+      // Both must exist in the workflow
+      if (!parentOf.has(conn.from.node) || !parentOf.has(conn.to.node)) continue;
+
+      // If neither node is inside a scope, skip (root-to-root is fine)
+      if (!fromParent && !toParent) continue;
+
+      // Only validate when the parent is a scoped node type (has scoped ports).
+      // Flat grouping scopes (createScope without scoped ports) are allowed to cross.
+      const fromInScopedParent = fromParent && scopedParentIds.has(fromParent.id);
+      const toInScopedParent = toParent && scopedParentIds.has(toParent.id);
+      if (!fromInScopedParent && !toInScopedParent) continue;
+
+      // Allow connections where one side is the scoped PARENT itself (not a child)
+      const fromIsParentOfTo = toParent && toParent.id === conn.from.node;
+      const toIsParentOfFrom = fromParent && fromParent.id === conn.to.node;
+      if (fromIsParentOfTo || toIsParentOfFrom) continue;
+
+      // Check if they share the same parent+scope
+      const sameScope =
+        fromParent && toParent &&
+        fromParent.id === toParent.id &&
+        fromParent.scope === toParent.scope;
+
+      if (!sameScope) {
+        const fromCtx = fromParent ? `${fromParent.id}.${fromParent.scope}` : 'root';
+        const toCtx = toParent ? `${toParent.id}.${toParent.scope}` : 'root';
+        this.errors.push({
+          type: 'error',
+          code: 'CROSS_SCOPE_CONNECTION',
+          message: `Connection from "${conn.from.node}.${conn.from.port}" (in ${fromCtx}) to "${conn.to.node}.${conn.to.port}" (in ${toCtx}) crosses scope boundaries. Nodes in different scopes cannot connect directly.`,
+          connection: conn,
+          location: this.getConnectionLocation(conn),
+        });
+      }
+    }
   }
 
   // ── H: Duplicate instance IDs ──────────────────────────────────────────
