@@ -464,11 +464,14 @@ export class AnnotationGenerator {
  * Custom STEP ports use @step.
  */
 export function generateJSDocPortTag(
-  name: string,
+  rawName: string,
   port: TPortDefinition,
   direction: 'input' | 'output',
   _implicitOrder?: number
 ): string {
+  // Support scoped key format: use _realName if present (for multi-scope mandatory ports)
+  const name = (port as Record<string, unknown>)._realName as string ?? rawName;
+
   // Determine tag: @step for explicit control flow, @input/@output for data
   // Reserved STEP ports (execute, onSuccess, onFailure) stay as @input/@output
   // Scoped mandatory ports (start, success, failure) with scope attribute also stay as @input/@output

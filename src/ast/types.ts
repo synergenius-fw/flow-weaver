@@ -723,6 +723,8 @@ export type TPortDefinition = {
   order?: number;
   /** Additional metadata */
   metadata?: Record<string, unknown>;
+  /** Internal: real port name when stored under a scoped composite key (multi-scope mandatory ports) */
+  _realName?: string;
 };
 
 /**
