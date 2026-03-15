@@ -1026,6 +1026,30 @@ export class AnnotationParser {
         scopes = orderedScopes;
       }
 
+      // Inject mandatory scoped ports (start, success, failure) for each scope
+      if (scopes) {
+        for (const scopeName of scopes) {
+          const hasOutput = (name: string, scope: string) =>
+            Object.entries(outputs).some(([k, p]) => k === name && p.scope === scope);
+          const hasInput = (name: string, scope: string) =>
+            Object.entries(inputs).some(([k, p]) => k === name && p.scope === scope);
+
+          if (!hasOutput('start', scopeName)) {
+            // Use scoped key if 'start' already taken by another scope
+            const key = !outputs['start'] ? 'start' : `start\0${scopeName}`;
+            outputs[key] = { dataType: 'STEP', scope: scopeName, label: 'Start' };
+          }
+          if (!hasInput('success', scopeName)) {
+            const key = !inputs['success'] ? 'success' : `success\0${scopeName}`;
+            inputs[key] = { dataType: 'STEP', scope: scopeName, label: 'Success' };
+          }
+          if (!hasInput('failure', scopeName)) {
+            const key = !inputs['failure'] ? 'failure' : `failure\0${scopeName}`;
+            inputs[key] = { dataType: 'STEP', scope: scopeName, label: 'Failure', failure: true };
+          }
+        }
+      }
+
       nodeTypes.push({
         type: 'NodeType',
         name: nodeTypeName,

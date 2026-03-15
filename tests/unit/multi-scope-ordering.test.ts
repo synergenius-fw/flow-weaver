@@ -248,4 +248,62 @@ export { PortScopes };
     expect(nt!.inputs.aResult?.scope).toBe("a");
     expect(nt!.inputs.bResult?.scope).toBe("b");
   });
+
+  it("injects mandatory scoped ports (start, success, failure) for each scope in parser output", () => {
+    // Scope "b" has mandatory ports in JSDoc, scope "a" does not.
+    // Parser should inject missing mandatory ports for scope "a".
+    const nt = parseNodeType(
+      `
+/**
+ * @flowWeaver nodeType
+ * @input success scope:b [order:-2] - Success
+ * @input failure scope:b [order:-1] - Failure
+ * @input aResult scope:a [order:0] - A Result
+ * @input bResult scope:b [order:0] - B Result
+ * @output start scope:b [order:-1] - Start
+ * @output a1 scope:a [order:0] - A1
+ * @output b1 scope:b [order:0] - B1
+ */
+async function MandatoryTest(
+  execute: boolean,
+  a: (start: boolean, a1: string) => Promise<{ success: boolean; failure: boolean; aResult: string }>,
+  b: (start: boolean, b1: number) => Promise<{ success: boolean; failure: boolean; bResult: string }>
+): Promise<{ onSuccess: boolean; onFailure: boolean }> {
+  return { onSuccess: true, onFailure: false };
+}
+
+export { MandatoryTest };
+`,
+      "MandatoryTest"
+    );
+
+    expect(nt).toBeDefined();
+
+    // Scope "a" should have mandatory ports injected
+    const allInputs = Object.entries(nt!.inputs);
+    const allOutputs = Object.entries(nt!.outputs);
+
+    const scopeAInputs = allInputs.filter(([, p]) => p.scope === "a");
+    const scopeAOutputs = allOutputs.filter(([, p]) => p.scope === "a");
+    const scopeAInputNames = scopeAInputs.map(([, p]) => p.label || "").filter(Boolean);
+    const scopeAOutputNames = scopeAOutputs.map(([, p]) => p.label || "").filter(Boolean);
+
+    // Scope "a" should have start (output), success (input), failure (input)
+    expect(scopeAOutputs.some(([, p]) => p.dataType === "STEP"),
+      "scope 'a' should have a STEP output (start)").toBe(true);
+    // At least 2 STEP inputs: success + failure
+    const scopeAStepInputs = scopeAInputs.filter(([, p]) => p.dataType === "STEP");
+    expect(scopeAStepInputs.length,
+      "scope 'a' should have at least 2 STEP inputs (success + failure)").toBeGreaterThanOrEqual(2);
+
+    // Scope "b" should still have its mandatory ports (from JSDoc)
+    const scopeBInputs = allInputs.filter(([, p]) => p.scope === "b");
+    const scopeBOutputs = allOutputs.filter(([, p]) => p.scope === "b");
+
+    expect(scopeBOutputs.some(([, p]) => p.dataType === "STEP"),
+      "scope 'b' should have a STEP output (start)").toBe(true);
+    const scopeBStepInputs = scopeBInputs.filter(([, p]) => p.dataType === "STEP");
+    expect(scopeBStepInputs.length,
+      "scope 'b' should have at least 2 STEP inputs (success + failure)").toBeGreaterThanOrEqual(2);
+  });
 });
