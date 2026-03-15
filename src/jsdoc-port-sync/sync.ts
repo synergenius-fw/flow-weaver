@@ -197,59 +197,77 @@ export function syncSignatureToJSDoc(functionText: string): string {
   const signatureInputOrder = rawParamOrder.length >= parsedOrder.length ? rawParamOrder : parsedOrder;
 
   // ==========================================================================
-  // Auto-generate mandatory scoped ports for declared @scope tags
+  // Auto-generate mandatory scoped ports for all scopes
+  // Collects from both @scope tags AND per-port scope:name annotations
   // ==========================================================================
+  const declaredScopes = new Set<string>();
+
+  // From @scope tags
   const jsdocMatch = functionText.match(JSDOC_BLOCK_REGEX);
   if (jsdocMatch) {
     const jsdoc = jsdocMatch[0];
-    const declaredScopes = new Set<string>();
     SCOPE_TAG_REGEX.lastIndex = 0;
     let scopeMatch;
     while ((scopeMatch = SCOPE_TAG_REGEX.exec(jsdoc)) != null) {
       declaredScopes.add(scopeMatch[1]);
     }
-
-    // For each declared scope, ensure mandatory ports exist
-    for (const scopeName of declaredScopes) {
-      // Mandatory OUTPUT: start (STEP)
-      if (!finalOutputs[SCOPED_PORT_NAMES.START] || finalOutputs[SCOPED_PORT_NAMES.START].scope !== scopeName) {
-        // Check if 'start' exists with this scope
-        const hasStart = Object.entries(finalOutputs).some(
-          ([name, port]) => name === SCOPED_PORT_NAMES.START && port.scope === scopeName
-        );
-        if (!hasStart) {
-          finalOutputs[SCOPED_PORT_NAMES.START] = {
-            dataType: "STEP",
-            scope: scopeName,
-          };
-        }
-      }
-
-      // Mandatory INPUT: success (STEP)
-      const hasSuccess = Object.entries(finalInputs).some(
-        ([name, port]) => name === SCOPED_PORT_NAMES.SUCCESS && port.scope === scopeName
-      );
-      if (!hasSuccess) {
-        finalInputs[SCOPED_PORT_NAMES.SUCCESS] = {
-          dataType: "STEP",
-          scope: scopeName,
-        };
-      }
-
-      // Mandatory INPUT: failure (STEP)
-      const hasFailure = Object.entries(finalInputs).some(
-        ([name, port]) => name === SCOPED_PORT_NAMES.FAILURE && port.scope === scopeName
-      );
-      if (!hasFailure) {
-        finalInputs[SCOPED_PORT_NAMES.FAILURE] = {
-          dataType: "STEP",
-          scope: scopeName,
-        };
-      }
-    }
   }
 
-  return updatePortsInFunctionText(functionText, finalInputs, finalOutputs, signatureInputOrder);
+  // From per-port scope annotations, but ONLY when the scope has a matching
+  // callback parameter (confirming it's a real scope, not just a labeled port)
+  for (const port of Object.values(finalInputs)) {
+    if (port.scope && callbackInfo.has(port.scope)) declaredScopes.add(port.scope);
+  }
+  for (const port of Object.values(finalOutputs)) {
+    if (port.scope && callbackInfo.has(port.scope)) declaredScopes.add(port.scope);
+  }
+
+  // For each scope, ensure mandatory ports exist.
+  // Port Records use name as key. When multiple scopes need the same mandatory port
+  // (e.g., "start" for scope "a" and "start" for scope "b"), we use a scoped key
+  // format "name\0scope" for the second+ scope. generateJSDocPortTag receives the
+  // real name via the port definition's _realName field.
+  for (const scopeName of declaredScopes) {
+      // Helper: find if mandatory port exists for this specific scope
+      const hasPortForScope = (
+        ports: Record<string, TPortDefinition>,
+        portName: string,
+        scope: string
+      ) => Object.entries(ports).some(
+        ([name, port]) => (name === portName || port._realName === portName) && port.scope === scope
+      );
+
+      // Helper: add a mandatory port, using a scoped key if the base key is taken by another scope
+      const addMandatoryPort = (
+        ports: Record<string, TPortDefinition>,
+        portName: string,
+        scope: string,
+        extra?: Partial<TPortDefinition>
+      ) => {
+        if (hasPortForScope(ports, portName, scope)) return;
+        // Use base key if available, otherwise use scoped key
+        const key = !ports[portName] || ports[portName].scope === scope
+          ? portName
+          : `${portName}\0${scope}`;
+        ports[key] = {
+          dataType: "STEP",
+          scope,
+          ...(key !== portName && { _realName: portName }),
+          ...extra,
+        };
+      };
+
+      addMandatoryPort(finalOutputs, SCOPED_PORT_NAMES.START, scopeName);
+      addMandatoryPort(finalInputs, SCOPED_PORT_NAMES.SUCCESS, scopeName);
+      addMandatoryPort(finalInputs, SCOPED_PORT_NAMES.FAILURE, scopeName, { failure: true });
+    }
+
+  return updatePortsInFunctionText(
+    functionText,
+    finalInputs,
+    finalOutputs,
+    signatureInputOrder
+  );
 }
 
 // =============================================================================
