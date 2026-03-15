@@ -998,13 +998,33 @@ export class AnnotationParser {
 
       // Determine scopes array:
       // - If node has node-level scope: use that (old architecture)
-      // - Otherwise if ports have scopes: use unique port scopes (per-port architecture)
+      // - Otherwise if ports have scopes: use unique port scopes ordered by function parameter position
       // - Otherwise: undefined (no scopes)
-      const scopes = config.scope
-        ? [config.scope]
-        : portScopes.size > 0
-          ? Array.from(portScopes)
-          : undefined;
+      let scopes: string[] | undefined;
+      if (config.scope) {
+        scopes = [config.scope];
+      } else if (portScopes.size > 0) {
+        // Order scopes by function parameter position (callback params whose name matches a scope)
+        const orderedScopes: string[] = [];
+        try {
+          const params = fn.getParameters();
+          for (const param of params) {
+            const paramName = param.getName();
+            if (portScopes.has(paramName)) {
+              orderedScopes.push(paramName);
+            }
+          }
+        } catch {
+          // Fall back to Set order if parameter extraction fails
+        }
+        // Add any scopes not found as params (e.g. from JSDoc-only scope declarations)
+        for (const scope of portScopes) {
+          if (!orderedScopes.includes(scope)) {
+            orderedScopes.push(scope);
+          }
+        }
+        scopes = orderedScopes;
+      }
 
       nodeTypes.push({
         type: 'NodeType',
