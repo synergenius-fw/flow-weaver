@@ -41,35 +41,66 @@ export type TNpmNodeType = {
 };
 
 /**
- * Read direct dependency names from the closest package.json.
- * Only includes `dependencies` (not devDependencies, peerDependencies, etc.)
- * since those are the packages available at runtime in workflows.
+ * Find all node_modules directories starting from fromDir and walking up.
  */
-function readDirectDependencies(workdir: string): string[] {
-  let current = path.resolve(workdir);
+function findNodeModulesDirs(fromDir: string): string[] {
+  const dirs: string[] = [];
+  let current = path.resolve(fromDir);
   const root = path.parse(current).root;
 
   while (current !== root) {
-    const pkgJsonPath = path.join(current, 'package.json');
-    if (fs.existsSync(pkgJsonPath)) {
-      try {
-        const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-        return Object.keys(pkgJson.dependencies ?? {});
-      } catch {
-        // malformed package.json, keep walking
-      }
+    const candidate = path.join(current, 'node_modules');
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+      dirs.push(candidate);
     }
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
   }
 
-  return [];
+  return dirs;
 }
 
 /**
- * Get list of packages that have TypeScript declarations (.d.ts files).
- * Only includes direct dependencies from package.json (not transitive or dev).
+ * List all packages in a node_modules directory (including scoped packages).
+ */
+function listPackagesInNodeModules(nmDir: string): string[] {
+  const packages: string[] = [];
+
+  if (!fs.existsSync(nmDir)) return packages;
+
+  try {
+    const entries = fs.readdirSync(nmDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      if (entry.name.startsWith('@')) {
+        const scopeDir = path.join(nmDir, entry.name);
+        try {
+          const scopedEntries = fs.readdirSync(scopeDir, { withFileTypes: true });
+          for (const scopedEntry of scopedEntries) {
+            if (scopedEntry.isDirectory()) {
+              packages.push(`${entry.name}/${scopedEntry.name}`);
+            }
+          }
+        } catch {
+          // Ignore permission errors
+        }
+      } else {
+        packages.push(entry.name);
+      }
+    }
+  } catch {
+    // Ignore permission errors
+  }
+
+  return packages;
+}
+
+/**
+ * Get list of all packages that have TypeScript declarations (.d.ts files).
+ * Any package with types can be used as a node type in workflows.
  * Excludes @types/* packages as they are type augmentations.
  *
  * @param workdir - Directory to start searching from
@@ -80,15 +111,26 @@ export function getTypedPackages(
   workdir: string,
   nodeModulesOverride?: string
 ): { packages: Array<{ name: string; typesPath: string | null }> } {
-  const directDeps = readDirectDependencies(workdir);
+  const nodeModulesDirs = nodeModulesOverride
+    ? [nodeModulesOverride]
+    : findNodeModulesDirs(workdir);
+
   const typed: Array<{ name: string; typesPath: string | null }> = [];
+  const seenPackages = new Set<string>();
 
-  for (const pkg of directDeps) {
-    if (pkg.startsWith('@types/')) continue;
+  for (const nmDir of nodeModulesDirs) {
+    const packages = listPackagesInNodeModules(nmDir);
 
-    const typesPath = resolvePackageTypesPath(pkg, workdir, nodeModulesOverride);
-    if (typesPath) {
-      typed.push({ name: pkg, typesPath });
+    for (const pkg of packages) {
+      if (pkg.startsWith('@types/')) continue;
+
+      if (seenPackages.has(pkg)) continue;
+      seenPackages.add(pkg);
+
+      const typesPath = resolvePackageTypesPath(pkg, workdir, nodeModulesOverride);
+      if (typesPath) {
+        typed.push({ name: pkg, typesPath });
+      }
     }
   }
 
