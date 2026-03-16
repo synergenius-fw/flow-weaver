@@ -41,67 +41,35 @@ export type TNpmNodeType = {
 };
 
 /**
- * Find all node_modules directories starting from fromDir and walking up.
+ * Read direct dependency names from the closest package.json.
+ * Only includes `dependencies` (not devDependencies, peerDependencies, etc.)
+ * since those are the packages available at runtime in workflows.
  */
-function findNodeModulesDirs(fromDir: string): string[] {
-  const dirs: string[] = [];
-  let current = path.resolve(fromDir);
+function readDirectDependencies(workdir: string): string[] {
+  let current = path.resolve(workdir);
   const root = path.parse(current).root;
 
   while (current !== root) {
-    const candidate = path.join(current, 'node_modules');
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
-      dirs.push(candidate);
+    const pkgJsonPath = path.join(current, 'package.json');
+    if (fs.existsSync(pkgJsonPath)) {
+      try {
+        const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+        return Object.keys(pkgJson.dependencies ?? {});
+      } catch {
+        // malformed package.json, keep walking
+      }
     }
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
   }
 
-  return dirs;
-}
-
-/**
- * List all packages in a node_modules directory (including scoped packages).
- */
-function listPackagesInNodeModules(nmDir: string): string[] {
-  const packages: string[] = [];
-
-  if (!fs.existsSync(nmDir)) return packages;
-
-  try {
-    const entries = fs.readdirSync(nmDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      // Handle scoped packages (@scope/pkg)
-      if (entry.name.startsWith('@')) {
-        const scopeDir = path.join(nmDir, entry.name);
-        try {
-          const scopedEntries = fs.readdirSync(scopeDir, { withFileTypes: true });
-          for (const scopedEntry of scopedEntries) {
-            if (scopedEntry.isDirectory()) {
-              packages.push(`${entry.name}/${scopedEntry.name}`);
-            }
-          }
-        } catch {
-          // Ignore permission errors
-        }
-      } else {
-        // Regular package
-        packages.push(entry.name);
-      }
-    }
-  } catch {
-    // Ignore permission errors
-  }
-
-  return packages;
+  return [];
 }
 
 /**
  * Get list of packages that have TypeScript declarations (.d.ts files).
+ * Only includes direct dependencies from package.json (not transitive or dev).
  * Excludes @types/* packages as they are type augmentations.
  *
  * @param workdir - Directory to start searching from
@@ -112,38 +80,23 @@ export function getTypedPackages(
   workdir: string,
   nodeModulesOverride?: string
 ): { packages: Array<{ name: string; typesPath: string | null }> } {
-  const nodeModulesDirs = nodeModulesOverride
-    ? [nodeModulesOverride]
-    : findNodeModulesDirs(workdir);
-
+  const directDeps = readDirectDependencies(workdir);
   const typed: Array<{ name: string; typesPath: string | null }> = [];
-  const seenPackages = new Set<string>();
 
-  for (const nmDir of nodeModulesDirs) {
-    const packages = listPackagesInNodeModules(nmDir);
+  for (const pkg of directDeps) {
+    if (pkg.startsWith('@types/')) continue;
 
-    for (const pkg of packages) {
-      // Skip @types/* packages - they are type augmentations, not actual packages
-      if (pkg.startsWith('@types/')) continue;
-
-      // Skip if already seen (from a closer node_modules)
-      if (seenPackages.has(pkg)) continue;
-      seenPackages.add(pkg);
-
-      // Check if package has types
-      const typesPath = resolvePackageTypesPath(pkg, workdir, nodeModulesOverride);
-      if (typesPath) {
-        typed.push({ name: pkg, typesPath });
-      }
+    const typesPath = resolvePackageTypesPath(pkg, workdir, nodeModulesOverride);
+    if (typesPath) {
+      typed.push({ name: pkg, typesPath });
     }
   }
 
   return { packages: typed };
 }
 
-/**
- * Capitalize first letter of a string.
- */
+const PRIMITIVE_TYPES = new Set(['string', 'number', 'boolean', 'any', 'unknown', 'never']);
+
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
@@ -154,7 +107,6 @@ function capitalize(str: string): string {
 function inferNodeTypeFromDtsFunction(
   fn: FunctionLike,
   packageName: string,
-  _dtsPath: string
 ): TNpmNodeType | null {
   const fnName = fn.getName();
   if (!fnName) return null;
@@ -202,8 +154,7 @@ function inferNodeTypeFromDtsFunction(
   const unwrappedText = returnType.getText();
 
   if (unwrappedText !== 'void' && unwrappedText !== 'undefined') {
-    const primitiveTypes = new Set(['string', 'number', 'boolean', 'any', 'unknown', 'never']);
-    const isPrimitive = primitiveTypes.has(unwrappedText);
+    const isPrimitive = PRIMITIVE_TYPES.has(unwrappedText);
     const isArray = unwrappedText.endsWith('[]') || unwrappedText.startsWith('Array<');
 
     const properties = returnType.getProperties();
@@ -306,7 +257,7 @@ export function getPackageExports(
       if (!fnName || seenFunctionNames.has(fnName)) continue;
       seenFunctionNames.add(fnName);
 
-      const nodeType = inferNodeTypeFromDtsFunction(fn, packageName, typesPath);
+      const nodeType = inferNodeTypeFromDtsFunction(fn, packageName);
       if (nodeType) {
         nodeTypes.push(nodeType);
       }

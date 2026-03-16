@@ -1,0 +1,12 @@
+{
+  "name": "flow-weaver-test-fixtures",
+  "private": true,
+  "dependencies": {
+    "typed-package": "*",
+    "typings-field": "*",
+    "index-dts-package": "*",
+    "no-types": "*",
+    "@scope/scoped-pkg": "*",
+    "@types/some-pkg": "*"
+  }
+}
