@@ -106,7 +106,7 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('  | TWorkflowCompletedEvent;');
     lines.push('');
     lines.push(`${exportKeyword}type TDebugger = {`);
-    lines.push('  sendEvent: (event: TEvent) => void;');
+    lines.push('  sendEvent: (event: TEvent) => void | Promise<void>;');
     lines.push('  innerFlowInvocation: boolean;');
     lines.push('  sessionId?: string;');
     lines.push('};');
@@ -410,16 +410,16 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
 
   // Debug event methods (only in development mode)
   if (!production) {
-    lines.push('  sendStatusChangedEvent(args: {');
+    lines.push('  async sendStatusChangedEvent(args: {');
     lines.push('    nodeTypeName: string;');
     lines.push('    id: string;');
     lines.push('    scope?: string;');
     lines.push('    side?: "start" | "exit";');
     lines.push('    executionIndex: number;');
     lines.push('    status: TStatusType;');
-    lines.push('  }): void {');
+    lines.push('  }): Promise<void> {');
     lines.push('    if (this.flowWeaverDebugger) {');
-    lines.push('      this.flowWeaverDebugger.sendEvent({');
+    lines.push('      await this.flowWeaverDebugger.sendEvent({');
     lines.push('        type: "STATUS_CHANGED",');
     lines.push('        ...args,');
     lines.push('        innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,');
