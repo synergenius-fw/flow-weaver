@@ -154,12 +154,12 @@ describe('buildControlFlowGraph — data-flow ordering', () => {
     fs.writeFileSync(tmpFile, DATA_CHAIN_THEN_BRANCH);
 
     try {
-      const result = await compileWorkflow(tmpFile, { write: true });
+      const result = await compileWorkflow(tmpFile, { write: true, generate: { production: true } });
       expect(result.code).toBeDefined();
 
       // Import and execute — must not throw "Cannot access aggIdx before initialization"
       const compiled = await import(tmpFile);
-      const execResult = compiled.testWorkflow(true, { question: 'hello' });
+      const execResult = await compiled.testWorkflow(true, { question: 'hello' });
 
       // plan returns ['hello'], proc passes through, agg passes through,
       // eval sees sources=['hello'] → onSuccess → goodPath → "GOOD:hello"

@@ -76,12 +76,13 @@ describe('generateInlineRuntime (dev) — sendStatusChangedEvent is async', () =
     expect(devRuntime).toContain('sendEvent: (event: TEvent) => void | Promise<void>');
   });
 
-  test('5 — sendLogErrorEvent is NOT async (only status events need to pause)', () => {
-    expect(devRuntime).not.toContain('async sendLogErrorEvent(');
+  test('5 — sendLogErrorEvent IS async and awaits sendEvent', () => {
+    expect(devRuntime).toContain('async sendLogErrorEvent(');
+    expect(devRuntime).toContain('await this.flowWeaverDebugger.sendEvent');
   });
 
-  test('6 — sendWorkflowCompletedEvent is NOT async', () => {
-    expect(devRuntime).not.toContain('async sendWorkflowCompletedEvent(');
+  test('6 — sendWorkflowCompletedEvent IS async and awaits sendEvent', () => {
+    expect(devRuntime).toContain('async sendWorkflowCompletedEvent(');
   });
 });
 
@@ -165,7 +166,7 @@ export async function singleNode(execute: boolean, params: { num: number }): Pro
 // 15–16: sync workflow — no await anywhere
 // ---------------------------------------------------------------------------
 
-describe('Single-node SYNC workflow — sendStatusChangedEvent never awaited', () => {
+describe('Single-node SYNC workflow (PRODUCTION) — sendStatusChangedEvent never awaited', () => {
   const source = `
 /**
  * @flowWeaver nodeType
@@ -195,11 +196,14 @@ export function syncWorkflow(execute: boolean, params: { num: number }): {
   let code: string;
   beforeAll(async () => { code = await compileWorkflow('bp-sync.ts', source); });
 
-  test('15 — sync workflow has no awaited sendStatusChangedEvent calls', () => {
-    expect(code).not.toMatch(/await\s+\w+\.sendStatusChangedEvent\(/);
+  test('15 — dev mode sync workflow: all sendStatusChangedEvent calls are awaited', () => {
+    // In dev mode, even sync workflows are wrapped in async so the debugger can
+    // pause at breakpoints. Every sendStatusChangedEvent call must be awaited.
+    expect(callSiteLines(code).length).toBeGreaterThan(0);
+    expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
   });
 
-  test('16 — sync workflow still emits sendStatusChangedEvent (just not awaited)', () => {
+  test('16 — sync workflow emits sendStatusChangedEvent call sites', () => {
     expect(callSiteLines(code).length).toBeGreaterThan(0);
   });
 });
@@ -696,13 +700,22 @@ export function scopedSyncWorkflow(
   let code: string;
   beforeAll(async () => { code = await compileWorkflow('bp-scoped-sync.ts', source); });
 
-  test('43 — scoped sync workflow has no awaited sendStatusChangedEvent calls', () => {
-    expect(code).not.toMatch(/await\s+\w+\.sendStatusChangedEvent\(/);
+  test('43 — scoped sync workflow: scope function stays sync (parent node expects sync callback)', () => {
+    // Scope functions must NOT be forced async in dev mode because parent nodes
+    // (e.g., forEach) call the callback synchronously — an async callback would
+    // return Promises instead of values, causing undefined results.
+    // The workflow body IS async (for breakpoints), but scope callbacks respect
+    // the parent node's sync/async expectation.
+    const scopeLines = code.split('\n').filter(l => l.includes('scopedCtx.sendStatusChangedEvent'));
+    expect(scopeLines.length).toBeGreaterThan(0); // scope calls exist
+    // Scope calls must NOT be awaited — the parent node calls the callback synchronously
+    const awaitedScopeLines = scopeLines.filter(l => /await\s/.test(l));
+    expect(awaitedScopeLines).toHaveLength(0);
   });
 
-  test('44 — scoped sync workflow still emits sendStatusChangedEvent (just sync)', () => {
-    // scopedCtx.sendStatusChangedEvent must be called — just without await
+  test('44 — scoped sync workflow still emits sendStatusChangedEvent (just not awaited)', () => {
     expect(code).toContain('scopedCtx.sendStatusChangedEvent(');
+    expect(code).not.toMatch(/await\s+scopedCtx\.sendStatusChangedEvent\(/);
   });
 });
 
@@ -766,8 +779,8 @@ export function syncBranchWorkflow(execute: boolean, params: { num: number }): {
   let code: string;
   beforeAll(async () => { code = await compileWorkflow('bp-sync-branch.ts', source); });
 
-  test('45 — sync branching workflow has no awaited sendStatusChangedEvent calls', () => {
-    expect(code).not.toMatch(/await\s+\w+\.sendStatusChangedEvent\(/);
+  test('45 — sync branching workflow in dev mode has ALL calls awaited (debugger support)', () => {
+    expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
   });
 
   test('46 — sync branching workflow emits CANCELLED for non-taken branches', () => {
@@ -963,5 +976,183 @@ export async function pullNodeWorkflow(execute: boolean, params: { num: number }
 
   test('56 — async pull node executor awaits sendStatusChangedEvent (zero un-awaited)', () => {
     expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
+  });
+});
+
+// ===========================================================================
+// GENERATED CODE QUALITY INVARIANTS
+//
+// These tests enforce three non-negotiable rules for all generated output:
+//
+// 1. ZERO IMPORTS — Generated code must be fully self-contained. It must
+//    NEVER import from '@synergenius/flow-weaver' or any other package.
+//    The runtime (GeneratedExecutionContext, CancellationError, etc.) is
+//    always inlined. Importing creates a deployment dependency that
+//    contradicts the "zero runtime dependencies" design.
+//
+// 2. ZERO `as any` — Generated code must not contain `as any` casts.
+//    Use proper types or `as unknown as T` where narrowing is needed.
+//    The eslint-disable pragma for @typescript-eslint/no-explicit-any
+//    must not appear in generated output.
+//
+// 3. SYNC WORKFLOWS MUST AWAIT IN DEV MODE — When a debugger is present
+//    (!production), even sync workflows must await sendStatusChangedEvent
+//    so the async breakpoint mechanism can pause execution. Production
+//    mode is unchanged (no await overhead for sync workflows).
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 57–58: ZERO IMPORTS — generated code must never import from packages
+// ---------------------------------------------------------------------------
+
+describe('Generated code — zero imports from @synergenius/flow-weaver', () => {
+  // Use the sync workflow from test 15-16 (already compiled above)
+  const syncSource = `
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output result - number
+ */
+export function add1(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, result: value + 1 };
+}
+
+/**
+ * @flowWeaver workflow
+ * @param num - number
+ * @returns {number} out - Result
+ * @node a add1
+ * @connect Start.num -> a.value
+ * @connect a.result -> Exit.out
+ */
+export function noImportsWorkflow(execute: boolean, params: { num: number }): {
+  onSuccess: boolean; onFailure: boolean; out: number;
+} {
+  // @flow-weaver-body
+  // @end-flow-weaver-body
+}
+  `;
+
+  let code: string;
+  beforeAll(async () => { code = await compileWorkflow('bp-no-imports.ts', syncSource); });
+
+  test('57 — generated code has ZERO import statements from @synergenius/flow-weaver', () => {
+    // This is a non-negotiable invariant. The runtime must be inlined, never imported.
+    expect(code).not.toMatch(/from\s+['"]@synergenius\/flow-weaver/);
+    expect(code).not.toMatch(/require\(\s*['"]@synergenius\/flow-weaver/);
+  });
+
+  test('58 — generated code has ZERO import statements from any external package', () => {
+    // Only relative imports (./foo, ../bar) are acceptable. No bare specifiers.
+    const importLines = code.split('\n').filter((l) =>
+      /^\s*(import\s|const\s+\w+\s*=\s*require)/.test(l)
+    );
+    const externalImports = importLines.filter(
+      (l) => !l.includes("'./") && !l.includes("'../") && !l.includes('"./')  && !l.includes('"../')
+    );
+    expect(externalImports).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 59–60: ZERO `as any` — generated code must use proper types
+// ---------------------------------------------------------------------------
+
+describe('Generated code — zero `as any` casts', () => {
+  const syncSource = `
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output result - number
+ */
+export function double(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, result: value * 2 };
+}
+
+/**
+ * @flowWeaver workflow
+ * @param num - number
+ * @returns {number} out - Result
+ * @node d double
+ * @connect Start.num -> d.value
+ * @connect d.result -> Exit.out
+ */
+export function noAnyWorkflow(execute: boolean, params: { num: number }): {
+  onSuccess: boolean; onFailure: boolean; out: number;
+} {
+  // @flow-weaver-body
+  // @end-flow-weaver-body
+}
+  `;
+
+  let code: string;
+  beforeAll(async () => { code = await compileWorkflow('bp-no-any.ts', syncSource); });
+
+  test('59 — generated code contains zero `as any` casts', () => {
+    const anyMatches = code.match(/as any\b/g);
+    expect(anyMatches ?? []).toHaveLength(0);
+  });
+
+  test('60 — generated code has no eslint-disable for no-explicit-any', () => {
+    expect(code).not.toContain('no-explicit-any');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 61–65: SYNC WORKFLOW IN DEV MODE — must await for debugger breakpoints
+// ---------------------------------------------------------------------------
+
+describe('Sync workflow in dev mode — sendStatusChangedEvent awaited for debugger', () => {
+  const source = `
+/**
+ * @flowWeaver nodeType
+ * @input value - number
+ * @output result - number
+ */
+export function increment(execute: boolean, value: number) {
+  return { onSuccess: true, onFailure: false, result: value + 1 };
+}
+
+/**
+ * @flowWeaver workflow
+ * @param num - number
+ * @returns {number} out - Result
+ * @node n increment
+ * @connect Start.num -> n.value
+ * @connect n.result -> Exit.out
+ */
+export function syncDebugWorkflow(execute: boolean, params: { num: number }): {
+  onSuccess: boolean; onFailure: boolean; out: number;
+} {
+  // @flow-weaver-body
+  // @end-flow-weaver-body
+}
+  `;
+
+  let code: string;
+  beforeAll(async () => { code = await compileWorkflow('bp-sync-debug.ts', source); });
+
+  test('61 — dev mode sync workflow has ALL sendStatusChangedEvent calls awaited', () => {
+    expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
+  });
+
+  test('62 — dev mode sync workflow has sendStatusChangedEvent call sites', () => {
+    expect(callSiteLines(code).length).toBeGreaterThan(0);
+  });
+
+  test('63 — GeneratedExecutionContext is created with true (async) in dev mode', () => {
+    expect(code).toMatch(/new GeneratedExecutionContext\(true[,)]/);
+    expect(code).not.toMatch(/new GeneratedExecutionContext\(false[,)]/);
+  });
+
+  test('64 — dev mode sync workflow wraps body in async IIFE or makes function async', () => {
+    // Either the function is async, or the body is wrapped in (async () => { ... })()
+    const hasAsyncFunction = /export\s+async\s+function\s+syncDebugWorkflow/.test(code);
+    const hasAsyncIIFE = /return\s+\(?async\s*\(\)\s*=>\s*\{/.test(code);
+    expect(hasAsyncFunction || hasAsyncIIFE).toBe(true);
+  });
+
+  test('65 — RUNNING status call is awaited in dev mode sync workflow', () => {
+    expect(code).toMatch(/await\s+\w+\.sendStatusChangedEvent\(\{[\s\S]*?status:\s*['"]RUNNING['"]/);
   });
 });

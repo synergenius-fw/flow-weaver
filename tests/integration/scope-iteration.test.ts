@@ -85,7 +85,7 @@ export function formatAll(
     const testFile = path.join(outputDir, "with-index.ts");
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, "formatAll");
+    const code = await generator.generate(testFile, "formatAll", { production: true });
     const outputFile = path.join(outputDir, "with-index.generated.ts");
     fs.writeFileSync(outputFile, code);
 
@@ -167,7 +167,7 @@ export function transformAll(
     const testFile = path.join(outputDir, "multi-child.ts");
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, "transformAll");
+    const code = await generator.generate(testFile, "transformAll", { production: true });
     const outputFile = path.join(outputDir, "multi-child.generated.ts");
     fs.writeFileSync(outputFile, code);
 

@@ -97,7 +97,7 @@ export function processLeadWorkflow(
       writeFile(testFile, result.code);
       const module = await import(testFile);
 
-      const execResult = module.processLeadWorkflow(true, {
+      const execResult = await module.processLeadWorkflow(true, {
         lead: { email: "test@example.com", name: "Test", company: "Acme" }
       });
 
@@ -125,7 +125,7 @@ export function processLeadWorkflow(
       writeFile(outputFile, code);
       const module = await import(outputFile);
 
-      const execResult = module.processLeadWorkflow(true, {
+      const execResult = await module.processLeadWorkflow(true, {
         lead: { email: "test@example.com", name: "Test", company: "Acme" }
       });
 
@@ -198,7 +198,7 @@ export function updateTaskWorkflow(
       writeFile(outputFile, code);
       const module = await import(outputFile);
 
-      const execResult = module.updateTaskWorkflow(true, {
+      const execResult = await module.updateTaskWorkflow(true, {
         task: { id: "1", title: "Test Task", status: "pending" as const }
       });
 

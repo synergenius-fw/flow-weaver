@@ -549,9 +549,13 @@ export function myWorkflow() {
       });
       const result = generateInPlace(source, ast);
       // coerce instance should not appear as a @node in the workflow JSDoc
+      // In dev mode, async keyword is added, so search for 'export async function' or 'export function'
+      const fnIdx = result.code.indexOf('export async function') !== -1
+        ? result.code.indexOf('export async function')
+        : result.code.indexOf('export function');
       const workflowJsdoc = result.code.slice(
         result.code.indexOf('@flowWeaver workflow'),
-        result.code.indexOf('export function')
+        fnIdx
       );
       expect(workflowJsdoc).not.toContain('coerce1');
     });

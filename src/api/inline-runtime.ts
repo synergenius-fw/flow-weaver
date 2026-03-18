@@ -332,15 +332,18 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
 
   // createScope
   lines.push(
-    '  createScope(_parentNodeName: string, _parentIndex: number, _scopeName: string, cleanScope: boolean = false): GeneratedExecutionContext {'
+    '  createScope(_parentNodeName: string, _parentIndex: number, _scopeName: string, cleanScope: boolean = false, isAsyncOverride?: boolean): GeneratedExecutionContext {'
+  );
+  lines.push(
+    '    const effectiveIsAsync = isAsyncOverride !== undefined ? isAsyncOverride : this.isAsync;'
   );
   if (production) {
     lines.push(
-      '    const scopedContext = new GeneratedExecutionContext(this.isAsync, this.abortSignal);'
+      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, this.abortSignal);'
     );
   } else {
     lines.push(
-      '    const scopedContext = new GeneratedExecutionContext(this.isAsync, this.flowWeaverDebugger, this.abortSignal);'
+      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, this.flowWeaverDebugger, this.abortSignal);'
     );
   }
   lines.push('    // For per-port function scopes (cleanScope=true), start with empty variables');
@@ -427,12 +430,12 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('    }');
     lines.push('  }');
     lines.push('');
-    lines.push('  private sendVariableSetEvent(args: {');
+    lines.push('  private async sendVariableSetEvent(args: {');
     lines.push('    identifier: TVariableIdentification;');
     lines.push('    value: unknown;');
-    lines.push('  }): void {');
+    lines.push('  }): Promise<void> {');
     lines.push('    if (this.flowWeaverDebugger) {');
-    lines.push('      this.flowWeaverDebugger.sendEvent({');
+    lines.push('      await this.flowWeaverDebugger.sendEvent({');
     lines.push('        type: "VARIABLE_SET",');
     lines.push('        ...args,');
     lines.push('        innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,');
@@ -440,16 +443,16 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('    }');
     lines.push('  }');
     lines.push('');
-    lines.push('  sendLogErrorEvent(args: {');
+    lines.push('  async sendLogErrorEvent(args: {');
     lines.push('    nodeTypeName: string;');
     lines.push('    id: string;');
     lines.push('    scope?: string;');
     lines.push('    side?: "start" | "exit";');
     lines.push('    executionIndex: number;');
     lines.push('    error: string;');
-    lines.push('  }): void {');
+    lines.push('  }): Promise<void> {');
     lines.push('    if (this.flowWeaverDebugger) {');
-    lines.push('      this.flowWeaverDebugger.sendEvent({');
+    lines.push('      await this.flowWeaverDebugger.sendEvent({');
     lines.push('        type: "LOG_ERROR",');
     lines.push('        ...args,');
     lines.push('        innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,');
@@ -457,13 +460,13 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('    }');
     lines.push('  }');
     lines.push('');
-    lines.push('  sendWorkflowCompletedEvent(args: {');
+    lines.push('  async sendWorkflowCompletedEvent(args: {');
     lines.push('    executionIndex: number;');
     lines.push('    status: "SUCCEEDED" | "FAILED" | "CANCELLED";');
     lines.push('    result?: unknown;');
-    lines.push('  }): void {');
+    lines.push('  }): Promise<void> {');
     lines.push('    if (this.flowWeaverDebugger) {');
-    lines.push('      this.flowWeaverDebugger.sendEvent({');
+    lines.push('      await this.flowWeaverDebugger.sendEvent({');
     lines.push('        type: "WORKFLOW_COMPLETED",');
     lines.push('        ...args,');
     lines.push('        innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,');
@@ -535,100 +538,6 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
 import type { TModuleFormat } from '../ast/types';
 
 /**
- * Generates inline WebSocket debug client for auto-detection from env var
- * Only included in development mode builds
- *
- * @param moduleFormat - The module format to use for imports ('esm' or 'cjs')
- * @param outputFormat - Output format: 'typescript' (default) or 'javascript' (strips types)
- */
-export function generateInlineDebugClient(moduleFormat: TModuleFormat = 'esm', outputFormat: TOutputFormat = 'typescript'): string {
-  const lines: string[] = [];
-
-  lines.push('// ============================================================================');
-  lines.push('// Inline Debug Client (auto-created from FLOW_WEAVER_DEBUG env var)');
-  lines.push('// ============================================================================');
-  lines.push('');
-  lines.push('/* eslint-disable @typescript-eslint/no-explicit-any, no-console */');
-  lines.push(
-    'function createFlowWeaverDebugClient(url: string, workflowExportName: string): any {'
-  );
-  lines.push('  let ws: any = null;');
-  lines.push('  let connected = false;');
-  lines.push('  let queue: string[] = [];');
-  lines.push('  const sessionId = Math.random().toString(36).substring(2, 15);');
-  lines.push('');
-  lines.push('  const connect = async () => {');
-  lines.push('    try {');
-  lines.push("      // Node.js environment - dynamically load 'ws' package");
-
-  // Generate format-appropriate import for 'ws' package
-  if (moduleFormat === 'cjs') {
-    // CommonJS: use require() directly
-    lines.push("      const wsModule = require('ws');");
-  } else {
-    // ESM: use dynamic import
-    lines.push("      const wsModule = await import('ws');");
-  }
-
-  lines.push('      const WS: any = wsModule.default || wsModule;');
-  lines.push('      ws = new WS(url);');
-  lines.push('');
-  lines.push("      ws.on('open', () => {");
-  lines.push('        connected = true;');
-  lines.push('        // Send connect message');
-  lines.push('        ws.send(JSON.stringify({');
-  lines.push("          type: 'connect',");
-  lines.push('          sessionId,');
-  lines.push('          workflowExportName,');
-  lines.push('          clientInfo: {');
-  lines.push('            platform: process.platform,');
-  lines.push('            nodeVersion: process.version,');
-  lines.push('            pid: process.pid');
-  lines.push('          }');
-  lines.push('        }));');
-  lines.push('');
-  lines.push('        // Flush queued events');
-  lines.push('        while (queue.length > 0) {');
-  lines.push('          const msg = queue.shift();');
-  lines.push('          if (ws.readyState === 1) ws.send(msg);');
-  lines.push('        }');
-  lines.push('      });');
-  lines.push('');
-  lines.push("      ws.on('error', () => { connected = false; });");
-  lines.push("      ws.on('close', () => { connected = false; });");
-  lines.push('    } catch (err: unknown) {');
-  lines.push("      // Silently fail if 'ws' package not available");
-  lines.push(
-    "      console.warn('[Flow Weaver] Debug client failed to connect:', err instanceof Error ? err.message : String(err));"
-  );
-  lines.push('    }');
-  lines.push('  };');
-  lines.push('');
-  lines.push('  return {');
-  lines.push('    sendEvent: (event: unknown) => {');
-  lines.push("      const message = JSON.stringify({ type: 'event', sessionId, event });");
-  lines.push('      if (!ws) connect().catch(() => {});');
-  lines.push('      if (connected && ws.readyState === 1) {');
-  lines.push('        ws.send(message);');
-  lines.push('      } else {');
-  lines.push('        queue.push(message);');
-  lines.push('      }');
-  lines.push('    },');
-  lines.push('    innerFlowInvocation: false,');
-  lines.push('    sessionId');
-  lines.push('  };');
-  lines.push('}');
-  lines.push('/* eslint-enable @typescript-eslint/no-explicit-any, no-console */');
-  lines.push('');
-
-  const output = lines.join('\n');
-  if (outputFormat === 'javascript') {
-    return stripTypeScript(output);
-  }
-  return output;
-}
-
-/**
  * Generates a standalone runtime module file for multi-workflow bundles.
  * This exports all runtime types and classes so individual workflow files can import them.
  *
@@ -653,17 +562,6 @@ export function generateStandaloneRuntimeModule(
   lines.push(inlineRuntime);
   lines.push('');
 
-  // Include debug client in development mode
-  if (!production) {
-    const debugClient = generateInlineDebugClient(moduleFormat);
-    // Add export to the createFlowWeaverDebugClient function
-    const exportedDebugClient = debugClient.replace(
-      'function createFlowWeaverDebugClient',
-      'export function createFlowWeaverDebugClient'
-    );
-    lines.push(exportedDebugClient);
-    lines.push('');
-  }
 
   if (moduleFormat === 'cjs') {
     // CommonJS exports
@@ -672,9 +570,6 @@ export function generateStandaloneRuntimeModule(
     lines.push('// ============================================================================');
     lines.push('');
     const exports = ['GeneratedExecutionContext', 'CancellationError'];
-    if (!production) {
-      exports.push('createFlowWeaverDebugClient', 'TDebugger');
-    }
     lines.push(`module.exports = { ${exports.join(', ')} };`);
   }
   // For ESM, exports are added via 'export' keyword in the generated code

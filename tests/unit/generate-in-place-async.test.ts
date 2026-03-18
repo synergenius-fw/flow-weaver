@@ -27,6 +27,7 @@ describe("generateInPlace async/sync handling", () => {
 
   it("should generate sync code for sync function (no await)", () => {
     // Sync workflow function - should NOT have await in generated code
+    // Use production: true because dev mode forces async for breakpoint support
     const content = `
 /**
  * @flowWeaver nodeType
@@ -54,7 +55,7 @@ export function syncWorkflow(execute: boolean, params: { x: number }) {
     const workflow = parsed.workflows.find(w => w.name === "syncWorkflow");
     expect(workflow).toBeDefined();
 
-    const result = generateInPlace(content, workflow!);
+    const result = generateInPlace(content, workflow!, { production: true });
 
     // Sync function should NOT have await in generated body
     expect(result.code).not.toContain("await ctx.setVariable");
@@ -100,8 +101,8 @@ export function syncWorkflow(execute: boolean, params: { x: number }) {
     // Debug hooks should be present
     expect(result.code).toContain("__ctrl__");
     expect(result.code).toContain("beforeNode");
-    // Sync function: no await on hooks
-    expect(result.code).not.toContain("await __ctrl__");
+    // Dev mode forces async for breakpoint support, so hooks ARE awaited
+    expect(result.code).toContain("await __ctrl__");
   });
 
   it("should generate async code for async function (with await)", () => {

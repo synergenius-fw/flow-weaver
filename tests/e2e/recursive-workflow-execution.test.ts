@@ -178,7 +178,7 @@ beforeAll(async () => {
   await Promise.all(
     Object.keys(SOURCES).map(async (name) => {
       const sourceFile = path.join(OUTPUT_DIR, `${name}.ts`);
-      const code = await testHelpers.generateFast(sourceFile, name);
+      const code = await testHelpers.generateFast(sourceFile, name, { production: true });
       const outputFile = path.join(OUTPUT_DIR, `${name}.generated.ts`);
       fs.writeFileSync(outputFile, code, "utf-8");
       modules[name] = await import(outputFile);
@@ -203,9 +203,9 @@ describe("Recursive Workflow Depth Protection", () => {
         .toThrow(/max.*recursion.*depth.*exceeded/i);
     });
 
-    it("should include depth info in error message", () => {
+    it("should include depth info in error message", async () => {
       try {
-        modules.infiniteLoop.infiniteLoop(true, { n: 0 });
+        await modules.infiniteLoop.infiniteLoop(true, { n: 0 });
         expect.fail("Should have thrown an error");
       } catch (e: any) {
         expect(e.message).toContain("1000");

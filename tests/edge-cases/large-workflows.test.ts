@@ -924,8 +924,8 @@ export function aggregatorFailing(execute: boolean, params: { query: string }): 
       }
     });
 
-    it('should produce correct exit values when branching source returns onSuccess:false (#45 semantic)', () => {
-      const result = mod.aggregatorFailing(true, { query: 'test' });
+    it('should produce correct exit values when branching source returns onSuccess:false (#45 semantic)', async () => {
+      const result = await mod.aggregatorFailing(true, { query: 'test' });
 
       // When fetchA returns onSuccess: false, the promoted merge node is skipped entirely
       // (guarded by sourceA_success). Exit gets false/undefined as fallback values.

@@ -45,7 +45,7 @@ export function calc(execute: boolean, params: { a: number; b: number }): { sum:
     const testFile = path.join(outputDir, 'expression-add.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'calc');
+    const code = await generator.generate(testFile, 'calc', { production: true });
     const outputFile = path.join(outputDir, 'expression-add.generated.ts');
     fs.writeFileSync(outputFile, code);
 
@@ -84,7 +84,7 @@ export function workflow(execute: boolean, params: { a: number }): { result: num
     const testFile = path.join(outputDir, 'expression-fail.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'workflow');
+    const code = await generator.generate(testFile, 'workflow', { production: true });
     const outputFile = path.join(outputDir, 'expression-fail.generated.ts');
     fs.writeFileSync(outputFile, code);
 
@@ -131,7 +131,7 @@ export function mathPipeline(execute: boolean, params: { value: number }): { res
     const testFile = path.join(outputDir, 'expression-chain.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'mathPipeline');
+    const code = await generator.generate(testFile, 'mathPipeline', { production: true });
     const outputFile = path.join(outputDir, 'expression-chain.generated.ts');
     fs.writeFileSync(outputFile, code);
 
@@ -179,7 +179,7 @@ export function helloWorld(execute: boolean, params: { name: string }): { messag
     const testFile = path.join(outputDir, 'expression-auto-infer.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'helloWorld');
+    const code = await generator.generate(testFile, 'helloWorld', { production: true });
     const outputFile = path.join(outputDir, 'expression-auto-infer.generated.ts');
     fs.writeFileSync(outputFile, code);
 
@@ -220,7 +220,7 @@ export function doubleWorkflow(execute: boolean, params: { value: number }): { d
     const testFile = path.join(outputDir, 'expression-partial-infer.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'doubleWorkflow');
+    const code = await generator.generate(testFile, 'doubleWorkflow', { production: true });
     const outputFile = path.join(outputDir, 'expression-partial-infer.generated.ts');
     fs.writeFileSync(outputFile, code);
 
@@ -267,7 +267,7 @@ export function calc(execute: boolean, params: { a: number; b: number }): { sum:
     const testFile = path.join(outputDir, 'expression-multi.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'calc');
+    const code = await generator.generate(testFile, 'calc', { production: true });
     const outputFile = path.join(outputDir, 'expression-multi.generated.ts');
     fs.writeFileSync(outputFile, code);
 

@@ -6,7 +6,7 @@
  */
 
 import { generateCode } from '../../src/api/generate';
-import { generateInlineRuntime, generateInlineDebugClient } from '../../src/api/inline-runtime';
+import { generateInlineRuntime } from '../../src/api/inline-runtime';
 import { parser } from '../../src/parser';
 
 const SIMPLE_WORKFLOW = `
@@ -159,15 +159,4 @@ describe('JavaScript Output Format', () => {
     });
   });
 
-  describe('generateInlineDebugClient', () => {
-    it('should strip TypeScript types when outputFormat is javascript', () => {
-      const code = generateInlineDebugClient('esm', 'javascript');
-
-      const tsFound = findTypeScriptSyntax(code);
-      expect(tsFound).toBeNull();
-
-      // Should still contain the function
-      expect(code).toContain('function createFlowWeaverDebugClient');
-    });
-  });
 });

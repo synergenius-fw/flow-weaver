@@ -90,6 +90,11 @@ export function generateScopeFunctionClosure(
 ): string {
   const lines: string[] = [];
 
+  // NOTE: Scope function async/sync is determined by the caller (buildNodeArgumentsWithContext)
+  // based on whether the parent node or its children are async. We do NOT force async in dev
+  // mode here because the parent node function calls this callback synchronously — if we
+  // return a Promise from an async closure, the parent gets Promise objects instead of values.
+
   // Extract scoped ports for this scope
   const scopedOutputPorts: string[] = []; // Parameters to the scope function
   const scopedInputPorts: string[] = []; // Return values from the scope function
@@ -128,10 +133,12 @@ export function generateScopeFunctionClosure(
 
   // Create scoped execution context for isolation
   // Pass cleanScope=true for per-port function scopes (each call gets fresh variables)
+  // When the scope function is sync, override isAsync to false so context ops return values directly
   const safeParentId = toValidIdentifier(parentNodeId);
   lines.push(`    // Create scoped context for child nodes`);
+  const isAsyncOverrideArg = isAsync ? '' : ', false';
   lines.push(
-    `    const scopedCtx = ctx.createScope('${parentNodeId}', ${safeParentId}Idx!, '${scopeName}', true);`
+    `    const scopedCtx = ctx.createScope('${parentNodeId}', ${safeParentId}Idx!, '${scopeName}', true${isAsyncOverrideArg});`
   );
   lines.push(``);
 
@@ -221,7 +228,7 @@ export function generateScopeFunctionClosure(
       lines.push(`    // Execute: ${child.id} (${child.nodeType})`);
       lines.push(`    scopedCtx.checkAborted('${child.id}');`);
       lines.push(`    const ${safeChildId}Idx = scopedCtx.addExecution('${child.id}');`);
-      lines.push(`    if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${child.id}';`);
+      lines.push(`    if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${child.id}';`);
       lines.push(`    ${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
       lines.push(`      nodeTypeName: '${child.nodeType}',`);
       lines.push(`      id: '${child.id}',`);
@@ -278,6 +285,7 @@ export function generateScopeFunctionClosure(
         emitInputEvents: true,
         setCall: childSetCall,
         nodeTypeName: child.nodeType,
+        production,
       });
 
       // Add argument building lines
@@ -364,8 +372,11 @@ export function generateScopeFunctionClosure(
   // These are the outputs of child nodes that become the scope function's return value
   lines.push(`    // Extract return values from child outputs`);
   const returnObj: string[] = [];
-  // After mergeScope, use ctx (parent context) not scopedCtx for all variable access
-  const getCallAfterMerge = isAsync ? 'await ctx.getVariable' : 'ctx.getVariable';
+  // Read return values from scopedCtx (not ctx) because:
+  // 1. scopedCtx still has all variables after mergeScope (merge copies, doesn't move)
+  // 2. scopedCtx.isAsync matches the scope function's sync/async nature, so getVariable
+  //    returns values directly (not Promises) when the scope function is sync
+  const getCallAfterMerge = isAsync ? 'await scopedCtx.getVariable' : 'scopedCtx.getVariable';
 
   // Create per-iteration execution index for scoped exit ports (so each iteration shows separately in UI)
   // Use ctx (parent context) not scopedCtx so indices accumulate across iterations
@@ -398,7 +409,7 @@ export function generateScopeFunctionClosure(
 
       if (isStepPort) {
         lines.push(
-          `    const ${varName} = ctx.hasVariable(${varAddr}) ? ${getCallAfterMerge}(${varAddr}) as ${portType} : ${defaultValue};`
+          `    const ${varName} = scopedCtx.hasVariable(${varAddr}) ? ${getCallAfterMerge}(${varAddr}) as ${portType} : ${defaultValue};`
         );
       } else {
         lines.push(`    const ${varName} = ${getCallAfterMerge}(${varAddr}) as ${portType};`);

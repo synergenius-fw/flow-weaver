@@ -190,7 +190,8 @@ export function processAllSync(
     const testFile = path.join(tmpDir, 'sync-scope.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'processAllSync');
+    // Use production: true because dev mode forces async for breakpoint support
+    const code = await generator.generate(testFile, 'processAllSync', { production: true });
 
     // The scope function should NOT be async
     // Should NOT match: return async (

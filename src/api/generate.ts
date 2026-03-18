@@ -10,7 +10,7 @@ import { extractExitPorts, extractStartPorts, hasBranching } from '../ast/workfl
 import { isExecutePort } from '../constants';
 import { mapToTypeScript } from '../type-mappings';
 import { SourceMapGenerator } from 'source-map';
-import { generateInlineRuntime, generateInlineDebugClient, stripTypeScript } from './inline-runtime';
+import { generateInlineRuntime, stripTypeScript } from './inline-runtime';
 import type { TOutputFormat } from './inline-runtime';
 import { validateWorkflowAsync } from '../generator/async-detection';
 import { extractTypeDeclarationsFromFile } from './extract-types';
@@ -231,13 +231,6 @@ export function generateCode(
           : `import type { TDebugger } from '${externalRuntimePath}';`
       );
       addLine();
-      // Include inline debug client (createFlowWeaverDebugClient is not exported from runtime)
-      const inlineDebugClient = generateInlineDebugClient(moduleFormat);
-      const debugClientLines = inlineDebugClient.split('\n');
-      debugClientLines.forEach((line) => {
-        lines.push(line);
-        addLine();
-      });
     }
     lines.push('');
     addLine();
@@ -252,16 +245,6 @@ export function generateCode(
 
     lines.push('');
     addLine();
-
-    // Include inline debug client (dev mode only)
-    if (!production) {
-      const inlineDebugClient = generateInlineDebugClient(moduleFormat);
-      const debugClientLines = inlineDebugClient.split('\n');
-      debugClientLines.forEach((line) => {
-        lines.push(line);
-        addLine();
-      });
-    }
   }
 
   // Extract and include type declarations from source file (interfaces, type aliases)
@@ -549,7 +532,8 @@ export function generateCode(
   }
 
   // Generate conditional async keyword and export keyword based on module format
-  const asyncKeyword = shouldBeAsync ? 'async ' : '';
+  // In dev mode, always async so the debugger can pause at breakpoints
+  const asyncKeyword = (shouldBeAsync || !production) ? 'async ' : '';
   const exportKeyword = generateFunctionExportKeyword(moduleFormat);
   lines.push(`${exportKeyword}${asyncKeyword}function ${ast.functionName}(`);
   addLine();
@@ -705,8 +689,8 @@ function generateWorkflowFunction(
   const startPorts = extractStartPorts(workflow);
   const exitPorts = extractExitPorts(workflow);
 
-  const asyncKeyword = shouldBeAsync ? 'async ' : '';
-  lines.push(`${asyncKeyword}function ${workflow.functionName}(`);
+  const asyncKeyword2 = (shouldBeAsync || !production) ? 'async ' : '';
+  lines.push(`${asyncKeyword2}function ${workflow.functionName}(`);
 
   // STEP Port Architecture: execute is first parameter
   lines.push(`  execute: boolean = true,`);

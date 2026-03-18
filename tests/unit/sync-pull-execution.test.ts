@@ -23,6 +23,7 @@ describe("Sync Pull Execution", () => {
     generatedCode = await generator.generate(
       inputFile,
       "syncPullWorkflow",
+      { production: true },
     );
     fs.writeFileSync(outputFile, generatedCode, "utf8");
   });

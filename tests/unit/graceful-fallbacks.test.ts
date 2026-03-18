@@ -197,8 +197,9 @@ describe("Graceful Code Generation Fallbacks", () => {
 
       const code = generateCode(base, { production: false });
 
-      // Should contain undefined fallback for y port
-      expect(code).toContain("let A_y!:");
+      // Should contain undefined fallback for y port (uses `= undefined as unknown as` pattern)
+      expect(code).toContain("A_y");
+      expect(code).toContain("undefined as unknown as");
       expect(code).toContain("Required port 'y' has no connection");
     });
   });
@@ -279,7 +280,8 @@ describe("Graceful Code Generation Fallbacks", () => {
 
       // The code should have fallbacks, not references to undeclared variables
       expect(code).toContain("P_a = undefined");  // Fallback for orphaned connection
-      expect(code).toContain("let P_b!:");  // Fallback for missing connection
+      expect(code).toContain("P_b");  // Fallback for missing connection
+      expect(code).toContain("undefined as unknown as");  // New typed undefined pattern
 
       // Should NOT reference undeclared variables
       expect(code).not.toContain("ghostIdx");
