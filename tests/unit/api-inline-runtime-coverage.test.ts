@@ -6,12 +6,12 @@
 import { generateStandaloneRuntimeModule } from '../../src/api/inline-runtime';
 
 describe('generateStandaloneRuntimeModule', () => {
-  it('should generate ESM runtime in development mode (includes debug client)', () => {
+  it('should generate ESM runtime in development mode', () => {
     const output = generateStandaloneRuntimeModule(false, 'esm');
     expect(output).toContain('Shared Runtime Module');
     expect(output).toContain('GeneratedExecutionContext');
-    // Dev mode should include the debug client with export keyword
-    expect(output).toContain('export function createFlowWeaverDebugClient');
+    // Debug client was removed — should not appear
+    expect(output).not.toContain('createFlowWeaverDebugClient');
     // ESM mode should NOT have module.exports
     expect(output).not.toContain('module.exports');
   });
@@ -31,8 +31,9 @@ describe('generateStandaloneRuntimeModule', () => {
     expect(output).toContain('module.exports');
     expect(output).toContain('GeneratedExecutionContext');
     expect(output).toContain('CancellationError');
-    // Dev CJS should export debug client too
-    expect(output).toContain('createFlowWeaverDebugClient');
+    // Debug client was removed — should not appear
+    expect(output).not.toContain('createFlowWeaverDebugClient');
+    // Dev mode should still include TDebugger type
     expect(output).toContain('TDebugger');
   });
 

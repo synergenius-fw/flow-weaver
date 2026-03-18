@@ -3124,7 +3124,7 @@ export async function calculate(execute: boolean, params: { a: number; b: number
       expect(result.code).toContain('declare const __flowWeaverDebugger__');
     });
 
-    it('should define createFlowWeaverDebugClient function when using external runtime in dev mode', () => {
+    it('should not define createFlowWeaverDebugClient function (debug client removed)', () => {
       const sourceCode = `/**
  * @flowWeaver workflow
  * @node adder add
@@ -3141,8 +3141,8 @@ export async function calculate(execute: boolean, params: { a: number; b: number
 
       // External runtime detected — should import from @synergenius/flow-weaver/runtime
       expect(result.code).toContain("from '@synergenius/flow-weaver/runtime'");
-      // Must define createFlowWeaverDebugClient as a function (not just import it from runtime)
-      expect(result.code).toContain('function createFlowWeaverDebugClient(');
+      // Debug client was removed — should not appear
+      expect(result.code).not.toContain('createFlowWeaverDebugClient');
     });
 
     it('should not include debug code when using external runtime in production mode', () => {

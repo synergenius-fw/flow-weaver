@@ -545,7 +545,7 @@ export function syncParallel(execute: boolean, params: { num: number }): {
     fs.writeFileSync(testFile, source);
 
     try {
-      const code = await global.testHelpers.generateFast(testFile, 'syncParallel');
+      const code = await global.testHelpers.generateFast(testFile, 'syncParallel', { production: true });
       // Sync workflows must not use Promise.all since there's no event loop concurrency
       expect(code).not.toContain('Promise.all');
       // Both nodes should still be called

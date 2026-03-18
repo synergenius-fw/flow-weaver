@@ -105,7 +105,7 @@ export function syncWf(execute: boolean, params: { n: number }): {
     fs.writeFileSync(testFile, source);
 
     try {
-      const code = await global.testHelpers.generateFast(testFile, 'syncWf');
+      const code = await global.testHelpers.generateFast(testFile, 'syncWf', { production: true });
       // Sync workflow should not have await keywords on ctx calls
       expect(code).toContain('ctx.setVariable');
       expect(code).toContain('ctx.getVariable');

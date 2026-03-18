@@ -3,7 +3,7 @@
  * Tests generateInlineRuntime and generateInlineDebugClient
  */
 
-import { generateInlineRuntime, generateInlineDebugClient } from '../../src/api/inline-runtime';
+import { generateInlineRuntime } from '../../src/api/inline-runtime';
 import * as ts from 'typescript';
 
 describe('Inline Runtime API', () => {
@@ -153,76 +153,6 @@ describe('Inline Runtime API', () => {
     });
   });
 
-  describe('generateInlineDebugClient', () => {
-    it('should generate valid TypeScript code', () => {
-      const code = generateInlineDebugClient();
-
-      const result = ts.transpileModule(code, {
-        compilerOptions: { target: ts.ScriptTarget.ES2020 },
-      });
-
-      expect(result.diagnostics).toHaveLength(0);
-    });
-
-    it('should generate WebSocket client factory', () => {
-      const code = generateInlineDebugClient();
-
-      expect(code).toContain('function createFlowWeaverDebugClient');
-      expect(code).toContain('url: string');
-      expect(code).toContain('workflowExportName: string');
-    });
-
-    it('should include WebSocket connection logic', () => {
-      const code = generateInlineDebugClient();
-
-      expect(code).toContain("await import('ws')");
-      expect(code).toContain('ws = new WS(url)');
-      expect(code).toContain("ws.on('open'");
-      expect(code).toContain("ws.on('error'");
-      expect(code).toContain("ws.on('close'");
-    });
-
-    it('should include session ID generation', () => {
-      const code = generateInlineDebugClient();
-
-      expect(code).toContain('const sessionId = Math.random()');
-    });
-
-    it('should include event queueing', () => {
-      const code = generateInlineDebugClient();
-
-      expect(code).toContain('let queue: string[] = []');
-      expect(code).toContain('queue.push(message)');
-      expect(code).toContain('queue.shift()');
-    });
-
-    it('should return debug client interface', () => {
-      const code = generateInlineDebugClient();
-
-      expect(code).toContain('sendEvent: (event: unknown) =>');
-      expect(code).toContain('innerFlowInvocation: false');
-      expect(code).toContain('sessionId');
-    });
-
-    it('should handle connection errors gracefully', () => {
-      const code = generateInlineDebugClient();
-
-      expect(code).toContain('try {');
-      expect(code).toContain('catch (err: unknown)');
-      expect(code).toContain("console.warn('[Flow Weaver] Debug client failed");
-    });
-
-    it('should send connect message with client info', () => {
-      const code = generateInlineDebugClient();
-
-      expect(code).toContain("type: 'connect'");
-      expect(code).toContain('clientInfo:');
-      expect(code).toContain('platform: process.platform');
-      expect(code).toContain('nodeVersion: process.version');
-      expect(code).toContain('pid: process.pid');
-    });
-  });
-
   describe('Edge Cases', () => {
     it('should produce different output for production vs development', () => {
       const prodCode = generateInlineRuntime(true);
@@ -271,18 +201,5 @@ describe('Inline Runtime API', () => {
       expect(code).toContain('sendWorkflowCompletedEvent(_args: unknown)');
     });
 
-    it('should use string[] for message queue in debug client', () => {
-      const code = generateInlineDebugClient();
-      expect(code).toContain('let queue: string[] = []');
-      expect(code).not.toContain('let queue: any[] = []');
-    });
-
-    it('should use unknown for catch and event types in debug client', () => {
-      const code = generateInlineDebugClient();
-      expect(code).toContain('catch (err: unknown)');
-      expect(code).toContain('sendEvent: (event: unknown)');
-      expect(code).not.toContain('catch (err: any)');
-      expect(code).not.toContain('sendEvent: (event: any)');
-    });
   });
 });

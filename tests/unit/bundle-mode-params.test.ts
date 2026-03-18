@@ -179,7 +179,7 @@ describe('Bundle mode calling conventions', () => {
 });
 
 describe('External runtime debug declarations', () => {
-  it('should include createFlowWeaverDebugClient when externalRuntimePath + non-production', () => {
+  it('should not include createFlowWeaverDebugClient when externalRuntimePath + non-production (debug client removed)', () => {
     const nodeType = makeNodeType({
       name: 'addNumbers',
       functionName: 'addNumbers',
@@ -193,11 +193,8 @@ describe('External runtime debug declarations', () => {
       production: false,
     }) as unknown as string;
 
-    // Should have the debug client function defined (not just imported from runtime)
-    expect(code).toContain('function createFlowWeaverDebugClient(');
-    // Should NOT try to import createFlowWeaverDebugClient from runtime
-    // (it doesn't exist there — it must be inlined)
-    expect(code).not.toMatch(/import.*createFlowWeaverDebugClient.*from/);
+    // Debug client was removed — should not appear at all
+    expect(code).not.toContain('createFlowWeaverDebugClient');
   });
 
   it('should not include debug client in production mode with externalRuntimePath', () => {

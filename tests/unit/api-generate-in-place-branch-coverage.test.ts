@@ -91,12 +91,13 @@ describe('generate-in-place branch coverage', () => {
       expect(result.hasChanges).toBe(true);
     });
 
-    it('generates dev code with debug client when production=false (default)', () => {
+    it('generates dev code without debug client when production=false (debug client removed)', () => {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST();
       const result = generateInPlace(source, ast, { production: false });
 
-      expect(result.code).toContain('createFlowWeaverDebugClient');
+      // Debug client was removed — should not appear
+      expect(result.code).not.toContain('createFlowWeaverDebugClient');
       expect(result.hasChanges).toBe(true);
     });
   });

@@ -85,13 +85,13 @@ export function formatAll(
     const testFile = path.join(outputDir, "with-index.ts");
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, "formatAll");
+    const code = await generator.generate(testFile, "formatAll", { production: true });
     const outputFile = path.join(outputDir, "with-index.generated.ts");
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
 
-    const result = await module.formatAll(true, { items: ['a', 'b', 'c'] });
+    const result = module.formatAll(true, { items: ['a', 'b', 'c'] });
 
     expect(result.onSuccess).toBe(true);
     expect(result.results).toEqual(['0: a', '1: b', '2: c']);
@@ -167,14 +167,14 @@ export function transformAll(
     const testFile = path.join(outputDir, "multi-child.ts");
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, "transformAll");
+    const code = await generator.generate(testFile, "transformAll", { production: true });
     const outputFile = path.join(outputDir, "multi-child.generated.ts");
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
 
     // [1, 2, 3] -> add 1 -> [2, 3, 4] -> multiply 2 -> [4, 6, 8]
-    const result = await module.transformAll(true, { items: [1, 2, 3] });
+    const result = module.transformAll(true, { items: [1, 2, 3] });
 
     expect(result.onSuccess).toBe(true);
     expect(result.results).toEqual([4, 6, 8]);

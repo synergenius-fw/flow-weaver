@@ -187,9 +187,11 @@ export function generateInPlace(
 
   // Step 5: Detect async from node composition + source signature
   // If any node is async, force async (even if source isn't marked async)
+  // In dev mode (!production), always force async so the debugger can pause execution
+  // at breakpoints (sendStatusChangedEvent must be awaited).
   const nodesRequireAsync = shouldWorkflowBeAsync(ast, ast.nodeTypes);
   const sourceIsAsync = detectFunctionIsAsync(result, ast.functionName);
-  const forceAsync = nodesRequireAsync;
+  const forceAsync = nodesRequireAsync || !production;
   const isAsync = forceAsync || sourceIsAsync;
 
   // Add async keyword to source if nodes or debug hooks require it

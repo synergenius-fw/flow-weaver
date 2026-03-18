@@ -278,7 +278,7 @@ describe("Async Detection", () => {
     );
 
     it("should generate sync code for sync-only workflow", async () => {
-      const code = await global.testHelpers.generateFast(syncWorkflowPath, "syncCalculation");
+      const code = await global.testHelpers.generateFast(syncWorkflowPath, "syncCalculation", { production: true });
 
       // Should generate sync function (no async keyword)
       expect(code).not.toContain("export async function syncCalculation");
