@@ -371,8 +371,11 @@ export function generateScopeFunctionClosure(
   // These are the outputs of child nodes that become the scope function's return value
   lines.push(`    // Extract return values from child outputs`);
   const returnObj: string[] = [];
-  // After mergeScope, use ctx (parent context) not scopedCtx for all variable access
-  const getCallAfterMerge = isAsync ? 'await ctx.getVariable' : 'ctx.getVariable';
+  // Read return values from scopedCtx (not ctx) because:
+  // 1. scopedCtx still has all variables after mergeScope (merge copies, doesn't move)
+  // 2. scopedCtx.isAsync matches the scope function's sync/async nature, so getVariable
+  //    returns values directly (not Promises) when the scope function is sync
+  const getCallAfterMerge = isAsync ? 'await scopedCtx.getVariable' : 'scopedCtx.getVariable';
 
   // Create per-iteration execution index for scoped exit ports (so each iteration shows separately in UI)
   // Use ctx (parent context) not scopedCtx so indices accumulate across iterations

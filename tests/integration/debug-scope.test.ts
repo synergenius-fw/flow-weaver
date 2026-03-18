@@ -21,13 +21,17 @@ it('debug scope gen - dev mode', async () => {
  * @input processed scope:processItem - Result from child
  * @output results - Collected results
  */
-function forEach(
+async function forEach(
   execute: boolean,
   items: any[],
-  processItem: (start: boolean, item: any) => { success: boolean; failure: boolean; processed: any }
+  processItem: (start: boolean, item: any) => Promise<{ success: boolean; failure: boolean; processed: any }> | { success: boolean; failure: boolean; processed: any }
 ) {
   if (!execute) return { onSuccess: false, onFailure: false, results: [] };
-  const results = items.map(item => processItem(true, item).processed);
+  const results: any[] = [];
+  for (const item of items) {
+    const r = await processItem(true, item);
+    results.push(r.processed);
+  }
   return { onSuccess: true, onFailure: false, results };
 }
 

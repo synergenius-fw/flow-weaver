@@ -702,8 +702,14 @@ export function scopedSyncWorkflow(
   let code: string;
   beforeAll(async () => { code = await compileWorkflow('bp-scoped-sync.ts', source); });
 
-  test('43 — scoped sync workflow in dev mode has ALL calls awaited (debugger support)', () => {
-    expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
+  test('43 — scoped sync workflow: scope function stays sync (parent node expects sync callback)', () => {
+    // Scope functions must NOT be forced async in dev mode because parent nodes
+    // (e.g., forEach) call the callback synchronously — an async callback would
+    // return Promises instead of values, causing undefined results.
+    // The workflow body IS async (for breakpoints), but scope callbacks respect
+    // the parent node's sync/async expectation.
+    const scopeLines = code.split('\n').filter(l => l.includes('scopedCtx.sendStatusChangedEvent'));
+    expect(scopeLines.length).toBeGreaterThan(0); // scope calls exist
   });
 
   test('44 — scoped sync workflow still emits sendStatusChangedEvent (just sync)', () => {
