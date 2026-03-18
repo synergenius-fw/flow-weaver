@@ -76,12 +76,13 @@ describe('generateInlineRuntime (dev) — sendStatusChangedEvent is async', () =
     expect(devRuntime).toContain('sendEvent: (event: TEvent) => void | Promise<void>');
   });
 
-  test('5 — sendLogErrorEvent is NOT async (only status events need to pause)', () => {
-    expect(devRuntime).not.toContain('async sendLogErrorEvent(');
+  test('5 — sendLogErrorEvent IS async and awaits sendEvent', () => {
+    expect(devRuntime).toContain('async sendLogErrorEvent(');
+    expect(devRuntime).toContain('await this.flowWeaverDebugger.sendEvent');
   });
 
-  test('6 — sendWorkflowCompletedEvent is NOT async', () => {
-    expect(devRuntime).not.toContain('async sendWorkflowCompletedEvent(');
+  test('6 — sendWorkflowCompletedEvent IS async and awaits sendEvent', () => {
+    expect(devRuntime).toContain('async sendWorkflowCompletedEvent(');
   });
 });
 

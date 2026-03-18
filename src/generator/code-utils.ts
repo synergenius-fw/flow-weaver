@@ -333,13 +333,16 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
 
         // For FUNCTION type ports, add resolution step to handle registry IDs
         if (portConfig.dataType === 'FUNCTION') {
+          // Emit inline resolveFunction stub if not already declared in scope
+          // This avoids a ReferenceError in self-contained generated code
+          lines.push(`${indent}const __resolveFunction = typeof resolveFunction === 'function' ? resolveFunction : (p: unknown) => ({ fn: typeof p === 'function' ? p : () => { throw new Error('Cannot resolve function reference'); }, source: 'direct' as const });`);
           const rawVarName = `${varName}_raw`;
           if (needsGuard) {
             lines.push(
               `${indent}const ${rawVarName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) : undefined;`
             );
             lines.push(
-              `${indent}const ${varName}_resolved = ${rawVarName} !== undefined ? resolveFunction(${rawVarName}) : undefined;`
+              `${indent}const ${varName}_resolved = ${rawVarName} !== undefined ? __resolveFunction(${rawVarName}) : undefined;`
             );
             lines.push(
               `${indent}const ${varName} = ${varName}_resolved?.fn as ${portType};`
@@ -349,7 +352,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
               `${indent}const ${rawVarName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} });`
             );
             lines.push(
-              `${indent}const ${varName}_resolved = resolveFunction(${rawVarName});`
+              `${indent}const ${varName}_resolved = __resolveFunction(${rawVarName});`
             );
             lines.push(
               `${indent}const ${varName} = ${varName}_resolved.fn as ${portType};`
@@ -413,10 +416,11 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
 
         // For FUNCTION type ports, add resolution step to handle registry IDs
         if (portConfig.dataType === 'FUNCTION') {
+          lines.push(`${indent}const __resolveFunction = typeof resolveFunction === 'function' ? resolveFunction : (p: unknown) => ({ fn: typeof p === 'function' ? p : () => { throw new Error('Cannot resolve function reference'); }, source: 'direct' as const });`);
           const rawVarName = `${varName}_raw`;
           lines.push(`${indent}const ${rawVarName} = ${ternary};`);
           lines.push(
-            `${indent}const ${varName}_resolved = ${rawVarName} !== undefined ? resolveFunction(${rawVarName}) : undefined;`
+            `${indent}const ${varName}_resolved = ${rawVarName} !== undefined ? __resolveFunction(${rawVarName}) : undefined;`
           );
           lines.push(
             `${indent}const ${varName} = ${varName}_resolved?.fn as ${portType};`
@@ -451,7 +455,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
       // Required port has no connection, expression, or default - use typed undefined fallback
       const portType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
       lines.push(
-        `${indent}let ${varName}!: ${portType}; // Required port '${portName}' has no connection`
+        `${indent}let ${varName}: ${portType} = undefined as unknown as ${portType}; // Required port '${portName}' has no connection`
       );
       args.push(varName);
       emitSetEvent();
@@ -522,7 +526,7 @@ export function generateNodeWithExecutionContext(
   const getCall = isAsync ? 'await ctx.getVariable' : 'ctx.getVariable';
   const setCall = isAsync ? 'await ctx.setVariable' : 'ctx.setVariable';
   lines.push(`${indent}const ${safeNodeName}Idx = ctx.addExecution('${nodeName}');`);
-  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${nodeName}';`);
+  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${nodeName}';`);
   lines.push(`${indent}${awaitPrefix}ctx.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${nodeName}',`);
   lines.push(`${indent}  id: '${nodeName}',`);
