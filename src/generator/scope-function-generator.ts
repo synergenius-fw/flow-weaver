@@ -216,12 +216,13 @@ export function generateScopeFunctionClosure(
       }
 
       const safeChildId = toValidIdentifier(child.id);
+      const awaitPrefix = isAsync ? 'await ' : '';
       lines.push(``);
       lines.push(`    // Execute: ${child.id} (${child.nodeType})`);
       lines.push(`    scopedCtx.checkAborted('${child.id}');`);
       lines.push(`    const ${safeChildId}Idx = scopedCtx.addExecution('${child.id}');`);
       lines.push(`    if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${child.id}';`);
-      lines.push(`    scopedCtx.sendStatusChangedEvent({`);
+      lines.push(`    ${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
       lines.push(`      nodeTypeName: '${child.nodeType}',`);
       lines.push(`      id: '${child.id}',`);
       lines.push(`      executionIndex: ${safeChildId}Idx,`);
@@ -283,8 +284,6 @@ export function generateScopeFunctionClosure(
       argLines.forEach((line) => lines.push(line));
 
       // Call the child node function
-      const awaitPrefix = isAsync ? 'await ' : '';
-
       if (childNodeType.expression) {
         // Expression nodes use original signature (positional args, no execute)
         lines.push(
@@ -328,7 +327,7 @@ export function generateScopeFunctionClosure(
       }
 
       // Add SUCCEEDED status event
-      lines.push(`      scopedCtx.sendStatusChangedEvent({`);
+      lines.push(`      ${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
       lines.push(`        nodeTypeName: '${child.nodeType}',`);
       lines.push(`        id: '${child.id}',`);
       lines.push(`        executionIndex: ${safeChildId}Idx,`);
@@ -336,7 +335,7 @@ export function generateScopeFunctionClosure(
       lines.push(`      });`);
       lines.push(`    } catch (error: unknown) {`);
       lines.push(`      const isCancellation = CancellationError.isCancellationError(error);`);
-      lines.push(`      scopedCtx.sendStatusChangedEvent({`);
+      lines.push(`      ${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
       lines.push(`        nodeTypeName: '${child.nodeType}',`);
       lines.push(`        id: '${child.id}',`);
       lines.push(`        executionIndex: ${safeChildId}Idx,`);
