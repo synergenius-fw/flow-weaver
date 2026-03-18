@@ -102,7 +102,7 @@ export { forEach, doubleValue };
       // Test execution with input: [1, 2, 3]
       let result;
       try {
-        result = module.processArray(true, { items: [1, 2, 3] });
+        result = await module.processArray(true, { items: [1, 2, 3] });
       } catch (error: any) {
         console.error('[TEST] Execution error:', error.message);
         console.error('[TEST] Stack:', error.stack);
@@ -185,7 +185,7 @@ export { forEach, addTen };
       const module = await import(outputFile);
 
       // Test with empty array
-      const result = module.processEmpty(true, { items: [] });
+      const result = await module.processEmpty(true, { items: [] });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([]);
@@ -277,7 +277,7 @@ export { forEach, addFive, multiplyByTwo };
       // Test: (value + 5) * 2
       // Input: [1, 2, 3]
       // Expected: [(1+5)*2, (2+5)*2, (3+5)*2] = [12, 14, 16]
-      const result = module.processChain(true, { items: [1, 2, 3] });
+      const result = await module.processChain(true, { items: [1, 2, 3] });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([12, 14, 16]);
@@ -354,7 +354,7 @@ export { forEach, triple };
       // Using import() for TypeScript compatibility
       const module = await import(outputFile);
 
-      const result = module.processSingle(true, { items: [5] });
+      const result = await module.processSingle(true, { items: [5] });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([15]);
@@ -431,7 +431,7 @@ export { forEach, increment };
 
       // Test with 100 items
       const input = Array.from({ length: 100 }, (_, i) => i);
-      const result = module.processLarge(true, { items: input });
+      const result = await module.processLarge(true, { items: input });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results.length).toBe(100);
@@ -509,7 +509,7 @@ export { forEach, passThrough };
       const module = await import(outputFile);
 
       // Test with mixed type values
-      const result = module.processAnyType(true, { items: [1, "test", true, { foo: "bar" }] });
+      const result = await module.processAnyType(true, { items: [1, "test", true, { foo: "bar" }] });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([1, "test", true, { foo: "bar" }]);

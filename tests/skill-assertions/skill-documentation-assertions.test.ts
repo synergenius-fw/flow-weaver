@@ -96,7 +96,7 @@ describe('ASSERTION GROUP 1: Function Signature Requirements', () => {
 
       const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
       const module = await loadModule(generatedFile);
-      const output = module.testWorkflow(true, { a: 5, b: 3 });
+      const output = await module.testWorkflow(true, { a: 5, b: 3 });
 
       expect(output.onSuccess).toBe(true);
       expect(output.result).toBe(8);
@@ -140,7 +140,7 @@ describe('ASSERTION GROUP 1: Function Signature Requirements', () => {
       const module = await loadModule(generatedFile);
 
       // Test execute=true works and processes correctly
-      const withExec = module.testWorkflow(true, { input: 'test' });
+      const withExec = await module.testWorkflow(true, { input: 'test' });
       expect(withExec.onSuccess).toBe(true);
       expect(withExec.output).toBe('TEST');
     });
@@ -178,7 +178,7 @@ describe('ASSERTION GROUP 1: Function Signature Requirements', () => {
 
       const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
       const module = await loadModule(generatedFile);
-      const output = module.testWorkflow(true, { input: 10 });
+      const output = await module.testWorkflow(true, { input: 10 });
 
       expect(output).toHaveProperty('onSuccess');
       expect(output).toHaveProperty('onFailure');
@@ -220,7 +220,7 @@ describe('ASSERTION GROUP 1: Function Signature Requirements', () => {
 
       const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
       const module = await loadModule(generatedFile);
-      const output = module.testWorkflow(true, { input: 'hello' });
+      const output = await module.testWorkflow(true, { input: 'hello' });
 
       expect(output.onSuccess).toBe(true);
       expect(output.output).toBe('hello');
@@ -267,7 +267,7 @@ describe('ASSERTION GROUP 2: Port Definition (@param, @returns, @input, @output)
     const module = await loadModule(generatedFile);
 
     // Verify that Start.first and Start.second are accessible
-    const output = module.testWorkflow(true, { first: 10, second: 20 });
+    const output = await module.testWorkflow(true, { first: 10, second: 20 });
     expect(output.result).toBe(30);
   });
 
@@ -308,7 +308,7 @@ describe('ASSERTION GROUP 2: Port Definition (@param, @returns, @input, @output)
     const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
     const module = await loadModule(generatedFile);
 
-    const output = module.testWorkflow(true, { input: 5 });
+    const output = await module.testWorkflow(true, { input: 5 });
     expect(output.double).toBe(10);
     expect(output.triple).toBe(15);
   });
@@ -353,7 +353,7 @@ describe('ASSERTION GROUP 2: Port Definition (@param, @returns, @input, @output)
     const module = await loadModule(generatedFile);
 
     // Test with optional param provided - verifies [bracket] syntax compiles correctly
-    const withOpt = module.testWorkflow(true, { value: 5, multiplier: 3 });
+    const withOpt = await module.testWorkflow(true, { value: 5, multiplier: 3 });
     expect(withOpt.result).toBe(15);
   });
 });
@@ -393,7 +393,7 @@ describe('ASSERTION GROUP 3: Connection Rules', () => {
     const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
     const module = await loadModule(generatedFile);
 
-    const output = module.testWorkflow(true, { input: 'test' });
+    const output = await module.testWorkflow(true, { input: 'test' });
     expect(output.output).toBe('test');
   });
 
@@ -480,7 +480,7 @@ describe('ASSERTION GROUP 3: Connection Rules', () => {
     const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
     const module = await loadModule(generatedFile);
 
-    const output = module.testWorkflow(true, { data: 'test' });
+    const output = await module.testWorkflow(true, { data: 'test' });
     expect(output.result).toBe('test');
   });
 });
@@ -571,7 +571,7 @@ describe('ASSERTION GROUP 5: Mandatory Ports', () => {
     const module = await loadModule(generatedFile);
 
     // Test with execute=true - workflow should execute and return result
-    const withExec = module.testWorkflow(true, { input: 100 });
+    const withExec = await module.testWorkflow(true, { input: 100 });
     expect(withExec.onSuccess).toBe(true);
     expect(withExec.output).toBe(100);
   });
@@ -615,7 +615,7 @@ describe('ASSERTION GROUP 6: Node Positioning', () => {
     expect(fs.existsSync(generatedFile)).toBe(true);
 
     const module = await loadModule(generatedFile);
-    const output = module.testWorkflow(true, { input: 'test' });
+    const output = await module.testWorkflow(true, { input: 'test' });
     expect(output.onSuccess).toBe(true);
   });
 });
@@ -655,7 +655,7 @@ describe('ASSERTION GROUP 7: Reserved Node Names', () => {
     const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
     const module = await loadModule(generatedFile);
 
-    const output = module.testWorkflow(true, { input: 'hello' });
+    const output = await module.testWorkflow(true, { input: 'hello' });
     // Verify data flows from Start through middle to Exit
     expect(output.output).toBe('hello_processed');
   });
@@ -699,7 +699,7 @@ describe('ASSERTION GROUP 8: Label annotation', () => {
     const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
     const module = await loadModule(generatedFile);
 
-    const output = module.testWorkflow(true, { input: 'test' });
+    const output = await module.testWorkflow(true, { input: 'test' });
     expect(output.onSuccess).toBe(true);
   });
 });
@@ -772,7 +772,7 @@ describe('ASSERTION GROUP 9: Scoped Ports (Iteration)', () => {
     const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
     const module = await loadModule(generatedFile);
 
-    const output = module.testWorkflow(true, { items: [1, 2, 3] });
+    const output = await module.testWorkflow(true, { items: [1, 2, 3] });
     expect(output.onSuccess).toBe(true);
     expect(output.results).toEqual([2, 4, 6]);
   });
@@ -841,7 +841,7 @@ describe('ASSERTION GROUP 9: Scoped Ports (Iteration)', () => {
     const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
     const module = await loadModule(generatedFile);
 
-    const output = module.testWorkflow(true, { items: ['hello', 'world'] });
+    const output = await module.testWorkflow(true, { items: ['hello', 'world'] });
     expect(output.onSuccess).toBe(true);
     expect(output.results).toEqual(['HELLO', 'WORLD']);
   });
@@ -911,7 +911,7 @@ describe('ASSERTION GROUP 9: Scoped Ports (Iteration)', () => {
     const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
     const module = await loadModule(generatedFile);
 
-    const output = module.testWorkflow(true, { numbers: [2, 3, 4] });
+    const output = await module.testWorkflow(true, { numbers: [2, 3, 4] });
     expect(output.onSuccess).toBe(true);
     expect(output.squares).toEqual([4, 9, 16]);
   });
@@ -981,7 +981,7 @@ describe('ASSERTION GROUP 9: Scoped Ports (Iteration)', () => {
     const { generatedFile } = await generateAndWrite(testFile, 'testWorkflow');
     const module = await loadModule(generatedFile);
 
-    const output = module.testWorkflow(true, { input: [10, 20, 30] });
+    const output = await module.testWorkflow(true, { input: [10, 20, 30] });
     expect(output.onSuccess).toBe(true);
     expect(output.output).toEqual([11, 21, 31]);
   });

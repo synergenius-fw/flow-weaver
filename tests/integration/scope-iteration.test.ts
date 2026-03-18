@@ -91,7 +91,7 @@ export function formatAll(
 
     const module = await import(outputFile);
 
-    const result = module.formatAll(true, { items: ['a', 'b', 'c'] });
+    const result = await module.formatAll(true, { items: ['a', 'b', 'c'] });
 
     expect(result.onSuccess).toBe(true);
     expect(result.results).toEqual(['0: a', '1: b', '2: c']);
@@ -174,7 +174,7 @@ export function transformAll(
     const module = await import(outputFile);
 
     // [1, 2, 3] -> add 1 -> [2, 3, 4] -> multiply 2 -> [4, 6, 8]
-    const result = module.transformAll(true, { items: [1, 2, 3] });
+    const result = await module.transformAll(true, { items: [1, 2, 3] });
 
     expect(result.onSuccess).toBe(true);
     expect(result.results).toEqual([4, 6, 8]);

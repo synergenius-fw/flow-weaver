@@ -198,14 +198,14 @@ afterAll(() => {
 
 describe("Recursive Workflow Depth Protection", () => {
   describe("Infinite recursion prevention", () => {
-    it("should throw error when max recursion depth (1000) exceeded", () => {
-      expect(() => modules.infiniteLoop.infiniteLoop(true, { n: 0 }))
-        .toThrow(/max.*recursion.*depth.*exceeded/i);
+    it("should throw error when max recursion depth (1000) exceeded", async () => {
+      await expect(modules.infiniteLoop.infiniteLoop(true, { n: 0 }))
+        .rejects.toThrow(/max.*recursion.*depth.*exceeded/i);
     });
 
-    it("should include depth info in error message", () => {
+    it("should include depth info in error message", async () => {
       try {
-        modules.infiniteLoop.infiniteLoop(true, { n: 0 });
+        await modules.infiniteLoop.infiniteLoop(true, { n: 0 });
         expect.fail("Should have thrown an error");
       } catch (e: any) {
         expect(e.message).toContain("1000");

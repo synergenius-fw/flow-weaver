@@ -43,16 +43,16 @@ describe("Scoped Ports Workflow E2E", () => {
     expect(code).toContain("processItem");
   });
 
-  it("should handle single item", () => {
-    const result = module.scopedPortsWorkflow(true, { items: [5] });
+  it("should handle single item", async () => {
+    const result = await module.scopedPortsWorkflow(true, { items: [5] });
 
     expect(result.onSuccess).toBe(true);
     expect(result.onFailure).toBe(false);
     expect(result.results).toEqual([10]);
   });
 
-  it("should respect execute=false", () => {
-    const result = module.scopedPortsWorkflow(false, { items: [1, 2, 3] });
+  it("should respect execute=false", async () => {
+    const result = await module.scopedPortsWorkflow(false, { items: [1, 2, 3] });
 
     expect(result.onSuccess).toBe(false);
     expect(result.onFailure).toBe(false);
