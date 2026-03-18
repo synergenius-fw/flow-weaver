@@ -90,10 +90,10 @@ export function generateScopeFunctionClosure(
 ): string {
   const lines: string[] = [];
 
-  // In dev mode, always treat as async so the debugger can pause at breakpoints
-  if (!production) {
-    isAsync = true; // eslint-disable-line no-param-reassign
-  }
+  // NOTE: Scope function async/sync is determined by the caller (buildNodeArgumentsWithContext)
+  // based on whether the parent node or its children are async. We do NOT force async in dev
+  // mode here because the parent node function calls this callback synchronously — if we
+  // return a Promise from an async closure, the parent gets Promise objects instead of values.
 
   // Extract scoped ports for this scope
   const scopedOutputPorts: string[] = []; // Parameters to the scope function
@@ -133,10 +133,12 @@ export function generateScopeFunctionClosure(
 
   // Create scoped execution context for isolation
   // Pass cleanScope=true for per-port function scopes (each call gets fresh variables)
+  // When the scope function is sync, override isAsync to false so context ops return values directly
   const safeParentId = toValidIdentifier(parentNodeId);
   lines.push(`    // Create scoped context for child nodes`);
+  const isAsyncOverrideArg = isAsync ? '' : ', false';
   lines.push(
-    `    const scopedCtx = ctx.createScope('${parentNodeId}', ${safeParentId}Idx!, '${scopeName}', true);`
+    `    const scopedCtx = ctx.createScope('${parentNodeId}', ${safeParentId}Idx!, '${scopeName}', true${isAsyncOverrideArg});`
   );
   lines.push(``);
 

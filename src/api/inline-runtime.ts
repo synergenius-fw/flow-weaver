@@ -332,15 +332,18 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
 
   // createScope
   lines.push(
-    '  createScope(_parentNodeName: string, _parentIndex: number, _scopeName: string, cleanScope: boolean = false): GeneratedExecutionContext {'
+    '  createScope(_parentNodeName: string, _parentIndex: number, _scopeName: string, cleanScope: boolean = false, isAsyncOverride?: boolean): GeneratedExecutionContext {'
+  );
+  lines.push(
+    '    const effectiveIsAsync = isAsyncOverride !== undefined ? isAsyncOverride : this.isAsync;'
   );
   if (production) {
     lines.push(
-      '    const scopedContext = new GeneratedExecutionContext(this.isAsync, this.abortSignal);'
+      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, this.abortSignal);'
     );
   } else {
     lines.push(
-      '    const scopedContext = new GeneratedExecutionContext(this.isAsync, this.flowWeaverDebugger, this.abortSignal);'
+      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, this.flowWeaverDebugger, this.abortSignal);'
     );
   }
   lines.push('    // For per-port function scopes (cleanScope=true), start with empty variables');

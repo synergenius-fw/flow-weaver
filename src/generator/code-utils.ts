@@ -484,18 +484,18 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     });
 
     // Generate scope function closure
-    // The scope function's async/sync nature should match the workflow context (isAsync parameter).
-    // If the workflow is async, the scope function must be async to use await for context operations.
-    // We also consider node.isAsync for cases where the node type explicitly expects async callbacks.
-    // PHASE 9 FIX: Also check if any child node in the scope is async - if so, the scope
-    // function must be async to properly await those child node calls.
+    // Scope function async/sync must match what the PARENT NODE expects from its callback.
+    // A sync parent node (e.g., forEach) calls the callback synchronously — if the scope
+    // function is async it returns a Promise, causing `.field` accesses to yield `undefined`.
+    // Only make the scope function async if the parent node itself is async or a child is async.
+    // Do NOT inherit the workflow-level isAsync flag (which is true in dev mode for debugging).
     const hasAsyncChild = childInstances.some((child) => {
       const childNodeType = workflow.nodeTypes?.find(
         (nt) => nt.name === child.nodeType || nt.functionName === child.nodeType
       );
       return childNodeType?.isAsync === true;
     });
-    const scopeIsAsync = isAsync || node.isAsync || hasAsyncChild;
+    const scopeIsAsync = node.isAsync || hasAsyncChild;
     const scopeFunctionCode = generateScopeFunctionClosure(
       scopeName,
       id,
@@ -503,7 +503,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
       workflow,
       childInstances,
       scopeIsAsync,
-      false // production mode
+      true // Always use production-style (sync) context ops in scope closures
     );
     lines.push(`${indent}const ${scopeFunctionVar} = ${scopeFunctionCode};`);
 
