@@ -523,7 +523,7 @@ export function generateNodeWithExecutionContext(
   const setCall = isAsync ? 'await ctx.setVariable' : 'ctx.setVariable';
   lines.push(`${indent}const ${safeNodeName}Idx = ctx.addExecution('${nodeName}');`);
   lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${nodeName}';`);
-  lines.push(`${indent}ctx.sendStatusChangedEvent({`);
+  lines.push(`${indent}${awaitPrefix}ctx.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${nodeName}',`);
   lines.push(`${indent}  id: '${nodeName}',`);
   lines.push(`${indent}  executionIndex: ${safeNodeName}Idx,`);
@@ -549,7 +549,7 @@ export function generateNodeWithExecutionContext(
       `${indent}  ${setCall}({ id: '${nodeName}', portName: '${portName}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, ${resultVar}.${portName});`
     );
   });
-  lines.push(`${indent}  ctx.sendStatusChangedEvent({`);
+  lines.push(`${indent}  ${awaitPrefix}ctx.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${nodeName}',`);
   lines.push(`${indent}    id: '${nodeName}',`);
   lines.push(`${indent}    executionIndex: ${safeNodeName}Idx,`);
@@ -570,7 +570,7 @@ export function generateNodeWithExecutionContext(
     }
   }
   lines.push(`${indent}} catch (error: unknown) {`);
-  lines.push(`${indent}  ctx.sendStatusChangedEvent({`);
+  lines.push(`${indent}  ${awaitPrefix}ctx.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${nodeName}',`);
   lines.push(`${indent}    id: '${nodeName}',`);
   lines.push(`${indent}    executionIndex: ${safeNodeName}Idx,`);

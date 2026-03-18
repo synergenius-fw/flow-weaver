@@ -163,6 +163,7 @@ export function generateControlFlowWithExecutionContext(
   }
 
   lines.push(`  const startIdx = ctx.addExecution('${RESERVED_NODE_NAMES.START}');`);
+  const awaitPrefixTop = isAsync ? 'await ' : '';
   Object.keys(extractStartPorts(workflow)).forEach((portName) => {
     const setCall = isAsync ? `await ctx.setVariable` : `ctx.setVariable`;
     // STEP Port Architecture: execute comes from workflow parameter, data from params object
@@ -171,7 +172,7 @@ export function generateControlFlowWithExecutionContext(
       `  ${setCall}({ id: '${RESERVED_NODE_NAMES.START}', portName: '${portName}', executionIndex: startIdx, nodeTypeName: '${RESERVED_NODE_NAMES.START}' }, ${valueSource});`
     );
   });
-  lines.push(`  ctx.sendStatusChangedEvent({`);
+  lines.push(`  ${awaitPrefixTop}ctx.sendStatusChangedEvent({`);
   lines.push(`    nodeTypeName: '${RESERVED_NODE_NAMES.START}',`);
   lines.push(`    id: '${RESERVED_NODE_NAMES.START}',`);
   lines.push(`    executionIndex: startIdx,`);
@@ -790,7 +791,7 @@ export function generateControlFlowWithExecutionContext(
 
   lines.push(`  const finalResult = { ${allProps} };`);
   lines.push('');
-  lines.push(`  ctx.sendStatusChangedEvent({`);
+  lines.push(`  ${awaitPrefixTop}ctx.sendStatusChangedEvent({`);
   lines.push(`    nodeTypeName: '${RESERVED_NODE_NAMES.EXIT}',`);
   lines.push(`    id: '${RESERVED_NODE_NAMES.EXIT}',`);
   lines.push(`    executionIndex: exitIdx,`);
@@ -1110,8 +1111,10 @@ function generateCancelledEventsForBranch(
   allNodeTypes: TNodeTypeAST[],
   lines: string[],
   indent: string,
-  ctxVar: string = 'ctx' // Context variable name (for scoped contexts)
+  ctxVar: string = 'ctx', // Context variable name (for scoped contexts)
+  isAsync: boolean = false
 ): void {
+  const awaitPrefix = isAsync ? 'await ' : '';
   nodeIds.forEach((instanceId) => {
     const instance = workflow.instances.find((i) => i.id === instanceId);
     if (!instance) return;
@@ -1119,7 +1122,7 @@ function generateCancelledEventsForBranch(
     const safeId = toValidIdentifier(instanceId);
     // Add execution index for this skipped node so the event has a valid reference
     lines.push(`${indent}const ${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
-    lines.push(`${indent}${ctxVar}.sendStatusChangedEvent({`);
+    lines.push(`${indent}${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
     lines.push(`${indent}  nodeTypeName: '${instance.nodeType}',`);
     lines.push(`${indent}  id: '${instanceId}',`);
     lines.push(`${indent}  executionIndex: ${safeId}Idx,`);
@@ -1284,7 +1287,8 @@ function generateBranchingChainCode(
         nodeTypes,
         lines,
         indent + '  ',
-        ctxVar
+        ctxVar,
+        isAsync
       );
       lines.push(`${indent}}`);
     }
@@ -1346,6 +1350,7 @@ function generateBranchingNodeCode(
     lines.push(`${indent}if (${awaitHook}__ctrl__.beforeNode('${instanceId}', ${ctxVar})) {`);
     indent = `${indent}  `;
   }
+  const awaitPrefix = isAsync ? 'await ' : '';
 
   if (!production) {
     lines.push('');
@@ -1354,7 +1359,7 @@ function generateBranchingNodeCode(
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
   lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
-  lines.push(`${indent}${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${functionName}',`);
   lines.push(`${indent}  id: '${instanceId}',`);
   lines.push(`${indent}  executionIndex: ${safeId}Idx,`);
@@ -1521,7 +1526,7 @@ function generateBranchingNodeCode(
       );
     });
   }
-  lines.push(`${indent}  ${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);
   lines.push(`${indent}    executionIndex: ${safeId}Idx,`);
@@ -1541,7 +1546,7 @@ function generateBranchingNodeCode(
   }
   lines.push(`${indent}} catch (error: unknown) {`);
   lines.push(`${indent}  const isCancellation = CancellationError.isCancellationError(error);`);
-  lines.push(`${indent}  ${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);
   lines.push(`${indent}    executionIndex: ${safeId}Idx,`);
@@ -1572,7 +1577,8 @@ function generateBranchingNodeCode(
       allNodeTypes,
       lines,
       `${indent}  `,
-      ctxVar
+      ctxVar,
+      isAsync
     );
   }
   if (hasFailureDownstream) {
@@ -1582,7 +1588,8 @@ function generateBranchingNodeCode(
       allNodeTypes,
       lines,
       `${indent}  `,
-      ctxVar
+      ctxVar,
+      isAsync
     );
   }
   // Re-throw the error to propagate it up (important for recursive workflows)
@@ -1616,7 +1623,8 @@ function generateBranchingNodeCode(
         allNodeTypes,
         lines,
         `${indent}  `,
-        ctxVar
+        ctxVar,
+        isAsync
       );
     }
     const successVars = new Map(availableVars);
@@ -1696,7 +1704,8 @@ function generateBranchingNodeCode(
           allNodeTypes,
           lines,
           `${indent}  `,
-          ctxVar
+          ctxVar,
+          isAsync
         );
       }
       const failureVars = new Map(availableVars);
@@ -1775,7 +1784,8 @@ function generateBranchingNodeCode(
           allNodeTypes,
           lines,
           `${indent}  `,
-          ctxVar
+          ctxVar,
+          isAsync
         );
         lines.push(`${indent}}`);
       } else {
@@ -1807,6 +1817,7 @@ function generatePullNodeWithContext(
   const executorIsAsync = isAsync || nodeType.isAsync;
   const asyncKeyword = executorIsAsync ? 'async ' : '';
   const awaitKeyword = nodeType.isAsync ? 'await ' : '';
+  const awaitPrefix = executorIsAsync ? 'await ' : '';
 
   // Create a lazy execution function for this pull node
   // The function will only execute when its outputs are accessed
@@ -1818,7 +1829,7 @@ function generatePullNodeWithContext(
   lines.push(`${indent}  ${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}  ${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
   lines.push(`${indent}  if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
-  lines.push(`${indent}  ${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);
   lines.push(`${indent}    executionIndex: ${safeId}Idx,`);
@@ -1904,7 +1915,7 @@ function generatePullNodeWithContext(
     );
   });
 
-  lines.push(`${indent}    ${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}    ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}      nodeTypeName: '${functionName}',`);
   lines.push(`${indent}      id: '${instanceId}',`);
   lines.push(`${indent}      executionIndex: ${safeId}Idx,`);
@@ -1912,7 +1923,7 @@ function generatePullNodeWithContext(
   lines.push(`${indent}    });`);
   lines.push(`${indent}  } catch (error: unknown) {`);
   lines.push(`${indent}    const isCancellation = CancellationError.isCancellationError(error);`);
-  lines.push(`${indent}    ${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}    ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}      nodeTypeName: '${functionName}',`);
   lines.push(`${indent}      id: '${instanceId}',`);
   lines.push(`${indent}      executionIndex: ${safeId}Idx,`);
@@ -2108,10 +2119,11 @@ function generateNodeCallWithContext(
 
   // When debug hooks hoist the declaration, we use assignment only inside the block.
   const varDecl = (useConst && !emitDebugHooks) ? 'const ' : '';
+  const awaitPrefix = isAsync ? 'await ' : '';
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${varDecl}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
   lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
-  lines.push(`${indent}${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${functionName}',`);
   lines.push(`${indent}  id: '${instanceId}',`);
   lines.push(`${indent}  executionIndex: ${safeId}Idx,`);
@@ -2305,7 +2317,7 @@ function generateNodeCallWithContext(
       );
     });
   }
-  lines.push(`${indent}  ${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);
   lines.push(`${indent}    executionIndex: ${safeId}Idx,`);
@@ -2318,7 +2330,7 @@ function generateNodeCallWithContext(
   }
   lines.push(`${indent}} catch (error: unknown) {`);
   lines.push(`${indent}  const isCancellation = CancellationError.isCancellationError(error);`);
-  lines.push(`${indent}  ${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);
   lines.push(`${indent}    executionIndex: ${safeId}Idx,`);
