@@ -700,8 +700,8 @@ export function myWorkflow(execute: boolean) {
       expect(result.hasChanges).toBe(true);
       // Should update JSDoc
       expect(result.code).toContain('[expr: banana="15"]');
-      // CRITICAL: Should preserve export keyword
-      expect(result.code).toContain('export function myWorkflow');
+      // CRITICAL: Should preserve export keyword (async added in dev mode)
+      expect(result.code).toContain('export async function myWorkflow');
     });
 
     it('should generate function body for non-exported workflow functions', () => {
@@ -1324,9 +1324,9 @@ function myNode(
       expect(result.code).toContain('value * 2');
       expect(result.code).toContain('@flowWeaver nodeType');
 
-      // Function should be BEFORE the workflow function
+      // Function should be BEFORE the workflow function (async added in dev mode)
       const myNodeIndex = result.code.indexOf('function myNode');
-      const scopedDemoIndex = result.code.indexOf('export function scopedDemo');
+      const scopedDemoIndex = result.code.indexOf('function scopedDemo');
       expect(myNodeIndex).toBeLessThan(scopedDemoIndex);
       expect(myNodeIndex).toBeGreaterThan(-1);
     });

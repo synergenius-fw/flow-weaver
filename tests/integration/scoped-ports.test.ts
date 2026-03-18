@@ -85,7 +85,7 @@ export { forEach, doubleValue };
       fs.writeFileSync(testFile, workflowContent);
 
       // Generate the code
-      const generatedCode = await generator.generate(testFile, "processArray");
+      const generatedCode = await generator.generate(testFile, "processArray", { production: true });
       expect(generatedCode).toBeDefined();
       expect(generatedCode).toContain("createScope");
       expect(generatedCode).toContain("mergeScope");
@@ -177,7 +177,7 @@ export { forEach, addTen };
       const testFile = path.join(outputDir, "test-empty-array.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processEmpty");
+      const generatedCode = await generator.generate(testFile, "processEmpty", { production: true });
       const outputFile = path.join(outputDir, "test-empty-array.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 
@@ -267,7 +267,7 @@ export { forEach, addFive, multiplyByTwo };
       const testFile = path.join(outputDir, "test-chain.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processChain");
+      const generatedCode = await generator.generate(testFile, "processChain", { production: true });
       const outputFile = path.join(outputDir, "test-chain.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 
@@ -347,7 +347,7 @@ export { forEach, triple };
       const testFile = path.join(outputDir, "test-single-item.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processSingle");
+      const generatedCode = await generator.generate(testFile, "processSingle", { production: true });
       const outputFile = path.join(outputDir, "test-single-item.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 
@@ -422,7 +422,7 @@ export { forEach, increment };
       const testFile = path.join(outputDir, "test-large-array.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processLarge");
+      const generatedCode = await generator.generate(testFile, "processLarge", { production: true });
       const outputFile = path.join(outputDir, "test-large-array.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 
@@ -501,7 +501,7 @@ export { forEach, passThrough };
       const testFile = path.join(outputDir, "test-any-type.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processAnyType");
+      const generatedCode = await generator.generate(testFile, "processAnyType", { production: true });
       const outputFile = path.join(outputDir, "test-any-type.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 

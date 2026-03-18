@@ -90,6 +90,11 @@ export function generateScopeFunctionClosure(
 ): string {
   const lines: string[] = [];
 
+  // In dev mode, always treat as async so the debugger can pause at breakpoints
+  if (!production) {
+    isAsync = true; // eslint-disable-line no-param-reassign
+  }
+
   // Extract scoped ports for this scope
   const scopedOutputPorts: string[] = []; // Parameters to the scope function
   const scopedInputPorts: string[] = []; // Return values from the scope function

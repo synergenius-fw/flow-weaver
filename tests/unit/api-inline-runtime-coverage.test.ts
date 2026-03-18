@@ -49,6 +49,7 @@ describe('generateStandaloneRuntimeModule', () => {
   it('should default to ESM when no moduleFormat is specified', () => {
     const output = generateStandaloneRuntimeModule(false);
     expect(output).not.toContain('module.exports');
-    expect(output).toContain('export function createFlowWeaverDebugClient');
+    // Debug client was removed — should not appear
+    expect(output).not.toContain('createFlowWeaverDebugClient');
   });
 });

@@ -1,6 +1,6 @@
 /**
  * Tests for Inline Runtime API
- * Tests generateInlineRuntime and generateInlineDebugClient
+ * Tests generateInlineRuntime
  */
 
 import { generateInlineRuntime } from '../../src/api/inline-runtime';

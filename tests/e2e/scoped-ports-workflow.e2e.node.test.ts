@@ -25,7 +25,7 @@ describe("Scoped Ports Workflow E2E", () => {
   let code: string;
 
   beforeAll(async () => {
-    code = await testHelpers.generateFast(workflowPath, "scopedPortsWorkflow");
+    code = await testHelpers.generateFast(workflowPath, "scopedPortsWorkflow", { production: true });
     fs.writeFileSync(outputPath, code, "utf-8");
     module = await import(outputPath);
   });

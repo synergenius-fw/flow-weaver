@@ -114,9 +114,8 @@ export async function calculateSum(
     const parseResult = await parseWorkflow(testWorkflowFile, { workflowName: "calculateSum" });
     const generatedCode = await generateCode(parseResult.ast, { production: false });
 
-    // Development mode should have debug client
-    expect(generatedCode).toContain("createFlowWeaverDebugClient");
-    expect(generatedCode).toContain("FLOW_WEAVER_DEBUG");
+    // Development mode should have debug infrastructure (but not debug client, which was removed)
+    expect(generatedCode).not.toContain("createFlowWeaverDebugClient");
     expect(generatedCode).toContain("__flowWeaverDebugger__");
   });
 

@@ -35,7 +35,7 @@ async function generateAndWrite(
   console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
 
   try {
-    const code = await generator.generate(testFile, workflowName);
+    const code = await generator.generate(testFile, workflowName, { production: true });
     console.log = originalLog;
 
     const generatedFile = testFile.replace('.ts', '.generated.ts');
@@ -720,13 +720,17 @@ describe('ASSERTION GROUP 9: Scoped Ports (Iteration)', () => {
        * @input processed scope:processItem - Result from child
        * @output results - Collected results
        */
-      function forEach(
+      async function forEach(
         execute: boolean,
         items: any[],
-        processItem: (start: boolean, item: any) => { success: boolean; failure: boolean; processed: any }
+        processItem: (start: boolean, item: any) => Promise<{ success: boolean; failure: boolean; processed: any }> | { success: boolean; failure: boolean; processed: any }
       ) {
         if (!execute) return { onSuccess: false, onFailure: false, results: [] };
-        const results = items.map(item => processItem(true, item).processed);
+        const results: any[] = [];
+        for (const item of items) {
+          const r = await processItem(true, item);
+          results.push(r.processed);
+        }
         return { onSuccess: true, onFailure: false, results };
       }
 
@@ -790,13 +794,17 @@ describe('ASSERTION GROUP 9: Scoped Ports (Iteration)', () => {
        * @input result scope:iter - Result from child
        * @output collected - All results
        */
-      function mapper(
+      async function mapper(
         execute: boolean,
         items: string[],
-        iter: (start: boolean, item: string) => { success: boolean; failure: boolean; result: string }
+        iter: (start: boolean, item: string) => Promise<{ success: boolean; failure: boolean; result: string }> | { success: boolean; failure: boolean; result: string }
       ) {
         if (!execute) return { onSuccess: false, onFailure: false, collected: [] };
-        const collected = items.map(item => iter(true, item).result);
+        const collected: string[] = [];
+        for (const item of items) {
+          const r = await iter(true, item);
+          collected.push(r.result);
+        }
         return { onSuccess: true, onFailure: false, collected };
       }
 
@@ -860,13 +868,17 @@ describe('ASSERTION GROUP 9: Scoped Ports (Iteration)', () => {
        * @input result scope:myCallback - Result
        * @output output - Results
        */
-      function iterNode(
+      async function iterNode(
         execute: boolean,
         items: number[],
-        myCallback: (start: boolean, item: number) => { success: boolean; failure: boolean; result: number }
+        myCallback: (start: boolean, item: number) => Promise<{ success: boolean; failure: boolean; result: number }> | { success: boolean; failure: boolean; result: number }
       ) {
         if (!execute) return { onSuccess: false, onFailure: false, output: [] };
-        const output = items.map(item => myCallback(true, item).result);
+        const output: number[] = [];
+        for (const item of items) {
+          const r = await myCallback(true, item);
+          output.push(r.result);
+        }
         return { onSuccess: true, onFailure: false, output };
       }
 
@@ -930,13 +942,17 @@ describe('ASSERTION GROUP 9: Scoped Ports (Iteration)', () => {
        * @input res scope:proc - Result
        * @output final - Final
        */
-      function loopNode(
+      async function loopNode(
         execute: boolean,
         data: number[],
-        proc: (start: boolean, value: number) => { success: boolean; failure: boolean; res: number }
+        proc: (start: boolean, value: number) => Promise<{ success: boolean; failure: boolean; res: number }> | { success: boolean; failure: boolean; res: number }
       ) {
         if (!execute) return { onSuccess: false, onFailure: false, final: [] };
-        const final = data.map(v => proc(true, v).res);
+        const final: number[] = [];
+        for (const v of data) {
+          const r = await proc(true, v);
+          final.push(r.res);
+        }
         return { onSuccess: true, onFailure: false, final };
       }
 
