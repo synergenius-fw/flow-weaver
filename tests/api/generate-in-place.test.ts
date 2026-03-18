@@ -700,8 +700,8 @@ export function myWorkflow(execute: boolean) {
       expect(result.hasChanges).toBe(true);
       // Should update JSDoc
       expect(result.code).toContain('[expr: banana="15"]');
-      // CRITICAL: Should preserve export keyword
-      expect(result.code).toContain('export function myWorkflow');
+      // CRITICAL: Should preserve export keyword (async added in dev mode)
+      expect(result.code).toContain('export async function myWorkflow');
     });
 
     it('should generate function body for non-exported workflow functions', () => {
@@ -1324,9 +1324,9 @@ function myNode(
       expect(result.code).toContain('value * 2');
       expect(result.code).toContain('@flowWeaver nodeType');
 
-      // Function should be BEFORE the workflow function
+      // Function should be BEFORE the workflow function (async added in dev mode)
       const myNodeIndex = result.code.indexOf('function myNode');
-      const scopedDemoIndex = result.code.indexOf('export function scopedDemo');
+      const scopedDemoIndex = result.code.indexOf('function scopedDemo');
       expect(myNodeIndex).toBeLessThan(scopedDemoIndex);
       expect(myNodeIndex).toBeGreaterThan(-1);
     });
@@ -3124,7 +3124,7 @@ export async function calculate(execute: boolean, params: { a: number; b: number
       expect(result.code).toContain('declare const __flowWeaverDebugger__');
     });
 
-    it('should define createFlowWeaverDebugClient function when using external runtime in dev mode', () => {
+    it('should not define createFlowWeaverDebugClient function (debug client removed)', () => {
       const sourceCode = `/**
  * @flowWeaver workflow
  * @node adder add
@@ -3141,8 +3141,8 @@ export async function calculate(execute: boolean, params: { a: number; b: number
 
       // External runtime detected — should import from @synergenius/flow-weaver/runtime
       expect(result.code).toContain("from '@synergenius/flow-weaver/runtime'");
-      // Must define createFlowWeaverDebugClient as a function (not just import it from runtime)
-      expect(result.code).toContain('function createFlowWeaverDebugClient(');
+      // Debug client was removed — should not appear
+      expect(result.code).not.toContain('createFlowWeaverDebugClient');
     });
 
     it('should not include debug code when using external runtime in production mode', () => {

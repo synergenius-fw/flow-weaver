@@ -85,7 +85,7 @@ export { forEach, doubleValue };
       fs.writeFileSync(testFile, workflowContent);
 
       // Generate the code
-      const generatedCode = await generator.generate(testFile, "processArray");
+      const generatedCode = await generator.generate(testFile, "processArray", { production: true });
       expect(generatedCode).toBeDefined();
       expect(generatedCode).toContain("createScope");
       expect(generatedCode).toContain("mergeScope");
@@ -102,7 +102,7 @@ export { forEach, doubleValue };
       // Test execution with input: [1, 2, 3]
       let result;
       try {
-        result = module.processArray(true, { items: [1, 2, 3] });
+        result = await module.processArray(true, { items: [1, 2, 3] });
       } catch (error: any) {
         console.error('[TEST] Execution error:', error.message);
         console.error('[TEST] Stack:', error.stack);
@@ -177,7 +177,7 @@ export { forEach, addTen };
       const testFile = path.join(outputDir, "test-empty-array.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processEmpty");
+      const generatedCode = await generator.generate(testFile, "processEmpty", { production: true });
       const outputFile = path.join(outputDir, "test-empty-array.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 
@@ -185,7 +185,7 @@ export { forEach, addTen };
       const module = await import(outputFile);
 
       // Test with empty array
-      const result = module.processEmpty(true, { items: [] });
+      const result = await module.processEmpty(true, { items: [] });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([]);
@@ -267,7 +267,7 @@ export { forEach, addFive, multiplyByTwo };
       const testFile = path.join(outputDir, "test-chain.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processChain");
+      const generatedCode = await generator.generate(testFile, "processChain", { production: true });
       const outputFile = path.join(outputDir, "test-chain.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 
@@ -277,7 +277,7 @@ export { forEach, addFive, multiplyByTwo };
       // Test: (value + 5) * 2
       // Input: [1, 2, 3]
       // Expected: [(1+5)*2, (2+5)*2, (3+5)*2] = [12, 14, 16]
-      const result = module.processChain(true, { items: [1, 2, 3] });
+      const result = await module.processChain(true, { items: [1, 2, 3] });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([12, 14, 16]);
@@ -347,14 +347,14 @@ export { forEach, triple };
       const testFile = path.join(outputDir, "test-single-item.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processSingle");
+      const generatedCode = await generator.generate(testFile, "processSingle", { production: true });
       const outputFile = path.join(outputDir, "test-single-item.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 
       // Using import() for TypeScript compatibility
       const module = await import(outputFile);
 
-      const result = module.processSingle(true, { items: [5] });
+      const result = await module.processSingle(true, { items: [5] });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([15]);
@@ -422,7 +422,7 @@ export { forEach, increment };
       const testFile = path.join(outputDir, "test-large-array.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processLarge");
+      const generatedCode = await generator.generate(testFile, "processLarge", { production: true });
       const outputFile = path.join(outputDir, "test-large-array.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 
@@ -431,7 +431,7 @@ export { forEach, increment };
 
       // Test with 100 items
       const input = Array.from({ length: 100 }, (_, i) => i);
-      const result = module.processLarge(true, { items: input });
+      const result = await module.processLarge(true, { items: input });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results.length).toBe(100);
@@ -501,7 +501,7 @@ export { forEach, passThrough };
       const testFile = path.join(outputDir, "test-any-type.ts");
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processAnyType");
+      const generatedCode = await generator.generate(testFile, "processAnyType", { production: true });
       const outputFile = path.join(outputDir, "test-any-type.generated.ts");
       fs.writeFileSync(outputFile, generatedCode);
 
@@ -509,7 +509,7 @@ export { forEach, passThrough };
       const module = await import(outputFile);
 
       // Test with mixed type values
-      const result = module.processAnyType(true, { items: [1, "test", true, { foo: "bar" }] });
+      const result = await module.processAnyType(true, { items: [1, "test", true, { foo: "bar" }] });
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([1, "test", true, { foo: "bar" }]);

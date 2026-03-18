@@ -184,10 +184,10 @@ describe("Code Generation Utilities", () => {
       });
 
       const linesJoined = lines.join("\n");
-      // Should use definite assignment assertion with proper type, not bare undefined
-      expect(linesJoined).toContain("let node1_input1!: number;");
-      // Should NOT contain bare `= undefined` for required ports
-      expect(linesJoined).not.toContain("node1_input1 = undefined");
+      // Should use typed undefined cast for required unconnected ports
+      expect(linesJoined).toContain(
+        "let node1_input1: number = undefined as unknown as number;"
+      );
     });
 
     it("should keep bare undefined for optional ports without connection", () => {

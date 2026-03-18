@@ -113,9 +113,10 @@ export async function processArray(
     // Get the code AFTER the mergeScope call
     const codeAfterMerge = code.substring(mergeIndex);
 
-    // After mergeScope, we should NOT use scopedCtx.getVariable or scopedCtx.setVariable
-    // All variable access should be through ctx (the parent context)
-    expect(codeAfterMerge).not.toMatch(/scopedCtx\.getVariable/);
+    // After mergeScope, return-value reads use scopedCtx.getVariable (scopedCtx still
+    // holds all variables and its isAsync flag matches the closure's sync/async nature).
+    // Only *writes* (setVariable for debug VARIABLE_SET events) should go through ctx so
+    // that execution indices accumulate across iterations on the parent context.
     expect(codeAfterMerge).not.toMatch(/scopedCtx\.setVariable/);
   });
 
@@ -195,7 +196,8 @@ export function transformData(
     const mergeIndex = code.indexOf('ctx.mergeScope(scopedCtx)');
     if (mergeIndex > -1) {
       const codeAfterMerge = code.substring(mergeIndex);
-      expect(codeAfterMerge).not.toMatch(/scopedCtx\.getVariable/);
+      // Return-value reads use scopedCtx (see first test comment for rationale).
+      // Only writes should go through ctx.
       expect(codeAfterMerge).not.toMatch(/scopedCtx\.setVariable/);
     }
   });
