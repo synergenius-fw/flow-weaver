@@ -408,7 +408,7 @@ export function generateScopeFunctionClosure(
 
       if (isStepPort) {
         lines.push(
-          `    const ${varName} = ctx.hasVariable(${varAddr}) ? ${getCallAfterMerge}(${varAddr}) as ${portType} : ${defaultValue};`
+          `    const ${varName} = scopedCtx.hasVariable(${varAddr}) ? ${getCallAfterMerge}(${varAddr}) as ${portType} : ${defaultValue};`
         );
       } else {
         lines.push(`    const ${varName} = ${getCallAfterMerge}(${varAddr}) as ${portType};`);
