@@ -145,6 +145,7 @@ export type TBuildNodeArgsOptions = {
   setCall?: string;
   nodeTypeName?: string;
   bundleMode?: boolean;
+  production?: boolean;
 };
 
 /**
@@ -202,6 +203,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     setCall = 'await ctx.setVariable',
     nodeTypeName,
     bundleMode = false,
+    production = false,
   } = opts;
   const safeId = toValidIdentifier(id);
   const inputConnections = workflow.connections.filter((conn) => conn.to.node === id);
@@ -503,7 +505,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
       workflow,
       childInstances,
       scopeIsAsync,
-      true // Always use production-style (sync) context ops in scope closures
+      production
     );
     lines.push(`${indent}const ${scopeFunctionVar} = ${scopeFunctionCode};`);
 

@@ -1391,6 +1391,7 @@ function generateBranchingNodeCode(
     setCall,
     nodeTypeName: functionName,
     bundleMode,
+    production,
   });
   const awaitKeyword = branchNode.isAsync ? 'await ' : '';
 
@@ -1803,7 +1804,8 @@ function generatePullNodeWithContext(
   indent: string,
   isAsync: boolean,
   ctxVar: string = 'ctx', // Context variable name (for scoped contexts)
-  bundleMode: boolean = false
+  bundleMode: boolean = false,
+  production: boolean = false
 ): void {
   const instanceId = instance.id;
   const safeId = toValidIdentifier(instanceId);
@@ -1851,6 +1853,7 @@ function generatePullNodeWithContext(
     setCall,
     nodeTypeName: functionName,
     bundleMode,
+    production,
   });
 
   const resultVar = `${safeId}Result`;
@@ -1973,7 +1976,7 @@ function generateNodeCallWithContext(
 
   // If this is a pull execution node, wrap it in a lazy function
   if (pullConfig.enabled) {
-    generatePullNodeWithContext(instance, nodeType, workflow, lines, indent, isAsync, ctxVar, bundleMode);
+    generatePullNodeWithContext(instance, nodeType, workflow, lines, indent, isAsync, ctxVar, bundleMode, production);
     return;
   }
   const stepInputs: [string, { dataType: string }][] = Object.entries(nodeType.inputs).filter(([portName, portConfig]) => {
@@ -2144,6 +2147,7 @@ function generateNodeCallWithContext(
     setCall,
     nodeTypeName: functionName,
     bundleMode,
+    production,
   });
   const resultVar = `${safeId}Result`;
   const awaitKeyword = nodeType.isAsync ? 'await ' : '';

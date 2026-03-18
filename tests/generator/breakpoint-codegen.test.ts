@@ -196,16 +196,14 @@ export function syncWorkflow(execute: boolean, params: { num: number }): {
   let code: string;
   beforeAll(async () => { code = await compileWorkflow('bp-sync.ts', source); });
 
-  test('15 — PRODUCTION sync workflow has no awaited sendStatusChangedEvent calls', () => {
-    // Note: dev mode sync workflows DO have awaits (for debugger breakpoints).
-    // This test verifies production mode stays lean — no await overhead.
-    // compileWorkflow uses dev mode by default; we check the production property
-    // by verifying the dev code DOES have awaits (covered by test 61).
-    // For production verification, see the production-specific tests.
+  test('15 — dev mode sync workflow: all sendStatusChangedEvent calls are awaited', () => {
+    // In dev mode, even sync workflows are wrapped in async so the debugger can
+    // pause at breakpoints. Every sendStatusChangedEvent call must be awaited.
     expect(callSiteLines(code).length).toBeGreaterThan(0);
+    expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
   });
 
-  test('16 — sync workflow emits sendStatusChangedEvent (awaited in dev mode)', () => {
+  test('16 — sync workflow emits sendStatusChangedEvent call sites', () => {
     expect(callSiteLines(code).length).toBeGreaterThan(0);
   });
 });
@@ -710,11 +708,14 @@ export function scopedSyncWorkflow(
     // the parent node's sync/async expectation.
     const scopeLines = code.split('\n').filter(l => l.includes('scopedCtx.sendStatusChangedEvent'));
     expect(scopeLines.length).toBeGreaterThan(0); // scope calls exist
+    // Scope calls must NOT be awaited — the parent node calls the callback synchronously
+    const awaitedScopeLines = scopeLines.filter(l => /await\s/.test(l));
+    expect(awaitedScopeLines).toHaveLength(0);
   });
 
-  test('44 — scoped sync workflow still emits sendStatusChangedEvent (just sync)', () => {
-    // scopedCtx.sendStatusChangedEvent must be called — just without await
+  test('44 — scoped sync workflow still emits sendStatusChangedEvent (just not awaited)', () => {
     expect(code).toContain('scopedCtx.sendStatusChangedEvent(');
+    expect(code).not.toMatch(/await\s+scopedCtx\.sendStatusChangedEvent\(/);
   });
 });
 

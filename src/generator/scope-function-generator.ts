@@ -285,6 +285,7 @@ export function generateScopeFunctionClosure(
         emitInputEvents: true,
         setCall: childSetCall,
         nodeTypeName: child.nodeType,
+        production,
       });
 
       // Add argument building lines
