@@ -18,7 +18,7 @@ import type {
   TWorkflowMacro,
 } from '../ast/types';
 import { bodyGenerator } from '../body-generator';
-import { generateInlineRuntime, generateInlineDebugClient } from './inline-runtime';
+import { generateInlineRuntime } from './inline-runtime';
 import { isExecutePort, isSuccessPort, isFailurePort, isControlFlowPort } from '../constants';
 import {
   generateJSDocPortTag,
@@ -246,19 +246,10 @@ function generateRuntimeSection(
       lines.push(`import type { TDebugger } from '${externalRuntimePath}';`);
       // Declare __flowWeaverDebugger__ so body code can reference it
       lines.push('declare const __flowWeaverDebugger__: TDebugger | undefined;');
-      // Include inline debug client (createFlowWeaverDebugClient is not exported from runtime)
-      lines.push('');
-      lines.push(generateInlineDebugClient(moduleFormat));
     }
   } else {
     // Inline runtime: embed all types and classes directly
     lines.push(generateInlineRuntime(production));
-
-    // Add debug client (dev mode only)
-    if (!production) {
-      lines.push('');
-      lines.push(generateInlineDebugClient(moduleFormat));
-    }
   }
 
   return lines.join('\n');

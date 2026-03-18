@@ -653,17 +653,6 @@ export function generateStandaloneRuntimeModule(
   lines.push(inlineRuntime);
   lines.push('');
 
-  // Include debug client in development mode
-  if (!production) {
-    const debugClient = generateInlineDebugClient(moduleFormat);
-    // Add export to the createFlowWeaverDebugClient function
-    const exportedDebugClient = debugClient.replace(
-      'function createFlowWeaverDebugClient',
-      'export function createFlowWeaverDebugClient'
-    );
-    lines.push(exportedDebugClient);
-    lines.push('');
-  }
 
   if (moduleFormat === 'cjs') {
     // CommonJS exports

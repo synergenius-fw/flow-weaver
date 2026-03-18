@@ -112,17 +112,9 @@ export function generateControlFlowWithExecutionContext(
 ): string {
   const lines: string[] = [];
 
-  // In development mode, determine effective debugger (from parameter or environment)
+  // In development mode, use the injected debugger if available
   if (!production) {
-    lines.push(`  // Use passed debugger or auto-detect from environment variable`);
-    lines.push(`  const __effectiveDebugger__ = (`);
-    lines.push(`    typeof __flowWeaverDebugger__ !== 'undefined' ? __flowWeaverDebugger__ :`);
-    lines.push(`    typeof process !== 'undefined' && process.env.FLOW_WEAVER_DEBUG`);
-    lines.push(
-      `      ? createFlowWeaverDebugClient(process.env.FLOW_WEAVER_DEBUG, '${workflow.functionName}')`
-    );
-    lines.push(`      : undefined`);
-    lines.push(`  );`);
+    lines.push(`  const __effectiveDebugger__ = typeof __flowWeaverDebugger__ !== 'undefined' ? __flowWeaverDebugger__ : undefined;`);
     lines.push('');
   }
 
@@ -139,6 +131,13 @@ export function generateControlFlowWithExecutionContext(
   // In development mode, pass the effective debugger (from parameter or environment)
   // In production mode, omit the debugger parameter
   // Always pass abort signal for cancellation support
+  // In dev mode, always treat as async so the debugger can pause execution
+  // at breakpoints (sendStatusChangedEvent must be awaited for this to work).
+  // Production mode respects the original isAsync to avoid overhead.
+  if (!production) {
+    isAsync = true; // eslint-disable-line no-param-reassign
+  }
+
   const asyncArg = isAsync ? 'true' : 'false';
   if (production) {
     lines.push(`  const ctx = new GeneratedExecutionContext(${asyncArg}, __abortSignal__);`);
@@ -155,8 +154,8 @@ export function generateControlFlowWithExecutionContext(
   if (!production) {
     lines.push(`  // Debug controller for step-through debugging and checkpoint/resume`);
     lines.push(`  const __ctrl__: TDebugController = (`);
-    lines.push(`    typeof globalThis !== 'undefined' && (globalThis as any).__fw_debug_controller__`);
-    lines.push(`      ? (globalThis as any).__fw_debug_controller__`);
+    lines.push(`    typeof globalThis !== 'undefined' && (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__`);
+    lines.push(`      ? (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__`);
     lines.push(`      : { beforeNode: () => true, afterNode: () => {} }`);
     lines.push(`  );`);
     lines.push('');
@@ -1358,7 +1357,7 @@ function generateBranchingNodeCode(
   }
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
-  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
+  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${instanceId}';`);
   lines.push(`${indent}${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${functionName}',`);
   lines.push(`${indent}  id: '${instanceId}',`);
@@ -1828,7 +1827,7 @@ function generatePullNodeWithContext(
   lines.push(`${indent}  }`);
   lines.push(`${indent}  ${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}  ${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
-  lines.push(`${indent}  if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
+  lines.push(`${indent}  if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${instanceId}';`);
   lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);
@@ -2122,7 +2121,7 @@ function generateNodeCallWithContext(
   const awaitPrefix = isAsync ? 'await ' : '';
   lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
   lines.push(`${indent}${varDecl}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
-  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as any).__fw_current_node_id__ = '${instanceId}';`);
+  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${instanceId}';`);
   lines.push(`${indent}${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${functionName}',`);
   lines.push(`${indent}  id: '${instanceId}',`);
