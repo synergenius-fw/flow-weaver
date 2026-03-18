@@ -201,7 +201,7 @@ function renderNode(
   }
 
   // External port dots (labels rendered in top-level labels pass)
-  renderPortDots(parts, node.id, node.inputs, node.outputs, themeName, theme);
+  renderPortDots(parts, node.id, node.inputs, node.outputs, themeName);
   parts.push(`  </g>`);
 
   return parts.join('\n');
@@ -233,14 +233,14 @@ function renderScopedContent(
 
   // Scope port dots (before children so dots sit on top of connections)
   if (scopePorts) {
-    renderPortDots(parts, node.id, scopePorts.inputs, scopePorts.outputs, themeName, theme);
+    renderPortDots(parts, node.id, scopePorts.inputs, scopePorts.outputs, themeName);
   }
 
   // Child nodes (all labels handled in top-level labels pass)
   for (const child of children) {
     parts.push(`    <g data-node-id="${escapeXml(child.id)}">`);
     renderNodeBody(parts, child, theme, '      ');
-    renderPortDots(parts, child.id, child.inputs, child.outputs, themeName, theme);
+    renderPortDots(parts, child.id, child.inputs, child.outputs, themeName);
     parts.push(`    </g>`);
   }
 }
@@ -287,12 +287,12 @@ function renderPortDots(
   inputs: readonly DiagramPort[],
   outputs: readonly DiagramPort[],
   themeName: 'dark' | 'light',
-  theme: ThemePalette,
 ): void {
   for (const port of [...inputs, ...outputs]) {
     const color = getPortColor(port.dataType, port.isFailure, themeName);
+    const ringColor = getPortRingColor(port.dataType, port.isFailure, themeName);
     const dir = port.direction === 'INPUT' ? 'input' : 'output';
-    parts.push(`    <circle cx="${port.cx}" cy="${port.cy}" r="${PORT_RADIUS}" fill="${theme.background}" stroke="${color}" stroke-width="2" data-port-id="${escapeXml(nodeId)}.${escapeXml(port.name)}:${dir}" data-direction="${dir}"/>`);
+    parts.push(`    <circle cx="${port.cx}" cy="${port.cy}" r="${PORT_RADIUS}" fill="${color}" stroke="${ringColor}" stroke-width="2" data-port-id="${escapeXml(nodeId)}.${escapeXml(port.name)}:${dir}" data-direction="${dir}"/>`);
   }
 }
 
