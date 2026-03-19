@@ -77,14 +77,21 @@ vi.mock('../../src/utils/error-utils.js', () => ({
   ),
 }));
 
+const mockWorkflowTemplates = [
+  { id: 'basic', name: 'Basic', description: 'A basic workflow', category: 'Starter' },
+  { id: 'advanced', name: 'Advanced', description: 'An advanced workflow', category: 'Advanced' },
+];
+
 vi.mock('../../src/cli/templates/index.js', () => ({
-  workflowTemplates: [
-    { id: 'basic', name: 'Basic', description: 'A basic workflow', category: 'Starter' },
-    { id: 'advanced', name: 'Advanced', description: 'An advanced workflow', category: 'Advanced' },
-  ],
+  workflowTemplates: mockWorkflowTemplates,
+  getAllWorkflowTemplates: () => mockWorkflowTemplates,
   nodeTemplates: [
     { id: 'transform', name: 'Transform', description: 'Transform node' },
   ],
+}));
+
+vi.mock('../../src/cli/templates/pack-loader.js', () => ({
+  loadPackTemplates: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../src/context/index.js', () => ({
