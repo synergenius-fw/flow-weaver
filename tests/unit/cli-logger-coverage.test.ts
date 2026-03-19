@@ -165,14 +165,11 @@ describe('logger', () => {
     it('should return exactly 1m 0s for 60000ms', async () => {
       const { logger } = await import('../../src/cli/utils/logger');
 
-      let callCount = 0;
-      const base = performance.now();
-      vi.spyOn(performance, 'now').mockImplementation(() => {
-        callCount++;
-        return callCount === 1 ? base : base + 60_000;
-      });
+      let now = 1000;
+      vi.spyOn(performance, 'now').mockImplementation(() => now);
 
       const t = logger.timer();
+      now = 1000 + 60_000;
       const elapsed = t.elapsed();
       expect(elapsed).toBe('1m 0s');
     });
