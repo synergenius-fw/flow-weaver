@@ -19,7 +19,7 @@ vi.mock('../../../src/chevrotain-parser/grammar-diagrams.js', () => ({
 // so the test doesn't need the full template infrastructure.
 vi.mock('../../../src/cli/templates/index.js', () => ({
   workflowTemplates: [
-    { id: 'simple', description: 'Simple sequential workflow' },
+    { id: 'sequential', description: 'Sequential workflow pipeline' },
     { id: 'parallel', description: 'Parallel execution workflow' },
   ],
   nodeTemplates: [
@@ -216,7 +216,7 @@ describe('CLI Commands extractor', () => {
     expect(createWorkflow.positionalChoices!.template).toBeDefined();
     expect(createWorkflow.positionalChoices!.template.length).toBeGreaterThan(0);
     const ids = createWorkflow.positionalChoices!.template.map((c) => c.id);
-    expect(ids).toContain('simple');
+    expect(ids).toContain('sequential');
   });
 
   it('subcommands have group property', () => {

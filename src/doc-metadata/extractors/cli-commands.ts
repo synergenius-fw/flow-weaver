@@ -186,7 +186,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     description: 'Create a new flow-weaver project with templates and config',
     options: [
       { flags: '-n, --name', arg: '<name>', description: 'Project name (defaults to directory name)' },
-      { flags: '-t, --template', arg: workflowTemplates.map(t => t.id).join('|'), description: 'Workflow template', defaultValue: 'simple' },
+      { flags: '-t, --template', arg: workflowTemplates.map(t => t.id).join('|'), description: 'Workflow template', defaultValue: 'sequential' },
       { flags: '-f, --format', arg: 'esm|cjs', description: 'Module format', defaultValue: 'esm' },
       { flags: '-y, --yes', description: 'Skip prompts, use defaults' },
       { flags: '--install / --no-install', description: 'Run npm install after scaffolding' },
