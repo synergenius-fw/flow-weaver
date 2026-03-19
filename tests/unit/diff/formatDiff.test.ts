@@ -6,6 +6,9 @@ import { describe, it, expect } from 'vitest';
 import { formatDiff } from '../../../src/diff/formatDiff.js';
 import type { TWorkflowDiff } from '../../../src/diff/types.js';
 
+// Strip ANSI escape codes for assertions (colors added by formatDiff)
+const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
+
 // Helper to create minimal diff
 function createDiff(overrides: Partial<TWorkflowDiff> = {}): TWorkflowDiff {
   return {
@@ -60,7 +63,7 @@ describe('formatDiff', () => {
     it('should include impact level', () => {
       const diff = createDiff({ impact: 'CRITICAL' });
       const output = formatDiff(diff, 'compact');
-      expect(output).toContain('[CRITICAL]');
+      expect(stripAnsi(output)).toContain('[CRITICAL]');
     });
 
     it('should show added types count', () => {
@@ -121,7 +124,7 @@ describe('formatDiff', () => {
       const diff = createDiff({ impact: 'BREAKING' });
       const output = formatDiff(diff, 'text');
       expect(output).toContain('WORKFLOW DIFF');
-      expect(output).toContain('Impact: BREAKING');
+      expect(stripAnsi(output)).toContain('Impact: BREAKING');
     });
 
     it('should show identical message for identical diffs', () => {
