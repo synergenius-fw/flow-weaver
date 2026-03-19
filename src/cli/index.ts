@@ -13,56 +13,16 @@ import './env-setup.js';
 import '../extensions/index.js';
 
 import { Command, Option } from 'commander';
-import { compileCommand } from './commands/compile.js';
-import { createWorkflowCommand, createNodeCommand } from './commands/create.js';
-import { describeCommand } from './commands/describe.js';
-import { diagramCommand } from './commands/diagram.js';
-import { diffCommand } from './commands/diff.js';
-import {
-  patternListCommand,
-  patternApplyCommand,
-  patternExtractCommand,
-} from './commands/pattern.js';
-import { templatesCommand } from './commands/templates.js';
-import { validateCommand } from './commands/validate.js';
-import { doctorCommand } from './commands/doctor.js';
-import { initCommand } from './commands/init.js';
-import { watchCommand } from './commands/watch.js';
-import { devCommand } from './commands/dev.js';
-import { mcpServerCommand } from '../mcp/server.js';
-import { grammarCommand } from './commands/grammar.js';
-import { runCommand } from './commands/run.js';
-import { serveCommand } from './commands/serve.js';
-import { exportCommand } from './commands/export.js';
-import { openapiCommand } from './commands/openapi.js';
-import { pluginInitCommand } from './commands/plugin.js';
-import { migrateCommand } from './commands/migrate.js';
-import { changelogCommand } from './commands/changelog.js';
-import { stripCommand } from './commands/strip.js';
-import { docsListCommand, docsReadCommand, docsSearchCommand } from './commands/docs.js';
-import { contextCommand } from './commands/context.js';
-import { statusCommand } from './commands/status.js';
-import { implementCommand } from './commands/implement.js';
-import {
-  modifyAddNodeCommand,
-  modifyRemoveNodeCommand,
-  modifyAddConnectionCommand,
-  modifyRemoveConnectionCommand,
-  modifyRenameNodeCommand,
-  modifySetPositionCommand,
-  modifySetLabelCommand,
-} from './commands/modify.js';
-import {
-  marketInitCommand,
-  marketPackCommand,
-  marketPublishCommand,
-  marketInstallCommand,
-  marketSearchCommand,
-  marketListCommand,
-} from './commands/market.js';
-import { mcpSetupCommand } from './commands/mcp-setup.js';
 import { logger } from './utils/logger.js';
 import { getErrorMessage } from '../utils/error-utils.js';
+
+// ---------------------------------------------------------------------------
+// All command handlers are lazy-loaded via dynamic import() inside their
+// .action() callbacks. This avoids pulling in the parser/compiler/runtime
+// chains (ts-morph, chevrotain, etc.) until a command that actually needs
+// them is invoked — making lightweight commands like `fw --version` ~80%
+// faster (~0.5s vs ~2.5s).
+// ---------------------------------------------------------------------------
 
 
 // Version is injected at build time by Vite
@@ -139,6 +99,7 @@ program
   .option('--retries <n>', 'Number of retries per function', parseInt)
   .option('--timeout <duration>', 'Function timeout (e.g. "30m", "1h")')
   .action(wrapAction(async (input: string, options) => {
+    const { compileCommand } = await import('./commands/compile.js');
     if (options.workflow) options.workflowName = options.workflow;
     await compileCommand(input, options);
   }));
@@ -151,6 +112,7 @@ program
   .option('--dry-run', 'Preview without writing', false)
   .option('--verbose', 'Verbose output', false)
   .action(wrapAction(async (input: string, options) => {
+      const { stripCommand } = await import('./commands/strip.js');
       await stripCommand(input, options);
   }));
 
@@ -163,6 +125,7 @@ program
   .option('--compile', 'Also update runtime markers in the source file')
   .option('-w, --workflow <name>', 'Specific workflow name to describe')
   .action(wrapAction(async (input: string, options) => {
+      const { describeCommand } = await import('./commands/describe.js');
       if (options.workflow) options.workflowName = options.workflow;
       await describeCommand(input, options);
   }));
@@ -183,6 +146,7 @@ program
       if (options.padding) options.padding = Number(options.padding);
       options.showPortLabels = options.portLabels;
       if (options.workflow) options.workflowName = options.workflow;
+      const { diagramCommand } = await import('./commands/diagram.js');
       await diagramCommand(input, options);
   }));
 
@@ -194,6 +158,7 @@ program
   .option('-w, --workflow <name>', 'Specific workflow name to compare')
   .option('--exit-zero', 'Exit 0 even when differences are found', false)
   .action(wrapAction(async (file1: string, file2: string, options) => {
+      const { diffCommand } = await import('./commands/diff.js');
       if (options.workflow) options.workflowName = options.workflow;
       await diffCommand(file1, file2, options);
   }));
@@ -208,6 +173,7 @@ program
   .option('-w, --workflow <name>', 'Specific workflow name to validate')
   .option('--strict', 'Treat type coercion warnings as errors', false)
   .action(wrapAction(async (input: string, options) => {
+      const { validateCommand } = await import('./commands/validate.js');
       if (options.workflow) options.workflowName = options.workflow;
       await validateCommand(input, options);
   }));
@@ -218,6 +184,7 @@ program
   .description('Check project environment and configuration for flow-weaver compatibility')
   .option('--json', 'Output results as JSON', false)
   .action(wrapAction(async (options) => {
+      const { doctorCommand } = await import('./commands/doctor.js');
       await doctorCommand(options);
   }));
 
@@ -241,6 +208,7 @@ program
   .option('--force', 'Overwrite existing files', false)
   .option('--json', 'Output results as JSON', false)
   .action(wrapAction(async (directory: string | undefined, options) => {
+      const { initCommand } = await import('./commands/init.js');
       await initCommand(directory, options);
   }));
 
@@ -255,6 +223,7 @@ program
   .option('-w, --workflow <name>', 'Specific workflow name to compile')
   .option('-f, --format <format>', 'Module format: esm, cjs, or auto', 'auto')
   .action(wrapAction(async (input: string, options) => {
+      const { watchCommand } = await import('./commands/watch.js');
       if (options.workflow) options.workflowName = options.workflow;
       await watchCommand(input, options);
   }));
@@ -275,6 +244,7 @@ program
   .option('--framework <framework>', 'Framework for serve handler', 'express')
   .option('--port <port>', 'Port for dev server', (v: string) => parseInt(v, 10), 3000)
   .action(wrapAction(async (input: string, options) => {
+      const { devCommand } = await import('./commands/dev.js');
       await devCommand(input, options);
   }));
 
@@ -284,6 +254,7 @@ program
   .description('Start MCP server for Claude Code integration')
   .option('--stdio', 'Run in MCP stdio mode (skip interactive registration)')
   .action(wrapAction(async (options) => {
+      const { mcpServerCommand } = await import('../mcp/server.js');
       await mcpServerCommand(options);
   }));
 
@@ -295,6 +266,7 @@ program
   .option('--all', 'Configure all detected tools without prompting')
   .option('--list', 'List detected tools without configuring')
   .action(wrapAction(async (options) => {
+      const { mcpSetupCommand } = await import('./commands/mcp-setup.js');
       await mcpSetupCommand(options);
   }));
 
@@ -315,6 +287,7 @@ createCmd
   .option('--input <name>', 'Custom input port name (default: "data")')
   .option('--output <name>', 'Custom output port name (default: "result")')
   .action(wrapAction(async (template: string, file: string, options) => {
+      const { createWorkflowCommand } = await import('./commands/create.js');
       await createWorkflowCommand(template, file, options);
   }));
 
@@ -327,6 +300,7 @@ createCmd
   .option('--strategy <strategy>', 'Template strategy (e.g. mock, callback, webhook)')
   .option('--config <json>', 'Additional configuration (JSON)')
   .action(wrapAction(async (name: string, file: string, options) => {
+      const { createNodeCommand } = await import('./commands/create.js');
       await createNodeCommand(name, file, options);
   }));
 
@@ -340,6 +314,7 @@ modifyCmd
   .requiredOption('--nodeId <id>', 'Node instance ID')
   .requiredOption('--nodeType <type>', 'Node type name')
   .action(wrapAction(async (options) => {
+    const { modifyAddNodeCommand } = await import('./commands/modify.js');
     await modifyAddNodeCommand(options.file, options);
   }));
 
@@ -349,6 +324,7 @@ modifyCmd
   .requiredOption('--file <path>', 'Workflow file')
   .requiredOption('--nodeId <id>', 'Node instance ID')
   .action(wrapAction(async (options) => {
+    const { modifyRemoveNodeCommand } = await import('./commands/modify.js');
     await modifyRemoveNodeCommand(options.file, options);
   }));
 
@@ -359,6 +335,7 @@ modifyCmd
   .requiredOption('--from <node.port>', 'Source (e.g. nodeA.output)')
   .requiredOption('--to <node.port>', 'Target (e.g. nodeB.input)')
   .action(wrapAction(async (options) => {
+    const { modifyAddConnectionCommand } = await import('./commands/modify.js');
     await modifyAddConnectionCommand(options.file, options);
   }));
 
@@ -369,6 +346,7 @@ modifyCmd
   .requiredOption('--from <node.port>', 'Source (e.g. nodeA.output)')
   .requiredOption('--to <node.port>', 'Target (e.g. nodeB.input)')
   .action(wrapAction(async (options) => {
+    const { modifyRemoveConnectionCommand } = await import('./commands/modify.js');
     await modifyRemoveConnectionCommand(options.file, options);
   }));
 
@@ -379,6 +357,7 @@ modifyCmd
   .requiredOption('--oldId <id>', 'Current node ID')
   .requiredOption('--newId <id>', 'New node ID')
   .action(wrapAction(async (options) => {
+    const { modifyRenameNodeCommand } = await import('./commands/modify.js');
     await modifyRenameNodeCommand(options.file, options);
   }));
 
@@ -390,6 +369,7 @@ modifyCmd
   .requiredOption('--x <number>', 'X coordinate')
   .requiredOption('--y <number>', 'Y coordinate')
   .action(wrapAction(async (options) => {
+    const { modifySetPositionCommand } = await import('./commands/modify.js');
     await modifySetPositionCommand(options.file, options);
   }));
 
@@ -400,6 +380,7 @@ modifyCmd
   .requiredOption('--nodeId <id>', 'Node instance ID')
   .requiredOption('--label <text>', 'Display label')
   .action(wrapAction(async (options) => {
+    const { modifySetLabelCommand } = await import('./commands/modify.js');
     await modifySetLabelCommand(options.file, options);
   }));
 
@@ -409,6 +390,7 @@ program
   .description('List available templates')
   .option('--json', 'Output as JSON', false)
   .action(wrapAction(async (options) => {
+      const { templatesCommand } = await import('./commands/templates.js');
       await templatesCommand(options);
   }));
 
@@ -421,6 +403,7 @@ program
   .addOption(new Option('-f, --format <format>', 'Output format').choices(['html', 'ebnf']))
   .option('-o, --output <path>', 'Write output to file instead of stdout')
   .action(wrapAction(async (options) => {
+      const { grammarCommand } = await import('./commands/grammar.js');
       await grammarCommand(options);
   }));
 
@@ -432,6 +415,7 @@ patternCmd
   .description('List patterns in a file or directory')
   .option('--json', 'Output as JSON', false)
   .action(wrapAction(async (inputPath: string, options) => {
+      const { patternListCommand } = await import('./commands/pattern.js');
       await patternListCommand(inputPath, options);
   }));
 
@@ -442,6 +426,7 @@ patternCmd
   .option('--prefix <prefix>', 'Prefix for node instance IDs')
   .option('-n, --name <name>', 'Specific pattern name to apply')
   .action(wrapAction(async (patternFile: string, targetFile: string, options) => {
+      const { patternApplyCommand } = await import('./commands/pattern.js');
       await patternApplyCommand(patternFile, targetFile, options);
   }));
 
@@ -453,6 +438,7 @@ patternCmd
   .option('-n, --name <name>', 'Pattern name')
   .option('-p, --preview', 'Preview pattern without writing', false)
   .action(wrapAction(async (sourceFile: string, options) => {
+      const { patternExtractCommand } = await import('./commands/pattern.js');
       await patternExtractCommand(sourceFile, options);
   }));
 
@@ -475,6 +461,7 @@ program
   .option('--resume [file]', 'Resume from a checkpoint file (auto-detects latest if no file)')
   .option('-b, --breakpoint <nodeIds...>', 'Set initial breakpoints (repeatable)')
   .action(wrapAction(async (input: string, options) => {
+      const { runCommand } = await import('./commands/run.js');
       await runCommand(input, options);
   }));
 
@@ -490,6 +477,7 @@ program
   .option('--cors <origin>', 'CORS origin', '*')
   .option('--swagger', 'Enable Swagger UI at /docs', false)
   .action(wrapAction(async (directory: string | undefined, options) => {
+      const { serveCommand } = await import('./commands/serve.js');
       await serveCommand(directory, {
         port: parseInt(options.port, 10),
         host: options.host,
@@ -515,6 +503,7 @@ program
   .option('--docs', 'Include API documentation routes (/docs and /openapi.json)', false)
   .option('--durable-steps', 'Use deep generator with per-node durable steps', false)
   .action(wrapAction(async (input: string, options) => {
+      const { exportCommand } = await import('./commands/export.js');
       await exportCommand(input, options);
   }));
 
@@ -529,6 +518,7 @@ program
   .option('-f, --format <format>', 'Output format: json, yaml', 'json')
   .option('--server <url>', 'Server URL')
   .action(wrapAction(async (directory: string, options) => {
+      const { openapiCommand } = await import('./commands/openapi.js');
       await openapiCommand(directory, options);
   }));
 
@@ -543,6 +533,7 @@ pluginCmd
   .option('-p, --preview', 'Preview generated files without writing', false)
   .option('--force', 'Overwrite existing files', false)
   .action(wrapAction(async (name: string, options) => {
+      const { pluginInitCommand } = await import('./commands/plugin.js');
       await pluginInitCommand(name, options);
   }));
 
@@ -553,6 +544,7 @@ program
   .option('--dry-run', 'Preview changes without writing files', false)
   .option('--diff', 'Show semantic diff before/after', false)
   .action(wrapAction(async (glob: string, options) => {
+      const { migrateCommand } = await import('./commands/migrate.js');
       await migrateCommand(glob, options);
   }));
 
@@ -563,6 +555,7 @@ program
   .option('-w, --workflow <name>', 'Specific workflow name')
   .option('--json', 'Output as JSON', false)
   .action(wrapAction(async (input: string, options) => {
+      const { statusCommand } = await import('./commands/status.js');
       if (options.workflow) options.workflowName = options.workflow;
       await statusCommand(input, options);
   }));
@@ -579,6 +572,7 @@ program
       if (!nodeName) {
         throw new Error('Node name is required (as positional arg or --nodeId flag)');
       }
+      const { implementCommand } = await import('./commands/implement.js');
       if (options.workflow) options.workflowName = options.workflow;
       await implementCommand(input, nodeName, options);
   }));
@@ -591,6 +585,7 @@ program
   .option('--since <date>', 'Date-based range (e.g., "2024-01-01")')
   .option('-r, --range <range>', 'Custom git range (e.g., "v0.1.0..HEAD")')
   .action(wrapAction(async (options) => {
+      const { changelogCommand } = await import('./commands/changelog.js');
       await changelogCommand(options);
   }));
 
@@ -601,6 +596,7 @@ program
   .option('--json', 'Output as JSON', false)
   .option('--compact', 'Return compact LLM-friendly version', false)
   .action(wrapAction(async (args: string[], options) => {
+      const { docsListCommand, docsReadCommand, docsSearchCommand } = await import('./commands/docs.js');
       if (args.length === 0 || args[0] === 'list') {
         await docsListCommand(options);
       } else if (args[0] === 'search') {
@@ -626,6 +622,7 @@ program
   .option('-o, --output <path>', 'Write to file instead of stdout')
   .option('--list', 'List available presets and exit')
   .action(wrapAction(async (preset: string | undefined, options) => {
+      const { contextCommand } = await import('./commands/context.js');
       await contextCommand(preset, options);
   }));
 
@@ -639,6 +636,7 @@ marketCmd
   .option('-a, --author <author>', 'Author name')
   .option('-y, --yes', 'Skip prompts and use defaults', false)
   .action(wrapAction(async (name: string, options) => {
+      const { marketInitCommand } = await import('./commands/market.js');
       await marketInitCommand(name, options);
   }));
 
@@ -648,6 +646,7 @@ marketCmd
   .option('--json', 'Output results as JSON', false)
   .option('--verbose', 'Show parse warnings', false)
   .action(wrapAction(async (directory: string | undefined, options) => {
+      const { marketPackCommand } = await import('./commands/market.js');
       await marketPackCommand(directory, options);
   }));
 
@@ -657,6 +656,7 @@ marketCmd
   .option('--dry-run', 'Preview without publishing', false)
   .option('--tag <tag>', 'npm dist-tag')
   .action(wrapAction(async (directory: string | undefined, options) => {
+      const { marketPublishCommand } = await import('./commands/market.js');
       await marketPublishCommand(directory, options);
   }));
 
@@ -665,6 +665,7 @@ marketCmd
   .description('Install a marketplace package')
   .option('--json', 'Output results as JSON', false)
   .action(wrapAction(async (packageSpec: string, options) => {
+      const { marketInstallCommand } = await import('./commands/market.js');
       await marketInstallCommand(packageSpec, options);
   }));
 
@@ -675,6 +676,7 @@ marketCmd
   .option('-r, --registry <url>', 'Custom registry search URL (e.g., private npm registry)')
   .option('--json', 'Output as JSON', false)
   .action(wrapAction(async (query: string | undefined, options) => {
+      const { marketSearchCommand } = await import('./commands/market.js');
       await marketSearchCommand(query, { ...options, limit: parseInt(options.limit, 10) });
   }));
 
@@ -683,6 +685,7 @@ marketCmd
   .description('List installed marketplace packages')
   .option('--json', 'Output as JSON', false)
   .action(wrapAction(async (options) => {
+      const { marketListCommand } = await import('./commands/market.js');
       await marketListCommand(options);
   }));
 
