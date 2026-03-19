@@ -3,7 +3,8 @@
  * Templates command - list available templates
  */
 
-import { workflowTemplates, nodeTemplates } from "../templates/index.js";
+import { workflowTemplates, nodeTemplates, getAllWorkflowTemplates } from "../templates/index.js";
+import { loadPackTemplates } from "../templates/pack-loader.js";
 import { logger } from "../utils/logger.js";
 
 export interface TemplatesOptions {
@@ -15,11 +16,15 @@ export async function templatesCommand(
 ): Promise<void> {
   const { json = false } = options;
 
+  // Load pack-contributed templates so they appear alongside core templates
+  await loadPackTemplates(process.cwd());
+  const allWorkflowTemplates = getAllWorkflowTemplates();
+
   if (json) {
     console.log(
       JSON.stringify(
         {
-          workflows: workflowTemplates.map((t) => ({
+          workflows: allWorkflowTemplates.map((t) => ({
             id: t.id,
             name: t.name,
             description: t.description,
@@ -43,7 +48,7 @@ export async function templatesCommand(
 
   // Group by category
   const categories = new Map<string, typeof workflowTemplates>();
-  for (const template of workflowTemplates) {
+  for (const template of allWorkflowTemplates) {
     const cat = template.category;
     if (!categories.has(cat)) {
       categories.set(cat, []);

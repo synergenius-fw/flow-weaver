@@ -4,8 +4,29 @@
 
 import type { TWorkflowDiff, TNodeTypeDiff, TInstanceDiff, TConnectionDiff } from './types.js';
 import { IMPACT_DESCRIPTIONS, getImpactReasons } from './impact.js';
+import pc from 'picocolors';
 
 export type TDiffFormat = 'text' | 'json' | 'compact';
+
+// Colorize diff symbols: green for added, red for removed, yellow for modified
+function colorSymbol(symbol: string, text: string): string {
+  switch (symbol) {
+    case '+': return pc.green(`${symbol} ${text}`);
+    case '-': return pc.red(`${symbol} ${text}`);
+    case '~': return pc.yellow(`${symbol} ${text}`);
+    default: return `${symbol} ${text}`;
+  }
+}
+
+function impactColor(impact: string): string {
+  switch (impact) {
+    case 'CRITICAL': return pc.red(pc.bold(impact));
+    case 'BREAKING': return pc.red(impact);
+    case 'MINOR': return pc.yellow(impact);
+    case 'COSMETIC': return pc.dim(impact);
+    default: return impact;
+  }
+}
 
 /**
  * Format a workflow diff for display
@@ -42,7 +63,7 @@ function formatCompact(diff: TWorkflowDiff): string {
   if (summary.connectionsAdded > 0) parts.push(`+${summary.connectionsAdded} conns`);
   if (summary.connectionsRemoved > 0) parts.push(`-${summary.connectionsRemoved} conns`);
 
-  return `[${diff.impact}] ${parts.join(', ')}`;
+  return `[${impactColor(diff.impact)}] ${parts.join(', ')}`;
 }
 
 /**
@@ -53,12 +74,12 @@ function formatText(diff: TWorkflowDiff): string {
 
   // Header
   lines.push('═══════════════════════════════════════════════════════════════');
-  lines.push(`  WORKFLOW DIFF - Impact: ${diff.impact}`);
+  lines.push(`  WORKFLOW DIFF - Impact: ${impactColor(diff.impact)}`);
   lines.push('═══════════════════════════════════════════════════════════════');
   lines.push('');
 
   if (diff.identical) {
-    lines.push('  ✓ Workflows are semantically identical');
+    lines.push(pc.green('  ✓ Workflows are semantically identical'));
     lines.push('');
     return lines.join('\n');
   }
@@ -119,22 +140,22 @@ function formatText(diff: TWorkflowDiff): string {
     lines.push('  ───────────────────────────────────────────────────────────');
 
     if (diff.startPorts.added.length > 0) {
-      lines.push(`  + Start ports added: ${diff.startPorts.added.map(p => p.name).join(', ')}`);
+      lines.push('  ' + colorSymbol('+', `Start ports added: ${diff.startPorts.added.map(p => p.name).join(', ')}`));
     }
     if (diff.startPorts.removed.length > 0) {
-      lines.push(`  - Start ports removed: ${diff.startPorts.removed.map(p => p.name).join(', ')}`);
+      lines.push('  ' + colorSymbol('-', `Start ports removed: ${diff.startPorts.removed.map(p => p.name).join(', ')}`));
     }
     if (diff.startPorts.modified.length > 0) {
-      lines.push(`  ~ Start ports modified: ${diff.startPorts.modified.map(p => p.name).join(', ')}`);
+      lines.push('  ' + colorSymbol('~', `Start ports modified: ${diff.startPorts.modified.map(p => p.name).join(', ')}`));
     }
     if (diff.exitPorts.added.length > 0) {
-      lines.push(`  + Exit ports added: ${diff.exitPorts.added.map(p => p.name).join(', ')}`);
+      lines.push('  ' + colorSymbol('+', `Exit ports added: ${diff.exitPorts.added.map(p => p.name).join(', ')}`));
     }
     if (diff.exitPorts.removed.length > 0) {
-      lines.push(`  - Exit ports removed: ${diff.exitPorts.removed.map(p => p.name).join(', ')}`);
+      lines.push('  ' + colorSymbol('-', `Exit ports removed: ${diff.exitPorts.removed.map(p => p.name).join(', ')}`));
     }
     if (diff.exitPorts.modified.length > 0) {
-      lines.push(`  ~ Exit ports modified: ${diff.exitPorts.modified.map(p => p.name).join(', ')}`);
+      lines.push('  ' + colorSymbol('~', `Exit ports modified: ${diff.exitPorts.modified.map(p => p.name).join(', ')}`));
     }
     lines.push('');
   }
@@ -145,7 +166,7 @@ function formatText(diff: TWorkflowDiff): string {
     lines.push('  ───────────────────────────────────────────────────────────');
     for (const scope of diff.scopes) {
       const symbol = scope.changeType === 'ADDED' ? '+' : scope.changeType === 'REMOVED' ? '-' : '~';
-      lines.push(`  ${symbol} ${scope.name}`);
+      lines.push('  ' + colorSymbol(symbol, scope.name));
     }
     lines.push('');
   }
@@ -166,7 +187,7 @@ function formatText(diff: TWorkflowDiff): string {
 
 function formatNodeType(nt: TNodeTypeDiff): string {
   const symbol = nt.changeType === 'ADDED' ? '+' : nt.changeType === 'REMOVED' ? '-' : '~';
-  let line = `  ${symbol} ${nt.name}`;
+  let text = nt.name;
 
   if (nt.changeType === 'MODIFIED') {
     const details: string[] = [];
@@ -190,16 +211,16 @@ function formatNodeType(nt: TNodeTypeDiff): string {
       if (modified.length > 0) details.push(`~outputs: ${modified.join(', ')}`);
     }
     if (details.length > 0) {
-      line += ` (${details.join('; ')})`;
+      text += ` (${details.join('; ')})`;
     }
   }
 
-  return line;
+  return '  ' + colorSymbol(symbol, text);
 }
 
 function formatInstance(inst: TInstanceDiff): string {
   const symbol = inst.changeType === 'ADDED' ? '+' : inst.changeType === 'REMOVED' ? '-' : '~';
-  let line = `  ${symbol} ${inst.id}`;
+  let text = inst.id;
 
   if (inst.changeType === 'MODIFIED') {
     const details: string[] = [];
@@ -218,16 +239,16 @@ function formatInstance(inst: TInstanceDiff): string {
       details.push(`portConfigs changed`);
     }
     if (details.length > 0) {
-      line += ` (${details.join('; ')})`;
+      text += ` (${details.join('; ')})`;
     }
   }
 
-  return line;
+  return '  ' + colorSymbol(symbol, text);
 }
 
 function formatConnection(conn: TConnectionDiff): string {
   const symbol = conn.changeType === 'ADDED' ? '+' : '-';
   const fromScope = conn.from.scope ? `:${conn.from.scope}` : '';
   const toScope = conn.to.scope ? `:${conn.to.scope}` : '';
-  return `  ${symbol} ${conn.from.node}.${conn.from.port}${fromScope} → ${conn.to.node}.${conn.to.port}${toScope}`;
+  return '  ' + colorSymbol(symbol, `${conn.from.node}.${conn.from.port}${fromScope} → ${conn.to.node}.${conn.to.port}${toScope}`);
 }

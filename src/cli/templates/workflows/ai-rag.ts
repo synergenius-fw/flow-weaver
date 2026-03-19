@@ -58,7 +58,7 @@ const documentStore: Document[] = [
  * @input query [order:1] - Search query
  * @input [topK] [order:2] - Number of results (default 3)
  * @input execute [order:0] - Execute
- * @output documents [order:2] - Retrieved documents
+ * @output documents [order:2] [hidden] - Retrieved documents
  * @output context [order:3] - Combined document text
  * @output onSuccess [order:0] - On Success
  * @output onFailure [order:1] - On Failure
