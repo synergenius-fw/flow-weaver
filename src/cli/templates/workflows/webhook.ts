@@ -134,6 +134,7 @@ function formatResponse(
  * @connect Start.body -> validator.body
  * @connect validator.onSuccess -> processor.execute
  * @connect validator.validatedData -> processor.data
+ * @connect validator.onFailure -> responder.execute
  * @connect validator.error -> responder.error
  * @connect processor.onSuccess -> responder.execute
  * @connect processor.result -> responder.result
