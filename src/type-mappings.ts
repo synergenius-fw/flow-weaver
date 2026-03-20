@@ -59,11 +59,17 @@ export function mapToTypeScript(portType: TDataType, tsType?: string): TypeScrip
     return 'unknown';
   }
 
-  // For non-primitive types, use tsType if provided
+  // For non-primitive types, use tsType if provided — BUT strip types
+  // that contain absolute paths (import("/absolute/path").Type) which
+  // break when the file is compiled on a different machine or moved.
   if (
     tsType &&
     (portType === 'OBJECT' || portType === 'ANY' || portType === 'ARRAY' || portType === 'FUNCTION')
   ) {
+    // Strip types with absolute import paths — they break on other machines
+    if (tsType.includes('import(')) {
+      return mapping.typescript;
+    }
     return tsType;
   }
 
