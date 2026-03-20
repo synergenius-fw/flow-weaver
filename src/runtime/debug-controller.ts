@@ -46,6 +46,16 @@ export type DebugResumeAction =
   | { type: 'continueToBreakpoint' }
   | { type: 'abort' };
 
+/**
+ * Minimal interface for the debug controller as referenced by generated code.
+ * The full DebugController class implements this, but generated code only
+ * needs beforeNode/afterNode — so this type is what gets imported.
+ */
+export type TDebugController = {
+  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<boolean> | boolean;
+  afterNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;
+};
+
 export interface DebugControllerConfig {
   /** Enable step-through debugging (pauses before first node) */
   debug?: boolean;
