@@ -245,9 +245,12 @@ function generateRuntimeSection(
     // External runtime: generate import statements instead of inline code
     lines.push(`import { GeneratedExecutionContext, CancellationError } from '${externalRuntimePath}';`);
     if (!production) {
-      lines.push(`import type { TDebugger } from '${externalRuntimePath}';`);
+      lines.push(`import type { TDebugger, TDebugController } from '${externalRuntimePath}';`);
       // Declare __flowWeaverDebugger__ so body code can reference it
       lines.push('declare const __flowWeaverDebugger__: TDebugger | undefined;');
+    } else {
+      // Production mode still needs TDebugController for the __ctrl__ variable
+      lines.push(`import type { TDebugController } from '${externalRuntimePath}';`);
     }
   } else {
     // Inline runtime: embed all types and classes directly
