@@ -1119,7 +1119,9 @@ function generateCancelledEventsForBranch(
     if (!instance) return;
 
     const safeId = toValidIdentifier(instanceId);
-    // Add execution index for this skipped node so the event has a valid reference
+    // Use const (block-scoped) intentionally — the outer `let ${safeId}Idx`
+    // stays undefined, which signals to downstream guards that this node was
+    // CANCELLED and its data ports should not be read.
     lines.push(`${indent}const ${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
     // Set STEP port variables so downstream nodes reading onSuccess/onFailure
     // from this cancelled node don't crash with "Variable not found".
