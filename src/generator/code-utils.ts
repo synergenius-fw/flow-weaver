@@ -234,18 +234,39 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     // Execute was pre-handled (e.g., in scope functions)
     args.push(`${safeId}_execute`);
   } else if (executeConnections.length > 0) {
-    // Execute port has a connection - use it
-    const conn = executeConnections[0];
-    const sourceNode = conn.from.node;
-    const sourcePort = conn.from.port;
+    // Execute port has connections - use them
     const varName = `${safeId}_execute`;
-    // startIdx is const so no ! needed; parent scope node is also const; other node indices are let so need !
-    const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
-    const isConstSource = isStartNode(sourceNode) || sourceNode === instanceParent;
-    const nonNullAssert = isConstSource ? '' : '!';
-    lines.push(
-      `${indent}const ${varName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} }) as boolean;`
-    );
+
+    if (executeConnections.length === 1) {
+      const conn = executeConnections[0];
+      const sourceNode = conn.from.node;
+      const sourcePort = conn.from.port;
+      const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
+      const isConstSource = isStartNode(sourceNode) || sourceNode === instanceParent;
+      if (isConstSource) {
+        lines.push(
+          `${indent}const ${varName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) as boolean;`
+        );
+      } else {
+        // Non-const source may be undefined (CANCELLED branch) — guard with false default
+        lines.push(
+          `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) as boolean : false;`
+        );
+      }
+    } else {
+      // Multiple execute connections — coalesce with ||, each guarded
+      const parts = executeConnections.map((conn) => {
+        const sourceNode = conn.from.node;
+        const sourcePort = conn.from.port;
+        const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
+        const isConstSource = isStartNode(sourceNode) || sourceNode === instanceParent;
+        if (isConstSource) {
+          return `(${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) as boolean)`;
+        }
+        return `(${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) as boolean : false)`;
+      });
+      lines.push(`${indent}const ${varName} = ${parts.join(' || ')};`);
+    }
     // Emit VARIABLE_SET for execute input port
     if (emitInputEvents) {
       lines.push(
