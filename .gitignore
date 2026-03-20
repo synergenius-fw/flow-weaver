@@ -70,3 +70,6 @@ temp/
 .temp/
 .tmp/
 .mcp.json
+
+# Worktrees
+.worktrees/
