@@ -59,21 +59,18 @@ export function mapToTypeScript(portType: TDataType, tsType?: string): TypeScrip
     return 'unknown';
   }
 
-  // For non-primitive types, use tsType if provided — BUT only for safe
-  // built-in types. Custom/imported types cause TS errors in generated code
-  // (bare names aren't in scope, absolute paths break on move).
-  // Use the primitive mapping instead, which is always safe.
+  // For non-primitive types, use tsType if provided — BUT strip types
+  // that contain absolute paths (import("/absolute/path").Type) which
+  // break when the file is compiled on a different machine or moved.
   if (
     tsType &&
     (portType === 'OBJECT' || portType === 'ANY' || portType === 'ARRAY' || portType === 'FUNCTION')
   ) {
-    // Only use tsType for safe built-in types (primitives, arrays of primitives)
-    const safeTypes = ['string', 'number', 'boolean', 'string[]', 'number[]', 'boolean[]', 'unknown', 'any', 'void', 'never', 'null', 'undefined', 'Record<string, unknown>', 'Record<string, any>'];
-    if (safeTypes.includes(tsType)) {
-      return tsType;
+    // Strip types with absolute import paths — they break on other machines
+    if (tsType.includes('import(')) {
+      return mapping.typescript;
     }
-    // Custom types: fall back to the generic mapping (e.g., Record<string, unknown>)
-    return mapping.typescript;
+    return tsType;
   }
 
   return mapping.typescript;
