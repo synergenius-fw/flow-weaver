@@ -36,7 +36,7 @@ export class ClaudeCliProvider implements AgentProvider {
     this.mcpConfigPath = options.mcpConfigPath;
     this.spawnFn = options.spawnFn ?? ((cmd: string, args: string[], opts: { cwd: string; stdio: string[]; env: NodeJS.ProcessEnv }) =>
       nodeSpawn(cmd, args, { ...opts, stdio: opts.stdio as ('pipe' | 'inherit' | 'ignore')[] }) as ChildProcess);
-    this.timeout = options.timeout ?? 120_000;
+    this.timeout = options.timeout ?? 600_000;
   }
 
   async *stream(
@@ -55,13 +55,13 @@ export class ClaudeCliProvider implements AgentProvider {
     let mcpConfigPath = this.mcpConfigPath;
 
     if (tools.length > 0 && !mcpConfigPath) {
-      // Create a temporary bridge — tool execution is handled by the agent loop,
-      // but we still need to advertise tool definitions to the CLI via MCP.
-      // The bridge executor won't be called because the CLI handles its own tool
-      // loop internally when using MCP tools.
+      // Create MCP bridge with real executor so CLI tool calls go through our
+      // safety guards (path traversal, shrink detection, shell blocklist, etc.)
+      const executor = options?.executor ?? (async () => ({ result: 'Tool executor not provided', isError: true }));
       bridge = await createMcpBridge(
         tools,
-        async () => ({ result: 'Not implemented', isError: true }),
+        executor,
+        options?.onToolEvent,
       );
       mcpConfigPath = bridge.configPath;
     }
@@ -105,10 +105,11 @@ export class ClaudeCliProvider implements AgentProvider {
       );
     }
 
-    // Timeout
+    // Timeout — per-request override or provider default
+    const timeout = options?.timeout ?? this.timeout;
     const timer = setTimeout(() => {
       child.kill('SIGTERM');
-    }, this.timeout);
+    }, timeout);
 
     child.stdin!.write(prompt);
     child.stdin!.end();
