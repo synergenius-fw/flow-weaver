@@ -327,7 +327,13 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
         const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
         const isConstSource = isStartNode(sourceNode) || sourceNode === instanceParent;
         const nonNullAssert = isConstSource ? '' : '!';
-        const portType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
+        const rawPortType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
+        // Use Parameters<typeof fn>[N] for non-primitive types to avoid bare
+        // type names from external modules that aren't in scope. The function
+        // IS always imported and in scope, so this is always safe.
+        const isPrimitive = /^(string|number|boolean|void|unknown|any|never|null|undefined)(\[\])?$/.test(rawPortType);
+        const paramIndex = args.length; // Current position in the function's parameter list
+        const portType = isPrimitive ? rawPortType : `Parameters<typeof ${node.functionName}>[${paramIndex}]`;
 
         // For optional ports on non-const sources, guard against undefined execution index.
         // This is critical for DISJUNCTION nodes where the source may not have executed.
@@ -414,7 +420,10 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
           }
         });
         const ternary = attempts.join(' ?? ');
-        const portType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
+        const rawPortType2 = mapToTypeScript(portConfig.dataType, portConfig.tsType);
+        const isPrimitive2 = /^(string|number|boolean|void|unknown|any|never|null|undefined)(\[\])?$/.test(rawPortType2);
+        const paramIndex2 = args.length;
+        const portType = isPrimitive2 ? rawPortType2 : `Parameters<typeof ${node.functionName}>[${paramIndex2}]`;
 
         // For FUNCTION type ports, add resolution step to handle registry IDs
         if (portConfig.dataType === 'FUNCTION') {
@@ -436,7 +445,10 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     } else if (portConfig.expression) {
       const expression = portConfig.expression;
       const isFunction = expression.includes('=>') || expression.trim().startsWith('function');
-      const portType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
+      const rawPortType3 = mapToTypeScript(portConfig.dataType, portConfig.tsType);
+      const isPrimitive3 = /^(string|number|boolean|void|unknown|any|never|null|undefined)(\[\])?$/.test(rawPortType3);
+      const paramIndex3 = args.length;
+      const portType = isPrimitive3 ? rawPortType3 : `Parameters<typeof ${node.functionName}>[${paramIndex3}]`;
       if (isFunction) {
         lines.push(`${indent}const ${varName} = ${isAsync ? 'await ' : ''}(${expression})(ctx) as ${portType};`);
       } else {
@@ -455,7 +467,10 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
       emitSetEvent();
     } else {
       // Required port has no connection, expression, or default - use typed undefined fallback
-      const portType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
+      const rawPortType4 = mapToTypeScript(portConfig.dataType, portConfig.tsType);
+      const isPrimitive4 = /^(string|number|boolean|void|unknown|any|never|null|undefined)(\[\])?$/.test(rawPortType4);
+      const paramIndex4 = args.length;
+      const portType = isPrimitive4 ? rawPortType4 : `Parameters<typeof ${node.functionName}>[${paramIndex4}]`;
       lines.push(
         `${indent}let ${varName}: ${portType} = undefined as unknown as ${portType}; // Required port '${portName}' has no connection`
       );

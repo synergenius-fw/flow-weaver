@@ -157,7 +157,7 @@ export function generateControlFlowWithExecutionContext(
     lines.push(`    typeof globalThis !== 'undefined' && (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__`);
     lines.push(`      ? (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__`);
     lines.push(`      : { beforeNode: () => true, afterNode: () => {} }`);
-    lines.push(`  );`);
+    lines.push(`  )!;`);
     lines.push('');
   }
 
