@@ -1,7 +1,7 @@
 /**
  * TDD tests for compiler type assertion generation.
  *
- * Bug: Types containing absolute import paths like
+ * Bug: Types containing import() paths like
  * `as import("/Users/foo/bar").WeaverEnv` break when compiled on
  * different machines. These should fall back to generic types.
  *
@@ -12,9 +12,43 @@ import * as path from 'path';
 import { describe, it, expect } from 'vitest';
 import { parser } from '../../src/parser';
 import { generateCode } from '../../src/api/generate';
+import { mapToTypeScript } from '../../src/type-mappings';
 import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
 
 const FIXTURE_PATH = path.resolve(__dirname, '../fixtures/compiler-type-assertions.ts');
+
+describe('mapToTypeScript sanitization', () => {
+  it('preserves primitive types', () => {
+    expect(mapToTypeScript('STRING')).toBe('string');
+    expect(mapToTypeScript('NUMBER')).toBe('number');
+    expect(mapToTypeScript('BOOLEAN')).toBe('boolean');
+  });
+
+  it('preserves local custom type names for OBJECT ports', () => {
+    expect(mapToTypeScript('OBJECT', 'MyConfig')).toBe('MyConfig');
+  });
+
+  it('preserves structural types', () => {
+    expect(mapToTypeScript('OBJECT', '{ name: string; value: number }')).toBe('{ name: string; value: number }');
+  });
+
+  it('preserves array types with custom elements', () => {
+    expect(mapToTypeScript('ARRAY', 'SearchResult[]')).toBe('SearchResult[]');
+  });
+
+  it('strips import() path types', () => {
+    const importType = 'import("/Users/foo/bar/types").WeaverEnv';
+    const result = mapToTypeScript('OBJECT', importType);
+    expect(result).not.toContain('import(');
+    expect(result).toBe('Record<string, unknown>');
+  });
+
+  it('strips relative import() path types', () => {
+    const importType = 'import("../bot/types").BotConfig';
+    const result = mapToTypeScript('OBJECT', importType);
+    expect(result).toBe('Record<string, unknown>');
+  });
+});
 
 describe('compiler type assertion generation', () => {
   it('fixture parses without errors', () => {
@@ -23,31 +57,19 @@ describe('compiler type assertion generation', () => {
     expect(parsed.workflows).toHaveLength(1);
   });
 
-  it('preserves local custom type names in generated code', () => {
-    const parsed = parser.parse(FIXTURE_PATH);
-    const workflow = parsed.workflows[0]!;
-    const generated = generateCode(workflow);
-
-    // Local types (defined in the same file like MyConfig) should be preserved
-    expect(generated).toContain('as MyConfig');
-  });
-
   it('preserves safe built-in types in assertions', () => {
     const parsed = parser.parse(FIXTURE_PATH);
     const workflow = parsed.workflows[0]!;
     const generated = generateCode(workflow);
-
     expect(generated).toContain('as string');
     expect(generated).toContain('as boolean');
   });
 
-  it('does not contain absolute file paths in type assertions', () => {
+  it('does not contain import() paths in type assertions', () => {
     const parsed = parser.parse(FIXTURE_PATH);
     const workflow = parsed.workflows[0]!;
     const generated = generateCode(workflow);
-
-    // Should not contain absolute paths like import("/Users/...")
-    expect(generated).not.toMatch(/as import\("\/[^"]+"\)/);
+    expect(generated).not.toMatch(/as import\(/);
   });
 
   it('compiles and runs without errors', async () => {
