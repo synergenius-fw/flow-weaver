@@ -1121,6 +1121,10 @@ function generateCancelledEventsForBranch(
     const safeId = toValidIdentifier(instanceId);
     // Add execution index for this skipped node so the event has a valid reference
     lines.push(`${indent}const ${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
+    // Set STEP port variables so downstream nodes reading onSuccess/onFailure
+    // from this cancelled node don't crash with "Variable not found".
+    lines.push(`${indent}${awaitPrefix}${ctxVar}.setVariable({ id: '${instanceId}', portName: 'onSuccess', executionIndex: ${safeId}Idx, nodeTypeName: '${instance.nodeType}' }, false);`);
+    lines.push(`${indent}${awaitPrefix}${ctxVar}.setVariable({ id: '${instanceId}', portName: 'onFailure', executionIndex: ${safeId}Idx, nodeTypeName: '${instance.nodeType}' }, false);`);
     lines.push(`${indent}${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
     lines.push(`${indent}  nodeTypeName: '${instance.nodeType}',`);
     lines.push(`${indent}  id: '${instanceId}',`);
