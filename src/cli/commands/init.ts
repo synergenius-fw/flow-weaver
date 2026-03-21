@@ -50,6 +50,8 @@ export interface InitOptions {
   useCase?: string;
   mcp?: boolean;
   agent?: boolean;
+  withWeaver?: boolean;
+  weaver?: boolean;
 }
 
 export interface InitConfig {
@@ -257,8 +259,12 @@ export async function resolveInitConfig(
 
   // 3c. Weaver AI assistant opt-in
   let installWeaver: boolean;
-  if (skipPrompts) {
+  if (options.withWeaver) {
+    installWeaver = true;
+  } else if (options.weaver === false) {
     installWeaver = false;
+  } else if (skipPrompts) {
+    installWeaver = true; // Default to yes in non-interactive mode
   } else {
     installWeaver = await confirm({
       message: 'Install Weaver AI assistant? (Recommended)\n  Weaver helps you create, modify, and manage workflows with AI.',
