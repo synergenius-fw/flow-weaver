@@ -2,7 +2,7 @@
  * @synergenius/flow-weaver/agent
  *
  * Provider-agnostic agent loop with MCP bridge for tool execution.
- * Two built-in providers: Anthropic API (raw fetch) and Claude CLI.
+ * Built-in providers: Anthropic API, Claude CLI, OpenAI-compatible (GPT-4o, Groq, Ollama, etc).
  */
 
 // Types
@@ -30,6 +30,8 @@ export { runAgentLoop } from './agent-loop.js';
 export { AnthropicProvider, createAnthropicProvider } from './providers/anthropic.js';
 export type { AnthropicProviderOptions } from './providers/anthropic.js';
 export { ClaudeCliProvider, createClaudeCliProvider } from './providers/claude-cli.js';
+export { OpenAICompatProvider, createOpenAICompatProvider } from './providers/openai-compat.js';
+export type { OpenAICompatProviderOptions } from './providers/openai-compat.js';
 
 // MCP bridge
 export { createMcpBridge } from './mcp-bridge.js';
