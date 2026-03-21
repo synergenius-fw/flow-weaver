@@ -32,6 +32,8 @@ export type { AnthropicProviderOptions } from './providers/anthropic.js';
 export { ClaudeCliProvider, createClaudeCliProvider } from './providers/claude-cli.js';
 export { OpenAICompatProvider, createOpenAICompatProvider } from './providers/openai-compat.js';
 export type { OpenAICompatProviderOptions } from './providers/openai-compat.js';
+export { PlatformProvider, createPlatformProvider } from './providers/platform.js';
+export type { PlatformProviderOptions } from './providers/platform.js';
 
 // MCP bridge
 export { createMcpBridge } from './mcp-bridge.js';

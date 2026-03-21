@@ -727,6 +727,60 @@ if (!process.env['VITEST']) {
     const { registerPackCommands } = await import('./pack-commands.js');
     await registerPackCommands(program);
 
+    // Auth commands (login, logout, status)
+    program
+      .command('login')
+      .description('Log in to Flow Weaver platform')
+      .option('-e, --email <email>', 'Email address')
+      .option('-k, --api-key <key>', 'Use API key instead of email/password')
+      .option('--platform-url <url>', 'Platform URL')
+      .action(async (options) => {
+        const { loginCommand } = await import('./commands/auth.js');
+        await loginCommand(options);
+      });
+
+    program
+      .command('logout')
+      .description('Log out from Flow Weaver platform')
+      .action(async () => {
+        const { logoutCommand } = await import('./commands/auth.js');
+        await logoutCommand();
+      });
+
+    program
+      .command('auth')
+      .description('Show authentication status')
+      .action(async () => {
+        const { authStatusCommand } = await import('./commands/auth.js');
+        await authStatusCommand();
+      });
+
+    // Deploy commands (push + deploy to cloud)
+    program
+      .command('deploy <file>')
+      .description('Deploy a workflow to the platform')
+      .option('-n, --name <name>', 'Workflow name (defaults to filename)')
+      .action(async (file: string, options: { name?: string }) => {
+        const { deployCommand } = await import('./commands/deploy.js');
+        await deployCommand(file, options);
+      });
+
+    program
+      .command('undeploy <slug>')
+      .description('Remove a deployed workflow')
+      .action(async (slug: string) => {
+        const { undeployCommand } = await import('./commands/deploy.js');
+        await undeployCommand(slug);
+      });
+
+    program
+      .command('cloud-status')
+      .description('Show cloud deployments and usage')
+      .action(async () => {
+        const { cloudStatusCommand } = await import('./commands/deploy.js');
+        await cloudStatusCommand();
+      });
+
     // Fallback weaver shim if pack not installed
     if (!program.commands.some(c => c.name() === 'weaver')) {
       program
