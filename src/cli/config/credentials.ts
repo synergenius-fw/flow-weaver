@@ -39,7 +39,7 @@ export function isTokenExpired(creds: StoredCredentials): boolean {
 
 export function getPlatformUrl(): string {
   const creds = loadCredentials();
-  return creds?.platformUrl ?? process.env.FW_PLATFORM_URL ?? 'https://app.synergenius.pt';
+  return creds?.platformUrl ?? process.env.FW_PLATFORM_URL ?? 'https://flowweaver.ai';
 }
 
 export function isLoggedIn(): boolean {
