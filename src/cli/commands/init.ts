@@ -793,6 +793,10 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
       logger.log('    flow-weaver weaver bot "..."      # create workflows with AI');
       logger.log('    flow-weaver weaver examples       # see what\'s possible');
       logger.newline();
+      logger.log('  VS Code extension:');
+      logger.log('    Search "Flow Weaver" in Extensions (Ctrl+Shift+X)');
+      logger.log('    IntelliSense + diagrams + Weaver commands in your editor');
+      logger.newline();
     }
 
     // Read the workflow code for preview
@@ -906,6 +910,16 @@ The AI writes the annotations for you. You focus on what you want, not how to wr
     npx fw login                         # connect to Flow Weaver platform
     npx fw deploy src/${workflowFile}    # deploy workflow
     npx fw cloud-status                  # see deployments + usage
+
+## VS Code Extension
+
+Install the Flow Weaver extension for the best editing experience:
+- IntelliSense for annotations (completions, hover, go-to-definition)
+- Real-time validation (errors show as you type)
+- Interactive diagram panel
+- Weaver commands in the command palette (Ctrl+Shift+P → "Flow Weaver")
+
+Search "Flow Weaver" in the VS Code extensions marketplace.
 
 ## Learn More
 
