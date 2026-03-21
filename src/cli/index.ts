@@ -726,6 +726,26 @@ if (!process.env['VITEST']) {
   (async () => {
     const { registerPackCommands } = await import('./pack-commands.js');
     await registerPackCommands(program);
+
+    // Fallback weaver shim if pack not installed
+    if (!program.commands.some(c => c.name() === 'weaver')) {
+      program
+        .command('weaver')
+        .description('AI assistant for Flow Weaver workflows')
+        .allowUnknownOption(true)
+        .action(async () => {
+          console.log('');
+          console.log('  Weaver is not installed.');
+          console.log('');
+          console.log('  Install it:');
+          console.log('    npm install @synergenius/flow-weaver-pack-weaver');
+          console.log('');
+          console.log('  Or during project init:');
+          console.log('    flow-weaver init    (select "Yes" when asked about Weaver)');
+          console.log('');
+        });
+    }
+
     program.parse(process.argv);
   })();
 }

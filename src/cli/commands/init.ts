@@ -65,6 +65,7 @@ export interface InitConfig {
   /** Free-text description when user picked "Something else" */
   useCaseDescription?: string;
   mcp: boolean;
+  installWeaver: boolean;
 }
 
 export interface InitReport {
@@ -254,6 +255,17 @@ export async function resolveInitConfig(
     if (!useCaseDescription) useCaseDescription = undefined;
   }
 
+  // 3c. Weaver AI assistant opt-in
+  let installWeaver: boolean;
+  if (skipPrompts) {
+    installWeaver = false;
+  } else {
+    installWeaver = await confirm({
+      message: 'Install Weaver AI assistant? (Recommended)\n  Weaver helps you create, modify, and manage workflows with AI.',
+      default: true,
+    });
+  }
+
   // 4. MCP setup (nocode, vibecoder, lowcode: prompt; expert: skip unless --mcp)
   let mcp: boolean;
   if (options.mcp !== undefined) {
@@ -321,6 +333,7 @@ export async function resolveInitConfig(
     useCase,
     useCaseDescription,
     mcp,
+    installWeaver,
   };
 }
 
@@ -330,7 +343,8 @@ export function generateProjectFiles(
   projectName: string,
   template: string,
   format: TModuleFormat = 'esm',
-  persona: PersonaId = 'expert'
+  persona: PersonaId = 'expert',
+  installWeaver: boolean = false
 ): Record<string, string> {
   const workflowName = toWorkflowName(projectName);
   const workflowFile = `${projectName}-workflow.ts`;
@@ -362,6 +376,7 @@ export function generateProjectFiles(
     scripts,
     dependencies: {
       '@synergenius/flow-weaver': 'latest',
+      ...(installWeaver ? { '@synergenius/flow-weaver-pack-weaver': 'latest' } : {}),
     },
     devDependencies: {
       typescript: '^5.3.0',
@@ -467,6 +482,11 @@ export function generateProjectFiles(
   // Add example workflow for lowcode persona
   if (persona === 'lowcode') {
     files['examples/example-workflow.ts'] = generateExampleWorkflow(projectName);
+  }
+
+  // Add Weaver config if opted in
+  if (installWeaver) {
+    files['.weaver.json'] = JSON.stringify({ provider: 'auto', approval: 'auto' }, null, 2) + '\n';
   }
 
   return files;
@@ -633,7 +653,7 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
     }
 
     // Generate and scaffold
-    const files = generateProjectFiles(config.projectName, config.template, config.format, config.persona);
+    const files = generateProjectFiles(config.projectName, config.template, config.format, config.persona, config.installWeaver);
     const { filesCreated, filesSkipped } = scaffoldProject(config.targetDir, files, {
       force: config.force,
     });
@@ -757,6 +777,16 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
       } else {
         logger.warn(`Compile failed: ${compileResult.error}`);
       }
+    }
+
+    if (config.installWeaver) {
+      logger.success('Weaver AI assistant installed');
+      logger.newline();
+      logger.log('  Weaver installed. Try:');
+      logger.log('    flow-weaver weaver assistant      # AI assistant');
+      logger.log('    flow-weaver weaver bot "..."      # create workflows with AI');
+      logger.log('    flow-weaver weaver examples       # see what\'s possible');
+      logger.newline();
     }
 
     // Read the workflow code for preview

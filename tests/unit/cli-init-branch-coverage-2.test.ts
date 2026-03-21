@@ -422,7 +422,9 @@ describe('initCommand agent handoff error handling', () => {
 
     (process.stdin as any).isTTY = true;
     mockDetectCliTools.mockResolvedValue(['claude']);
-    // Make confirm throw a regular error (not ExitPromptError)
+    // Weaver opt-in confirm (during resolveInitConfig)
+    mockConfirm.mockResolvedValueOnce(false);
+    // Make confirm throw a regular error (not ExitPromptError) for agent handoff
     mockConfirm.mockRejectedValue(new Error('unexpected agent error'));
 
     await initCommand(targetDir, {
