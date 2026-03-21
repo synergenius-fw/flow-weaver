@@ -75,6 +75,29 @@ export async function registerPackCommands(program: Command): Promise<void> {
       .command(namespace)
       .description(`Commands from ${pkg.name}`);
 
+    // Override Commander's auto-generated help with the pack's grouped help.
+    // Intercept both bare `weaver` (action) and `weaver --help` (helpCommand).
+    const showPackHelp = async () => {
+      try {
+        const bridge = await import(pathToFileURL(entrypointPath).href);
+        if (typeof bridge.printHelp === 'function') {
+          bridge.printHelp();
+          return;
+        }
+      } catch { /* fall through */ }
+      group.outputHelp();
+    };
+    group.action(showPackHelp);
+    group.command('help').description('Show help').action(showPackHelp);
+    group.helpOption(false); // disable --help so it doesn't trigger Commander's default
+    group.option('-h, --help', 'Show help');
+    group.hook('preAction', async (thisCmd) => {
+      if (thisCmd.opts().help) {
+        await showPackHelp();
+        process.exit(0);
+      }
+    });
+
     for (const cmd of manifest.cliCommands) {
       const sub = group
         .command(cmd.name)

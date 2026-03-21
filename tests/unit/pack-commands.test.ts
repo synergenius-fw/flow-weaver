@@ -69,9 +69,11 @@ describe('registerPackCommands', () => {
     // Should have a "weaver" subcommand group
     const weaverCmd = program.commands.find(c => c.name() === 'weaver');
     expect(weaverCmd).toBeDefined();
-    expect(weaverCmd!.commands).toHaveLength(2);
-    expect(weaverCmd!.commands[0]!.name()).toBe('run');
-    expect(weaverCmd!.commands[1]!.name()).toBe('history');
+    // +1 for the auto-registered 'help' subcommand
+    const packCmds = weaverCmd!.commands.filter(c => c.name() !== 'help');
+    expect(packCmds).toHaveLength(2);
+    expect(packCmds[0]!.name()).toBe('run');
+    expect(packCmds[1]!.name()).toBe('history');
   });
 
   it('derives namespace correctly from scoped package', async () => {
@@ -155,8 +157,8 @@ describe('registerPackCommands', () => {
 
     const group = program.commands.find(c => c.name() === 'test');
     expect(group).toBeDefined();
-    const runCmd = group!.commands[0]!;
-    expect(runCmd.name()).toBe('run');
+    const runCmd = group!.commands.find(c => c.name() === 'run')!;
+    expect(runCmd).toBeDefined();
     expect(runCmd.options).toHaveLength(2);
   });
 });
