@@ -63,6 +63,12 @@ export interface StreamOptions {
   model?: string;
   maxTokens?: number;
   signal?: AbortSignal;
+  /** Tool executor for providers that handle tool loops internally (e.g. CLI via MCP). */
+  executor?: ToolExecutor;
+  /** Event callback for tool events from internal tool loops. */
+  onToolEvent?: (event: ToolEvent) => void;
+  /** Per-request timeout in milliseconds (overrides provider default). */
+  timeout?: number;
 }
 
 export interface AgentProvider {
