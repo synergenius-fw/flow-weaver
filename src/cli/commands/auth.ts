@@ -106,8 +106,6 @@ async function loginWithBrowser(platformUrl: string): Promise<void> {
         });
 
         console.log(`  Logged in as \x1b[1m${data.user.email}\x1b[0m (${data.user.plan} plan)`);
-        const credits = { free: '$0.50', pro: '$3.00', business: '$10.00' }[data.user.plan] ?? '$0';
-        console.log(`  AI credits: ${credits}/month included`);
         console.log('');
         console.log('  Try: \x1b[36mweaver assistant\x1b[0m');
         console.log('');
@@ -174,8 +172,6 @@ async function loginWithApiKey(apiKey: string, platformUrl: string): Promise<voi
   saveCredentials({ token: apiKey, email, plan: plan as 'free' | 'pro' | 'business', platformUrl, expiresAt, userId });
 
   console.log(`  \x1b[32m✓\x1b[0m Logged in as \x1b[1m${email}\x1b[0m (${plan} plan)`);
-  const credits = { free: '$0.50', pro: '$3.00', business: '$10.00' }[plan] ?? '$0';
-  console.log(`  AI credits: ${credits}/month included`);
   console.log('');
 }
 
@@ -210,8 +206,6 @@ async function loginWithEmail(email: string, platformUrl: string): Promise<void>
 
     console.log('');
     console.log(`  \x1b[32m✓\x1b[0m Logged in as \x1b[1m${data.user.email}\x1b[0m (${data.user.plan} plan)`);
-    const credits = { free: '$0.50', pro: '$3.00', business: '$10.00' }[data.user.plan] ?? '$0';
-    console.log(`  AI credits: ${credits}/month included`);
     console.log('');
   } catch (err) {
     console.error(`\n  \x1b[31m✗\x1b[0m ${err instanceof Error ? err.message : 'Login failed'}`);
@@ -235,12 +229,10 @@ export async function authStatusCommand(): Promise<void> {
   }
 
   const expiresIn = Math.floor((creds.expiresAt - Date.now()) / 1000 / 60 / 60);
-  const credits = { free: '$0.50', pro: '$3.00', business: '$10.00' }[creds.plan] ?? '$0';
 
   console.log('');
   console.log(`  \x1b[32m✓\x1b[0m Logged in as \x1b[1m${creds.email}\x1b[0m`);
   console.log(`  Plan: ${creds.plan}`);
-  console.log(`  AI credits: ${credits}/month included`);
   console.log(`  Platform: ${creds.platformUrl}`);
   console.log(`  Token expires in: ${expiresIn}h`);
   console.log('');
