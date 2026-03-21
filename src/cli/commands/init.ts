@@ -354,7 +354,12 @@ export function generateProjectFiles(
     throw new Error(`Unknown template "${template}"`);
   }
 
-  const workflowCode = tmpl.generate({ workflowName });
+  let workflowCode = tmpl.generate({ workflowName });
+
+  // Add onboarding comment when weaver is installed
+  if (installWeaver) {
+    workflowCode = `// This is a Flow Weaver workflow. The JSDoc annotations define the DAG.\n// Don't worry about the syntax — use 'weaver assistant' to modify it.\n// Run: npx flow-weaver weaver assistant\n\n${workflowCode}`;
+  }
 
   // Package.json
   const scripts: Record<string, string> = {
@@ -484,9 +489,10 @@ export function generateProjectFiles(
     files['examples/example-workflow.ts'] = generateExampleWorkflow(projectName);
   }
 
-  // Add Weaver config if opted in
+  // Add Weaver config + getting started guide if opted in
   if (installWeaver) {
     files['.weaver.json'] = JSON.stringify({ provider: 'auto', approval: 'auto' }, null, 2) + '\n';
+    files['GETTING_STARTED.md'] = generateGettingStarted(projectName, workflowFile);
   }
 
   return files;
@@ -855,4 +861,56 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
     }
     throw err;
   }
+}
+
+// ── Getting Started guide (generated when Weaver is installed) ───────────────
+
+function generateGettingStarted(projectName: string, workflowFile: string): string {
+  return `# Getting Started with ${projectName}
+
+Your project has Flow Weaver + Weaver AI assistant installed.
+
+## Quick Start
+
+    npx flow-weaver weaver assistant     # Ask the AI anything about your project
+    npx flow-weaver weaver examples      # See what you can do
+    npx flow-weaver weaver doctor        # Check your setup
+
+## Your First Workflow
+
+Open \`src/${workflowFile}\` — that's your workflow file.
+
+Don't worry about the annotations. Ask the assistant:
+
+    npx flow-weaver weaver assistant
+    > explain my workflow
+    > add error handling to it
+    > show me a diagram
+
+The AI writes the annotations for you. You focus on what you want, not how to write it.
+
+## Useful Commands
+
+    npx flow-weaver validate src/        # check for errors
+    npx flow-weaver compile src/         # compile to standalone
+    npx flow-weaver diagram src/         # visual diagram
+    npx fw deploy src/${workflowFile}    # deploy to cloud (requires fw login)
+
+## Autonomous Mode
+
+    npx flow-weaver weaver session --continuous    # process task queue
+    npx flow-weaver weaver queue add "Fix all validation errors"
+
+## Cloud Features
+
+    npx fw login                         # connect to Flow Weaver platform
+    npx fw deploy src/${workflowFile}    # deploy workflow
+    npx fw cloud-status                  # see deployments + usage
+
+## Learn More
+
+    npx flow-weaver weaver examples      # concrete task examples
+    npx flow-weaver docs concepts        # core concepts
+    npx flow-weaver docs jsdoc-grammar   # annotation reference
+`;
 }
