@@ -107,8 +107,9 @@ describe('pack-commands: pathToFileURL usage', () => {
 
     const weaverCmd = program.commands.find(c => c.name() === 'weaver');
     expect(weaverCmd).toBeDefined();
-    expect(weaverCmd!.commands).toHaveLength(1);
-    expect(weaverCmd!.commands[0]!.name()).toBe('run');
+    const packCmds = weaverCmd!.commands.filter(c => c.name() !== 'help');
+    expect(packCmds).toHaveLength(1);
+    expect(packCmds[0]!.name()).toBe('run');
   });
 
   it('handles pack paths with spaces', () => {
