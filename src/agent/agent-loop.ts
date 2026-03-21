@@ -52,6 +52,8 @@ export async function runAgentLoop(
       model: options?.model,
       maxTokens: options?.maxTokens,
       signal,
+      executor,
+      onToolEvent,
     });
 
     for await (const event of stream) {
@@ -77,6 +79,11 @@ export async function runAgentLoop(
             arguments: event.arguments,
           });
           activeToolNames.delete(event.id);
+          break;
+
+        case 'tool_result':
+          // CLI handled tool internally via MCP — count it
+          toolCallCount++;
           break;
 
         case 'usage':
