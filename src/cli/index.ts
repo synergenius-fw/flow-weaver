@@ -205,6 +205,8 @@ program
   .option('--no-install', 'Skip npm install')
   .option('--git', 'Initialize a git repository')
   .option('--no-git', 'Skip git init')
+  .option('--with-weaver', 'Install Weaver AI assistant')
+  .option('--no-weaver', 'Skip Weaver installation')
   .option('--force', 'Overwrite existing files', false)
   .option('--json', 'Output results as JSON', false)
   .action(wrapAction(async (directory: string | undefined, options) => {
