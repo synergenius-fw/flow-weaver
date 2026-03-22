@@ -9,6 +9,8 @@
 // Must be imported first: sets up env vars before picocolors reads them
 import './env-setup.js';
 
+import * as path from 'node:path';
+
 // Load built-in extensions (CI/CD, etc.) before any commands run
 import '../extensions/index.js';
 
@@ -781,6 +783,15 @@ if (!process.env['VITEST']) {
       .action(async () => {
         const { cloudStatusCommand } = await import('./commands/deploy.js');
         await cloudStatusCommand();
+      });
+
+    // Connect command — connect this device to the platform
+    program
+      .command('connect [dir]')
+      .description('Connect this device to the Flow Weaver platform')
+      .action(async (dir?: string) => {
+        const { handleConnect } = await import('./commands/connect.js');
+        await handleConnect(path.resolve(dir ?? '.'));
       });
 
     // Fallback weaver shim if pack not installed
