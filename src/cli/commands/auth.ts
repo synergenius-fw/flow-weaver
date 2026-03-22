@@ -9,8 +9,9 @@ export async function loginCommand(options: {
 }): Promise<void> {
   const platformUrl = options.platformUrl ?? getPlatformUrl();
 
+  const displayUrl = platformUrl.replace(/^https?:\/\//, '');
   console.log('');
-  console.log('  \x1b[1mFlow Weaver Cloud\x1b[0m \x1b[2m(flowweaver.ai)\x1b[0m');
+  console.log(`  \x1b[1mFlow Weaver\x1b[0m \x1b[2m(${displayUrl})\x1b[0m`);
   console.log('');
 
   // API key mode (for CI/headless)
@@ -52,8 +53,8 @@ async function loginWithBrowser(platformUrl: string): Promise<void> {
     verificationUrl = data.verificationUrl;
     interval = data.interval ?? 5;
   } catch {
-    console.error('  \x1b[31m✗\x1b[0m Cannot connect to flowweaver.ai');
-    console.error('    Check your internet connection or set FW_PLATFORM_URL');
+    console.error(`  \x1b[31m✗\x1b[0m Cannot connect to ${platformUrl}`);
+    console.error('    Check the URL or set FW_PLATFORM_URL');
     process.exit(1);
     return;
   }
@@ -77,24 +78,30 @@ async function loginWithBrowser(platformUrl: string): Promise<void> {
   console.log('');
 
   // Step 3: Poll for completion
-  process.stdout.write('  Waiting for authentication...');
+  process.stderr.write('  Waiting for approval');
 
   let cancelled = false;
   const sigHandler = () => { cancelled = true; };
   process.on('SIGINT', sigHandler);
 
   const maxAttempts = 120; // 10 minutes at 5s intervals
+  let networkErrors = 0;
   for (let i = 0; i < maxAttempts && !cancelled; i++) {
     await new Promise(r => setTimeout(r, interval * 1000));
 
     try {
       const resp = await fetch(`${platformUrl}/auth/device/poll?deviceCode=${deviceCode}`);
-      if (!resp.ok) continue;
+      networkErrors = 0; // reset on successful connection
+
+      if (!resp.ok) {
+        process.stderr.write('.');
+        continue;
+      }
 
       const data = await resp.json() as { status: string; token?: string; user?: { id: string; email: string; name: string; plan: string } };
 
       if (data.status === 'approved' && data.token && data.user) {
-        process.stdout.write(' \x1b[32m✓\x1b[0m\n\n');
+        process.stderr.write(' \x1b[32m✓\x1b[0m\n\n');
 
         saveCredentials({
           token: data.token,
@@ -115,7 +122,7 @@ async function loginWithBrowser(platformUrl: string): Promise<void> {
       }
 
       if (data.status === 'expired') {
-        process.stdout.write(' \x1b[31mtimed out\x1b[0m\n\n');
+        process.stderr.write(' \x1b[31mtimed out\x1b[0m\n\n');
         console.log('  Code expired. Run \x1b[36mfw login\x1b[0m again.');
         console.log('');
         process.removeListener('SIGINT', sigHandler);
@@ -124,7 +131,7 @@ async function loginWithBrowser(platformUrl: string): Promise<void> {
       }
 
       if (data.status === 'denied') {
-        process.stdout.write(' \x1b[31mdenied\x1b[0m\n\n');
+        process.stderr.write(' \x1b[31mdenied\x1b[0m\n\n');
         console.log('  Access denied.');
         console.log('');
         process.removeListener('SIGINT', sigHandler);
@@ -132,20 +139,24 @@ async function loginWithBrowser(platformUrl: string): Promise<void> {
         return;
       }
 
-      // Still pending — show a dot for progress
-      if (i % 4 === 3) process.stdout.write('.');
+      // Still pending — show a dot every poll
+      process.stderr.write('.');
 
     } catch {
-      // Network error — keep trying
+      networkErrors++;
+      if (networkErrors >= 3) {
+        process.stderr.write(' \x1b[33m!\x1b[0m');
+        networkErrors = 0;
+      }
     }
   }
 
   process.removeListener('SIGINT', sigHandler);
 
   if (cancelled) {
-    process.stdout.write(' \x1b[33mcancelled\x1b[0m\n\n');
+    process.stderr.write(' \x1b[33mcancelled\x1b[0m\n\n');
   } else {
-    process.stdout.write(' \x1b[31mtimed out\x1b[0m\n\n');
+    process.stderr.write(' \x1b[31mtimed out\x1b[0m\n\n');
     console.log('  Authentication timed out. Run \x1b[36mfw login\x1b[0m again.');
     console.log('');
   }
@@ -244,22 +255,23 @@ export async function authStatusCommand(): Promise<void> {
 }
 
 function prompt(message: string, hidden = false): Promise<string> {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
-    if (hidden && process.stdin.isTTY) {
-      // Hide password input
+  if (hidden && process.stdin.isTTY) {
+    // Raw-mode password input — no readline (it competes for stdin)
+    return new Promise((resolve) => {
       process.stderr.write(message);
       process.stdin.setRawMode(true);
+      process.stdin.resume();
       let input = '';
       const handler = (key: Buffer) => {
         const ch = key.toString();
         if (ch === '\r' || ch === '\n') {
           process.stdin.setRawMode(false);
+          process.stdin.pause();
           process.stdin.removeListener('data', handler);
           process.stderr.write('\n');
-          rl.close();
           resolve(input);
         } else if (ch === '\x03') { // Ctrl+C
+          process.stdin.setRawMode(false);
           process.exit(1);
         } else if (ch === '\x7f') { // Backspace
           input = input.slice(0, -1);
@@ -268,8 +280,11 @@ function prompt(message: string, hidden = false): Promise<string> {
         }
       };
       process.stdin.on('data', handler);
-    } else {
-      rl.question(message, (answer) => { rl.close(); resolve(answer); });
-    }
+    });
+  }
+
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+    rl.question(message, (answer) => { rl.close(); resolve(answer); });
   });
 }

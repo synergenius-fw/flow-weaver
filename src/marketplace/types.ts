@@ -48,6 +48,8 @@ export type TMarketplaceManifest = {
   mcpEntrypoint?: string;
   /** MCP tools contributed by this pack */
   mcpTools?: TManifestMcpTool[];
+  /** Entry point for device connection handler registration */
+  deviceHandlers?: string;
   /** External dependency information */
   dependencies?: {
     /** Flow Weaver peer dependency constraints */
