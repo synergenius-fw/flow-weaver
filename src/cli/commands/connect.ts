@@ -1,13 +1,26 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import * as readline from 'node:readline';
 import { DeviceConnection } from '../../agent/device-connection.js';
 import { discoverDeviceHandlers } from '../../marketplace/registry.js';
+
+function promptYesNo(message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+    rl.question(message, (answer) => {
+      rl.close();
+      const normalized = answer.trim().toLowerCase();
+      resolve(normalized === '' || normalized === 'y' || normalized === 'yes');
+    });
+  });
+}
 
 export async function loadPackDeviceHandlers(
   conn: DeviceConnection,
   projectDir: string,
-): Promise<void> {
+): Promise<string[]> {
+  const loadedPacks: string[] = [];
   try {
     const handlers = await discoverDeviceHandlers(projectDir);
     for (const handler of handlers) {
@@ -15,6 +28,7 @@ export async function loadPackDeviceHandlers(
         const mod = await import(handler.entrypoint);
         if (typeof mod.register === 'function') {
           await mod.register(conn, { projectDir });
+          loadedPacks.push(handler.packageName);
           process.stderr.write(`  \x1b[2m+ ${handler.packageName} handlers\x1b[0m\n`);
         }
       } catch (err) {
@@ -24,6 +38,7 @@ export async function loadPackDeviceHandlers(
   } catch {
     // Discovery failed — non-fatal
   }
+  return loadedPacks;
 }
 
 export async function handleConnect(projectDir: string): Promise<void> {
@@ -72,13 +87,69 @@ export async function handleConnect(projectDir: string): Promise<void> {
   });
 
   // Load pack device handlers (if any installed packs provide them)
-  await loadPackDeviceHandlers(conn, projectDir);
+  const loadedPacks = await loadPackDeviceHandlers(conn, projectDir);
+
+  // Tell the platform which packs contributed handlers (for auto-install)
+  if (loadedPacks.length > 0) {
+    conn.setPacks(loadedPacks);
+  }
 
   console.log('');
   console.log('  \x1b[1mflow-weaver connect\x1b[0m');
   console.log(`  \x1b[2mProject: ${path.basename(projectDir)}\x1b[0m`);
   console.log(`  \x1b[2mPlatform: ${creds.platformUrl}\x1b[0m`);
   console.log('');
+
+  // Check if packs need to be installed in the Studio workspace
+  if (loadedPacks.length > 0) {
+    try {
+      const checkRes = await fetch(`${creds.platformUrl}/devices/check-packs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${creds.token}` },
+        body: JSON.stringify({ packs: loadedPacks }),
+      });
+      if (checkRes.ok) {
+        const { missing } = await checkRes.json() as { missing: string[] };
+        if (missing.length > 0) {
+          console.log('  The following packs need to be installed in Studio:');
+          for (const p of missing) {
+            console.log(`    \x1b[36m${p}\x1b[0m`);
+          }
+          console.log('');
+
+          const answer = await promptYesNo('  Install now? (Y/n) ');
+
+          if (answer) {
+            process.stderr.write('  Installing...');
+            const installRes = await fetch(`${creds.platformUrl}/devices/install-packs`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${creds.token}` },
+              body: JSON.stringify({ packs: missing }),
+            });
+            if (installRes.ok) {
+              const { results } = await installRes.json() as { results: Array<{ pack: string; ok: boolean; error?: string }> };
+              const allOk = results.every(r => r.ok);
+              if (allOk) {
+                process.stderr.write(' \x1b[32m✓\x1b[0m\n\n');
+              } else {
+                process.stderr.write(' \x1b[33mpartial\x1b[0m\n');
+                for (const r of results) {
+                  if (!r.ok) console.log(`    \x1b[31m✗\x1b[0m ${r.pack}: ${r.error}`);
+                }
+                console.log('');
+              }
+            } else {
+              process.stderr.write(' \x1b[31mfailed\x1b[0m\n\n');
+            }
+          } else {
+            console.log('  \x1b[2mSkipped. Install manually via Studio marketplace.\x1b[0m\n');
+          }
+        }
+      }
+    } catch {
+      // Check failed — non-fatal, continue connecting
+    }
+  }
 
   try {
     await conn.connect();
