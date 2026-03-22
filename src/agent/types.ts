@@ -140,6 +140,8 @@ export interface ClaudeCliProviderOptions {
   spawnFn?: SpawnFn;
   /** CLI timeout in milliseconds. Defaults to 120000. */
   timeout?: number;
+  /** Disable specific built-in tools (e.g. ['Read', 'Edit', 'Write', 'Bash'] to force MCP tools). */
+  disallowedTools?: string[];
 }
 
 // ---------------------------------------------------------------------------
