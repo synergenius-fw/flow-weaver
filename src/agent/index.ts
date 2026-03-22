@@ -51,3 +51,7 @@ export { buildSafeEnv, buildSafeSpawnOpts, MINIMAL_PATH, ENV_ALLOWLIST } from '.
 
 // Stream parser (for custom providers)
 export { StreamJsonParser } from './streaming.js';
+
+// Device connection (mount local machine into platform Studio)
+export { DeviceConnection } from './device-connection.js';
+export type { DeviceConnectionOptions, DeviceInfo, DeviceEvent } from './device-connection.js';
