@@ -2,6 +2,29 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { DeviceConnection } from '../../agent/device-connection.js';
+import { discoverDeviceHandlers } from '../../marketplace/registry.js';
+
+export async function loadPackDeviceHandlers(
+  conn: DeviceConnection,
+  projectDir: string,
+): Promise<void> {
+  try {
+    const handlers = await discoverDeviceHandlers(projectDir);
+    for (const handler of handlers) {
+      try {
+        const mod = await import(handler.entrypoint);
+        if (typeof mod.register === 'function') {
+          await mod.register(conn, { projectDir });
+          process.stderr.write(`  \x1b[2m+ ${handler.packageName} handlers\x1b[0m\n`);
+        }
+      } catch (err) {
+        process.stderr.write(`  \x1b[33m⚠\x1b[0m Failed to load handlers from ${handler.packageName}: ${err instanceof Error ? err.message : err}\n`);
+      }
+    }
+  } catch {
+    // Discovery failed — non-fatal
+  }
+}
 
 export async function handleConnect(projectDir: string): Promise<void> {
   // Load credentials
@@ -45,8 +68,11 @@ export async function handleConnect(projectDir: string): Promise<void> {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
     return entries
       .filter(e => !e.name.startsWith('.') && e.name !== 'node_modules' && e.name !== 'dist')
-      .map(e => ({ name: e.name, type: e.isDirectory() ? 'directory' : 'file', path: path.relative(projectDir, path.join(dirPath, e.name)) }));
+      .map(e => ({ name: e.name, type: e.isDirectory() ? 'directory' : 'file', path: path.relative(projectDir, path.join(dirPath, e.name)), hasUnfetchedChildren: e.isDirectory() }));
   });
+
+  // Load pack device handlers (if any installed packs provide them)
+  await loadPackDeviceHandlers(conn, projectDir);
 
   console.log('');
   console.log('  \x1b[1mflow-weaver connect\x1b[0m');
