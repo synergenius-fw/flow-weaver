@@ -184,6 +184,16 @@ export type TDiscoveredInitContribution = TManifestInitContribution & {
   packageName: string;
 };
 
+/** A device handler entry point discovered from an installed pack manifest. */
+export type TDiscoveredDeviceHandler = {
+  /** npm package name */
+  packageName: string;
+  /** Absolute path to the installed package */
+  packagePath: string;
+  /** Absolute path to the device handler entrypoint module */
+  entrypoint: string;
+};
+
 /**
  * Discover all tag handlers from installed pack manifests.
  */
@@ -279,4 +289,30 @@ export async function discoverInitContributions(
   }
 
   return contributions;
+}
+
+/**
+ * Discover all device handler entry points from installed pack manifests.
+ *
+ * Returns packs that declare a `deviceHandlers` field in their manifest,
+ * resolved to an absolute entrypoint path.
+ */
+export async function discoverDeviceHandlers(
+  projectDir: string,
+): Promise<TDiscoveredDeviceHandler[]> {
+  const packages = await listInstalledPackages(projectDir);
+  const handlers: TDiscoveredDeviceHandler[] = [];
+
+  for (const pkg of packages) {
+    const manifest = pkg.manifest;
+    if (!manifest.deviceHandlers) continue;
+
+    handlers.push({
+      packageName: pkg.name,
+      packagePath: pkg.path,
+      entrypoint: path.join(pkg.path, manifest.deviceHandlers),
+    });
+  }
+
+  return handlers;
 }

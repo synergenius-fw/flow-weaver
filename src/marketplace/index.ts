@@ -44,9 +44,11 @@ export {
   discoverValidationRuleSets,
   discoverDocTopics,
   discoverInitContributions,
+  discoverDeviceHandlers,
   type SearchOptions,
   type TDiscoveredTagHandler,
   type TDiscoveredValidationRuleSet,
   type TDiscoveredDocTopic,
   type TDiscoveredInitContribution,
+  type TDiscoveredDeviceHandler,
 } from './registry.js';

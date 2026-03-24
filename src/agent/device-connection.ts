@@ -15,6 +15,8 @@ export interface DeviceInfo {
   projectDir: string;
   platform: string;
   capabilities: string[];
+  /** Pack names that contributed device handlers (for auto-install on platform) */
+  packs?: string[];
 }
 
 export interface DeviceConnectionOptions {
@@ -67,6 +69,14 @@ export class DeviceConnection {
     if (!this.deviceInfo.capabilities.includes(capability)) {
       this.deviceInfo.capabilities.push(capability);
     }
+  }
+
+  /**
+   * Set the list of packs that contributed device handlers.
+   * The platform uses this to auto-install packs in the user's workspace.
+   */
+  setPacks(packs: string[]): void {
+    this.deviceInfo.packs = packs;
   }
 
   /**
