@@ -151,7 +151,7 @@ function copyExtensionAssets(): void {
   let copied = 0;
   for (const asset of assets) {
     // Skip test fixtures
-    if (asset.includes('/tests/')) continue;
+    if (asset.split(path.sep).includes('tests')) continue;
 
     const relative = path.relative(srcExtensions, asset);
     const dest = path.join(distExtensions, relative);

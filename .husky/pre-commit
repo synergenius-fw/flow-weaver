@@ -1,0 +1,1 @@
+npx vitest run tests/unit/cross-platform.test.ts --reporter dot

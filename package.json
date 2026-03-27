@@ -129,7 +129,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "docs": "typedoc && tsx scripts/generate-grammar-docs.ts",
     "docs:serve": "npm run docs && npx http-server docs/api -c-1 -o",
-    "prepare": "npm run build",
+    "prepare": "npm run build && husky || true",
     "cli": "tsx src/cli/index.ts",
     "diagram": "tsx scripts/generate-diagram.ts"
   },
@@ -179,6 +179,7 @@
     "@types/react": "^19.0.0",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.0.18",
+    "husky": "^9.1.7",
     "prettier": "^3.1.1",
     "rimraf": "6.1.2",
     "ts-node": "^10.9.2",
