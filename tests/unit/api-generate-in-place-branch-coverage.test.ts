@@ -141,13 +141,12 @@ describe('generate-in-place branch coverage', () => {
     });
   });
 
-  describe('inlineRuntime option', () => {
-    it('generates inline runtime when inlineRuntime=true', () => {
+  describe('runtime is always inlined', () => {
+    it('always inlines runtime (no external runtime imports)', () => {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST();
-      const result = generateInPlace(source, ast, { inlineRuntime: true });
+      const result = generateInPlace(source, ast);
 
-      // Inline runtime should NOT have import from @synergenius/flow-weaver/runtime
       expect(result.code).not.toContain("from '@synergenius/flow-weaver/runtime'");
       expect(result.hasChanges).toBe(true);
     });
@@ -157,7 +156,7 @@ describe('generate-in-place branch coverage', () => {
     it('accepts cjs moduleFormat without errors', () => {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST();
-      const result = generateInPlace(source, ast, { moduleFormat: 'cjs', inlineRuntime: true });
+      const result = generateInPlace(source, ast, { moduleFormat: 'cjs' });
 
       expect(result.code).toContain(MARKERS.RUNTIME_START);
       expect(result.hasChanges).toBe(true);
@@ -166,7 +165,7 @@ describe('generate-in-place branch coverage', () => {
     it('defaults to esm moduleFormat', () => {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST();
-      const result = generateInPlace(source, ast, { inlineRuntime: true });
+      const result = generateInPlace(source, ast);
 
       expect(result.code).toContain(MARKERS.RUNTIME_START);
       expect(result.hasChanges).toBe(true);

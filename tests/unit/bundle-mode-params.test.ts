@@ -1,7 +1,7 @@
 /**
  * TDD Test: Bundle mode import and calling conventions.
  *
- * In bundle mode (externalRuntimePath is set):
+ * In bundle mode (bundleMode is set):
  *   - ALL node types import _impl (positional args with execute)
  *   - Calls use: nodeFunction(execute, param1, param2, ...)
  *   - The wrapper (params object) is only for HTTP entry points
@@ -104,10 +104,10 @@ describe('Bundle mode calling conventions', () => {
     });
     const ast = makeWorkflow([nodeType]);
 
-    // Generate in bundle mode (externalRuntimePath is set)
+    // Generate in bundle mode (bundleMode is set)
     const code = generateCode(ast, {
       externalNodeTypes: { 'addNumbers': '../node-types/addnumbers.js' },
-      externalRuntimePath: '../runtime/types.js',
+      bundleMode: true,
     }) as unknown as string;
 
     // In bundle mode, imports _impl and calls with positional args: addNumbers(n1_execute, n1_a, n1_b)
@@ -125,7 +125,7 @@ describe('Bundle mode calling conventions', () => {
     });
     const ast = makeWorkflow([nodeType]);
 
-    // Generate in NON-bundle mode (no externalRuntimePath)
+    // Generate in NON-bundle mode (no bundleMode)
     const code = generateCode(ast) as unknown as string;
 
     // In non-bundle mode, should call with positional args: addNumbers(n1_execute, n1_a, n1_b)
@@ -147,7 +147,7 @@ describe('Bundle mode calling conventions', () => {
     // Generate in bundle mode
     const code = generateCode(ast, {
       externalNodeTypes: { 'multiply': '../node-types/multiply.js' },
-      externalRuntimePath: '../runtime/types.js',
+      bundleMode: true,
     }) as unknown as string;
 
     // Expression nodes in bundle mode import _impl which has NO execute param
@@ -178,8 +178,8 @@ describe('Bundle mode calling conventions', () => {
   });
 });
 
-describe('External runtime debug declarations', () => {
-  it('should not include createFlowWeaverDebugClient when externalRuntimePath + non-production (debug client removed)', () => {
+describe('Inline runtime debug declarations', () => {
+  it('should not include createFlowWeaverDebugClient in non-production mode', () => {
     const nodeType = makeNodeType({
       name: 'addNumbers',
       functionName: 'addNumbers',
@@ -189,15 +189,15 @@ describe('External runtime debug declarations', () => {
     const ast = makeWorkflow([nodeType]);
 
     const code = generateCode(ast, {
-      externalRuntimePath: '@synergenius/flow-weaver/runtime',
       production: false,
     }) as unknown as string;
 
-    // Debug client was removed — should not appear at all
     expect(code).not.toContain('createFlowWeaverDebugClient');
+    // Runtime is always inlined
+    expect(code).toContain('class GeneratedExecutionContext');
   });
 
-  it('should not include debug client in production mode with externalRuntimePath', () => {
+  it('should not include debug client in production mode', () => {
     const nodeType = makeNodeType({
       name: 'addNumbers',
       functionName: 'addNumbers',
@@ -207,7 +207,6 @@ describe('External runtime debug declarations', () => {
     const ast = makeWorkflow([nodeType]);
 
     const code = generateCode(ast, {
-      externalRuntimePath: '@synergenius/flow-weaver/runtime',
       production: true,
     }) as unknown as string;
 
@@ -215,7 +214,7 @@ describe('External runtime debug declarations', () => {
     expect(code).not.toContain('__flowWeaverDebugger__');
   });
 
-  it('should import TDebugger as type-only from external runtime', () => {
+  it('should include TDebugger type inline in dev mode', () => {
     const nodeType = makeNodeType({
       name: 'addNumbers',
       functionName: 'addNumbers',
@@ -225,11 +224,11 @@ describe('External runtime debug declarations', () => {
     const ast = makeWorkflow([nodeType]);
 
     const code = generateCode(ast, {
-      externalRuntimePath: '@synergenius/flow-weaver/runtime',
       production: false,
     }) as unknown as string;
 
-    // TDebugger should be imported from external runtime (it IS exported there)
-    expect(code).toMatch(/import.*TDebugger.*from.*@synergenius\/flow-weaver\/runtime/);
+    // TDebugger type is defined inline, never imported from external package
+    expect(code).toContain('TDebugger');
+    expect(code).not.toContain("from '@synergenius/flow-weaver/runtime'");
   });
 });

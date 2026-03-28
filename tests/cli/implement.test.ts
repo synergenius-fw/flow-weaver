@@ -58,29 +58,13 @@ afterEach(() => {
 });
 
 describe('implementCommand', () => {
-  let origExit: typeof process.exit;
-
-  beforeEach(() => {
-    origExit = process.exit;
-    process.exit = vi.fn() as never;
+  it('should throw when input file does not exist', async () => {
+    await expect(
+      implementCommand('/nonexistent/file.ts', 'myNode')
+    ).rejects.toThrow(/File not found/);
   });
 
-  afterEach(() => {
-    process.exit = origExit;
-  });
-
-  it('should exit(1) when input file does not exist', async () => {
-    try {
-      await implementCommand('/nonexistent/file.ts', 'myNode');
-    } catch {
-      // mocked process.exit doesn't halt
-    }
-
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('File not found'));
-    expect(process.exit).toHaveBeenCalledWith(1);
-  });
-
-  it('should exit(1) when workflow has parse errors', async () => {
+  it('should throw when workflow has parse errors', async () => {
     const inputFile = path.join(IMPL_TEMP_DIR, 'workflow.ts');
     fs.writeFileSync(inputFile, '// bad workflow');
 
@@ -90,14 +74,9 @@ describe('implementCommand', () => {
       allWorkflows: [],
     } as any);
 
-    try {
-      await implementCommand(inputFile, 'myNode');
-    } catch {
-      // mocked process.exit doesn't halt
-    }
-
-    expect(logger.error).toHaveBeenCalledWith('Parse errors:');
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(
+      implementCommand(inputFile, 'myNode')
+    ).rejects.toThrow(/Parse errors/);
   });
 
   it('should exit(0) with warning when node is already implemented', async () => {
@@ -122,17 +101,21 @@ describe('implementCommand', () => {
       allWorkflows: [],
     } as any);
 
+    const origExit = process.exit;
+    process.exit = vi.fn() as never;
+
     try {
       await implementCommand(inputFile, 'myNode');
     } catch {
-      // mocked process.exit doesn't halt
+      // process.exit(0) is mocked
+    } finally {
+      process.exit = origExit;
     }
 
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('already implemented'));
-    expect(process.exit).toHaveBeenCalledWith(0);
   });
 
-  it('should exit(1) when stub node is not found and no stubs exist', async () => {
+  it('should throw when stub node is not found and no stubs exist', async () => {
     const inputFile = path.join(IMPL_TEMP_DIR, 'workflow.ts');
     fs.writeFileSync(inputFile, '// workflow');
 
@@ -145,17 +128,12 @@ describe('implementCommand', () => {
       allWorkflows: [],
     } as any);
 
-    try {
-      await implementCommand(inputFile, 'nonExistentNode');
-    } catch {
-      // mocked process.exit doesn't halt
-    }
-
-    expect(logger.error).toHaveBeenCalledWith('No stub nodes found in this workflow.');
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(
+      implementCommand(inputFile, 'nonExistentNode')
+    ).rejects.toThrow(/No stub nodes found/);
   });
 
-  it('should exit(1) when stub node is not found but other stubs exist', async () => {
+  it('should throw when stub node is not found but other stubs exist', async () => {
     const inputFile = path.join(IMPL_TEMP_DIR, 'workflow.ts');
     fs.writeFileSync(inputFile, '// workflow');
 
@@ -177,19 +155,12 @@ describe('implementCommand', () => {
       allWorkflows: [],
     } as any);
 
-    try {
-      await implementCommand(inputFile, 'nonExistentNode');
-    } catch {
-      // mocked process.exit doesn't halt
-    }
-
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining('Available stubs: otherStub')
-    );
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(
+      implementCommand(inputFile, 'nonExistentNode')
+    ).rejects.toThrow(/Available stubs: otherStub/);
   });
 
-  it('should exit(1) when declare function is not found in source', async () => {
+  it('should throw when declare function is not found in source', async () => {
     const inputFile = path.join(IMPL_TEMP_DIR, 'workflow.ts');
     fs.writeFileSync(inputFile, '// no declare function here');
 
@@ -211,16 +182,9 @@ describe('implementCommand', () => {
       allWorkflows: [],
     } as any);
 
-    try {
-      await implementCommand(inputFile, 'myStub');
-    } catch {
-      // mocked process.exit doesn't halt
-    }
-
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining('Could not find "declare function myStub"')
-    );
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(
+      implementCommand(inputFile, 'myStub')
+    ).rejects.toThrow(/Could not find "declare function myStub"/);
   });
 
   it('should replace declare function with implementation when not in preview mode', async () => {
@@ -420,15 +384,8 @@ describe('implementCommand', () => {
 
     vi.mocked(parseWorkflow).mockRejectedValue(new Error('Unexpected internal error'));
 
-    try {
-      await implementCommand(inputFile, 'myNode');
-    } catch {
-      // mocked process.exit doesn't halt
-    }
-
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining('Implement failed')
-    );
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(
+      implementCommand(inputFile, 'myNode')
+    ).rejects.toThrow(/Implement failed/);
   });
 });

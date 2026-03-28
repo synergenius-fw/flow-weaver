@@ -804,6 +804,6 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
   }
 
   if (!report.ok) {
-    process.exit(1);
+    throw new Error('Doctor found issues that need to be fixed');
   }
 }

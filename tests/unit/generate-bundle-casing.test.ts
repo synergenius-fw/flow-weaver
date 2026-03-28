@@ -85,7 +85,7 @@ describe('Bundle generation casing', () => {
       // Generate code with externalNodeTypes pointing to lowercase files
       const code = generateCode(ast, {
         externalNodeTypes: { 'DoubleValue': '../node-types/doublevalue.js' },
-        externalRuntimePath: '../runtime/types.js',
+        bundleMode: true,
       }) as string;
 
       // Import path should use the provided path (lowercase)
@@ -105,7 +105,7 @@ describe('Bundle generation casing', () => {
 
       const code = generateCode(ast, {
         externalNodeTypes: { 'DoubleValue': '../node-types/doublevalue.js' },
-        externalRuntimePath: '../runtime/types.js',
+        bundleMode: true,
       }) as string;
 
       // _impl name should be lowercase
@@ -125,7 +125,7 @@ describe('Bundle generation casing', () => {
 
       const code = generateCode(ast, {
         externalNodeTypes: { 'CamelCaseNode': '../node-types/camelcasenode.js' },
-        externalRuntimePath: '../runtime/types.js',
+        bundleMode: true,
       }) as string;
 
       // Should import lowercase_impl but alias to original case
@@ -145,7 +145,7 @@ describe('Bundle generation casing', () => {
       const ast = makeWorkflow([nodeType]);
 
       const code = generateCode(ast, {
-        externalRuntimePath: '../runtime/types.js',
+        bundleMode: true,
       }) as string;
 
       // In bundle mode, should generate lowercase import path
@@ -163,7 +163,7 @@ describe('Bundle generation casing', () => {
       const ast = makeWorkflow([nodeType]);
 
       const code = generateCode(ast, {
-        externalRuntimePath: '../runtime/types.js',
+        bundleMode: true,
       }) as string;
 
       // Should use lowercase_impl aliased to original name
@@ -184,7 +184,7 @@ describe('Bundle generation casing', () => {
       const ast = makeWorkflow([nodeType]);
 
       const code = generateCode(ast, {
-        externalRuntimePath: '../runtime/types.js',
+        bundleMode: true,
       }) as string;
 
       // Workflows are imported directly by name (no _impl wrapper)

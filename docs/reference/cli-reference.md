@@ -67,7 +67,6 @@ fw compile <input> [options]
 | `-w, --workflow-name <name>` | Specific workflow name | all |
 | `-f, --format <format>` | Module format: `esm`, `cjs`, `auto` | `auto` |
 | `--strict` | Type coercion warnings become errors | `false` |
-| `--inline-runtime` | Force inline runtime | `false` |
 | `--clean` | Omit redundant @param/@returns | `false` |
 | `--target <target>` | `typescript` or `inngest` | `typescript` |
 | `--cron <schedule>` | Cron schedule (Inngest only) | — |

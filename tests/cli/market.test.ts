@@ -45,18 +45,14 @@ function captureLogs() {
 
 describe('marketInitCommand', () => {
   let origCwd: () => string;
-  let origExit: typeof process.exit;
 
   beforeEach(() => {
     origCwd = process.cwd;
-    origExit = process.exit;
     process.cwd = () => MARKET_TEMP_DIR;
-    process.exit = vi.fn() as never;
   });
 
   afterEach(() => {
     process.cwd = origCwd;
-    process.exit = origExit;
   });
 
   it('should scaffold a marketplace package with correct structure', async () => {
@@ -136,7 +132,7 @@ describe('marketInitCommand', () => {
     }
   });
 
-  it('should call process.exit(1) when directory is non-empty', async () => {
+  it('should throw when directory is non-empty', async () => {
     const { marketInitCommand } = await import('../../src/cli/commands/market');
     const capture = captureLogs();
 
@@ -148,9 +144,9 @@ describe('marketInitCommand', () => {
       fs.mkdirSync(targetDir, { recursive: true });
       fs.writeFileSync(path.join(targetDir, 'existing.txt'), 'content');
 
-      await marketInitCommand(pkgName);
-
-      expect(process.exit).toHaveBeenCalledWith(1);
+      await expect(
+        marketInitCommand(pkgName)
+      ).rejects.toThrow(/already exists and is not empty/);
     } finally {
       capture.restore();
     }
@@ -160,16 +156,6 @@ describe('marketInitCommand', () => {
 // ── marketPackCommand ────────────────────────────────────────────────────────
 
 describe('marketPackCommand', () => {
-  let origExit: typeof process.exit;
-
-  beforeEach(() => {
-    origExit = process.exit;
-    process.exit = vi.fn() as never;
-  });
-
-  afterEach(() => {
-    process.exit = origExit;
-  });
 
   it('should output JSON when --json is set', async () => {
     const { marketPackCommand } = await import('../../src/cli/commands/market');
@@ -218,7 +204,12 @@ describe('marketPackCommand', () => {
       );
       fs.writeFileSync(path.join(dir, 'src', 'index.ts'), '// empty\n');
 
-      await marketPackCommand(dir, { json: false });
+      // Command may throw if validation fails, but should still have logged output
+      try {
+        await marketPackCommand(dir, { json: false });
+      } catch {
+        // Expected — validation fails for minimal package
+      }
 
       // Should have logged some output (section headers, parsed file counts, etc.)
       const allOutput = [...capture.logs, ...capture.errors, ...capture.warns].join(' ');
@@ -232,17 +223,13 @@ describe('marketPackCommand', () => {
 // ── marketSearchCommand ──────────────────────────────────────────────────────
 
 describe('marketSearchCommand', () => {
-  let origExit: typeof process.exit;
   let origFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
-    origExit = process.exit;
     origFetch = globalThis.fetch;
-    process.exit = vi.fn() as never;
   });
 
   afterEach(() => {
-    process.exit = origExit;
     globalThis.fetch = origFetch;
   });
 
@@ -284,17 +271,13 @@ describe('marketSearchCommand', () => {
 // ── marketListCommand ────────────────────────────────────────────────────────
 
 describe('marketListCommand', () => {
-  let origExit: typeof process.exit;
   let origCwd: () => string;
 
   beforeEach(() => {
-    origExit = process.exit;
     origCwd = process.cwd;
-    process.exit = vi.fn() as never;
   });
 
   afterEach(() => {
-    process.exit = origExit;
     process.cwd = origCwd;
   });
 

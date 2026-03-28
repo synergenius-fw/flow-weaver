@@ -5,6 +5,7 @@
 import * as fs from 'fs';
 import { buildContext, PRESETS, PRESET_NAMES, type ContextPreset } from '../../context/index.js';
 import { logger } from '../utils/logger.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 
 export interface ContextCommandOptions {
   profile?: string;
@@ -37,17 +38,15 @@ export async function contextCommand(
   // Validate preset
   const presetName = (preset ?? 'core') as ContextPreset;
   if (!PRESET_NAMES.includes(presetName) && !options.topics) {
-    logger.error(
+    throw new Error(
       `Unknown preset "${preset}". Available: ${PRESET_NAMES.join(', ')}. Or use --topics to specify topics directly.`
     );
-    process.exit(1);
   }
 
   // Validate profile
   const profile = options.profile ?? 'standalone';
   if (profile !== 'standalone' && profile !== 'assistant') {
-    logger.error(`Unknown profile "${profile}". Use "standalone" or "assistant".`);
-    process.exit(1);
+    throw new Error(`Unknown profile "${profile}". Use "standalone" or "assistant".`);
   }
 
   const result = buildContext({
@@ -60,7 +59,7 @@ export async function contextCommand(
 
   // Write output
   if (options.output) {
-    fs.writeFileSync(options.output, result.content, 'utf-8');
+    safeWriteFile(options.output, result.content);
     logger.success(`Context written to ${options.output}`);
   } else {
     process.stdout.write(result.content);

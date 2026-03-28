@@ -27,12 +27,10 @@ export async function diffCommand(
 
   // Validate files exist
   if (!fs.existsSync(filePath1)) {
-    logger.error(`File not found: ${filePath1}`);
-    process.exit(1);
+    throw new Error(`File not found: ${filePath1}`);
   }
   if (!fs.existsSync(filePath2)) {
-    logger.error(`File not found: ${filePath2}`);
-    process.exit(1);
+    throw new Error(`File not found: ${filePath2}`);
   }
 
   try {
@@ -43,15 +41,11 @@ export async function diffCommand(
     ]);
 
     if (result1.errors.length > 0) {
-      logger.error(`Parse errors in ${file1}:`);
-      result1.errors.forEach((err) => logger.error(`  ${err}`));
-      process.exit(1);
+      throw new Error(`Parse errors in ${file1}:\n${result1.errors.map((err) => `  ${err}`).join('\n')}`);
     }
 
     if (result2.errors.length > 0) {
-      logger.error(`Parse errors in ${file2}:`);
-      result2.errors.forEach((err) => logger.error(`  ${err}`));
-      process.exit(1);
+      throw new Error(`Parse errors in ${file2}:\n${result2.errors.map((err) => `  ${err}`).join('\n')}`);
     }
 
     // Compare workflows
@@ -67,13 +61,12 @@ export async function diffCommand(
     } else {
       // eslint-disable-next-line no-console
       console.log(formatDiff(diff, format));
-      // Exit with code 1 if there are differences (useful for CI)
+      // Throw if there are differences (useful for CI)
       if (!exitZero) {
-        process.exit(1);
+        throw new Error('Workflows have differences');
       }
     }
   } catch (error) {
-    logger.error(`Failed to diff workflows: ${getErrorMessage(error)}`);
-    process.exit(1);
+    throw new Error(`Failed to diff workflows: ${getErrorMessage(error)}`);
   }
 }

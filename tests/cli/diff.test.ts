@@ -71,7 +71,7 @@ afterAll(() => {
 });
 
 describe('diffCommand', () => {
-  it('should not call process.exit when files are identical', async () => {
+  it('should not throw when files are identical', async () => {
     const { diffCommand } = await import('../../src/cli/commands/diff');
 
     const file1 = path.join(tempDir, 'identical-a.ts');
@@ -79,20 +79,17 @@ describe('diffCommand', () => {
     fs.writeFileSync(file1, WORKFLOW_A);
     fs.writeFileSync(file2, WORKFLOW_A);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     const origLog = console.log;
     console.log = () => {};
 
     try {
       await diffCommand(file1, file2, {});
-      expect(exitSpy).not.toHaveBeenCalled();
     } finally {
-      exitSpy.mockRestore();
       console.log = origLog;
     }
   });
 
-  it('should call process.exit(1) when files differ', async () => {
+  it('should throw when files differ', async () => {
     const { diffCommand } = await import('../../src/cli/commands/diff');
 
     const file1 = path.join(tempDir, 'diff-a.ts');
@@ -100,20 +97,17 @@ describe('diffCommand', () => {
     fs.writeFileSync(file1, WORKFLOW_A);
     fs.writeFileSync(file2, WORKFLOW_B);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     const origLog = console.log;
     console.log = () => {};
 
     try {
-      await diffCommand(file1, file2, {});
-      expect(exitSpy).toHaveBeenCalledWith(1);
+      await expect(diffCommand(file1, file2, {})).rejects.toThrow(/differences/);
     } finally {
-      exitSpy.mockRestore();
       console.log = origLog;
     }
   });
 
-  it('should not call process.exit when files differ but exitZero is true', async () => {
+  it('should not throw when files differ but exitZero is true', async () => {
     const { diffCommand } = await import('../../src/cli/commands/diff');
 
     const file1 = path.join(tempDir, 'ez-a.ts');
@@ -121,58 +115,39 @@ describe('diffCommand', () => {
     fs.writeFileSync(file1, WORKFLOW_A);
     fs.writeFileSync(file2, WORKFLOW_B);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     const origLog = console.log;
     console.log = () => {};
 
     try {
       await diffCommand(file1, file2, { exitZero: true });
-      expect(exitSpy).not.toHaveBeenCalled();
     } finally {
-      exitSpy.mockRestore();
       console.log = origLog;
     }
   });
 
-  it('should exit(1) when first file does not exist', async () => {
+  it('should throw when first file does not exist', async () => {
     const { diffCommand } = await import('../../src/cli/commands/diff');
 
     const file2 = path.join(tempDir, 'exists.ts');
     fs.writeFileSync(file2, WORKFLOW_A);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-    const origErr = console.error;
-    console.error = () => {};
-
-    try {
-      await diffCommand('/nonexistent/file.ts', file2, {});
-      expect(exitSpy).toHaveBeenCalledWith(1);
-    } finally {
-      exitSpy.mockRestore();
-      console.error = origErr;
-    }
+    await expect(
+      diffCommand('/nonexistent/file.ts', file2, {})
+    ).rejects.toThrow(/File not found/);
   });
 
-  it('should exit(1) when second file does not exist', async () => {
+  it('should throw when second file does not exist', async () => {
     const { diffCommand } = await import('../../src/cli/commands/diff');
 
     const file1 = path.join(tempDir, 'exists2.ts');
     fs.writeFileSync(file1, WORKFLOW_A);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-    const origErr = console.error;
-    console.error = () => {};
-
-    try {
-      await diffCommand(file1, '/nonexistent/other.ts', {});
-      expect(exitSpy).toHaveBeenCalledWith(1);
-    } finally {
-      exitSpy.mockRestore();
-      console.error = origErr;
-    }
+    await expect(
+      diffCommand(file1, '/nonexistent/other.ts', {})
+    ).rejects.toThrow(/File not found/);
   });
 
-  it('should exit(1) when first file has parse errors', async () => {
+  it('should throw when first file has parse errors', async () => {
     const { diffCommand } = await import('../../src/cli/commands/diff');
 
     const file1 = path.join(tempDir, 'bad-parse.ts');
@@ -180,21 +155,9 @@ describe('diffCommand', () => {
     fs.writeFileSync(file1, INVALID_WORKFLOW);
     fs.writeFileSync(file2, WORKFLOW_A);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
-    const origLog = console.log;
-    const origErr = console.error;
-    console.log = () => {};
-    console.error = () => {};
-
-    try {
-      await diffCommand(file1, file2, {});
-      // Either the parse produces errors or the diff throws; both exit(1)
-      expect(exitSpy).toHaveBeenCalledWith(1);
-    } finally {
-      exitSpy.mockRestore();
-      console.log = origLog;
-      console.error = origErr;
-    }
+    await expect(
+      diffCommand(file1, file2, {})
+    ).rejects.toThrow(/Failed to diff/);
   });
 
   it('should output json format when requested', async () => {
@@ -205,7 +168,6 @@ describe('diffCommand', () => {
     fs.writeFileSync(file1, WORKFLOW_A);
     fs.writeFileSync(file2, WORKFLOW_B);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     let captured = '';
     const origLog = console.log;
     console.log = (msg: string) => { captured = msg; };
@@ -216,7 +178,6 @@ describe('diffCommand', () => {
       const parsed = JSON.parse(captured);
       expect(parsed).toHaveProperty('identical', false);
     } finally {
-      exitSpy.mockRestore();
       console.log = origLog;
     }
   });
@@ -229,7 +190,6 @@ describe('diffCommand', () => {
     fs.writeFileSync(file1, WORKFLOW_A);
     fs.writeFileSync(file2, WORKFLOW_B);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     let captured = '';
     const origLog = console.log;
     console.log = (msg: string) => { captured = msg; };
@@ -239,7 +199,6 @@ describe('diffCommand', () => {
       // Compact format is typically shorter than full text
       expect(captured.length).toBeGreaterThan(0);
     } finally {
-      exitSpy.mockRestore();
       console.log = origLog;
     }
   });
@@ -252,7 +211,6 @@ describe('diffCommand', () => {
     fs.writeFileSync(file1, WORKFLOW_A);
     fs.writeFileSync(file2, WORKFLOW_B);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
     let captured = '';
     const origLog = console.log;
     console.log = (msg: string) => { captured = msg; };
@@ -263,7 +221,6 @@ describe('diffCommand', () => {
       // Text format should not be valid JSON
       expect(() => JSON.parse(captured)).toThrow();
     } finally {
-      exitSpy.mockRestore();
       console.log = origLog;
     }
   });

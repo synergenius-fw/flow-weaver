@@ -853,13 +853,11 @@ export function myWorkflow(): { onSuccess: boolean; onFailure: boolean } {
     });
   });
 
-  describe('external runtime with production mode', () => {
-    it('does not emit debug client import when external runtime + production', () => {
-      // We cannot truly trigger external runtime detection without a real node_modules,
-      // but we can test that inlineRuntime=true forces inline and production omits debug.
+  describe('inline runtime with production mode', () => {
+    it('does not emit debug types in production mode', () => {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST();
-      const result = generateInPlace(source, ast, { inlineRuntime: true, production: true });
+      const result = generateInPlace(source, ast, { production: true });
       expect(result.code).not.toContain('createFlowWeaverDebugClient');
       expect(result.code).not.toContain('TDebugger');
     });

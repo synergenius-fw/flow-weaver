@@ -87,23 +87,16 @@ describe('doctorCommand — non-JSON output (lines 767-802)', () => {
 
     process.cwd = () => projectDir;
 
-    // Prevent process.exit from killing the test
-    let exitCode: number | undefined;
-    process.exit = ((code?: number) => {
-      exitCode = code;
-      throw new Error(`process.exit(${code})`);
-    }) as never;
-
     // Non-JSON mode triggers lines 767-802
+    // doctorCommand now throws instead of process.exit(1)
     try {
       await doctorCommand({ json: false });
     } catch (e: any) {
-      // Expected: process.exit(1) if there are failures
-      if (!e.message.includes('process.exit')) throw e;
+      // Expected: throws when there are failures
+      if (!e.message.includes('Doctor found issues')) throw e;
     }
 
     // The command ran through the formatted output path (lines 767-802).
-    // If there are failures, exitCode will be 1.
     // The important thing is that the code path was exercised.
   });
 
@@ -128,16 +121,11 @@ describe('doctorCommand — non-JSON output (lines 767-802)', () => {
     writeFixture('doctor-pass/.flowweaver/config.yaml', 'defaultFileType: ts\n');
 
     process.cwd = () => projectDir;
-    process.exit = ((code?: number) => {
-      throw new Error(`process.exit(${code})`);
-    }) as never;
-
-    // Run the command (non-JSON). If any check fails, process.exit(1) is called.
-    // We just want to exercise the formatted output path.
+    // doctorCommand now throws instead of process.exit(1)
     try {
       await doctorCommand({});
     } catch (e: any) {
-      if (!e.message.includes('process.exit')) throw e;
+      if (!e.message.includes('Doctor found issues')) throw e;
     }
   });
 
@@ -149,14 +137,11 @@ describe('doctorCommand — non-JSON output (lines 767-802)', () => {
     writeFixture('doctor-json/package.json', JSON.stringify({ name: 'test', type: 'module' }));
 
     process.cwd = () => projectDir;
-    process.exit = ((code?: number) => {
-      throw new Error(`process.exit(${code})`);
-    }) as never;
 
     try {
       await doctorCommand({ json: true });
     } catch (e: any) {
-      if (!e.message.includes('process.exit')) throw e;
+      if (!e.message.includes('Doctor found issues')) throw e;
     }
   });
 });

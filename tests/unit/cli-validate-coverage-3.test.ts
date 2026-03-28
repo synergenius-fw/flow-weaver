@@ -207,7 +207,11 @@ describe('validateCommand coverage round 3', () => {
         code: 'PORT_NOT_FOUND',
       });
 
-      await validateCommand('/fake/pattern', { json: false, verbose: true });
+      try {
+        await validateCommand('/fake/pattern', { json: false, verbose: true });
+      } catch {
+        // Expected: throws "Validation failed with N error(s)"
+      }
 
       const allErrors = errorOutput.join('\n');
       expect(allErrors).toContain('[line 42]');
@@ -234,7 +238,11 @@ describe('validateCommand coverage round 3', () => {
         code: 'BAD_CONFIG',
       });
 
-      await validateCommand('/fake/pattern', { json: false });
+      try {
+        await validateCommand('/fake/pattern', { json: false });
+      } catch {
+        // Expected: throws "Validation failed with N error(s)"
+      }
 
       const allErrors = errorOutput.join('\n');
       // No [line X] prefix when no location
@@ -267,7 +275,11 @@ describe('validateCommand coverage round 3', () => {
       });
       mockGetFriendlyError.mockReturnValue(null);
 
-      await validateCommand('/fake/pattern', { json: false });
+      try {
+        await validateCommand('/fake/pattern', { json: false });
+      } catch {
+        // Expected: throws "Validation failed with N error(s)"
+      }
 
       const allErrors = errorOutput.join('\n');
       expect(allErrors).toContain('[line 10]');
@@ -287,7 +299,11 @@ describe('validateCommand coverage round 3', () => {
       });
       mockGetFriendlyError.mockReturnValue(null);
 
-      await validateCommand('/fake/pattern', { json: false });
+      try {
+        await validateCommand('/fake/pattern', { json: false });
+      } catch {
+        // Expected: throws "Validation failed with N error(s)"
+      }
 
       const allErrors = errorOutput.join('\n');
       expect(allErrors).toContain('- Generic error');
@@ -307,7 +323,11 @@ describe('validateCommand coverage round 3', () => {
       });
       mockGetFriendlyError.mockReturnValue(null);
 
-      await validateCommand('/fake/pattern', { json: false });
+      try {
+        await validateCommand('/fake/pattern', { json: false });
+      } catch {
+        // Expected: throws "Validation failed with N error(s)"
+      }
 
       const allWarns = warnOutput.join('\n');
       expect(allWarns).toContain('See: https://docs.example.com/err');
@@ -483,7 +503,11 @@ describe('validateCommand coverage round 3', () => {
         errors: ['Node type "ghost" not found', 'Duplicate node id "x"'],
       });
 
-      await validateCommand('/fake/pattern', { json: false });
+      try {
+        await validateCommand('/fake/pattern', { json: false });
+      } catch {
+        // Expected: throws "Validation failed with N error(s)"
+      }
 
       const allErrors = errorOutput.join('\n');
       expect(allErrors).toContain('Node type "ghost" not found');
@@ -507,7 +531,11 @@ describe('validateCommand coverage round 3', () => {
     it('should log error in non-JSON mode when file throws', async () => {
       mockParseWorkflow.mockRejectedValue(new Error('Crash during parse'));
 
-      await validateCommand('/fake/pattern', { json: false });
+      try {
+        await validateCommand('/fake/pattern', { json: false });
+      } catch {
+        // Expected: throws "Validation failed with N error(s)"
+      }
 
       const allErrors = errorOutput.join('\n');
       expect(allErrors).toContain('Failed to validate');
@@ -534,7 +562,11 @@ describe('validateCommand coverage round 3', () => {
         return { valid: true, errors: [], warnings: [] };
       });
 
-      await validateCommand('/fake/pattern', { json: false });
+      try {
+        await validateCommand('/fake/pattern', { json: false });
+      } catch {
+        // Expected: throws "Validation failed with N error(s)"
+      }
 
       const allLogs = logOutput.join('\n');
       expect(allLogs).toMatch(/1 error[^s]/);
@@ -552,7 +584,11 @@ describe('validateCommand coverage round 3', () => {
         warnings: [],
       });
 
-      await validateCommand('/fake/pattern', { json: false });
+      try {
+        await validateCommand('/fake/pattern', { json: false });
+      } catch {
+        // Expected: throws "Validation failed with N error(s)"
+      }
 
       const allLogs = logOutput.join('\n');
       expect(allLogs).toContain('2 errors');
@@ -807,8 +843,8 @@ describe('validateCommand coverage round 3', () => {
     });
   });
 
-  describe('process.exit on errors', () => {
-    it('should call process.exit(1) when there are validation errors', async () => {
+  describe('error handling on validation errors', () => {
+    it('should throw when there are validation errors', async () => {
       mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: false,
@@ -816,9 +852,9 @@ describe('validateCommand coverage round 3', () => {
         warnings: [],
       });
 
-      await validateCommand('/fake/pattern', { json: false });
-
-      expect(process.exit).toHaveBeenCalledWith(1);
+      await expect(
+        validateCommand('/fake/pattern', { json: false })
+      ).rejects.toThrow(/Validation failed/);
     });
   });
 });

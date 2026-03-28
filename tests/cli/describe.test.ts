@@ -520,31 +520,28 @@ describe('describe command', () => {
   });
 
   describe('describeCommand error paths', () => {
-    let originalExit: typeof process.exit;
     let originalLog: typeof console.log;
     let originalError: typeof console.error;
 
     beforeEach(() => {
-      originalExit = process.exit;
       originalLog = console.log;
       originalError = console.error;
-      process.exit = vi.fn() as never;
       console.log = vi.fn();
       console.error = vi.fn();
     });
 
     afterEach(() => {
-      process.exit = originalExit;
       console.log = originalLog;
       console.error = originalError;
     });
 
-    it('should exit with error for non-existent file', async () => {
-      await describeCommand('/nonexistent/file.ts', {});
-      expect(process.exit).toHaveBeenCalledWith(1);
+    it('should throw for non-existent file', async () => {
+      await expect(
+        describeCommand('/nonexistent/file.ts', {})
+      ).rejects.toThrow(/File not found/);
     });
 
-    it('should exit with error for non-existent node focus', async () => {
+    it('should throw for non-existent node focus', async () => {
       const tmpDir = path.join(os.tmpdir(), `fw-describe-err-${Date.now()}`);
       fs.mkdirSync(tmpDir, { recursive: true });
 
@@ -568,8 +565,9 @@ export function testWf(execute: boolean): { onSuccess: boolean; onFailure: boole
       const filePath = path.join(tmpDir, 'workflow.ts');
       fs.writeFileSync(filePath, content);
 
-      await describeCommand(filePath, { node: 'nonExistentNode' });
-      expect(process.exit).toHaveBeenCalledWith(1);
+      await expect(
+        describeCommand(filePath, { node: 'nonExistentNode' })
+      ).rejects.toThrow(/Node not found/);
 
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -598,9 +596,8 @@ export function mermaidWf(execute: boolean): { onSuccess: boolean; onFailure: bo
       const filePath = path.join(tmpDir, 'workflow.ts');
       fs.writeFileSync(filePath, content);
 
+      // Should not throw for valid workflow
       await describeCommand(filePath, { format: 'mermaid' });
-      // Should not exit with error
-      expect(process.exit).not.toHaveBeenCalled();
 
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -629,8 +626,8 @@ export function textWf(execute: boolean): { onSuccess: boolean; onFailure: boole
       const filePath = path.join(tmpDir, 'workflow.ts');
       fs.writeFileSync(filePath, content);
 
+      // Should not throw for valid workflow
       await describeCommand(filePath, { format: 'text' });
-      expect(process.exit).not.toHaveBeenCalled();
 
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -638,7 +635,6 @@ export function textWf(execute: boolean): { onSuccess: boolean; onFailure: boole
 
   describe('describeCommand read-only by default', () => {
     const tmpDir = path.join(os.tmpdir(), `fw-describe-test-${process.pid}`);
-    let originalExit: typeof process.exit;
     let originalLog: typeof console.log;
 
     beforeAll(() => {
@@ -650,14 +646,11 @@ export function textWf(execute: boolean): { onSuccess: boolean; onFailure: boole
     });
 
     beforeEach(() => {
-      originalExit = process.exit;
       originalLog = console.log;
-      process.exit = vi.fn() as never;
       console.log = vi.fn();
     });
 
     afterEach(() => {
-      process.exit = originalExit;
       console.log = originalLog;
     });
 

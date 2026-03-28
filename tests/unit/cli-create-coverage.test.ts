@@ -26,19 +26,18 @@ function writeFixture(name: string, content: string): string {
 }
 
 describe('createNodeCommand coverage', () => {
-  it('should exit for unknown node template', async () => {
+  it('should throw for unknown node template', async () => {
     const { createNodeCommand } = await import('../../src/cli/commands/create');
-    // vitest intercepts process.exit and throws "process.exit unexpectedly called"
     await expect(
       createNodeCommand('myNode', 'test.ts', { template: 'nonexistent-node-tmpl' })
-    ).rejects.toThrow(/process\.exit/);
+    ).rejects.toThrow('Unknown node template');
   });
 
-  it('should exit for invalid --config JSON in createNodeCommand', async () => {
+  it('should throw for invalid --config JSON in createNodeCommand', async () => {
     const { createNodeCommand } = await import('../../src/cli/commands/create');
     await expect(
       createNodeCommand('myNode', 'test.ts', { config: 'not valid json{', template: 'transformer' })
-    ).rejects.toThrow(/process\.exit/);
+    ).rejects.toThrow('Invalid --config JSON');
   });
 
   it('should create node with --line option and show insertion info', async () => {
@@ -92,18 +91,18 @@ describe('createNodeCommand coverage', () => {
 });
 
 describe('createWorkflowCommand coverage', () => {
-  it('should exit for unknown workflow template', async () => {
+  it('should throw for unknown workflow template', async () => {
     const { createWorkflowCommand } = await import('../../src/cli/commands/create');
     await expect(
       createWorkflowCommand('nonexistent-tmpl', 'test.ts')
-    ).rejects.toThrow(/process\.exit/);
+    ).rejects.toThrow('Unknown workflow template');
   });
 
-  it('should exit for invalid --config JSON in createWorkflowCommand', async () => {
+  it('should throw for invalid --config JSON in createWorkflowCommand', async () => {
     const { createWorkflowCommand } = await import('../../src/cli/commands/create');
     await expect(
       createWorkflowCommand('sequential', 'test.ts', { config: '{bad' })
-    ).rejects.toThrow(/process\.exit/);
+    ).rejects.toThrow('Invalid --config JSON');
   });
 
   it('should create workflow with --line option', async () => {

@@ -3102,7 +3102,7 @@ export function myPipeline(execute: boolean, params: { input: string }): { resul
       ui: { startNode: { x: 0, y: 100 }, exitNode: { x: 400, y: 100 } },
     });
 
-    it('should declare __flowWeaverDebugger__ when using external runtime in dev mode', () => {
+    it('should inline runtime with __flowWeaverDebugger__ in dev mode', () => {
       const sourceCode = `/**
  * @flowWeaver workflow
  * @node adder add
@@ -3117,11 +3117,10 @@ export async function calculate(execute: boolean, params: { a: number; b: number
         sourceFile: path.join(tempDir, 'test.ts'),
       });
 
-      // External runtime detected — should import from @synergenius/flow-weaver/runtime
-      expect(result.code).toContain("from '@synergenius/flow-weaver/runtime'");
-      // Must have a `declare const __flowWeaverDebugger__` for body to reference
-      // (the body references it but doesn't define it — it needs a module-level declare)
-      expect(result.code).toContain('declare const __flowWeaverDebugger__');
+      // Runtime is always inlined — never imports from external package
+      expect(result.code).not.toContain("from '@synergenius/flow-weaver/runtime'");
+      // Inline runtime includes GeneratedExecutionContext class
+      expect(result.code).toContain('class GeneratedExecutionContext');
     });
 
     it('should not define createFlowWeaverDebugClient function (debug client removed)', () => {
@@ -3139,13 +3138,12 @@ export async function calculate(execute: boolean, params: { a: number; b: number
         sourceFile: path.join(tempDir, 'test.ts'),
       });
 
-      // External runtime detected — should import from @synergenius/flow-weaver/runtime
-      expect(result.code).toContain("from '@synergenius/flow-weaver/runtime'");
-      // Debug client was removed — should not appear
+      // Runtime is always inlined
+      expect(result.code).not.toContain("from '@synergenius/flow-weaver/runtime'");
       expect(result.code).not.toContain('createFlowWeaverDebugClient');
     });
 
-    it('should not include debug code when using external runtime in production mode', () => {
+    it('should not include debug code in production mode', () => {
       const sourceCode = `/**
  * @flowWeaver workflow
  * @node adder add

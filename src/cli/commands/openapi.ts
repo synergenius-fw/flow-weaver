@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import { WorkflowRegistry } from '../../server/workflow-registry.js';
 import { generateOpenAPIJson, generateOpenAPIYaml } from '../../deployment/openapi/generator.js';
 import { logger } from '../utils/logger.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 
 export interface OpenAPIOptions {
   /** Output file path */
@@ -86,7 +87,7 @@ export async function openapiCommand(dir: string, options: OpenAPIOptions): Prom
   // Output
   if (options.output) {
     const outputPath = path.resolve(options.output);
-    fs.writeFileSync(outputPath, spec);
+    safeWriteFile(outputPath, spec);
     logger.success(`OpenAPI specification written to ${outputPath}`);
   } else {
     // Output to stdout

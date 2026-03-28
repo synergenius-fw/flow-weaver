@@ -29,7 +29,6 @@ import { shouldWorkflowBeAsync } from '../generator/async-detection';
 import { detectSugarPatterns, filterStaleMacros } from '../sugar-optimizer';
 import * as ts from 'typescript';
 import * as path from 'path';
-import * as fs from 'fs';
 
 // Marker constants
 export const MARKERS = {
@@ -55,16 +54,7 @@ export interface InPlaceGenerateOptions {
    */
   moduleFormat?: TModuleFormat;
   /**
-   * Force inline runtime even when @synergenius/flow-weaver package is installed.
-   * When false/undefined, the compiler auto-detects the package and uses
-   * external imports when available (smaller generated code, shared runtime).
-   * @default false
-   */
-  inlineRuntime?: boolean;
-  /**
    * Absolute path to the source file being compiled.
-   * Used to detect if @synergenius/flow-weaver is installed relative to the file.
-   * If not provided, falls back to process.cwd().
    */
   sourceFile?: string;
   /**
@@ -81,29 +71,6 @@ export interface InPlaceGenerateResult {
 }
 
 /**
- * Check if `@synergenius/flow-weaver` is available as an npm package
- * by walking up from the given directory looking for node_modules.
- */
-function isFlowWeaverPackageInstalled(startDir: string): boolean {
-  let dir = startDir;
-  const root = path.parse(dir).root;
-  while (dir !== root) {
-    const candidate = path.join(dir, 'node_modules', '@synergenius', 'flow-weaver');
-    try {
-      if (fs.existsSync(candidate)) {
-        return true;
-      }
-    } catch {
-      // Permission error or similar — skip and keep walking
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return false;
-}
-
-/**
  * Generate executable code in-place, preserving user code.
  *
  * @param sourceCode - The original source code
@@ -116,7 +83,7 @@ export function generateInPlace(
   ast: TWorkflowAST,
   options: InPlaceGenerateOptions = {}
 ): InPlaceGenerateResult {
-  const { production = false, allWorkflows, moduleFormat = 'esm', inlineRuntime = false, sourceFile, skipParamReturns = false } = options;
+  const { production = false, allWorkflows, moduleFormat = 'esm', sourceFile, skipParamReturns = false } = options;
 
   let result = sourceCode;
   let hasChanges = false;
@@ -157,15 +124,8 @@ export function generateInPlace(
     hasChanges = true;
   }
 
-  // Step 3: Generate and insert/replace runtime section
-  // Auto-detect external runtime unless --inline-runtime is forced
-  let useExternalRuntime = false;
-  if (!inlineRuntime) {
-    const lookupDir = sourceFile ? path.dirname(sourceFile) : (ast.sourceFile ? path.dirname(ast.sourceFile) : process.cwd());
-    useExternalRuntime = isFlowWeaverPackageInstalled(lookupDir);
-  }
-  const externalRuntimePath = useExternalRuntime ? '@synergenius/flow-weaver/runtime' : undefined;
-  const runtimeCode = generateRuntimeSection(ast.functionName, production, moduleFormat, externalRuntimePath);
+  // Step 3: Generate and insert/replace runtime section (always inlined — zero runtime dependencies)
+  const runtimeCode = generateRuntimeSection(ast.functionName, production, moduleFormat);
   const runtimeResult = replaceOrInsertSection(
     result,
     MARKERS.RUNTIME_START,
@@ -226,13 +186,12 @@ export function generateInPlace(
 
 /**
  * Generate the runtime section with proper markers.
- * When externalRuntimePath is provided, generates import statements instead of inline code.
+ * Runtime is always inlined — zero runtime dependencies.
  */
 function generateRuntimeSection(
   functionName: string,
   production: boolean,
   moduleFormat: TModuleFormat = 'esm',
-  externalRuntimePath?: string
 ): string {
   const lines: string[] = [];
 
@@ -241,21 +200,7 @@ function generateRuntimeSection(
   lines.push('// ============================================================================');
   lines.push('');
 
-  if (externalRuntimePath) {
-    // External runtime: generate import statements instead of inline code
-    lines.push(`import { GeneratedExecutionContext, CancellationError } from '${externalRuntimePath}';`);
-    if (!production) {
-      lines.push(`import type { TDebugger, TDebugController } from '${externalRuntimePath}';`);
-      // Declare __flowWeaverDebugger__ so body code can reference it
-      lines.push('declare const __flowWeaverDebugger__: TDebugger | undefined;');
-    } else {
-      // Production mode still needs TDebugController for the __ctrl__ variable
-      lines.push(`import type { TDebugController } from '${externalRuntimePath}';`);
-    }
-  } else {
-    // Inline runtime: embed all types and classes directly
-    lines.push(generateInlineRuntime(production));
-  }
+  lines.push(generateInlineRuntime(production));
 
   return lines.join('\n');
 }

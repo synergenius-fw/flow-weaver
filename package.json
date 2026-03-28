@@ -108,6 +108,7 @@
     "dist",
     "!dist/**/*.map",
     "docs/reference",
+    "scripts/postinstall.cjs",
     "README.md",
     "LICENSE"
   ],
@@ -131,7 +132,8 @@
     "docs:serve": "npm run docs && npx http-server docs/api -c-1 -o",
     "prepare": "npm run build && husky || true",
     "cli": "tsx src/cli/index.ts",
-    "diagram": "tsx scripts/generate-diagram.ts"
+    "diagram": "tsx scripts/generate-diagram.ts",
+    "postinstall": "node scripts/postinstall.cjs"
   },
   "keywords": [
     "flow-weaver",

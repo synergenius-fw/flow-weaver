@@ -10,6 +10,7 @@ import { validator } from '../../validator.js';
 import { getNode, getIncomingConnections, getOutgoingConnections } from '../../api/query.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 import type { TWorkflowAST, TNodeInstanceAST, TNodeTypeAST } from '../../ast/types.js';
 import { buildDiagramGraph } from '../../diagram/geometry.js';
 import { renderASCII, renderASCIICompact } from '../../diagram/ascii-renderer.js';
@@ -453,8 +454,7 @@ export async function describeCommand(input: string, options: DescribeOptions = 
   const filePath = path.resolve(input);
 
   if (!fs.existsSync(filePath)) {
-    logger.error(`File not found: ${filePath}`);
-    process.exit(1);
+    throw new Error(`File not found: ${filePath}`);
   }
 
   try {
@@ -462,9 +462,7 @@ export async function describeCommand(input: string, options: DescribeOptions = 
     const parseResult = await parseWorkflow(filePath, { workflowName });
 
     if (parseResult.errors.length > 0) {
-      logger.error(`Parse errors:`);
-      parseResult.errors.forEach((err) => logger.error(`  ${err}`));
-      process.exit(1);
+      throw new Error(`Parse errors:\n${parseResult.errors.map((err) => `  ${err}`).join('\n')}`);
     }
 
     const ast = parseResult.ast;
@@ -475,7 +473,7 @@ export async function describeCommand(input: string, options: DescribeOptions = 
       const sourceCode = fs.readFileSync(filePath, 'utf8');
       const generated = generateInPlace(sourceCode, ast, { production: false });
       if (generated.hasChanges) {
-        fs.writeFileSync(filePath, generated.code, 'utf8');
+        safeWriteFile(filePath, generated.code);
         logger.info(`Updated runtime markers in ${path.basename(filePath)}`);
       }
     }
@@ -487,10 +485,8 @@ export async function describeCommand(input: string, options: DescribeOptions = 
     console.log(formatDescribeOutput(ast, output, format));
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('Node not found:')) {
-      logger.error(error.message);
-      process.exit(1);
+      throw error;
     }
-    logger.error(`Failed to describe workflow: ${getErrorMessage(error)}`);
-    process.exit(1);
+    throw new Error(`Failed to describe workflow: ${getErrorMessage(error)}`);
   }
 }

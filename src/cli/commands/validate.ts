@@ -293,7 +293,12 @@ export async function validateCommand(input: string, options: ValidateOptions = 
     }
 
     if (totalErrors > 0) {
-      process.exit(1);
+      if (json) {
+        // JSON output already emitted above — just signal failure via exit code
+        process.exitCode = 1;
+        return;
+      }
+      throw new Error(`Validation failed with ${totalErrors} error${totalErrors !== 1 ? 's' : ''}`);
     }
   } catch (error) {
     if (json) {

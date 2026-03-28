@@ -350,10 +350,6 @@ describe('marketInitCommand coverage', () => {
     const originalCwd = process.cwd();
     process.chdir(TEMP_DIR);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
-      throw new Error('process.exit');
-    }) as any);
-
     try {
       // Create non-empty directory
       const dir = path.join(TEMP_DIR, 'flow-weaver-pack-existing');
@@ -362,11 +358,8 @@ describe('marketInitCommand coverage', () => {
 
       await expect(
         marketInitCommand('flow-weaver-pack-existing', {})
-      ).rejects.toThrow('process.exit');
-
-      expect(exitSpy).toHaveBeenCalledWith(1);
+      ).rejects.toThrow(/already exists.*not empty/);
     } finally {
-      exitSpy.mockRestore();
       process.chdir(originalCwd);
     }
   });
@@ -377,21 +370,14 @@ describe('marketInitCommand coverage', () => {
     const originalCwd = process.cwd();
     process.chdir(TEMP_DIR);
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
-      throw new Error('process.exit');
-    }) as any);
-
     try {
       // Create a file (not directory) at the target path
       fs.writeFileSync(path.join(TEMP_DIR, 'flow-weaver-pack-file'), 'not a dir');
 
       await expect(
         marketInitCommand('flow-weaver-pack-file', {})
-      ).rejects.toThrow('process.exit');
-
-      expect(exitSpy).toHaveBeenCalledWith(1);
+      ).rejects.toThrow(/not a directory/);
     } finally {
-      exitSpy.mockRestore();
       process.chdir(originalCwd);
     }
   });

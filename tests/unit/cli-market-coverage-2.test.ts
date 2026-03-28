@@ -123,13 +123,7 @@ describe('marketPublishCommand coverage', () => {
       return Buffer.from('');
     });
 
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
-      throw new Error('process.exit');
-    }) as any);
-
-    await expect(marketPublishCommand(dir, {})).rejects.toThrow('process.exit');
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    exitSpy.mockRestore();
+    await expect(marketPublishCommand(dir, {})).rejects.toThrow(/publish failed/i);
   });
 
   it('should use current directory when no directory specified', async () => {

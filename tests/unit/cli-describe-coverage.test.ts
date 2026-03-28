@@ -179,10 +179,9 @@ describe('describeWorkflow coverage', () => {
 describe('describeCommand coverage', () => {
   it('should handle file not found', async () => {
     const { describeCommand } = await import('../../src/cli/commands/describe');
-    // vitest intercepts process.exit
     await expect(
       describeCommand('/tmp/nonexistent-describe-xyz.ts')
-    ).rejects.toThrow(/process\.exit/);
+    ).rejects.toThrow(/File not found/);
   });
 
   it('should handle node not found error gracefully', async () => {
@@ -190,7 +189,7 @@ describe('describeCommand coverage', () => {
     const filePath = writeFixture('describe-cmd.ts', SIMPLE_WORKFLOW);
     await expect(
       describeCommand(filePath, { node: 'nonexistent', workflowName: 'simpleWf' })
-    ).rejects.toThrow(/process\.exit/);
+    ).rejects.toThrow(/Node not found/);
   });
 
   it('should handle --compile flag', async () => {

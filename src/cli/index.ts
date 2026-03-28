@@ -15,6 +15,7 @@ import * as path from 'node:path';
 import '../extensions/index.js';
 
 import { Command, Option } from 'commander';
+import { parseIntStrict } from './utils/parse-int-strict.js';
 import { logger } from './utils/logger.js';
 import { getErrorMessage } from '../utils/error-utils.js';
 
@@ -91,14 +92,13 @@ program
   .option('-w, --workflow <name>', 'Specific workflow name to compile')
   .addOption(new Option('-f, --format <format>', 'Module format').choices(['esm', 'cjs', 'auto']).default('auto'))
   .option('--strict', 'Treat type coercion warnings as errors', false)
-  .option('--inline-runtime', 'Force inline runtime even when @synergenius/flow-weaver package is installed', false)
   .option('--clean', 'Omit redundant @param/@returns annotations from compiled output', false)
   .option('--target <target>', 'Compilation target: typescript (default) or a registered extension target')
   .option('--cron <schedule>', 'Set cron trigger schedule')
   .option('--serve', 'Generate serve() handler for HTTP event reception')
   .option('--framework <name>', 'Framework adapter for serve handler (next, express, hono, fastify, remix)')
   .option('--typed-events', 'Generate Zod event schemas from workflow @param annotations')
-  .option('--retries <n>', 'Number of retries per function', parseInt)
+  .option('--retries <n>', 'Number of retries per function', parseIntStrict)
   .option('--timeout <duration>', 'Function timeout (e.g. "30m", "1h")')
   .action(wrapAction(async (input: string, options) => {
     const { compileCommand } = await import('./commands/compile.js');
@@ -136,7 +136,7 @@ program
 program
   .command('diagram <input>')
   .description('Generate SVG or interactive HTML diagram of a workflow')
-  .option('-t, --theme <theme>', 'Color theme: dark, light', 'dark')
+  .addOption(new Option('-t, --theme <theme>', 'Color theme').choices(['dark', 'light']).default('dark'))
   .option('--width <pixels>', 'SVG width in pixels')
   .option('-p, --padding <pixels>', 'Canvas padding in pixels')
   .option('--no-port-labels', 'Hide data type labels on ports')
@@ -210,7 +210,6 @@ program
   .option('--with-weaver', 'Install Weaver AI assistant')
   .option('--no-weaver', 'Skip Weaver installation')
   .option('--force', 'Overwrite existing files', false)
-  .option('--json', 'Output results as JSON', false)
   .action(wrapAction(async (directory: string | undefined, options) => {
       const { initCommand } = await import('./commands/init.js');
       await initCommand(directory, options);
@@ -245,8 +244,6 @@ program
   .option('--once', 'Run once then exit', false)
   .option('--json', 'Output result as JSON', false)
   .option('--target <target>', 'Compilation target (default: typescript)')
-  .option('--framework <framework>', 'Framework for serve handler', 'express')
-  .option('--port <port>', 'Port for dev server', (v: string) => parseInt(v, 10), 3000)
   .action(wrapAction(async (input: string, options) => {
       const { devCommand } = await import('./commands/dev.js');
       await devCommand(input, options);
@@ -280,7 +277,7 @@ const createCmd = program.command('create').description('Create workflows or nod
 createCmd
   .command('workflow <template> <file>')
   .description('Create a workflow from a template')
-  .option('-l, --line <number>', 'Insert at specific line number', parseInt)
+  .option('-l, --line <number>', 'Insert at specific line number', parseIntStrict)
   .option('-a, --async', 'Generate an async workflow', false)
   .option('-p, --preview', 'Preview generated code without writing', false)
   .option('--provider <provider>', 'LLM provider (openai, anthropic, ollama, mock)')
@@ -298,7 +295,7 @@ createCmd
 createCmd
   .command('node <name> <file>')
   .description('Create a node type from a template')
-  .option('-l, --line <number>', 'Insert at specific line number', parseInt)
+  .option('-l, --line <number>', 'Insert at specific line number', parseIntStrict)
   .option('-t, --template <template>', 'Node template to use', 'transformer')
   .option('-p, --preview', 'Preview generated code without writing', false)
   .option('--strategy <strategy>', 'Template strategy (e.g. mock, callback, webhook)')
@@ -457,7 +454,7 @@ program
   .option('-t, --trace', 'Include execution trace events')
   .option('-s, --stream', 'Stream trace events in real-time')
   .option('--json', 'Output result as JSON', false)
-  .option('--timeout <ms>', 'Execution timeout in milliseconds', parseInt)
+  .option('--timeout <ms>', 'Execution timeout in milliseconds', parseIntStrict)
   .option('--mocks <json>', 'Mock config for built-in nodes (events, invocations, agents, fast) as JSON')
   .option('--mocks-file <path>', 'Path to JSON file with mock config for built-in nodes')
   .option('-d, --debug', 'Start in step-through debug mode')
@@ -483,7 +480,7 @@ program
   .action(wrapAction(async (directory: string | undefined, options) => {
       const { serveCommand } = await import('./commands/serve.js');
       await serveCommand(directory, {
-        port: parseInt(options.port, 10),
+        port: parseIntStrict(options.port),
         host: options.host,
         watch: options.watch,
         production: options.production,
@@ -500,7 +497,8 @@ program
   .requiredOption('-t, --target <target>', 'Target platform (install target packs via marketplace)')
   .requiredOption('-o, --output <path>', 'Output directory')
   .option('-w, --workflow <name>', 'Specific workflow name to export')
-  .option('-p, --production', 'Production mode', true)
+  .option('-p, --production', 'Production mode (no debug events)', false)
+  .option('--bundle', 'Bundle node types into the output', false)
   .option('--dry-run', 'Preview without writing files', false)
   .option('--multi', 'Export all workflows in file as a single multi-workflow service', false)
   .option('--workflows <names>', 'Comma-separated list of workflows to export (used with --multi)')
@@ -681,7 +679,7 @@ marketCmd
   .option('--json', 'Output as JSON', false)
   .action(wrapAction(async (query: string | undefined, options) => {
       const { marketSearchCommand } = await import('./commands/market.js');
-      await marketSearchCommand(query, { ...options, limit: parseInt(options.limit, 10) });
+      await marketSearchCommand(query, { ...options, limit: parseIntStrict(options.limit) });
   }));
 
 marketCmd

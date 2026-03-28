@@ -3,6 +3,7 @@ import * as path from 'path';
 import { glob } from 'glob';
 import { hasInPlaceMarkers, stripGeneratedSections } from '../../api/generate-in-place.js';
 import { logger } from '../utils/logger.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 
 export interface StripOptions {
   output?: string;
@@ -33,8 +34,7 @@ export async function stripCommand(input: string, options: StripOptions = {}): P
   });
 
   if (files.length === 0) {
-    logger.error(`No files found matching pattern: ${input}`);
-    process.exit(1);
+    throw new Error(`No files found matching pattern: ${input}`);
   }
 
   const t = logger.timer();
@@ -64,11 +64,7 @@ export async function stripCommand(input: string, options: StripOptions = {}): P
       ? path.join(path.resolve(output), path.basename(filePath))
       : filePath;
 
-    if (output) {
-      fs.mkdirSync(path.dirname(outPath), { recursive: true });
-    }
-
-    fs.writeFileSync(outPath, result);
+    safeWriteFile(outPath, result);
     stripped++;
 
     if (verbose) {

@@ -44,12 +44,10 @@ export async function marketInitCommand(name: string, options: MarketInitOptions
     if (stat.isDirectory()) {
       const contents = fs.readdirSync(targetDir);
       if (contents.length > 0) {
-        logger.error(`Directory "${name}" already exists and is not empty`);
-        process.exit(1);
+        throw new Error(`Directory "${name}" already exists and is not empty`);
       }
     } else {
-      logger.error(`"${name}" already exists and is not a directory`);
-      process.exit(1);
+      throw new Error(`"${name}" already exists and is not a directory`);
     }
   }
 
@@ -283,8 +281,7 @@ export async function marketPackCommand(directory?: string, options: MarketPackO
 
   if (!validation.valid) {
     logger.newline();
-    logger.error('Package validation failed. Fix errors above before publishing.');
-    process.exit(1);
+    throw new Error('Package validation failed. Fix errors above before publishing.');
   }
 
   // 3. Write manifest
@@ -340,8 +337,7 @@ export async function marketPublishCommand(directory?: string, options: MarketPu
       logger.success(`Published ${pkg.name}@${pkg.version} to npm`);
     }
   } catch (err) {
-    logger.error(`npm publish failed: ${getErrorMessage(err)}`);
-    process.exit(1);
+    throw new Error(`npm publish failed: ${getErrorMessage(err)}`);
   }
 }
 

@@ -8,6 +8,7 @@ import { parseWorkflow } from '../../api/index.js';
 import { generateFunctionSignature } from '../../annotation-generator.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 import type { TNodeTypeAST } from '../../ast/types.js';
 
 export interface ImplementOptions {
@@ -53,16 +54,13 @@ export async function implementCommand(
     const filePath = path.resolve(input);
 
     if (!fs.existsSync(filePath)) {
-      logger.error(`File not found: ${input}`);
-      process.exit(1);
+      throw new Error(`File not found: ${input}`);
     }
 
     const parseResult = await parseWorkflow(filePath, { workflowName });
 
     if (parseResult.errors.length > 0) {
-      logger.error('Parse errors:');
-      parseResult.errors.forEach((e) => logger.error(`  ${e}`));
-      process.exit(1);
+      throw new Error(`Parse errors:\n${parseResult.errors.map((e) => `  ${e}`).join('\n')}`);
     }
 
     const ast = parseResult.ast;
@@ -86,19 +84,17 @@ export async function implementCommand(
         .map((nt: TNodeTypeAST) => nt.functionName);
 
       if (available.length === 0) {
-        logger.error('No stub nodes found in this workflow.');
+        throw new Error('No stub nodes found in this workflow.');
       } else {
-        logger.error(`Stub node "${nodeName}" not found. Available stubs: ${available.join(', ')}`);
+        throw new Error(`Stub node "${nodeName}" not found. Available stubs: ${available.join(', ')}`);
       }
-      process.exit(1);
     }
 
     const source = fs.readFileSync(filePath, 'utf8');
     const found = findDeclareFunction(source, stubNodeType.functionName);
 
     if (!found) {
-      logger.error(`Could not find "declare function ${stubNodeType.functionName}" in source file.`);
-      process.exit(1);
+      throw new Error(`Could not find "declare function ${stubNodeType.functionName}" in source file.`);
     }
 
     // Generate the real function signature
@@ -113,11 +109,10 @@ export async function implementCommand(
       console.log(replacement);
     } else {
       const updated = source.replace(found.match, replacement);
-      fs.writeFileSync(filePath, updated, 'utf8');
+      safeWriteFile(filePath, updated);
       logger.success(`Implemented ${stubNodeType.functionName} in ${path.basename(filePath)}`);
     }
   } catch (error) {
-    logger.error(`Implement failed: ${getErrorMessage(error)}`);
-    process.exit(1);
+    throw new Error(`Implement failed: ${getErrorMessage(error)}`);
   }
 }

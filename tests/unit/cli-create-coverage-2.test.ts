@@ -98,11 +98,10 @@ describe('createWorkflowCommand - additional coverage', () => {
     fs.chmodSync(filePath, 0o444);
 
     // The insertIntoFile reads and writes; making file read-only should cause a write error
-    // which gets caught and calls process.exit(1)
     try {
       await expect(
         createWorkflowCommand('sequential', filePath, { line: 1 })
-      ).rejects.toThrow(/process\.exit/);
+      ).rejects.toThrow(/EACCES|permission|Failed to create/i);
     } finally {
       fs.chmodSync(filePath, 0o644);
     }
@@ -145,7 +144,7 @@ describe('createNodeCommand - additional coverage', () => {
     try {
       await expect(
         createNodeCommand('failNode', filePath, { line: 1, template: 'transformer' })
-      ).rejects.toThrow(/process\.exit/);
+      ).rejects.toThrow(/Failed to create node|EACCES|permission/i);
     } finally {
       fs.chmodSync(filePath, 0o644);
     }

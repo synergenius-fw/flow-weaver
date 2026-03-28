@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileToSVG, fileToHTML, fileToASCII } from '../../diagram/index.js';
 import { logger } from '../utils/logger.js';
-import { getErrorMessage } from '../../utils/error-utils.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 
 const ASCII_FORMATS = new Set(['ascii', 'ascii-compact', 'text']);
 
@@ -26,29 +26,23 @@ export async function diagramCommand(input: string, options: DiagramCommandOptio
   const filePath = path.resolve(input);
 
   if (!fs.existsSync(filePath)) {
-    logger.error(`File not found: ${filePath}`);
-    process.exit(1);
+    throw new Error(`File not found: ${filePath}`);
   }
 
-  try {
-    let result: string;
-    if (ASCII_FORMATS.has(format)) {
-      result = fileToASCII(filePath, { ...diagramOptions, format });
-    } else if (format === 'html') {
-      result = fileToHTML(filePath, diagramOptions);
-    } else {
-      result = fileToSVG(filePath, diagramOptions);
-    }
+  let result: string;
+  if (ASCII_FORMATS.has(format)) {
+    result = fileToASCII(filePath, { ...diagramOptions, format });
+  } else if (format === 'html') {
+    result = fileToHTML(filePath, diagramOptions);
+  } else {
+    result = fileToSVG(filePath, diagramOptions);
+  }
 
-    if (output) {
-      const outputPath = path.resolve(output);
-      fs.writeFileSync(outputPath, result, 'utf-8');
-      logger.success(`Diagram written to ${outputPath}`);
-    } else {
-      process.stdout.write(result);
-    }
-  } catch (error) {
-    logger.error(`Failed to generate diagram: ${getErrorMessage(error)}`);
-    process.exit(1);
+  if (output) {
+    const outputPath = path.resolve(output);
+    safeWriteFile(outputPath, result);
+    logger.success(`Diagram written to ${outputPath}`);
+  } else {
+    process.stdout.write(result);
   }
 }

@@ -440,18 +440,15 @@ describe('doctorCommand --json', () => {
     const logs: string[] = [];
     const originalLog = console.log;
     const originalCwd = process.cwd;
-    const originalExit = process.exit;
 
     console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
     process.cwd = () => dir;
-    process.exit = vi.fn() as never;
 
     try {
       await doctorCommand({ json: true });
     } finally {
       console.log = originalLog;
       process.cwd = originalCwd;
-      process.exit = originalExit;
     }
 
     expect(logs.length).toBeGreaterThan(0);
@@ -468,27 +465,23 @@ describe('doctorCommand --json', () => {
     expect(report.moduleFormat.format).toBe('esm');
   });
 
-  it('should call process.exit(1) when checks fail', async () => {
+  it('should throw when checks fail', async () => {
     const dir = emptyDir;
 
     const originalLog = console.log;
     const originalCwd = process.cwd;
-    const originalExit = process.exit;
-    const mockExit = vi.fn() as unknown as typeof process.exit;
 
     console.log = vi.fn();
     process.cwd = () => dir;
-    process.exit = mockExit;
 
     try {
-      await doctorCommand({ json: true });
+      await expect(
+        doctorCommand({ json: true })
+      ).rejects.toThrow(/Doctor found issues/);
     } finally {
       console.log = originalLog;
       process.cwd = originalCwd;
-      process.exit = originalExit;
     }
-
-    expect(mockExit).toHaveBeenCalledWith(1);
   });
 });
 

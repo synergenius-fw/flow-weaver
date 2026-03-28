@@ -93,7 +93,7 @@ export async function exportCommand(input: string, options: ExportOptions): Prom
     input,
     output: options.output,
     workflow: options.workflow,
-    production: options.production ?? true,
+    production: options.production ?? false,
     bundle: options.bundle,
     dryRun: isDryRun,
     multi: isMulti,

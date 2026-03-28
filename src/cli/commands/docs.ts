@@ -14,8 +14,7 @@ export async function docsListCommand(options: DocsCommandOptions): Promise<void
   const topics = listTopics();
 
   if (topics.length === 0) {
-    logger.error('No documentation topics found.');
-    process.exit(1);
+    throw new Error('No documentation topics found.');
   }
 
   if (options.json) {
@@ -42,8 +41,7 @@ export async function docsReadCommand(
   if (options.json) {
     const structured = readTopicStructured(topic);
     if (!structured) {
-      logger.error(`Unknown topic: "${topic}". Run "fw docs" to see available topics.`);
-      process.exit(1);
+      throw new Error(`Unknown topic: "${topic}". Run "fw docs" to see available topics.`);
     }
     process.stdout.write(JSON.stringify(structured, null, 2) + '\n');
     return;
@@ -51,8 +49,7 @@ export async function docsReadCommand(
 
   const doc = readTopic(topic, options.compact);
   if (!doc) {
-    logger.error(`Unknown topic: "${topic}". Run "fw docs" to see available topics.`);
-    process.exit(1);
+    throw new Error(`Unknown topic: "${topic}". Run "fw docs" to see available topics.`);
   }
 
   process.stdout.write(doc.content + '\n');

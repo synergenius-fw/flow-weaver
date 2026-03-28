@@ -70,11 +70,8 @@ describe('diagramCommand', () => {
     process.stdout.write = origStdoutWrite;
   });
 
-  it('should exit with error when input file does not exist', async () => {
-    await diagramCommand('/nonexistent/file.ts', {});
-
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('File not found'));
-    expect(process.exit).toHaveBeenCalledWith(1);
+  it('should throw when input file does not exist', async () => {
+    await expect(diagramCommand('/nonexistent/file.ts', {})).rejects.toThrow(/File not found/);
   });
 
   it('should generate SVG by default and write to stdout', async () => {
@@ -141,7 +138,7 @@ describe('diagramCommand', () => {
     });
   });
 
-  it('should handle errors from the diagram generator', async () => {
+  it('should propagate errors from the diagram generator', async () => {
     const inputFile = path.join(DIAGRAM_TEMP_DIR, 'workflow.ts');
     fs.writeFileSync(inputFile, '// workflow');
 
@@ -149,10 +146,6 @@ describe('diagramCommand', () => {
       throw new Error('Parse error in workflow');
     });
 
-    await diagramCommand(inputFile, {});
-
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to generate diagram'));
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Parse error in workflow'));
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(diagramCommand(inputFile, {})).rejects.toThrow('Parse error in workflow');
   });
 });

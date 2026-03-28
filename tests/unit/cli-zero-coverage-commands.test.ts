@@ -17,6 +17,7 @@ const {
   mockSerializedToEBNF,
   mockWebhookServerStart,
   mockWebhookServerStop,
+  mockSafeWriteFile,
 } = vi.hoisted(() => {
   const mockWatcherOn = vi.fn().mockReturnThis();
   const mockWatcherClose = vi.fn();
@@ -46,6 +47,7 @@ const {
     mockSerializedToEBNF: vi.fn().mockReturnValue('rule ::= ...'),
     mockWebhookServerStart: vi.fn().mockResolvedValue(undefined),
     mockWebhookServerStop: vi.fn().mockResolvedValue(undefined),
+    mockSafeWriteFile: vi.fn(),
   };
 });
 
@@ -119,6 +121,10 @@ vi.mock('../../src/server/webhook-server.js', () => {
   });
   return { WebhookServer: Ctor };
 });
+
+vi.mock('../../src/cli/utils/safe-write.js', () => ({
+  safeWriteFile: mockSafeWriteFile,
+}));
 
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
@@ -419,32 +425,21 @@ describe('contextCommand', () => {
   it('writes context to a file when --output is set', async () => {
     await contextCommand('core', { output: '/tmp/ctx.md' });
 
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
+    expect(mockSafeWriteFile).toHaveBeenCalledWith(
       '/tmp/ctx.md',
       '# context output',
-      'utf-8',
     );
     expect(logger.success).toHaveBeenCalledWith(
       expect.stringContaining('/tmp/ctx.md'),
     );
   });
 
-  it('exits on unknown preset without --topics', async () => {
-    await contextCommand('nonexistent', {});
-
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining('Unknown preset'),
-    );
-    expect(process.exit).toHaveBeenCalledWith(1);
+  it('throws on unknown preset without --topics', async () => {
+    await expect(contextCommand('nonexistent', {})).rejects.toThrow(/Unknown preset/);
   });
 
-  it('exits on invalid profile', async () => {
-    await contextCommand('core', { profile: 'invalid' });
-
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining('Unknown profile'),
-    );
-    expect(process.exit).toHaveBeenCalledWith(1);
+  it('throws on invalid profile', async () => {
+    await expect(contextCommand('core', { profile: 'invalid' })).rejects.toThrow(/Unknown profile/);
   });
 
   it('passes topics and add options through', async () => {
@@ -502,10 +497,9 @@ describe('grammarCommand', () => {
   it('writes to file when output is specified', async () => {
     await grammarCommand({ format: 'ebnf', output: '/tmp/grammar.ebnf' });
 
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
+    expect(mockSafeWriteFile).toHaveBeenCalledWith(
       '/tmp/grammar.ebnf',
       'rule ::= ...',
-      'utf-8',
     );
     expect(logger.success).toHaveBeenCalledWith(
       expect.stringContaining('/tmp/grammar.ebnf'),
@@ -518,7 +512,7 @@ describe('grammarCommand', () => {
     expect(mockGenerateGrammarDiagrams).toHaveBeenCalled();
   });
 
-  it('handles errors and exits', async () => {
+  it('throws on grammar generation error', async () => {
     mockGetAllGrammars.mockImplementationOnce(() => {
       throw new Error('grammar broken');
     });
@@ -526,12 +520,7 @@ describe('grammarCommand', () => {
     const origIsTTY = process.stdout.isTTY;
     Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
 
-    await grammarCommand({});
-
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining('grammar broken'),
-    );
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(grammarCommand({})).rejects.toThrow(/grammar broken/);
 
     Object.defineProperty(process.stdout, 'isTTY', { value: origIsTTY, configurable: true });
   });

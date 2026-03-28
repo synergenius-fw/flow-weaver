@@ -1,7 +1,7 @@
 ---
 name: Compilation
 description: How compilation works, TypeScript and Inngest targets, compile options, and serve handler generation
-keywords: [compile, compilation, target, typescript, inngest, production, source-map, format, strict, inline-runtime, clean, serve, framework, step.run, durable, trigger, cancelOn, retries, timeout, throttle, cron, markers]
+keywords: [compile, compilation, target, typescript, inngest, production, source-map, format, strict, clean, serve, framework, step.run, durable, trigger, cancelOn, retries, timeout, throttle, cron, markers]
 ---
 
 # Compilation
@@ -59,7 +59,7 @@ fw compile workflow.ts
 Generates code like:
 ```typescript
 // @flow-weaver-runtime — start
-import { ExecutionContext } from '@synergenius/flow-weaver/runtime';
+// (inline runtime: GeneratedExecutionContext, CancellationError, types)
 // @flow-weaver-runtime — end
 
 export function myWorkflow(params: { data: string }) {
@@ -271,14 +271,6 @@ fw compile workflow.ts --strict
 ```
 
 Equivalent to adding `@strictTypes` to the workflow annotation.
-
-### Inline Runtime (`--inline-runtime`)
-
-Force inline runtime code even when `@synergenius/flow-weaver` is installed as a dependency. Normally the compiler generates an import; this flag embeds the runtime directly.
-
-```bash
-fw compile workflow.ts --inline-runtime
-```
 
 ### Clean Output (`--clean`)
 

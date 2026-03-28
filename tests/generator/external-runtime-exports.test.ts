@@ -32,14 +32,24 @@ describe('external runtime exports', () => {
   });
 });
 
-describe('external runtime import generation', () => {
-  it('generateRuntimeSection imports TDebugController in dev mode', async () => {
+describe('inline runtime generation', () => {
+  it('inline runtime includes TDebugController type', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../../src/api/inline-runtime.ts'), 'utf-8'
+    );
+    // The inline runtime should emit TDebugController
+    expect(source).toContain('TDebugController');
+  });
+
+  it('generate-in-place has no externalRuntimePath parameter', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const source = fs.readFileSync(
       path.resolve(__dirname, '../../src/api/generate-in-place.ts'), 'utf-8'
     );
-    // The external runtime section should import TDebugController
-    expect(source).toContain('TDebugController');
+    // External runtime path support was removed — always inlines
+    expect(source).not.toContain('externalRuntimePath');
   });
 });

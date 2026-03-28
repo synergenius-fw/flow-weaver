@@ -529,7 +529,7 @@ describe('exportCommand coverage round 2', () => {
       );
     });
 
-    it('should default production to true', async () => {
+    it('should default production to false', async () => {
       mockExportWorkflow.mockResolvedValue({
         target: 'lambda',
         workflow: 'myWf',
@@ -542,7 +542,7 @@ describe('exportCommand coverage round 2', () => {
       });
 
       expect(mockExportWorkflow).toHaveBeenCalledWith(
-        expect.objectContaining({ production: true })
+        expect.objectContaining({ production: false })
       );
     });
 

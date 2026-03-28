@@ -10,6 +10,7 @@ import {
 } from '../../chevrotain-parser/grammar-diagrams.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 
 export interface GrammarOptions {
   format?: 'html' | 'ebnf';
@@ -39,13 +40,12 @@ export async function grammarCommand(options: GrammarOptions = {}): Promise<void
     }
 
     if (output) {
-      fs.writeFileSync(output, content, 'utf-8');
+      safeWriteFile(output, content);
       logger.success(`Grammar written to ${output}`);
     } else {
       process.stdout.write(content);
     }
   } catch (error) {
-    logger.error(`Grammar generation failed: ${getErrorMessage(error)}`);
-    process.exit(1);
+    throw new Error(`Grammar generation failed: ${getErrorMessage(error)}`);
   }
 }

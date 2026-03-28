@@ -36,12 +36,11 @@ export interface GenerateOptions extends Partial<ASTGenerateOptions> {
    */
   moduleFormat?: TModuleFormat;
   /**
-   * Path to external runtime module (relative from the generated file).
-   * When set, generates import from this path instead of inlining runtime types.
-   * Use this for multi-workflow bundles to avoid duplicate type declarations.
-   * @example '../runtime/types.js'
+   * Enable bundle mode for multi-workflow bundles.
+   * When true, imports node types from node-types/ directory and workflows from sibling files.
+   * Runtime is always inlined regardless of this setting.
    */
-  externalRuntimePath?: string;
+  bundleMode?: boolean;
   /**
    * Constants from source file(s) to include at the top of the generated file.
    * Used in bundle mode when local node functions are inlined and need their
@@ -138,7 +137,7 @@ export function generateCode(
     sourceMap = false,
     allWorkflows = [],
     moduleFormat = 'esm',
-    externalRuntimePath,
+    bundleMode = false,
     constants = [],
     externalNodeTypes = {},
     generateStubs = false,
@@ -192,8 +191,6 @@ export function generateCode(
   };
 
   // Generate function body using existing body generator
-  // Bundle mode uses params object pattern for node wrapper calls
-  const bundleMode = !!externalRuntimePath;
   const functionBody = bodyGenerator.generateWithExecutionContext(
     ast,
     ast.nodeTypes,
@@ -210,32 +207,8 @@ export function generateCode(
   lines.push('');
   addLine();
 
-  // Include runtime (either inline or external import)
-  if (externalRuntimePath) {
-    // Import from external runtime module to avoid duplicate declarations in multi-file bundles
-    lines.push(`// Runtime imported from shared module`);
-    addLine();
-    lines.push(
-      generateImportStatement(
-        ['GeneratedExecutionContext', 'CancellationError'],
-        externalRuntimePath,
-        moduleFormat
-      )
-    );
-    addLine();
-    if (!production) {
-      // Import TDebugger type from external runtime
-      lines.push(
-        moduleFormat === 'cjs'
-          ? `const { TDebugger } = require('${externalRuntimePath}');`
-          : `import type { TDebugger } from '${externalRuntimePath}';`
-      );
-      addLine();
-    }
-    lines.push('');
-    addLine();
-  } else {
-    // Include inline runtime (types + GeneratedExecutionContext)
+  // Include inline runtime (always inlined — zero runtime dependencies)
+  {
     const inlineRuntime = generateInlineRuntime(production);
     const runtimeLines = inlineRuntime.split('\n');
     runtimeLines.forEach((line) => {
@@ -313,11 +286,10 @@ export function generateCode(
     addLine();
 
     // Import regular node functions from source files
-    // In bundle mode (externalRuntimePath is set), import from node-types directory
+    // In bundle mode, import from node-types directory
     // Otherwise import from .generated files in the same directory
     functionImportsByFile.forEach((nodes, sourceFile) => {
-      if (externalRuntimePath) {
-        // Bundle mode: import from node-types directory
+      if (bundleMode) {
         // Bundle mode: import _impl (positional data args for expression nodes, execute + data args for regular)
         // The wrapper is only for HTTP entry points, not internal workflow calls
         nodes.forEach((node) => {
@@ -340,7 +312,7 @@ export function generateCode(
     // Import workflows from their generated files
     // In bundle mode, import from sibling workflow files
     workflowImportsByFile.forEach((names, sourceFile) => {
-      if (externalRuntimePath) {
+      if (bundleMode) {
         // Bundle mode: import each workflow from the workflows directory
         names.forEach((name) => {
           const relativePath = `./${name}.js`;

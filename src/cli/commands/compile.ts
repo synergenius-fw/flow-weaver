@@ -16,6 +16,7 @@ import type { TModuleFormat } from '../../ast/types.js';
 import { detectProjectModuleFormat } from './doctor.js';
 import { compileTargetRegistry } from '../../generator/compile-target-registry.js';
 import { AnnotationParser } from '../../parser.js';
+import { safeWriteFile, safeAppendFile } from '../utils/safe-write.js';
 
 /** Show path relative to cwd for cleaner output */
 function displayPath(filePath: string): string {
@@ -42,11 +43,6 @@ export interface CompileOptions {
    * - 'auto': Auto-detect from project's package.json (default)
    */
   format?: 'esm' | 'cjs' | 'auto';
-  /**
-   * Force inline runtime even when @synergenius/flow-weaver package is installed.
-   * By default, the compiler uses external runtime imports when the package is available.
-   */
-  inlineRuntime?: boolean;
   /**
    * Omit redundant @param/@returns annotations from compiled output.
    * Useful for vibe coders who don't use the visual editor.
@@ -82,7 +78,7 @@ function resolveModuleFormat(format: string | undefined, cwd: string): TModuleFo
 }
 
 export async function compileCommand(input: string, options: CompileOptions = {}): Promise<void> {
-  const { production = false, sourceMap = false, strict = false, verbose = false, workflowName, dryRun = false, format, inlineRuntime = false, clean = false, target } = options;
+  const { production = false, sourceMap = false, strict = false, verbose = false, workflowName, dryRun = false, format, clean = false, target, output } = options;
 
   // Handle custom compile target
   if (target && target !== 'typescript') {
@@ -115,6 +111,29 @@ export async function compileCommand(input: string, options: CompileOptions = {}
 
   if (files.length === 0) {
     throw new Error(`No files found matching pattern: ${input}`);
+  }
+
+  // Resolve --output: determine if it's a file or directory target
+  let outputDir: string | undefined;
+  let outputFile: string | undefined;
+  if (output) {
+    const isOutputDir = output.endsWith('/') || output.endsWith(path.sep) ||
+      (fs.existsSync(output) && fs.statSync(output).isDirectory());
+
+    if (isOutputDir) {
+      outputDir = output.endsWith('/') || output.endsWith(path.sep) ? output.slice(0, -1) : output;
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+      }
+    } else if (files.length > 1) {
+      // Multiple input files but output is a single file — ambiguous
+      throw new Error(
+        `Cannot use --output with a file path when compiling multiple files. ` +
+        `Use a directory path instead (e.g. --output ${output}/)`
+      );
+    } else {
+      outputFile = path.resolve(output);
+    }
   }
 
   const totalTimer = logger.timer();
@@ -223,11 +242,18 @@ export async function compileCommand(input: string, options: CompileOptions = {}
       const sourceCode = fs.readFileSync(file, 'utf8');
 
       // Generate code in-place (preserves types, interfaces, etc.)
-      const result = generateInPlace(sourceCode, parseResult.ast, { production, moduleFormat, inlineRuntime, sourceFile: file, skipParamReturns: clean });
+      const result = generateInPlace(sourceCode, parseResult.ast, { production, moduleFormat, sourceFile: file, skipParamReturns: clean });
 
-      // Write back to original file (skip in dry-run mode)
+      // Determine where to write the compiled output
+      const writePath = outputFile
+        ? outputFile
+        : outputDir
+          ? path.join(outputDir, path.basename(file))
+          : file; // in-place
+
+      // Write compiled output (skip in dry-run mode)
       if (!dryRun) {
-        fs.writeFileSync(file, result.code, 'utf8');
+        safeWriteFile(writePath, result.code);
 
         // Generate source map if requested
         if (sourceMap) {
@@ -237,11 +263,11 @@ export async function compileCommand(input: string, options: CompileOptions = {}
             moduleFormat,
           });
           if (mapResult.sourceMap) {
-            const mapPath = file + '.map';
-            fs.writeFileSync(mapPath, mapResult.sourceMap, 'utf8');
+            const mapPath = writePath + '.map';
+            safeWriteFile(mapPath, mapResult.sourceMap);
             const sourceMappingComment = `\n//# sourceMappingURL=${path.basename(mapPath)}\n`;
             if (!result.code.includes('//# sourceMappingURL=')) {
-              fs.appendFileSync(file, sourceMappingComment, 'utf8');
+              safeAppendFile(writePath, sourceMappingComment);
             }
             if (verbose) {
               logger.info(`    source map: ${displayPath(mapPath)}`);
@@ -374,7 +400,7 @@ export async function compileCustomTarget(
       logger.info(`... (${lines.length - 50} more lines)`);
     }
   } else {
-    fs.writeFileSync(outputPath, code, 'utf8');
+    safeWriteFile(outputPath, code);
     logger.success(`Compiled: ${displayPath(outputPath)}`);
   }
 

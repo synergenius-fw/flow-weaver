@@ -4,6 +4,7 @@ import { parseWorkflow } from '../../api/index.js';
 import { generateInPlace } from '../../api/generate-in-place.js';
 import { applyModifyOperation, validateModifyParams } from '../../api/modify-operation.js';
 import { logger } from '../utils/logger.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 
 async function readParseModifyWrite(
   file: string,
@@ -22,7 +23,7 @@ async function readParseModifyWrite(
   }
   const { ast: modifiedAST, warnings } = applyModifyOperation(parseResult.ast, operation, params);
   const result = generateInPlace(source, modifiedAST);
-  fs.writeFileSync(filePath, result.code, 'utf-8');
+  safeWriteFile(filePath, result.code);
   for (const w of warnings) {
     logger.warn(w);
   }

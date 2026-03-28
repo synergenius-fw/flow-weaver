@@ -12,6 +12,7 @@ import { glob } from 'glob';
 import { AnnotationParser } from '../../parser.js';
 import type { TPatternAST } from '../../ast/types.js';
 import { logger } from '../utils/logger.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 import { listPatterns, applyPattern, extractPattern } from '../../api/patterns.js';
 
 const parser = new AnnotationParser();
@@ -174,7 +175,7 @@ export async function patternApplyCommand(
   }
 
   // Write modified content
-  fs.writeFileSync(targetFile, result.modifiedContent);
+  safeWriteFile(targetFile, result.modifiedContent);
 
   logger.success(`Applied pattern "${pattern.name}" to ${targetFile}`);
   if (result.nodeTypesAdded.length > 0) {
@@ -229,7 +230,7 @@ export async function patternExtractCommand(
   }
 
   // Write to output file
-  fs.writeFileSync(options.output, result.patternCode);
+  safeWriteFile(options.output, result.patternCode);
   logger.success(`Extracted pattern "${result.patternName}" to ${options.output}`);
   logger.info(`Included nodes: ${result.nodes.join(', ')}`);
   logger.info(`Input ports: ${result.inputPorts.join(', ') || 'none'}`);

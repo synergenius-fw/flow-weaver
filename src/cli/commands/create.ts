@@ -78,9 +78,7 @@ export async function createWorkflowCommand(
 
   const templateDef = getWorkflowTemplate(template);
   if (!templateDef) {
-    logger.error(`Unknown workflow template: ${template}`);
-    logger.info("Run 'fw templates' to see available templates");
-    process.exit(1);
+    throw new Error(`Unknown workflow template: ${template}. Run 'fw templates' to see available templates`);
   }
 
   // Resolve to absolute path
@@ -101,8 +99,7 @@ export async function createWorkflowCommand(
     try {
       Object.assign(config, JSON.parse(configJson));
     } catch {
-      logger.error('Invalid --config JSON');
-      process.exit(1);
+      throw new Error('Invalid --config JSON');
     }
   }
 
@@ -127,8 +124,7 @@ export async function createWorkflowCommand(
     }
     logger.info(`  Workflow function: ${workflowName}`);
   } catch (error) {
-    logger.error(`Failed to create workflow: ${getErrorMessage(error)}`);
-    process.exit(1);
+    throw new Error(`Failed to create workflow: ${getErrorMessage(error)}`);
   }
 }
 
@@ -145,9 +141,7 @@ export async function createNodeCommand(
 
   const templateDef = getNodeTemplate(template);
   if (!templateDef) {
-    logger.error(`Unknown node template: ${template}`);
-    logger.info("Run 'fw templates' to see available templates");
-    process.exit(1);
+    throw new Error(`Unknown node template: ${template}. Run 'fw templates' to see available templates`);
   }
 
   // Resolve to absolute path
@@ -160,8 +154,7 @@ export async function createNodeCommand(
     try {
       Object.assign(config, JSON.parse(configJson));
     } catch {
-      logger.error('Invalid --config JSON');
-      process.exit(1);
+      throw new Error('Invalid --config JSON');
     }
   }
 
@@ -184,7 +177,6 @@ export async function createNodeCommand(
     }
     logger.info(`  Node function: ${nodeName}`);
   } catch (error) {
-    logger.error(`Failed to create node: ${getErrorMessage(error)}`);
-    process.exit(1);
+    throw new Error(`Failed to create node: ${getErrorMessage(error)}`);
   }
 }

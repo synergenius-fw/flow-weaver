@@ -61,13 +61,10 @@ afterEach(() => {
 // -- docsListCommand --
 
 describe('docsListCommand', () => {
-  it('should exit(1) when no topics are found', async () => {
+  it('should throw when no topics are found', async () => {
     vi.mocked(listTopics).mockReturnValue([]);
 
-    await docsListCommand({});
-
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('No documentation topics'));
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(docsListCommand({})).rejects.toThrow(/No documentation topics/);
   });
 
   it('should output JSON when --json is set', async () => {
@@ -118,14 +115,10 @@ describe('docsReadCommand', () => {
     expect(parsed.sections).toHaveLength(1);
   });
 
-  it('should exit(1) when --json is set and topic does not exist', async () => {
+  it('should throw when --json is set and topic does not exist', async () => {
     vi.mocked(readTopicStructured).mockReturnValue(null);
 
-    await docsReadCommand('nonexistent', { json: true });
-
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Unknown topic'));
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('nonexistent'));
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(docsReadCommand('nonexistent', { json: true })).rejects.toThrow(/Unknown topic.*nonexistent/);
   });
 
   it('should output topic content to stdout in normal mode', async () => {
@@ -157,17 +150,10 @@ describe('docsReadCommand', () => {
     expect(readTopic).toHaveBeenCalledWith('syntax', true);
   });
 
-  it('should exit(1) when topic does not exist in normal mode', async () => {
+  it('should throw when topic does not exist in normal mode', async () => {
     vi.mocked(readTopic).mockReturnValue(null);
 
-    try {
-      await docsReadCommand('nonexistent', {});
-    } catch {
-      // mocked process.exit doesn't halt, so the function may throw
-    }
-
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Unknown topic'));
-    expect(process.exit).toHaveBeenCalledWith(1);
+    await expect(docsReadCommand('nonexistent', {})).rejects.toThrow(/Unknown topic/);
   });
 });
 

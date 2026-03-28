@@ -14,6 +14,7 @@ import { generateInPlace } from '../../api/generate-in-place.js';
 import { WorkflowDiffer, formatDiff } from '../../diff/index.js';
 import { applyMigrations, getRegisteredMigrations } from '../../migration/registry.js';
 import { logger } from '../utils/logger.js';
+import { safeWriteFile } from '../utils/safe-write.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 
 export interface MigrateOptions {
@@ -93,7 +94,7 @@ export async function migrateCommand(
         continue;
       }
 
-      fs.writeFileSync(filePath, genResult.code, 'utf8');
+      safeWriteFile(filePath, genResult.code);
       logger.success(`  ${file}: migrated`);
       migratedCount++;
     } catch (error) {

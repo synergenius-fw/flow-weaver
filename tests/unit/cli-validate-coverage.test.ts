@@ -182,7 +182,11 @@ describe('validateCommand validation errors in human-readable mode', () => {
   it('should display validation errors with location and node info', async () => {
     const filePath = writeFixture('val-errors-hr.ts', INVALID_PORT_WORKFLOW);
 
-    await validateCommand(filePath, { json: false, verbose: true });
+    try {
+      await validateCommand(filePath, { json: false, verbose: true });
+    } catch {
+      // validateCommand throws after logging errors in non-JSON mode
+    }
 
     const allOutput = [...logs, ...errors, ...warns].join(' ');
     // Should contain error indicators
@@ -234,7 +238,11 @@ export function broken(execute: boolean): Promise<{ onSuccess: boolean }> {
 }
 `);
 
-    await validateCommand(filePath, { json: false });
+    try {
+      await validateCommand(filePath, { json: false });
+    } catch {
+      // validateCommand throws after logging errors in non-JSON mode
+    }
 
     expect(errors.length).toBeGreaterThan(0);
   });
@@ -244,7 +252,11 @@ describe('validateCommand summary formatting', () => {
   it('should show summary with errors count when there are errors', async () => {
     const filePath = writeFixture('summary-err.ts', INVALID_PORT_WORKFLOW);
 
-    await validateCommand(filePath, { json: false });
+    try {
+      await validateCommand(filePath, { json: false });
+    } catch {
+      // validateCommand throws after logging errors in non-JSON mode
+    }
 
     const allOutput = logs.join(' ');
     expect(allOutput).toContain('error');

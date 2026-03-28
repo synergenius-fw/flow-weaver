@@ -324,17 +324,6 @@ function existingFunction() {}
   // ── createWorkflowCommand ────────────────────────────────────────────────
 
   describe('createWorkflowCommand', () => {
-    let origExit: typeof process.exit;
-
-    beforeEach(() => {
-      origExit = process.exit;
-      process.exit = vi.fn() as never;
-    });
-
-    afterEach(() => {
-      process.exit = origExit;
-    });
-
     it('should create a workflow file from a known template', async () => {
       const outFile = path.join(TEMP_DIR, 'cmd-sequential.ts');
 
@@ -408,25 +397,10 @@ function existingFunction() {}
       expect(output).toContain('@flowWeaver workflow');
     });
 
-    it('should call process.exit(1) for unknown template', async () => {
-      const origLog = console.log;
-      const origError = console.error;
-      const origWarn = console.warn;
-      console.log = vi.fn();
-      console.error = vi.fn();
-      console.warn = vi.fn();
-
-      try {
-        await createWorkflowCommand('nonexistent-template', '/tmp/test.ts');
-      } catch {
-        // process.exit is mocked so code continues past exit(1) and may throw
-      } finally {
-        console.log = origLog;
-        console.error = origError;
-        console.warn = origWarn;
-      }
-
-      expect(process.exit).toHaveBeenCalledWith(1);
+    it('should throw for unknown template', async () => {
+      await expect(
+        createWorkflowCommand('nonexistent-template', '/tmp/test.ts')
+      ).rejects.toThrow(/Unknown workflow template/);
     });
 
     it('should insert at specific line when --line is provided', async () => {
@@ -483,40 +457,16 @@ function existingFunction() {}
       expect(content).toContain('gpt-4-turbo');
     });
 
-    it('should call process.exit(1) for invalid --config JSON', async () => {
-      const origLog = console.log;
-      const origError = console.error;
-      const origWarn = console.warn;
-      console.log = vi.fn();
-      console.error = vi.fn();
-      console.warn = vi.fn();
-
-      try {
-        await createWorkflowCommand('sequential', '/tmp/test.ts', { config: '{invalid json' });
-      } finally {
-        console.log = origLog;
-        console.error = origError;
-        console.warn = origWarn;
-      }
-
-      expect(process.exit).toHaveBeenCalledWith(1);
+    it('should throw for invalid --config JSON', async () => {
+      await expect(
+        createWorkflowCommand('sequential', '/tmp/test.ts', { config: '{invalid json' })
+      ).rejects.toThrow(/Invalid --config JSON/);
     });
   });
 
   // ── createNodeCommand ──────────────────────────────────────────────────────
 
   describe('createNodeCommand', () => {
-    let origExit: typeof process.exit;
-
-    beforeEach(() => {
-      origExit = process.exit;
-      process.exit = vi.fn() as never;
-    });
-
-    afterEach(() => {
-      process.exit = origExit;
-    });
-
     it('should create a node type file using transformer template', async () => {
       const outFile = path.join(TEMP_DIR, 'cmd-node-default.ts');
 
@@ -564,25 +514,10 @@ function existingFunction() {}
       expect(logs.join('\n')).toContain('@flowWeaver nodeType');
     });
 
-    it('should call process.exit(1) for unknown node template', async () => {
-      const origLog = console.log;
-      const origError = console.error;
-      const origWarn = console.warn;
-      console.log = vi.fn();
-      console.error = vi.fn();
-      console.warn = vi.fn();
-
-      try {
-        await createNodeCommand('test', '/tmp/test.ts', { template: 'fake-template' });
-      } catch {
-        // process.exit is mocked so code continues past exit(1) and may throw
-      } finally {
-        console.log = origLog;
-        console.error = origError;
-        console.warn = origWarn;
-      }
-
-      expect(process.exit).toHaveBeenCalledWith(1);
+    it('should throw for unknown node template', async () => {
+      await expect(
+        createNodeCommand('test', '/tmp/test.ts', { template: 'fake-template' })
+      ).rejects.toThrow(/Unknown node template/);
     });
 
     it('should generate a validator node template', async () => {

@@ -122,10 +122,10 @@ describe('stripCommand directory expansion', () => {
 });
 
 describe('stripCommand no files found', () => {
-  it('should call process.exit(1) when no files match pattern', async () => {
-    await stripCommand(path.join(TEMP_DIR, 'nonexistent-xyz/**/*.ts'), {});
-
-    expect(process.exit).toHaveBeenCalledWith(1);
+  it('should throw when no files match pattern', async () => {
+    await expect(
+      stripCommand(path.join(TEMP_DIR, 'nonexistent-xyz/**/*.ts'), {})
+    ).rejects.toThrow(/No files found/);
   });
 });
 
