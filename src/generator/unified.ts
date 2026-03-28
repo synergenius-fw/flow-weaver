@@ -249,6 +249,21 @@ export function generateControlFlowWithExecutionContext(
       }
     }
   });
+
+  // Pre-declare _success flags for branching nodes that have downstream nodes.
+  // These flags must be at the function's top level because downstream guards
+  // (promoted nodes, chain guards) may reference them outside the branch block
+  // where the branching node is generated.
+  const topLevelSuccessFlags = new Set<string>();
+  branchRegions.forEach((region, nodeId) => {
+    if (region.successNodes.size > 0 || region.failureNodes.size > 0) {
+      const safeId = toValidIdentifier(nodeId);
+      lines.push(`  let ${safeId}_success = false;`);
+      topLevelSuccessFlags.add(safeId);
+      hasLetDeclarations = true;
+    }
+  });
+
   if (hasLetDeclarations) {
     lines.push('');
   }
@@ -516,7 +531,8 @@ export function generateControlFlowWithExecutionContext(
           'ctx',
           bundleMode,
           branchingNodesNeedingSuccessFlag,
-          production
+          production,
+          topLevelSuccessFlags
         );
         if (chainNeedsClose) {
           lines.push(`  }`);
@@ -528,6 +544,10 @@ export function generateControlFlowWithExecutionContext(
       // For promoted branching nodes, wrap in STEP guard from execute port source
       let branchIndent = '  ';
       let branchNeedsClose = false;
+      // Pre-declare _success flag at the outer scope so downstream guards
+      // (which may run after the promoted guard block) can access it.
+      const nodeRegion = branchRegions.get(instanceId)!;
+      const promotedPreDeclared = new Set<string>(topLevelSuccessFlags);
       if (nodesPromotedFromBranches.has(instanceId)) {
         const stepSourceConditions: string[] = [];
         workflow.connections.forEach((conn) => {
@@ -552,7 +572,7 @@ export function generateControlFlowWithExecutionContext(
         nodeType,
         workflow,
         nodeTypes,
-        branchRegions.get(instanceId)!,
+        nodeRegion,
         availableVars,
         generatedNodes,
         lines,
@@ -563,7 +583,7 @@ export function generateControlFlowWithExecutionContext(
         isAsync,
         'ctx',
         bundleMode,
-        new Set(),
+        promotedPreDeclared,
         branchingNodesNeedingSuccessFlag.has(instanceId),
         production
       );
@@ -1185,17 +1205,21 @@ function generateBranchingChainCode(
   ctxVar: string,
   bundleMode: boolean,
   forceTrackSuccessNodes: Set<string> = new Set(),
-  production: boolean = false
+  production: boolean = false,
+  alreadyDeclaredFlags: Set<string> = new Set()
 ): void {
   // Pre-declare success flags for all non-last chain nodes so they're
   // accessible across guard blocks (avoiding let-in-block scoping issues).
   // Also pre-declare for the last node if promoted nodes depend on its _success flag.
-  const preDeclaredFlags = new Set<string>();
+  // Skip flags already declared at a higher scope (e.g. function top-level).
+  const preDeclaredFlags = new Set<string>(alreadyDeclaredFlags);
   for (let i = 0; i < chain.length; i++) {
     const isLast = i === chain.length - 1;
     if (!isLast || forceTrackSuccessNodes.has(chain[i])) {
       const safeId = toValidIdentifier(chain[i]);
-      lines.push(`${indent}let ${safeId}_success = false;`);
+      if (!alreadyDeclaredFlags.has(safeId)) {
+        lines.push(`${indent}let ${safeId}_success = false;`);
+      }
       preDeclaredFlags.add(safeId);
     }
   }
@@ -1650,6 +1674,17 @@ function generateBranchingNodeCode(
 
       if (branchingNodes.has(instanceId)) {
         const nestedRegion = branchRegions.get(instanceId)!;
+        // Pre-declare nested branching node's _success flag at the current
+        // scope so it remains accessible to downstream guards that may run
+        // outside this branch block. (Fixes scoping bug where the flag was
+        // declared inside a nested conditional but referenced at a higher scope.)
+        const nestedSafeId = toValidIdentifier(instanceId);
+        const nestedHasDownstream = nestedRegion.successNodes.size > 0 || nestedRegion.failureNodes.size > 0;
+        const nestedPreDeclared = new Set(preDeclaredSuccessFlags);
+        if (nestedHasDownstream && !nestedPreDeclared.has(nestedSafeId)) {
+          lines.push(`${indent}  let ${nestedSafeId}_success = false;`);
+          nestedPreDeclared.add(nestedSafeId);
+        }
         generateBranchingNodeCode(
           inst,
           nodeType,
@@ -1666,7 +1701,7 @@ function generateBranchingNodeCode(
           isAsync,
           ctxVar,
           bundleMode,
-          new Set(),
+          nestedPreDeclared,
           false,
           production
         );
@@ -1731,6 +1766,15 @@ function generateBranchingNodeCode(
 
         if (branchingNodes.has(instanceId)) {
           const nestedRegion = branchRegions.get(instanceId)!;
+          // Pre-declare nested branching node's _success flag at the current
+          // scope (same fix as success branch above).
+          const nestedSafeId = toValidIdentifier(instanceId);
+          const nestedHasDownstream = nestedRegion.successNodes.size > 0 || nestedRegion.failureNodes.size > 0;
+          const nestedPreDeclared = new Set(preDeclaredSuccessFlags);
+          if (nestedHasDownstream && !nestedPreDeclared.has(nestedSafeId)) {
+            lines.push(`${indent}  let ${nestedSafeId}_success = false;`);
+            nestedPreDeclared.add(nestedSafeId);
+          }
           generateBranchingNodeCode(
             inst,
             nodeType,
@@ -1747,7 +1791,7 @@ function generateBranchingNodeCode(
             isAsync,
             ctxVar,
             bundleMode,
-            new Set(),
+            nestedPreDeclared,
             false,
             production
           );
