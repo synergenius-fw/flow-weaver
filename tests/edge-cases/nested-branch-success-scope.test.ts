@@ -262,6 +262,41 @@ describe('Nested branching node _success variable scope', () => {
       expect(generatedCode).toMatch(declPattern);
     }
   });
+
+  it('all _success flags used as guards must be assigned true somewhere', () => {
+    // Bug: flag is declared `let g_success = false` and used in `if (g_success)`
+    // but never assigned `= true` after the node succeeds → downstream is dead code
+    const guardPattern = /if \((\w+_success)\)/g;
+    let match: RegExpExecArray | null;
+    const guardedFlags = new Set<string>();
+    while ((match = guardPattern.exec(generatedCode)) !== null) {
+      guardedFlags.add(match[1]);
+    }
+
+    for (const flag of guardedFlags) {
+      const assignPattern = new RegExp(`${flag}\\s*=\\s*true`);
+      expect(
+        generatedCode,
+        `${flag} is used as guard but never set to true — downstream nodes are dead code`,
+      ).toMatch(assignPattern);
+    }
+  });
+
+  it('gate success path actually executes process node (runtime)', async () => {
+    const mod = await import(outputFile);
+    const result = await mod.nestedBranchScopeWorkflow(true, { mode: 'ok', flag: 'yes' });
+    // When gate is enabled, process should run and its output should reach report
+    // via merge. The result should contain 'processed:' prefix from processCtx.
+    expect(result.result).toContain('processed:');
+  });
+
+  it('gate skip path uses skip context via merge (runtime)', async () => {
+    const mod = await import(outputFile);
+    const result = await mod.nestedBranchScopeWorkflow(true, { mode: 'ok', flag: 'no' });
+    // When gate is disabled, process is skipped. Merge should use ctxB (built context).
+    expect(result.result).toContain('built:');
+    expect(result.result).not.toContain('processed:');
+  });
 });
 
 // ---------------------------------------------------------------------------

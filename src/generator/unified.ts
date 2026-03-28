@@ -584,7 +584,7 @@ export function generateControlFlowWithExecutionContext(
         'ctx',
         bundleMode,
         promotedPreDeclared,
-        branchingNodesNeedingSuccessFlag.has(instanceId),
+        branchingNodesNeedingSuccessFlag.has(instanceId) || topLevelSuccessFlags.has(toValidIdentifier(instanceId)),
         production
       );
       if (branchNeedsClose) {
@@ -1215,8 +1215,8 @@ function generateBranchingChainCode(
   const preDeclaredFlags = new Set<string>(alreadyDeclaredFlags);
   for (let i = 0; i < chain.length; i++) {
     const isLast = i === chain.length - 1;
-    if (!isLast || forceTrackSuccessNodes.has(chain[i])) {
-      const safeId = toValidIdentifier(chain[i]);
+    const safeId = toValidIdentifier(chain[i]);
+    if (!isLast || forceTrackSuccessNodes.has(chain[i]) || alreadyDeclaredFlags.has(safeId)) {
       if (!alreadyDeclaredFlags.has(safeId)) {
         lines.push(`${indent}let ${safeId}_success = false;`);
       }
@@ -1278,7 +1278,7 @@ function generateBranchingChainCode(
       ctxVar,
       bundleMode,
       preDeclaredFlags,
-      !isLast || forceTrackSuccessNodes.has(chain[i]), // forceTrackSuccess for non-last chain nodes or nodes with promoted dependents
+      !isLast || forceTrackSuccessNodes.has(chain[i]) || alreadyDeclaredFlags.has(safeId), // forceTrackSuccess for non-last chain nodes, nodes with promoted dependents, or nodes with pre-declared flags
       production
     );
 
@@ -1702,7 +1702,7 @@ function generateBranchingNodeCode(
           ctxVar,
           bundleMode,
           nestedPreDeclared,
-          false,
+          nestedPreDeclared.has(nestedSafeId), // force tracking if flag was pre-declared at higher scope
           production
         );
         successExecutedNodes.push(instanceId);
@@ -1792,7 +1792,7 @@ function generateBranchingNodeCode(
             ctxVar,
             bundleMode,
             nestedPreDeclared,
-            false,
+            nestedPreDeclared.has(nestedSafeId), // force tracking if flag was pre-declared at higher scope
             production
           );
           failureExecutedNodes.push(instanceId);
