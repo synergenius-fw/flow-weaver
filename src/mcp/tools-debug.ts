@@ -22,8 +22,8 @@ import { makeToolResult, makeErrorResult } from './response-utils.js';
  * Helper: get execution order for a workflow file by parsing its annotations.
  */
 async function getExecutionOrder(filePath: string, workflowName?: string): Promise<string[]> {
-  const source = fs.readFileSync(path.resolve(filePath), 'utf8');
-  const parsed = await parseWorkflow(source, { workflowName });
+  const resolvedPath = path.resolve(filePath);
+  const parsed = await parseWorkflow(resolvedPath, { workflowName });
   if (parsed.errors.length > 0) {
     throw new Error(`Failed to parse workflow: ${parsed.errors.join(', ')}`);
   }
