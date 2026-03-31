@@ -14,6 +14,7 @@ import type {
   StreamEvent,
   AgentLoopOptions,
   AgentLoopResult,
+  TurnEndContext,
 } from './types.js';
 
 const DEFAULT_MAX_ITERATIONS = 15;
@@ -110,6 +111,17 @@ export async function runAgentLoop(
 
     // If no tool calls, we're done
     if (finishReason !== 'tool_calls' || collectedToolCalls.length === 0) {
+      // Final turn hook
+      if (options?.onTurnEnd) {
+        await options.onTurnEnd({
+          iteration,
+          maxIterations,
+          messages: conversation,
+          toolCallCount,
+          usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+          isFinalTurn: true,
+        });
+      }
       return buildResult(
         finishReason !== 'error',
         text || 'Task completed',
@@ -146,6 +158,31 @@ export async function runAgentLoop(
         content: result.slice(0, TOOL_RESULT_CAP),
         toolCallId: tc.id,
       });
+    }
+
+    // Between-turns hook — runs after tool execution, before next LLM call
+    if (options?.onTurnEnd) {
+      const turnResult = await options.onTurnEnd({
+        iteration,
+        maxIterations,
+        messages: conversation,
+        toolCallCount,
+        usage: { promptTokens: totalPromptTokens, completionTokens: totalCompletionTokens },
+        isFinalTurn: false,
+      });
+      if (turnResult?.continue === false) {
+        return buildResult(
+          true,
+          turnResult.injectMessage ?? 'Stopped by hook',
+          conversation,
+          toolCallCount,
+          totalPromptTokens,
+          totalCompletionTokens,
+        );
+      }
+      if (turnResult?.injectMessage) {
+        conversation.push({ role: 'user', content: turnResult.injectMessage });
+      }
     }
   }
 

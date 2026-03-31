@@ -8,6 +8,8 @@
 // Types
 export type {
   SplitPrompt,
+  TurnEndContext,
+  TurnEndResult,
   StreamEvent,
   AgentMessage,
   AgentProvider,

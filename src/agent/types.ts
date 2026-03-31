@@ -122,6 +122,30 @@ export interface McpBridge {
 // Agent loop
 // ---------------------------------------------------------------------------
 
+/** Context passed to the onTurnEnd callback after each agent loop iteration. */
+export interface TurnEndContext {
+  /** Current iteration number (0-based). */
+  iteration: number;
+  /** Maximum iterations configured. */
+  maxIterations: number;
+  /** Full conversation history up to this point. */
+  messages: ReadonlyArray<AgentMessage>;
+  /** Total tool calls executed so far. */
+  toolCallCount: number;
+  /** Cumulative token usage. */
+  usage: { promptTokens: number; completionTokens: number };
+  /** true if the model stopped calling tools (final turn). */
+  isFinalTurn: boolean;
+}
+
+/** Result from the onTurnEnd callback. */
+export interface TurnEndResult {
+  /** If false, abort the agent loop early. */
+  continue?: boolean;
+  /** Optional message to inject into the conversation (steering nudge). */
+  injectMessage?: string;
+}
+
 export interface AgentLoopOptions {
   systemPrompt?: SplitPrompt;
   maxIterations?: number;
@@ -130,6 +154,8 @@ export interface AgentLoopOptions {
   signal?: AbortSignal;
   onToolEvent?: (event: ToolEvent) => void;
   onStreamEvent?: (event: StreamEvent) => void;
+  /** Called after each agent loop iteration (between turns and on final turn). */
+  onTurnEnd?: (context: TurnEndContext) => Promise<TurnEndResult | void>;
   logger?: Logger;
 }
 
