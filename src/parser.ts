@@ -784,14 +784,26 @@ export class AnnotationParser {
     imp: { name: string; functionName: string; importSource: string },
     currentDir: string
   ): TNodeTypeAST {
-    // Check cache
+    // Check cache (with mtime validation — same pattern as resolveNpmImports)
     const cacheKey = `npm:${imp.importSource}`;
     if (this.importCache.has(cacheKey)) {
       const cached = this.importCache.get(cacheKey)!;
-      const found = cached.nodeTypes.find((nt) => nt.functionName === imp.functionName);
-      if (found) {
-        // Return a copy with the correct name from @fwImport
-        return { ...found, name: imp.name, importSource: imp.importSource };
+      const resolvedDts = resolvePackageTypesPath(imp.importSource, currentDir);
+      let cacheValid = false;
+      if (resolvedDts) {
+        try {
+          const dtsStats = fs.statSync(resolvedDts);
+          cacheValid = cached.mtime === dtsStats.mtimeMs;
+        } catch { /* file gone — re-parse */ }
+      } else {
+        // No .d.ts found — trust cache (package may have been removed)
+        cacheValid = true;
+      }
+      if (cacheValid) {
+        const found = cached.nodeTypes.find((nt) => nt.functionName === imp.functionName);
+        if (found) {
+          return { ...found, name: imp.name, importSource: imp.importSource };
+        }
       }
     }
 
