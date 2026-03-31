@@ -6,7 +6,7 @@
  * Converts OpenAI's delta format to the canonical StreamEvent union.
  */
 
-import type { AgentProvider, AgentMessage, ToolDefinition, StreamEvent, StreamOptions } from '../types.js';
+import { joinSplitPrompt, type AgentProvider, type AgentMessage, type ToolDefinition, type StreamEvent, type StreamOptions } from '../types.js';
 
 export interface OpenAICompatProviderOptions {
   apiKey: string;
@@ -58,7 +58,7 @@ export class OpenAICompatProvider implements AgentProvider {
     const body: Record<string, unknown> = {
       model,
       messages: [
-        ...(options?.systemPrompt ? [{ role: 'system', content: options.systemPrompt }] : []),
+        ...(options?.systemPrompt ? [{ role: 'system', content: joinSplitPrompt(options.systemPrompt) }] : []),
         ...apiMessages,
       ],
       max_tokens: maxTokens,

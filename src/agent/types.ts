@@ -55,11 +55,37 @@ export interface ToolEvent {
 }
 
 // ---------------------------------------------------------------------------
+// System prompt
+// ---------------------------------------------------------------------------
+
+/**
+ * Split system prompt for Anthropic API cache optimization.
+ *
+ * The prefix (stable FW knowledge) is cached across calls via cache_control.
+ * The suffix (per-task context) varies per call but rides on the cached prefix.
+ *
+ * Providers that support structured system blocks (Anthropic) use both parts.
+ * Providers that only accept strings (CLI, OpenAI, platform) concatenate them.
+ */
+export interface SplitPrompt {
+  /** Stable prefix — identical across calls. Cacheable. */
+  prefix: string;
+  /** Dynamic suffix — varies per task/call. Not cached. */
+  suffix: string;
+}
+
+/** Convert a SplitPrompt to a single string (for providers that don't support blocks). */
+export function joinSplitPrompt(prompt: SplitPrompt): string {
+  if (!prompt.suffix) return prompt.prefix;
+  return prompt.prefix + '\n\n' + prompt.suffix;
+}
+
+// ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
 export interface StreamOptions {
-  systemPrompt?: string;
+  systemPrompt?: SplitPrompt;
   model?: string;
   maxTokens?: number;
   signal?: AbortSignal;
@@ -97,7 +123,7 @@ export interface McpBridge {
 // ---------------------------------------------------------------------------
 
 export interface AgentLoopOptions {
-  systemPrompt?: string;
+  systemPrompt?: SplitPrompt;
   maxIterations?: number;
   maxTokens?: number;
   model?: string;
@@ -159,6 +185,8 @@ export interface CliSessionOptions {
   model: string;
   /** Pre-configured MCP config path. */
   mcpConfigPath?: string;
+  /** Disable specific built-in tools (e.g. ['Read', 'Edit', 'Write', 'Bash'] to force MCP tools). */
+  disallowedTools?: string[];
   /** Custom spawn function. Defaults to child_process.spawn. */
   spawnFn?: SpawnFn;
   /** Idle timeout in milliseconds. Defaults to 600000 (10 minutes). */

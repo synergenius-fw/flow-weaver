@@ -7,14 +7,15 @@
  */
 
 import { spawn as nodeSpawn, type ChildProcess } from 'node:child_process';
-import type {
-  AgentProvider,
-  AgentMessage,
-  ToolDefinition,
-  StreamEvent,
-  StreamOptions,
-  ClaudeCliProviderOptions,
-  SpawnFn,
+import {
+  joinSplitPrompt,
+  type AgentProvider,
+  type AgentMessage,
+  type ToolDefinition,
+  type StreamEvent,
+  type StreamOptions,
+  type ClaudeCliProviderOptions,
+  type SpawnFn,
 } from '../types.js';
 import { StreamJsonParser } from '../streaming.js';
 import { createMcpBridge } from '../mcp-bridge.js';
@@ -51,7 +52,9 @@ export class ClaudeCliProvider implements AgentProvider {
 
     // Format messages into a single prompt for -p mode
     const prompt = formatPrompt(messages);
-    const systemPrompt = options?.systemPrompt;
+    const systemPrompt = options?.systemPrompt
+      ? joinSplitPrompt(options.systemPrompt)
+      : undefined;
 
     // Set up MCP bridge for tool access if tools are provided and no config given
     let bridge: Awaited<ReturnType<typeof createMcpBridge>> | null = null;

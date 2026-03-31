@@ -5,13 +5,29 @@
  * Adapted from pack-weaver's streamAnthropicWithTools.
  */
 
-import type { AgentProvider, AgentMessage, ToolDefinition, StreamEvent, StreamOptions } from '../types.js';
+import type { AgentProvider, AgentMessage, ToolDefinition, StreamEvent, StreamOptions, SplitPrompt } from '../types.js';
 
 export interface AnthropicProviderOptions {
   apiKey: string;
   model?: string;
   maxTokens?: number;
   baseUrl?: string;
+}
+
+/**
+ * Convert a SplitPrompt to Anthropic's system content block array.
+ * The prefix gets cache_control for prompt caching; the suffix does not.
+ */
+function buildSystemBlocks(
+  prompt: SplitPrompt,
+): Array<{ type: 'text'; text: string; cache_control?: { type: 'ephemeral' } }> {
+  const blocks: Array<{ type: 'text'; text: string; cache_control?: { type: 'ephemeral' } }> = [
+    { type: 'text', text: prompt.prefix, cache_control: { type: 'ephemeral' } },
+  ];
+  if (prompt.suffix) {
+    blocks.push({ type: 'text', text: prompt.suffix });
+  }
+  return blocks;
 }
 
 export class AnthropicProvider implements AgentProvider {
@@ -67,7 +83,7 @@ export class AnthropicProvider implements AgentProvider {
       model,
       max_tokens: maxTokens,
       stream: true,
-      ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
+      ...(options?.systemPrompt ? { system: buildSystemBlocks(options.systemPrompt) } : {}),
       messages: apiMessages,
       ...(apiTools.length > 0 ? { tools: apiTools } : {}),
     });

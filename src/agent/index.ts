@@ -7,6 +7,7 @@
 
 // Types
 export type {
+  SplitPrompt,
   StreamEvent,
   AgentMessage,
   AgentProvider,
@@ -22,6 +23,9 @@ export type {
   CliSessionOptions,
   Logger,
 } from './types.js';
+
+// Prompt utilities
+export { joinSplitPrompt } from './types.js';
 
 // Agent loop
 export { runAgentLoop } from './agent-loop.js';

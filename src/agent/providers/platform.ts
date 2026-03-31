@@ -4,7 +4,7 @@
  * Connects to POST /ai-chat/stream and parses SSE events.
  */
 
-import type { AgentProvider, AgentMessage, ToolDefinition, StreamEvent, StreamOptions } from '../types.js';
+import { joinSplitPrompt, type AgentProvider, type AgentMessage, type ToolDefinition, type StreamEvent, type StreamOptions } from '../types.js';
 
 export interface PlatformProviderOptions {
   /** JWT token or API key for platform auth */
@@ -56,7 +56,8 @@ export class PlatformProvider implements AgentProvider {
     const body: Record<string, unknown> = { message };
     if (options?.systemPrompt) {
       // Platform doesn't accept system prompt directly via API — embed in message
-      body.message = `[System context: ${options.systemPrompt.slice(0, 2000)}]\n\n${message}`;
+      const systemStr = joinSplitPrompt(options.systemPrompt);
+      body.message = `[System context: ${systemStr.slice(0, 2000)}]\n\n${message}`;
     }
 
     const response = await fetch(`${this.baseUrl}/ai-chat/stream`, {
