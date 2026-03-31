@@ -111,7 +111,7 @@ export function getParserProject(): Project {
 
 export class AnnotationParser {
   private project: Project;
-  private importCache = new LRUCache<string, TNodeTypeAST[]>(200);
+  private importCache = new LRUCache<string, { mtime: number; nodeTypes: TNodeTypeAST[] }>(200);
   private importStack: Set<string> = new Set();
   private parseCache = new LRUCache<
     string,
@@ -533,10 +533,12 @@ export class AnnotationParser {
       }
 
       try {
-        // Check cache first
+        // Check cache first — validate mtime to detect file changes
         let nodeTypes: TNodeTypeAST[];
-        if (this.importCache.has(importedFilePath)) {
-          nodeTypes = this.importCache.get(importedFilePath)!;
+        const importStats = fs.statSync(importedFilePath);
+        const cached = this.importCache.get(importedFilePath);
+        if (cached && cached.mtime === importStats.mtimeMs) {
+          nodeTypes = cached.nodeTypes;
         } else {
           // Add to import stack for circular dependency detection
           this.importStack.add(importedFilePath);
@@ -571,8 +573,8 @@ export class AnnotationParser {
             // Clean up imported source file to prevent Project bloat
             this.project.removeSourceFile(importedFile);
 
-            // Cache the parsed node types
-            this.importCache.set(importedFilePath, nodeTypes);
+            // Cache the parsed node types with mtime for invalidation
+            this.importCache.set(importedFilePath, { mtime: importStats.mtimeMs, nodeTypes });
           } finally {
             // Remove from stack after processing
             this.importStack.delete(importedFilePath);
@@ -626,10 +628,23 @@ export class AnnotationParser {
     const importedNames = new Set<string>();
     namedImports.forEach((ni) => importedNames.add(ni.getName()));
 
-    // Check cache
+    // Check cache (npm imports use package path mtime for invalidation)
     const cacheKey = `npm:${moduleSpecifier}`;
-    if (this.importCache.has(cacheKey)) {
-      return this.importCache.get(cacheKey)!.filter((nt) => importedNames.has(nt.functionName));
+    const npmCached = this.importCache.get(cacheKey);
+    if (npmCached) {
+      // For npm packages, check mtime of the resolved .d.ts file
+      const currentDir = path.dirname(currentFilePath);
+      const resolvedDts = resolvePackageTypesPath(moduleSpecifier, currentDir);
+      if (resolvedDts) {
+        try {
+          const dtsStats = fs.statSync(resolvedDts);
+          if (npmCached.mtime === dtsStats.mtimeMs) {
+            return npmCached.nodeTypes.filter((nt) => importedNames.has(nt.functionName));
+          }
+        } catch { /* file gone — re-parse */ }
+      } else {
+        return npmCached.nodeTypes.filter((nt) => importedNames.has(nt.functionName));
+      }
     }
 
     // Resolve .d.ts path
@@ -666,8 +681,9 @@ export class AnnotationParser {
       // Clean up the temporary source file
       this.project.removeSourceFile(dtsFile);
 
-      // Cache all node types from this package
-      this.importCache.set(cacheKey, allNodeTypes);
+      // Cache all node types from this package (with mtime of the .d.ts file)
+      const dtsMtime = fs.statSync(dtsPath).mtimeMs;
+      this.importCache.set(cacheKey, { mtime: dtsMtime, nodeTypes: allNodeTypes });
 
       // Return only the ones in the import statement
       return allNodeTypes.filter((nt) => importedNames.has(nt.functionName));
@@ -772,7 +788,7 @@ export class AnnotationParser {
     const cacheKey = `npm:${imp.importSource}`;
     if (this.importCache.has(cacheKey)) {
       const cached = this.importCache.get(cacheKey)!;
-      const found = cached.find((nt) => nt.functionName === imp.functionName);
+      const found = cached.nodeTypes.find((nt) => nt.functionName === imp.functionName);
       if (found) {
         // Return a copy with the correct name from @fwImport
         return { ...found, name: imp.name, importSource: imp.importSource };
@@ -812,8 +828,9 @@ export class AnnotationParser {
 
       this.project.removeSourceFile(dtsFile);
 
-      // Cache all node types from this package
-      this.importCache.set(cacheKey, allNodeTypes);
+      // Cache all node types from this package (with mtime of the .d.ts file)
+      const dtsMtime2 = fs.statSync(dtsPath).mtimeMs;
+      this.importCache.set(cacheKey, { mtime: dtsMtime2, nodeTypes: allNodeTypes });
 
       // Find the specific function we need
       const found = allNodeTypes.find((nt) => nt.functionName === imp.functionName);
