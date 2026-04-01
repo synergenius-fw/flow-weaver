@@ -213,6 +213,21 @@ export interface CliSessionOptions {
   mcpConfigPath?: string;
   /** Disable specific built-in tools (e.g. ['Read', 'Edit', 'Write', 'Bash'] to force MCP tools). */
   disallowedTools?: string[];
+  /**
+   * Restrict built-in tools via --tools. Empty string "" disables all. Comma-separated PascalCase names.
+   * Case-sensitive — use exact names: "Read", "Bash", "Edit" (not "read", "bash").
+   * MCP tools are unaffected by this flag.
+   */
+  tools?: string;
+  /** System prompt passed to the CLI via --system-prompt. Overrides the default Claude Code prompt. */
+  systemPrompt?: string;
+  /**
+   * Appended to the active system prompt via --append-system-prompt.
+   * Keeps Claude Code's built-in guidance and adds custom instructions.
+   * WARNING: If used with systemPrompt, appends to the custom prompt (not the default).
+   * Built-in Claude Code guidance is lost when systemPrompt is set.
+   */
+  appendSystemPrompt?: string;
   /** Custom spawn function. Defaults to child_process.spawn. */
   spawnFn?: SpawnFn;
   /** Idle timeout in milliseconds. Defaults to 600000 (10 minutes). */
