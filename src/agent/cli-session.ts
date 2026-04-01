@@ -234,20 +234,26 @@ export class CliSession {
       });
 
       // Override parser feed to detect result events for turn completion
+      let sawTerminal = false;
       const baseFeed = this.parser.feed.bind(this.parser);
       this.parser.feed = (line: string) => {
-        // Check if this line is a result event before parsing
+        // Check if this line is a turn-ending event before parsing
         try {
           let parsed = JSON.parse(line);
           if (parsed.type === 'stream_event' && parsed.event) parsed = parsed.event;
           if (parsed.type === 'result') {
             sawResult = true;
+            sawTerminal = true;
+          }
+          // authentication_failed is also a terminal event
+          if (parsed.type === 'assistant' && parsed.error === 'authentication_failed') {
+            sawTerminal = true;
           }
         } catch {
           // Not JSON, let parser handle it
         }
         baseFeed(line);
-        if (sawResult) {
+        if (sawTerminal) {
           this.completeTurn();
         }
       };
