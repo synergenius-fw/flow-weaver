@@ -150,7 +150,7 @@ export async function runAgentLoop(
         isError = true;
       }
 
-      onToolEvent?.({ type: 'tool_call_result', name: tc.name, result: result.slice(0, 200), isError });
+      onToolEvent?.({ type: 'tool_call_result', name: tc.name, args: tc.arguments, result: result.slice(0, 200), isError });
 
       // Add tool result to conversation (cap size to prevent context overflow)
       conversation.push({
