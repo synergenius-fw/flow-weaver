@@ -52,6 +52,9 @@ export {
   killAllCliSessions,
 } from './cli-session.js';
 
+// CLI spawn configuration (centralized lockdown for automated sessions)
+export { getCliBaseArgs, getCliSessionConfig } from './cli-spawn-config.js';
+
 // Env utilities
 export { buildSafeEnv, buildSafeSpawnOpts, MINIMAL_PATH, ENV_ALLOWLIST } from './env-allowlist.js';
 
