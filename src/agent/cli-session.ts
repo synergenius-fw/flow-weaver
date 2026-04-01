@@ -121,7 +121,10 @@ export class CliSession {
     ];
 
     if (mcpConfigPath) {
-      args.push('--mcp-config', mcpConfigPath, '--strict-mcp-config');
+      args.push('--mcp-config', mcpConfigPath);
+    }
+    if (this.opts.strictMcpConfig || mcpConfigPath) {
+      args.push('--strict-mcp-config');
     }
 
     const { disallowedTools, tools, systemPrompt, appendSystemPrompt } = this.opts;
@@ -327,6 +330,7 @@ export class CliSession {
     return JSON.stringify({
       model: options.model,
       mcpConfigPath: options.mcpConfigPath,
+      strictMcpConfig: options.strictMcpConfig,
       disallowedTools: options.disallowedTools,
       tools: options.tools,
       systemPrompt: options.systemPrompt,

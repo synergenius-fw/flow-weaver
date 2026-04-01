@@ -136,6 +136,38 @@ describe('CliSession --tools flag', () => {
 });
 
 // ---------------------------------------------------------------------------
+// --strict-mcp-config flag
+// ---------------------------------------------------------------------------
+
+describe('CliSession --strict-mcp-config flag', () => {
+  it('spawn() passes --strict-mcp-config when mcpConfigPath is set', async () => {
+    const args = await spawnAndGetArgs(baseOptions({ mcpConfigPath: '/tmp/mcp.json' }));
+    expect(args).toContain('--strict-mcp-config');
+    expect(args).toContain('--mcp-config');
+  });
+
+  it('spawn() passes --strict-mcp-config when strictMcpConfig is true (no mcpConfigPath)', async () => {
+    const args = await spawnAndGetArgs(baseOptions({ strictMcpConfig: true }));
+    expect(args).toContain('--strict-mcp-config');
+    expect(args).not.toContain('--mcp-config');
+  });
+
+  it('spawn() does NOT pass --strict-mcp-config when neither mcpConfigPath nor strictMcpConfig set', async () => {
+    const args = await spawnAndGetArgs(baseOptions());
+    expect(args).not.toContain('--strict-mcp-config');
+  });
+
+  it('spawn() passes both --mcp-config and --strict-mcp-config when both options set', async () => {
+    const args = await spawnAndGetArgs(baseOptions({ mcpConfigPath: '/tmp/mcp.json', strictMcpConfig: true }));
+    const mcpIdx = args.indexOf('--mcp-config');
+    const strictIdx = args.indexOf('--strict-mcp-config');
+    expect(mcpIdx).toBeGreaterThan(-1);
+    expect(strictIdx).toBeGreaterThan(-1);
+    expect(args[mcpIdx + 1]).toBe('/tmp/mcp.json');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 1.2: --append-system-prompt flag
 // ---------------------------------------------------------------------------
 

@@ -211,6 +211,8 @@ export interface CliSessionOptions {
   model: string;
   /** Pre-configured MCP config path. */
   mcpConfigPath?: string;
+  /** When true, ignore user/project MCP servers — only use --mcp-config if provided. */
+  strictMcpConfig?: boolean;
   /** Disable specific built-in tools (e.g. ['Read', 'Edit', 'Write', 'Bash'] to force MCP tools). */
   disallowedTools?: string[];
   /**
