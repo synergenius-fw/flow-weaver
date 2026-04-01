@@ -80,6 +80,15 @@ export function joinSplitPrompt(prompt: SplitPrompt): string {
   return prompt.prefix + '\n\n' + prompt.suffix;
 }
 
+/**
+ * Strip MCP server prefix from a tool name.
+ * The CLI registers MCP tools as mcp__<server>__<tool> but internal code
+ * uses unprefixed names. Call this before any tool name comparison.
+ */
+export function stripMcpToolPrefix(name: string): string {
+  return name.replace(/^mcp__[a-zA-Z0-9_-]+__/, '');
+}
+
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------

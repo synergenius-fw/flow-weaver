@@ -27,7 +27,7 @@ export type {
 } from './types.js';
 
 // Prompt utilities
-export { joinSplitPrompt } from './types.js';
+export { joinSplitPrompt, stripMcpToolPrefix } from './types.js';
 
 // Agent loop
 export { runAgentLoop } from './agent-loop.js';
