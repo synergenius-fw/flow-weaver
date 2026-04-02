@@ -21,12 +21,23 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
 import { spawn as nodeSpawn, type ChildProcess } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import type { StreamEvent, CliSessionOptions, Logger } from './types.js';
 import type { SpawnFn } from './types.js';
 import { StreamJsonParser } from './streaming.js';
 
 const DEFAULT_IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+// Package version included in session fingerprint so cached sessions
+// auto-invalidate when the core is updated (e.g. npm update).
+let CORE_VERSION = 'unknown';
+try {
+  const pkgPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../package.json');
+  CORE_VERSION = JSON.parse(readFileSync(pkgPath, 'utf-8')).version;
+} catch { /* non-fatal */ }
 
 // ---------------------------------------------------------------------------
 // CliSession — persistent CLI process
@@ -329,6 +340,7 @@ export class CliSession {
    */
   private static fingerprint(options: CliSessionOptions): string {
     return JSON.stringify({
+      _coreVersion: CORE_VERSION, // auto-invalidate cache on core update
       model: options.model,
       mcpConfigPath: options.mcpConfigPath,
       strictMcpConfig: options.strictMcpConfig,
