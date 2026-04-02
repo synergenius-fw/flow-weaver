@@ -305,15 +305,33 @@ export class CliSession {
         yield turn.events.shift()!;
       }
     } finally {
+      // Log how the turn ended for debugging cost/result event issues.
+      // If turn.done is false here, the generator was abandoned by the consumer
+      // (e.g., for-await broke out) before completeTurn/markDead fired.
+      // This means the result event hasn't been processed yet, and any
+      // subsequent stdout data (including the result) will be silently dropped
+      // because activeTurn is about to be set to null.
+      if (!turn.done) {
+        process.stderr.write(`\x1b[33m  ⚠ CliSession: generator abandoned before turn.done (events=${turn.events.length}). Result event will be lost.\x1b[0m\n`);
+      }
       this.activeTurn = null;
       this.resetIdleTimer();
     }
+  }
+
+  /** Whether a send() call is currently active. */
+  get hasActiveTurn(): boolean {
+    return this.activeTurn !== null && !this.activeTurn.done;
   }
 
   /**
    * Kill the CLI process.
    */
   kill(): void {
+    if (this.hasActiveTurn) {
+      process.stderr.write(`\x1b[31m  ✗ CliSession.kill() called with active turn — data loss will occur (session=${this.sessionId.slice(0, 8)})\x1b[0m\n`);
+      this._onSessionKilled?.({ sessionId: this.sessionId, hadActiveTurn: true, eventsInTurn: this.activeTurn!.events.length });
+    }
     this.clearIdleTimer();
     if (this.child && this.alive) {
       this.log?.info('Killing CLI session', { sessionId: this.sessionId });
@@ -329,6 +347,14 @@ export class CliSession {
     this.markDead();
   }
 
+  /** Callback for session kill events — wire to audit logging. */
+  private _onSessionKilled?: (info: { sessionId: string; hadActiveTurn: boolean; eventsInTurn: number }) => void;
+
+  /** Register a callback that fires when this session is killed. */
+  set onSessionKilled(cb: ((info: { sessionId: string; hadActiveTurn: boolean; eventsInTurn: number }) => void) | undefined) {
+    this._onSessionKilled = cb;
+  }
+
   // ---------------------------------------------------------------------------
   // Private
   // ---------------------------------------------------------------------------
@@ -337,12 +363,19 @@ export class CliSession {
    * Compute a fingerprint of CLI-relevant options for cache comparison.
    * Field order is significant for JSON.stringify comparison.
    * Add new CLI-relevant fields here when they're added to CliSessionOptions.
+   *
+   * NOTE: mcpConfigPath is EXCLUDED. It's an ephemeral temp path that changes
+   * on every createMcpBridge() call. Including it causes fingerprint mismatches
+   * that kill active sessions mid-turn when a second provider is created for
+   * the same project (e.g., orchestrator + worker sharing the same projectDir).
+   * The MCP bridge is swapped per-request via setHandlers() — the config path
+   * is only needed at spawn time, not for session identity.
    */
   private static fingerprint(options: CliSessionOptions): string {
     return JSON.stringify({
       _coreVersion: CORE_VERSION, // auto-invalidate cache on core update
       model: options.model,
-      mcpConfigPath: options.mcpConfigPath,
+      // mcpConfigPath deliberately excluded — see comment above
       strictMcpConfig: options.strictMcpConfig,
       disallowedTools: options.disallowedTools,
       tools: options.tools,
@@ -370,6 +403,26 @@ export class CliSession {
     this.cleanupFn?.();
     this.cleanupFn = null;
     if (this.activeTurn && !this.activeTurn.done) {
+      // KNOWN ISSUE: On long orchestrator runs (many MCP tool calls), the CLI
+      // process can die before emitting the `result` event. This means:
+      // - costUsd from total_cost_usd is lost (stays 0)
+      // - cacheReadTokens / cacheCreationTokens are lost
+      // - The turn ends via markDead instead of completeTurn
+      // When this happens, consumers should fall back to cost-update events
+      // from the global usage callback for accurate cost tracking.
+      // See: project_costUsd_bench_issue.md in memory for full investigation.
+      const eventCount = this.activeTurn.events.length;
+      const hasResult = this.activeTurn.events.some((e) => e.type === 'usage' && (e as Record<string, unknown>).costUsd != null);
+      if (!hasResult) {
+        const lastStderr = this.stderrBuf.slice(-500);
+        this.log?.warn('CLI session died before result event — costUsd will be 0', {
+          sessionId: this.sessionId,
+          eventsInTurn: eventCount,
+          lastStderr: lastStderr || '(empty)',
+        });
+        // Always log to stderr so it's visible in bench output
+        process.stderr.write(`\x1b[33m  ⚠ CLI session died before result event (${eventCount} events buffered). costUsd will be 0. stderr: ${lastStderr.slice(0, 200)}\x1b[0m\n`);
+      }
       if (!this.activeTurn.events.some((e) => e.type === 'message_stop')) {
         this.activeTurn.events.push({ type: 'message_stop', finishReason: 'error' });
       }
@@ -415,6 +468,13 @@ const sessions = new Map<string, CliSession>();
  * Get an existing session or create a new one.
  * Phase 1.4: Validates that cached sessions have matching CLI-relevant options.
  * If options changed on the same key, the old session is killed and recreated.
+ *
+ * SAFETY: Refuses to kill a session with an active turn. This prevents data
+ * loss when multiple providers share the same session key (e.g., orchestrator
+ * and worker both using projectDir as key). If the fingerprint doesn't match
+ * but the session has an active turn, we return the existing session and log
+ * a warning — better to reuse a session with slightly different options than
+ * to kill an active conversation and lose costUsd/result data.
  */
 export function getOrCreateCliSession(
   key: string,
@@ -426,7 +486,13 @@ export function getOrCreateCliSession(
     if (existing.matchesOptions(options)) {
       return existing;
     }
-    // Options changed — kill old session and recreate
+    // Options changed — but REFUSE to kill if there's an active turn
+    if (existing.hasActiveTurn) {
+      process.stderr.write(`\x1b[33m  ⚠ getOrCreateCliSession: fingerprint mismatch on key "${key}" but session has active turn — reusing existing session to prevent data loss\x1b[0m\n`);
+      return existing;
+    }
+    // No active turn — safe to kill and recreate
+    process.stderr.write(`\x1b[2m  [session-cache] killing session for key "${key}" — fingerprint changed\x1b[0m\n`);
     existing.kill();
     sessions.delete(key);
   } else if (existing) {
