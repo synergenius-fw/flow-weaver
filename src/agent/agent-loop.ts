@@ -35,11 +35,14 @@ export async function runAgentLoop(
   const conversation: AgentMessage[] = [...messages];
   let totalPromptTokens = 0;
   let totalCompletionTokens = 0;
+  let totalCacheReadTokens = 0;
+  let totalCacheCreationTokens = 0;
+  let totalCostUsd = 0;
   let toolCallCount = 0;
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     if (signal?.aborted) {
-      return buildResult(false, 'Aborted', conversation, toolCallCount, totalPromptTokens, totalCompletionTokens);
+      return buildResult(false, 'Aborted', conversation, toolCallCount, totalPromptTokens, totalCompletionTokens, totalCacheReadTokens, totalCacheCreationTokens, totalCostUsd);
     }
 
     // Stream from provider
@@ -90,6 +93,9 @@ export async function runAgentLoop(
         case 'usage':
           totalPromptTokens += event.promptTokens;
           totalCompletionTokens += event.completionTokens;
+          totalCacheReadTokens += event.cacheReadTokens ?? 0;
+          totalCacheCreationTokens += event.cacheCreationTokens ?? 0;
+          if (event.costUsd != null) totalCostUsd = event.costUsd; // last value = cumulative from CLI
           break;
 
         case 'message_stop':
@@ -129,6 +135,9 @@ export async function runAgentLoop(
         toolCallCount,
         totalPromptTokens,
         totalCompletionTokens,
+        totalCacheReadTokens,
+        totalCacheCreationTokens,
+        totalCostUsd,
       );
     }
 
@@ -178,6 +187,9 @@ export async function runAgentLoop(
           toolCallCount,
           totalPromptTokens,
           totalCompletionTokens,
+          totalCacheReadTokens,
+          totalCacheCreationTokens,
+          totalCostUsd,
         );
       }
       if (turnResult?.injectMessage) {
@@ -193,6 +205,9 @@ export async function runAgentLoop(
     toolCallCount,
     totalPromptTokens,
     totalCompletionTokens,
+    totalCacheReadTokens,
+    totalCacheCreationTokens,
+    totalCostUsd,
   );
 }
 
@@ -203,12 +218,15 @@ function buildResult(
   toolCallCount: number,
   promptTokens: number,
   completionTokens: number,
+  cacheReadTokens: number = 0,
+  cacheCreationTokens: number = 0,
+  costUsd: number = 0,
 ): AgentLoopResult {
   return {
     success,
     summary,
     messages,
     toolCallCount,
-    usage: { promptTokens, completionTokens },
+    usage: { promptTokens, completionTokens, cacheReadTokens, cacheCreationTokens, costUsd },
   };
 }
