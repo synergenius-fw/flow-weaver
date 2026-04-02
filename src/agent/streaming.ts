@@ -186,6 +186,9 @@ export class StreamJsonParser {
           type: 'usage',
           promptTokens: usage.input_tokens ?? 0,
           completionTokens: usage.output_tokens ?? 0,
+          cacheReadTokens: usage.cache_read_input_tokens ?? undefined,
+          cacheCreationTokens: usage.cache_creation_input_tokens ?? undefined,
+          costUsd: typeof event.total_cost_usd === 'number' ? event.total_cost_usd : undefined,
         });
       }
       this.pushEvent({ type: 'message_stop', finishReason: 'stop' });

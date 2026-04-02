@@ -18,7 +18,7 @@ export type StreamEvent =
   | { type: 'tool_use_end'; id: string; arguments: Record<string, unknown> }
   | { type: 'tool_result'; id: string; result: string; isError: boolean }
   | { type: 'message_stop'; finishReason: 'stop' | 'tool_calls' | 'length' | 'error' }
-  | { type: 'usage'; promptTokens: number; completionTokens: number };
+  | { type: 'usage'; promptTokens: number; completionTokens: number; cacheReadTokens?: number; cacheCreationTokens?: number; costUsd?: number };
 
 // ---------------------------------------------------------------------------
 // Messages
@@ -173,7 +173,7 @@ export interface AgentLoopResult {
   summary: string;
   messages: AgentMessage[];
   toolCallCount: number;
-  usage: { promptTokens: number; completionTokens: number };
+  usage: { promptTokens: number; completionTokens: number; cacheReadTokens: number; cacheCreationTokens: number; costUsd: number };
 }
 
 // ---------------------------------------------------------------------------
