@@ -222,15 +222,16 @@ export class CliSession {
       // Track whether this turn saw a 'result' event (definitive turn end)
       let sawResult = false;
 
-      // Wrap pushEvent to detect result-driven message_stop as turn end
+      // Wrap pushEvent to suppress intermediate message_stop events.
+      // The CLI emits message_stop for each API turn, but the session's turn
+      // boundary is the `result` event. Intermediate message_stop events would
+      // cause runAgentLoop to exit early (thinking the model stopped), missing
+      // later events including the result's usage with total_cost_usd.
       const originalPush = this.pushEvent.bind(this);
       this.parser = new StreamJsonParser((event) => {
-        // The result event emits message_stop — but in session mode,
-        // we need to detect it as the turn boundary
         if (event.type === 'message_stop' && !sawResult) {
-          // This is a stream_event message_stop (API turn), not CLI turn end.
-          // Push it but don't complete the turn.
-          originalPush(event);
+          // Suppress — not the real turn end. The result event will emit
+          // the final message_stop after all usage data is captured.
           return;
         }
         originalPush(event);
