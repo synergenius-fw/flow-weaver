@@ -240,9 +240,11 @@ export class CliSession {
       // later events including the result's usage with total_cost_usd.
       const originalPush = this.pushEvent.bind(this);
       this.parser = new StreamJsonParser((event) => {
-        if (event.type === 'message_stop' && !sawResult) {
+        if (event.type === 'message_stop' && !sawResult && event.finishReason !== 'error') {
           // Suppress — not the real turn end. The result event will emit
           // the final message_stop after all usage data is captured.
+          // Error stops (e.g. authentication_failed) must pass through
+          // so runAgentLoop can detect the failure.
           return;
         }
         originalPush(event);

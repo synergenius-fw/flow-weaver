@@ -484,3 +484,56 @@ describe('CliSession idle timeout cleanup', () => {
     setTimeoutSpy.mockRestore();
   });
 });
+
+// ---------------------------------------------------------------------------
+// authentication_failed must emit message_stop with finishReason: 'error'
+// ---------------------------------------------------------------------------
+
+describe('authentication_failed error propagation', () => {
+  it('emits message_stop with finishReason error on authentication_failed', async () => {
+    // Create a mock spawn with a controllable stdout
+    const stdoutEmitter = new EventEmitter();
+    const stderrEmitter = new EventEmitter();
+    const childEmitter = new EventEmitter();
+
+    const mockChild = Object.assign(childEmitter, {
+      stdin: { write: vi.fn((_data: unknown, cb?: () => void) => { cb?.(); }), end: vi.fn(), on: vi.fn() },
+      stdout: stdoutEmitter,
+      stderr: stderrEmitter,
+      kill: vi.fn(),
+      pid: 99999,
+    });
+
+    const spawnFn = vi.fn(() => mockChild);
+
+    const session = new CliSession({
+      binPath: 'claude',
+      cwd: '/tmp/test',
+      model: 'claude-sonnet-4-6',
+      spawnFn: spawnFn as any,
+    });
+    await session.spawn();
+
+    // Start a send and collect events
+    const events: Array<{ type: string; finishReason?: string }> = [];
+    const sendGen = session.send('hello');
+
+    // Simulate CLI emitting authentication_failed on stdout
+    // Delay to let send() set up its parser
+    setTimeout(() => {
+      stdoutEmitter.emit('data', Buffer.from(
+        JSON.stringify({ type: 'assistant', error: 'authentication_failed' }) + '\n',
+      ));
+    }, 10);
+
+    for await (const event of sendGen) {
+      events.push(event as any);
+    }
+
+    // The consumer MUST see a message_stop with finishReason: 'error'
+    const errorStop = events.find(
+      (e) => e.type === 'message_stop' && e.finishReason === 'error',
+    );
+    expect(errorStop).toBeDefined();
+  });
+});
