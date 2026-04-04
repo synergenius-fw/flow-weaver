@@ -70,14 +70,14 @@ describe('mcpSetupCommand — non-interactive branch (lines 447-449)', () => {
   });
 
   afterEach(() => {
-    (process.stdin as any).isTTY = origIsTTY;
+    Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, writable: true, configurable: true });
   });
 
   it('auto-configures all detected tools in non-TTY mode', async () => {
     const { mcpSetupCommand } = await import('../../src/cli/commands/mcp-setup');
 
     // Make isNonInteractive() return true
-    (process.stdin as any).isTTY = undefined;
+    Object.defineProperty(process.stdin, 'isTTY', { value: undefined, writable: true, configurable: true });
 
     const deps = makeCursorDetectedDeps();
     await mcpSetupCommand({}, deps);
@@ -97,14 +97,14 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
   });
 
   afterEach(() => {
-    (process.stdin as any).isTTY = origIsTTY;
+    Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, writable: true, configurable: true });
   });
 
   it('shows detected tools and handles user confirmation in interactive mode', async () => {
     const { mcpSetupCommand } = await import('../../src/cli/commands/mcp-setup');
 
     // Make isNonInteractive() return false
-    (process.stdin as any).isTTY = true;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
     mockConfirm.mockResolvedValue(true);
 
     const deps = makeCursorDetectedDeps();
@@ -118,7 +118,7 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
   it('prints "No tools selected." when user declines all (line 493)', async () => {
     const { mcpSetupCommand } = await import('../../src/cli/commands/mcp-setup');
 
-    (process.stdin as any).isTTY = true;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
     mockConfirm.mockResolvedValue(false);
 
     const deps = makeCursorDetectedDeps();
@@ -131,7 +131,7 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
   it('skips already-configured tools with message during interactive confirm', async () => {
     const { mcpSetupCommand } = await import('../../src/cli/commands/mcp-setup');
 
-    (process.stdin as any).isTTY = true;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
     mockConfirm.mockResolvedValue(true);
 
     const deps = makeCursorDetectedDeps({
@@ -153,7 +153,7 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
     const { ExitPromptError } = await import('@inquirer/core');
     const { mcpSetupCommand } = await import('../../src/cli/commands/mcp-setup');
 
-    (process.stdin as any).isTTY = true;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
     mockConfirm.mockRejectedValue(new ExitPromptError(''));
 
     const deps = makeCursorDetectedDeps();
@@ -164,7 +164,7 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
   it('shows "no detected tools" message in interactive mode when none found', async () => {
     const { mcpSetupCommand } = await import('../../src/cli/commands/mcp-setup');
 
-    (process.stdin as any).isTTY = true;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
 
     // No tools detected
     const deps = makeDeps();
