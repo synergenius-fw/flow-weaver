@@ -46,7 +46,7 @@ describe('WorkflowDiffer UI instance comparison (lines 288-289, 422, 425)', () =
     const before = createWorkflow({
       ui: {
         instances: [
-          { name: 'node1', x: 0, y: 0 },
+          { name: 'node1', x: 0, y: 0 } as any,
         ],
       },
     });
@@ -54,7 +54,7 @@ describe('WorkflowDiffer UI instance comparison (lines 288-289, 422, 425)', () =
     const after = createWorkflow({
       ui: {
         instances: [
-          { name: 'node1', x: 100, y: 200 },
+          { name: 'node1', x: 100, y: 200 } as any,
         ],
       },
     });
@@ -74,7 +74,7 @@ describe('WorkflowDiffer UI instance comparison (lines 288-289, 422, 425)', () =
     const before = createWorkflow({
       ui: {
         instances: [
-          { name: 'node1', x: 0, y: 0, label: 'Old Label' },
+          { name: 'node1', x: 0, y: 0, label: 'Old Label' } as any,
         ],
       },
     });
@@ -82,7 +82,7 @@ describe('WorkflowDiffer UI instance comparison (lines 288-289, 422, 425)', () =
     const after = createWorkflow({
       ui: {
         instances: [
-          { name: 'node1', x: 0, y: 0, label: 'New Label' },
+          { name: 'node1', x: 0, y: 0, label: 'New Label' } as any,
         ],
       },
     });
@@ -107,7 +107,7 @@ describe('WorkflowDiffer UI instance comparison (lines 288-289, 422, 425)', () =
     const after = createWorkflow({
       ui: {
         instances: [
-          { name: 'node1', x: 50, y: 50 },
+          { name: 'node1', x: 50, y: 50 } as any,
         ],
       },
     });
@@ -120,7 +120,7 @@ describe('WorkflowDiffer UI instance comparison (lines 288-289, 422, 425)', () =
   it('detects no changes when UI data is identical', () => {
     const ui = {
       instances: [
-        { name: 'node1', x: 10, y: 20 },
+        { name: 'node1', x: 10, y: 20 } as any,
       ],
     };
     const before = createWorkflow({ ui });

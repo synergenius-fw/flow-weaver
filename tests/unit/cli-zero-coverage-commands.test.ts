@@ -188,7 +188,7 @@ beforeEach(() => {
 
   sigintHandlers = [];
   sigtermHandlers = [];
-  vi.spyOn(process, 'on').mockImplementation((event: string, handler: Function) => {
+  vi.spyOn(process, 'on').mockImplementation((event: string | symbol, handler: any) => {
     if (event === 'SIGINT') sigintHandlers.push(handler);
     if (event === 'SIGTERM') sigtermHandlers.push(handler);
     return process;

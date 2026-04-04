@@ -377,7 +377,7 @@ export function myWorkflow() {
         instances: [
           { type: 'NodeInstance', id: 'a', nodeType: 'nodeA' },
           { type: 'NodeInstance', id: 'mapInst', nodeType: 'MAP_ITERATOR' },
-          { type: 'NodeInstance', id: 'childInst', nodeType: 'nodeA', parent: 'mapInst.iterate' },
+          { type: 'NodeInstance', id: 'childInst', nodeType: 'nodeA', parent: 'mapInst.iterate' as any },
         ],
       });
       const result = generateInPlace(source, ast);
@@ -536,7 +536,7 @@ export function myWorkflow() {
             toType: 'NUMBER',
             source: { node: 'a', port: 'result' },
             target: { node: 'Exit', port: 'onSuccess' },
-          } as TWorkflowMacro,
+          } as unknown as TWorkflowMacro,
         ],
         instances: [
           { type: 'NodeInstance', id: 'a', nodeType: 'nodeA' },
@@ -615,7 +615,7 @@ export function myWorkflow() {
         instances: [
           { type: 'NodeInstance', id: 'a', nodeType: 'nodeA' },
           { type: 'NodeInstance', id: 'mapInst', nodeType: 'MAP_ITERATOR' },
-          { type: 'NodeInstance', id: 'childInst', nodeType: 'nodeA', parent: 'mapInst.iterate' },
+          { type: 'NodeInstance', id: 'childInst', nodeType: 'nodeA', parent: 'mapInst.iterate' as any },
         ],
         scopes: { 'mapInst.iterate': ['childInst'] },
       });
@@ -942,7 +942,7 @@ export function myWorkflow(): { onSuccess: boolean; onFailure: boolean } {
         instances: [
           { type: 'NodeInstance', id: 'a', nodeType: 'nodeA' },
           { type: 'NodeInstance', id: 'mapInst', nodeType: 'MAP_ITERATOR' },
-          { type: 'NodeInstance', id: 'childInst', nodeType: 'nodeA', parent: 'mapInst.iterate' },
+          { type: 'NodeInstance', id: 'childInst', nodeType: 'nodeA', parent: 'mapInst.iterate' as any },
         ],
       });
       const result = generateInPlace(source, ast);

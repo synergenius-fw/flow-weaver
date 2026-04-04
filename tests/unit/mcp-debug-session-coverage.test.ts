@@ -74,6 +74,8 @@ describe('debug-session registry', () => {
       phase: 'before' as const,
       position: 0,
       completedNodes: [],
+      executionOrder: [],
+      breakpoints: [],
       variables: {},
     };
     const session = makeFakeSession({ lastPauseState: pause });

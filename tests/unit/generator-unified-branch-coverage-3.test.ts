@@ -627,7 +627,7 @@ describe('Unified Generator - async pull node executor', () => {
 
     const workflow = makeWorkflow(
       [asyncPull],
-      [{ type: 'NodeInstance', id: 'ap', nodeType: 'asyncPull', config: { pullExecution: true } }],
+      [{ type: 'NodeInstance', id: 'ap', nodeType: 'asyncPull', config: { pullExecution: true as any } }],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'ap', port: 'execute' } },
         { type: 'Connection', from: { node: 'Start', port: 'n' }, to: { node: 'ap', port: 'value' } },
@@ -1202,7 +1202,7 @@ describe('Unified Generator - pull WORKFLOW variant', () => {
 
     const workflow = makeWorkflow(
       [wfPull],
-      [{ type: 'NodeInstance', id: 'pwl', nodeType: 'pullWfLocal', config: { pullExecution: true } }],
+      [{ type: 'NodeInstance', id: 'pwl', nodeType: 'pullWfLocal', config: { pullExecution: true as any } }],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'pwl', port: 'execute' } },
         { type: 'Connection', from: { node: 'Start', port: 'n' }, to: { node: 'pwl', port: 'input' } },
@@ -1306,9 +1306,9 @@ describe('Unified Generator - production exit defaults', () => {
 
     // Production: no VARIABLE_SET for defaults
     // Count occurrences of setVariable for Exit in production
-    const prodExitSets = (prodCode.match(/setVariable.*Exit/g) || []).length;
+    const prodExitSets = ((prodCode as unknown as string).match(/setVariable.*Exit/g) || []).length;
     // Dev mode should have setVariable for Exit ports
-    const devExitSets = (devCode.match(/setVariable.*Exit/g) || []).length;
+    const devExitSets = ((devCode as unknown as string).match(/setVariable.*Exit/g) || []).length;
     expect(devExitSets).toBeGreaterThan(prodExitSets);
   });
 });
@@ -1353,7 +1353,7 @@ describe('Unified Generator - pull config object no triggerPort', () => {
 
     const workflow = makeWorkflow(
       [node],
-      [{ type: 'NodeInstance', id: 'pnp', nodeType: 'pullNoPort', config: { pullExecution: { } } }],
+      [{ type: 'NodeInstance', id: 'pnp', nodeType: 'pullNoPort', config: { pullExecution: {} as any } }],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'pnp', port: 'execute' } },
         { type: 'Connection', from: { node: 'Start', port: 'n' }, to: { node: 'pnp', port: 'value' } },
@@ -1372,7 +1372,7 @@ describe('Unified Generator - pull config object no triggerPort', () => {
 describe('Unified Generator - defaultConfig pull no triggerPort', () => {
   it('falls back to execute when defaultConfig pullExecution object has no triggerPort', () => {
     const node = makeSimpleNodeType('defPullNoPort', {
-      defaultConfig: { pullExecution: {} },
+      defaultConfig: { pullExecution: {} as any },
       inputs: { execute: { dataType: 'STEP' }, value: { dataType: 'NUMBER' } },
       outputs: { onSuccess: { dataType: 'STEP' }, onFailure: { dataType: 'STEP' }, result: { dataType: 'NUMBER' } },
     });

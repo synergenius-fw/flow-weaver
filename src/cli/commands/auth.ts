@@ -1,9 +1,11 @@
 import * as readline from 'node:readline';
 import { loadCredentials, saveCredentials, clearCredentials, getPlatformUrl } from '../config/credentials.js';
 import { PlatformClient } from '../config/platform-client.js';
+import { fmt } from '../utils/cli-helpers.js';
 
 export async function loginCommand(options: {
   email?: string;
+  password?: string;
   apiKey?: string;
   platformUrl?: string;
 }): Promise<void> {
@@ -11,7 +13,7 @@ export async function loginCommand(options: {
 
   const displayUrl = platformUrl.replace(/^https?:\/\//, '');
   console.log('');
-  console.log(`  \x1b[1mFlow Weaver\x1b[0m \x1b[2m(${displayUrl})\x1b[0m`);
+  console.log(`  ${fmt.bold('Flow Weaver')} ${fmt.dim(`(${displayUrl})`)}`);
   console.log('');
 
   // API key mode (for CI/headless)
@@ -22,7 +24,7 @@ export async function loginCommand(options: {
 
   // Email mode (explicit --email flag)
   if (options.email) {
-    await loginWithEmail(options.email, platformUrl);
+    await loginWithEmail(options.email, platformUrl, options.password);
     return;
   }
 
@@ -174,7 +176,7 @@ async function loginWithApiKey(apiKey: string, platformUrl: string): Promise<voi
     plan = user.plan;
     userId = user.id;
   } catch {
-    console.error('  \x1b[31m✗\x1b[0m Invalid API key');
+    console.error(fmt.err('Invalid API key'));
     process.exit(1);
     return;
   }
@@ -182,12 +184,12 @@ async function loginWithApiKey(apiKey: string, platformUrl: string): Promise<voi
   const expiresAt = Date.now() + 365 * 24 * 60 * 60 * 1000; // 1 year for API keys
   saveCredentials({ token: apiKey, email, plan: plan as 'free' | 'pro' | 'business', platformUrl, expiresAt, userId });
 
-  console.log(`  \x1b[32m✓\x1b[0m Logged in as \x1b[1m${email}\x1b[0m (${plan} plan)`);
+  console.log(fmt.ok(`Logged in as ${fmt.bold(email)} (${plan} plan)`));
   console.log('');
 }
 
-async function loginWithEmail(email: string, platformUrl: string): Promise<void> {
-  const password = await prompt('  Password: ', true);
+async function loginWithEmail(email: string, platformUrl: string, passwordFlag?: string): Promise<void> {
+  const password = passwordFlag ?? await prompt('  Password: ', true);
 
   try {
     const resp = await fetch(`${platformUrl}/auth/login`, {
@@ -226,31 +228,30 @@ async function loginWithEmail(email: string, platformUrl: string): Promise<void>
 
 export async function logoutCommand(): Promise<void> {
   clearCredentials();
-  console.log('  \x1b[32m✓\x1b[0m Logged out');
+  console.log(fmt.ok('Logged out'));
 }
 
 export async function authStatusCommand(): Promise<void> {
   const creds = loadCredentials();
   if (!creds) {
     console.log('');
-    console.log('  Not logged in.');
-    console.log('  Run: \x1b[36mfw login\x1b[0m');
+    console.log(fmt.err(`Not logged in. Run: ${fmt.cyan('fw login')}`));
     console.log('');
-    return;
+    process.exit(1);
   }
 
   const expiresIn = Math.floor((creds.expiresAt - Date.now()) / 1000 / 60 / 60);
 
   console.log('');
-  console.log(`  \x1b[32m✓\x1b[0m Logged in as \x1b[1m${creds.email}\x1b[0m`);
+  console.log(fmt.ok(`Logged in as ${fmt.bold(creds.email)}`));
   console.log(`  Plan: ${creds.plan}`);
-  console.log(`  Platform: ${creds.platformUrl}`);
+  console.log(`  Platform: ${fmt.dim(creds.platformUrl)}`);
   console.log(`  Token expires in: ${expiresIn}h`);
   console.log('');
   console.log('  Commands unlocked:');
-  console.log('    \x1b[36mfw deploy <file>\x1b[0m         deploy to cloud');
-  console.log('    \x1b[36mfw cloud-status\x1b[0m          see deployments + usage');
-  console.log('    \x1b[36mweaver assistant\x1b[0m          AI with platform credits');
+  console.log(`    ${fmt.cyan('fw deploy <file>')}         deploy to cloud`);
+  console.log(`    ${fmt.cyan('fw cloud-status')}          see deployments + usage`);
+  console.log(`    ${fmt.cyan('weaver assistant')}          AI with platform credits`);
   console.log('');
 }
 

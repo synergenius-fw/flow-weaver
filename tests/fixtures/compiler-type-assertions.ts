@@ -483,7 +483,7 @@ export async function typeAssertionWorkflow(
     // Debug controller for step-through debugging and checkpoint/resume
     const __ctrl__: TDebugController = (
       typeof globalThis !== 'undefined' && (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__
-        ? (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__
+        ? (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__!
         : { beforeNode: () => true, afterNode: () => {} }
     );
 
@@ -579,7 +579,7 @@ export async function typeAssertionWorkflow(
           await ctx.setVariable({ id: 'proc', portName: 'execute', executionIndex: procIdx, nodeTypeName: 'processData' }, proc_execute);
           const proc_config = await ctx.getVariable({ id: 'loader', portName: 'config', executionIndex: loaderIdx! }) as Record<string, unknown>;
           await ctx.setVariable({ id: 'proc', portName: 'config', executionIndex: procIdx, nodeTypeName: 'processData' }, proc_config);
-          const procResult = processData(proc_execute, proc_config);
+          const procResult = processData(proc_execute, proc_config as unknown as MyConfig);
           await ctx.setVariable({ id: 'proc', portName: 'result', executionIndex: procIdx, nodeTypeName: 'processData' }, procResult.result);
           await ctx.setVariable({ id: 'proc', portName: 'onSuccess', executionIndex: procIdx, nodeTypeName: 'processData' }, procResult.onSuccess);
           await ctx.setVariable({ id: 'proc', portName: 'onFailure', executionIndex: procIdx, nodeTypeName: 'processData' }, procResult.onFailure);

@@ -1230,7 +1230,7 @@ function myNode(execute: boolean): { onSuccess: boolean } {
 `);
       // This test covers the branch where dataType != STEP on a reserved port
       // The warning may or may not appear depending on how the parser handles {string}
-      expect(config => true); // The branch is exercised either way
+      expect((config: any) => true); // The branch is exercised either way
     });
   });
 

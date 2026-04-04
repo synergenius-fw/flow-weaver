@@ -924,9 +924,9 @@ describe('parser branch coverage 3', () => {
       const instA = wf.instances.find(i => i.id === 'a');
       expect(instA).toBeDefined();
       if (instA) {
-        expect(instA.config.label).toBe('Alpha');
-        expect(instA.config.minimized).toBe(true);
-        expect(instA.config.pullExecution).toBeDefined();
+        expect(instA.config!.label).toBe('Alpha');
+        expect(instA.config!.minimized).toBe(true);
+        expect(instA.config!.pullExecution).toBeDefined();
       }
     });
 
@@ -950,8 +950,8 @@ describe('parser branch coverage 3', () => {
       const instA = wf.instances.find(i => i.id === 'a');
       expect(instA).toBeDefined();
       if (instA) {
-        expect(instA.config.color).toBe('#ff0000');
-        expect(instA.config.icon).toBe('star');
+        expect(instA.config!.color).toBe('#ff0000');
+        expect(instA.config!.icon).toBe('star');
       }
     });
 
@@ -975,10 +975,10 @@ describe('parser branch coverage 3', () => {
       const instA = wf.instances.find(i => i.id === 'a');
       expect(instA).toBeDefined();
       if (instA) {
-        expect(instA.config.width).toBe(200);
-        expect(instA.config.height).toBe(100);
-        expect(instA.config.x).toBe(50);
-        expect(instA.config.y).toBe(60);
+        expect(instA.config!.width).toBe(200);
+        expect(instA.config!.height).toBe(100);
+        expect(instA.config!.x).toBe(50);
+        expect(instA.config!.y).toBe(60);
       }
     });
 
@@ -1023,7 +1023,7 @@ describe('parser branch coverage 3', () => {
       const wf = result.workflows[0];
       const instB = wf.instances.find(i => i.id === 'b');
       expect(instB).toBeDefined();
-      if (instB?.config.portConfigs) {
+      if (instB?.config!.portConfigs) {
         expect(instB.config.portConfigs.length).toBeGreaterThan(0);
       }
     });
@@ -2773,8 +2773,8 @@ describe('parser branch coverage 3', () => {
       const instA = wf.instances.find(i => i.id === 'A');
       expect(instA).toBeDefined();
       if (instA) {
-        expect(instA.config.x).toBe(100);
-        expect(instA.config.y).toBe(200);
+        expect(instA.config!.x).toBe(100);
+        expect(instA.config!.y).toBe(200);
       }
     });
   });

@@ -12,12 +12,15 @@ export class PlatformClient {
   private async fetch(path: string, opts: RequestInit = {}): Promise<Response> {
     const isApiKey = this.token.startsWith('fw_');
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...(isApiKey
         ? { 'X-API-Key': this.token }
         : { Authorization: `Bearer ${this.token}` }),
       ...(opts.headers as Record<string, string> ?? {}),
     };
+    // Only set Content-Type for requests with a body (Fastify rejects empty body with application/json)
+    if (opts.body) {
+      headers['Content-Type'] = 'application/json';
+    }
     return fetch(`${this.baseUrl}${path}`, { ...opts, headers });
   }
 
@@ -106,6 +109,153 @@ export class PlatformClient {
           yield JSON.parse(line.slice(6));
         } catch { /* skip non-JSON */ }
       }
+    }
+  }
+
+  // API Keys
+  async createApiKey(name: string): Promise<{ id: string; name: string; keyPrefix: string; key: string; createdAt: string }> {
+    const resp = await this.fetch('/api-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText })) as { error: string };
+      throw new Error(err.error ?? `Failed to create API key: ${resp.status}`);
+    }
+    const data = await resp.json() as { apiKey: { id: string; name: string; keyPrefix: string; key: string; createdAt: string } };
+    return data.apiKey;
+  }
+
+  async listApiKeys(): Promise<Array<{ id: string; name: string; keyPrefix: string; createdAt: string }>> {
+    const resp = await this.fetch('/api-keys');
+    if (!resp.ok) {
+      throw new Error(`Failed to list API keys: ${resp.status}`);
+    }
+    const data = await resp.json().catch(() => ({ apiKeys: [] })) as { apiKeys: Array<{ id: string; name: string; keyPrefix: string; createdAt: string }> };
+    return data.apiKeys ?? [];
+  }
+
+  async revokeApiKey(id: string): Promise<void> {
+    const resp = await this.fetch(`/api-keys/${id}`, { method: 'DELETE' });
+    if (resp.status === 404) {
+      throw new Error('API key not found or already revoked');
+    }
+    if (!resp.ok) {
+      throw new Error(`Failed to revoke API key: ${resp.status}`);
+    }
+  }
+
+  // AI Credentials
+  async createAiCredential(opts: {
+    provider: string;
+    label: string;
+    apiKey: string;
+    baseUrl?: string;
+    defaultModel?: string;
+    isDefault?: boolean;
+  }): Promise<{ id: string; provider: string; label: string; createdAt: string }> {
+    const resp = await this.fetch('/ai-credentials', {
+      method: 'POST',
+      body: JSON.stringify(opts),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText })) as { error: string };
+      throw new Error(err.error ?? `Failed to add credential: ${resp.status}`);
+    }
+    const data = await resp.json() as { credential: { id: string; provider: string; label: string; createdAt: string } };
+    return data.credential;
+  }
+
+  async listAiCredentials(): Promise<Array<{ id: string; provider: string; label: string; defaultModel?: string; isDefault: boolean; createdAt: string }>> {
+    const resp = await this.fetch('/ai-credentials');
+    if (!resp.ok) throw new Error(`Failed to list credentials: ${resp.status}`);
+    const data = await resp.json().catch(() => ({ credentials: [] })) as { credentials: Array<{ id: string; provider: string; label: string; defaultModel?: string; isDefault: boolean; createdAt: string }> };
+    return data.credentials ?? [];
+  }
+
+  async revokeAiCredential(id: string): Promise<void> {
+    const resp = await this.fetch(`/ai-credentials/${id}`, { method: 'DELETE' });
+    if (resp.status === 404) throw new Error('Credential not found');
+    if (!resp.ok) throw new Error(`Failed to revoke credential: ${resp.status}`);
+  }
+
+  async testAiCredential(id: string): Promise<{ success: boolean; message?: string }> {
+    const resp = await this.fetch(`/ai-credentials/${id}/test`, { method: 'POST' });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText })) as { error: string };
+      throw new Error(err.error ?? `Test failed: ${resp.status}`);
+    }
+    return await resp.json().catch(() => ({ success: true })) as { success: boolean; message?: string };
+  }
+
+  // Billing / Usage
+  async getDetailedUsage(): Promise<{
+    plan: string;
+    usage: {
+      workflows: { used: number; limit: number };
+      deployments: { used: number; limit: number };
+      executions: { used: number; limit: number; period: string };
+    };
+    limits: { timeoutMs: number };
+  }> {
+    const resp = await this.fetch('/billing/usage');
+    if (!resp.ok) throw new Error(`Failed to fetch usage: ${resp.status}`);
+    const data = await resp.json().catch(() => null) as { plan: string; usage: { workflows: { used: number; limit: number }; deployments: { used: number; limit: number }; executions: { used: number; limit: number; period: string } }; limits: { timeoutMs: number } } | null;
+    if (!data?.usage) throw new Error('Invalid usage response');
+    return data;
+  }
+
+  // Organizations
+  async listOrgs(): Promise<Array<{ id: string; name: string; slug: string; role: string; createdAt: string }>> {
+    const resp = await this.fetch('/organizations');
+    if (!resp.ok) throw new Error(`Failed to list organizations: ${resp.status}`);
+    const data = await resp.json().catch(() => []);
+    return Array.isArray(data) ? data : [];
+  }
+
+  async createOrg(name: string): Promise<{ id: string; name: string; slug: string }> {
+    const resp = await this.fetch('/organizations', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText })) as { error: string };
+      throw new Error(err.error ?? `Failed to create organization: ${resp.status}`);
+    }
+    const data = await resp.json().catch(() => null) as { id: string; name: string; slug: string } | null;
+    if (!data) throw new Error('Invalid organization response');
+    return data;
+  }
+
+  async getOrg(orgId: string): Promise<{
+    id: string;
+    name: string;
+    slug: string;
+    members: Array<{ userId: string; name: string; email: string; role: string; joinedAt: string }>;
+  }> {
+    const resp = await this.fetch(`/organizations/${orgId}`);
+    if (!resp.ok) throw new Error(`Failed to get organization: ${resp.status}`);
+    const data = await resp.json().catch(() => null) as { id: string; name: string; slug: string; members: Array<{ userId: string; name: string; email: string; role: string; joinedAt: string }> } | null;
+    if (!data) throw new Error('Invalid organization response');
+    return data;
+  }
+
+  async inviteOrgMember(orgId: string, email: string, role: string = 'editor'): Promise<void> {
+    const resp = await this.fetch(`/organizations/${orgId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ email, role }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText })) as { error: string };
+      throw new Error(err.error ?? `Failed to invite member: ${resp.status}`);
+    }
+  }
+
+  async removeOrgMember(orgId: string, userId: string): Promise<void> {
+    const resp = await this.fetch(`/organizations/${orgId}/members/${userId}`, { method: 'DELETE' });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: resp.statusText })) as { error: string };
+      throw new Error(err.error ?? `Failed to remove member: ${resp.status}`);
     }
   }
 

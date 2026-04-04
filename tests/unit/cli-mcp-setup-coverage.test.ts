@@ -84,7 +84,7 @@ describe('mcpSetupCommand — non-interactive branch (lines 447-449)', () => {
 
     const logCalls = (deps.log as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
     expect(deps.writeFile).toHaveBeenCalled();
-    expect(logCalls.some((m: string) => m.includes('Done.'))).toBe(true);
+    expect(logCalls.some((m: any) => m.includes('Done.'))).toBe(true);
   });
 });
 
@@ -111,8 +111,8 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
     await mcpSetupCommand({}, deps);
 
     const logCalls = (deps.log as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
-    expect(logCalls.some((m: string) => typeof m === 'string' && m.includes('Detected tools'))).toBe(true);
-    expect(logCalls.some((m: string) => m.includes('Done.'))).toBe(true);
+    expect(logCalls.some((m: any) => typeof m === 'string' && m.includes('Detected tools'))).toBe(true);
+    expect(logCalls.some((m: any) => m.includes('Done.'))).toBe(true);
   });
 
   it('prints "No tools selected." when user declines all (line 493)', async () => {
@@ -125,7 +125,7 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
     await mcpSetupCommand({}, deps);
 
     const logCalls = (deps.log as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
-    expect(logCalls.some((m: string) => m.includes('No tools selected'))).toBe(true);
+    expect(logCalls.some((m: any) => m.includes('No tools selected'))).toBe(true);
   });
 
   it('skips already-configured tools with message during interactive confirm', async () => {
@@ -146,7 +146,7 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
     await mcpSetupCommand({}, deps);
 
     const logCalls = (deps.log as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
-    expect(logCalls.some((m: string) => typeof m === 'string' && m.includes('already configured'))).toBe(true);
+    expect(logCalls.some((m: any) => typeof m === 'string' && m.includes('already configured'))).toBe(true);
   });
 
   it('returns silently when user presses Ctrl+C (ExitPromptError)', async () => {
@@ -171,7 +171,7 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
     await mcpSetupCommand({}, deps);
 
     const logCalls = (deps.log as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
-    expect(logCalls.some((m: string) => m.includes('No AI coding tools detected'))).toBe(true);
+    expect(logCalls.some((m: any) => m.includes('No AI coding tools detected'))).toBe(true);
   });
 });
 
@@ -184,6 +184,6 @@ describe('mcpSetupCommand — --all flag (line 446)', () => {
 
     expect(deps.writeFile).toHaveBeenCalled();
     const logCalls = (deps.log as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0]);
-    expect(logCalls.some((m: string) => m.includes('Done.'))).toBe(true);
+    expect(logCalls.some((m: any) => m.includes('Done.'))).toBe(true);
   });
 });

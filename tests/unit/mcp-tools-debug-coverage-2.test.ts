@@ -114,7 +114,7 @@ function createPausedSession(
 
 function makeCheckpointData(overrides?: Record<string, unknown>) {
   return {
-    version: 1,
+    version: 1 as const,
     workflowHash: 'abc',
     workflowName: 'myWf',
     filePath: '/fake/workflow.ts',
@@ -125,8 +125,12 @@ function makeCheckpointData(overrides?: Record<string, unknown>) {
     position: 2,
     variables: {},
     executionInfo: {},
+    executions: {} as Record<string, unknown>,
+    executionCounter: 0,
+    nodeExecutionCounts: {} as Record<string, number>,
+    unsafeNodes: [] as string[],
     ...overrides,
-  };
+  } as any;
 }
 
 // ---------------------------------------------------------------------------
@@ -329,9 +333,11 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
         ast: {} as any,
         errors: [],
         warnings: [],
+        availableWorkflows: [],
+        allWorkflows: [],
       });
       vi.mocked(getTopologicalOrder).mockReturnValue(['nodeA']);
-      vi.mocked(executeWorkflowFromFile).mockResolvedValue({ result: 'instant' });
+      vi.mocked(executeWorkflowFromFile).mockResolvedValue({ result: 'instant', functionName: 'test', executionTime: 0 });
 
       // Mock onPause to never resolve so the completed promise wins the race
       vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
@@ -356,6 +362,8 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
         ast: {} as any,
         errors: [],
         warnings: [],
+        availableWorkflows: [],
+        allWorkflows: [],
       });
       vi.mocked(getTopologicalOrder).mockReturnValue(['nodeA']);
       vi.mocked(executeWorkflowFromFile).mockRejectedValue(new Error('exec failed'));
@@ -440,7 +448,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
         skipNodes: new Map([['nodeA', {}]]),
       });
 
-      vi.mocked(executeWorkflowFromFile).mockResolvedValue({ result: 'resumed-ok' });
+      vi.mocked(executeWorkflowFromFile).mockResolvedValue({ result: 'resumed-ok', functionName: 'test', executionTime: 0 });
       vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
 
       const result = await tools['fw_resume_from_checkpoint']({
@@ -478,7 +486,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
       const execPromise = new Promise((_resolve, reject) => {
         rejectFn = reject;
       });
-      vi.mocked(executeWorkflowFromFile).mockReturnValue(execPromise as Promise<unknown>);
+      vi.mocked(executeWorkflowFromFile).mockReturnValue(execPromise as any);
       vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
 
       // Start the tool call, then reject
@@ -513,7 +521,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
         skipNodes: new Map([['nodeA', { out: 'v' }]]),
       });
 
-      vi.mocked(executeWorkflowFromFile).mockResolvedValue({ result: 'final' });
+      vi.mocked(executeWorkflowFromFile).mockResolvedValue({ result: 'final', functionName: 'test', executionTime: 0 });
 
       const result = await tools['fw_resume_from_checkpoint']({
         filePath: '/fake/workflow.ts',
@@ -547,7 +555,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
       });
 
       // Return a value that has no .result property
-      vi.mocked(executeWorkflowFromFile).mockResolvedValue('bare-value');
+      vi.mocked(executeWorkflowFromFile).mockResolvedValue('bare-value' as any);
 
       const result = await tools['fw_resume_from_checkpoint']({
         filePath: '/fake/workflow.ts',

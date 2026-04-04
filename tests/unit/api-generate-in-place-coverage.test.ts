@@ -72,7 +72,7 @@ export async function myWorkflow(
       nodeTypes: [parentNode, childNode],
       instances: [
         { type: 'NodeInstance', id: 'parent', nodeType: 'forEach' },
-        { type: 'NodeInstance', id: 'child', nodeType: 'processItem', parent: 'parent' },
+        { type: 'NodeInstance', id: 'child', nodeType: 'processItem', parent: 'parent' as any },
       ],
       connections: [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'parent', port: 'execute' } },

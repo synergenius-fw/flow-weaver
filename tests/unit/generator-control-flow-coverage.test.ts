@@ -32,7 +32,7 @@ function makeNodeTypes(names: string[]): TNodeTypeAST[] {
     inputs: {},
     outputs: {},
     sourceFile: 'test.ts',
-  })) as TNodeTypeAST[];
+  })) as unknown as TNodeTypeAST[];
 }
 
 describe('determineExecutionOrder', () => {

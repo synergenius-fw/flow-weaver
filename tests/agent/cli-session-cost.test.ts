@@ -34,7 +34,7 @@ describe.skipIf(!hasClaude)('CliSession cost from CLI result event', () => {
       { name: 'done', description: 'Done', inputSchema: { type: 'object' as const, properties: { summary: { type: 'string' } }, required: ['summary'] as const } },
     ];
 
-    bridge = await createMcpBridge(tools, async () => ({ result: 'ok', isError: false }));
+    bridge = await createMcpBridge(tools as any, async () => ({ result: 'ok', isError: false }));
 
     const opts = getCliSessionConfig({
       cwd: process.cwd(),

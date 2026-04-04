@@ -433,7 +433,7 @@ describe('Unified Generator - pull execution config branches', () => {
 
     const workflow = makeWorkflow(
       [node],
-      [{ type: 'NodeInstance', id: 'lazy', nodeType: 'lazyNode', config: { pullExecution: true } }],
+      [{ type: 'NodeInstance', id: 'lazy', nodeType: 'lazyNode', config: { pullExecution: true as any } }],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'lazy', port: 'execute' } },
         { type: 'Connection', from: { node: 'Start', port: 'n' }, to: { node: 'lazy', port: 'value' } },
@@ -468,7 +468,7 @@ describe('Unified Generator - pull execution config branches', () => {
 
   it('handles pull execution from nodeType defaultConfig as boolean', () => {
     const node = makeSimpleNodeType('defaultPull', {
-      defaultConfig: { pullExecution: true },
+      defaultConfig: { pullExecution: true as any },
       inputs: { execute: { dataType: 'STEP' }, value: { dataType: 'NUMBER' } },
       outputs: { onSuccess: { dataType: 'STEP' }, onFailure: { dataType: 'STEP' }, result: { dataType: 'NUMBER' } },
     });
@@ -762,7 +762,7 @@ describe('Unified Generator - pull node variants', () => {
 
     const workflow = makeWorkflow(
       [wfPull],
-      [{ type: 'NodeInstance', id: 'pw', nodeType: 'pullWf', config: { pullExecution: true } }],
+      [{ type: 'NodeInstance', id: 'pw', nodeType: 'pullWf', config: { pullExecution: true as any } }],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'pw', port: 'execute' } },
         { type: 'Connection', from: { node: 'Start', port: 'n' }, to: { node: 'pw', port: 'input' } },
@@ -793,7 +793,7 @@ describe('Unified Generator - pull node variants', () => {
 
     const workflow = makeWorkflow(
       [scopedPull],
-      [{ type: 'NodeInstance', id: 'ps', nodeType: 'pullScoped', config: { pullExecution: true } }],
+      [{ type: 'NodeInstance', id: 'ps', nodeType: 'pullScoped', config: { pullExecution: true as any } }],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'ps', port: 'execute' } },
         { type: 'Connection', from: { node: 'Start', port: 'n' }, to: { node: 'ps', port: 'items' } },
@@ -824,7 +824,7 @@ describe('Unified Generator - pull node variants', () => {
 
     const workflow = makeWorkflow(
       [mapPull],
-      [{ type: 'NodeInstance', id: 'pm', nodeType: 'pullMap', config: { pullExecution: true } }],
+      [{ type: 'NodeInstance', id: 'pm', nodeType: 'pullMap', config: { pullExecution: true as any } }],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'pm', port: 'execute' } },
         { type: 'Connection', from: { node: 'Start', port: 'n' }, to: { node: 'pm', port: 'items' } },
@@ -912,7 +912,7 @@ describe('Unified Generator - exit source from pull and branch nodes', () => {
 
     const workflow = makeWorkflow(
       [pullNode],
-      [{ type: 'NodeInstance', id: 'pe', nodeType: 'pullExit', config: { pullExecution: true } }],
+      [{ type: 'NodeInstance', id: 'pe', nodeType: 'pullExit', config: { pullExecution: true as any } }],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'pe', port: 'execute' } },
         { type: 'Connection', from: { node: 'Start', port: 'n' }, to: { node: 'pe', port: 'value' } },
@@ -1053,8 +1053,8 @@ describe('Unified Generator - production vs dev exit variable_set', () => {
     const prodCode = generateCode(workflow, { production: true });
 
     // Dev mode emits setVariable for Exit ports
-    const devSetVarCount = (devCode.match(/setVariable.*Exit/g) || []).length;
-    const prodSetVarCount = (prodCode.match(/setVariable.*Exit/g) || []).length;
+    const devSetVarCount = ((devCode as unknown as string).match(/setVariable.*Exit/g) || []).length;
+    const prodSetVarCount = ((prodCode as unknown as string).match(/setVariable.*Exit/g) || []).length;
     expect(devSetVarCount).toBeGreaterThan(prodSetVarCount);
   });
 });
@@ -1072,7 +1072,7 @@ describe('Unified Generator - async pull node executor', () => {
 
     const workflow = makeWorkflow(
       [asyncPull],
-      [{ type: 'NodeInstance', id: 'ap', nodeType: 'asyncPullNode', config: { pullExecution: true } }],
+      [{ type: 'NodeInstance', id: 'ap', nodeType: 'asyncPullNode', config: { pullExecution: true as any } }],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'ap', port: 'execute' } },
         { type: 'Connection', from: { node: 'Start', port: 'n' }, to: { node: 'ap', port: 'value' } },

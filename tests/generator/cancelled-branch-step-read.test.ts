@@ -37,7 +37,7 @@ describe('cancelled branch STEP port read', () => {
 
     // getVariable calls for STEP ports from branched nodes should have
     // undefined guards, not bare non-null assertions
-    const unguardedStepReads = generated.match(
+    const unguardedStepReads = (generated as unknown as string).match(
       /getVariable\(\{[^}]*portName:\s*'onSuccess'[^}]*executionIndex:\s*\w+Idx!\s*\}/g
     );
     expect(unguardedStepReads).toBeNull();

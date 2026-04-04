@@ -734,6 +734,7 @@ if (!process.env['VITEST']) {
       .command('login')
       .description('Log in to Flow Weaver platform')
       .option('-e, --email <email>', 'Email address')
+      .option('-p, --password <password>', 'Password (for non-interactive login with --email)')
       .option('-k, --api-key <key>', 'Use API key instead of email/password')
       .option('--platform-url <url>', 'Platform URL')
       .action(async (options) => {
@@ -755,6 +756,132 @@ if (!process.env['VITEST']) {
       .action(async () => {
         const { authStatusCommand } = await import('./commands/auth.js');
         await authStatusCommand();
+      });
+
+    // API key management
+    const apikeyCmd = program
+      .command('apikey')
+      .description('Manage platform API keys');
+
+    apikeyCmd
+      .command('create <name>')
+      .description('Create a new API key')
+      .action(async (name: string) => {
+        const { apiKeyCreateCommand } = await import('./commands/apikey.js');
+        await apiKeyCreateCommand(name);
+      });
+
+    apikeyCmd
+      .command('list')
+      .description('List all active API keys')
+      .action(async () => {
+        const { apiKeyListCommand } = await import('./commands/apikey.js');
+        await apiKeyListCommand();
+      });
+
+    apikeyCmd
+      .command('revoke <id>')
+      .description('Revoke an API key by ID or prefix')
+      .action(async (id: string) => {
+        const { apiKeyRevokeCommand } = await import('./commands/apikey.js');
+        await apiKeyRevokeCommand(id);
+      });
+
+    // AI credential management
+    const aiCmd = program
+      .command('ai')
+      .description('Manage AI provider credentials');
+
+    aiCmd
+      .command('add <provider>')
+      .description('Add an AI provider credential (anthropic or openai)')
+      .option('-k, --key <key>', 'API key (omit to enter interactively)')
+      .option('-l, --label <label>', 'Display name for the credential')
+      .option('-m, --model <model>', 'Default model to use')
+      .option('-d, --default', 'Set as default credential')
+      .action(async (provider: string, options: { key?: string; label?: string; model?: string; default?: boolean }) => {
+        const { aiAddCommand } = await import('./commands/ai-credentials.js');
+        await aiAddCommand(provider, options);
+      });
+
+    aiCmd
+      .command('list')
+      .description('List all AI credentials')
+      .action(async () => {
+        const { aiListCommand } = await import('./commands/ai-credentials.js');
+        await aiListCommand();
+      });
+
+    aiCmd
+      .command('revoke <id>')
+      .description('Revoke an AI credential')
+      .option('-f, --force', 'Skip confirmation prompt')
+      .action(async (id: string, options: { force?: boolean }) => {
+        const { aiRevokeCommand } = await import('./commands/ai-credentials.js');
+        await aiRevokeCommand(id, options);
+      });
+
+    aiCmd
+      .command('test <id>')
+      .description('Test an AI credential')
+      .action(async (id: string) => {
+        const { aiTestCommand } = await import('./commands/ai-credentials.js');
+        await aiTestCommand(id);
+      });
+
+    // Account (includes usage)
+    program
+      .command('account')
+      .description('Show account details and plan usage')
+      .action(async () => {
+        const { accountCommand } = await import('./commands/account.js');
+        await accountCommand();
+      });
+
+    // Organization management
+    const orgCmd = program
+      .command('org')
+      .description('Manage organizations');
+
+    orgCmd
+      .command('list')
+      .description('List your organizations')
+      .action(async () => {
+        const { orgListCommand } = await import('./commands/org.js');
+        await orgListCommand();
+      });
+
+    orgCmd
+      .command('create <name>')
+      .description('Create a new organization')
+      .action(async (name: string) => {
+        const { orgCreateCommand } = await import('./commands/org.js');
+        await orgCreateCommand(name);
+      });
+
+    orgCmd
+      .command('members <org>')
+      .description('List members of an organization (accepts slug, name, or ID)')
+      .action(async (org: string) => {
+        const { orgMembersCommand } = await import('./commands/org.js');
+        await orgMembersCommand(org);
+      });
+
+    orgCmd
+      .command('invite <org> <email>')
+      .description('Invite a member (org accepts slug, name, or ID)')
+      .option('-r, --role <role>', 'Role: editor or viewer (default: editor)')
+      .action(async (org: string, email: string, options: { role?: string }) => {
+        const { orgInviteCommand } = await import('./commands/org.js');
+        await orgInviteCommand(org, email, options);
+      });
+
+    orgCmd
+      .command('remove <org> <user>')
+      .description('Remove a member (org accepts slug; user accepts email or ID)')
+      .action(async (org: string, user: string) => {
+        const { orgRemoveCommand } = await import('./commands/org.js');
+        await orgRemoveCommand(org, user);
       });
 
     // Deploy commands (push + deploy to cloud)

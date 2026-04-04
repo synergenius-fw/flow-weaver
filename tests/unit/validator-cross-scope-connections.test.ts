@@ -43,7 +43,7 @@ function createWorkflow(
       hasSuccessPort: true,
       hasFailurePort: true,
       isAsync: true,
-    } as TNodeTypeAST,
+    } as unknown as TNodeTypeAST,
     {
       type: "NodeType",
       name: "ChildNode",
@@ -58,7 +58,7 @@ function createWorkflow(
       hasSuccessPort: true,
       hasFailurePort: true,
       isAsync: false,
-    } as TNodeTypeAST,
+    } as unknown as TNodeTypeAST,
     ...(nodeTypes ?? []) as TNodeTypeAST[],
   ];
 
@@ -82,7 +82,7 @@ function createWorkflow(
       onSuccess: { dataType: "STEP" },
       onFailure: { dataType: "STEP" },
     },
-  } as TWorkflowAST;
+  } as unknown as TWorkflowAST;
 }
 
 function getErrors(workflow: TWorkflowAST) {

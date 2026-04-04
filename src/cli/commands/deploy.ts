@@ -1,37 +1,28 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { loadCredentials } from '../config/credentials.js';
-import { PlatformClient } from '../config/platform-client.js';
+import { requireLogin, fmt, exitWithError } from '../utils/cli-helpers.js';
 
 export async function deployCommand(filePath: string, options: { name?: string } = {}): Promise<void> {
-  const creds = loadCredentials();
-  if (!creds) {
-    console.error('  \x1b[31m✗\x1b[0m Not logged in. Run: fw login');
-    process.exit(1);
-    return;
-  }
+  const { creds, client } = requireLogin();
 
   const absPath = path.resolve(filePath);
   if (!fs.existsSync(absPath)) {
-    console.error(`  \x1b[31m✗\x1b[0m File not found: ${filePath}`);
-    process.exit(1);
-    return;
+    exitWithError(new Error(`File not found: ${filePath}`), 'File not found');
   }
 
   const source = fs.readFileSync(absPath, 'utf-8');
   const name = options.name ?? path.basename(filePath, path.extname(filePath));
-  const client = new PlatformClient(creds);
 
   console.log('');
-  console.log(`  \x1b[2mPushing ${name}...\x1b[0m`);
+  console.log(`  ${fmt.dim(`Pushing ${name}...`)}`);
 
   try {
     const workflow = await client.pushWorkflow(name, source);
-    console.log(`  \x1b[32m✓\x1b[0m Pushed (v${workflow.version})`);
+    console.log(fmt.ok(`Pushed (v${workflow.version})`));
 
-    console.log(`  \x1b[2mDeploying...\x1b[0m`);
+    console.log(`  ${fmt.dim('Deploying...')}`);
     const deployment = await client.deploy(workflow.slug);
-    console.log(`  \x1b[32m✓\x1b[0m Deployed: ${deployment.slug}`);
+    console.log(fmt.ok(`Deployed: ${deployment.slug}`));
 
     console.log('');
     console.log(`  Endpoint: ${creds.platformUrl}/run/${deployment.slug}`);
@@ -43,36 +34,26 @@ export async function deployCommand(filePath: string, options: { name?: string }
     console.log(`      -d '{"input": "hello"}'`);
     console.log('');
   } catch (err) {
-    console.error(`  \x1b[31m✗\x1b[0m ${err instanceof Error ? err.message : 'Deploy failed'}`);
-    process.exit(1);
+    exitWithError(err, 'Deploy failed');
   }
 }
 
 export async function undeployCommand(slug: string): Promise<void> {
-  const creds = loadCredentials();
-  if (!creds) { console.error('  \x1b[31m✗\x1b[0m Not logged in.'); process.exit(1); return; }
-  const client = new PlatformClient(creds);
+  const { client } = requireLogin();
+
   try {
     await client.undeploy(slug);
-    console.log(`  \x1b[32m✓\x1b[0m Undeployed: ${slug}`);
+    console.log(fmt.ok(`Undeployed: ${slug}`));
   } catch (err) {
-    console.error(`  \x1b[31m✗\x1b[0m ${err instanceof Error ? err.message : 'Undeploy failed'}`);
+    exitWithError(err, 'Undeploy failed');
   }
 }
 
 export async function cloudStatusCommand(): Promise<void> {
-  const creds = loadCredentials();
-  if (!creds) {
-    console.log('');
-    console.log('  Not logged in. Run: \x1b[36mfw login\x1b[0m');
-    console.log('');
-    return;
-  }
-
-  const client = new PlatformClient(creds);
+  const { creds, client } = requireLogin();
 
   console.log('');
-  console.log(`  \x1b[1m${creds.email}\x1b[0m \x1b[2m(${creds.plan} plan)\x1b[0m`);
+  console.log(`  ${fmt.bold(creds.email)} ${fmt.dim(`(${creds.plan} plan)`)}`);
   console.log('');
 
   try {
@@ -87,7 +68,7 @@ export async function cloudStatusCommand(): Promise<void> {
       }
     }
   } catch {
-    console.log('  \x1b[33m⚠\x1b[0m Could not fetch deployments');
+    console.log(`  ${fmt.yellow('⚠')} Could not fetch deployments`);
   }
 
   try {

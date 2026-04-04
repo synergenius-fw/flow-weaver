@@ -59,7 +59,7 @@ describe('registerPackCommands', () => {
 
     // Should have printed the engine version warning (lines 37-42)
     expect(consoleWarnSpy).toHaveBeenCalled();
-    const warnCalls = consoleWarnSpy.mock.calls.map(c => c[0]);
+    const warnCalls = consoleWarnSpy.mock.calls.map((c: any) => c[0]);
     expect(warnCalls.some((m: string) => m.includes('requires flow-weaver >=99.0.0'))).toBe(true);
   });
 
@@ -225,7 +225,7 @@ describe('registerPackCommands', () => {
 
     // Verify the error was logged
     expect(consoleErrorSpy).toHaveBeenCalled();
-    const errorCalls = consoleErrorSpy.mock.calls.map(c => c[0]);
+    const errorCalls = consoleErrorSpy.mock.calls.map((c: any) => c[0]);
     expect(errorCalls.some((m: string) => typeof m === 'string' && m.includes('Error running broken run'))).toBe(true);
 
     exitSpy.mockRestore();

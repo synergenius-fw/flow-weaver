@@ -4,10 +4,10 @@
  * and INVALID_PORT_TYPE warning for output ports with unrecognized types.
  */
 
-import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST } from '../../src/ast/types';
+import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST, TConnectionAST } from '../../src/ast/types';
 
 function makeBaseWorkflow(overrides: Partial<TWorkflowAST> = {}): TWorkflowAST {
-  const defaultNodeType: TNodeTypeAST = {
+  const defaultNodeType = {
     type: 'NodeType',
     functionName: 'proc',
     name: 'proc',
@@ -18,7 +18,7 @@ function makeBaseWorkflow(overrides: Partial<TWorkflowAST> = {}): TWorkflowAST {
       onSuccess: { name: 'onSuccess', dataType: 'STEP', isControlFlow: true },
       onFailure: { name: 'onFailure', dataType: 'STEP', isControlFlow: true },
     },
-  };
+  } as unknown as TNodeTypeAST;
 
   const defaultInstance: TNodeInstanceAST = {
     type: 'NodeInstance',
@@ -34,15 +34,15 @@ function makeBaseWorkflow(overrides: Partial<TWorkflowAST> = {}): TWorkflowAST {
     nodeTypes: [defaultNodeType],
     instances: [defaultInstance],
     connections: [
-      { from: { node: 'Start', port: 'execute' }, to: { node: 'p', port: 'execute' } },
-      { from: { node: 'p', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
-    ],
+      { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'p', port: 'execute' } },
+      { type: 'Connection', from: { node: 'p', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+    ] as TConnectionAST[],
     scopes: {},
-    startPorts: { execute: { name: 'execute', dataType: 'STEP', isControlFlow: true } },
+    startPorts: { execute: { name: 'execute', dataType: 'STEP', isControlFlow: true } } as any,
     exitPorts: {
       onSuccess: { name: 'onSuccess', dataType: 'STEP', isControlFlow: true },
       onFailure: { name: 'onFailure', dataType: 'STEP', isControlFlow: true },
-    },
+    } as any,
     imports: [],
     ...overrides,
   };
@@ -88,7 +88,7 @@ describe('validator INVALID_PORT_TYPE warning on output ports coverage', () => {
             onFailure: { name: 'onFailure', dataType: 'STEP', isControlFlow: true },
             badOut: { name: 'badOut', dataType: 'INVALID_TYPE' as any },
           },
-        },
+        } as unknown as TNodeTypeAST,
       ],
     });
 
@@ -117,7 +117,7 @@ describe('validator INVALID_PORT_TYPE warning on output ports coverage', () => {
             onSuccess: { name: 'onSuccess', dataType: 'STEP', isControlFlow: true },
             onFailure: { name: 'onFailure', dataType: 'STEP', isControlFlow: true },
           },
-        },
+        } as unknown as TNodeTypeAST,
       ],
     });
 
@@ -147,7 +147,7 @@ describe('validator INVALID_PORT_TYPE warning on output ports coverage', () => {
             onFailure: { name: 'onFailure', dataType: 'STEP', isControlFlow: true },
             result: { name: 'result', dataType: 'NUMBER' },
           },
-        },
+        } as unknown as TNodeTypeAST,
       ],
     });
 

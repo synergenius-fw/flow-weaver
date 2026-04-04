@@ -22,7 +22,11 @@ describe('createTargetRegistry with projectDir', () => {
       readonly name = 'dummy';
       readonly displayName = 'Dummy Target';
       readonly description = 'test';
-      generate() { return { files: [], instructions: { steps: [] } }; }
+      async generate() { return { files: [], instructions: { steps: [] } } as any; }
+      async generateMultiWorkflow() { return {} as any; }
+      async generateNodeTypeService() { return {} as any; }
+      async generateBundle() { return {} as any; }
+      getDeployInstructions() { return {} as any; }
     }
 
     // Mock listInstalledPackages to return a fake pack with an exportTarget
@@ -42,7 +46,7 @@ describe('createTargetRegistry with projectDir', () => {
     ] as any);
 
     // Mock the dynamic import that createTargetRegistry performs
-    const originalImport = globalThis.__vi_import__;
+    const originalImport = (globalThis as any).__vi_import__;
 
     // We can't easily mock dynamic import() inside the function, so instead
     // we verify the flow by providing a pack with no exportTargets
