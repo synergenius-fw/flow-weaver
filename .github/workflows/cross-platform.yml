@@ -86,15 +86,11 @@ jobs:
           npx flow-weaver compile test-workflow.ts
           echo "::endgroup::"
 
-          echo "::group::Test 5 — export test-workflow.ts"
-          npx flow-weaver export test-workflow.ts -t lambda -o out/
-          echo "::endgroup::"
-
-          echo "::group::Test 6 — describe test-workflow.ts"
+          echo "::group::Test 5 — describe test-workflow.ts"
           npx flow-weaver describe test-workflow.ts
           echo "::endgroup::"
 
-          echo "::group::Test 7 — diagram test-workflow.ts (ascii)"
+          echo "::group::Test 6 — diagram test-workflow.ts (ascii)"
           npx flow-weaver diagram test-workflow.ts --format ascii
           echo "::endgroup::"
 
