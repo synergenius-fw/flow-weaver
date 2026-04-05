@@ -74,8 +74,8 @@ jobs:
           npx flow-weaver --version
           echo "::endgroup::"
 
-          echo "::group::Test 2 — scaffold test-workflow.ts"
-          npx flow-weaver scaffold test-workflow.ts --template ai-agent
+          echo "::group::Test 2 — create workflow test-workflow.ts"
+          npx flow-weaver create workflow test-workflow.ts --template ai-agent
           echo "::endgroup::"
 
           echo "::group::Test 3 — validate test-workflow.ts"
