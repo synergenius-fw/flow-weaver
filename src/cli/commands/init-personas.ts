@@ -446,9 +446,9 @@ function printNocodeGuidance(_projectName: string): void {
   logger.newline();
   logger.log(`  ${logger.bold('Useful commands')}`);
   logger.newline();
-  logger.log(`    fw run src/*.ts         ${logger.dim('Run your workflow')}`);
-  logger.log(`    fw diagram src/*.ts     ${logger.dim('See a visual diagram')}`);
-  logger.log(`    fw mcp-setup            ${logger.dim('Connect more AI editors')}`);
+  logger.log(`    npx fw run src/*.ts         ${logger.dim('Run your workflow')}`);
+  logger.log(`    npx fw diagram src/*.ts     ${logger.dim('See a visual diagram')}`);
+  logger.log(`    npx fw mcp-setup            ${logger.dim('Connect more AI editors')}`);
 }
 
 function printVibecoderGuidance(): void {
@@ -468,9 +468,9 @@ function printLowcodeGuidance(): void {
   logger.newline();
   logger.log(`  ${logger.bold('Explore and customize')}`);
   logger.newline();
-  logger.log(`    fw templates            ${logger.dim('List all 16 workflow templates')}`);
-  logger.log(`    fw describe src/*.ts     ${logger.dim('See the workflow structure')}`);
-  logger.log(`    fw docs annotations     ${logger.dim('Annotation reference')}`);
+  logger.log(`    npx fw templates            ${logger.dim('List all 16 workflow templates')}`);
+  logger.log(`    npx fw describe src/*.ts     ${logger.dim('See the workflow structure')}`);
+  logger.log(`    npx fw docs annotations     ${logger.dim('Annotation reference')}`);
   logger.newline();
   logger.log(`  Your project includes an example in ${logger.highlight('examples/')} to study.`);
   logger.log(`  With MCP connected, AI can help modify nodes and connections.`);
@@ -478,8 +478,8 @@ function printLowcodeGuidance(): void {
 
 function printExpertGuidance(): void {
   logger.newline();
-  logger.log(`    fw mcp-setup            ${logger.dim('Connect AI editors (Claude, Cursor, VS Code)')}`);
-  logger.log(`    fw docs                 ${logger.dim('Browse reference docs')}`);
+  logger.log(`    npx fw mcp-setup            ${logger.dim('Connect AI editors (Claude, Cursor, VS Code)')}`);
+  logger.log(`    npx fw docs                 ${logger.dim('Browse reference docs')}`);
 }
 
 /** Pad a filename to align descriptions */

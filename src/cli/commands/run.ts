@@ -418,6 +418,15 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
       logger.section('Result');
       logger.log(JSON.stringify(result.result, null, 2));
 
+      // Hint when the workflow failed and no params were provided
+      const resultObj = result.result as Record<string, unknown> | null | undefined;
+      if (resultObj?.onFailure === true && !options.params && !options.paramsFile) {
+        logger.newline();
+        logger.warn(
+          'Tip: use --params to provide input. Run `fw describe <file>` to see expected inputs.'
+        );
+      }
+
       // Show trace summary only when --trace is explicitly set (not on --stream, which already printed live)
       if (options.trace && !options.stream && result.trace && result.trace.length > 0) {
         logger.newline();
