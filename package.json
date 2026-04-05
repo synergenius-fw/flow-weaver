@@ -149,6 +149,8 @@
   ],
   "author": "Ricardo José Horta Morais",
   "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://flowweaver.ai",
+  "bugs": "https://github.com/synergenius-fw/flow-weaver/issues",
   "repository": {
     "type": "git",
     "url": "https://github.com/synergenius-fw/flow-weaver.git"
