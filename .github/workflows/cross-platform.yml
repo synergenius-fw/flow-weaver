@@ -48,7 +48,8 @@ jobs:
         id: pack
         shell: bash
         run: |
-          TARBALL=$(npm pack --ignore-scripts --json | jq -r '.[0].filename')
+          npm pack 2>&1 | tail -1 > /tmp/pack-out.txt
+          TARBALL=$(cat /tmp/pack-out.txt)
           echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
           echo "Packed: $TARBALL"
 
