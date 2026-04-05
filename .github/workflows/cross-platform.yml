@@ -1,0 +1,100 @@
+# Cross-Platform Smoke Test
+#
+# Builds the package, creates a tarball via `npm pack`, then installs it
+# in a fresh temporary project on each OS to verify the CLI works end-to-end.
+
+name: Cross-Platform Smoke Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to test"
+        required: false
+        default: "main"
+
+jobs:
+  smoke-test:
+    name: Smoke Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # ── 2. Setup Node 22 ──────────────────────────────────────────
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # ── 3. Install dependencies ────────────────────────────────────
+      - name: Install dependencies
+        run: npm install
+
+      # ── 4. Build ──────────────────────────────────────────────────
+      - name: Build
+        run: npm run build
+
+      # ── 5. Create tarball ─────────────────────────────────────────
+      - name: Pack tarball
+        id: pack
+        shell: bash
+        run: |
+          TARBALL=$(npm pack --json | jq -r '.[0].filename')
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+          echo "Packed: $TARBALL"
+
+      # ── 6. Smoke test in a fresh project ──────────────────────────
+      - name: Run smoke tests from tarball
+        shell: bash
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          set -euo pipefail
+
+          # Create a fresh temporary directory and init a new project
+          SMOKE_DIR="$(mktemp -d)"
+          echo "Smoke test directory: $SMOKE_DIR"
+          cd "$SMOKE_DIR"
+
+          npm init -y
+          npm install "$GITHUB_WORKSPACE/$TARBALL"
+
+          # ── Smoke test commands ──────────────────────────────────
+          echo "::group::Test 1 — flow-weaver --version"
+          npx flow-weaver --version
+          echo "::endgroup::"
+
+          echo "::group::Test 2 — scaffold test-workflow.ts"
+          npx flow-weaver scaffold test-workflow.ts --template ai-agent
+          echo "::endgroup::"
+
+          echo "::group::Test 3 — validate test-workflow.ts"
+          npx flow-weaver validate test-workflow.ts
+          echo "::endgroup::"
+
+          echo "::group::Test 4 — compile test-workflow.ts"
+          npx flow-weaver compile test-workflow.ts
+          echo "::endgroup::"
+
+          echo "::group::Test 5 — export test-workflow.ts"
+          npx flow-weaver export test-workflow.ts -t lambda -o out/
+          echo "::endgroup::"
+
+          echo "::group::Test 6 — describe test-workflow.ts"
+          npx flow-weaver describe test-workflow.ts
+          echo "::endgroup::"
+
+          echo "::group::Test 7 — diagram test-workflow.ts (ascii)"
+          npx flow-weaver diagram test-workflow.ts --format ascii
+          echo "::endgroup::"
+
+          echo "All smoke tests passed!"
