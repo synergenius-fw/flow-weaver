@@ -1,7 +1,7 @@
 {
   "name": "@synergenius/flow-weaver",
   "version": "0.27.4",
-  "description": "Deterministic workflow compiler for AI agents. Compiles to standalone TypeScript, no runtime dependencies.",
+  "description": "Flow Weaver: deterministic TypeScript workflow compiler. Define workflows with JSDoc annotations, compile to standalone functions with zero runtime dependencies.",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -138,12 +138,18 @@
   "keywords": [
     "flow-weaver",
     "workflow",
+    "workflow-engine",
+    "workflow-automation",
+    "orchestration",
     "ai-agent",
     "llm",
     "mcp",
-    "deterministic",
     "typescript",
     "compiler",
+    "code-generation",
+    "visual-programming",
+    "node-graph",
+    "durable-execution",
     "inngest",
     "serverless"
   ],
