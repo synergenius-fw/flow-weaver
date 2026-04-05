@@ -45,7 +45,8 @@ jobs:
 
       - name: Pack, verify, and publish to npm
         run: |
-          TARBALL=$(npm pack 2>/dev/null)
+          npm pack --pack-destination /tmp
+          TARBALL=$(ls /tmp/synergenius-flow-weaver-*.tgz)
           echo "Tarball: $TARBALL"
           tar -tzf "$TARBALL" | grep README.md || (echo "ERROR: README.md not in tarball" && exit 1)
           npm publish "$TARBALL" --provenance --access public
