@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
     steps:
       - uses: actions/checkout@v5
 
@@ -49,7 +48,7 @@ jobs:
           TARBALL=$(ls /tmp/synergenius-flow-weaver-*.tgz)
           echo "Tarball: $TARBALL"
           tar -tzf "$TARBALL" | grep README.md || (echo "ERROR: README.md not in tarball" && exit 1)
-          npm publish "$TARBALL" --provenance --access public
+          npm publish "$TARBALL" --access public
           rm -f "$TARBALL"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
