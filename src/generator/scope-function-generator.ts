@@ -224,18 +224,38 @@ export function generateScopeFunctionClosure(
 
       const safeChildId = toValidIdentifier(child.id);
       const awaitPrefix = isAsync ? 'await ' : '';
+      const emitDebugHooks = !production;
+      // Indentation increases when debug hooks wrap the child block
+      let childIndent = '    ';
+
       lines.push(``);
       lines.push(`    // Execute: ${child.id} (${child.nodeType})`);
-      lines.push(`    scopedCtx.checkAborted('${child.id}');`);
-      lines.push(`    const ${safeChildId}Idx = scopedCtx.addExecution('${child.id}');`);
-      lines.push(`    if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${child.id}';`);
-      lines.push(`    ${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
-      lines.push(`      nodeTypeName: '${child.nodeType}',`);
-      lines.push(`      id: '${child.id}',`);
-      lines.push(`      executionIndex: ${safeChildId}Idx,`);
-      lines.push(`      status: 'RUNNING',`);
-      lines.push(`    });`);
-      lines.push(`    try {`);
+
+      // Debug controller: beforeNode hook for scoped children
+      // When enabled, wraps the child execution so breakpoints can pause on scoped nodes.
+      if (emitDebugHooks) {
+        const awaitHook = isAsync ? 'await ' : '';
+        // Hoist Idx declaration before the if block so it stays in scope after
+        lines.push(`    let ${safeChildId}Idx: number;`);
+        lines.push(`    if (${awaitHook}__ctrl__.beforeNode('${child.id}', scopedCtx)) {`);
+        childIndent = '      ';
+      }
+
+      lines.push(`${childIndent}scopedCtx.checkAborted('${child.id}');`);
+      // Use assignment when debug hooks hoist the declaration, const otherwise
+      const idxDecl = emitDebugHooks ? '' : 'const ';
+      lines.push(`${childIndent}${idxDecl}${safeChildId}Idx = scopedCtx.addExecution('${child.id}');`);
+      lines.push(`${childIndent}if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${child.id}';`);
+      lines.push(`${childIndent}${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
+      lines.push(`${childIndent}  nodeTypeName: '${child.nodeType}',`);
+      lines.push(`${childIndent}  id: '${child.id}',`);
+      lines.push(`${childIndent}  executionIndex: ${safeChildId}Idx,`);
+      lines.push(`${childIndent}  status: 'RUNNING',`);
+      lines.push(`${childIndent}});`);
+      lines.push(`${childIndent}try {`);
+
+      // Inner indentation: inside try block (childIndent + 2 spaces for try body)
+      const tryIndent = `${childIndent}  `;
 
       // Pre-handle connections from parent scoped OUTPUT ports with correct index variables
       const argLines: string[] = [];
@@ -261,11 +281,11 @@ export function generateScopeFunctionClosure(
             ? mapToTypeScript(targetPortDef.dataType, targetPortDef.tsType)
             : 'unknown';
           argLines.push(
-            `      const ${varName} = ${getCall}({ id: '${parentNodeId}', portName: '${conn.from.port}', executionIndex: ${scopeParamIdxVar} }) as ${portType};`
+            `${tryIndent}const ${varName} = ${getCall}({ id: '${parentNodeId}', portName: '${conn.from.port}', executionIndex: ${scopeParamIdxVar} }) as ${portType};`
           );
           // Emit VARIABLE_SET for the child's INPUT port so breakpoints and inspection work
           argLines.push(
-            `      ${childSetCall}({ id: '${child.id}', portName: '${targetPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${varName});`
+            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${targetPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${varName});`
           );
           preHandledPorts.add(targetPort);
         }
@@ -277,7 +297,7 @@ export function generateScopeFunctionClosure(
         workflow: scopeWorkflow,
         id: child.id,
         lines: argLines,
-        indent: `      `,
+        indent: tryIndent,
         getCall,
         isAsync,
         instanceParent: child.parent ? `${child.parent.id}.${child.parent.scope}` : undefined,
@@ -295,12 +315,12 @@ export function generateScopeFunctionClosure(
       if (childNodeType.expression) {
         // Expression nodes use original signature (positional args, no execute)
         lines.push(
-          `      const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`
+          `${tryIndent}const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`
         );
       } else {
         // Regular node call with positional arguments
         lines.push(
-          `      const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`
+          `${tryIndent}const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`
         );
       }
 
@@ -312,53 +332,62 @@ export function generateScopeFunctionClosure(
           if (portDef.failure || isFailurePort(outPort)) {
             // Failure ports always false on success (expression nodes always succeed)
             lines.push(
-              `      ${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, false);`
+              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, false);`
             );
           } else if (portDef.isControlFlow || isSuccessPort(outPort)) {
             // Success control flow ports always true (expression nodes always succeed)
             lines.push(
-              `      ${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, true);`
+              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, true);`
             );
           } else {
             // Data outputs read from result object
             lines.push(
-              `      ${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`
+              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`
             );
           }
         });
       } else {
         Object.keys(childNodeType.outputs || {}).forEach((outPort) => {
           lines.push(
-            `      ${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`
+            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`
           );
         });
       }
 
       // Add SUCCEEDED status event
-      lines.push(`      ${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
-      lines.push(`        nodeTypeName: '${child.nodeType}',`);
-      lines.push(`        id: '${child.id}',`);
-      lines.push(`        executionIndex: ${safeChildId}Idx,`);
-      lines.push(`        status: 'SUCCEEDED',`);
-      lines.push(`      });`);
-      lines.push(`    } catch (error: unknown) {`);
-      lines.push(`      const isCancellation = CancellationError.isCancellationError(error);`);
-      lines.push(`      ${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
-      lines.push(`        nodeTypeName: '${child.nodeType}',`);
-      lines.push(`        id: '${child.id}',`);
-      lines.push(`        executionIndex: ${safeChildId}Idx,`);
-      lines.push(`        status: isCancellation ? 'CANCELLED' : 'FAILED',`);
-      lines.push(`      });`);
-      lines.push(`      if (!isCancellation) {`);
-      lines.push(`        scopedCtx.sendLogErrorEvent({`);
-      lines.push(`          nodeTypeName: '${child.nodeType}',`);
-      lines.push(`          id: '${child.id}',`);
-      lines.push(`          executionIndex: ${safeChildId}Idx,`);
-      lines.push(`          error: error instanceof Error ? error.message : String(error),`);
-      lines.push(`        });`);
-      lines.push(`      }`);
-      lines.push(`      throw error;`);
-      lines.push(`    }`);
+      lines.push(`${tryIndent}${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
+      lines.push(`${tryIndent}  nodeTypeName: '${child.nodeType}',`);
+      lines.push(`${tryIndent}  id: '${child.id}',`);
+      lines.push(`${tryIndent}  executionIndex: ${safeChildId}Idx,`);
+      lines.push(`${tryIndent}  status: 'SUCCEEDED',`);
+      lines.push(`${tryIndent}});`);
+      // Debug controller: afterNode hook for scoped children
+      if (emitDebugHooks) {
+        const awaitHook = isAsync ? 'await ' : '';
+        lines.push(`${tryIndent}${awaitHook}__ctrl__.afterNode('${child.id}', scopedCtx);`);
+      }
+      lines.push(`${childIndent}} catch (error: unknown) {`);
+      lines.push(`${tryIndent}const isCancellation = CancellationError.isCancellationError(error);`);
+      lines.push(`${tryIndent}${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
+      lines.push(`${tryIndent}  nodeTypeName: '${child.nodeType}',`);
+      lines.push(`${tryIndent}  id: '${child.id}',`);
+      lines.push(`${tryIndent}  executionIndex: ${safeChildId}Idx,`);
+      lines.push(`${tryIndent}  status: isCancellation ? 'CANCELLED' : 'FAILED',`);
+      lines.push(`${tryIndent}});`);
+      lines.push(`${tryIndent}if (!isCancellation) {`);
+      lines.push(`${tryIndent}  scopedCtx.sendLogErrorEvent({`);
+      lines.push(`${tryIndent}    nodeTypeName: '${child.nodeType}',`);
+      lines.push(`${tryIndent}    id: '${child.id}',`);
+      lines.push(`${tryIndent}    executionIndex: ${safeChildId}Idx,`);
+      lines.push(`${tryIndent}    error: error instanceof Error ? error.message : String(error),`);
+      lines.push(`${tryIndent}  });`);
+      lines.push(`${tryIndent}}`);
+      lines.push(`${tryIndent}throw error;`);
+      lines.push(`${childIndent}}`);
+      // Close debug controller beforeNode if-block
+      if (emitDebugHooks) {
+        lines.push(`    }`);
+      }
     });
     lines.push(``);
   }

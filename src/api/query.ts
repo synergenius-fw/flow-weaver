@@ -630,7 +630,10 @@ export function findPath(ast: TWorkflowAST, fromNodeId: string, toNodeId: string
  * }
  * ```
  */
-export function getTopologicalOrder(ast: TWorkflowAST): string[] {
+export function getTopologicalOrder(
+  ast: TWorkflowAST,
+  options?: { includeScopedChildren?: boolean }
+): string[] {
   const mainInstances = getMainFlowInstances(ast);
   const mainConnections = getMainFlowConnections(ast);
   const inDegree = new Map<string, number>();
@@ -682,6 +685,33 @@ export function getTopologicalOrder(ast: TWorkflowAST): string[] {
   // Check for cycles (compare against main-flow instances, not all instances)
   if (result.length !== mainInstances.length) {
     throw new Error('Cannot compute topological order: workflow contains cycles');
+  }
+
+  // Optionally append scoped children (for debug: breakpoints need to know about them)
+  if (options?.includeScopedChildren) {
+    const scopedChildren = ast.instances.filter(
+      (inst) => isPerPortScopedChild(inst, ast, ast.nodeTypes)
+    );
+    // Append scoped children after their parent node in the result
+    const expanded: string[] = [];
+    const scopedByParent = new Map<string, string[]>();
+    for (const child of scopedChildren) {
+      if (child.parent) {
+        const parentId = child.parent.id;
+        if (!scopedByParent.has(parentId)) {
+          scopedByParent.set(parentId, []);
+        }
+        scopedByParent.get(parentId)!.push(child.id);
+      }
+    }
+    for (const nodeId of result) {
+      expanded.push(nodeId);
+      const children = scopedByParent.get(nodeId);
+      if (children) {
+        expanded.push(...children);
+      }
+    }
+    return expanded;
   }
 
   return result;

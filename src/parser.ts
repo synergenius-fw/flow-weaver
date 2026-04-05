@@ -2043,6 +2043,12 @@ export class AnnotationParser {
         for (const [inputName] of Object.entries(nextInputs)) {
           if (isControlFlowPort(inputName)) continue;
 
+          // Skip auto-wiring if a manual @connect already targets this input port
+          const alreadyConnected = connections.some(
+            c => c.to.node === nextId && c.to.port === inputName
+          );
+          if (alreadyConnected) continue;
+
           // Walk backward through path steps to find nearest ancestor with same-name output
           for (let j = i; j >= 0; j--) {
             const ancestorId = steps[j].node;

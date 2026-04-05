@@ -651,3 +651,233 @@ describe('@path coverage checking', () => {
     expect(generated).toContain('@connect validator.message -> Exit.onFailure');
   });
 });
+
+// ============================================================================
+// 7. @path + @connect conflict resolution
+// ============================================================================
+
+/**
+ * Two-node path where both nodes share a "result" port AND a "data" port.
+ * nodeA outputs: result, data
+ * nodeB inputs: result, data; outputs: result, data
+ *
+ * @path A -> B would auto-wire both result and data.
+ * We test that a manual @connect targeting B.result takes priority over
+ * the @path auto-wire, avoiding MULTIPLE_CONNECTIONS_TO_INPUT.
+ */
+function conflictPathSource(extra = '') {
+  return `
+/**
+ * @flowWeaver nodeType
+ * @input data
+ * @output result
+ * @output data
+ */
+function produce(execute: boolean, data: string): {
+  onSuccess: boolean;
+  onFailure: boolean;
+  result: string;
+  data: string;
+} {
+  if (!execute) return { onSuccess: false, onFailure: false, result: '', data: '' };
+  return { onSuccess: true, onFailure: false, result: 'ok', data };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input result
+ * @input data
+ * @output result
+ * @output data
+ */
+function consume(execute: boolean, result: string, data: string): {
+  onSuccess: boolean;
+  onFailure: boolean;
+  result: string;
+  data: string;
+} {
+  if (!execute) return { onSuccess: false, onFailure: false, result: '', data: '' };
+  return { onSuccess: true, onFailure: false, result, data };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node A produce
+ * @node B consume
+ * @path Start -> A -> B -> Exit
+ * ${extra}
+ */
+export function conflictWorkflow(
+  execute: boolean,
+  params: { data: string }
+): { onSuccess: boolean; onFailure: boolean; result: string; data: string } {
+  throw new Error('Not implemented');
+}
+`;
+}
+
+/**
+ * Three-node chain: A -> B -> C, all sharing a "result" port.
+ */
+function threeNodeConflictSource(extra = '') {
+  return `
+/**
+ * @flowWeaver nodeType
+ * @input data
+ * @output result
+ * @output data
+ */
+function stepA(execute: boolean, data: string): {
+  onSuccess: boolean;
+  onFailure: boolean;
+  result: string;
+  data: string;
+} {
+  if (!execute) return { onSuccess: false, onFailure: false, result: '', data: '' };
+  return { onSuccess: true, onFailure: false, result: 'a-result', data };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input data
+ * @output result
+ * @output data
+ */
+function stepB(execute: boolean, data: string): {
+  onSuccess: boolean;
+  onFailure: boolean;
+  result: string;
+  data: string;
+} {
+  if (!execute) return { onSuccess: false, onFailure: false, result: '', data: '' };
+  return { onSuccess: true, onFailure: false, result: 'b-result', data };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input result
+ * @input data
+ */
+function stepC(execute: boolean, result: string, data: string): {
+  onSuccess: boolean;
+  onFailure: boolean;
+} {
+  if (!execute) return { onSuccess: false, onFailure: false };
+  return { onSuccess: true, onFailure: false };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node A stepA
+ * @node B stepB
+ * @node C stepC
+ * @path Start -> A -> B -> C -> Exit
+ * ${extra}
+ */
+export function chainWorkflow(
+  execute: boolean,
+  params: { data: string }
+): { onSuccess: boolean; onFailure: boolean } {
+  throw new Error('Not implemented');
+}
+`;
+}
+
+describe('@path + @connect conflict resolution', () => {
+  const parser = new AnnotationParser();
+
+  it('manual @connect should take priority over @path auto-wire for same target port', () => {
+    // @path A -> B would auto-wire A.result -> B.result (same-name match)
+    // But @connect A.data -> B.result overrides: manual connect to B.result wins
+    const result = parser.parseFromString(conflictPathSource(
+      '@connect A.data -> B.result'
+    ));
+
+    // Must not produce errors (no MULTIPLE_CONNECTIONS)
+    expect(result.errors).toHaveLength(0);
+    const workflow = result.workflows[0];
+
+    // The manual @connect A.data -> B.result must exist
+    expect(workflow.connections.find(c =>
+      c.from.node === 'A' && c.from.port === 'data' &&
+      c.to.node === 'B' && c.to.port === 'result'
+    )).toBeDefined();
+
+    // The auto-wire A.result -> B.result must NOT exist (manual connect took the port)
+    expect(workflow.connections.find(c =>
+      c.from.node === 'A' && c.from.port === 'result' &&
+      c.to.node === 'B' && c.to.port === 'result'
+    )).toBeUndefined();
+
+    // Only one connection targeting B.result
+    const toBResult = workflow.connections.filter(c =>
+      c.to.node === 'B' && c.to.port === 'result'
+    );
+    expect(toBResult).toHaveLength(1);
+  });
+
+  it('@path auto-wiring still works when no manual @connect conflicts', () => {
+    // No extra @connect — @path should auto-wire both A.result -> B.result
+    // and A.data -> B.data
+    const result = parser.parseFromString(conflictPathSource());
+    expect(result.errors).toHaveLength(0);
+    const workflow = result.workflows[0];
+
+    expect(workflow.connections.find(c =>
+      c.from.node === 'A' && c.from.port === 'result' &&
+      c.to.node === 'B' && c.to.port === 'result'
+    )).toBeDefined();
+
+    expect(workflow.connections.find(c =>
+      c.from.node === 'A' && c.from.port === 'data' &&
+      c.to.node === 'B' && c.to.port === 'data'
+    )).toBeDefined();
+  });
+
+  it('@path A -> B -> C with manual @connect B.result -> C.result should not duplicate', () => {
+    // @path would auto-wire B.result -> C.result (same-name match)
+    // Manual @connect B.result -> C.result is the same connection — no duplicate
+    const result = parser.parseFromString(threeNodeConflictSource(
+      '@connect B.result -> C.result'
+    ));
+    expect(result.errors).toHaveLength(0);
+    const workflow = result.workflows[0];
+
+    // Only one connection targeting C.result
+    const toCResult = workflow.connections.filter(c =>
+      c.to.node === 'C' && c.to.port === 'result'
+    );
+    expect(toCResult).toHaveLength(1);
+  });
+
+  it('@path still auto-wires control flow even when manual @connect exists for data ports', () => {
+    // Manual @connect on data port should not affect control flow auto-wiring
+    const result = parser.parseFromString(conflictPathSource(
+      '@connect A.data -> B.result'
+    ));
+    expect(result.errors).toHaveLength(0);
+    const workflow = result.workflows[0];
+
+    // Control flow must still be auto-wired by @path
+    expect(workflow.connections.find(c =>
+      c.from.node === 'Start' && c.from.port === 'execute' &&
+      c.to.node === 'A' && c.to.port === 'execute'
+    )).toBeDefined();
+
+    expect(workflow.connections.find(c =>
+      c.from.node === 'A' && c.from.port === 'onSuccess' &&
+      c.to.node === 'B' && c.to.port === 'execute'
+    )).toBeDefined();
+
+    expect(workflow.connections.find(c =>
+      c.from.node === 'B' && c.from.port === 'onSuccess' &&
+      c.to.node === 'Exit' && c.to.port === 'onSuccess'
+    )).toBeDefined();
+
+    // A.data -> B.data should still be auto-wired (only B.result was overridden)
+    expect(workflow.connections.find(c =>
+      c.from.node === 'A' && c.from.port === 'data' &&
+      c.to.node === 'B' && c.to.port === 'data'
+    )).toBeDefined();
+  });
+});
