@@ -456,4 +456,52 @@ describe('displayPath coverage', () => {
     const filePath = writeFixture('abs-path.ts', SIMPLE_WORKFLOW);
     await compileCommand(filePath, { verbose: true });
   });
+
+  it('should show validation warnings in default (non-strict) compile mode', async () => {
+    const { compileCommand } = await import('../../src/cli/commands/compile');
+
+    // Workflow with a node that has an unused output port (triggers UNUSED_OUTPUT_PORT warning)
+    const workflowWithWarning = `
+/**
+ * @flowWeaver nodeType
+ * @input value
+ * @output result
+ * @output extra
+ */
+function dataNode(execute: boolean, value: number): { onSuccess: boolean; onFailure: boolean; result: number; extra: string } {
+  if (!execute) return { onSuccess: false, onFailure: false, result: 0, extra: '' };
+  return { onSuccess: true, onFailure: false, result: value * 2, extra: 'unused' };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node d dataNode [expr: value="42"]
+ * @connect d.result -> Exit.output
+ * @path Start -> d -> Exit
+ * @returns output
+ */
+export async function warningWorkflow(execute: boolean): Promise<{ onSuccess: boolean; onFailure: boolean; output: number }> {
+  // @flow-weaver-body-start
+  throw new Error('Not implemented');
+  // @flow-weaver-body-end
+}
+`;
+    const filePath = writeFixture('warn-default.ts', workflowWithWarning);
+
+    // Spy on logger.warn to capture warnings
+    const { logger } = await import('../../src/cli/utils/logger');
+    const warnSpy = vi.spyOn(logger, 'warn');
+
+    // Compile WITHOUT --strict - should still show warnings
+    await compileCommand(filePath, {});
+
+    // Check that at least one warning was logged (e.g. UNUSED_OUTPUT_PORT for "extra")
+    const warnCalls = warnSpy.mock.calls.map(c => String(c[0]));
+    const hasValidationWarning = warnCalls.some(
+      (msg) => msg.includes('extra') || msg.includes('UNUSED') || msg.includes('never connected')
+    );
+    expect(hasValidationWarning).toBe(true);
+
+    warnSpy.mockRestore();
+  });
 });

@@ -244,6 +244,8 @@ program
   .option('--once', 'Run once then exit', false)
   .option('--json', 'Output result as JSON', false)
   .option('--target <target>', 'Compilation target (default: typescript)')
+  .option('--mocks <json>', 'Mock config for built-in nodes (events, invocations, agents, fast) as JSON')
+  .option('--mocks-file <path>', 'Path to JSON file with mock config for built-in nodes')
   .action(wrapAction(async (input: string, options) => {
       const { devCommand } = await import('./commands/dev.js');
       await devCommand(input, options);

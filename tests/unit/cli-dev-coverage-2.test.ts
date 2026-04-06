@@ -126,6 +126,54 @@ describe('devCommand coverage - uncovered lines', () => {
     ).rejects.toThrow(/Failed to parse params file/);
   });
 
+  // ── parseMocks: --mocks with valid JSON ────────────────────────────
+  it('should parse --mocks JSON and pass to workflow executor', async () => {
+    const { devCommand } = await import('../../src/cli/commands/dev');
+    const filePath = writeFixture('mocks.ts', VALID_WORKFLOW);
+
+    // Should not throw - mocks are passed through to executor
+    await devCommand(filePath, {
+      once: true,
+      mocks: '{"fast": true}',
+    });
+  });
+
+  it('should throw on invalid --mocks JSON', async () => {
+    const { devCommand } = await import('../../src/cli/commands/dev');
+    const filePath = writeFixture('bad-mocks.ts', VALID_WORKFLOW);
+
+    await expect(
+      devCommand(filePath, { once: true, mocks: '{not valid' })
+    ).rejects.toThrow(/Invalid JSON in --mocks/);
+  });
+
+  it('should read mocks from --mocks-file', async () => {
+    const { devCommand } = await import('../../src/cli/commands/dev');
+    const filePath = writeFixture('mfile.ts', VALID_WORKFLOW);
+    const mocksFile = writeFixture('mocks.json', '{"fast": true, "events": {"app/test": {"id": "123"}}}');
+
+    await devCommand(filePath, { once: true, mocksFile });
+  });
+
+  it('should throw when --mocks-file does not exist', async () => {
+    const { devCommand } = await import('../../src/cli/commands/dev');
+    const filePath = writeFixture('mfile-missing.ts', VALID_WORKFLOW);
+
+    await expect(
+      devCommand(filePath, { once: true, mocksFile: '/nonexistent/mocks.json' })
+    ).rejects.toThrow(/Mocks file not found/);
+  });
+
+  it('should throw when --mocks-file contains invalid JSON', async () => {
+    const { devCommand } = await import('../../src/cli/commands/dev');
+    const filePath = writeFixture('mfile-bad.ts', VALID_WORKFLOW);
+    const mocksFile = writeFixture('bad-mocks.json', '{not valid}');
+
+    await expect(
+      devCommand(filePath, { once: true, mocksFile })
+    ).rejects.toThrow(/Failed to parse mocks file/);
+  });
+
   // ── Lines 101-102: friendly error in compile failure ───────────────
   it('should display friendly errors when compile fails with structured errors', async () => {
     const { devCommand } = await import('../../src/cli/commands/dev');

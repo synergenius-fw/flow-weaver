@@ -196,46 +196,50 @@ export async function compileCommand(input: string, options: CompileOptions = {}
         continue;
       }
 
-      // Validate the AST (especially for --strict mode)
-      if (strict) {
-        const validation = validator.validate(parseResult.ast, { strictMode: true });
-        if (validation.errors.length > 0) {
-          logger.error(`  ${fileName}`);
-          validation.errors.forEach((err) => {
-            const friendly = getFriendlyError(err);
-            if (friendly) {
-              const loc = err.location ? `[line ${err.location.line}] ` : '';
-              logger.error(`    ${loc}${friendly.title}: ${friendly.explanation}`);
-              logger.warn(`    How to fix: ${friendly.fix}`);
-              if (err.docUrl) {
-                logger.warn(`    See: ${err.docUrl}`);
-              }
-            } else {
-              let msg = `    ${err.message}`;
-              if (err.node) {
-                msg += ` (node: ${err.node})`;
-              }
-              logger.error(msg);
-              if (err.docUrl) {
-                logger.warn(`    See: ${err.docUrl}`);
-              }
+      // Validate the AST
+      const validation = validator.validate(parseResult.ast, { strictMode: strict });
+
+      // In strict mode, validation errors block compilation
+      if (strict && validation.errors.length > 0) {
+        logger.error(`  ${fileName}`);
+        validation.errors.forEach((err) => {
+          const friendly = getFriendlyError(err);
+          if (friendly) {
+            const loc = err.location ? `[line ${err.location.line}] ` : '';
+            logger.error(`    ${loc}${friendly.title}: ${friendly.explanation}`);
+            logger.warn(`    How to fix: ${friendly.fix}`);
+            if (err.docUrl) {
+              logger.warn(`    See: ${err.docUrl}`);
             }
-          });
-          errorCount++;
-          continue;
-        }
-        if (validation.warnings.length > 0 && verbose) {
-          validation.warnings.forEach((warn) => {
-            const friendly = getFriendlyError(warn);
-            if (friendly) {
-              const loc = warn.location ? `[line ${warn.location.line}] ` : '';
-              logger.warn(`  ${loc}${friendly.title}: ${friendly.explanation}`);
-              logger.warn(`    How to fix: ${friendly.fix}`);
-            } else {
-              logger.warn(`  ${warn.message}`);
+          } else {
+            let msg = `    ${err.message}`;
+            if (err.node) {
+              msg += ` (node: ${err.node})`;
             }
-          });
-        }
+            logger.error(msg);
+            if (err.docUrl) {
+              logger.warn(`    See: ${err.docUrl}`);
+            }
+          }
+        });
+        errorCount++;
+        continue;
+      }
+
+      // Always show validation warnings (not just in verbose mode)
+      if (validation.warnings.length > 0) {
+        validation.warnings.forEach((warn) => {
+          const friendly = getFriendlyError(warn);
+          if (friendly) {
+            const loc = warn.location ? `[line ${warn.location.line}] ` : '';
+            logger.warn(`  ${loc}${friendly.title}: ${friendly.explanation}`);
+            if (verbose) {
+              logger.warn(`    How to fix: ${friendly.fix}`);
+            }
+          } else {
+            logger.warn(`  ${warn.message}`);
+          }
+        });
       }
 
       // Read original source

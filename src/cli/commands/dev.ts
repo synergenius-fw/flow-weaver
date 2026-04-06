@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import { glob } from 'glob';
 import { compileCommand, type CompileOptions } from './compile.js';
 import { executeWorkflowFromFile } from '../../mcp/workflow-executor.js';
+import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import { getFriendlyError } from '../../friendly-errors.js';
@@ -40,6 +41,10 @@ export interface DevOptions extends DevModeOptions {
   clean?: boolean;
   /** Compilation target (default: typescript in-place) */
   target?: string;
+  /** Mock config for built-in nodes as JSON string */
+  mocks?: string;
+  /** Path to JSON file with mock config */
+  mocksFile?: string;
 }
 
 /**
@@ -69,12 +74,39 @@ function parseParams(options: DevOptions): Record<string, unknown> {
 }
 
 /**
+ * Parse mock config from --mocks or --mocks-file.
+ */
+function parseMocks(options: DevOptions): FwMockConfig | undefined {
+  if (options.mocks) {
+    try {
+      return JSON.parse(options.mocks);
+    } catch {
+      throw new Error(`Invalid JSON in --mocks: ${options.mocks}`);
+    }
+  }
+  if (options.mocksFile) {
+    const mocksFilePath = path.resolve(options.mocksFile);
+    if (!fs.existsSync(mocksFilePath)) {
+      throw new Error(`Mocks file not found: ${mocksFilePath}`);
+    }
+    try {
+      const content = fs.readFileSync(mocksFilePath, 'utf8');
+      return JSON.parse(content);
+    } catch {
+      throw new Error(`Failed to parse mocks file: ${options.mocksFile}`);
+    }
+  }
+  return undefined;
+}
+
+/**
  * Run a single compile + execute cycle.
  * Returns true if both compile and run succeeded.
  */
 async function compileAndRun(
   filePath: string,
   params: Record<string, unknown>,
+  mocks: FwMockConfig | undefined,
   options: DevOptions
 ): Promise<boolean> {
   // Step 1: Compile
@@ -116,6 +148,7 @@ async function compileAndRun(
       workflowName: options.workflow,
       production: options.production ?? false,
       includeTrace: !options.production,
+      mocks,
     });
 
     if (options.json) {
@@ -177,6 +210,7 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
   }
 
   const params = parseParams(options);
+  const mocks = parseMocks(options);
 
   if (!options.json) {
     logger.section('Dev Mode');
@@ -184,11 +218,14 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
     if (Object.keys(params).length > 0) {
       logger.info(`Params: ${JSON.stringify(params)}`);
     }
+    if (mocks) {
+      logger.info(`Mocks: ${JSON.stringify(mocks)}`);
+    }
     logger.newline();
   }
 
   // Initial compile + run
-  await compileAndRun(filePath, params, options);
+  await compileAndRun(filePath, params, mocks, options);
 
   // If --once, exit after first cycle
   if (options.once) {
@@ -215,7 +252,7 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
       cycleSeparator(file);
     }
 
-    await compileAndRun(filePath, params, options);
+    await compileAndRun(filePath, params, mocks, options);
   });
 
   // Handle process termination
