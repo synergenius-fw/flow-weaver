@@ -34,11 +34,11 @@ If this resonates with what you have been looking for, give it a try and let me 
 
 ## Project Status
 
-Flow Weaver is in **active alpha**. The compiler, validator, CLI, and MCP tools are stable and thoroughly tested. The test suite covers thousands of cases across parsing, compilation, validation, diffing, and deployment. CI runs on every commit.
+Flow Weaver is in **beta**. The compiler, validator, CLI, and MCP tools are stable and thoroughly tested. The test suite covers thousands of cases across parsing, compilation, validation, diffing, and deployment. CI runs on every commit.
 
 **Flow Weaver Studio**, the browser-based visual IDE, is the next major milestone and is being actively built. Core editing (canvas, terminal, diagnostics) is live today. The visual debugger, AI chat assistant, version history, and deployment dashboard are in progress. You can follow development on Discord or in the [GitHub releases](https://github.com/synergenius-fw/flow-weaver/releases).
 
-Breaking changes may occur between minor versions during alpha. Pin your version in `package.json` if stability matters for your project.
+Breaking changes may still occur between minor versions during beta. Pin your version in `package.json` if stability matters for your project.
 
 ## Capabilities
 
@@ -236,11 +236,11 @@ export async function supportAgent(
 
 Run `fw --help` or `fw <command> --help` for full options.
 
-## Flow Weaver Studio (Early Beta)
+## Flow Weaver Studio (Beta)
 
 A browser-based visual IDE for building workflows. Canvas editor, integrated terminal, real-time diagnostics, and the full CLI available in the cloud.
 
-Studio is in early beta. Core editing is live. The visual debugger, AI chat assistant, version history, and deployment dashboard are being actively developed and will ship incrementally. The cloud platform is not yet production-ready, and paid plans are not available yet. Use it to explore and experiment, but expect rough edges.
+Studio is in beta. Core editing is live. The visual debugger, AI chat assistant, version history, and deployment dashboard are being actively developed and will ship incrementally. The cloud platform is not yet production-ready, and paid plans are not available yet. Use it to explore and experiment, but expect rough edges.
 
 [Open Studio](https://flowweaver.ai/studio) · [Learn more](https://flowweaver.ai/features)
 
