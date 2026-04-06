@@ -272,6 +272,46 @@ describe('parser npm package type resolution', () => {
     expect(fnB).toBeUndefined();
   });
 
+  it('warns when .d.ts parse fails for @fwImport', () => {
+    // Create a package where the .d.ts path exists but is a directory (causes readFileSync to throw)
+    const pkgDir = path.join(tmpDir, 'node_modules', 'broken-dts-pkg');
+    fs.mkdirSync(pkgDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(pkgDir, 'package.json'),
+      JSON.stringify({ name: 'broken-dts-pkg', version: '1.0.0', types: 'index.d.ts' })
+    );
+    // Make index.d.ts a directory instead of a file — readFileSync will throw EISDIR
+    const dtsPath = path.join(pkgDir, 'index.d.ts');
+    // Remove if exists as file, then create as directory
+    try { fs.unlinkSync(dtsPath); } catch { /* noop */ }
+    fs.mkdirSync(dtsPath, { recursive: true });
+
+    parser.clearCache();
+    const workflowPath = writeFile('wf-broken-dts.ts', `
+      /**
+       * @flowWeaver workflow
+       * @fwImport npm/broken-dts-pkg/brokenFunc brokenFunc from "broken-dts-pkg"
+       * @node n npm/broken-dts-pkg/brokenFunc
+       * @connect Start.x -> n.x
+       * @connect n.result -> Exit.output
+       */
+      export function brokenDtsWorkflow(
+        execute: boolean,
+        params: { x: number }
+      ): { onSuccess: boolean; onFailure: boolean; output: number } {
+        throw new Error('stub');
+      }
+    `);
+
+    const result = parser.parse(workflowPath);
+    // Should have a warning about the failed .d.ts parse
+    const dtsWarning = result.warnings.find(w =>
+      w.includes('@fwImport') && w.includes('Failed to parse') && w.includes('broken-dts-pkg')
+    );
+    expect(dtsWarning).toBeDefined();
+    expect(dtsWarning).toContain('generic stub');
+  });
+
   it('functionText is undefined for npm package nodes (prevent inlining)', () => {
     setupPackage('no-inline-pkg', `
       export declare function noInline(x: number): number;

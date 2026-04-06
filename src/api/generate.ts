@@ -252,8 +252,10 @@ export function generateCode(
   // 2. relative file imports (sourceLocation file differs from workflow source)
   // 3. local nodes (same source file)
   const npmPackageNodes = ast.nodeTypes.filter((n) => n.importSource);
+  // Only include built-in nodes (no sourceLocation) that are actually used by this workflow
+  const referencedNodeTypes = new Set(ast.instances.map((i) => i.nodeType));
   const localNodes = ast.nodeTypes.filter(
-    (n) => !n.importSource && n.sourceLocation?.file === ast.sourceFile
+    (n) => !n.importSource && (n.sourceLocation?.file === ast.sourceFile || (!n.sourceLocation && n.functionText && n.helperText != null && referencedNodeTypes.has(n.name)))
   );
   const importedNodes = ast.nodeTypes.filter(
     (n) => !n.importSource && n.sourceLocation?.file !== ast.sourceFile
@@ -411,9 +413,26 @@ export function generateCode(
     if (inlineFunctions.length > 0) {
       lines.push('');
       addLine();
+
+      // Emit shared helper functions once (deduplicated across built-in nodes)
+      // In production mode, use helperTextProduction if set; if undefined, skip helpers entirely
+      // (production built-in nodes don't need mock helpers)
+      const emittedHelpers = new Set<string>();
+      inlineFunctions.forEach((node) => {
+        if (node.importSource) return;
+        const helperText = production ? (node.helperTextProduction ?? null) : (node.helperText ?? null);
+        if (helperText && !emittedHelpers.has(helperText)) {
+          emittedHelpers.add(helperText);
+          lines.push(helperText);
+          helperText.split('\n').forEach(() => addLine());
+          lines.push('');
+          addLine();
+        }
+      });
+
       inlineFunctions.forEach((node) => {
         if (node.importSource) return; // Never inline npm package functions
-        const functionText = node.functionText;
+        const functionText = (production && node.functionTextProduction != null) ? node.functionTextProduction : node.functionText;
         if (functionText) {
           const functionWithoutDecorators = removeDecorators(functionText);
 

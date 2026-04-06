@@ -113,7 +113,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "prebuild": "tsx scripts/generate-version.ts",
+    "prebuild": "tsx scripts/generate-version.ts && tsx scripts/generate-built-in-registry.ts",
+    "generate:registry": "tsx scripts/generate-built-in-registry.ts",
+    "generate:registry:check": "tsx scripts/generate-built-in-registry.ts --check",
     "build": "rimraf dist .tsbuildinfo && tsc -p tsconfig.build.json && npm run build:cli",
     "postbuild": "npx tsx scripts/postbuild.ts && npm run generate:docs",
     "generate:docs": "tsx scripts/generate-docs.ts",

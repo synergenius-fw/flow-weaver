@@ -239,8 +239,14 @@ export type TNodeTypeAST = {
   y?: number;
   /** Source code location */
   sourceLocation?: TSourceLocation;
-  /** Original function source text */
+  /** Original function source text (main function only) */
   functionText?: string;
+  /** Production-optimized function source text (mock code stripped) */
+  functionTextProduction?: string;
+  /** Shared helper functions (mock helpers, utility functions) emitted once before main functions */
+  helperText?: string;
+  /** Production-optimized helper text */
+  helperTextProduction?: string;
   /** How success/failure branching works */
   branchingStrategy?: TBranchingStrategy;
   /** Field name for value-based branching */

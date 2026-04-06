@@ -235,8 +235,9 @@ export function generateScopeFunctionClosure(
       // When enabled, wraps the child execution so breakpoints can pause on scoped nodes.
       if (emitDebugHooks) {
         const awaitHook = isAsync ? 'await ' : '';
-        // Hoist Idx declaration before the if block so it stays in scope after
-        lines.push(`    let ${safeChildId}Idx: number;`);
+        // Hoist Idx declaration before the if block so it stays in scope after.
+        // Initialize to -1 so getVariable can still read checkpointed values when beforeNode skips.
+        lines.push(`    let ${safeChildId}Idx: number = -1;`);
         lines.push(`    if (${awaitHook}__ctrl__.beforeNode('${child.id}', scopedCtx)) {`);
         childIndent = '      ';
       }

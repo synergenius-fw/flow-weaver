@@ -29,6 +29,7 @@ import { getPackageExports } from './npm-packages';
 import { getSharedProject } from './shared-project';
 import { LRUCache } from './utils/lru-cache';
 import { COERCION_NODE_TYPES, COERCE_TYPE_MAP } from './built-in-nodes/coercion-types';
+import { BUILT_IN_NODE_TYPES } from './built-in-nodes/generated-registry';
 import { tagHandlerRegistry, type TagHandlerRegistry } from './parser/tag-registry';
 
 export interface ParseResult {
@@ -332,8 +333,9 @@ export class AnnotationParser {
       }
     }
 
-    // Auto-infer node types from unannotated functions referenced by @node
-    const inferredNodeTypes = this.inferNodeTypesFromUnannotated(sourceFile, nodeTypes);
+    // Auto-infer node types from unannotated functions referenced by @node,
+    // and lazily inject built-in nodes (delay, waitForEvent, etc.) when referenced
+    const inferredNodeTypes = this.inferNodeTypesFromUnannotated(sourceFile, nodeTypes, localNodeTypes, warnings);
     nodeTypes.push(...inferredNodeTypes);
 
     const workflows = this.extractWorkflows(sourceFile, nodeTypes, filePath, errors, warnings);
@@ -392,8 +394,9 @@ export class AnnotationParser {
 
     const nodeTypes = [...localNodeTypes, ...sameFileWorkflowNodeTypes];
 
-    // Auto-infer node types from unannotated functions referenced by @node
-    const inferredNodeTypes = this.inferNodeTypesFromUnannotated(sourceFile, nodeTypes);
+    // Auto-infer node types from unannotated functions referenced by @node,
+    // and lazily inject built-in nodes (delay, waitForEvent, etc.) when referenced
+    const inferredNodeTypes = this.inferNodeTypesFromUnannotated(sourceFile, nodeTypes, localNodeTypes, warnings);
     nodeTypes.push(...inferredNodeTypes);
 
     // Note: imports not supported for virtual files - would need filesystem access
@@ -715,7 +718,7 @@ export class AnnotationParser {
       return this.resolveLocalImportAnnotation(imp, currentDir, warnings);
     } else {
       // npm package import - use .d.ts inference
-      return this.resolveNpmImportAnnotation(imp, currentDir);
+      return this.resolveNpmImportAnnotation(imp, currentDir, warnings);
     }
   }
 
@@ -782,7 +785,8 @@ export class AnnotationParser {
    */
   private resolveNpmImportAnnotation(
     imp: { name: string; functionName: string; importSource: string },
-    currentDir: string
+    currentDir: string,
+    warnings: string[]
   ): TNodeTypeAST {
     // Check cache (with mtime validation — same pattern as resolveNpmImports)
     const cacheKey = `npm:${imp.importSource}`;
@@ -810,6 +814,10 @@ export class AnnotationParser {
     // Resolve .d.ts path
     const dtsPath = resolvePackageTypesPath(imp.importSource, currentDir);
     if (!dtsPath) {
+      warnings.push(
+        `@fwImport: Package "${imp.importSource}" has no type declarations (.d.ts). ` +
+        `Install @types/${imp.importSource} or add a local wrapper with @flowWeaver nodeType annotations.`
+      );
       return this.createImportStub(imp);
     }
 
@@ -849,8 +857,16 @@ export class AnnotationParser {
       if (found) {
         return { ...found, name: imp.name, importSource: imp.importSource };
       }
-    } catch {
-      // Silently skip packages whose .d.ts can't be parsed
+
+      // Function not found in .d.ts
+      warnings.push(
+        `@fwImport: Function "${imp.functionName}" not found in type declarations for "${imp.importSource}". ` +
+        `Available exports: ${allNodeTypes.map((nt) => nt.functionName).join(', ') || '(none)'}.`
+      );
+    } catch (err) {
+      warnings.push(
+        `@fwImport: Failed to parse type declarations for "${imp.importSource}": ${(err as Error).message}. Node "${imp.name}" will use a generic stub.`
+      );
     }
 
     return this.createImportStub(imp);
@@ -1213,6 +1229,29 @@ export class AnnotationParser {
       const importedNpmNodeTypes: TNodeTypeAST[] = (config.imports || []).map((imp) =>
         this.resolveImportAnnotation(imp, filePath, warnings)
       );
+
+      // Post-resolution check: warn when inferred node type has zero data ports
+      // (excluding control-flow ports). This usually means the .d.ts inference
+      // couldn't extract meaningful port info and a local wrapper is needed.
+      for (const nt of importedNpmNodeTypes) {
+        const dataInputs = Object.keys(nt.inputs).filter((p) => p !== 'execute');
+        const nonControlOutputs = Object.keys(nt.outputs).filter(
+          (p) => p !== 'onSuccess' && p !== 'onFailure'
+        );
+        // Stub fallback has only result: ANY — if that's all we have with zero
+        // data inputs, inference likely failed
+        const isStubOnly =
+          nonControlOutputs.length === 1 &&
+          nonControlOutputs[0] === 'result' &&
+          nt.outputs.result?.dataType === 'ANY';
+
+        if (dataInputs.length === 0 && isStubOnly) {
+          warnings.push(
+            `Could not infer ports for "${nt.functionName}" from "${nt.importSource}". ` +
+            `Wrap it in a local function with @flowWeaver nodeType annotations instead.`
+          );
+        }
+      }
 
       // Combine available node types with imported npm types for validation
       const allAvailableNodeTypes = [...availableNodeTypes, ...importedNpmNodeTypes];
@@ -1668,7 +1707,9 @@ export class AnnotationParser {
    */
   private inferNodeTypesFromUnannotated(
     sourceFile: SourceFile,
-    existingNodeTypes: TNodeTypeAST[]
+    existingNodeTypes: TNodeTypeAST[],
+    localNodeTypes: TNodeTypeAST[],
+    warnings: string[]
   ): TNodeTypeAST[] {
     const allFunctions = extractFunctionLikes(sourceFile);
 
@@ -1697,17 +1738,37 @@ export class AnnotationParser {
 
     if (unresolvedTypes.size === 0) return [];
 
-    // 3. Match unresolved types to unannotated functions in the same file
+    // 3. Match unresolved types to unannotated functions OR built-in nodes
     const inferredNodeTypes: TNodeTypeAST[] = [];
     const alreadyInferred = new Set<string>();
+    const builtInByName = new Map(BUILT_IN_NODE_TYPES.map((nt) => [nt.name, nt]));
+    const annotatedNames = new Set(localNodeTypes.map((nt) => nt.functionName));
 
     for (const unresolvedType of unresolvedTypes) {
       if (alreadyInferred.has(unresolvedType)) continue;
 
-      // Find matching function
+      // 3a. Check built-in nodes first
+      const builtIn = builtInByName.get(unresolvedType);
+      if (builtIn) {
+        inferredNodeTypes.push(builtIn);
+        alreadyInferred.add(unresolvedType);
+
+        // Warn if a local unannotated function has the same name (it will be shadowed)
+        if (!annotatedNames.has(unresolvedType)) {
+          const shadowFn = allFunctions.find((fn) => fn.getName() === unresolvedType && !this.hasFlowWeaverAnnotation(fn));
+          if (shadowFn) {
+            warnings.push(
+              `Function '${unresolvedType}' exists in this file but is not annotated with @flowWeaver nodeType. ` +
+              `The built-in '${unresolvedType}' will be used instead. Add @flowWeaver nodeType to use your version.`
+            );
+          }
+        }
+        continue;
+      }
+
+      // 3b. Match unannotated local function
       const matchedFn = allFunctions.find((fn) => {
         if (fn.getName() !== unresolvedType) return false;
-        // Must NOT have a valid @flowWeaver annotation
         return !this.hasFlowWeaverAnnotation(fn);
       });
 

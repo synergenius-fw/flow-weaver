@@ -150,4 +150,39 @@ describe('generate.ts coverage', () => {
     // And the main workflow should also be there
     expect(code).toContain('function mainWorkflow(');
   });
+
+  it('uses functionTextProduction empty string instead of falling back to functionText', () => {
+    // A node type with functionTextProduction set to '' (empty string)
+    // should use the empty string in production mode, not fall back to functionText
+    const nodeWithEmptyProd = makeNodeType('emptyProdNode', {
+      functionText: 'function emptyProdNode() { return { onSuccess: true, onFailure: false, result: 42 }; }',
+      functionTextProduction: '',
+    });
+
+    const workflow: TWorkflowAST = {
+      type: 'Workflow',
+      name: 'emptyProdWorkflow',
+      functionName: 'emptyProdWorkflow',
+      sourceFile: 'test.ts',
+      nodeTypes: [nodeWithEmptyProd],
+      instances: [
+        { type: 'NodeInstance', id: 'n', nodeType: 'emptyProdNode' },
+      ],
+      connections: [
+        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'n', port: 'execute' } },
+        { type: 'Connection', from: { node: 'n', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+      ],
+      scopes: {},
+      startPorts: { execute: { dataType: 'STEP' } },
+      exitPorts: { onSuccess: { dataType: 'STEP' }, onFailure: { dataType: 'STEP' } },
+      imports: [],
+    };
+
+    const code = generateCode(workflow, { production: true });
+
+    // With the fix, functionTextProduction='' should be used (empty = no function inlined).
+    // The old buggy behavior would fall back to functionText and inline the dev version.
+    // With the fix, the empty string means "no function text" so the function should NOT be inlined.
+    expect(code).not.toContain('function emptyProdNode');
+  });
 });

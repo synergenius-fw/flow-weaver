@@ -102,9 +102,69 @@ export function generateInPlace(
     ) {
       continue;
     }
+    // Skip built-in auto-injected nodes — step 1.2 handles their insertion
+    if (!nodeType.sourceLocation && nodeType.helperText != null) {
+      continue;
+    }
     const nodeTypeResult = replaceNodeTypeJSDoc(result, nodeType);
     if (nodeTypeResult.changed) {
       result = nodeTypeResult.code;
+      hasChanges = true;
+    }
+  }
+
+  // Step 1.2: Insert built-in node functions that are auto-injected (no source in the file)
+  const usedNodeTypes = new Set(ast.instances.map((i) => i.nodeType));
+  const builtInNodes = ast.nodeTypes.filter(
+    (nt) => !nt.sourceLocation && nt.functionText && nt.helperText != null && usedNodeTypes.has(nt.name)
+  );
+  if (builtInNodes.length > 0) {
+    // Find insertion point: just before the workflow function's JSDoc
+    const workflowFnPattern = new RegExp(
+      `(/\\*\\*[\\s\\S]*?@flowWeaver\\s+workflow[\\s\\S]*?\\*/)\\s*\\n\\s*(?:export\\s+)?(?:async\\s+)?function\\s+${ast.functionName}\\b`
+    );
+    const match = result.match(workflowFnPattern);
+    if (match && match.index !== undefined) {
+      const insertionLines: string[] = [];
+
+      // Emit shared helpers once (deduplicated)
+      const emittedHelpers = new Set<string>();
+      for (const node of builtInNodes) {
+        const helperText = production ? (node.helperTextProduction ?? null) : (node.helperText ?? null);
+        if (helperText && !emittedHelpers.has(helperText)) {
+          emittedHelpers.add(helperText);
+          insertionLines.push(helperText);
+          insertionLines.push('');
+        }
+      }
+
+      // Emit each built-in function with its JSDoc
+      for (const node of builtInNodes) {
+        const funcText = (production && node.functionTextProduction != null) ? node.functionTextProduction : node.functionText;
+        if (funcText) {
+          // Add JSDoc annotation so the function is recognized on re-parse
+          const portAnnotations: string[] = [];
+          portAnnotations.push('/**');
+          portAnnotations.push(` * @flowWeaver nodeType`);
+          for (const [name, port] of Object.entries(node.inputs)) {
+            if (name === 'execute') continue;
+            const optPrefix = port.optional ? '[' : '';
+            const optSuffix = port.optional ? ']' : '';
+            portAnnotations.push(` * @input ${optPrefix}${name}${optSuffix} - ${port.label || name}`);
+          }
+          for (const [name, port] of Object.entries(node.outputs)) {
+            if (name === 'onSuccess' || name === 'onFailure') continue;
+            portAnnotations.push(` * @output ${name} - ${port.label || name}`);
+          }
+          portAnnotations.push(' */');
+          insertionLines.push(portAnnotations.join('\n'));
+          insertionLines.push(funcText);
+          insertionLines.push('');
+        }
+      }
+
+      const insertionCode = insertionLines.join('\n');
+      result = result.slice(0, match.index) + insertionCode + '\n' + result.slice(match.index);
       hasChanges = true;
     }
   }
