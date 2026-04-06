@@ -581,18 +581,6 @@ program
       await implementCommand(input, nodeName, options);
   }));
 
-// Changelog command
-program
-  .command('changelog')
-  .description('Generate changelog from git history, categorized by file path')
-  .option('--last-tag', 'From last git tag to HEAD', false)
-  .option('--since <date>', 'Date-based range (e.g., "2024-01-01")')
-  .option('-r, --range <range>', 'Custom git range (e.g., "v0.1.0..HEAD")')
-  .action(wrapAction(async (options) => {
-      const { changelogCommand } = await import('./commands/changelog.js');
-      await changelogCommand(options);
-  }));
-
 // Docs command: fw docs [topic] | fw docs search <query>
 program
   .command('docs [args...]')

@@ -1,7 +1,7 @@
 ---
 name: CLI Reference
 description: Complete reference for all Flow Weaver CLI commands, flags, and options
-keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, plugin, grammar, changelog, openapi, pattern, create, templates, context, modify, implement, status]
+keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, plugin, grammar, openapi, pattern, create, templates, context, modify, implement, status]
 ---
 
 # CLI Reference
@@ -33,7 +33,6 @@ Complete reference for all `fw` CLI commands.
 | `openapi` | Generate OpenAPI specification |
 | `migrate` | Migrate to current syntax |
 | `grammar` | Output annotation grammar |
-| `changelog` | Generate changelog from git |
 | `market` | Marketplace packages |
 | `plugin` | External plugins |
 | `modify` | Add/remove/rename nodes, connections, positions, and labels |
@@ -1020,29 +1019,6 @@ fw mcp-server [options]
 |------|-------------|---------|
 | `-s, --server <url>` | Editor URL | `http://localhost:9000` |
 | `--stdio` | Run in MCP stdio mode | `false` |
-
----
-
-### changelog
-
-Generate changelog from git history, categorized by file path.
-
-```bash
-fw changelog [options]
-```
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--last-tag` | From last git tag to HEAD | `false` |
-| `--since <date>` | Date-based range | — |
-| `-r, --range <range>` | Custom git range | — |
-
-**Examples:**
-```bash
-fw changelog --last-tag
-fw changelog --range v0.1.0..HEAD
-fw changelog --since 2024-01-01
-```
 
 ---
 

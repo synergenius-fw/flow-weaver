@@ -43,7 +43,6 @@ const mockExportCommand = vi.fn();
 const mockOpenapiCommand = vi.fn();
 const mockPluginInitCommand = vi.fn();
 const mockMigrateCommand = vi.fn();
-const mockChangelogCommand = vi.fn();
 const mockStripCommand = vi.fn();
 const mockDocsListCommand = vi.fn();
 const mockDocsReadCommand = vi.fn();
@@ -79,7 +78,6 @@ vi.mock('../../src/cli/commands/export.js', () => ({ exportCommand: mockExportCo
 vi.mock('../../src/cli/commands/openapi.js', () => ({ openapiCommand: mockOpenapiCommand }));
 vi.mock('../../src/cli/commands/plugin.js', () => ({ pluginInitCommand: mockPluginInitCommand }));
 vi.mock('../../src/cli/commands/migrate.js', () => ({ migrateCommand: mockMigrateCommand }));
-vi.mock('../../src/cli/commands/changelog.js', () => ({ changelogCommand: mockChangelogCommand }));
 vi.mock('../../src/cli/commands/strip.js', () => ({ stripCommand: mockStripCommand }));
 vi.mock('../../src/cli/commands/docs.js', () => ({ docsListCommand: mockDocsListCommand, docsReadCommand: mockDocsReadCommand, docsSearchCommand: mockDocsSearchCommand }));
 vi.mock('../../src/cli/commands/status.js', () => ({ statusCommand: mockStatusCommand }));
@@ -271,13 +269,6 @@ function buildTestProgram(): Command {
     .description('Output grammar')
     .option('-f, --format <format>', 'Format', 'html')
     .action(mockGrammarCommand);
-
-  // changelog
-  program
-    .command('changelog')
-    .description('Generate changelog')
-    .option('--last-tag', 'From last tag', false)
-    .action(mockChangelogCommand);
 
   // migrate
   program
@@ -576,19 +567,6 @@ describe('CLI command registration and parsing', () => {
     });
   });
 
-  describe('changelog command', () => {
-    it('should invoke changelog handler', () => {
-      parseArgs('changelog');
-      expect(mockChangelogCommand).toHaveBeenCalled();
-    });
-
-    it('should pass --last-tag', () => {
-      parseArgs('changelog', '--last-tag');
-      const opts = mockChangelogCommand.mock.calls[0][0];
-      expect(opts.lastTag).toBe(true);
-    });
-  });
-
   describe('migrate command', () => {
     it('should invoke migrate handler', () => {
       parseArgs('migrate', '**/*.ts');
@@ -741,7 +719,6 @@ describe('CLI command registration and parsing', () => {
       expect(helpText).toContain('grammar');
       expect(helpText).toContain('strip');
       expect(helpText).toContain('migrate');
-      expect(helpText).toContain('changelog');
       expect(helpText).toContain('status');
       expect(helpText).toContain('templates');
     });

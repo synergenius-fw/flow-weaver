@@ -328,16 +328,6 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
       { flags: '--diff', description: 'Show semantic diff before/after' },
     ],
   },
-  {
-    name: 'changelog',
-    syntax: 'fw changelog [options]',
-    description: 'Generate changelog from git history, categorized by file path',
-    options: [
-      { flags: '--last-tag', description: 'From last git tag to HEAD', exclusive: 'range' },
-      { flags: '--since', arg: '<date>', description: 'Date-based range (e.g., "2024-01-01")', exclusive: 'range' },
-      { flags: '-r, --range', arg: '<range>', description: 'Custom git range (e.g., "v0.1.0..HEAD")', exclusive: 'range' },
-    ],
-  },
 ];
 
 /**

@@ -49,6 +49,17 @@ export interface ServeOptions {
  * ```
  */
 export async function serveCommand(dir: string | undefined, options: ServeOptions): Promise<void> {
+  // Check fastify is installed before proceeding
+  try {
+    await import('fastify');
+  } catch {
+    logger.error('The serve command requires fastify. Install it with:');
+    logger.newline();
+    logger.log('  npm install fastify');
+    logger.newline();
+    process.exit(1);
+  }
+
   const workflowDir = path.resolve(dir || '.');
 
   // Validate directory exists
