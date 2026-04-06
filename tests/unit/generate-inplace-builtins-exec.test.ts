@@ -35,13 +35,13 @@ export async function waitEventWorkflow(
   throw new Error('Not implemented');
 }
 `,
-  invokeWorkflow: `
+  invokeTest: `
 /**
  * @flowWeaver workflow
- * @node sub invokeWorkflow [expr: functionId="'test/fn'" payload="{}"]
+ * @node sub invokeWorkflow [expr: functionId="'test/fn'", payload="{}"]
  * @path Start -> sub -> Exit
  */
-export async function invokeWorkflow(
+export async function invokeTest(
   execute: boolean,
 ): Promise<{ onSuccess: boolean; onFailure: boolean }> {
   throw new Error('Not implemented');
@@ -105,7 +105,7 @@ describe('built-in node execution (end-to-end)', () => {
   });
 
   it('invokeWorkflow workflow executes with execute=true', async () => {
-    const fn = modules.invokeWorkflow.invokeWorkflow as (
+    const fn = modules.invokeTest.invokeTest as (
       execute: boolean,
       params: Record<string, never>
     ) => Promise<{ onSuccess: boolean; onFailure: boolean }>;

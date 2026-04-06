@@ -268,6 +268,71 @@ describe('Chevrotain Node Parser', () => {
         },
       });
     });
+
+    it('should parse @node with space-separated expressions (no commas)', () => {
+      const result = parseNodeLine(
+        `@node agent waitForAgent [expr: agentId="'rev'" context="{}" prompt="'hi'"]`,
+        w
+      );
+      expect(w).toHaveLength(0);
+      expect(result).toEqual({
+        instanceId: 'agent',
+        nodeType: 'waitForAgent',
+        expressions: {
+          agentId: "'rev'",
+          context: '{}',
+          prompt: "'hi'",
+        },
+      });
+    });
+
+    it('should parse @node with mixed comma and space separation in expressions', () => {
+      const result = parseNodeLine(
+        `@node sub invokeWorkflow [expr: functionId="'my/fn'", payload="{}" timeout="'1h'"]`,
+        w
+      );
+      expect(w).toHaveLength(0);
+      expect(result).toEqual({
+        instanceId: 'sub',
+        nodeType: 'invokeWorkflow',
+        expressions: {
+          functionId: "'my/fn'",
+          payload: '{}',
+          timeout: "'1h'",
+        },
+      });
+    });
+
+    it('should parse @node with two space-separated expressions', () => {
+      const result = parseNodeLine(
+        `@node evt waitForEvent [expr: eventName="'app/test'" timeout="'1h'"]`,
+        w
+      );
+      expect(w).toHaveLength(0);
+      expect(result).toEqual({
+        instanceId: 'evt',
+        nodeType: 'waitForEvent',
+        expressions: {
+          eventName: "'app/test'",
+          timeout: "'1h'",
+        },
+      });
+    });
+
+    it('should parse @node with object literal expression value', () => {
+      const result = parseNodeLine(
+        `@node sub invokeWorkflow [expr: payload="{ key: 'value' }"]`,
+        w
+      );
+      expect(w).toHaveLength(0);
+      expect(result).toEqual({
+        instanceId: 'sub',
+        nodeType: 'invokeWorkflow',
+        expressions: {
+          payload: "{ key: 'value' }",
+        },
+      });
+    });
   });
 
   describe('Instance visual overrides', () => {
@@ -357,6 +422,27 @@ describe('Chevrotain Node Parser', () => {
       const result = parseNodeLine('@node   adder1   adder', w);
       expect(result?.instanceId).toBe('adder1');
       expect(result?.nodeType).toBe('adder');
+    });
+  });
+
+  describe('Warning diagnostics', () => {
+    it('should produce a warning when lexer fails on malformed input', () => {
+      const warnings: string[] = [];
+      // Unterminated string literal should cause a lexer error
+      const result = parseNodeLine('@node n1 type [expr: val="unterminated', warnings);
+      expect(result).toBeNull();
+      expect(warnings.length).toBeGreaterThanOrEqual(1);
+      expect(warnings[0]).toContain('Failed to');
+      expect(warnings[0]).toContain('@node n1 type');
+    });
+
+    it('should produce a warning when parser encounters unexpected tokens', () => {
+      const warnings: string[] = [];
+      // Two identifiers with no = between them inside [expr:]
+      const result = parseNodeLine('@node n1 type [expr: notAnAssignment]', warnings);
+      expect(result).toBeNull();
+      expect(warnings.length).toBeGreaterThanOrEqual(1);
+      expect(warnings[0]).toContain('Failed to parse');
     });
   });
 });

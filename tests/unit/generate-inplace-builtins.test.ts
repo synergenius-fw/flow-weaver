@@ -6,9 +6,13 @@
  * re-runs are idempotent, and unused built-ins are not injected.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterAll } from 'vitest';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { AnnotationParser } from '../../src/parser';
 import { generateInPlace } from '../../src/api/generate-in-place';
+import { parseWorkflow } from '../../src/api/parse';
 
 // Helper: parse source string and generate in-place
 function compileInPlace(source: string, options: { production?: boolean } = {}) {
@@ -269,5 +273,49 @@ export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean
       .filter(nt => ['delay', 'waitForEvent', 'invokeWorkflow', 'waitForAgent'].includes(nt.name))
       .map(nt => nt.name);
     expect(builtInNames).toEqual(['waitForEvent']);
+  });
+});
+
+describe('parseWorkflow forwards parser errors', () => {
+  const tmpDir = path.join(os.tmpdir(), `fw-parse-errors-${process.pid}`);
+
+  afterAll(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function writeWorkflow(name: string, content: string): string {
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const p = path.join(tmpDir, `${name}.ts`);
+    fs.writeFileSync(p, content);
+    return p;
+  }
+
+  it('forwards @path errors for non-existent nodes', async () => {
+    const filePath = writeWorkflow('ghost-path', `
+/**
+ * @flowWeaver nodeType
+ * @output result
+ */
+function myNode(execute: boolean): { onSuccess: boolean; onFailure: boolean; result: number } {
+  return { onSuccess: true, onFailure: false, result: 0 };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node n myNode
+ * @path Start -> n -> ghost -> Exit
+ */
+export async function ghostWorkflow(
+  execute: boolean,
+): Promise<{ onSuccess: boolean; onFailure: boolean }> {
+  throw new Error('Not implemented');
+}
+`);
+
+    const result = await parseWorkflow(filePath);
+    expect(result.errors.length).toBeGreaterThan(0);
+    const ghostError = result.errors.find(e => e.includes('ghost'));
+    expect(ghostError).toBeDefined();
+    expect(ghostError).toContain('not found');
   });
 });

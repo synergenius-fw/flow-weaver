@@ -169,7 +169,7 @@ export function invalidWorkflow(execute: boolean): Promise<{ onSuccess: boolean;
 
       try {
         await expect(compileWorkflow(tmpFile, { write: false })).rejects.toThrow(
-          /[Vv]alidation error/
+          /[Vv]alidation error|[Pp]arse error/
         );
       } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });

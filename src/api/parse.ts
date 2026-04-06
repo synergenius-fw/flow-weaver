@@ -71,6 +71,7 @@ export async function parseWorkflow(
     // Parse the file to extract nodes and workflows
     const parsed = parser.parse(filePath);
     warnings.push(...parsed.warnings);
+    errors.push(...parsed.errors);
 
     // Get available workflow names
     availableWorkflows = parsed.workflows.map((w) => w.functionName);
@@ -136,7 +137,7 @@ export async function parseWorkflow(
 
     return {
       ast: workflow,
-      errors: [],
+      errors,
       warnings,
       availableWorkflows,
       allWorkflows: parsed.workflows,

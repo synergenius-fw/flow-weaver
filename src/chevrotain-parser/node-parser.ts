@@ -132,14 +132,13 @@ class NodeParser extends CstParser {
     this.CONSUME(StringLiteral, { LABEL: 'labelValue' });
   });
 
-  // expr: port="value", port2="value2"
+  // expr: port="value", port2="value2"  (comma optional between assignments)
   private exprAttr = this.RULE('exprAttr', () => {
     this.CONSUME(ExprPrefix);
-    this.AT_LEAST_ONE_SEP({
-      SEP: Comma,
-      DEF: () => {
-        this.SUBRULE(this.exprAssignment);
-      },
+    this.SUBRULE(this.exprAssignment);
+    this.MANY(() => {
+      this.OPTION(() => this.CONSUME(Comma));
+      this.SUBRULE2(this.exprAssignment);
     });
   });
 
@@ -772,6 +771,12 @@ export function parseNodeLine(input: string, warnings: string[]): NodeParseResul
   const lexResult = JSDocLexer.tokenize(input);
 
   if (lexResult.errors.length > 0) {
+    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
+    warnings.push(
+      `Failed to tokenize node line: "${truncatedInput}"\n` +
+        `  Error: ${lexResult.errors[0].message}\n` +
+        `  Expected format: @node instanceId NodeType`
+    );
     return null;
   }
 
