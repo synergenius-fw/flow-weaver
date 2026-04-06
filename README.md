@@ -28,15 +28,13 @@ I have always wondered why Visual Programming never took off. After understandin
   - It being just code opens a lot of doors for you, like using Git for version control, doing all sort of stuff you already do with code like testing, linting, automating, everything.
   - In the era of LLMs and agents, being able to have that control is crucial, it is not a black box, you can see everything and so can your assistant.
 
-This is a solo project and I am building it in the open. There is a lot to do and rough edges to smooth out. If you find a bug, have an idea, or just want to tell me what sucks, please open an issue or reach out. I genuinely want to hear from you.
+As of now this is a solo project and I am building it in the open. There is a lot to do and rough edges to smooth out. If you run into issues or have questions, the [Discord](https://discord.gg/6Byh3ur2bk) is the best place to reach out. Every issue and question gets a response. I genuinely want to hear from you.
 
 If this resonates with what you have been looking for, give it a try and let me know how it goes. Stars, feedback, and honest criticism all help equally.
 
 ## Project Status
 
 Flow Weaver is in **active alpha**. The compiler, validator, CLI, and MCP tools are stable and thoroughly tested. The test suite covers thousands of cases across parsing, compilation, validation, diffing, and deployment. CI runs on every commit.
-
-Hey, I am [Ricardo Morais](https://linkedin.com/in/moraispgsi) the project's founder, this project grew out of my curiosity why visual programming never took off and whether code-first and visual editing could actually coexist. It has grown into something real. It is actively maintained, with releases shipping regularly. If you run into issues or have questions, the [Discord](https://discord.gg/6Byh3ur2bk) is the best place to reach out. Every issue and question gets a response, usually within a day.
 
 **Flow Weaver Studio**, the browser-based visual IDE, is the next major milestone and is being actively built. Core editing (canvas, terminal, diagnostics) is live today. The visual debugger, AI chat assistant, version history, and deployment dashboard are in progress. You can follow development on Discord or in the [GitHub releases](https://github.com/synergenius-fw/flow-weaver/releases).
 
