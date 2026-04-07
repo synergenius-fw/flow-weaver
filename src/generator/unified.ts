@@ -803,10 +803,21 @@ export function generateControlFlowWithExecutionContext(
     }
   }
 
-  const allProps =
-    defaults.length > 0
-      ? `${defaults.join(', ')}${returnProps.length > 0 ? ', ' : ''}${returnProps.join(', ')}`
-      : returnProps.join(', ');
+  // Assemble final result with onSuccess first, onFailure second, then data ports.
+  // This ensures JSON.stringify output is readable and predictable.
+  const allPropsUnsorted = [...defaults, ...returnProps];
+  const onSuccessProp = allPropsUnsorted.find(p => p.trimStart().startsWith('onSuccess'));
+  const onFailureProp = allPropsUnsorted.find(p => p.trimStart().startsWith('onFailure'));
+  const dataProps = allPropsUnsorted.filter(p => {
+    const key = p.trimStart().split(':')[0].trim();
+    return key !== 'onSuccess' && key !== 'onFailure';
+  });
+
+  const orderedProps: string[] = [];
+  if (onSuccessProp) orderedProps.push(onSuccessProp);
+  if (onFailureProp) orderedProps.push(onFailureProp);
+  orderedProps.push(...dataProps);
+  const allProps = orderedProps.join(', ');
 
   lines.push(`  const finalResult = { ${allProps} };`);
   lines.push('');
