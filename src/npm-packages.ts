@@ -264,12 +264,16 @@ function inferNodeTypeFromDtsFunction(
 }
 
 /**
- * Get function exports from a package's .d.ts file and return as TNodeType[].
+ * Get callable exports from a package's .d.ts file and return as TNodeType[].
+ *
+ * Uses ts-morph's symbol-based export enumeration to handle all export
+ * patterns: declare function, declare const with function types,
+ * re-exports from submodules, star exports, etc.
  *
  * @param packageName - The npm package name
  * @param workdir - Directory to start searching from
  * @param nodeModulesOverride - Optional explicit node_modules path (for testing)
- * @returns Array of node types for the package's exported functions
+ * @returns Array of node types for the package's callable exports
  */
 export function getPackageExports(
   packageName: string,
@@ -285,28 +289,224 @@ export function getPackageExports(
     const project = getSharedProject();
     const dtsContent = fs.readFileSync(typesPath, 'utf-8');
 
-    // Create source file with unique path to avoid conflicts
-    const virtualPath = `__npm_exports__/${packageName}/${Date.now()}.d.ts`;
-    const dtsFile = project.createSourceFile(virtualPath, dtsContent, { overwrite: true });
+    // Add the .d.ts file and nearby declaration files to the project so
+    // ts-morph can resolve re-exports (including `export * from './submodule'`).
+    const pkgDir = path.dirname(typesPath);
+    const addedFiles: string[] = [];
+    try {
+      const globPattern = path.join(pkgDir, '**/*.d.{ts,cts,mts}');
+      for (const file of project.addSourceFilesAtPaths(globPattern)) {
+        addedFiles.push(file.getFilePath());
+      }
+    } catch {
+      // Glob may fail on some filesystems; fall back to single file
+    }
 
-    const functions = extractFunctionLikes(dtsFile);
+    let dtsFile = project.getSourceFile(typesPath);
+    if (!dtsFile) {
+      dtsFile = project.addSourceFileAtPath(typesPath);
+    }
+
     const nodeTypes: TNpmNodeType[] = [];
     const seenFunctionNames = new Set<string>();
 
-    for (const fn of functions) {
-      const fnName = fn.getName();
-      // Skip duplicates (can happen with re-exports or declaration merging)
-      if (!fnName || seenFunctionNames.has(fnName)) continue;
-      seenFunctionNames.add(fnName);
+    // First pass: try symbol-based enumeration (handles re-exports, declare const, etc.)
+    const fileSymbol = dtsFile.getSymbol();
+    if (fileSymbol) {
+      for (const exportSymbol of fileSymbol.getExports()) {
+        const exportName = exportSymbol.getName();
+        if (seenFunctionNames.has(exportName)) continue;
 
-      const nodeType = inferNodeTypeFromDtsFunction(fn, packageName);
-      if (nodeType) {
-        nodeTypes.push(nodeType);
+        // Check if this export is callable (has call signatures)
+        const exportType = exportSymbol.getTypeAtLocation(dtsFile);
+        const callSignatures = exportType.getCallSignatures();
+        if (callSignatures.length === 0) continue;
+
+        seenFunctionNames.add(exportName);
+
+        // Use the first call signature to infer ports
+        const sig = callSignatures[0];
+        const ports: TNpmPackagePort[] = [];
+
+        // Execute input port
+        ports.push({
+          name: 'execute',
+          defaultLabel: 'Execute',
+          reference: 'execute',
+          type: 'STEP',
+          direction: 'INPUT',
+        });
+
+        // Input ports from parameters
+        for (const param of sig.getParameters()) {
+          const paramName = param.getName();
+          const paramType = param.getTypeAtLocation(dtsFile);
+          const dataType = inferDataTypeFromTS(paramType.getText());
+          ports.push({
+            name: paramName,
+            defaultLabel: capitalize(paramName),
+            reference: paramName,
+            type: dataType,
+            direction: 'INPUT',
+          });
+        }
+
+        // Output ports from return type
+        let returnType = sig.getReturnType();
+        const returnText = returnType.getText();
+        let isAsync = false;
+
+        if (returnText.startsWith('Promise<')) {
+          isAsync = true;
+          const typeArgs = returnType.getTypeArguments();
+          if (typeArgs.length > 0) returnType = typeArgs[0];
+        }
+
+        const unwrapped = returnType.getText();
+        if (unwrapped !== 'void' && unwrapped !== 'undefined') {
+          const isPrimitive = PRIMITIVE_TYPES.has(unwrapped);
+          const isArray = unwrapped.endsWith('[]') || unwrapped.startsWith('Array<');
+          const properties = returnType.getProperties();
+          const isObjectLike = !isPrimitive && !isArray && returnType.isObject() && properties.length > 0;
+
+          if (isObjectLike) {
+            for (const prop of properties) {
+              const propName = prop.getName();
+              if (propName === 'onSuccess' || propName === 'onFailure') continue;
+              const propType = prop.getTypeAtLocation(dtsFile);
+              ports.push({
+                name: propName,
+                defaultLabel: capitalize(propName),
+                reference: propName,
+                type: inferDataTypeFromTS(propType.getText()),
+                direction: 'OUTPUT',
+              });
+            }
+          } else {
+            ports.push({
+              name: 'result',
+              defaultLabel: 'Result',
+              reference: 'result',
+              type: inferDataTypeFromTS(unwrapped),
+              direction: 'OUTPUT',
+            });
+          }
+        }
+
+        ports.push({
+          name: 'onSuccess',
+          defaultLabel: 'On Success',
+          reference: 'onSuccess',
+          type: 'STEP',
+          direction: 'OUTPUT',
+        });
+        ports.push({
+          name: 'onFailure',
+          defaultLabel: 'On Failure',
+          reference: 'onFailure',
+          type: 'STEP',
+          direction: 'OUTPUT',
+        });
+
+        nodeTypes.push({
+          name: `npm/${packageName}/${exportName}`,
+          variant: 'FUNCTION',
+          category: 'NPM Packages',
+          function: exportName,
+          label: exportName,
+          importSource: packageName,
+          ports,
+          synchronicity: isAsync ? 'ASYNC' : 'SYNC',
+          description: `${exportName} from ${packageName}`,
+        });
       }
     }
 
-    // Clean up the temporary source file
-    project.removeSourceFile(dtsFile);
+    // Follow star re-exports (`export * from './submodule'`) which the symbol
+    // API surfaces as a single __export pseudo-symbol instead of individual names.
+    for (const exportDecl of dtsFile.getExportDeclarations()) {
+      if (!exportDecl.isNamespaceExport()) continue;
+      const targetFile = exportDecl.getModuleSpecifierSourceFile();
+      if (!targetFile) continue;
+
+      const targetSymbol = targetFile.getSymbol();
+      if (!targetSymbol) continue;
+
+      for (const exportSymbol of targetSymbol.getExports()) {
+        const exportName = exportSymbol.getName();
+        if (seenFunctionNames.has(exportName)) continue;
+
+        const exportType = exportSymbol.getTypeAtLocation(targetFile);
+        const callSignatures = exportType.getCallSignatures();
+        if (callSignatures.length === 0) continue;
+
+        seenFunctionNames.add(exportName);
+        const sig = callSignatures[0];
+        const ports: TNpmPackagePort[] = [];
+
+        ports.push({ name: 'execute', defaultLabel: 'Execute', reference: 'execute', type: 'STEP', direction: 'INPUT' });
+
+        for (const param of sig.getParameters()) {
+          const paramName = param.getName();
+          const paramType = param.getTypeAtLocation(targetFile);
+          ports.push({
+            name: paramName,
+            defaultLabel: capitalize(paramName),
+            reference: paramName,
+            type: inferDataTypeFromTS(paramType.getText()),
+            direction: 'INPUT',
+          });
+        }
+
+        let returnType = sig.getReturnType();
+        const returnText = returnType.getText();
+        let isAsync = false;
+        if (returnText.startsWith('Promise<')) {
+          isAsync = true;
+          const typeArgs = returnType.getTypeArguments();
+          if (typeArgs.length > 0) returnType = typeArgs[0];
+        }
+
+        const unwrapped = returnType.getText();
+        if (unwrapped !== 'void' && unwrapped !== 'undefined') {
+          ports.push({ name: 'result', defaultLabel: 'Result', reference: 'result', type: inferDataTypeFromTS(unwrapped), direction: 'OUTPUT' });
+        }
+
+        ports.push({ name: 'onSuccess', defaultLabel: 'On Success', reference: 'onSuccess', type: 'STEP', direction: 'OUTPUT' });
+        ports.push({ name: 'onFailure', defaultLabel: 'On Failure', reference: 'onFailure', type: 'STEP', direction: 'OUTPUT' });
+
+        nodeTypes.push({
+          name: `npm/${packageName}/${exportName}`,
+          variant: 'FUNCTION',
+          category: 'NPM Packages',
+          function: exportName,
+          label: exportName,
+          importSource: packageName,
+          ports,
+          synchronicity: isAsync ? 'ASYNC' : 'SYNC',
+          description: `${exportName} from ${packageName}`,
+        });
+      }
+    }
+
+    // Fallback: if symbol-based enumeration found nothing, try extractFunctionLikes
+    // (handles edge cases where symbols aren't available)
+    if (nodeTypes.length === 0) {
+      const functions = extractFunctionLikes(dtsFile);
+      for (const fn of functions) {
+        const fnName = fn.getName();
+        if (!fnName || seenFunctionNames.has(fnName)) continue;
+        seenFunctionNames.add(fnName);
+        const nodeType = inferNodeTypeFromDtsFunction(fn, packageName);
+        if (nodeType) nodeTypes.push(nodeType);
+      }
+    }
+
+    // Clean up added source files to avoid project bloat
+    for (const filePath of addedFiles) {
+      const sf = project.getSourceFile(filePath);
+      if (sf) project.removeSourceFile(sf);
+    }
 
     return nodeTypes;
   } catch {
