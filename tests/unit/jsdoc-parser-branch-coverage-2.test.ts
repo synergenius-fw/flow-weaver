@@ -416,7 +416,7 @@ function myPattern() {}
   // ── @trigger CI/CD keyword warning ──────────────────────────
 
   describe('trigger edge cases', () => {
-    it('warns when @trigger event name matches CI/CD keyword', () => {
+    it('accepts @trigger event="push" as valid Inngest trigger without CI/CD warning', () => {
       const { config, warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow
@@ -426,7 +426,8 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
 `);
       expect(config!.trigger).toBeDefined();
       expect(config!.trigger!.event).toBe('push');
-      expect(warnings.some(w => w.includes('CI/CD trigger'))).toBe(true);
+      // Explicit event= syntax is valid Inngest, no CI/CD warning needed
+      expect(warnings.some(w => w.includes('CI/CD'))).toBe(false);
     });
 
     it('accumulates event and cron from separate @trigger tags', () => {

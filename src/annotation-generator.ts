@@ -741,7 +741,19 @@ export function generateNodeInstanceTag(instance: TNodeInstanceAST): string {
     positionAttr = ` [position: ${Math.round(instance.config.x)} ${Math.round(instance.config.y)}]`;
   }
 
-  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${suppressAttr}${sizeAttr}${positionAttr}`;
+  // Generate [job: "name"] attribute if present (CI/CD job group)
+  let jobAttr = '';
+  if (instance.job) {
+    jobAttr = ` [job: "${instance.job}"]`;
+  }
+
+  // Generate [environment: "name"] attribute if present (CI/CD environment)
+  let environmentAttr = '';
+  if (instance.environment) {
+    environmentAttr = ` [environment: "${instance.environment}"]`;
+  }
+
+  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${suppressAttr}${sizeAttr}${positionAttr}${jobAttr}${environmentAttr}`;
 }
 
 /**

@@ -142,6 +142,66 @@ describe('[job:] attribute parsing (core parser)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// @trigger delegation to CI/CD pack handler
+// ---------------------------------------------------------------------------
+
+describe('@trigger CI/CD delegation', () => {
+  it('@trigger push should delegate to cicd handler, not be consumed as Inngest event', async () => {
+    // Register a mock cicd trigger handler
+    const captured: Array<{ tagName: string; comment: string }> = [];
+    const { tagHandlerRegistry } = await import('../../src/parser/tag-registry');
+
+    tagHandlerRegistry.register(
+      ['_cicdTrigger'],
+      'cicd',
+      'workflow',
+      (tagName: string, comment: string, ctx: any) => {
+        captured.push({ tagName, comment });
+        if (!ctx.deploy.triggers) ctx.deploy.triggers = [];
+        ctx.deploy.triggers.push({ type: comment.split(/\s/)[0] });
+      },
+    );
+
+    const source = `
+/** @flowWeaver nodeType @expression */
+function step(): { done: boolean } { return { done: true }; }
+
+/**
+ * @flowWeaver workflow
+ * @trigger push branches="main"
+ * @node a step
+ * @path Start -> a -> Exit
+ * @connect a.done -> Exit.done
+ * @param x
+ * @returns done
+ */
+export function w(execute: boolean, params: { x: string }): { onSuccess: boolean; onFailure: boolean; done: boolean } {
+  throw new Error('compile');
+}
+`;
+
+    const parser = new AnnotationParser();
+    const result = parser.parseFromString(source, 'test.ts');
+    const wf = result.workflows[0];
+
+    // Debug: check what we got
+    const hasInngestTrigger = wf.trigger?.event === 'push';
+    const handlerCalled = captured.length > 0;
+
+    // @trigger push should NOT be treated as Inngest event trigger
+    expect(hasInngestTrigger).toBe(false);
+
+    // The cicd handler should have been called
+    expect(handlerCalled).toBe(true);
+    expect(captured[0].comment).toContain('push');
+
+    // The handler writes to ctx.deploy['cicd'] which maps to wf.options.cicd
+    expect(wf.options?.cicd?.triggers).toBeDefined();
+    expect(wf.options?.cicd?.triggers?.[0]?.type).toBe('push');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Regular workflows should be unaffected by CI/CD pack presence
 // ---------------------------------------------------------------------------
 

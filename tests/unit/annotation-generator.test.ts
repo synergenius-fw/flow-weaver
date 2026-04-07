@@ -279,6 +279,52 @@ describe('Annotation Generator', () => {
       const parsed = parseNodeLine(generated.replace(' * ', ''), w);
       expect(parsed?.pullExecution).toBe('execute');
     });
+
+    it('should preserve [job:] attribute after round-trip', () => {
+      const instance: TNodeInstanceAST = {
+        type: 'NodeInstance',
+        id: 'build',
+        nodeType: 'npmBuild',
+        job: 'build',
+      };
+
+      const generated = generateNodeInstanceTag(instance);
+      expect(generated).toContain('[job: "build"]');
+
+      const parsed = parseNodeLine(generated.replace(' * ', ''), w);
+      expect(parsed?.job).toBe('build');
+    });
+
+    it('should preserve [environment:] attribute after round-trip', () => {
+      const instance: TNodeInstanceAST = {
+        type: 'NodeInstance',
+        id: 'deploy',
+        nodeType: 'deploySsh',
+        environment: 'production',
+      };
+
+      const generated = generateNodeInstanceTag(instance);
+      expect(generated).toContain('[environment: "production"]');
+
+      const parsed = parseNodeLine(generated.replace(' * ', ''), w);
+      expect(parsed?.environment).toBe('production');
+    });
+
+    it('should preserve [job:] alongside other attributes', () => {
+      const instance: TNodeInstanceAST = {
+        type: 'NodeInstance',
+        id: 'test',
+        nodeType: 'npmTest',
+        job: 'test',
+        config: { color: 'teal', icon: 'check_circle', x: 270, y: 0 },
+      };
+
+      const generated = generateNodeInstanceTag(instance);
+      expect(generated).toContain('[job: "test"]');
+      expect(generated).toContain('[color: "teal"]');
+      expect(generated).toContain('[icon: "check_circle"]');
+      expect(generated).toContain('[position: 270 0]');
+    });
   });
 
   describe('Node type @pullExecution preservation', () => {

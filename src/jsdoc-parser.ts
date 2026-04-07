@@ -1447,17 +1447,20 @@ export class JSDocParser {
   private parseTriggerTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[], tagRegistry?: TagHandlerRegistry): void {
     const comment = (tag.getCommentText() || '').trim();
 
-    // Try core FW trigger parsing first (event= and/or cron=)
+    // Check if the trigger looks like a CI/CD keyword (push, pull_request, etc.)
+    const cicdKeywords = ['push', 'pull_request', 'dispatch', 'tag', 'schedule'];
+    const firstToken = comment.split(/\s/)[0];
+
+    // CI/CD triggers: delegate to pack handler if registered
+    if (cicdKeywords.includes(firstToken) && tagRegistry && tagRegistry.has('_cicdTrigger')) {
+      if (!config.deploy) config.deploy = {};
+      tagRegistry.handle('_cicdTrigger', comment, 'workflow', config.deploy, warnings);
+      return;
+    }
+
+    // Core FW trigger parsing (event= and/or cron=)
     const result = parseTriggerLine(`@trigger ${comment}`, warnings);
     if (result) {
-      // Warn if the event name matches a CI/CD trigger keyword (likely user error)
-      const cicdKeywords = ['push', 'pull_request', 'dispatch', 'tag', 'schedule'];
-      if (result.event && cicdKeywords.includes(result.event)) {
-        warnings.push(
-          `@trigger event="${result.event}" is treated as an Inngest event trigger, not a CI/CD trigger. ` +
-          `For CI/CD, use: @trigger ${result.event}`
-        );
-      }
       // Merge: multiple @trigger tags accumulate (event + cron can be separate tags)
       config.trigger = config.trigger || {};
       if (result.event) config.trigger.event = result.event;
@@ -1465,10 +1468,12 @@ export class JSDocParser {
       return;
     }
 
-    // Not a core trigger. Delegate to domain-specific handlers (e.g. CI/CD).
-    if (tagRegistry && tagRegistry.has('_cicdTrigger')) {
-      if (!config.deploy) config.deploy = {};
-      tagRegistry.handle('_cicdTrigger', comment, 'workflow', config.deploy, warnings);
+    // Not a core trigger and no CI/CD handler available. Try CI/CD keywords as fallback hint.
+    if (cicdKeywords.includes(firstToken)) {
+      warnings.push(
+        `@trigger ${firstToken} looks like a CI/CD trigger but no CI/CD pack is installed. ` +
+        `Install @synergenius/flow-weaver-pack-cicd to enable CI/CD pipeline annotations.`
+      );
       return;
     }
 

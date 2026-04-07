@@ -152,7 +152,7 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
       expect(config!.deploy!['__handled']).toEqual({ handled: true });
     });
 
-    it('warns on invalid trigger format when no cicd handler', () => {
+    it('warns on CI/CD trigger keyword when no cicd handler installed', () => {
       const { warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow
@@ -160,7 +160,7 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('Invalid @trigger format'))).toBe(true);
+      expect(warnings.some(w => w.includes('CI/CD') && w.includes('pack'))).toBe(true);
     });
   });
 
@@ -909,8 +909,8 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
 
   // ── @trigger: CI/CD keyword warning ──
 
-  describe('@trigger CI/CD keyword warning', () => {
-    it('warns when event name matches CI/CD keyword "push"', () => {
+  describe('@trigger CI/CD keyword with explicit event= syntax', () => {
+    it('accepts event="push" as valid Inngest trigger without warning', () => {
       const { config, warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow
@@ -919,18 +919,21 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
       expect(config!.trigger).toBeDefined();
-      expect(warnings.some(w => w.includes('treated as an Inngest event trigger'))).toBe(true);
+      expect(config!.trigger!.event).toBe('push');
+      // Explicit event= syntax is valid Inngest, no CI/CD warning
+      expect(warnings.some(w => w.includes('CI/CD'))).toBe(false);
     });
 
-    it('warns when event name matches CI/CD keyword "pull_request"', () => {
-      const { warnings } = parseWorkflow(`
+    it('accepts event="pull_request" as valid Inngest trigger without warning', () => {
+      const { config, warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow
  * @trigger event="pull_request"
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('treated as an Inngest event trigger'))).toBe(true);
+      expect(config!.trigger!.event).toBe('pull_request');
+      expect(warnings.some(w => w.includes('CI/CD'))).toBe(false);
     });
 
     it('does not warn for non-CI/CD event name', () => {
