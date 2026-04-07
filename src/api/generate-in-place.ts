@@ -96,11 +96,21 @@ export function generateInPlace(
     }
     // Skip node types imported from other files — the import statement handles them.
     // Inlining would create duplicate declarations (TS2440) and duplicate node type names.
-    if (
-      nodeType.sourceLocation?.file &&
-      path.resolve(nodeType.sourceLocation.file) !== path.resolve(ast.sourceFile)
-    ) {
-      continue;
+    // Compare basenames as a fallback: after a client roundtrip (JSON serialization),
+    // sourceLocation.file may contain a virtual path ("/testing.ts") instead of the
+    // real workspace path. Full-path comparison would incorrectly skip the node type.
+    // Normalize separators for cross-platform (Windows backslash → forward slash).
+    if (nodeType.sourceLocation?.file) {
+      const ntFile = nodeType.sourceLocation.file.replace(/\\/g, '/');
+      const astFile = ast.sourceFile.replace(/\\/g, '/');
+      const ntBase = ntFile.split('/').filter(Boolean).pop() ?? '';
+      const astBase = astFile.split('/').filter(Boolean).pop() ?? '';
+      if (
+        path.resolve(ntFile) !== path.resolve(astFile) &&
+        ntBase !== astBase
+      ) {
+        continue;
+      }
     }
     // Skip built-in auto-injected nodes — step 1.2 handles their insertion
     if (!nodeType.sourceLocation && nodeType.helperText != null) {
