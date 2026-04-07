@@ -36,8 +36,8 @@ export async function diffCommand(
   try {
     // Parse both workflows
     const [result1, result2] = await Promise.all([
-      parseWorkflow(filePath1, { workflowName }),
-      parseWorkflow(filePath2, { workflowName }),
+      parseWorkflow(filePath1, { workflowName, projectDir: path.dirname(filePath1) }),
+      parseWorkflow(filePath2, { workflowName, projectDir: path.dirname(filePath2) }),
     ]);
 
     if (result1.errors.length > 0) {

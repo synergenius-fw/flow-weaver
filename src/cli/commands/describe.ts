@@ -459,7 +459,7 @@ export async function describeCommand(input: string, options: DescribeOptions = 
 
   try {
     // Parse the workflow
-    const parseResult = await parseWorkflow(filePath, { workflowName });
+    const parseResult = await parseWorkflow(filePath, { workflowName, projectDir: path.dirname(filePath) });
 
     if (parseResult.errors.length > 0) {
       throw new Error(`Parse errors:\n${parseResult.errors.map((err) => `  ${err}`).join('\n')}`);

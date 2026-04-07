@@ -238,7 +238,7 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
       let executionOrder = resumeExecutionOrder;
       if (!executionOrder) {
         const source = fs.readFileSync(filePath, 'utf8');
-        const parsed = await parseWorkflow(source, { workflowName: options.workflow });
+        const parsed = await parseWorkflow(source, { workflowName: options.workflow, projectDir: path.dirname(filePath) });
         if (parsed.errors.length === 0) {
           executionOrder = getTopologicalOrder(parsed.ast);
         } else {
@@ -516,7 +516,7 @@ export async function validateMockConfig(
 
   // Quick-parse the workflow to check which built-in node types are used
   try {
-    const result = await parseWorkflow(filePath, { workflowName });
+    const result = await parseWorkflow(filePath, { workflowName, projectDir: path.dirname(filePath) });
     if (result.errors.length > 0 || !result.ast?.instances) return;
 
     const usedNodeTypes = new Set(result.ast.instances.map((i) => i.nodeType));

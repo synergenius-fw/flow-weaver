@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileToSVG, fileToHTML, fileToASCII } from '../../diagram/index.js';
+import { parser } from '../../parser.js';
 import { logger } from '../utils/logger.js';
 import { safeWriteFile } from '../utils/safe-write.js';
 
@@ -28,6 +29,9 @@ export async function diagramCommand(input: string, options: DiagramCommandOptio
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }
+
+  // Load marketplace pack tag handlers before parsing
+  await parser.loadPackHandlers(path.dirname(filePath));
 
   let result: string;
   if (ASCII_FORMATS.has(format)) {
