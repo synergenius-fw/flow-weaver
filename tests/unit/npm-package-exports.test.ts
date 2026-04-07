@@ -116,20 +116,86 @@ export declare function shout(text: string): string;`,
 
   // === CommonJS export = pattern ===
 
-  it('skips export= (CommonJS module.exports pattern)', () => {
+  it('skips export= when it is a namespace (lodash style)', () => {
     createPackage(
-      'test-cjs',
+      'test-cjs-namespace',
       `declare const _: LoDashStatic;
+interface LoDashStatic {
+  chunk<T>(array: T[], size: number): T[][];
+  compact<T>(array: T[]): T[];
+}
 declare namespace _ {
   interface LoDashStatic {}
 }
 export = _;`,
     );
 
-    const exports = getPackageExports('test-cjs', tmpDir);
-    // export= is a module-level pattern, not a callable function
+    const exports = getPackageExports('test-cjs-namespace', tmpDir);
+    // Namespace with many methods should not appear as a single "export=" node
     const exportEquals = exports.find((e) => e.function === 'export=');
     expect(exportEquals).toBeUndefined();
+  });
+
+  it('includes export= when it is a single function (lodash.clonedeep style)', () => {
+    createPackage(
+      'test-cjs-fn',
+      `declare function cloneDeep<T>(value: T): T;
+export = cloneDeep;`,
+    );
+
+    const exports = getPackageExports('test-cjs-fn', tmpDir);
+    expect(exports.length).toBe(1);
+    // Should use the function name, not "export="
+    expect(exports[0].function).toBe('cloneDeep');
+    expect(exports[0].label).toBe('cloneDeep');
+  });
+
+  it('includes export= when it is a single arrow function', () => {
+    createPackage(
+      'test-cjs-arrow',
+      `declare const debounce: <T extends (...args: any[]) => any>(func: T, wait: number) => T;
+export = debounce;`,
+    );
+
+    const exports = getPackageExports('test-cjs-arrow', tmpDir);
+    expect(exports.length).toBe(1);
+    expect(exports[0].function).toBe('debounce');
+    expect(exports[0].label).toBe('debounce');
+  });
+
+  // === Excessive port capping ===
+
+  it('caps output ports when return type has many properties', () => {
+    createPackage(
+      'test-many-ports',
+      `export declare function getAll(): {
+  a: string; b: string; c: string; d: string; e: string;
+  f: string; g: string; h: string; i: string; j: string;
+  k: string; l: string; m: string; n: string; o: string;
+};`,
+    );
+
+    const exports = getPackageExports('test-many-ports', tmpDir);
+    const outputPorts = exports[0].ports.filter(
+      (p) => p.direction === 'OUTPUT' && p.name !== 'onSuccess' && p.name !== 'onFailure',
+    );
+    // Should cap data output ports at a reasonable limit (e.g. 8)
+    // and fall back to a single "result" port instead
+    expect(outputPorts.length).toBeLessThanOrEqual(8);
+  });
+
+  // === Default export naming ===
+
+  it('uses function name for default export, not "default"', () => {
+    createPackage(
+      'test-default-fn',
+      `export default function createApp(config: object): object;`,
+    );
+
+    const exports = getPackageExports('test-default-fn', tmpDir);
+    expect(exports.length).toBe(1);
+    expect(exports[0].function).not.toBe('default');
+    expect(exports[0].function).toBe('createApp');
   });
 
   it('input ports have sequential defaultOrder starting from 1', () => {

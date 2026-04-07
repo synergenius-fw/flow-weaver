@@ -198,7 +198,7 @@ function inferNodeTypeFromDtsFunction(
 
   const unwrappedText = returnType.getText();
 
-  if (unwrappedText !== 'void' && unwrappedText !== 'undefined') {
+  if (unwrappedText !== 'void' && unwrappedText !== 'undefined' && unwrappedText !== 'never') {
     const isPrimitive = PRIMITIVE_TYPES.has(unwrappedText);
     const isArray = unwrappedText.endsWith('[]') || unwrappedText.startsWith('Array<');
 
@@ -206,20 +206,19 @@ function inferNodeTypeFromDtsFunction(
     const isObjectLike =
       !isPrimitive && !isArray && returnType.isObject() && properties.length > 0;
 
-    if (isObjectLike) {
-      // Multiple output ports from object properties
-      for (const prop of properties) {
-        const propName = prop.getName();
-        if (propName === 'onSuccess' || propName === 'onFailure') continue;
-        const propType = prop.getTypeAtLocation(fn.getTypeResolutionNode());
-        const propTypeText = propType.getText();
-        const dataType = inferDataTypeFromTS(propTypeText);
+    const dataProps = isObjectLike
+      ? properties.filter(p => p.getName() !== 'onSuccess' && p.getName() !== 'onFailure')
+      : [];
 
+    if (isObjectLike && dataProps.length <= 8) {
+      for (const prop of dataProps) {
+        const propName = prop.getName();
+        const propType = prop.getTypeAtLocation(fn.getTypeResolutionNode());
         ports.push({
           name: propName,
           defaultLabel: capitalize(propName),
           reference: propName,
-          type: dataType,
+          type: inferDataTypeFromTS(propType.getText()),
           direction: 'OUTPUT',
         });
       }
@@ -317,10 +316,13 @@ export function getPackageExports(
     const seenFunctionNames = new Set<string>();
 
     // First pass: try symbol-based enumeration (handles re-exports, declare const, etc.)
+    // Maximum data output ports before collapsing to a single "result" port
+    const MAX_DATA_OUTPUT_PORTS = 8;
+
     const fileSymbol = dtsFile.getSymbol();
     if (fileSymbol) {
       for (const exportSymbol of fileSymbol.getExports()) {
-        const exportName = exportSymbol.getName();
+        let exportName = exportSymbol.getName();
         if (seenFunctionNames.has(exportName)) continue;
 
         // Check if this export is callable (has call signatures)
@@ -328,6 +330,46 @@ export function getPackageExports(
         const callSignatures = exportType.getCallSignatures();
         if (callSignatures.length === 0) continue;
 
+        // Handle export= (CJS): skip namespaces, include single functions
+        if (exportName === 'export=') {
+          // If the type has many non-call properties, it's a namespace (lodash)
+          const props = exportType.getProperties().filter(p => !p.getName().startsWith('__'));
+          if (props.length > 5) continue; // Namespace with many methods — skip
+
+          // Try to get the real name from the declaration
+          const decl = exportSymbol.getValueDeclaration();
+          const declName = decl && 'getName' in decl ? (decl as any).getName?.() : undefined;
+          if (declName && declName !== 'export=') {
+            exportName = declName;
+          } else {
+            // Try aliased declarations
+            const aliased = exportSymbol.getAliasedSymbol?.();
+            const aliasedName = aliased?.getName();
+            if (aliasedName && aliasedName !== 'export=' && aliasedName !== '__type') {
+              exportName = aliasedName;
+            } else {
+              continue; // Can't determine a useful name — skip
+            }
+          }
+        }
+
+        // Handle default exports: resolve to the actual function name
+        if (exportName === 'default') {
+          const decl = exportSymbol.getValueDeclaration();
+          const declName = decl && 'getName' in decl ? (decl as any).getName?.() : undefined;
+          if (declName && declName !== 'default') {
+            exportName = declName;
+          } else {
+            const aliased = exportSymbol.getAliasedSymbol?.();
+            const aliasedName = aliased?.getName();
+            if (aliasedName && aliasedName !== 'default' && aliasedName !== '__type') {
+              exportName = aliasedName;
+            }
+            // If still "default", keep it — some packages genuinely have unnamed default exports
+          }
+        }
+
+        if (seenFunctionNames.has(exportName)) continue;
         seenFunctionNames.add(exportName);
 
         // Use the first call signature to infer ports
@@ -365,16 +407,19 @@ export function getPackageExports(
 
         let outputOrder = 0;
         const unwrapped = returnType.getText();
-        if (unwrapped !== 'void' && unwrapped !== 'undefined') {
+        if (unwrapped !== 'void' && unwrapped !== 'undefined' && unwrapped !== 'never') {
           const isPrimitive = PRIMITIVE_TYPES.has(unwrapped);
           const isArray = unwrapped.endsWith('[]') || unwrapped.startsWith('Array<');
           const properties = returnType.getProperties();
           const isObjectLike = !isPrimitive && !isArray && returnType.isObject() && properties.length > 0;
 
-          if (isObjectLike) {
-            for (const prop of properties) {
+          const dataProps = isObjectLike
+            ? properties.filter(p => p.getName() !== 'onSuccess' && p.getName() !== 'onFailure')
+            : [];
+
+          if (isObjectLike && dataProps.length <= MAX_DATA_OUTPUT_PORTS) {
+            for (const prop of dataProps) {
               const propName = prop.getName();
-              if (propName === 'onSuccess' || propName === 'onFailure') continue;
               const propType = prop.getTypeAtLocation(dtsFile);
               ports.push({
                 name: propName, defaultLabel: capitalize(propName), reference: propName,
@@ -382,6 +427,7 @@ export function getPackageExports(
               });
             }
           } else {
+            // Single result port: either primitive/array, or object with too many properties
             ports.push({
               name: 'result', defaultLabel: 'Result', reference: 'result',
               type: inferDataTypeFromTS(unwrapped), direction: 'OUTPUT', defaultOrder: outputOrder++,
@@ -456,7 +502,7 @@ export function getPackageExports(
         }
 
         const unwrapped = returnType.getText();
-        if (unwrapped !== 'void' && unwrapped !== 'undefined') {
+        if (unwrapped !== 'void' && unwrapped !== 'undefined' && unwrapped !== 'never') {
           ports.push({ name: 'result', defaultLabel: 'Result', reference: 'result', type: inferDataTypeFromTS(unwrapped), direction: 'OUTPUT', defaultOrder: 0 });
         }
 
