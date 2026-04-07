@@ -504,19 +504,19 @@ export default _default;`);
   // =========================================================================
 
   describe('metadata', () => {
-    it('name format: npm/<package>/<function>', () => {
+    it('name is the function name (no npm/ prefix)', () => {
       const get = pkg('my-pkg', `export declare function doStuff(): void;`);
-      expect(get()[0].name).toBe('npm/my-pkg/doStuff');
+      expect(get()[0].name).toBe('doStuff');
     });
 
-    it('scoped package name format', () => {
+    it('scoped package name uses function name, importSource has package', () => {
       const parts = ['@myorg', 'utils'];
       const pkgDir = path.join(nodeModulesDir, ...parts);
       fs.mkdirSync(pkgDir, { recursive: true });
       fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify({ name: '@myorg/utils', types: './index.d.ts' }));
       fs.writeFileSync(path.join(pkgDir, 'index.d.ts'), `export declare function helper(): void;`);
       const exports = getPackageExports('@myorg/utils', tmpDir);
-      expect(exports[0].name).toBe('npm/@myorg/utils/helper');
+      expect(exports[0].name).toBe('helper');
       expect(exports[0].importSource).toBe('@myorg/utils');
     });
 

@@ -256,7 +256,7 @@ function inferNodeTypeFromDtsFunction(
   });
 
   return {
-    name: `npm/${packageName}/${fnName}`,
+    name: fnName,
     variant: 'FUNCTION',
     category: 'NPM Packages',
     function: fnName,
@@ -445,7 +445,7 @@ export function getPackageExports(
         });
 
         nodeTypes.push({
-          name: `npm/${packageName}/${exportName}`,
+          name: exportName,
           variant: 'FUNCTION',
           category: 'NPM Packages',
           function: exportName,
@@ -510,7 +510,7 @@ export function getPackageExports(
         ports.push({ name: 'onFailure', defaultLabel: 'On Failure', reference: 'onFailure', type: 'STEP', direction: 'OUTPUT', defaultOrder: 101, failure: true });
 
         nodeTypes.push({
-          name: `npm/${packageName}/${exportName}`,
+          name: exportName,
           variant: 'FUNCTION',
           category: 'NPM Packages',
           function: exportName,

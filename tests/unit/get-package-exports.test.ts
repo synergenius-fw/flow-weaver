@@ -121,7 +121,7 @@ describe('getPackageExports', () => {
     const nodeTypes = getPackageExports('typed-package', fixturesDir, fakeNodeModules);
 
     const formatFn = nodeTypes.find((nt) => nt.function === 'format');
-    expect(formatFn?.name).toBe('npm/typed-package/format');
+    expect(formatFn?.name).toBe('format');
   });
 
   it('includes mandatory execute, onSuccess, and onFailure ports', () => {

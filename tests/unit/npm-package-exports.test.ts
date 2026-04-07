@@ -469,6 +469,123 @@ export type Baz = { qux: number };`,
     expect(exports).toEqual([]);
   });
 
+  // === Name must be workflow-annotation safe (no slashes) ===
+
+  it('name must not contain slashes', () => {
+    createPackage(
+      'my-pkg',
+      `export declare function doStuff(): void;`,
+    );
+
+    const exports = getPackageExports('my-pkg', tmpDir);
+    expect(exports[0].name).not.toContain('/');
+  });
+
+  it('name must not start with npm/', () => {
+    createPackage(
+      'another-pkg',
+      `export declare function process(x: string): string;`,
+    );
+
+    const exports = getPackageExports('another-pkg', tmpDir);
+    expect(exports[0].name).not.toMatch(/^npm\//);
+  });
+
+  it('name equals function name for simple package', () => {
+    createPackage(
+      'simple-pkg',
+      `export declare function myFunc(): void;`,
+    );
+
+    const exports = getPackageExports('simple-pkg', tmpDir);
+    expect(exports[0].name).toBe('myFunc');
+  });
+
+  it('name equals function name for scoped package', () => {
+    const scopeDir = path.join(nodeModulesDir, '@myorg');
+    fs.mkdirSync(scopeDir, { recursive: true });
+    const pkgDir = path.join(scopeDir, 'tools');
+    fs.mkdirSync(pkgDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(pkgDir, 'package.json'),
+      JSON.stringify({ name: '@myorg/tools', types: './index.d.ts' }),
+    );
+    fs.writeFileSync(
+      path.join(pkgDir, 'index.d.ts'),
+      `export declare function helper(): void;`,
+    );
+
+    const exports = getPackageExports('@myorg/tools', tmpDir);
+    expect(exports[0].name).toBe('helper');
+  });
+
+  it('name is safe for @node annotation (no special chars except alphanumeric, _, -)', () => {
+    createPackage(
+      'safe-name-pkg',
+      `export declare function my_func_123(): void;`,
+    );
+
+    const exports = getPackageExports('safe-name-pkg', tmpDir);
+    expect(exports[0].name).toMatch(/^[\w-]+$/);
+  });
+
+  it('name for declare const function type has no slashes', () => {
+    createPackage(
+      'const-fn-name',
+      `export declare const serve: (opts: object) => void;`,
+    );
+
+    const exports = getPackageExports('const-fn-name', tmpDir);
+    expect(exports[0].name).toBe('serve');
+  });
+
+  it('name for re-exported function has no slashes', () => {
+    createPackageWithSubmodule(
+      'reexport-name',
+      `export { handler } from './lib.js';`,
+      { 'lib.d.ts': `export declare function handler(): void;` },
+    );
+
+    const exports = getPackageExports('reexport-name', tmpDir);
+    expect(exports[0].name).toBe('handler');
+  });
+
+  it('name for star re-exported function has no slashes', () => {
+    createPackageWithSubmodule(
+      'star-name',
+      `export * from './utils.js';`,
+      { 'utils.d.ts': `export declare function util(): void;` },
+    );
+
+    const exports = getPackageExports('star-name', tmpDir);
+    expect(exports[0].name).toBe('util');
+  });
+
+  it('name for CJS export= function has no slashes', () => {
+    createPackage(
+      'cjs-name',
+      `declare function cloneDeep<T>(value: T): T;\nexport = cloneDeep;`,
+    );
+
+    const exports = getPackageExports('cjs-name', tmpDir);
+    expect(exports[0].name).toBe('cloneDeep');
+  });
+
+  it('multiple exports all have slash-free names', () => {
+    createPackage(
+      'multi-name',
+      `export declare function alpha(): void;
+export declare function beta(): void;
+export declare function gamma(): void;`,
+    );
+
+    const exports = getPackageExports('multi-name', tmpDir);
+    for (const e of exports) {
+      expect(e.name).not.toContain('/');
+      expect(e.name).toBe(e.function);
+    }
+  });
+
   it('sets importSource to package name', () => {
     createPackage(
       'my-cool-pkg',

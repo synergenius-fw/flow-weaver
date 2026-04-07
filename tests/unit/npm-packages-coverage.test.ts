@@ -174,7 +174,7 @@ describe('getPackageExports error handling', () => {
     expect(result.length).toBe(2);
     const addNode = result.find(n => n.function === 'add');
     expect(addNode).toBeDefined();
-    expect(addNode!.name).toBe('npm/valid-math/add');
+    expect(addNode!.name).toBe('add');
     expect(addNode!.synchronicity).toBe('SYNC');
 
     const greetNode = result.find(n => n.function === 'greet');
