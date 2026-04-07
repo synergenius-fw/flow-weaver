@@ -327,6 +327,56 @@ describe('Annotation Generator', () => {
     });
   });
 
+  describe('CI/CD workflow annotation preservation', () => {
+    it('should preserve @secret, @runner, @cache in generated workflow annotation', () => {
+      const workflow = {
+        name: 'ciPipeline',
+        functionName: 'ciPipeline',
+        nodeTypes: [],
+        instances: [],
+        connections: [],
+        scopes: {},
+        startPorts: {},
+        exitPorts: {},
+        options: {
+          cicd: {
+            secrets: [{ name: 'NPM_TOKEN', description: 'NPM auth token' }],
+            runner: 'ubuntu-latest',
+            caches: [{ strategy: 'npm', key: 'package-lock.json' }],
+          },
+        },
+      } as any;
+
+      const generated = annotationGenerator.generate(workflow);
+      expect(generated).toContain('@secret NPM_TOKEN');
+      expect(generated).toContain('@runner ubuntu-latest');
+      expect(generated).toContain('@cache npm');
+      expect(generated).toContain('package-lock.json');
+    });
+
+    it('should preserve @trigger push CI/CD style in generated workflow annotation', () => {
+      const workflow = {
+        name: 'ciPipeline',
+        functionName: 'ciPipeline',
+        nodeTypes: [],
+        instances: [],
+        connections: [],
+        scopes: {},
+        startPorts: {},
+        exitPorts: {},
+        options: {
+          cicd: {
+            triggers: [{ type: 'push', branches: 'main' }],
+          },
+        },
+      } as any;
+
+      const generated = annotationGenerator.generate(workflow);
+      expect(generated).toContain('@trigger push');
+      expect(generated).toContain('branches="main"');
+    });
+  });
+
   describe('Node type @pullExecution preservation', () => {
     it('should include @pullExecution in generated node type JSDoc', () => {
       const workflow: TWorkflowAST = {
