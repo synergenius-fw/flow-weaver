@@ -210,6 +210,7 @@ function inferNodeTypeFromDtsFunction(
       ? properties.filter(p => p.getName() !== 'onSuccess' && p.getName() !== 'onFailure')
       : [];
 
+    let dataOutputOrder = 2; // after onSuccess(0) and onFailure(1)
     if (isObjectLike && dataProps.length <= 8) {
       for (const prop of dataProps) {
         const propName = prop.getName();
@@ -220,6 +221,7 @@ function inferNodeTypeFromDtsFunction(
           reference: propName,
           type: inferDataTypeFromTS(propType.getText()),
           direction: 'OUTPUT',
+          defaultOrder: dataOutputOrder++,
         });
       }
     } else {
@@ -231,18 +233,19 @@ function inferNodeTypeFromDtsFunction(
         reference: 'result',
         type: dataType,
         direction: 'OUTPUT',
+        defaultOrder: dataOutputOrder++,
       });
     }
   }
 
-  // Add mandatory control flow output ports
+  // Add mandatory control flow output ports (before data outputs)
   ports.push({
     name: 'onSuccess',
     defaultLabel: 'On Success',
     reference: 'onSuccess',
     type: 'STEP',
     direction: 'OUTPUT',
-    defaultOrder: 100,
+    defaultOrder: 0,
   });
 
   ports.push({
@@ -251,7 +254,7 @@ function inferNodeTypeFromDtsFunction(
     reference: 'onFailure',
     type: 'STEP',
     direction: 'OUTPUT',
-    defaultOrder: 101,
+    defaultOrder: 1,
     failure: true,
   });
 
@@ -405,7 +408,17 @@ export function getPackageExports(
           if (typeArgs.length > 0) returnType = typeArgs[0];
         }
 
-        let outputOrder = 0;
+        // Step output ports first (control flow), then data outputs
+        ports.push({
+          name: 'onSuccess', defaultLabel: 'On Success', reference: 'onSuccess',
+          type: 'STEP', direction: 'OUTPUT', defaultOrder: 0,
+        });
+        ports.push({
+          name: 'onFailure', defaultLabel: 'On Failure', reference: 'onFailure',
+          type: 'STEP', direction: 'OUTPUT', defaultOrder: 1, failure: true,
+        });
+
+        let outputOrder = 2;
         const unwrapped = returnType.getText();
         if (unwrapped !== 'void' && unwrapped !== 'undefined' && unwrapped !== 'never') {
           const isPrimitive = PRIMITIVE_TYPES.has(unwrapped);
@@ -434,15 +447,6 @@ export function getPackageExports(
             });
           }
         }
-
-        ports.push({
-          name: 'onSuccess', defaultLabel: 'On Success', reference: 'onSuccess',
-          type: 'STEP', direction: 'OUTPUT', defaultOrder: 100,
-        });
-        ports.push({
-          name: 'onFailure', defaultLabel: 'On Failure', reference: 'onFailure',
-          type: 'STEP', direction: 'OUTPUT', defaultOrder: 101, failure: true,
-        });
 
         nodeTypes.push({
           name: exportName,
@@ -501,13 +505,13 @@ export function getPackageExports(
           if (typeArgs.length > 0) returnType = typeArgs[0];
         }
 
+        ports.push({ name: 'onSuccess', defaultLabel: 'On Success', reference: 'onSuccess', type: 'STEP', direction: 'OUTPUT', defaultOrder: 0 });
+        ports.push({ name: 'onFailure', defaultLabel: 'On Failure', reference: 'onFailure', type: 'STEP', direction: 'OUTPUT', defaultOrder: 1, failure: true });
+
         const unwrapped = returnType.getText();
         if (unwrapped !== 'void' && unwrapped !== 'undefined' && unwrapped !== 'never') {
-          ports.push({ name: 'result', defaultLabel: 'Result', reference: 'result', type: inferDataTypeFromTS(unwrapped), direction: 'OUTPUT', defaultOrder: 0 });
+          ports.push({ name: 'result', defaultLabel: 'Result', reference: 'result', type: inferDataTypeFromTS(unwrapped), direction: 'OUTPUT', defaultOrder: 2 });
         }
-
-        ports.push({ name: 'onSuccess', defaultLabel: 'On Success', reference: 'onSuccess', type: 'STEP', direction: 'OUTPUT', defaultOrder: 100 });
-        ports.push({ name: 'onFailure', defaultLabel: 'On Failure', reference: 'onFailure', type: 'STEP', direction: 'OUTPUT', defaultOrder: 101, failure: true });
 
         nodeTypes.push({
           name: exportName,

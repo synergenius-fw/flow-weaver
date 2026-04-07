@@ -472,14 +472,14 @@ export default _default;`);
       expect(get()[0].ports.find(p => p.name === 'y')?.defaultOrder).toBe(2);
     });
 
-    it('onSuccess has defaultOrder 100', () => {
+    it('onSuccess has defaultOrder 0', () => {
       const get = pkg('t-port-success-order', `export declare function a(): void;`);
-      expect(get()[0].ports.find(p => p.name === 'onSuccess')?.defaultOrder).toBe(100);
+      expect(get()[0].ports.find(p => p.name === 'onSuccess')?.defaultOrder).toBe(0);
     });
 
-    it('onFailure has defaultOrder 101', () => {
+    it('onFailure has defaultOrder 1', () => {
       const get = pkg('t-port-failure-order', `export declare function a(): void;`);
-      expect(get()[0].ports.find(p => p.name === 'onFailure')?.defaultOrder).toBe(101);
+      expect(get()[0].ports.find(p => p.name === 'onFailure')?.defaultOrder).toBe(1);
     });
 
     it('no port has failure=true except onFailure', () => {
