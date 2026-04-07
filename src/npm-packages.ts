@@ -23,6 +23,8 @@ export type TNpmPackagePort = {
   type: TDataType;
   direction: 'INPUT' | 'OUTPUT';
   scope?: string;
+  defaultOrder?: number;
+  failure?: boolean;
 };
 
 /**
@@ -162,6 +164,7 @@ function inferNodeTypeFromDtsFunction(
     reference: 'execute',
     type: 'STEP',
     direction: 'INPUT',
+    defaultOrder: 0,
   });
 
   // Infer inputs from parameters
@@ -240,6 +243,7 @@ function inferNodeTypeFromDtsFunction(
     reference: 'onSuccess',
     type: 'STEP',
     direction: 'OUTPUT',
+    defaultOrder: 100,
   });
 
   ports.push({
@@ -248,6 +252,8 @@ function inferNodeTypeFromDtsFunction(
     reference: 'onFailure',
     type: 'STEP',
     direction: 'OUTPUT',
+    defaultOrder: 101,
+    failure: true,
   });
 
   return {
@@ -330,24 +336,19 @@ export function getPackageExports(
 
         // Execute input port
         ports.push({
-          name: 'execute',
-          defaultLabel: 'Execute',
-          reference: 'execute',
-          type: 'STEP',
-          direction: 'INPUT',
+          name: 'execute', defaultLabel: 'Execute', reference: 'execute',
+          type: 'STEP', direction: 'INPUT', defaultOrder: 0,
         });
 
         // Input ports from parameters
+        let inputOrder = 1;
         for (const param of sig.getParameters()) {
           const paramName = param.getName();
           const paramType = param.getTypeAtLocation(dtsFile);
           const dataType = inferDataTypeFromTS(paramType.getText());
           ports.push({
-            name: paramName,
-            defaultLabel: capitalize(paramName),
-            reference: paramName,
-            type: dataType,
-            direction: 'INPUT',
+            name: paramName, defaultLabel: capitalize(paramName), reference: paramName,
+            type: dataType, direction: 'INPUT', defaultOrder: inputOrder++,
           });
         }
 
@@ -362,6 +363,7 @@ export function getPackageExports(
           if (typeArgs.length > 0) returnType = typeArgs[0];
         }
 
+        let outputOrder = 0;
         const unwrapped = returnType.getText();
         if (unwrapped !== 'void' && unwrapped !== 'undefined') {
           const isPrimitive = PRIMITIVE_TYPES.has(unwrapped);
@@ -375,37 +377,25 @@ export function getPackageExports(
               if (propName === 'onSuccess' || propName === 'onFailure') continue;
               const propType = prop.getTypeAtLocation(dtsFile);
               ports.push({
-                name: propName,
-                defaultLabel: capitalize(propName),
-                reference: propName,
-                type: inferDataTypeFromTS(propType.getText()),
-                direction: 'OUTPUT',
+                name: propName, defaultLabel: capitalize(propName), reference: propName,
+                type: inferDataTypeFromTS(propType.getText()), direction: 'OUTPUT', defaultOrder: outputOrder++,
               });
             }
           } else {
             ports.push({
-              name: 'result',
-              defaultLabel: 'Result',
-              reference: 'result',
-              type: inferDataTypeFromTS(unwrapped),
-              direction: 'OUTPUT',
+              name: 'result', defaultLabel: 'Result', reference: 'result',
+              type: inferDataTypeFromTS(unwrapped), direction: 'OUTPUT', defaultOrder: outputOrder++,
             });
           }
         }
 
         ports.push({
-          name: 'onSuccess',
-          defaultLabel: 'On Success',
-          reference: 'onSuccess',
-          type: 'STEP',
-          direction: 'OUTPUT',
+          name: 'onSuccess', defaultLabel: 'On Success', reference: 'onSuccess',
+          type: 'STEP', direction: 'OUTPUT', defaultOrder: 100,
         });
         ports.push({
-          name: 'onFailure',
-          defaultLabel: 'On Failure',
-          reference: 'onFailure',
-          type: 'STEP',
-          direction: 'OUTPUT',
+          name: 'onFailure', defaultLabel: 'On Failure', reference: 'onFailure',
+          type: 'STEP', direction: 'OUTPUT', defaultOrder: 101, failure: true,
         });
 
         nodeTypes.push({
@@ -444,17 +434,15 @@ export function getPackageExports(
         const sig = callSignatures[0];
         const ports: TNpmPackagePort[] = [];
 
-        ports.push({ name: 'execute', defaultLabel: 'Execute', reference: 'execute', type: 'STEP', direction: 'INPUT' });
+        ports.push({ name: 'execute', defaultLabel: 'Execute', reference: 'execute', type: 'STEP', direction: 'INPUT', defaultOrder: 0 });
 
+        let starInputOrder = 1;
         for (const param of sig.getParameters()) {
           const paramName = param.getName();
           const paramType = param.getTypeAtLocation(targetFile);
           ports.push({
-            name: paramName,
-            defaultLabel: capitalize(paramName),
-            reference: paramName,
-            type: inferDataTypeFromTS(paramType.getText()),
-            direction: 'INPUT',
+            name: paramName, defaultLabel: capitalize(paramName), reference: paramName,
+            type: inferDataTypeFromTS(paramType.getText()), direction: 'INPUT', defaultOrder: starInputOrder++,
           });
         }
 
@@ -469,11 +457,11 @@ export function getPackageExports(
 
         const unwrapped = returnType.getText();
         if (unwrapped !== 'void' && unwrapped !== 'undefined') {
-          ports.push({ name: 'result', defaultLabel: 'Result', reference: 'result', type: inferDataTypeFromTS(unwrapped), direction: 'OUTPUT' });
+          ports.push({ name: 'result', defaultLabel: 'Result', reference: 'result', type: inferDataTypeFromTS(unwrapped), direction: 'OUTPUT', defaultOrder: 0 });
         }
 
-        ports.push({ name: 'onSuccess', defaultLabel: 'On Success', reference: 'onSuccess', type: 'STEP', direction: 'OUTPUT' });
-        ports.push({ name: 'onFailure', defaultLabel: 'On Failure', reference: 'onFailure', type: 'STEP', direction: 'OUTPUT' });
+        ports.push({ name: 'onSuccess', defaultLabel: 'On Success', reference: 'onSuccess', type: 'STEP', direction: 'OUTPUT', defaultOrder: 100 });
+        ports.push({ name: 'onFailure', defaultLabel: 'On Failure', reference: 'onFailure', type: 'STEP', direction: 'OUTPUT', defaultOrder: 101, failure: true });
 
         nodeTypes.push({
           name: `npm/${packageName}/${exportName}`,
