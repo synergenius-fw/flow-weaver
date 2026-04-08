@@ -58,6 +58,8 @@ Breaking changes may still occur between minor versions during beta. Pin your ve
 
 **Extensible pack system:** Node types, deploy targets, CLI commands, and MCP tools are contributed by npm packages. Install community packs or build and publish your own.
 
+**OpenClaw integration:** Use Flow Weaver inside [OpenClaw](https://openclaw.ai) with the native plugin. Build deterministic workflows through conversation. [Plugin](https://clawhub.ai/plugins/%40synergenius%2Fflow-weaver-openclaw) | [npm](https://www.npmjs.com/package/@synergenius/flow-weaver-openclaw) 🦞
+
 ## Quick Start
 
 ```bash
