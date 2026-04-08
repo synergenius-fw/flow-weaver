@@ -451,6 +451,190 @@ const handlers: Record<string, CommandHandler> = {
       return { data: { authenticated: false, message: err instanceof Error ? err.message : String(err) } };
     }
   },
+
+  // ─── doctor ─────────────────────────────────────────────────────
+  doctor: async (args) => {
+    const cwd = (args.cwd as string) || process.cwd();
+    const checks: Array<{ name: string; ok: boolean; message: string }> = [];
+
+    // Check package.json exists
+    const pkgPath = path.join(cwd, 'package.json');
+    const hasPkg = fs.existsSync(pkgPath);
+    checks.push({ name: 'package.json', ok: hasPkg, message: hasPkg ? 'Found' : 'Not found' });
+
+    // Check flow-weaver dependency
+    if (hasPkg) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+        const hasFw = !!deps['@synergenius/flow-weaver'];
+        checks.push({ name: 'flow-weaver dependency', ok: hasFw, message: hasFw ? deps['@synergenius/flow-weaver'] : 'Not installed' });
+      } catch {
+        checks.push({ name: 'flow-weaver dependency', ok: false, message: 'Could not parse package.json' });
+      }
+    }
+
+    // Check node_modules
+    const hasModules = fs.existsSync(path.join(cwd, 'node_modules'));
+    checks.push({ name: 'node_modules', ok: hasModules, message: hasModules ? 'Found' : 'Run npm install' });
+
+    // Check tsconfig
+    const hasTsConfig = fs.existsSync(path.join(cwd, 'tsconfig.json'));
+    checks.push({ name: 'tsconfig.json', ok: hasTsConfig, message: hasTsConfig ? 'Found' : 'Not found (optional)' });
+
+    const allOk = checks.every((c) => c.ok);
+    return { data: { healthy: allOk, checks } };
+  },
+
+  // ─── init ───────────────────────────────────────────────────────
+  init: async (args) => {
+    const directory = path.resolve(String(args.directory || 'flow-weaver-project'));
+    const template = (args.template as string) || 'hello';
+
+    // Create directory
+    fs.mkdirSync(directory, { recursive: true });
+
+    // Create package.json
+    const name = path.basename(directory);
+    const pkg = {
+      name,
+      version: '1.0.0',
+      type: 'module',
+      scripts: { build: 'fw compile src/**/*.ts', dev: 'fw dev src/**/*.ts' },
+      dependencies: { '@synergenius/flow-weaver': 'latest' },
+    };
+    fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify(pkg, null, 2));
+
+    // Create src directory and a starter workflow via scaffold
+    const srcDir = path.join(directory, 'src');
+    fs.mkdirSync(srcDir, { recursive: true });
+
+    try {
+      const wfPath = path.join(srcDir, `${name}-workflow.ts`);
+      const code = generateWorkflowFromTemplate(template, { workflowName: name });
+      fs.writeFileSync(wfPath, code);
+      return { data: { directory, template, files: [wfPath], message: `Project created. Run: cd ${name} && npm install` } };
+    } catch {
+      return { data: { directory, template, files: [], message: `Project directory created but template '${template}' failed. Run: fw create workflow sequential src/workflow.ts` } };
+    }
+  },
+
+  // ─── grammar ────────────────────────────────────────────────────
+  grammar: async (args) => {
+    const { getAllGrammars, serializedToEBNF } = await import('../chevrotain-parser/grammar-diagrams.js');
+    const format = (args.format as string) || 'ebnf';
+    const grammars = getAllGrammars();
+    const allProductions = [
+      ...grammars.node, ...grammars.port, ...grammars.connect,
+      ...grammars.path, ...grammars.map, ...grammars.fan,
+      ...grammars.triggerCancel, ...grammars.position, ...grammars.scope,
+    ];
+    const grammar = serializedToEBNF(allProductions);
+    return { data: { grammar, format } };
+  },
+
+  // ─── apikey ─────────────────────────────────────────────────────
+  apikey: async (args) => {
+    try {
+      const { isLoggedIn, loadCredentials } = await import('../cli/config/credentials.js');
+      if (!isLoggedIn()) {
+        return { data: { authenticated: false, message: 'Not logged in. Use fw login first.' } };
+      }
+      const action = (args.action as string) || 'list';
+      const creds = loadCredentials();
+      const { PlatformClient } = await import('../cli/config/platform-client.js');
+      const client = new PlatformClient(creds!);
+
+      if (action === 'list') {
+        const keys = await client.listApiKeys?.() ?? [];
+        return { data: { authenticated: true, keys } };
+      }
+      if (action === 'create') {
+        const key = await client.createApiKey?.(String(args.name || 'default')) ?? null;
+        return { data: { authenticated: true, key } };
+      }
+      if (action === 'revoke') {
+        await client.revokeApiKey?.(String(args.keyId));
+        return { data: { authenticated: true, revoked: args.keyId } };
+      }
+      return { data: { authenticated: true, message: `Unknown action: ${action}` } };
+    } catch (err) {
+      return { data: { authenticated: false, message: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
+  // ─── ai ─────────────────────────────────────────────────────────
+  ai: async (args) => {
+    try {
+      const action = (args.action as string) || 'list';
+      const configDir = path.join(process.env.HOME || '~', '.fw');
+      const aiConfigPath = path.join(configDir, 'ai-providers.json');
+
+      if (action === 'list') {
+        if (!fs.existsSync(aiConfigPath)) {
+          return { data: { providers: [] } };
+        }
+        const providers = JSON.parse(fs.readFileSync(aiConfigPath, 'utf-8'));
+        return { data: { providers: Object.keys(providers) } };
+      }
+      if (action === 'set') {
+        fs.mkdirSync(configDir, { recursive: true });
+        const existing = fs.existsSync(aiConfigPath) ? JSON.parse(fs.readFileSync(aiConfigPath, 'utf-8')) : {};
+        existing[String(args.provider)] = { apiKey: String(args.apiKey) };
+        fs.writeFileSync(aiConfigPath, JSON.stringify(existing, null, 2));
+        return { data: { providers: Object.keys(existing), set: args.provider } };
+      }
+      if (action === 'remove') {
+        if (fs.existsSync(aiConfigPath)) {
+          const existing = JSON.parse(fs.readFileSync(aiConfigPath, 'utf-8'));
+          delete existing[String(args.provider)];
+          fs.writeFileSync(aiConfigPath, JSON.stringify(existing, null, 2));
+          return { data: { providers: Object.keys(existing), removed: args.provider } };
+        }
+        return { data: { providers: [] } };
+      }
+      return { data: { message: `Unknown action: ${action}` } };
+    } catch (err) {
+      return { data: { message: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
+  // ─── org ────────────────────────────────────────────────────────
+  org: async (args) => {
+    try {
+      const { isLoggedIn, loadCredentials } = await import('../cli/config/credentials.js');
+      if (!isLoggedIn()) {
+        return { data: { authenticated: false, message: 'Not logged in. Use fw login first.' } };
+      }
+      const action = (args.action as string) || 'list';
+      const creds = loadCredentials();
+      const { PlatformClient } = await import('../cli/config/platform-client.js');
+      const client = new PlatformClient(creds!);
+
+      if (action === 'list') {
+        const orgs = await client.listOrgs?.() ?? [];
+        return { data: { authenticated: true, orgs } };
+      }
+      return { data: { authenticated: true, message: `Action '${action}' requires the CLI: fw org ${action}` } };
+    } catch (err) {
+      return { data: { authenticated: false, message: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
+  // ─── connect ────────────────────────────────────────────────────
+  connect: async (args) => {
+    try {
+      const { isLoggedIn, loadCredentials } = await import('../cli/config/credentials.js');
+      if (!isLoggedIn()) {
+        return { data: { authenticated: false, message: 'Not logged in. Use fw login first.' } };
+      }
+      const directory = path.resolve(String(args.directory || process.cwd()));
+      const creds = loadCredentials();
+      return { data: { authenticated: true, directory, platformUrl: creds?.platformUrl, connected: true } };
+    } catch (err) {
+      return { data: { authenticated: false, message: err instanceof Error ? err.message : String(err) } };
+    }
+  },
 };
 
 export async function runCommand(

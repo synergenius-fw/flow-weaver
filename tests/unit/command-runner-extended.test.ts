@@ -535,6 +535,106 @@ describe('runCommand - extended commands', () => {
     });
   });
 
+  // ─── doctor ──────────────────────────────────────────────────────
+  describe('doctor', () => {
+    it('should check environment and return results', async () => {
+      const result = await runCommand('doctor', { cwd: tmpDir });
+      expect(result.data).toBeDefined();
+    });
+
+    it('should report issues for directory without package.json', async () => {
+      const emptyDir = path.join(tmpDir, 'no-pkg');
+      fs.mkdirSync(emptyDir, { recursive: true });
+      const result = await runCommand('doctor', { cwd: emptyDir });
+      expect(result.data).toBeDefined();
+    });
+  });
+
+  // ─── init ─────────────────────────────────────────────────────────
+  describe('init', () => {
+    it('should create a new project in the specified directory', async () => {
+      const dir = path.join(tmpDir, 'init-project');
+      const result = await runCommand('init', { directory: dir });
+      expect(result.data).toBeDefined();
+      const data = result.data as Record<string, unknown>;
+      expect(data).toHaveProperty('directory');
+    });
+
+    it('should use default template when none specified', async () => {
+      const dir = path.join(tmpDir, 'init-default');
+      const result = await runCommand('init', { directory: dir });
+      expect(result.data).toBeDefined();
+    });
+  });
+
+  // ─── grammar ──────────────────────────────────────────────────────
+  describe('grammar', () => {
+    it('should return EBNF grammar text', async () => {
+      const result = await runCommand('grammar', { format: 'ebnf' });
+      expect(result.data).toBeDefined();
+      const data = result.data as Record<string, unknown>;
+      expect(data).toHaveProperty('grammar');
+      expect(typeof data.grammar).toBe('string');
+      expect((data.grammar as string).length).toBeGreaterThan(0);
+    });
+
+    it('should default to ebnf format', async () => {
+      const result = await runCommand('grammar', {});
+      const data = result.data as Record<string, unknown>;
+      expect(data).toHaveProperty('grammar');
+    });
+  });
+
+  // ─── apikey ───────────────────────────────────────────────────────
+  describe('apikey', () => {
+    it('should list API keys (empty when not logged in)', async () => {
+      const result = await runCommand('apikey', { action: 'list' });
+      expect(result.data).toBeDefined();
+      const data = result.data as Record<string, unknown>;
+      expect(data).toHaveProperty('authenticated');
+    });
+  });
+
+  // ─── ai ───────────────────────────────────────────────────────────
+  describe('ai', () => {
+    it('should list AI providers', async () => {
+      const result = await runCommand('ai', { action: 'list' });
+      expect(result.data).toBeDefined();
+      const data = result.data as Record<string, unknown>;
+      expect(data).toHaveProperty('providers');
+    });
+  });
+
+  // ─── org ──────────────────────────────────────────────────────────
+  describe('org', () => {
+    it('should return auth error when not logged in', async () => {
+      const result = await runCommand('org', { action: 'list' });
+      expect(result.data).toBeDefined();
+      const data = result.data as Record<string, unknown>;
+      expect(data).toHaveProperty('authenticated');
+    });
+  });
+
+  // ─── connect ──────────────────────────────────────────────────────
+  describe('connect', () => {
+    it('should return auth error or connection status', async () => {
+      const result = await runCommand('connect', { directory: tmpDir });
+      expect(result.data).toBeDefined();
+      const data = result.data as Record<string, unknown>;
+      expect(data).toHaveProperty('authenticated');
+    });
+  });
+
+  // ─── getAvailableCommands includes new commands ───────────────────
+  describe('getAvailableCommands - round 2', () => {
+    it('should include doctor, init, grammar, apikey, ai, org, connect', () => {
+      const commands = getAvailableCommands();
+      for (const cmd of ['doctor', 'init', 'grammar', 'apikey', 'ai', 'org', 'connect']) {
+        expect(commands).toContain(cmd);
+      }
+    });
+  });
+
   // ─── error handling across all commands ────────────────────────────
   describe('error handling', () => {
     it('should throw for unknown command name', async () => {
