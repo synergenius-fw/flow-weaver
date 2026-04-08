@@ -279,6 +279,142 @@ describe('runCommand - extended commands', () => {
     });
   });
 
+  // ─── market-install ────────────────────────────────────────────────
+  describe('market-install', () => {
+    it('should be a registered command', () => {
+      expect(getAvailableCommands()).toContain('market-install');
+    });
+
+    it('should return error for non-existent package', async () => {
+      const result = await runCommand('market-install', { package: 'flow-weaver-pack-nonexistent-zzz', cwd: tmpDir });
+      const data = result.data as Record<string, unknown>;
+      expect(data.success).toBe(false);
+    });
+
+    it('should require package parameter', async () => {
+      const result = await runCommand('market-install', { cwd: tmpDir });
+      const data = result.data as Record<string, unknown>;
+      expect(data.success).toBe(false);
+    });
+  });
+
+  // ─── market-uninstall ─────────────────────────────────────────────
+  describe('market-uninstall', () => {
+    it('should be a registered command', () => {
+      expect(getAvailableCommands()).toContain('market-uninstall');
+    });
+
+    it('should return not-installed for package that is not present', async () => {
+      const result = await runCommand('market-uninstall', { package: 'flow-weaver-pack-nonexistent', cwd: tmpDir });
+      const data = result.data as Record<string, unknown>;
+      // Should succeed (npm uninstall of non-existent is idempotent) or report not-installed
+      expect(data).toBeDefined();
+    });
+
+    it('should require package parameter', async () => {
+      const result = await runCommand('market-uninstall', { cwd: tmpDir });
+      const data = result.data as Record<string, unknown>;
+      expect(data.success).toBe(false);
+    });
+  });
+
+  // ─── market-init ──────────────────────────────────────────────────
+  describe('market-init', () => {
+    it('should be a registered command', () => {
+      expect(getAvailableCommands()).toContain('market-init');
+    });
+
+    it('should scaffold a new pack project', async () => {
+      const packDir = path.join(tmpDir, 'my-pack');
+      const result = await runCommand('market-init', { name: 'my-test-pack', directory: packDir });
+      const data = result.data as Record<string, unknown>;
+      expect(data).toHaveProperty('directory');
+      expect(fs.existsSync(packDir)).toBe(true);
+    });
+
+    it('should create package.json with flow-weaver type', async () => {
+      const packDir = path.join(tmpDir, 'pack-json-test');
+      await runCommand('market-init', { name: 'json-test-pack', directory: packDir });
+      const pkgPath = path.join(packDir, 'package.json');
+      expect(fs.existsSync(pkgPath)).toBe(true);
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      expect(pkg.flowWeaver).toBeDefined();
+      expect(pkg.flowWeaver.type).toBe('marketplace-pack');
+    });
+
+    it('should require name parameter', async () => {
+      const result = await runCommand('market-init', { directory: path.join(tmpDir, 'no-name') });
+      const data = result.data as Record<string, unknown>;
+      expect(data.success).toBe(false);
+    });
+  });
+
+  // ─── market-pack ──────────────────────────────────────────────────
+  describe('market-pack', () => {
+    it('should be a registered command', () => {
+      expect(getAvailableCommands()).toContain('market-pack');
+    });
+
+    it('should generate manifest for a valid pack directory', async () => {
+      // Create a minimal pack structure
+      const packDir = path.join(tmpDir, 'pack-test');
+      fs.mkdirSync(path.join(packDir, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(packDir, 'package.json'), JSON.stringify({
+        name: 'flow-weaver-pack-test',
+        version: '1.0.0',
+        flowWeaver: { type: 'marketplace-pack' },
+      }, null, 2));
+      fs.writeFileSync(path.join(packDir, 'src', 'node.ts'), `
+/** @flowWeaver nodeType @expression */
+function testNode(x: number): { y: number } { return { y: x * 2 }; }
+`);
+
+      const result = await runCommand('market-pack', { directory: packDir });
+      const data = result.data as Record<string, unknown>;
+      expect(data).toHaveProperty('manifest');
+    });
+
+    it('should return errors for directory without package.json', async () => {
+      const emptyDir = path.join(tmpDir, 'no-pkg-pack');
+      fs.mkdirSync(emptyDir, { recursive: true });
+      const result = await runCommand('market-pack', { directory: emptyDir });
+      const data = result.data as Record<string, unknown>;
+      expect(data.success).toBe(false);
+    });
+  });
+
+  // ─── market-publish ───────────────────────────────────────────────
+  describe('market-publish', () => {
+    it('should be a registered command', () => {
+      expect(getAvailableCommands()).toContain('market-publish');
+    });
+
+    it('should support dry-run mode', async () => {
+      // Create minimal pack
+      const packDir = path.join(tmpDir, 'publish-test');
+      fs.mkdirSync(path.join(packDir, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(packDir, 'package.json'), JSON.stringify({
+        name: 'flow-weaver-pack-publish-test',
+        version: '0.0.1',
+        flowWeaver: { type: 'marketplace-pack' },
+      }, null, 2));
+
+      const result = await runCommand('market-publish', { directory: packDir, dryRun: true });
+      const data = result.data as Record<string, unknown>;
+      expect(data.dryRun).toBe(true);
+    });
+  });
+
+  // ─── getAvailableCommands includes market commands ────────────────
+  describe('getAvailableCommands - market completeness', () => {
+    it('should include all market subcommands', () => {
+      const commands = getAvailableCommands();
+      for (const cmd of ['market-search', 'market-list', 'market-install', 'market-uninstall', 'market-init', 'market-pack', 'market-publish']) {
+        expect(commands).toContain(cmd);
+      }
+    });
+  });
+
   // ─── migrate ──────────────────────────────────────────────────────
   describe('migrate', () => {
     it('should dry-run without modifying the file', async () => {

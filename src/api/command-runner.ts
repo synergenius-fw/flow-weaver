@@ -282,6 +282,174 @@ const handlers: Record<string, CommandHandler> = {
     };
   },
 
+  // ─── market-install ─────────────────────────────────────────────
+  'market-install': async (args) => {
+    const pkg = args.package as string | undefined;
+    if (!pkg) {
+      return { data: { success: false, error: 'Package name is required' } };
+    }
+    const cwd = (args.cwd as string) || process.cwd();
+    try {
+      const { execSync } = await import('child_process');
+      execSync(`npm install ${pkg}`, { cwd, stdio: 'pipe' });
+      // Try to read manifest from installed package
+      const packageName = pkg.replace(/@[^/]*$/, ''); // strip version suffix
+      const manifestPath = path.join(cwd, 'node_modules', packageName, 'flowweaver.manifest.json');
+      let manifest = null;
+      if (fs.existsSync(manifestPath)) {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      }
+      return { data: { success: true, package: pkg, manifest: manifest ? { name: manifest.name, version: manifest.version, nodeTypes: manifest.nodeTypes?.length ?? 0 } : null } };
+    } catch (err) {
+      return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
+  // ─── market-uninstall ──────────────────────────────────────────
+  'market-uninstall': async (args) => {
+    const pkg = args.package as string | undefined;
+    if (!pkg) {
+      return { data: { success: false, error: 'Package name is required' } };
+    }
+    const cwd = (args.cwd as string) || process.cwd();
+    try {
+      const { execSync } = await import('child_process');
+      execSync(`npm uninstall ${pkg}`, { cwd, stdio: 'pipe' });
+      return { data: { success: true, package: pkg, removed: true } };
+    } catch (err) {
+      return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
+  // ─── market-init ───────────────────────────────────────────────
+  'market-init': async (args) => {
+    const name = args.name as string | undefined;
+    if (!name) {
+      return { data: { success: false, error: 'Pack name is required' } };
+    }
+    const directory = path.resolve(String(args.directory || name));
+    fs.mkdirSync(directory, { recursive: true });
+    fs.mkdirSync(path.join(directory, 'src'), { recursive: true });
+
+    // Create package.json
+    const pkg = {
+      name: name.startsWith('flow-weaver-pack-') ? name : `flow-weaver-pack-${name}`,
+      version: '0.1.0',
+      type: 'module',
+      main: 'dist/index.js',
+      flowWeaver: {
+        type: 'marketplace-pack',
+        engineVersion: '>=0.30.0',
+        categories: [],
+      },
+      scripts: {
+        build: 'tsc',
+        pack: 'fw market pack',
+      },
+      peerDependencies: {
+        '@synergenius/flow-weaver': '>=0.30.0',
+      },
+    };
+    fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify(pkg, null, 2));
+
+    // Create tsconfig
+    const tsconfig = {
+      compilerOptions: {
+        target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext',
+        outDir: 'dist', declaration: true, strict: true, esModuleInterop: true,
+      },
+      include: ['src'],
+    };
+    fs.writeFileSync(path.join(directory, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2));
+
+    // Create starter node type
+    const starterNode = `/** @flowWeaver nodeType @expression */\nexport function hello(name: string): { greeting: string } {\n  return { greeting: \`Hello, \${name}!\` };\n}\n`;
+    fs.writeFileSync(path.join(directory, 'src', 'index.ts'), starterNode);
+
+    return { data: { success: true, directory, name: pkg.name, files: ['package.json', 'tsconfig.json', 'src/index.ts'] } };
+  },
+
+  // ─── market-pack ───────────────────────────────────────────────
+  'market-pack': async (args) => {
+    const directory = path.resolve(String(args.directory || process.cwd()));
+    const pkgJsonPath = path.join(directory, 'package.json');
+
+    if (!fs.existsSync(pkgJsonPath)) {
+      return { data: { success: false, error: `No package.json found in ${directory}` } };
+    }
+
+    try {
+      const { generateManifest, writeManifest } = await import('../marketplace/manifest.js');
+      const { validatePackage } = await import('../marketplace/validator.js');
+
+      const genResult = await generateManifest({ directory });
+      const manifest = genResult.manifest;
+      const dryRun = Boolean(args.dryRun);
+
+      if (!dryRun) {
+        writeManifest(directory, manifest);
+      }
+
+      // Run validation
+      const validation = await validatePackage(directory, manifest);
+      const errors = validation.issues.filter((i) => i.severity === 'error');
+      const warnings = validation.issues.filter((i) => i.severity === 'warning');
+
+      return {
+        data: {
+          success: errors.length === 0,
+          manifest: {
+            name: manifest.name,
+            version: manifest.version,
+            nodeTypes: manifest.nodeTypes?.length ?? 0,
+            workflows: manifest.workflows?.length ?? 0,
+            cliCommands: manifest.cliCommands?.length ?? 0,
+          },
+          errors: errors.map((e) => e.message),
+          warnings: warnings.map((w) => w.message),
+          dryRun,
+        },
+      };
+    } catch (err) {
+      return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
+  // ─── market-publish ────────────────────────────────────────────
+  'market-publish': async (args) => {
+    const directory = path.resolve(String(args.directory || process.cwd()));
+    const dryRun = Boolean(args.dryRun);
+    const tag = args.tag as string | undefined;
+
+    const pkgJsonPath = path.join(directory, 'package.json');
+    if (!fs.existsSync(pkgJsonPath)) {
+      return { data: { success: false, error: `No package.json found in ${directory}` } };
+    }
+
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+
+    if (dryRun) {
+      return {
+        data: {
+          success: true,
+          dryRun: true,
+          package: pkg.name,
+          version: pkg.version,
+          message: `Would publish ${pkg.name}@${pkg.version}${tag ? ` with tag ${tag}` : ''}`,
+        },
+      };
+    }
+
+    try {
+      const { execSync } = await import('child_process');
+      const tagFlag = tag ? ` --tag ${tag}` : '';
+      execSync(`npm publish${tagFlag}`, { cwd: directory, stdio: 'pipe' });
+      return { data: { success: true, package: pkg.name, version: pkg.version, published: true } };
+    } catch (err) {
+      return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
   // ─── migrate ────────────────────────────────────────────────────
   migrate: async (args) => {
     const filePath = resolveFile(args, args.cwd as string | undefined);
