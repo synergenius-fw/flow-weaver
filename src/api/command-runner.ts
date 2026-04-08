@@ -18,6 +18,8 @@ import {
 } from './query.js';
 import { WorkflowDiffer } from '../diff/WorkflowDiffer.js';
 import { formatDiff } from '../diff/formatDiff.js';
+import { searchPackages, listInstalledPackages } from '../marketplace/registry.js';
+import { applyMigrations, getRegisteredMigrations } from '../migration/registry.js';
 
 export interface CommandResult {
   output?: string;
@@ -229,6 +231,225 @@ const handlers: Record<string, CommandHandler> = {
       workflowName: args.workflow as string | undefined,
     });
     return { data: result };
+  },
+
+  // ─── status ─────────────────────────────────────────────────────
+  status: async (args) => {
+    const filePath = resolveFile(args, args.cwd as string | undefined);
+    const parseResult = await parseWorkflow(filePath, {
+      workflowName: args.workflow as string | undefined,
+    });
+    if (parseResult.errors.length > 0) {
+      return { data: { valid: false, errors: parseResult.errors } };
+    }
+    const ast = parseResult.ast;
+    const nodeTypes = ast.nodeTypes ?? [];
+    const stubs = nodeTypes.filter((nt) => nt.variant === 'STUB').map((nt) => nt.name);
+    const implemented = nodeTypes.filter((nt) => nt.variant !== 'STUB').map((nt) => nt.name);
+    return {
+      data: {
+        total: nodeTypes.length,
+        implemented,
+        stubs,
+        progress: nodeTypes.length > 0
+          ? Math.round((implemented.length / nodeTypes.length) * 100)
+          : 100,
+      },
+    };
+  },
+
+  // ─── market-search ──────────────────────────────────────────────
+  'market-search': async (args) => {
+    const query = String(args.query ?? '');
+    const results = await searchPackages({ query });
+    return { data: { results, query } };
+  },
+
+  // ─── market-list ────────────────────────────────────────────────
+  'market-list': async (args) => {
+    const cwd = (args.cwd as string) || process.cwd();
+    const packages = await listInstalledPackages(cwd);
+    return {
+      data: {
+        packages: packages.map((p) => ({
+          name: p.name,
+          version: p.version,
+          nodeTypes: p.manifest.nodeTypes?.length ?? 0,
+          workflows: p.manifest.workflows?.length ?? 0,
+          cliCommands: p.manifest.cliCommands?.length ?? 0,
+        })),
+      },
+    };
+  },
+
+  // ─── migrate ────────────────────────────────────────────────────
+  migrate: async (args) => {
+    const filePath = resolveFile(args, args.cwd as string | undefined);
+    const dryRun = Boolean(args.dryRun);
+    const source = fs.readFileSync(filePath, 'utf-8');
+    const parseResult = await parseWorkflow(filePath);
+    if (parseResult.errors.length > 0) {
+      return { data: { migrated: false, errors: parseResult.errors } };
+    }
+    const migrated = applyMigrations(parseResult.ast);
+    const genResult = generateInPlace(source, migrated);
+    const newSource = genResult.code;
+    const changed = newSource !== source;
+    if (changed && !dryRun) {
+      fs.writeFileSync(filePath, newSource);
+    }
+    return {
+      data: {
+        migrated: true,
+        changed,
+        dryRun,
+        file: filePath,
+        availableMigrations: getRegisteredMigrations().map((m) => m.name),
+      },
+    };
+  },
+
+  // ─── openapi ────────────────────────────────────────────────────
+  openapi: async (args) => {
+    const directory = path.resolve(String(args.directory));
+    const { generateOpenAPIJson, generateOpenAPIYaml } = await import('../deployment/openapi/generator.js');
+    const format = (args.format as string) || 'json';
+
+    // Scan directory for .ts files and parse each for workflows
+    const files = fs.readdirSync(directory).filter((f) => f.endsWith('.ts'));
+    const endpoints: Array<{
+      name: string; functionName: string; filePath: string;
+      method: 'POST'; path: string; description?: string;
+    }> = [];
+
+    for (const file of files) {
+      const filePath = path.join(directory, file);
+      try {
+        const parsed = await parseWorkflow(filePath);
+        if (parsed.errors.length === 0) {
+          endpoints.push({
+            name: parsed.ast.name,
+            functionName: parsed.ast.name,
+            filePath,
+            method: 'POST',
+            path: `/${parsed.ast.name}`,
+          });
+        }
+      } catch {
+        // Skip unparseable files
+      }
+    }
+
+    const genOptions = {
+      title: (args.title as string) || 'Flow Weaver API',
+      version: (args.version as string) || '1.0.0',
+    };
+
+    const spec = format === 'yaml'
+      ? generateOpenAPIYaml(endpoints, genOptions)
+      : generateOpenAPIJson(endpoints, genOptions);
+
+    return { data: { spec, format, workflowCount: endpoints.length } };
+  },
+
+  // ─── login ──────────────────────────────────────────────────────
+  login: async (args) => {
+    try {
+      const { saveCredentials, loadCredentials, getPlatformUrl } = await import('../cli/config/credentials.js');
+      const apiKey = args.apiKey as string | undefined;
+      if (apiKey) {
+        saveCredentials({
+          token: apiKey,
+          email: '',
+          plan: 'free',
+          platformUrl: getPlatformUrl(),
+          expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
+        });
+        return { data: { authenticated: true, method: 'apiKey' } };
+      }
+      const existing = loadCredentials();
+      if (existing) {
+        return { data: { authenticated: true, method: 'existing' } };
+      }
+      return { data: { authenticated: false, message: 'Provide an apiKey parameter or run fw login in the terminal for browser auth.' } };
+    } catch {
+      return { data: { authenticated: false, message: 'Auth module not available' } };
+    }
+  },
+
+  // ─── account ────────────────────────────────────────────────────
+  account: async () => {
+    try {
+      const { loadCredentials, isLoggedIn } = await import('../cli/config/credentials.js');
+      if (!isLoggedIn()) {
+        return { data: { authenticated: false, message: 'Not logged in. Use fw login first.' } };
+      }
+      const creds = loadCredentials();
+      const { PlatformClient } = await import('../cli/config/platform-client.js');
+      const client = new PlatformClient(creds!);
+      const user = await client.getUser();
+      const usage = await client.getDetailedUsage();
+      return { data: { authenticated: true, user, usage } };
+    } catch (err) {
+      return { data: { authenticated: false, message: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
+  // ─── deploy ─────────────────────────────────────────────────────
+  deploy: async (args) => {
+    try {
+      const { loadCredentials, isLoggedIn } = await import('../cli/config/credentials.js');
+      if (!isLoggedIn()) {
+        return { data: { authenticated: false, message: 'Not logged in. Use fw login first.' } };
+      }
+      const filePath = resolveFile(args, args.cwd as string | undefined);
+      const source = fs.readFileSync(filePath, 'utf-8');
+      const name = (args.name as string) || path.basename(filePath, '.ts');
+      const creds = loadCredentials();
+      const { PlatformClient } = await import('../cli/config/platform-client.js');
+      const client = new PlatformClient(creds!);
+      const pushed = await client.pushWorkflow(name, source);
+      const deployed = await client.deploy(pushed.slug);
+      return { data: { authenticated: true, slug: deployed.slug, status: deployed.status } };
+    } catch (err) {
+      return { data: { authenticated: false, message: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
+  // ─── undeploy ───────────────────────────────────────────────────
+  undeploy: async (args) => {
+    try {
+      const { loadCredentials, isLoggedIn } = await import('../cli/config/credentials.js');
+      if (!isLoggedIn()) {
+        return { data: { authenticated: false, message: 'Not logged in. Use fw login first.' } };
+      }
+      const slug = String(args.slug);
+      const creds = loadCredentials();
+      const { PlatformClient } = await import('../cli/config/platform-client.js');
+      const client = new PlatformClient(creds!);
+      await client.undeploy(slug);
+      return { data: { authenticated: true, slug, removed: true } };
+    } catch (err) {
+      return { data: { authenticated: false, message: err instanceof Error ? err.message : String(err) } };
+    }
+  },
+
+  // ─── cloud-status ───────────────────────────────────────────────
+  'cloud-status': async () => {
+    try {
+      const { loadCredentials, isLoggedIn } = await import('../cli/config/credentials.js');
+      if (!isLoggedIn()) {
+        return { data: { authenticated: false, message: 'Not logged in. Use fw login first.' } };
+      }
+      const creds = loadCredentials();
+      const { PlatformClient } = await import('../cli/config/platform-client.js');
+      const client = new PlatformClient(creds!);
+      const deployments = await client.listDeployments();
+      const usage = await client.getUsage();
+      return { data: { authenticated: true, deployments, usage } };
+    } catch (err) {
+      return { data: { authenticated: false, message: err instanceof Error ? err.message : String(err) } };
+    }
   },
 };
 
