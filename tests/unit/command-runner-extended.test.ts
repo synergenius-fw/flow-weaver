@@ -625,11 +625,31 @@ describe('runCommand - extended commands', () => {
     });
   });
 
+  // ─── export ──────────────────────────────────────────────────────
+  describe('export', () => {
+    it('should be a registered command', () => {
+      expect(getAvailableCommands()).toContain('export');
+    });
+
+    it('should preview export without writing files', async () => {
+      const filePath = createTempWorkflow(tmpDir, 'export-test.ts', VALID_WORKFLOW);
+      const outDir = path.join(tmpDir, 'export-out');
+      fs.mkdirSync(outDir, { recursive: true });
+      const result = await runCommand('export', {
+        file: filePath,
+        target: 'inngest',
+        output: outDir,
+        dryRun: true,
+      });
+      expect(result.data).toBeDefined();
+    });
+  });
+
   // ─── getAvailableCommands includes new commands ───────────────────
   describe('getAvailableCommands - round 2', () => {
-    it('should include doctor, init, grammar, apikey, ai, org, connect', () => {
+    it('should include doctor, init, grammar, apikey, ai, org, connect, export', () => {
       const commands = getAvailableCommands();
-      for (const cmd of ['doctor', 'init', 'grammar', 'apikey', 'ai', 'org', 'connect']) {
+      for (const cmd of ['doctor', 'init', 'grammar', 'apikey', 'ai', 'org', 'connect', 'export']) {
         expect(commands).toContain(cmd);
       }
     });

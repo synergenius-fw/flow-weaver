@@ -452,6 +452,51 @@ const handlers: Record<string, CommandHandler> = {
     }
   },
 
+  // ─── export ──────────────────────────────────────────────────────
+  export: async (args) => {
+    const filePath = resolveFile(args, args.cwd as string | undefined);
+    const target = String(args.target);
+    const outputDir = args.output ? path.resolve(String(args.output)) : path.resolve('export');
+    const dryRun = Boolean(args.dryRun);
+
+    // Parse and validate
+    const parseResult = await parseWorkflow(filePath);
+    if (parseResult.errors.length > 0) {
+      return { data: { errors: parseResult.errors } };
+    }
+    const validation = validateWorkflow(parseResult.ast);
+    if (!validation.valid) {
+      return { data: { errors: validation.errors.map((e) => typeof e === 'string' ? e : e.message) } };
+    }
+
+    // Compile first
+    await compileWorkflow(filePath);
+
+    // Load export target registry
+    const { createTargetRegistry } = await import('../deployment/index.js');
+    const registry = await createTargetRegistry(path.dirname(filePath));
+    const targetInstance = registry.get(target);
+
+    if (!targetInstance) {
+      const available = registry.getNames();
+      return { data: { error: `Unknown export target: ${target}. Available: ${available.join(', ')}` } };
+    }
+
+    if (dryRun) {
+      return { data: { target, filePath, outputDir, dryRun: true, message: `Would export to ${target} at ${outputDir}` } };
+    }
+
+    const workflowName = (args.workflow as string) || parseResult.ast.name;
+    const artifacts = await targetInstance.generate({
+      sourceFile: filePath,
+      workflowName,
+      displayName: workflowName,
+      outputDir,
+    });
+
+    return { data: { target, outputDir, files: artifacts.files.map((f) => f.relativePath) } };
+  },
+
   // ─── doctor ─────────────────────────────────────────────────────
   doctor: async (args) => {
     const cwd = (args.cwd as string) || process.cwd();
