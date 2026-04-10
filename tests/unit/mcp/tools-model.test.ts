@@ -97,7 +97,8 @@ describe('tools-model', () => {
       expect(content).toContain('@node validateEmail validateEmail');
       expect(content).toContain('@node sendReply sendReply');
       expect(content).toContain('@path Start -> validateEmail -> sendReply -> Exit');
-      expect(content).toContain("export const emailWorkflow = 'flowWeaver:draft';");
+      expect(content).toContain('export async function emailWorkflow()');
+      expect(content).not.toContain("'flowWeaver:draft'");
     });
 
     it('maps data types correctly', async () => {

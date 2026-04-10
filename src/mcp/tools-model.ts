@@ -114,7 +114,9 @@ export function registerModelTools(mcp: McpServer): void {
         }
         jsdocLines.push(` * ${pathAnnotation}`);
         jsdocLines.push(' */');
-        jsdocLines.push(`export const ${args.name} = 'flowWeaver:draft';`);
+        jsdocLines.push(`export async function ${args.name}() {`);
+        jsdocLines.push(`  // stub - compile to generate workflow body`);
+        jsdocLines.push(`}`);
 
         lines.push(...jsdocLines);
         lines.push('');
