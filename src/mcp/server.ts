@@ -14,6 +14,7 @@ import { registerDocsTools } from './tools-docs.js';
 import { registerModelTools } from './tools-model.js';
 import { registerDebugTools } from './tools-debug.js';
 import { registerContextTools } from './tools-context.js';
+import { registerResourceTools } from './tools-resources.js';
 import { registerPrompts } from './prompts.js';
 import { registerPackMcpTools } from './pack-tools.js';
 
@@ -35,6 +36,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   registerModelTools(mcp);
   registerDebugTools(mcp);
   registerContextTools(mcp);
+  registerResourceTools(mcp);
   registerPrompts(mcp);
   await registerPackMcpTools(mcp);
 

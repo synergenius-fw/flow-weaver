@@ -8,5 +8,6 @@ export { registerQueryTools } from './tools-query.js';
 export { registerTemplateTools } from './tools-template.js';
 export { registerPatternTools } from './tools-pattern.js';
 export { registerDebugTools } from './tools-debug.js';
+export { registerResourceTools } from './tools-resources.js';
 export { registerPrompts } from './prompts.js';
 export { startMcpServer, mcpServerCommand } from './server.js';
