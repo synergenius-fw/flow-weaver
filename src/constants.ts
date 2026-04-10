@@ -171,6 +171,8 @@ export type ValidNodeColor = (typeof VALID_NODE_COLORS)[number];
 export const KNOWN_NODETYPE_TAGS = new Set([
   'flowWeaver', 'name', 'label', 'description', 'color', 'icon', 'tag',
   'executeWhen', 'scope', 'expression', 'pullExecution', 'input', 'output', 'step',
+  // Async is auto-detected from the TS signature but accepted as an explicit annotation
+  'async',
   // Deployment annotations
   'deploy',
 ]);

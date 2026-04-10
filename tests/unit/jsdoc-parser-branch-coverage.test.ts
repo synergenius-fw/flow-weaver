@@ -199,6 +199,19 @@ function myNode(execute: boolean): { onSuccess: boolean } {
       expect(warnings.some(w => w.includes('Unknown annotation @nme'))).toBe(true);
     });
 
+    it('does not warn on @async annotation', () => {
+      const { warnings } = parseNodeType(`
+/**
+ * @flowWeaver nodeType
+ * @async
+ */
+function myNode(execute: boolean): { onSuccess: boolean } {
+  return { onSuccess: true };
+}
+`);
+      expect(warnings.some(w => w.includes('Unknown annotation @async'))).toBe(false);
+    });
+
     it('warns on unknown tags without suggestions when very different', () => {
       const { warnings } = parseNodeType(`
 /**
