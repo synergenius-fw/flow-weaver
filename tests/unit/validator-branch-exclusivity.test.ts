@@ -153,4 +153,61 @@ describe('Validator Branch Exclusivity', () => {
     );
     expect(multiExitWarning).toBeDefined();
   });
+
+  it('should not warn for multiple STEP connections to Exit.onSuccess (parallel convergence)', () => {
+    // notifySlack.onSuccess -> Exit.onSuccess AND updateCRM.onSuccess -> Exit.onSuccess
+    // This is the standard pattern for parallel terminal nodes
+    const notifySlack = createSimpleNodeType('notifySlack');
+    const updateCRM = createSimpleNodeType('updateCRM');
+
+    const workflow = createWorkflow(
+      [
+        { type: 'NodeInstance', id: 'notifySlack', nodeType: 'notifySlack', config: { x: 0, y: 0 } },
+        { type: 'NodeInstance', id: 'updateCRM', nodeType: 'updateCRM', config: { x: 0, y: 100 } },
+      ],
+      [
+        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'notifySlack', port: 'execute' } },
+        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'updateCRM', port: 'execute' } },
+        { type: 'Connection', from: { node: 'notifySlack', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+        { type: 'Connection', from: { node: 'updateCRM', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+      ],
+      [notifySlack, updateCRM]
+    );
+
+    const validator = new WorkflowValidator();
+    const result = validator.validate(workflow);
+
+    const multiExitWarning = result.warnings.find(
+      (w) => w.code === 'MULTIPLE_EXIT_CONNECTIONS' && w.message.includes('onSuccess')
+    );
+    expect(multiExitWarning).toBeUndefined();
+  });
+
+  it('should still warn for multiple DATA connections to Exit port from parallel nodes', () => {
+    // Both parallel nodes connect DATA to the same Exit port - this IS ambiguous
+    const handlerA = createSimpleNodeType('handlerA');
+    const handlerB = createSimpleNodeType('handlerB');
+
+    const workflow = createWorkflow(
+      [
+        { type: 'NodeInstance', id: 'nodeA', nodeType: 'handlerA', config: { x: 0, y: 0 } },
+        { type: 'NodeInstance', id: 'nodeB', nodeType: 'handlerB', config: { x: 0, y: 100 } },
+      ],
+      [
+        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'nodeA', port: 'execute' } },
+        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'nodeB', port: 'execute' } },
+        { type: 'Connection', from: { node: 'nodeA', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+        { type: 'Connection', from: { node: 'nodeB', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+      ],
+      [handlerA, handlerB]
+    );
+
+    const validator = new WorkflowValidator();
+    const result = validator.validate(workflow);
+
+    const multiExitWarning = result.warnings.find(
+      (w) => w.code === 'MULTIPLE_EXIT_CONNECTIONS' && w.message.includes('result')
+    );
+    expect(multiExitWarning).toBeDefined();
+  });
 });

@@ -952,6 +952,12 @@ export class WorkflowValidator {
     // Check for multiple connections to the same Exit port
     exitPortConnections.forEach((connections, portName) => {
       if (connections.length > 1) {
+        // Skip control flow ports — multiple STEP connections to Exit.onSuccess
+        // is the standard convergence pattern for parallel terminal nodes
+        const exitPort = workflow.exitPorts[portName];
+        if (exitPort?.isControlFlow || exitPort?.dataType === 'STEP') {
+          return;
+        }
         const sourceNodes = connections.map((c) => c.from.node);
         if (this.areMutuallyExclusive(sourceNodes, workflow, instanceMap)) {
           return; // Suppress — mutually exclusive branches
