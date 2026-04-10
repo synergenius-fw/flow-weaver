@@ -454,4 +454,51 @@ describe('fw_export tool', () => {
     expect(bundleNodeTypes).toHaveLength(1);
     expect(bundleNodeTypes[0].name).toBe('NT1');
   });
+
+  it('defaults outputDir to ./dist relative to workflow file when not provided', async () => {
+    const artifacts = makeArtifacts();
+    const target = {
+      generate: vi.fn().mockResolvedValue(artifacts),
+      getDeployInstructions: vi.fn().mockReturnValue({ title: '', steps: [], prerequisites: [] }),
+    };
+    mockCreateRegistry.mockResolvedValue(makeRegistry(target) as any);
+    mockParseWorkflow.mockResolvedValue({
+      errors: [],
+      allWorkflows: [],
+      ast: {} as any,
+    } as any);
+
+    const result = await toolHandler({
+      filePath: '/projects/my-app/workflow.ts',
+      target: 'github-actions',
+      // no outputDir
+    });
+    const parsed = parseResult(result);
+    expect(parsed.success).toBe(true);
+    // outputDir should default to dist/ relative to the workflow file
+    expect(parsed.data.outputDir).toMatch(/my-app[/\\]dist$/);
+  });
+
+  it('still uses explicit outputDir when provided', async () => {
+    const artifacts = makeArtifacts();
+    const target = {
+      generate: vi.fn().mockResolvedValue(artifacts),
+      getDeployInstructions: vi.fn().mockReturnValue({ title: '', steps: [], prerequisites: [] }),
+    };
+    mockCreateRegistry.mockResolvedValue(makeRegistry(target) as any);
+    mockParseWorkflow.mockResolvedValue({
+      errors: [],
+      allWorkflows: [],
+      ast: {} as any,
+    } as any);
+
+    const result = await toolHandler({
+      filePath: '/projects/my-app/workflow.ts',
+      target: 'github-actions',
+      outputDir: '/custom/output',
+    });
+    const parsed = parseResult(result);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data.outputDir).toMatch(/custom[/\\]output$/);
+  });
 });

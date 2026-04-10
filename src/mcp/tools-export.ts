@@ -22,7 +22,7 @@ export function registerExportTools(mcp: McpServer): void {
       target: z
         .string()
         .describe('Deployment target platform. Run with --list-targets to see installed targets.'),
-      outputDir: z.string().describe('Output directory for generated files'),
+      outputDir: z.string().optional().describe('Output directory for generated files (default: ./dist relative to workflow)'),
       serviceName: z
         .string()
         .optional()
@@ -51,7 +51,7 @@ export function registerExportTools(mcp: McpServer): void {
     async (args: {
       filePath: string;
       target: string;
-      outputDir: string;
+      outputDir?: string;
       serviceName?: string;
       workflows?: string[];
       nodeTypes?: string[];
@@ -61,7 +61,9 @@ export function registerExportTools(mcp: McpServer): void {
     }) => {
       try {
         const filePath = path.resolve(args.filePath);
-        const outputDir = path.resolve(args.outputDir);
+        const outputDir = path.resolve(
+          args.outputDir || path.join(path.dirname(filePath), 'dist'),
+        );
         const preview = args.preview ?? false;
         const includeDocs = args.includeDocs ?? true;
 
