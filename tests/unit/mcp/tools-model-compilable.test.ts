@@ -122,6 +122,58 @@ describe('fw_create_model - compilable output', () => {
     expect(ast.connections.length).toBeGreaterThan(0);
   });
 
+  it('should split comma-separated flow into separate @path tags', async () => {
+    const outFile = path.join(tmpDir, 'parallel.ts');
+
+    await callCreate({
+      name: 'parallelPipeline',
+      steps: [
+        { name: 'enrichCompany', inputs: { form: 'OBJECT' }, outputs: { company: 'OBJECT' } },
+        { name: 'enrichContact', inputs: { form: 'OBJECT' }, outputs: { contact: 'OBJECT' } },
+        { name: 'scoreLead', inputs: { data: 'OBJECT' }, outputs: { score: 'NUMBER' } },
+      ],
+      flow: 'Start -> enrichCompany -> scoreLead -> Exit, Start -> enrichContact -> scoreLead',
+      filePath: outFile,
+    });
+
+    const content = fs.readFileSync(outFile, 'utf-8');
+
+    // Should have two separate @path annotations, not one with a comma
+    expect(content).toContain('@path Start -> enrichCompany -> scoreLead -> Exit');
+    expect(content).toContain('@path Start -> enrichContact -> scoreLead');
+    expect(content).not.toMatch(/@path.*,/);
+  });
+
+  it('comma-separated flow should produce parallel connections when parsed', async () => {
+    const outFile = path.join(tmpDir, 'parallel-parsed.ts');
+
+    await callCreate({
+      name: 'parallelParsed',
+      steps: [
+        { name: 'enrichCompany', inputs: { form: 'OBJECT' }, outputs: { company: 'OBJECT' } },
+        { name: 'enrichContact', inputs: { form: 'OBJECT' }, outputs: { contact: 'OBJECT' } },
+        { name: 'scoreLead', inputs: { data: 'OBJECT' }, outputs: { score: 'NUMBER' } },
+      ],
+      flow: 'Start -> enrichCompany -> scoreLead -> Exit, Start -> enrichContact -> scoreLead',
+      filePath: outFile,
+    });
+
+    const result = await parseWorkflow(outFile);
+    expect(result.errors).toHaveLength(0);
+
+    // Start should fork to both enrichCompany and enrichContact
+    const startConns = result.ast.connections.filter(
+      (c: { from: { node: string; port: string } }) =>
+        c.from.node === 'Start' && c.from.port === 'execute',
+    );
+    expect(startConns.length).toBe(2);
+
+    const targets = startConns
+      .map((c: { to: { node: string } }) => c.to.node)
+      .sort();
+    expect(targets).toEqual(['enrichCompany', 'enrichContact']);
+  });
+
   it('should still work with fw_implement_node after generation', async () => {
     const outFile = path.join(tmpDir, 'implement.ts');
 

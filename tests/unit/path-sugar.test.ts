@@ -193,25 +193,26 @@ export function triageWorkflow(
 describe('@path Chevrotain parser', () => {
   it('should parse basic @path with 3 steps', () => {
     const warnings: string[] = [];
-    const result = parsePathLine('@path Start -> A -> Exit', warnings);
+    const results = parsePathLine('@path Start -> A -> Exit', warnings);
 
     expect(warnings).toHaveLength(0);
-    expect(result).not.toBeNull();
-    expect(result!.steps).toHaveLength(3);
-    expect(result!.steps[0]).toEqual({ node: 'Start' });
-    expect(result!.steps[1]).toEqual({ node: 'A' });
-    expect(result!.steps[2]).toEqual({ node: 'Exit' });
+    expect(results).not.toBeNull();
+    expect(results!).toHaveLength(1);
+    expect(results![0].steps).toHaveLength(3);
+    expect(results![0].steps[0]).toEqual({ node: 'Start' });
+    expect(results![0].steps[1]).toEqual({ node: 'A' });
+    expect(results![0].steps[2]).toEqual({ node: 'Exit' });
   });
 
   it('should parse route suffixes :ok and :fail', () => {
     const warnings: string[] = [];
-    const result = parsePathLine('@path Start -> A:ok -> B:fail -> Exit', warnings);
+    const results = parsePathLine('@path Start -> A:ok -> B:fail -> Exit', warnings);
 
     expect(warnings).toHaveLength(0);
-    expect(result).not.toBeNull();
-    expect(result!.steps).toHaveLength(4);
-    expect(result!.steps[1]).toEqual({ node: 'A', route: 'ok' });
-    expect(result!.steps[2]).toEqual({ node: 'B', route: 'fail' });
+    expect(results).not.toBeNull();
+    expect(results![0].steps).toHaveLength(4);
+    expect(results![0].steps[1]).toEqual({ node: 'A', route: 'ok' });
+    expect(results![0].steps[2]).toEqual({ node: 'B', route: 'fail' });
   });
 
   it('should reject single-step path', () => {
@@ -235,13 +236,13 @@ describe('@path Chevrotain parser', () => {
 
   it('should warn on invalid suffix and ignore it', () => {
     const warnings: string[] = [];
-    const result = parsePathLine('@path Start -> A:nope -> Exit', warnings);
+    const results = parsePathLine('@path Start -> A:nope -> Exit', warnings);
 
-    expect(result).not.toBeNull();
+    expect(results).not.toBeNull();
     expect(warnings.length).toBeGreaterThan(0);
     expect(warnings[0]).toContain('invalid route suffix');
     // The node should still be parsed, just without a route
-    expect(result!.steps[1]).toEqual({ node: 'A' });
+    expect(results![0].steps[1]).toEqual({ node: 'A' });
   });
 });
 

@@ -5,8 +5,10 @@
  *
  * Syntax:
  *   @path Start -> validator:ok -> classifier -> urgencyRouter:fail -> escalate -> Exit
+ *   @path Start -> A -> C -> Exit, Start -> B -> C
  *
- * Steps separated by ->, each is NodeName optionally followed by :ok or :fail
+ * Steps separated by ->, each is NodeName optionally followed by :ok or :fail.
+ * Multiple paths can be comma-separated within a single @path tag.
  */
 
 import { CstParser } from 'chevrotain';
@@ -16,6 +18,7 @@ import {
   Identifier,
   Arrow,
   Colon,
+  Comma,
   allTokens,
 } from './tokens';
 
@@ -43,9 +46,18 @@ class PathParser extends CstParser {
     this.performSelfAnalysis();
   }
 
-  // Entry rule: @path pathStep (Arrow pathStep)+
+  // Entry rule: @path pathSequence (Comma pathSequence)*
   public pathLine = this.RULE('pathLine', () => {
     this.CONSUME(PathTag);
+    this.SUBRULE(this.pathSequence, { LABEL: 'firstSequence' });
+    this.MANY(() => {
+      this.CONSUME(Comma);
+      this.SUBRULE2(this.pathSequence, { LABEL: 'nextSequence' });
+    });
+  });
+
+  // pathSequence: pathStep (Arrow pathStep)+
+  public pathSequence = this.RULE('pathSequence', () => {
     this.SUBRULE(this.pathStep, { LABEL: 'firstStep' });
     this.AT_LEAST_ONE(() => {
       this.CONSUME(Arrow);
@@ -84,9 +96,14 @@ interface PathStepContext {
   routeSuffix?: CstNodeWithImage[];
 }
 
-interface PathLineContext {
+interface PathSequenceContext {
   firstStep: { children: PathStepContext }[];
   nextStep: { children: PathStepContext }[];
+}
+
+interface PathLineContext {
+  firstSequence: { children: PathSequenceContext }[];
+  nextSequence?: { children: PathSequenceContext }[];
 }
 
 class PathVisitor extends BaseVisitor {
@@ -101,7 +118,21 @@ class PathVisitor extends BaseVisitor {
     this.warnings = warnings;
   }
 
-  pathLine(ctx: PathLineContext): PathParseResult {
+  pathLine(ctx: PathLineContext): PathParseResult[] {
+    const results: PathParseResult[] = [];
+
+    results.push(this.pathSequence(ctx.firstSequence[0].children));
+
+    if (ctx.nextSequence) {
+      for (const seqCst of ctx.nextSequence) {
+        results.push(this.pathSequence(seqCst.children));
+      }
+    }
+
+    return results;
+  }
+
+  pathSequence(ctx: PathSequenceContext): PathParseResult {
     const steps: PathStep[] = [];
 
     steps.push(this.pathStep(ctx.firstStep[0].children));
@@ -139,10 +170,12 @@ const visitorInstance = new PathVisitor();
 // =============================================================================
 
 /**
- * Parse a @path line and return structured result.
+ * Parse a @path line and return structured results.
+ * Supports comma-separated parallel paths in a single @path tag:
+ *   @path Start -> A -> C -> Exit, Start -> B -> C
  * Returns null if the line is not a valid @path declaration.
  */
-export function parsePathLine(input: string, warnings: string[]): PathParseResult | null {
+export function parsePathLine(input: string, warnings: string[]): PathParseResult[] | null {
   const lexResult = JSDocLexer.tokenize(input);
 
   if (lexResult.errors.length > 0) {

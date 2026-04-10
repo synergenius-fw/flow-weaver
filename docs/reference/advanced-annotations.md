@@ -311,6 +311,22 @@ Use `:ok` or `:fail` suffixes to route through `onSuccess` or `onFailure`:
 
 Without a suffix, `:ok` (onSuccess) is the default. Duplicate connections from overlapping paths are automatically deduplicated.
 
+### Comma-Separated Paths
+
+Multiple paths can be declared in a single `@path` tag using commas. This is equivalent to separate `@path` tags:
+
+```typescript
+/**
+ * @flowWeaver workflow @autoConnect
+ * @node enrichCompany enrichCompany
+ * @node enrichContact enrichContact
+ * @node scoreLead scoreLead
+ * @path Start -> enrichCompany -> scoreLead -> Exit, Start -> enrichContact -> scoreLead
+ */
+```
+
+This creates a parallel fork from Start to both `enrichCompany` and `enrichContact`, then both converge on `scoreLead`.
+
 ### Path Validation
 
 The sugar optimizer validates that all nodes referenced in `@path` exist and that the expected control-flow connections are still valid. Stale paths are automatically filtered during parse-regenerate round-trips.

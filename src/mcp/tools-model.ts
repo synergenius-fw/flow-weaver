@@ -90,17 +90,17 @@ export function registerModelTools(mcp: McpServer): void {
           lines.push('');
         }
 
-        // Parse the flow string — use full function names as instance IDs
-        const flowSteps = args.flow
-          .split('->')
-          .map((s) => s.trim())
-          .filter(Boolean);
-
         // Build @node annotations using full name as both ID and type
         const nodeAnnotations = args.steps.map((step) => `@node ${step.name} ${step.name}`);
 
-        // @path uses the same full names directly from the flow string
-        const pathAnnotation = `@path ${flowSteps.join(' -> ')}`;
+        // Split comma-separated flow into separate @path annotations
+        const pathAnnotations = args.flow.split(',').map((segment) => {
+          const steps = segment
+            .split('->')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          return `@path ${steps.join(' -> ')}`;
+        });
 
         // Generate workflow annotation
         const jsdocLines = ['/**'];
@@ -112,7 +112,9 @@ export function registerModelTools(mcp: McpServer): void {
         for (const nodeAnn of nodeAnnotations) {
           jsdocLines.push(` * ${nodeAnn}`);
         }
-        jsdocLines.push(` * ${pathAnnotation}`);
+        for (const pathAnn of pathAnnotations) {
+          jsdocLines.push(` * ${pathAnn}`);
+        }
         jsdocLines.push(' */');
         jsdocLines.push(`export async function ${args.name}() {`);
         jsdocLines.push(`  // stub - compile to generate workflow body`);

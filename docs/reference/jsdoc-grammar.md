@@ -276,11 +276,14 @@ The first form is the standard `node.port` reference with optional `:scope` suff
 ## @path
 
 ```
-pathTag        ::= "@path" pathStep ( "->" pathStep )+
+pathTag        ::= "@path" pathSequence ( "," pathSequence )*
+pathSequence   ::= pathStep ( "->" pathStep )+
 pathStep       ::= IDENTIFIER [ ":" ( "ok" | "fail" ) ]
 ```
 
 Declare a complete execution route through the graph with scope walking for data ports. Steps separated by `->`, each optionally suffixed with `:ok` (default) or `:fail` to select `onSuccess` or `onFailure`.
+
+Multiple paths can be declared in a single `@path` tag using commas, or as separate `@path` tags. Both forms are equivalent.
 
 **Examples:**
 
@@ -289,10 +292,17 @@ Declare a complete execution route through the graph with scope walking for data
 @path Start -> validator:ok -> processor -> Exit
 ```
 
+Comma-separated (equivalent to two `@path` tags):
+
+```
+@path Start -> enrichCompany -> scoreLead -> Exit, Start -> enrichContact -> scoreLead
+```
+
 - `:ok` follows `onSuccess` (default when no suffix)
 - `:fail` follows `onFailure`
 - Data ports auto-resolve by walking backward through the path to the nearest ancestor with a same-name output port (scope walking)
 - Multiple `@path` lines can coexist; overlapping prefixes are deduplicated
+- Comma-separated paths within a single `@path` are expanded to separate paths
 - Manual `@connect` lines can supplement for cross-named ports
 
 ## @position

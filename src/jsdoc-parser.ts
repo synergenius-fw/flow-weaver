@@ -1376,16 +1376,18 @@ export class JSDocParser {
   private parsePathTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
     const comment = tag.getCommentText() || '';
 
-    const result = parsePathLine(`@path ${comment}`, warnings);
-    if (!result) {
+    const results = parsePathLine(`@path ${comment}`, warnings);
+    if (!results) {
       warnings.push(`Invalid @path tag format: ${comment}`);
       return;
     }
 
     config.paths = config.paths || [];
-    config.paths.push({
-      steps: result.steps,
-    });
+    for (const result of results) {
+      config.paths.push({
+        steps: result.steps,
+      });
+    }
   }
 
   private parseFanOutTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
