@@ -102,6 +102,24 @@ export function registerModelTools(mcp: McpServer): void {
           return `@path ${steps.join(' -> ')}`;
         });
 
+        // Generate @connect annotations for DATA ports between adjacent steps in the flow
+        const stepMap = new Map(args.steps.map((s) => [s.name, s]));
+        const connectAnnotations: string[] = [];
+        for (const segment of args.flow.split(',')) {
+          const flowNodes = segment.split('->').map((s) => s.trim()).filter(Boolean);
+          for (let i = 0; i < flowNodes.length - 1; i++) {
+            const fromStep = stepMap.get(flowNodes[i]);
+            const toStep = stepMap.get(flowNodes[i + 1]);
+            if (!fromStep || !toStep) continue;
+            // Connect matching output->input port names
+            for (const outputName of Object.keys(fromStep.outputs)) {
+              if (outputName in toStep.inputs) {
+                connectAnnotations.push(`@connect ${fromStep.name}.${outputName} -> ${toStep.name}.${outputName}`);
+              }
+            }
+          }
+        }
+
         // Generate workflow annotation
         const jsdocLines = ['/**'];
         if (args.description) {
@@ -114,6 +132,9 @@ export function registerModelTools(mcp: McpServer): void {
         }
         for (const pathAnn of pathAnnotations) {
           jsdocLines.push(` * ${pathAnn}`);
+        }
+        for (const connAnn of connectAnnotations) {
+          jsdocLines.push(` * ${connAnn}`);
         }
         jsdocLines.push(' */');
         jsdocLines.push(`export async function ${args.name}() {`);

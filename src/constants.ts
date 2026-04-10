@@ -182,6 +182,8 @@ export const KNOWN_WORKFLOW_TAGS = new Set([
   'node', 'position', 'connect', 'scope', 'map', 'path', 'fanOut', 'fanIn',
   'coerce', 'trigger', 'cancelOn', 'retries', 'timeout', 'throttle', 'param',
   'return', 'returns',
+  // Async is auto-detected from the TS signature but accepted as an explicit annotation
+  'async',
   // Deployment annotations
   'deploy',
 ]);

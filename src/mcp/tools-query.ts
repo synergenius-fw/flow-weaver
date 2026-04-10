@@ -108,8 +108,9 @@ export function registerQueryTools(mcp: McpServer): void {
     {
       filePath: z.string().describe('Path to the workflow file'),
       workflowName: z.string().optional().describe('Specific workflow name'),
+      draft: z.boolean().optional().describe('Draft mode - suppresses STUB_NODE errors for unimplemented nodes (default: false)'),
     },
-    async (args: { filePath: string; workflowName?: string }) => {
+    async (args: { filePath: string; workflowName?: string; draft?: boolean }) => {
       try {
         const filePath = path.resolve(args.filePath);
         const parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName, projectDir: path.dirname(filePath) });
@@ -148,7 +149,7 @@ export function registerQueryTools(mcp: McpServer): void {
             warnings: parseResult.warnings,
           });
         }
-        const result = validateWorkflow(parseResult.ast);
+        const result = validateWorkflow(parseResult.ast, args.draft ? { mode: 'draft' } : undefined);
         const errors = result.errors.map((e) => ({
           message: e.message,
           severity: e.type,
@@ -204,6 +205,7 @@ export function registerQueryTools(mcp: McpServer): void {
       typedEvents: z.boolean().optional().describe('Generate Zod event schemas from workflow @param annotations'),
       retries: z.number().int().min(0).optional().describe('Number of retries per function. Overrides @retries annotation.'),
       timeout: z.string().optional().describe('Function timeout (e.g. "30m", "1h"). Overrides @timeout annotation.'),
+      draft: z.boolean().optional().describe('Draft mode - suppresses STUB_NODE validation errors so partially implemented workflows can compile (default: false)'),
     },
     async (args: {
       filePath: string;
@@ -217,6 +219,7 @@ export function registerQueryTools(mcp: McpServer): void {
       typedEvents?: boolean;
       retries?: number;
       timeout?: string;
+      draft?: boolean;
     }) => {
       try {
         const filePath = path.resolve(args.filePath);
@@ -291,6 +294,7 @@ export function registerQueryTools(mcp: McpServer): void {
           write: args.write ?? true,
           parse: { workflowName: args.workflowName },
           generate: { production: args.production ?? false },
+          validationMode: args.draft ? 'draft' : undefined,
         });
         return makeToolResult({
           outputFile: result.metadata?.outputFile ?? filePath,

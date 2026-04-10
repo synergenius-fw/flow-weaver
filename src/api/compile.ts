@@ -26,6 +26,8 @@ export interface CompileOptions {
   write?: boolean;
   /** Whether to save AST alongside the generated file (default: false) */
   saveAST?: boolean;
+  /** Validation mode: 'draft' suppresses STUB_NODE errors */
+  validationMode?: 'strict' | 'draft';
 }
 
 /**
@@ -72,7 +74,8 @@ export async function compileWorkflow(
 
   // Validate before generating
   const { validateWorkflow } = await import('./validate.js');
-  const validationResult = validateWorkflow(parseResult.ast);
+  const validationMode = options.validationMode;
+  const validationResult = validateWorkflow(parseResult.ast, validationMode ? { mode: validationMode } : undefined);
   if (validationResult.errors.length > 0) {
     const errorMessages = validationResult.errors.map((e) =>
       typeof e === 'string' ? e : e.message
