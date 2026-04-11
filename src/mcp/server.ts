@@ -13,6 +13,7 @@ import { registerDiagramTools } from './tools-diagram.js';
 import { registerDocsTools } from './tools-docs.js';
 import { registerModelTools } from './tools-model.js';
 import { registerDebugTools } from './tools-debug.js';
+import { registerWorkflowRunTools } from './tools-workflow-run.js';
 import { registerContextTools } from './tools-context.js';
 import { registerResourceTools } from './tools-resources.js';
 import { registerPrompts } from './prompts.js';
@@ -35,6 +36,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   registerDocsTools(mcp);
   registerModelTools(mcp);
   registerDebugTools(mcp);
+  registerWorkflowRunTools(mcp);
   registerContextTools(mcp);
   registerResourceTools(mcp);
   registerPrompts(mcp);
