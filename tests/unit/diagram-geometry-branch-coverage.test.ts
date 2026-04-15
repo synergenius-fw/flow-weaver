@@ -179,11 +179,11 @@ describe('computePortPositions', () => {
 });
 
 describe('computeConnectionPath', () => {
-  it('returns a valid SVG path for a standard forward connection', () => {
+  it('returns a straight-line SVG path (fallback)', () => {
     const path = computeConnectionPath(0, 0, 200, 100);
     expect(path).toMatch(/^M /);
-    expect(path).toContain('Q');
     expect(path).toContain('L');
+    expect(path).toBe('M 0,0 L 200,100');
   });
 
   it('handles nearly horizontal connections (small dy)', () => {

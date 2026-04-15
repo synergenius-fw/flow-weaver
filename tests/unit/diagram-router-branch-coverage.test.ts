@@ -2,7 +2,7 @@
  * Branch coverage tests for src/diagram/orthogonal-router.ts.
  *
  * Exercises both sides of key conditionals in:
- * - TrackAllocator (isOccupied, findFreeY, findFreeX, crossing counts)
+ * - TrackAllocator (claim with overlap detection, grid snapping)
  * - calculateOrthogonalPath (forward vs backward, self-connection, L-shape vs S-shape)
  * - calculateOrthogonalPathSafe (success, null fallback, exception catch)
  * - waypointsToSvgPath (0-1 points, 2 points, rounded corners, tiny radius skip)
@@ -31,101 +31,56 @@ function box(id: string, x: number, y: number, w = 100, h = 50): NodeBox {
 // ---------------------------------------------------------------------------
 
 describe('TrackAllocator', () => {
-  it('findFreeY returns candidateY when track is empty', () => {
+  it('claim returns candidateY (snapped) when track is empty', () => {
     const alloc = new TrackAllocator();
-    expect(alloc.findFreeY(0, 100, 50)).toBe(50);
+    const y = alloc.claim(0, 100, 50);
+    // Should snap to 15px grid: round(50/15)*15 = round(3.33)*15 = 3*15 = 45
+    expect(y).toBe(45);
   });
 
-  it('findFreeY shifts away from a claimed horizontal segment', () => {
+  it('claim shifts away from a previously claimed overlapping segment', () => {
     const alloc = new TrackAllocator();
-    alloc.claim(0, 200, 50);
-    const y = alloc.findFreeY(0, 200, 50);
-    expect(y).not.toBe(50);
+    const y1 = alloc.claim(0, 200, 50);
+    const y2 = alloc.claim(0, 200, 50);
+    expect(y2).not.toBe(y1);
     // Should be offset by at least TRACK_SPACING (15)
-    expect(Math.abs(y - 50)).toBeGreaterThanOrEqual(15);
+    expect(Math.abs(y2 - y1)).toBeGreaterThanOrEqual(15);
   });
 
-  it('findFreeY avoids node boxes passed as argument', () => {
+  it('claim allows same Y when X corridors do not overlap', () => {
     const alloc = new TrackAllocator();
-    const boxes = [{ left: 0, right: 200, top: 40, bottom: 60 }];
-    const y = alloc.findFreeY(0, 200, 50, boxes);
-    expect(y).not.toBe(50);
+    const y1 = alloc.claim(0, 100, 50);
+    const y2 = alloc.claim(200, 300, 50);
+    // No overlap in X, so both should get the same snapped Y
+    expect(y1).toBe(y2);
   });
 
-  it('findFreeX returns candidateX when track is empty', () => {
+  it('claim returns snapped candidateY for a new corridor', () => {
     const alloc = new TrackAllocator();
-    expect(alloc.findFreeX(0, 100, 50)).toBe(50);
+    // 75 snaps to round(75/15)*15 = 5*15 = 75
+    expect(alloc.claim(0, 100, 75)).toBe(75);
   });
 
-  it('findFreeX shifts away from a claimed vertical segment', () => {
+  it('claim bumps repeated overlapping claims to different tracks', () => {
     const alloc = new TrackAllocator();
-    alloc.claimVertical(0, 200, 50);
-    const x = alloc.findFreeX(0, 200, 50);
-    expect(x).not.toBe(50);
-    expect(Math.abs(x - 50)).toBeGreaterThanOrEqual(15);
+    const results: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      results.push(alloc.claim(0, 200, 50));
+    }
+    // All should be unique
+    const unique = new Set(results);
+    expect(unique.size).toBe(5);
   });
 
-  it('findFreeX avoids node boxes passed as argument', () => {
+  it('claim falls back to candidateY when all slots occupied', () => {
     const alloc = new TrackAllocator();
-    const boxes = [{ left: 40, right: 60, top: 0, bottom: 200 }];
-    const x = alloc.findFreeX(0, 200, 50, boxes);
-    expect(x).not.toBe(50);
-  });
-
-  it('countHorizontalCrossings returns 0 with no vertical claims', () => {
-    const alloc = new TrackAllocator();
-    expect(alloc.countHorizontalCrossings(0, 100, 50)).toBe(0);
-  });
-
-  it('countHorizontalCrossings counts intersecting vertical segments', () => {
-    const alloc = new TrackAllocator();
-    alloc.claimVertical(0, 100, 50); // vertical at x=50 from y=0..100
-    // Horizontal at y=50 from x=0..100 crosses vertical at x=50
-    expect(alloc.countHorizontalCrossings(0, 100, 50)).toBe(1);
-  });
-
-  it('countHorizontalCrossings skips non-overlapping vertical segments', () => {
-    const alloc = new TrackAllocator();
-    alloc.claimVertical(0, 100, 50);
-    // Horizontal at y=200 does not overlap y range 0..100
-    expect(alloc.countHorizontalCrossings(0, 100, 200)).toBe(0);
-  });
-
-  it('countVerticalCrossings returns 0 with no horizontal claims', () => {
-    const alloc = new TrackAllocator();
-    expect(alloc.countVerticalCrossings(0, 100, 50)).toBe(0);
-  });
-
-  it('countVerticalCrossings counts intersecting horizontal segments', () => {
-    const alloc = new TrackAllocator();
-    alloc.claim(0, 100, 50); // horizontal at y=50 from x=0..100
-    // Vertical at x=50 from y=0..100 crosses horizontal at y=50
-    expect(alloc.countVerticalCrossings(0, 100, 50)).toBe(1);
-  });
-
-  it('findFreeY prefers candidate with fewer crossings', () => {
-    const alloc = new TrackAllocator();
-    // Claim horizontal at y=50
-    alloc.claim(0, 200, 50);
-    // Add vertical claims that cross above but not below
-    alloc.claimVertical(30, 70, 30);
-    alloc.claimVertical(30, 70, 60);
-    alloc.claimVertical(30, 70, 90);
-    // findFreeY should prefer the direction with fewer crossings
-    const y = alloc.findFreeY(0, 200, 50);
-    expect(typeof y).toBe('number');
-    expect(y).not.toBe(50);
-  });
-
-  it('findFreeX prefers candidate with fewer crossings', () => {
-    const alloc = new TrackAllocator();
-    alloc.claimVertical(0, 200, 50);
-    alloc.claim(30, 70, 30);
-    alloc.claim(30, 70, 60);
-    alloc.claim(30, 70, 90);
-    const x = alloc.findFreeX(0, 200, 50);
-    expect(typeof x).toBe('number');
-    expect(x).not.toBe(50);
+    // Fill a huge range so no free slot exists within the search window (60 iterations)
+    for (let y = -900; y <= 900; y += 15) {
+      alloc.claim(0, 1000, y);
+    }
+    // Should return candidateY as fallback
+    const result = alloc.claim(0, 1000, 100);
+    expect(typeof result).toBe('number');
   });
 });
 
@@ -335,10 +290,10 @@ describe('shared TrackAllocator', () => {
     ];
 
     const path1 = calculateOrthogonalPath(
-      [150, 100], [350, 100], boxes, 'a', 'b', undefined, alloc,
+      [150, 100], [350, 100], boxes, 'a', 'b', { allocator: alloc },
     );
     const path2 = calculateOrthogonalPath(
-      [150, 110], [350, 110], boxes, 'a', 'b', undefined, alloc,
+      [150, 110], [350, 110], boxes, 'a', 'b', { allocator: alloc },
     );
 
     // Router may return null for certain geometries; exercise the code path either way

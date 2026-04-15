@@ -90,7 +90,7 @@ describe('diagramCommand', () => {
 
     await diagramCommand(inputFile, { format: 'html' });
 
-    expect(fileToHTML).toHaveBeenCalledWith(inputFile, {});
+    expect(fileToHTML).toHaveBeenCalledWith(inputFile, { format: 'html' });
     expect(stdoutChunks.join('')).toContain('<html>mock</html>');
   });
 

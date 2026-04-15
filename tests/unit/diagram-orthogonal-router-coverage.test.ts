@@ -19,7 +19,7 @@ describe('calculateOrthogonalPathSafe catch block (line 742)', () => {
     // when accessed during computation.
     const badBoxes = new Proxy([] as NodeBox[], {
       get(target, prop) {
-        if (prop === 'filter') {
+        if (prop === 'map') {
           return () => { throw new Error('simulated failure'); };
         }
         return Reflect.get(target, prop);
@@ -77,7 +77,8 @@ describe('forward connection exitX/entryX fallback paths', () => {
     const result = calculateOrthogonalPath(from, to, boxes, 'src', 'tgt', {
       padding: 15,
       stubLength: 20,
-    }, allocator);
+      allocator,
+    });
 
     // Should produce a valid SVG path (not null, since it's not nearly-aligned)
     if (result !== null) {
@@ -103,7 +104,8 @@ describe('forward connection exitX/entryX fallback paths', () => {
     const result = calculateOrthogonalPath(from, to, boxes, 'src', 'tgt', {
       padding: 15,
       stubLength: 20,
-    }, allocator);
+      allocator,
+    });
 
     if (result !== null) {
       expect(result).toContain('M ');
@@ -131,7 +133,8 @@ describe('forward connection exitX/entryX fallback paths', () => {
     const result = calculateOrthogonalPath(from, to, boxes, 'src', 'tgt', {
       padding: 15,
       stubLength: 20,
-    }, allocator);
+      allocator,
+    });
 
     // As long as it doesn't throw, the fallback logic is being exercised
     expect(result === null || typeof result === 'string').toBe(true);
@@ -139,34 +142,31 @@ describe('forward connection exitX/entryX fallback paths', () => {
 });
 
 describe('TrackAllocator edge cases', () => {
-  it('findFreeY falls back to candidateY when all slots occupied', () => {
+  it('claim falls back to candidateY when all slots occupied', () => {
     const allocator = new TrackAllocator();
-    // Fill a huge range so no free slot exists within the search window
-    for (let y = -800; y <= 800; y += 15) {
+    // Fill a huge range so no free slot exists within the search window (60 iterations)
+    for (let y = -900; y <= 900; y += 15) {
       allocator.claim(0, 1000, y);
     }
     // Should return candidateY as fallback
-    const result = allocator.findFreeY(0, 1000, 100);
+    const result = allocator.claim(0, 1000, 100);
     expect(typeof result).toBe('number');
   });
 
-  it('findFreeX falls back to candidateX when all slots occupied', () => {
+  it('claim allows non-overlapping X corridors at same Y', () => {
     const allocator = new TrackAllocator();
-    for (let x = -800; x <= 800; x += 15) {
-      allocator.claimVertical(0, 1000, x);
-    }
-    const result = allocator.findFreeX(0, 1000, 100);
-    expect(typeof result).toBe('number');
+    // Two claims at same Y but non-overlapping X ranges should both succeed at same Y
+    const y1 = allocator.claim(0, 100, 50);
+    const y2 = allocator.claim(200, 300, 50);
+    expect(y1).toBe(y2);
   });
 
-  it('crossing counts work correctly', () => {
+  it('claim shifts overlapping corridors to different tracks', () => {
     const allocator = new TrackAllocator();
-    allocator.claimVertical(0, 100, 50);
-    allocator.claimVertical(0, 100, 75);
-    allocator.claim(0, 100, 30);
-
-    expect(allocator.countHorizontalCrossings(0, 100, 50)).toBe(2);
-    expect(allocator.countVerticalCrossings(0, 100, 50)).toBe(1);
+    const y1 = allocator.claim(0, 100, 30);
+    const y2 = allocator.claim(0, 100, 30);
+    // Should be on different tracks since X corridors overlap
+    expect(y1).not.toBe(y2);
   });
 });
 

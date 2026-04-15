@@ -20,13 +20,13 @@ export const LAYER_GAP_X = 300;              // target center-to-center; actual 
 export const LABEL_CLEARANCE = 42;           // breathing room between opposing port label badges
 export const MIN_EDGE_GAP = 112;             // minimum edge-to-edge gap between node boxes
 export const NODE_GAP_Y = 60;
-export const LABEL_HEIGHT = 20;           // 13px font + padding
+export const LABEL_HEIGHT = 24;           // 18px font + breathing room
 export const LABEL_GAP = 12;             // matches labelRootStyle bottom: calc(100% + 12px)
 
 // Scope rendering constants
 export const SCOPE_PADDING_X = 140;        // horizontal padding inside scope (between port columns and children)
 export const SCOPE_PADDING_Y = 40;         // vertical padding inside scope (top/bottom)
-export const SCOPE_PORT_COLUMN = 50;     // width for scoped port column on inner edges
+export const SCOPE_PORT_COLUMN = 45;     // matches platform scopeContainerStyle minWidth/maxWidth
 export const SCOPE_INNER_GAP_X = 240;    // horizontal gap between children inside scope
 
 // Routing mode threshold — connections longer than this use orthogonal routing
@@ -119,57 +119,9 @@ function positionPortList(ports: DiagramPort[], cx: number, nodeY: number, _node
  * Compute a quad-curve connection from B towards D with consistent tangent.
  * U is a unit vector from B to C with the same slope as B→D.
  */
-function quadCurveControl(ax: number, ay: number, bx: number, by: number, ux: number, uy: number): [number, number] {
-  const dn = Math.abs(ay - by);
-  const cx = bx + (ux * dn) / Math.abs(uy);
-  const cy = ay;
-  return [cx, cy];
-}
-
+/** Straight-line fallback when orthogonal routing fails (matches platform behaviour). */
 export function computeConnectionPath(sx: number, sy: number, tx: number, ty: number): string {
-  const e = 0.0001; // insignificant shift to avoid degenerate tangents
-  const ax = sx + e;
-  const ay = sy + e;
-  const hx = tx - e;
-  const hy = ty - e;
-
-  const ramp = Math.min(20, (hx - ax) / 10);
-  const bx = ax + ramp;
-  const by = ay + e;
-  const gx = hx - ramp;
-  const gy = hy - e;
-
-  const curveSizeX = Math.min(60, Math.abs(ax - hx) / 4);
-  const curveSizeY = Math.min(60, Math.abs(ay - hy) / 4);
-  const curveMag = Math.sqrt(curveSizeX * curveSizeX + curveSizeY * curveSizeY);
-
-  const bgX = gx - bx;
-  const bgY = gy - by;
-  const bgLen = Math.sqrt(bgX * bgX + bgY * bgY);
-  const bgUx = bgX / bgLen;
-  const bgUy = bgY / bgLen;
-
-  const dx = bx + bgUx * curveMag;
-  const dy = by + (bgUy * curveMag) / 2;
-  const ex = gx - bgUx * curveMag;
-  const ey = gy - (bgUy * curveMag) / 2;
-
-  const deX = ex - dx;
-  const deY = ey - dy;
-  const deLen = Math.sqrt(deX * deX + deY * deY);
-  const deUx = deX / deLen;
-  const deUy = deY / deLen;
-
-  const [cx, cy] = quadCurveControl(bx, by, dx, dy, -deUx, -deUy);
-  const [fx, fy] = quadCurveControl(gx, gy, ex, ey, deUx, deUy);
-
-  let path = `M ${cx},${cy} M ${ax},${ay}`;
-  path += ` L ${bx},${by}`;
-  path += ` Q ${cx},${cy} ${dx},${dy}`;
-  path += ` L ${ex},${ey}`;
-  path += ` Q ${fx},${fy} ${gx},${gy}`;
-  path += ` L ${hx},${hy}`;
-  return path;
+  return `M ${sx},${sy} L ${tx},${ty}`;
 }
 
 // ---- Port ordering helpers ----
@@ -1177,21 +1129,25 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
       dashed,
     };
 
+    // For static SVG, offset path endpoints past port labels so connections
+    // aren't hidden behind opaque label badges. HTML viewer has interactive
+    // labels (show/hide on hover), so paths start at port center there.
+    const isStaticSvg = options.format !== 'html';
+    const pathSx = isStaticSvg ? sx + srcLabelEnd : sx;
+    const pathTx = isStaticSvg ? tx - tgtLabelEnd : tx;
+
     let path: string;
     if (xDistance > STUB_DISTANCE_THRESHOLD) {
       // Long-distance: static SVG hides the full path, only shows stubs
       path = '';
-    } else if (!useCurve && distance > ORTHOGONAL_DISTANCE_THRESHOLD) {
+    } else {
       const orthoPath = calculateOrthogonalPathSafe(
-        [sx, sy], [tx, ty],
+        [pathSx, sy], [pathTx, ty],
         nodeBoxes,
         pc.fromNodeId, pc.toNodeId,
-        { fromPortIndex: pc.fromPortIndex, toPortIndex: pc.toPortIndex },
-        allocator,
+        { fromPortIndex: pc.fromPortIndex, toPortIndex: pc.toPortIndex, allocator },
       );
-      path = orthoPath ?? computeConnectionPath(sx, sy, tx, ty);
-    } else {
-      path = computeConnectionPath(sx, sy, tx, ty);
+      path = orthoPath ?? computeConnectionPath(pathSx, sy, pathTx, ty);
     }
 
     connections.push({
@@ -1300,18 +1256,14 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
       const dist = Math.sqrt(ddx * ddx + ddy * ddy);
       const useCurve = spForceCurveSet.has(sp);
 
-      if (!useCurve && dist > ORTHOGONAL_DISTANCE_THRESHOLD) {
-        const orthoPath = calculateOrthogonalPathSafe(
-          [sx, sy], [tx, ty],
-          nodeBoxes,
-          sp.fromNodeId, sp.toNodeId,
-          { fromPortIndex: sp.fromPortIndex, toPortIndex: sp.toPortIndex },
-          allocator,
-        );
-        sp.conn.path = orthoPath ?? computeConnectionPath(sx, sy, tx, ty);
-      } else {
-        sp.conn.path = computeConnectionPath(sx, sy, tx, ty);
-      }
+      // Always try orthogonal routing first (matches platform style)
+      const orthoPath = calculateOrthogonalPathSafe(
+        [sx, sy], [tx, ty],
+        nodeBoxes,
+        sp.fromNodeId, sp.toNodeId,
+        { fromPortIndex: sp.fromPortIndex, toPortIndex: sp.toPortIndex, allocator },
+      );
+      sp.conn.path = orthoPath ?? computeConnectionPath(sx, sy, tx, ty);
     }
   }
 

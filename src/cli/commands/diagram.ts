@@ -37,7 +37,7 @@ export async function diagramCommand(input: string, options: DiagramCommandOptio
   if (ASCII_FORMATS.has(format)) {
     result = fileToASCII(filePath, { ...diagramOptions, format });
   } else if (format === 'html') {
-    result = fileToHTML(filePath, diagramOptions);
+    result = fileToHTML(filePath, { ...diagramOptions, format });
   } else {
     result = fileToSVG(filePath, diagramOptions);
   }

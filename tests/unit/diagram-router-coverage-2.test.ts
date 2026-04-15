@@ -47,7 +47,8 @@ describe('orthogonal-router exitX fallback (lines 598-601)', () => {
     const result = calculateOrthogonalPath(from, to, boxes, 'src', 'tgt', {
       padding: 15,
       stubLength: 20,
-    }, allocator);
+      allocator,
+    });
 
     // The function should produce a valid path or null, never throw
     expect(result === null || typeof result === 'string').toBe(true);
@@ -70,15 +71,16 @@ describe('orthogonal-router exitX fallback (lines 598-601)', () => {
     ];
 
     const allocator = new TrackAllocator();
-    // Saturate the area around the exit stub so findClearX has to look far left
+    // Saturate the area around the exit stub by claiming overlapping tracks
     for (let x = 100; x <= 180; x += 15) {
-      allocator.claimVertical(0, 400, x);
+      allocator.claim(0, 400, x);
     }
 
     const result = calculateOrthogonalPath(from, to, boxes, 'src', 'tgt', {
       padding: 15,
       stubLength: 20,
-    }, allocator);
+      allocator,
+    });
 
     expect(result === null || typeof result === 'string').toBe(true);
   });
@@ -110,7 +112,8 @@ describe('orthogonal-router entryX fallback (lines 611-614)', () => {
     const result = calculateOrthogonalPath(from, to, boxes, 'src', 'tgt', {
       padding: 15,
       stubLength: 20,
-    }, allocator);
+      allocator,
+    });
 
     expect(result === null || typeof result === 'string').toBe(true);
     if (result !== null) {
@@ -131,15 +134,16 @@ describe('orthogonal-router entryX fallback (lines 611-614)', () => {
     ];
 
     const allocator = new TrackAllocator();
-    // Saturate the area around the entry stub so findClearX pushes right
+    // Saturate the area around the entry stub by claiming overlapping tracks
     for (let x = 550; x <= 630; x += 15) {
-      allocator.claimVertical(0, 500, x);
+      allocator.claim(0, 500, x);
     }
 
     const result = calculateOrthogonalPath(from, to, boxes, 'src', 'tgt', {
       padding: 15,
       stubLength: 20,
-    }, allocator);
+      allocator,
+    });
 
     expect(result === null || typeof result === 'string').toBe(true);
   });

@@ -36,16 +36,16 @@ const LIGHT_FAILURE_COLOR = '#e34646'; // red-shade-2
 
 export const NODE_DEFAULT_COLOR = '#334155';
 
-export const NODE_VARIANT_COLORS: Record<string, { border: string; darkBorder: string }> = {
-  blue:   { border: '#548ce3', darkBorder: '#5e9eff' },   // blue-shade-2 / blue-dark-shade-1
-  purple: { border: '#9f5fe3', darkBorder: '#b36bff' },   // purple-shade-2 / purple-dark-shade-1
-  cyan:   { border: '#63ccc4', darkBorder: '#6fe5dc' },   // cyan-shade-2 / cyan-dark-shade-1
-  teal:   { border: '#63ccc4', darkBorder: '#6fe5dc' },   // alias for cyan
-  orange: { border: '#e3732d', darkBorder: '#ff8133' },   // orange-shade-2 / orange-dark-shade-1
-  pink:   { border: '#e349c2', darkBorder: '#ff52da' },   // pink-shade-2 / pink-dark-shade-1
-  green:  { border: '#0ec850', darkBorder: '#10e15a' },   // green-shade-2 / green-dark-shade-1
-  red:    { border: '#e34646', darkBorder: '#ff4f4f' },   // red-shade-2 / red-dark-shade-1
-  yellow: { border: '#e3a82b', darkBorder: '#ffbd30' },   // yellow-shade-2 / yellow-dark-shade-1
+export const NODE_VARIANT_COLORS: Record<string, { border: string; darkBorder: string; icon: string; darkIcon: string }> = {
+  blue:   { border: '#548ce3', darkBorder: '#5e9eff', icon: '#3a6bbf', darkIcon: '#4a7ad4' },   // blue-shade-2 / blue-dark-shade-1 / blue-shade-3 / blue-dark-shade-3
+  purple: { border: '#9f5fe3', darkBorder: '#b36bff', icon: '#7d44bf', darkIcon: '#9050d4' },   // purple-shade-2 / purple-dark-shade-1
+  cyan:   { border: '#63ccc4', darkBorder: '#6fe5dc', icon: '#4aada6', darkIcon: '#56c4bb' },   // cyan-shade-2 / cyan-dark-shade-1
+  teal:   { border: '#63ccc4', darkBorder: '#6fe5dc', icon: '#4aada6', darkIcon: '#56c4bb' },   // alias for cyan
+  orange: { border: '#e3732d', darkBorder: '#ff8133', icon: '#bf5a1e', darkIcon: '#d46a28' },   // orange-shade-2 / orange-dark-shade-1
+  pink:   { border: '#e349c2', darkBorder: '#ff52da', icon: '#bf349f', darkIcon: '#d43fb5' },   // pink-shade-2 / pink-dark-shade-1
+  green:  { border: '#0ec850', darkBorder: '#10e15a', icon: '#0aa53f', darkIcon: '#0dbd4a' },   // green-shade-2 / green-dark-shade-1
+  red:    { border: '#e34646', darkBorder: '#ff4f4f', icon: '#bf3333', darkIcon: '#d43b3b' },   // red-shade-2 / red-dark-shade-1
+  yellow: { border: '#e3a82b', darkBorder: '#ffbd30', icon: '#bf8c21', darkIcon: '#d49e28' },   // yellow-shade-2 / yellow-dark-shade-1
 };
 
 // ---- Theme palettes (exact values from token system) ----
@@ -57,13 +57,13 @@ const DARK_PALETTE: ThemePalette = {
   labelColor: '#a4beff',       // secondary-dark-base (node label text)
   sublabelColor: '#babac0',    // color-text-subtle = dark-shade-30
   connectionColor: '#5f5f6d',  // color-border-subtle = dark-shade-70
-  dotColor: '#8e9eff',         // color-background-dots = primary-dark-tint-1
+  dotColor: '#7b8cd9',         // color-background-dots-secondary = primary-dark-tint-2
   labelBadgeFill: '#252538',   // color-surface-low = dark-shade-95
   labelBadgeBorder: '#313143', // color-surface-lowest = dark-shade-90
-  nodeIconColor: '#a4beff',    // secondary-dark-base (matches label color)
+  nodeIconColor: '#8e9eff',    // color-brand-main = primary-dark-tint-1
   scopeAreaStroke: '#5f5f6d',  // color-border-subtle = dark-shade-70
-  nodeShadowOpacity: 0.15,
-  dotOpacity: 0.5,
+  nodeShadowOpacity: 0,
+  dotOpacity: 0.4,
 };
 
 const LIGHT_PALETTE: ThemePalette = {
@@ -73,13 +73,13 @@ const LIGHT_PALETTE: ThemePalette = {
   labelColor: '#223354',       // secondary-base (light)
   sublabelColor: '#808080',    // shade-50
   connectionColor: '#b3b3b3',  // shade-30
-  dotColor: '#5468ff',         // color-background-dots = primary-shade-1
+  dotColor: '#4a5ce0',         // color-background-dots-secondary = primary-shade-2
   labelBadgeFill: '#ffffff',   // surface-main — 80% opacity applied in renderer
   labelBadgeBorder: '#e6e6e6', // shade-10
-  nodeIconColor: '#5468ff',    // primary-base (light)
+  nodeIconColor: '#5468ff',    // color-brand-main = primary-base
   scopeAreaStroke: '#cccccc',  // color-border-default
-  nodeShadowOpacity: 0.08,
-  dotOpacity: 0.45,
+  nodeShadowOpacity: 0,
+  dotOpacity: 0.4,
 };
 
 export function getTheme(name: 'dark' | 'light'): ThemePalette {

@@ -86,17 +86,11 @@ describe('computePortPositions', () => {
 });
 
 describe('computeConnectionPath', () => {
-  it('returns a valid SVG path with M, L, Q commands', () => {
+  it('returns a straight-line SVG path (M + L)', () => {
     const path = computeConnectionPath(0, 0, 200, 100);
     expect(path).toContain('M ');
     expect(path).toContain('L ');
-    expect(path).toContain('Q ');
-  });
-
-  it('produces different paths for different distances', () => {
-    const nearPath = computeConnectionPath(0, 0, 100, 0);
-    const farPath = computeConnectionPath(0, 0, 500, 0);
-    expect(nearPath).not.toBe(farPath);
+    expect(path).toBe('M 0,0 L 200,100');
   });
 
 });

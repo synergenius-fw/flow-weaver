@@ -87,13 +87,12 @@ body.node-active [data-source].dimmed,
 body.port-active [data-source].dimmed { opacity: 0.1; }
 body.port-hovered [data-source].dimmed { opacity: 0.25; }
 
-/* Port circles are interactive */
-circle[data-port-id] { cursor: pointer; }
-circle[data-port-id]:hover { stroke-width: 3; filter: brightness(1.3); }
+/* Port indicators are interactive — expands to circle on hover (matches platform) */
+[data-port-id] { cursor: pointer; }
 
 /* Port-click highlighting */
 [data-source].highlighted { opacity: 1; }
-circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); stroke-width: 4; }
+[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); }
 
 /* Node selection glow */
 @keyframes select-pop {
@@ -298,7 +297,7 @@ circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); 
 <svg id="canvas" xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">
   <defs>
     <pattern id="viewer-dots" width="20" height="20" patternUnits="userSpaceOnUse">
-      <circle cx="10" cy="10" r="1.5" fill="${dotColor}" opacity="0.6"/>
+      <circle cx="10" cy="10" r="0.75" fill="${dotColor}" opacity="0.4"/>
     </pattern>
   </defs>
   <rect x="-100000" y="-100000" width="200000" height="200000" fill="${bg}" pointer-events="none"/>
@@ -575,33 +574,9 @@ circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); 
   var MIN_SEG_LEN = 3, JOG_THRESHOLD = 10, ORTHO_THRESHOLD = 300;
   var STUB_THRESHOLD = 500, STUB_LEN = 30;
 
-  function quadCurveControl(ax, ay, bx, by, ux, uy) {
-    var dn = Math.abs(ay - by);
-    return [bx + (ux * dn) / Math.abs(uy), ay];
-  }
-
+  // Straight-line fallback when orthogonal routing fails (matches platform)
   function computeConnectionPath(sx, sy, tx, ty) {
-    var e = 0.0001;
-    var ax = sx + e, ay = sy + e, hx = tx - e, hy = ty - e;
-    var ramp = Math.min(20, (hx - ax) / 10);
-    var bx = ax + ramp, by = ay + e, gx = hx - ramp, gy = hy - e;
-    var curveSizeX = Math.min(60, Math.abs(ax - hx) / 4);
-    var curveSizeY = Math.min(60, Math.abs(ay - hy) / 4);
-    var curveMag = Math.sqrt(curveSizeX * curveSizeX + curveSizeY * curveSizeY);
-    var bgX = gx - bx, bgY = gy - by;
-    var bgLen = Math.sqrt(bgX * bgX + bgY * bgY);
-    var bgUx = bgX / bgLen, bgUy = bgY / bgLen;
-    var dx = bx + bgUx * curveMag, dy = by + (bgUy * curveMag) / 2;
-    var ex = gx - bgUx * curveMag, ey = gy - (bgUy * curveMag) / 2;
-    var deX = ex - dx, deY = ey - dy;
-    var deLen = Math.sqrt(deX * deX + deY * deY);
-    var deUx = deX / deLen, deUy = deY / deLen;
-    var c = quadCurveControl(bx, by, dx, dy, -deUx, -deUy);
-    var f = quadCurveControl(gx, gy, ex, ey, deUx, deUy);
-    return 'M ' + c[0] + ',' + c[1] + ' M ' + ax + ',' + ay +
-      ' L ' + bx + ',' + by + ' Q ' + c[0] + ',' + c[1] + ' ' + dx + ',' + dy +
-      ' L ' + ex + ',' + ey + ' Q ' + f[0] + ',' + f[1] + ' ' + gx + ',' + gy +
-      ' L ' + hx + ',' + hy;
+    return 'M ' + sx + ',' + sy + ' L ' + tx + ',' + ty;
   }
 
   // ---- Orthogonal router (ported from orthogonal-router.ts) ----
@@ -884,7 +859,16 @@ circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); 
   var portPositions = {};
   content.querySelectorAll('[data-port-id]').forEach(function(el) {
     var id = el.getAttribute('data-port-id');
-    portPositions[id] = { cx: parseFloat(el.getAttribute('cx')), cy: parseFloat(el.getAttribute('cy')) };
+    // Ports may be circle (cx/cy) or rect (x/y/width/height) elements
+    var cx, cy;
+    if (el.tagName === 'circle') {
+      cx = parseFloat(el.getAttribute('cx'));
+      cy = parseFloat(el.getAttribute('cy'));
+    } else {
+      cx = parseFloat(el.getAttribute('x')) + parseFloat(el.getAttribute('width')) / 2;
+      cy = parseFloat(el.getAttribute('y')) + parseFloat(el.getAttribute('height')) / 2;
+    }
+    portPositions[id] = { cx: cx, cy: cy };
   });
 
   // Extract node bounding boxes from SVG rect elements
@@ -1046,14 +1030,9 @@ circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); 
         }
       } else {
         // Path mode: show path, hide stubs
-        var ddx = tx - sx, ddy = ty - sy, dist = Math.sqrt(ddx * ddx + ddy * ddy);
-        var path;
-        if (dist > ORTHO_THRESHOLD) {
-          path = calcOrthogonalPath([sx, sy], [tx, ty], boxes, c.srcNode, c.tgtNode, c.srcIdx, c.tgtIdx, alloc);
-          if (!path) path = computeConnectionPath(sx, sy, tx, ty);
-        } else {
-          path = computeConnectionPath(sx, sy, tx, ty);
-        }
+        // Always try orthogonal routing first (matches platform)
+        var path = calcOrthogonalPath([sx, sy], [tx, ty], boxes, c.srcNode, c.tgtNode, c.srcIdx, c.tgtIdx, alloc);
+        if (!path) path = computeConnectionPath(sx, sy, tx, ty);
         c.el.setAttribute('d', path);
         c.el.removeAttribute('display');
         if (c.stubs) {
@@ -1336,14 +1315,79 @@ circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); 
     });
   });
 
-  // Port hover: show this port's label + all connected port labels
+  // Port hover: animated ring→circle expansion (matches platform 0.12s ease-out)
+  var OUTER_W = 6, OUTER_H = 18, OUTER_RX = 4;
+  var HOVER_OUTER = 20, HOVER_OUTER_RX = 10;
+  var HOVER_INNER = 14, HOVER_INNER_RX = 7;
+  var PORT_ANIM_MS = 120; // matches platform transition duration
+
+  // Tween an SVG rect from current attrs to target attrs
+  function tweenRect(el, target, duration, onDone) {
+    if (!el) { if (onDone) onDone(); return; }
+    var start = {
+      x: parseFloat(el.getAttribute('x')),
+      y: parseFloat(el.getAttribute('y')),
+      w: parseFloat(el.getAttribute('width')),
+      h: parseFloat(el.getAttribute('height')),
+      rx: parseFloat(el.getAttribute('rx'))
+    };
+    var t0 = null;
+    var frameId = el.__tweenFrame;
+    if (frameId) cancelAnimationFrame(frameId);
+    function step(ts) {
+      if (!t0) t0 = ts;
+      var p = Math.min((ts - t0) / duration, 1);
+      // ease-out: cubic
+      var e = 1 - Math.pow(1 - p, 3);
+      el.setAttribute('x', String(start.x + (target.x - start.x) * e));
+      el.setAttribute('y', String(start.y + (target.y - start.y) * e));
+      el.setAttribute('width', String(start.w + (target.w - start.w) * e));
+      el.setAttribute('height', String(start.h + (target.h - start.h) * e));
+      el.setAttribute('rx', String(start.rx + (target.rx - start.rx) * e));
+      if (p < 1) {
+        el.__tweenFrame = requestAnimationFrame(step);
+      } else {
+        el.__tweenFrame = null;
+        if (onDone) onDone();
+      }
+    }
+    el.__tweenFrame = requestAnimationFrame(step);
+  }
+
   content.querySelectorAll('[data-port-id]').forEach(function(portEl) {
     var portId = portEl.getAttribute('data-port-id');
     var nodeId = portId.split('.')[0];
     var peers = (portConnections[portId] || []).concat(portId);
 
+    var origX = parseFloat(portEl.getAttribute('x'));
+    var origY = parseFloat(portEl.getAttribute('y'));
+    var innerBar = portEl.nextElementSibling;
+    var hasInner = innerBar && innerBar.getAttribute('pointer-events') === 'none';
+    var innerOrig = hasInner ? {
+      x: parseFloat(innerBar.getAttribute('x')),
+      y: parseFloat(innerBar.getAttribute('y')),
+      w: parseFloat(innerBar.getAttribute('width')),
+      h: parseFloat(innerBar.getAttribute('height')),
+      rx: parseFloat(innerBar.getAttribute('rx'))
+    } : null;
+
+    var cx = origX + OUTER_W / 2;
+    var cy = origY + OUTER_H / 2;
+
     portEl.addEventListener('mouseenter', function() {
       hoveredPort = portId;
+      if (portEl.tagName === 'rect') {
+        tweenRect(portEl, {
+          x: cx - HOVER_OUTER / 2, y: cy - HOVER_OUTER / 2,
+          w: HOVER_OUTER, h: HOVER_OUTER, rx: HOVER_OUTER_RX
+        }, PORT_ANIM_MS);
+        if (hasInner) {
+          tweenRect(innerBar, {
+            x: cx - HOVER_INNER / 2, y: cy - HOVER_INNER / 2,
+            w: HOVER_INNER, h: HOVER_INNER, rx: HOVER_INNER_RX
+          }, PORT_ANIM_MS);
+        }
+      }
       batchLabelChanges(function() {
         hideLabelsFor(nodeId);
         peers.forEach(showLabel);
@@ -1360,6 +1404,18 @@ circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); 
     });
     portEl.addEventListener('mouseleave', function() {
       hoveredPort = null;
+      if (portEl.tagName === 'rect') {
+        tweenRect(portEl, {
+          x: origX, y: origY,
+          w: OUTER_W, h: OUTER_H, rx: OUTER_RX
+        }, PORT_ANIM_MS);
+        if (hasInner) {
+          tweenRect(innerBar, {
+            x: innerOrig.x, y: innerOrig.y,
+            w: innerOrig.w, h: innerOrig.h, rx: innerOrig.rx
+          }, PORT_ANIM_MS);
+        }
+      }
       // Defer so if entering another port, its mouseenter sets hoveredPort first
       var myPeers = peers, myNodeId = nodeId;
       Promise.resolve().then(function() {
@@ -1404,7 +1460,7 @@ circle[data-port-id].port-selected { filter: drop-shadow(0 0 6px currentColor); 
     if (!selectedPortId) return;
     selectedPortId = null;
     document.body.classList.remove('port-active');
-    content.querySelectorAll('circle.port-selected').forEach(function(c) {
+    content.querySelectorAll('.port-selected').forEach(function(c) {
       c.classList.remove('port-selected');
     });
     content.querySelectorAll('[data-source].dimmed, [data-source].highlighted').forEach(function(p) {

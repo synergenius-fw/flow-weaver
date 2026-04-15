@@ -65,12 +65,11 @@ describe('renderSVG', () => {
     }
   });
 
-  it('renders port circles with stroke ring (one circle per port)', () => {
+  it('renders port indicators as vertical bars (one rect per port)', () => {
     const svg = renderSVG(simpleGraph());
-    const circleCount = (svg.match(/<circle/g) || []).length;
-    // Dot grid has 1 circle in the pattern def, + 1 circle per port (fill + stroke ring)
-    // With at least a few ports, we should have several circles
-    expect(circleCount).toBeGreaterThan(2);
+    // Port bars are 2px wide, 14px tall rects with rx="1"
+    const portBars = (svg.match(/data-port-id=/g) || []).length;
+    expect(portBars).toBeGreaterThan(2);
   });
 
   it('renders port labels by default', () => {
@@ -84,26 +83,25 @@ describe('renderSVG', () => {
     expect(svg).not.toContain('class="port-label"');
   });
 
-  it('renders node labels with subtle background', () => {
+  it('renders node labels as plain text (no badge background)', () => {
     const svg = renderSVG(simpleGraph());
-    // Label background: a rect element with rx="6" and opacity 0.95
-    expect(svg).toContain('rx="6"');
-    expect(svg).toContain('opacity="0.95"');
+    // Labels are plain text elements with no background rect
     expect(svg).toContain('class="node-label"');
     expect(svg).toContain('Start');
     expect(svg).toContain('Exit');
     expect(svg).toContain('node1');
+    // No label badge background
+    expect(svg).not.toContain('opacity="0.95"');
   });
 
   it('renders all nodes as rectangles (including virtual Start/Exit)', () => {
     const svg = renderSVG(simpleGraph());
     // All nodes should be rendered with <rect> elements for the body
-    // There should be NO <circle> elements with filter (old virtual node rendering)
     expect(svg).not.toContain('filter="url(#shadow)"');
-    // Count rect elements (background + dot grid + label pills + node bodies)
+    // Count rect elements (background + dot grid + node bodies + port bars + port labels)
     const rectCount = (svg.match(/<rect/g) || []).length;
-    // At least: 2 background rects + 3 label pill rects + 3 node body rects = 8
-    expect(rectCount).toBeGreaterThanOrEqual(8);
+    // At least: 2 background rects + 3 node body rects + port bars + port label badges
+    expect(rectCount).toBeGreaterThanOrEqual(5);
   });
 
   it('renders node icons as SVG paths with per-node fill color', () => {
@@ -118,42 +116,28 @@ describe('renderSVG', () => {
     expect(svg).toContain('width="800"');
   });
 
-  it('includes subtle Flow Weaver watermark', () => {
+  it('does not include watermark (matches platform)', () => {
     const svg = renderSVG(simpleGraph());
-    expect(svg).toContain('Flow Weaver</text>');
-    expect(svg).toContain('opacity="0.5"');
+    expect(svg).not.toContain('Flow Weaver</text>');
   });
 
-  it('includes node-shadow filter definition', () => {
+  it('does not include node-shadow filter (matches platform outline style)', () => {
     const svg = renderSVG(simpleGraph());
-    expect(svg).toContain('filter id="node-shadow"');
-    expect(svg).toContain('<feDropShadow');
-  });
-
-  it('applies node-shadow filter to node body rects', () => {
-    const svg = renderSVG(simpleGraph());
-    expect(svg).toContain('filter="url(#node-shadow)"');
-  });
-
-  it('uses themed nodeShadowOpacity in the shadow filter', () => {
-    const darkSvg = renderSVG(simpleGraph());
-    expect(darkSvg).toContain('flood-opacity="0.15"');
-
-    const lightSvg = renderSVG(simpleGraph(), { theme: 'light' });
-    expect(lightSvg).toContain('flood-opacity="0.08"');
+    expect(svg).not.toContain('filter id="node-shadow"');
+    expect(svg).not.toContain('<feDropShadow');
+    expect(svg).not.toContain('filter="url(#node-shadow)"');
   });
 
   it('uses themed dotOpacity for dot grid pattern', () => {
     const darkTheme = getTheme('dark');
     const darkSvg = renderSVG(simpleGraph());
-    // The dot pattern circle (r="1.5") should use the dark theme's dotOpacity
-    const darkCircleLine = darkSvg.split('\n').find(l => l.includes('r="1.5"') && l.includes('opacity='));
+    const darkCircleLine = darkSvg.split('\n').find(l => l.includes('r="0.75"') && l.includes('opacity='));
     expect(darkCircleLine).toBeTruthy();
     expect(darkCircleLine).toContain(`opacity="${darkTheme.dotOpacity}"`);
 
     const lightTheme = getTheme('light');
     const lightSvg = renderSVG(simpleGraph(), { theme: 'light' });
-    const lightCircleLine = lightSvg.split('\n').find(l => l.includes('r="1.5"') && l.includes('opacity='));
+    const lightCircleLine = lightSvg.split('\n').find(l => l.includes('r="0.75"') && l.includes('opacity='));
     expect(lightCircleLine).toBeTruthy();
     expect(lightCircleLine).toContain(`opacity="${lightTheme.dotOpacity}"`);
   });
@@ -165,31 +149,30 @@ describe('renderSVG', () => {
     const graph = buildDiagramGraph(ast);
     const svg = renderSVG(graph);
 
-    // Find the circle for Exit.onFailure port
-    const failurePortMatch = svg.match(/<circle[^>]*data-port-id="Exit\.onFailure:input"[^>]*>/);
+    // Find the rect for Exit.onFailure port (ports are vertical bars now)
+    const failurePortMatch = svg.match(/<rect[^>]*data-port-id="Exit\.onFailure:input"[^>]*>/);
     expect(failurePortMatch).toBeTruthy();
 
     // The failure color should be red (#ff4f4f for dark theme), not green (#10e15a)
-    const failureCircle = failurePortMatch![0];
-    expect(failureCircle).toContain('#ff4f4f'); // dark failure color
-    expect(failureCircle).not.toContain('#10e15a'); // dark STEP color
+    const failureRect = failurePortMatch![0];
+    expect(failureRect).toContain('#ff4f4f'); // dark failure color
+    expect(failureRect).not.toContain('#10e15a'); // dark STEP color
   });
 });
 
 describe('renderSVG — scoped workflows', () => {
   const scopedGraph = () => buildDiagramGraph(createScopedWorkflow());
 
-  it('applies node-shadow filter to scoped parent rect', () => {
+  it('does not apply shadow filter to scoped parent rect', () => {
     const svg = renderSVG(scopedGraph());
-    // Scoped parent rects should also have the shadow filter
-    const shadowFilterCount = (svg.match(/filter="url\(#node-shadow\)"/g) || []).length;
-    // At least one for the scoped parent + child nodes
-    expect(shadowFilterCount).toBeGreaterThanOrEqual(2);
+    expect(svg).not.toContain('filter="url(#node-shadow)"');
   });
 
-  it('renders scope area with dashed inner rectangle', () => {
+  it('renders scope area with subtle horizontal divider lines', () => {
     const svg = renderSVG(scopedGraph());
-    expect(svg).toContain('stroke-dasharray="4 2"');
+    // Scope area uses top/bottom lines instead of a dashed rect
+    expect(svg).not.toContain('stroke-dasharray="4 2"');
+    expect(svg).toContain('opacity="0.3"');
   });
 
   it('renders child nodes inside scoped parent', () => {
@@ -213,12 +196,11 @@ describe('renderSVG — scoped workflows', () => {
     const svg = renderSVG(graph);
 
     const parent = graph.nodes.find(n => n.id === 'forEach1')!;
-    // Scoped output ports (start, item) should be rendered as circles
+    // Scoped output ports (start, item) should be rendered as port bars
     expect(parent.scopePorts!.outputs.length).toBeGreaterThan(0);
-    // The SVG should have circles for these ports
-    const circleCount = (svg.match(/<circle/g) || []).length;
-    // More circles than a non-scoped graph would have
-    expect(circleCount).toBeGreaterThan(5);
+    // The SVG should have port bars (rects with data-port-id) for these ports
+    const portCount = (svg.match(/data-port-id=/g) || []).length;
+    expect(portCount).toBeGreaterThan(5);
   });
 
   it('marks scope connections with data-scope attribute', () => {

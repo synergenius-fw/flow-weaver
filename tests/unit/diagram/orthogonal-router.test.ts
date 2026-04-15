@@ -40,161 +40,50 @@ function extractCoords(path: string): Vec2[] {
 
 // ─── TrackAllocator ───
 
-describe('TrackAllocator', () => {
-  describe('claim and findFreeY', () => {
-    it('returns the candidate Y when no claims exist', () => {
-      const alloc = new TrackAllocator();
-      const y = alloc.findFreeY(0, 200, 100);
-      expect(y).toBe(100);
-    });
+describe('TrackAllocator (platform-aligned)', () => {
+  it('returns the snapped candidate Y when no claims exist', () => {
+    const alloc = new TrackAllocator();
+    const y = alloc.claim(0, 200, 100);
+    // Snapped to TRACK_SPACING grid (15)
+    expect(y % 15).toBe(0);
+    expect(Math.abs(y - 100)).toBeLessThan(15);
+  });
 
-    it('avoids a claimed horizontal segment in the same X range', () => {
-      const alloc = new TrackAllocator();
+  it('avoids a claimed horizontal segment in the same X range', () => {
+    const alloc = new TrackAllocator();
+    const y1 = alloc.claim(0, 200, 100);
+    const y2 = alloc.claim(50, 150, 100);
+    expect(y2).not.toBe(y1);
+    expect(Math.abs(y2 - y1)).toBeGreaterThanOrEqual(15);
+  });
+
+  it('allows a claimed segment when X ranges do not overlap', () => {
+    const alloc = new TrackAllocator();
+    const y1 = alloc.claim(0, 50, 100);
+    const y2 = alloc.claim(100, 200, 100);
+    // Same snapped Y since X ranges don't overlap
+    expect(y1).toBe(y2);
+  });
+
+  it('assigns different tracks for overlapping X ranges', () => {
+    const alloc = new TrackAllocator();
+    const ys: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      ys.push(alloc.claim(0, 200, 100));
+    }
+    // All should be unique (different tracks)
+    const unique = new Set(ys);
+    expect(unique.size).toBe(5);
+  });
+
+  it('returns candidateY when extreme congestion (60 slots filled)', () => {
+    const alloc = new TrackAllocator();
+    for (let i = 0; i < 60; i++) {
       alloc.claim(0, 200, 100);
-      const y = alloc.findFreeY(50, 150, 100);
-      expect(y).not.toBe(100);
-      // Should differ from 100 by at least TRACK_SPACING (15)
-      expect(Math.abs(y - 100)).toBeGreaterThanOrEqual(15);
-    });
-
-    it('allows a claimed segment when X ranges do not overlap', () => {
-      const alloc = new TrackAllocator();
-      alloc.claim(0, 50, 100);
-      const y = alloc.findFreeY(100, 200, 100);
-      expect(y).toBe(100);
-    });
-
-    it('finds the nearest free Y, not just any free Y', () => {
-      const alloc = new TrackAllocator();
-      // Claim a band around y=100
-      alloc.claim(0, 200, 100);
-      const y = alloc.findFreeY(0, 200, 105);
-      // Should pick something close to 105 but outside the 100 +/- 15 zone
-      expect(Math.abs(y - 105)).toBeLessThan(100);
-    });
-
-    it('returns candidateY when all attempts fail (extreme congestion)', () => {
-      const alloc = new TrackAllocator();
-      // Fill up a huge vertical range
-      for (let i = -800; i <= 800; i += 15) {
-        alloc.claim(0, 200, i);
-      }
-      // With everything occupied, it falls back to candidateY
-      const y = alloc.findFreeY(0, 200, 50);
-      expect(typeof y).toBe('number');
-    });
-  });
-
-  describe('claimVertical and findFreeX', () => {
-    it('returns the candidate X when no vertical claims exist', () => {
-      const alloc = new TrackAllocator();
-      const x = alloc.findFreeX(0, 200, 100);
-      expect(x).toBe(100);
-    });
-
-    it('avoids a claimed vertical segment in the same Y range', () => {
-      const alloc = new TrackAllocator();
-      alloc.claimVertical(0, 200, 100);
-      const x = alloc.findFreeX(50, 150, 100);
-      expect(x).not.toBe(100);
-      expect(Math.abs(x - 100)).toBeGreaterThanOrEqual(15);
-    });
-
-    it('allows a claimed vertical segment when Y ranges do not overlap', () => {
-      const alloc = new TrackAllocator();
-      alloc.claimVertical(0, 50, 100);
-      const x = alloc.findFreeX(100, 200, 100);
-      expect(x).toBe(100);
-    });
-  });
-
-  describe('crossing counts', () => {
-    it('countHorizontalCrossings returns 0 with no vertical claims', () => {
-      const alloc = new TrackAllocator();
-      expect(alloc.countHorizontalCrossings(0, 200, 100)).toBe(0);
-    });
-
-    it('countHorizontalCrossings detects a vertical claim crossing a horizontal segment', () => {
-      const alloc = new TrackAllocator();
-      alloc.claimVertical(50, 150, 100); // vertical at x=100 from y=50 to y=150
-      // A horizontal segment at y=100 from x=0 to x=200 crosses x=100
-      expect(alloc.countHorizontalCrossings(0, 200, 100)).toBe(1);
-    });
-
-    it('countHorizontalCrossings ignores vertical claims outside the X range', () => {
-      const alloc = new TrackAllocator();
-      alloc.claimVertical(50, 150, 300); // vertical at x=300
-      expect(alloc.countHorizontalCrossings(0, 200, 100)).toBe(0);
-    });
-
-    it('countHorizontalCrossings ignores vertical claims outside the Y range', () => {
-      const alloc = new TrackAllocator();
-      alloc.claimVertical(200, 300, 100); // vertical from y=200 to y=300
-      // horizontal at y=100 does not intersect
-      expect(alloc.countHorizontalCrossings(0, 200, 100)).toBe(0);
-    });
-
-    it('countVerticalCrossings returns 0 with no horizontal claims', () => {
-      const alloc = new TrackAllocator();
-      expect(alloc.countVerticalCrossings(0, 200, 100)).toBe(0);
-    });
-
-    it('countVerticalCrossings detects a horizontal claim crossing a vertical segment', () => {
-      const alloc = new TrackAllocator();
-      alloc.claim(50, 150, 100); // horizontal at y=100 from x=50 to x=150
-      // A vertical segment at x=100 from y=0 to y=200 crosses y=100
-      expect(alloc.countVerticalCrossings(0, 200, 100)).toBe(1);
-    });
-
-    it('countVerticalCrossings counts multiple crossings', () => {
-      const alloc = new TrackAllocator();
-      alloc.claim(50, 150, 50);
-      alloc.claim(50, 150, 100);
-      alloc.claim(50, 150, 150);
-      expect(alloc.countVerticalCrossings(0, 200, 100)).toBe(3);
-    });
-  });
-
-  describe('findFreeY with node boxes', () => {
-    it('avoids inflated node boxes', () => {
-      const alloc = new TrackAllocator();
-      const boxes = [{ left: 0, right: 200, top: 90, bottom: 110 }];
-      const y = alloc.findFreeY(0, 200, 100, boxes);
-      // Should not route through the box
-      expect(y < 90 || y > 110).toBe(true);
-    });
-
-    it('returns candidateY when box does not overlap X range', () => {
-      const alloc = new TrackAllocator();
-      const boxes = [{ left: 300, right: 400, top: 90, bottom: 110 }];
-      const y = alloc.findFreeY(0, 200, 100, boxes);
-      expect(y).toBe(100);
-    });
-  });
-
-  describe('findFreeX with node boxes', () => {
-    it('avoids inflated node boxes', () => {
-      const alloc = new TrackAllocator();
-      const boxes = [{ left: 90, right: 110, top: 0, bottom: 200 }];
-      const x = alloc.findFreeX(0, 200, 100, boxes);
-      expect(x < 90 || x > 110).toBe(true);
-    });
-  });
-
-  describe('crossing minimization preference', () => {
-    it('prefers a Y with fewer crossings over a closer Y', () => {
-      const alloc = new TrackAllocator();
-      // Claim the candidateY so it is occupied
-      alloc.claim(0, 200, 100);
-      // Place many vertical claims above y=100, making the "above" direction costly
-      alloc.claimVertical(50, 150, 30);
-      alloc.claimVertical(50, 150, 60);
-      alloc.claimVertical(50, 150, 90);
-      // The allocator should prefer the direction with fewer crossings
-      const y = alloc.findFreeY(0, 200, 100);
-      expect(typeof y).toBe('number');
-      expect(Math.abs(y - 100)).toBeGreaterThanOrEqual(15);
-    });
+    }
+    // Should still return a number even when congested
+    const y = alloc.claim(0, 200, 100);
+    expect(typeof y).toBe('number');
   });
 });
 
@@ -310,23 +199,25 @@ describe('calculateOrthogonalPath', () => {
   });
 
   describe('same row / nearly aligned ports', () => {
-    it('returns null for same-Y ports in forward direction (bezier fallback)', () => {
-      // When from and to are at the same Y with a clear path, the clearY lands
-      // within JOG_THRESHOLD of from.y, so the router returns null
+    it('routes same-Y ports as a straight line when path is clear', () => {
+      // Same-Y ports with no obstacles go straight (matching platform)
       const from: Vec2 = [220, 80];
       const to: Vec2 = [400, 80];
       const boxes = [makeBox('A', 100, 50), makeBox('B', 400, 50)];
       const path = calculateOrthogonalPath(from, to, boxes, 'A', 'B');
-      expect(path).toBeNull();
+      expect(path).not.toBeNull();
+      const coords = extractCoords(path!);
+      // Should be a straight 2-point line
+      expect(coords.length).toBe(2);
+      expect(coords[0][1]).toBe(coords[1][1]);
     });
 
-    it('returns null for nearly aligned ports (within JOG_THRESHOLD)', () => {
+    it('routes nearly aligned ports with BELOW_BIAS offset', () => {
       const from: Vec2 = [220, 80];
-      const to: Vec2 = [400, 85]; // 5px difference, within JOG_THRESHOLD of 10
+      const to: Vec2 = [400, 85]; // 5px difference
       const boxes = [makeBox('A', 100, 50), makeBox('B', 400, 55)];
       const path = calculateOrthogonalPath(from, to, boxes, 'A', 'B');
-      // Should return null since Y difference is within the jog threshold
-      expect(path).toBeNull();
+      expect(path).not.toBeNull();
     });
   });
 
@@ -387,16 +278,14 @@ describe('calculateOrthogonalPath', () => {
       // First connection claims a track near the stub zone
       const path1 = calculateOrthogonalPath(
         [130, 100], [800, 120], boxes, 'A', 'B',
-        { stubLength, cornerRadius: 0 },
-        allocator,
+        { stubLength, cornerRadius: 0, allocator },
       );
       expect(path1).not.toBeNull();
 
       // Second connection with same stub length
       const path2 = calculateOrthogonalPath(
         from, to, boxes, 'A', 'B',
-        { stubLength, cornerRadius: 0 },
-        allocator,
+        { stubLength, cornerRadius: 0, allocator },
       );
       expect(path2).not.toBeNull();
 
@@ -418,16 +307,14 @@ describe('calculateOrthogonalPath', () => {
       // First connection claims tracks
       const path1 = calculateOrthogonalPath(
         [130, 100], [800, 120], boxes, 'A', 'B',
-        { stubLength, cornerRadius: 0 },
-        allocator,
+        { stubLength, cornerRadius: 0, allocator },
       );
       expect(path1).not.toBeNull();
 
       // Second connection
       const path2 = calculateOrthogonalPath(
         from, to, boxes, 'A', 'B',
-        { stubLength, cornerRadius: 0 },
-        allocator,
+        { stubLength, cornerRadius: 0, allocator },
       );
       expect(path2).not.toBeNull();
 
@@ -438,19 +325,18 @@ describe('calculateOrthogonalPath', () => {
     });
 
     it('stubs remain visible with many competing connections', () => {
-      const boxes = [makeBox('A', 40, 50, 90, 180), makeBox('B', 900, 80, 90, 180)];
+      const boxes = [makeBox('A', 40, 50, 90, 300), makeBox('B', 900, 80, 90, 300)];
       const allocator = new TrackAllocator();
       const stubLength = 50;
 
-      // Route 5 connections through the same corridor with Y offsets to avoid bezier fallback
+      // Route 5 connections through the same corridor with Y offsets
       const paths: string[] = [];
       for (let i = 0; i < 5; i++) {
-        const fromY = 80 + i * 22;
-        const toY = 110 + i * 22;
+        const fromY = 100 + i * 40;
+        const toY = 130 + i * 40;
         const path = calculateOrthogonalPath(
           [130, fromY], [900, toY], boxes, 'A', 'B',
-          { stubLength, fromPortIndex: i, cornerRadius: 0 },
-          allocator,
+          { stubLength, fromPortIndex: i, cornerRadius: 0, allocator },
         );
         if (path) paths.push(path);
       }
