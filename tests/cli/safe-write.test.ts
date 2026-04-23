@@ -46,6 +46,9 @@ describe('safeWriteFile', () => {
   it('throws a clear error when file is read-only', () => {
     // Skip on Windows — chmod doesn't reliably prevent writes
     if (process.platform === 'win32') return;
+    // Skip when running as root (e.g. self-hosted runner containers) —
+    // root bypasses Linux file-permission checks, so 0o444 doesn't block.
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
 
     const filePath = path.join(tmpDir, 'readonly.ts');
     fs.writeFileSync(filePath, 'locked');
@@ -59,6 +62,7 @@ describe('safeWriteFile', () => {
 
   it('throws a clear error when parent directory is read-only', () => {
     if (process.platform === 'win32') return;
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
 
     const readOnlyDir = path.join(tmpDir, 'locked-dir');
     fs.mkdirSync(readOnlyDir);
@@ -101,6 +105,7 @@ describe('safeAppendFile', () => {
 
   it('throws clear error on permission issues', () => {
     if (process.platform === 'win32') return;
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
 
     const filePath = path.join(tmpDir, 'readonly-append.ts');
     fs.writeFileSync(filePath, 'locked');

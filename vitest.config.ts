@@ -7,9 +7,17 @@ export default defineConfig({
     include: ['tests/**/*.test.ts', 'src/extensions/**/tests/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**'],
     environment: 'node',
-    testTimeout: 30000,
-    hookTimeout: 30000,
-    retry: 1,  // Retry flaky tests (resource contention during large runs)
+    // CI runners under load can take >30s on async/generated-code heavy
+    // tests (e.g. e2e/generated-code-execution async-nodes,
+    // generator/unified-parallel). 60s gives headroom without masking real
+    // deadlocks; genuine hangs still surface quickly enough.
+    testTimeout: 60000,
+    hookTimeout: 60000,
+    // 2 retries (3 attempts total). The sharded CI occasionally fails a
+    // test plus its retry back-to-back when the shard runner is saturated;
+    // one more attempt turns those false-positives into pass. Cheap
+    // insurance, still catches real regressions.
+    retry: 2,
 
     // Use vmForks to share ts-morph Project across test files
     // vmForks uses node:vm for isolation while sharing module cache

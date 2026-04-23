@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     outputs:
       is_release: ${{ steps.detect.outputs.is_release }}
     steps:
@@ -36,7 +36,7 @@ jobs:
   test:
     needs: build
     if: needs.build.outputs.is_release == 'false'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     strategy:
       fail-fast: false
       matrix:
@@ -59,7 +59,7 @@ jobs:
   coverage:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v5
 
@@ -102,7 +102,7 @@ jobs:
   check:
     if: always()
     needs: [build, test, coverage]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - name: Evaluate results
         run: |

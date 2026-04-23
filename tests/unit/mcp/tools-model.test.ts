@@ -190,6 +190,9 @@ describe('tools-model', () => {
     });
 
     it('returns CREATE_MODEL_ERROR on failure', async () => {
+      // Skip on root (self-hosted runner) — chmod doesn't block root writes.
+      if (typeof process.getuid === 'function' && process.getuid() === 0) return;
+
       // Pass an invalid filePath that cannot be written (e.g. empty string triggers path issues)
       // We'll use a path to a readonly directory
       const readonlyDir = path.join(tmpDir, 'readonly');

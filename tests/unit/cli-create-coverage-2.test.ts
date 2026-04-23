@@ -87,6 +87,10 @@ describe('createWorkflowCommand - additional coverage', () => {
   });
 
   it('should handle write error gracefully in createWorkflowCommand', async () => {
+    // Skip when running as root (e.g. self-hosted runner containers) —
+    // root bypasses Linux file-permission checks, so 0o444 doesn't block.
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
+
     const { createWorkflowCommand } = await import('../../src/cli/commands/create');
 
     // Write to a path that will fail (read-only dir simulation)
@@ -133,6 +137,8 @@ describe('createNodeCommand - additional coverage', () => {
   });
 
   it('should handle write error gracefully in createNodeCommand', async () => {
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
+
     const { createNodeCommand } = await import('../../src/cli/commands/create');
 
     const readOnlyDir = path.join(TEMP_DIR, 'ro-node');
