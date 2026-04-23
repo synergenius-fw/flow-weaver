@@ -187,7 +187,7 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.11.0",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.0.0",
     "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.0.18",
