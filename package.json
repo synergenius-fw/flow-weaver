@@ -172,7 +172,7 @@
   },
   "dependencies": {
     "@inquirer/confirm": "^6",
-    "@inquirer/core": "^10",
+    "@inquirer/core": "^11",
     "@inquirer/input": "^5",
     "@inquirer/select": "^5",
     "@modelcontextprotocol/sdk": "^1.29.0",
