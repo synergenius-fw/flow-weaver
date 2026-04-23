@@ -11,7 +11,7 @@
 
 **Design agent workflows in conversation. The compiled output is yours.**
 
-[**flowweaver.ai**](https://flowweaver.ai) · [**Studio**](https://flowweaver.ai/studio) · [**Features**](https://flowweaver.ai/features) · [**Discord**](https://discord.gg/6Byh3ur2bk) · [**npm**](https://www.npmjs.com/package/@synergenius/flow-weaver)
+[**flowweaver.ai**](https://flowweaver.ai) · [**Studio**](https://flowweaver.ai/studio) · [**Features**](https://flowweaver.ai/features) · [**npm**](https://www.npmjs.com/package/@synergenius/flow-weaver)
 
 ---
 
@@ -29,7 +29,7 @@ I have always wondered why Visual Programming never took off. After understandin
   - It being just code opens a lot of doors for you, like using Git for version control, doing all sort of stuff you already do with code like testing, linting, automating, everything.
   - In the era of LLMs and agents, being able to have that control is crucial, it is not a black box, you can see everything and so can your assistant.
 
-As of now this is a solo project and I am building it in the open. There is a lot to do and rough edges to smooth out. If you run into issues or have questions, the [Discord](https://discord.gg/6Byh3ur2bk) is the best place to reach out. Every issue and question gets a response. I genuinely want to hear from you.
+As of now this is a solo project and I am building it in the open. There is a lot to do and rough edges to smooth out. If you run into issues or have questions, open a [GitHub issue](https://github.com/synergenius-fw/flow-weaver/issues) or start a [Discussion](https://github.com/synergenius-fw/flow-weaver/discussions) — every one gets a response. I genuinely want to hear from you.
 
 If this resonates with what you have been looking for, give it a try and let me know how it goes. Stars, feedback, and honest criticism all help equally.
 
@@ -37,7 +37,7 @@ If this resonates with what you have been looking for, give it a try and let me 
 
 Flow Weaver is in **beta**. The compiler, validator, CLI, and MCP tools are stable and thoroughly tested. The test suite covers thousands of cases across parsing, compilation, validation, diffing, and deployment. CI runs on every commit.
 
-**Flow Weaver Studio**, the browser-based visual IDE, is the next major milestone and is being actively built. Core editing (canvas, terminal, diagnostics) is live today. The visual debugger, AI chat assistant, version history, and deployment dashboard are in progress. You can follow development on Discord or in the [GitHub releases](https://github.com/synergenius-fw/flow-weaver/releases).
+**Flow Weaver Studio**, the browser-based visual IDE, is the next major milestone and is being actively built. Core editing (canvas, terminal, diagnostics) is live today. The visual debugger, AI chat assistant, version history, and deployment dashboard are in progress. You can follow development in the [GitHub releases](https://github.com/synergenius-fw/flow-weaver/releases).
 
 Breaking changes may still occur between minor versions during beta. Pin your version in `package.json` if stability matters for your project.
 
@@ -285,7 +285,7 @@ fw docs search <query>          # Search across all docs
 
 ## Community
 
-Flow Weaver is built and maintained by a solo developer. If you try it, find a bug, or just want to talk about workflows, the [Discord](https://discord.gg/6Byh3ur2bk) is open. Every message gets read and responded to, usually within a day.
+Flow Weaver is built and maintained by a solo developer. If you try it, find a bug, or just want to talk about workflows, start a [GitHub Discussion](https://github.com/synergenius-fw/flow-weaver/discussions) — every post gets read and responded to, usually within a day.
 
 If something breaks, [open an issue](https://github.com/synergenius-fw/flow-weaver/issues). Bug reports with reproduction steps get prioritized. Feature requests are welcome too.
 
