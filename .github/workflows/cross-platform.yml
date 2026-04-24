@@ -15,6 +15,10 @@ on:
         required: false
         default: "main"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   smoke-test:
     name: Smoke Test (${{ matrix.os }})
