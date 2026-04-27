@@ -48,13 +48,19 @@ jobs:
           if [ ! -f README.md ]; then echo "ERROR: README.md missing" && exit 1; fi
           echo "README.md exists ($(wc -c < README.md) bytes)"
 
+      - name: Strip preinstall from published package.json
+        # Hook is dev-only; scripts/check-npm-auth.mjs lives only in the repo,
+        # not in the published tarball, so a consumer's npm install would hit
+        # MODULE_NOT_FOUND on the missing script.
+        run: npm pkg delete scripts.preinstall
+
       - name: Pack, verify, and publish to Verdaccio
         run: |
           npm pack --pack-destination /tmp
           TARBALL=$(ls /tmp/synergenius-flow-weaver-*.tgz)
           echo "Tarball: $TARBALL"
           tar -tzf "$TARBALL" | grep README.md || (echo "ERROR: README.md not in tarball" && exit 1)
-          npm publish "$TARBALL" --registry=https://npm.example.com/
+          npm publish "$TARBALL"
           rm -f "$TARBALL"
 
       - name: Verify README on Verdaccio registry
