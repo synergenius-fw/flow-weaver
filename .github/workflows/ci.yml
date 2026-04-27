@@ -23,7 +23,10 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - run: npm install
+      - name: Authenticate to private Verdaccio
+        run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+
+      - run: npm ci
 
       - name: Detect release PR
         id: detect
@@ -53,7 +56,10 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - run: npm install
+      - name: Authenticate to private Verdaccio
+        run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+
+      - run: npm ci
 
       - name: Run tests (shard ${{ matrix.shard }}/3)
         run: npx vitest run --shard=${{ matrix.shard }}/3 --reporter=default
@@ -72,7 +78,10 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - run: npm install
+      - name: Authenticate to private Verdaccio
+        run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+
+      - run: npm ci
 
       - name: Run tests with coverage
         run: npx vitest run --reporter=default --reporter=json --outputFile=test-results.json --coverage

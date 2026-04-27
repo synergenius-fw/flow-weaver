@@ -117,6 +117,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "preinstall": "node scripts/check-npm-auth.mjs",
     "prebuild": "tsx scripts/generate-version.ts && tsx scripts/generate-built-in-registry.ts",
     "generate:registry": "tsx scripts/generate-built-in-registry.ts",
     "generate:registry:check": "tsx scripts/generate-built-in-registry.ts --check",

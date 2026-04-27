@@ -33,7 +33,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+
+      - name: Authenticate to private Verdaccio
+        run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - run: npm install
 
@@ -42,21 +44,19 @@ jobs:
           if [ ! -f README.md ]; then echo "ERROR: README.md missing" && exit 1; fi
           echo "README.md exists ($(wc -c < README.md) bytes)"
 
-      - name: Pack, verify, and publish to npm
+      - name: Pack, verify, and publish to Verdaccio
         run: |
           npm pack --pack-destination /tmp
           TARBALL=$(ls /tmp/synergenius-flow-weaver-*.tgz)
           echo "Tarball: $TARBALL"
           tar -tzf "$TARBALL" | grep README.md || (echo "ERROR: README.md not in tarball" && exit 1)
-          npm publish "$TARBALL" --access public
+          npm publish "$TARBALL" --registry=https://npm.example.com/
           rm -f "$TARBALL"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Verify README on npm registry
+      - name: Verify README on Verdaccio registry
         run: |
           sleep 15
           VERSION=$(node -p "require('./package.json').version")
-          LEN=$(curl -s "https://registry.npmjs.org/@synergenius/flow-weaver/$VERSION" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).readme?.length || 0")
-          echo "README length on npm: $LEN bytes"
+          LEN=$(curl -s -H "Authorization: Basic ${{ secrets.NPM_TOKEN }}" "https://npm.example.com/@synergenius/flow-weaver/$VERSION" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).readme?.length || 0")
+          echo "README length on Verdaccio: $LEN bytes"
           if [ "$LEN" -lt 100 ]; then echo "::warning::README may not have been published correctly ($LEN bytes)"; fi

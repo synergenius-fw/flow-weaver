@@ -40,6 +40,10 @@ jobs:
           node-version: 22
 
       # ── 3. Install dependencies ────────────────────────────────────
+      - name: Authenticate to private Verdaccio
+        shell: bash
+        run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+
       - name: Install dependencies
         run: npm install
 
