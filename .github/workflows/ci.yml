@@ -67,7 +67,11 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
   coverage:
-    needs: build
+    # Wait for the test matrix before kicking off so the heavy --coverage
+    # run doesn't share runners with the 3 test shards. With 3 self-hosted
+    # runners, parallel test+coverage saturates RAM/swap; sequencing keeps
+    # each phase under the box's working set.
+    needs: [build, test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, linux]
     steps:
