@@ -39,7 +39,11 @@ jobs:
           node-version: 22
 
       - name: Authenticate to private Verdaccio
-        run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+        # NPM_TOKEN is a Verdaccio JWT, so it must go in `_authToken` (bearer),
+        # not `_auth` (which npm treats as base64 user:password and Verdaccio
+        # rejects with E401 on publish). Matches the platform repo's npmrc
+        # convention + its `_authToken=…NPM_TOKEN` workflow-auth lint.
+        run: echo "//npm.example.com/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - run: npm install
 
@@ -67,6 +71,6 @@ jobs:
         run: |
           sleep 15
           VERSION=$(node -p "require('./package.json').version")
-          LEN=$(curl -s -H "Authorization: Basic ${{ secrets.NPM_TOKEN }}" "https://npm.example.com/@synergenius/flow-weaver/$VERSION" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).readme?.length || 0")
+          LEN=$(curl -s -H "Authorization: Bearer ${{ secrets.NPM_TOKEN }}" "https://npm.example.com/@synergenius/flow-weaver/$VERSION" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).readme?.length || 0")
           echo "README length on Verdaccio: $LEN bytes"
           if [ "$LEN" -lt 100 ]; then echo "::warning::README may not have been published correctly ($LEN bytes)"; fi
