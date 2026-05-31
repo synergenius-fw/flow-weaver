@@ -26,26 +26,47 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
+        # Idempotent: a re-triggered release (or a prior run that died after
+        # tagging but before publish) must not brick on "release already
+        # exists". Publish-to-Verdaccio below is the real deliverable; the
+        # GitHub release is bookkeeping, so skip it when the tag is taken.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" \
-            --title "${{ steps.version.outputs.tag }}" \
-            --generate-notes \
-            --target main
+          TAG="${{ steps.version.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, skipping creation."
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              --target main
+          fi
 
       - uses: actions/setup-node@v5
         with:
           node-version: 22
 
       - name: Authenticate to private Verdaccio
-        # NPM_TOKEN is a Verdaccio JWT, so it must go in `_authToken` (bearer),
-        # not `_auth` (which npm treats as base64 user:password and Verdaccio
-        # rejects with E401 on publish). Matches the platform repo's npmrc
-        # convention + its `_authToken=…NPM_TOKEN` workflow-auth lint.
-        run: echo "//npm.example.com/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+        # _auth (legacy basic-auth, base64) matches what Verdaccio's htpasswd
+        # plugin accepts for the github-ci service account. NPM_TOKEN is
+        # base64(`github-ci:<password>`), not a JWT. Mirrors every platform
+        # workflow (release-synergenius-console.yml, _ci-tests.reusable.yml)
+        # and this repo's own ci.yml, all of which authenticate this way.
+        run: |
+          {
+            echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}"
+            echo "@synergenius:registry=https://npm.example.com/"
+            echo "@fw:registry=https://npm.example.com/"
+          } > ~/.npmrc
 
+      # npm itself authenticates fine with _auth (metadata + publish succeed),
+      # but `npm whoami` returns empty under basic-auth, so the preinstall
+      # guard (scripts/check-npm-auth.mjs) misfires and aborts the install.
+      # Skip it here exactly as the Console release workflow does.
       - run: npm install
+        env:
+          SYNERGENIUS_SKIP_AUTH_CHECK: '1'
 
       - name: Verify README exists
         run: |
@@ -71,6 +92,6 @@ jobs:
         run: |
           sleep 15
           VERSION=$(node -p "require('./package.json').version")
-          LEN=$(curl -s -H "Authorization: Bearer ${{ secrets.NPM_TOKEN }}" "https://npm.example.com/@synergenius/flow-weaver/$VERSION" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).readme?.length || 0")
+          LEN=$(curl -s -H "Authorization: Basic ${{ secrets.NPM_TOKEN }}" "https://npm.example.com/@synergenius/flow-weaver/$VERSION" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).readme?.length || 0")
           echo "README length on Verdaccio: $LEN bytes"
           if [ "$LEN" -lt 100 ]; then echo "::warning::README may not have been published correctly ($LEN bytes)"; fi
