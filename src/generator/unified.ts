@@ -1599,6 +1599,9 @@ function generateBranchingNodeCode(
   lines.push(`${indent}      id: '${instanceId}',`);
   lines.push(`${indent}      executionIndex: ${safeId}Idx,`);
   lines.push(`${indent}      error: error instanceof Error ? error.message : String(error),`);
+  lines.push(
+    `${indent}      code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`
+  );
   lines.push(`${indent}    });`);
   lines.push(
     `${indent}    ${setCall}({ id: '${instanceId}', portName: 'onSuccess', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, false);`
@@ -1998,6 +2001,9 @@ function generatePullNodeWithContext(
   lines.push(`${indent}        id: '${instanceId}',`);
   lines.push(`${indent}        executionIndex: ${safeId}Idx,`);
   lines.push(`${indent}        error: error instanceof Error ? error.message : String(error),`);
+  lines.push(
+    `${indent}        code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`
+  );
   lines.push(`${indent}      });`);
   lines.push(`${indent}    }`);
   lines.push(`${indent}    throw error;`);
@@ -2406,6 +2412,9 @@ function generateNodeCallWithContext(
   lines.push(`${indent}      id: '${instanceId}',`);
   lines.push(`${indent}      executionIndex: ${safeId}Idx,`);
   lines.push(`${indent}      error: error instanceof Error ? error.message : String(error),`);
+  lines.push(
+    `${indent}      code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`
+  );
   lines.push(`${indent}    });`);
   if (nodeType.expression) {
     // Expression node: auto-set failure flags in catch block

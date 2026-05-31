@@ -623,6 +623,9 @@ export function generateNodeWithExecutionContext(
   lines.push(`${indent}    id: '${nodeName}',`);
   lines.push(`${indent}    executionIndex: ${safeNodeName}Idx,`);
   lines.push(`${indent}    error: error instanceof Error ? error.message : String(error),`);
+  lines.push(
+    `${indent}    code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`
+  );
   lines.push(`${indent}  });`);
   if (hasOnSuccess || hasOnFailure) {
     if (hasOnSuccess) {

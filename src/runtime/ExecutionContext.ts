@@ -290,6 +290,7 @@ export class GeneratedExecutionContext {
     side?: 'start' | 'exit';
     executionIndex: number;
     error: string;
+    code?: string;
   }): void {
     if (this.flowWeaverDebugger) {
       this.flowWeaverDebugger.sendEvent({

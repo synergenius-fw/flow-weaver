@@ -88,6 +88,7 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('  side?: "start" | "exit";');
     lines.push('  executionIndex: number;');
     lines.push('  error: string;');
+    lines.push('  code?: string;');
     lines.push('  innerFlowInvocation?: boolean;');
     lines.push('};');
     lines.push('');
@@ -450,6 +451,7 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('    side?: "start" | "exit";');
     lines.push('    executionIndex: number;');
     lines.push('    error: string;');
+    lines.push('    code?: string;');
     lines.push('  }): Promise<void> {');
     lines.push('    if (this.flowWeaverDebugger) {');
     lines.push('      await this.flowWeaverDebugger.sendEvent({');

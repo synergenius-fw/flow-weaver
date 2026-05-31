@@ -43,6 +43,14 @@ export type TErrorLogEvent = {
   side?: "start" | "exit";
   executionIndex: number;
   error: string;
+  /**
+   * Structured error code copied from a thrown `Error.code`, when the
+   * node threw one. Optional: most throws carry only a message. Consumers
+   * use it to route to a localized message catalog instead of rendering
+   * the (single-language) `error` string. Undefined when the thrown value
+   * had no `code`.
+   */
+  code?: string;
   innerFlowInvocation?: boolean;
 };
 

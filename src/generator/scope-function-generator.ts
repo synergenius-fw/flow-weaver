@@ -381,6 +381,9 @@ export function generateScopeFunctionClosure(
       lines.push(`${tryIndent}    id: '${child.id}',`);
       lines.push(`${tryIndent}    executionIndex: ${safeChildId}Idx,`);
       lines.push(`${tryIndent}    error: error instanceof Error ? error.message : String(error),`);
+      lines.push(
+        `${tryIndent}    code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`
+      );
       lines.push(`${tryIndent}  });`);
       lines.push(`${tryIndent}}`);
       lines.push(`${tryIndent}throw error;`);
