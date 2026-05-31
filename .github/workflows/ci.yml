@@ -26,7 +26,12 @@ jobs:
       - name: Authenticate to private Verdaccio
         run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
+      # NPM_TOKEN is basic-auth, under which `npm whoami` returns empty even
+      # when auth works, so the preinstall guard (scripts/check-npm-auth.mjs)
+      # misfires and aborts install. Skip it, exactly as create-release.yml does.
       - run: npm ci
+        env:
+          SYNERGENIUS_SKIP_AUTH_CHECK: '1'
 
       - name: Detect release PR
         id: detect
@@ -60,11 +65,16 @@ jobs:
         run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - run: npm ci
+        env:
+          SYNERGENIUS_SKIP_AUTH_CHECK: '1'
 
       - name: Run tests (shard ${{ matrix.shard }}/3)
         run: npx vitest run --shard=${{ matrix.shard }}/3 --reporter=default
+        # Per-worker heap ceilings live in vitest.config.ts (execArgv, sized to
+        # the 8 GB runner). NODE_OPTIONS here only bounds the parent vitest
+        # process, which orchestrates and doesn't hold the ts-morph working set.
         env:
-          NODE_OPTIONS: '--max-old-space-size=8192'
+          NODE_OPTIONS: '--max-old-space-size=2048'
 
   coverage:
     # Wait for the test matrix before kicking off so the heavy --coverage
@@ -86,11 +96,14 @@ jobs:
         run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - run: npm ci
+        env:
+          SYNERGENIUS_SKIP_AUTH_CHECK: '1'
 
       - name: Run tests with coverage
         run: npx vitest run --reporter=default --reporter=json --outputFile=test-results.json --coverage
+        # See the test job: per-worker heap is configured in vitest.config.ts.
         env:
-          NODE_OPTIONS: '--max-old-space-size=8192'
+          NODE_OPTIONS: '--max-old-space-size=2048'
 
       - name: Upload coverage to Codecov
         if: always()

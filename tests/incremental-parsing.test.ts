@@ -14,6 +14,19 @@ describe("AnnotationParser incremental parsing", () => {
     return filePath;
   }
 
+  // Rewrite a file's content the way a real edit does: with a strictly newer
+  // mtime. The parser's fast path returns the cached parse when mtime is
+  // unchanged, and a back-to-back writeFileSync can land in the same mtime tick
+  // on fast filesystems (notably CI), which would make "re-parses on change"
+  // tests flaky. Bumping mtime forward keeps them deterministic while still
+  // modeling reality, where saving a file always advances its mtime.
+  function rewriteFile(filePath: string, content: string): void {
+    const before = fs.statSync(filePath).mtimeMs;
+    fs.writeFileSync(filePath, content);
+    const bumped = new Date(before + 1000);
+    fs.utimesSync(filePath, bumped, bumped);
+  }
+
   beforeEach(() => {
     parser = new AnnotationParser();
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "fw-incr-test-"));
@@ -61,7 +74,7 @@ function add(execute: boolean, data: { a: number }): { onSuccess: boolean } {
       const filePath = writeFile("test.ts", content1);
 
       const result1 = parser.parse(filePath);
-      fs.writeFileSync(filePath, content2);
+      rewriteFile(filePath, content2);
 
       const result2 = parser.parse(filePath);
 
@@ -82,7 +95,7 @@ function calc(execute: boolean, data: { x: number }): { onSuccess: boolean; resu
 
       const filePath = writeFile("test.ts", content1);
       parser.parse(filePath);
-      fs.writeFileSync(filePath, content2);
+      rewriteFile(filePath, content2);
 
       const start = performance.now();
       const result = parser.parse(filePath);
@@ -116,7 +129,7 @@ function calc(execute: boolean, data: { x: number }): { onSuccess: boolean; rena
       expect(result1.nodeTypes[0].outputs.customOut).toBeDefined();
       expect(result1.nodeTypes[0].outputs.renamedOut).toBeUndefined();
 
-      fs.writeFileSync(filePath, content2);
+      rewriteFile(filePath, content2);
       const result2 = parser.parse(filePath);
       expect(result2.nodeTypes[0].outputs.renamedOut).toBeDefined();
       expect(result2.nodeTypes[0].outputs.customOut).toBeUndefined();
@@ -138,7 +151,7 @@ function calcRenamed(execute: boolean, data: { x: number }): { onSuccess: boolea
 
       const filePath = writeFile("test.ts", content1);
       parser.parse(filePath);
-      fs.writeFileSync(filePath, content2);
+      rewriteFile(filePath, content2);
 
       const result = parser.parse(filePath);
       expect(result.nodeTypes[0].functionName).toBe("calcRenamed");
@@ -161,7 +174,7 @@ function calc(execute: boolean, data: { x: number }): { onSuccess: boolean } {
 
       const filePath = writeFile("test.ts", content1);
       parser.parse(filePath);
-      fs.writeFileSync(filePath, content2);
+      rewriteFile(filePath, content2);
 
       // Should not throw and should parse correctly
       const result = parser.parse(filePath);
@@ -191,7 +204,7 @@ function calc(execute: boolean, data: { x: number }): { onSuccess: boolean } {
       const result1 = parser.parse(filePath);
       expect(result1.nodeTypes.length).toBe(1);
 
-      fs.writeFileSync(filePath, content2);
+      rewriteFile(filePath, content2);
       const result2 = parser.parse(filePath);
       expect(result2.nodeTypes.length).toBe(2);
     });

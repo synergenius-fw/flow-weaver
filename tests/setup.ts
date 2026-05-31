@@ -9,16 +9,50 @@ import * as path from 'path';
 import * as os from 'os';
 import { parseWorkflow } from '../src/api/parse';
 import { generateCode } from '../src/api/generate';
-import { getParserProject, parser } from '../src/parser';
+import { parser } from '../src/parser';
 import { resetSharedProject } from '../src/shared-project';
 
-// Warm up the shared ts-morph Project and force type checker initialization.
-// The first Program + type checker creation is the most expensive; doing it
-// here means the LanguageService's internal caches are warm for all tests.
-const _warmProject = getParserProject();
-const _warmFile = _warmProject.createSourceFile('__warmup__.ts', 'const x: number = 1;');
-_warmFile.getVariableDeclarations()[0].getType();
-_warmProject.removeSourceFile(_warmFile);
+// Warm the ts-morph checker for callback-type inference before any real test
+// parses. Each file runs in its own process (isolate:true), and the FIRST
+// complex inference on a cold checker is non-deterministic: ts-morph can return
+// undefined for a callback parameter/return type until the checker is fully
+// initialized, which made the scoped-port inference tests flake (~1 run in N)
+// regardless of isolation. Running the real parser once on a tiny fixture that
+// has both a scoped OUTPUT (callback parameter) and a scoped INPUT (callback
+// return) drives that exact code path to completion, so the checker is warm for
+// it by the time the actual tests run. This is far cheaper than the old warmup
+// (which resolved every property of a synthetic type per file); it parses one
+// 6-line function.
+const warmFixture = path.join(os.tmpdir(), `fw-warm-${process.pid}.ts`);
+try {
+  fs.writeFileSync(
+    warmFixture,
+    `/**
+ * @flowWeaver nodeType
+ * @scope s
+ * @output i scope:s
+ * @input o scope:s
+ */
+function __warm(execute: boolean, cb: (i: number) => { o: boolean }): { onSuccess: boolean } {
+  return { onSuccess: true };
+}
+`
+  );
+  parser.parse(warmFixture);
+  // Drop only the warm fixture's cache entry; do NOT reset the Project, or the
+  // checker would go cold again and the warmup would be pointless. The fixture
+  // lives at a unique temp path no test references, so leaving it in the Project
+  // is harmless.
+  parser.clearParseCache();
+} catch {
+  // Warmup is best-effort; never let it fail a run.
+} finally {
+  try {
+    fs.unlinkSync(warmFixture);
+  } catch {
+    /* ignore */
+  }
+}
 
 // Use OS temp directory - no PID suffix to ensure consistency across forks
 const outputDir = path.join(os.tmpdir(), 'flow-weaver-tests-output');
@@ -32,22 +66,14 @@ if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// After each test file:
-// 1. Clear parse-result cache (keep importCache — it's small and reusable)
-// 2. Remove all source files from the shared project to prevent accumulation
-// 3. Periodically reset the entire project to reclaim type inference memory
-let fileCounter = 0;
+// Both projects run isolate:true, so each file gets a fresh process and the
+// ts-morph Project + parser caches never carry over between files. The reset
+// here is therefore a belt-and-suspenders guard (and what keeps the suite
+// correct if a project is ever switched back to isolate:false): it clears the
+// Project and parser caches at the end of every file so nothing leaks.
 afterAll(() => {
-  parser.clearParseCache();
-  const project = getParserProject();
-  for (const sf of project.getSourceFiles()) {
-    project.removeSourceFile(sf);
-  }
-  fileCounter++;
-  if (fileCounter % 30 === 0) {
-    resetSharedProject();
-    parser.clearCache();
-  }
+  resetSharedProject();
+  parser.clearCache();
 });
 
 // Extend global with test helpers

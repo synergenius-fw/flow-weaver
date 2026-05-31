@@ -99,7 +99,7 @@ export function watchTestWorkflow(execute: boolean): Promise<{ onSuccess: boolea
           watchProcess.kill('SIGTERM');
         }
         reject(new Error('Test timed out waiting for watch mode output'));
-      }, 30000);
+      }, 90000);
 
       watchProcess = spawn('npx', ['tsx', CLI_ENTRY, 'watch', testFile], {
         cwd: PROJECT_ROOT,
@@ -130,7 +130,7 @@ export function watchTestWorkflow(execute: boolean): Promise<{ onSuccess: boolea
         reject(err);
       });
     });
-  }, 35000);
+  }, 120000);
 
   it('should terminate when killed', async () => {
     const testFile = path.join(TEMP_DIR, 'sigint-test.ts');
@@ -159,7 +159,7 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
           watchProcess.kill('SIGKILL');
         }
         reject(new Error('Test timed out'));
-      }, 30000);
+      }, 90000);
 
       watchProcess = spawn('npx', ['tsx', CLI_ENTRY, 'watch', testFile], {
         cwd: PROJECT_ROOT,
@@ -194,7 +194,7 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
         reject(err);
       });
     });
-  }, 35000);
+  }, 120000);
 
   it('should fail for non-existent file', async () => {
     return new Promise<void>((resolve, reject) => {
@@ -203,7 +203,7 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
           watchProcess.kill('SIGTERM');
         }
         reject(new Error('Test timed out'));
-      }, 25000);
+      }, 90000);
 
       watchProcess = spawn('npx', ['tsx', CLI_ENTRY, 'watch', '/nonexistent/file.ts'], {
         cwd: PROJECT_ROOT,
@@ -213,8 +213,16 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
 
       watchProcess.on('exit', (code) => {
         clearTimeout(timeout);
-        expect(code).toBe(1);
-        resolve();
+        // Resolve/reject rather than asserting here: an expect() that throws
+        // inside this async callback escapes the Promise as an uncaught
+        // exception, which fails the whole vitest run (not just this test). A
+        // null code means the process was signalled (e.g. SIGTERM'd on a slow
+        // box) rather than exiting on its own; surface that as a clean failure.
+        if (code === 1) {
+          resolve();
+        } else {
+          reject(new Error(`expected watch to exit with code 1, got ${code}`));
+        }
       });
 
       watchProcess.on('error', (err) => {
@@ -222,5 +230,5 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
         reject(err);
       });
     });
-  }, 30000);
+  }, 120000);
 });
