@@ -156,7 +156,7 @@ export function registerWorkflowRunTools(mcp: McpServer): void {
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       params: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .optional()
         .describe('Input parameters for the workflow'),
       workflowName: z
@@ -197,7 +197,7 @@ export function registerWorkflowRunTools(mcp: McpServer): void {
     {
       runId: z.string().describe('Run ID from fw_workflow_run'),
       agentResult: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .describe('The agent result to pass back to the workflow'),
     },
     async (args: { runId: string; agentResult: Record<string, unknown> }) => {

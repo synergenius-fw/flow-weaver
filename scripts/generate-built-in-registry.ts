@@ -84,9 +84,16 @@ function transpileToJS(tsCode: string): string {
       target: ts.ScriptTarget.ES2022,
       module: ts.ModuleKind.ESNext,
       removeComments: true,
+      // TypeScript 6's transpileModule emits a "use strict" prologue by default;
+      // these snippets are inlined into ES modules (already strict), and the
+      // prologue would change the emitted function text and break the
+      // built-in-node dedup that matches on it.
+      alwaysStrict: false,
     },
   });
-  return result.outputText.trim();
+  // Belt and suspenders: drop a leading "use strict" directive if one slips
+  // through, so the output is stable across TypeScript versions.
+  return result.outputText.replace(/^\s*["']use strict["'];?\s*/, '').trim();
 }
 
 // ---------------------------------------------------------------------------

@@ -11,36 +11,40 @@ import {
 } from './manipulation/index.js';
 import { findIsolatedNodes } from './query.js';
 
+// zod 4 unified `required_error` and `invalid_type_error` into a single `error`
+// param (a string or a function of the issue). For these fields the message is
+// the same regardless of whether the value is missing or the wrong type, so a
+// plain string is the faithful translation.
 export const modifyParamsSchemas: Record<string, z.ZodType> = {
   addNode: z.object({
-    nodeId: z.string({ required_error: 'nodeId is required' }),
-    nodeType: z.string({ required_error: 'nodeType is required' }),
+    nodeId: z.string({ error: 'nodeId is required' }),
+    nodeType: z.string({ error: 'nodeType is required' }),
     x: z.number().optional(),
     y: z.number().optional(),
   }),
   removeNode: z.object({
-    nodeId: z.string({ required_error: 'nodeId is required' }),
+    nodeId: z.string({ error: 'nodeId is required' }),
   }),
   renameNode: z.object({
-    oldId: z.string({ required_error: 'oldId is required' }),
-    newId: z.string({ required_error: 'newId is required' }),
+    oldId: z.string({ error: 'oldId is required' }),
+    newId: z.string({ error: 'newId is required' }),
   }),
   addConnection: z.object({
-    from: z.string({ required_error: 'from is required (format: "node.port")' }),
-    to: z.string({ required_error: 'to is required (format: "node.port")' }),
+    from: z.string({ error: 'from is required (format: "node.port")' }),
+    to: z.string({ error: 'to is required (format: "node.port")' }),
   }),
   removeConnection: z.object({
-    from: z.string({ required_error: 'from is required (format: "node.port")' }),
-    to: z.string({ required_error: 'to is required (format: "node.port")' }),
+    from: z.string({ error: 'from is required (format: "node.port")' }),
+    to: z.string({ error: 'to is required (format: "node.port")' }),
   }),
   setNodePosition: z.object({
-    nodeId: z.string({ required_error: 'nodeId is required' }),
-    x: z.number({ required_error: 'x is required', invalid_type_error: 'x must be a number' }),
-    y: z.number({ required_error: 'y is required', invalid_type_error: 'y must be a number' }),
+    nodeId: z.string({ error: 'nodeId is required' }),
+    x: z.number({ error: 'x is required (must be a number)' }),
+    y: z.number({ error: 'y is required (must be a number)' }),
   }),
   setNodeLabel: z.object({
-    nodeId: z.string({ required_error: 'nodeId is required' }),
-    label: z.string({ required_error: 'label is required' }),
+    nodeId: z.string({ error: 'nodeId is required' }),
+    label: z.string({ error: 'label is required' }),
   }),
 };
 

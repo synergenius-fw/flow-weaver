@@ -104,6 +104,24 @@ export function getPortTypeDescription(portType: TDataType): string | undefined 
  * inferDataTypeFromTS("Map<string, User>") // → "OBJECT"
  * inferDataTypeFromTS("(x: number) => string") // → "FUNCTION"
  */
+/**
+ * Strip a trailing `| undefined` that ts-morph appends to an optional
+ * parameter's type. Optionality is tracked separately by the port's `optional`
+ * flag, so the captured `tsType` should be the base type without it. ts-morph 28
+ * started including `| undefined` in `Parameter.getType().getText()` for `?`
+ * params (ts-morph 27 did not), which otherwise leaks into generated code and
+ * makes JSDoc signatures (`@input x - string`) mismatch the inferred type.
+ *
+ * Only call this for params/fields already known to be optional; a required
+ * `string | undefined` union is left intact.
+ */
+export function stripOptionalUndefined(tsType: string): string {
+  return tsType
+    .replace(/\s*\|\s*undefined\s*$/, '')
+    .replace(/^\s*undefined\s*\|\s*/, '')
+    .trim();
+}
+
 export function inferDataTypeFromTS(tsType: string): TDataType {
   const normalized = tsType.trim();
 

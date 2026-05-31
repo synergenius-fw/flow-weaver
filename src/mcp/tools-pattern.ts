@@ -170,7 +170,7 @@ export function registerPatternTools(mcp: McpServer): void {
         ])
         .describe('The mutation to perform'),
       params: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .describe(
           'Operation-specific parameters. ' +
             'addNode: {nodeId, nodeType, x?, y?}. ' +
@@ -516,7 +516,7 @@ export function registerPatternTools(mcp: McpServer): void {
               'setNodePosition',
               'setNodeLabel',
             ]),
-            params: z.record(z.unknown()),
+            params: z.record(z.string(), z.unknown()),
           })
         )
         .describe('Array of operations to apply sequentially'),

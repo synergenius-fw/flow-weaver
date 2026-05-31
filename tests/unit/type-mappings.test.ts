@@ -4,7 +4,12 @@
  * TypeScript types to Flow Weaver semantic types.
  */
 
-import { inferDataTypeFromTS, mapToTypeScript, isValidPortType } from '../../src/type-mappings';
+import {
+  inferDataTypeFromTS,
+  mapToTypeScript,
+  isValidPortType,
+  stripOptionalUndefined,
+} from '../../src/type-mappings';
 
 describe('inferDataTypeFromTS', () => {
   describe('Primitive types', () => {
@@ -266,5 +271,30 @@ describe('isValidPortType', () => {
     expect(isValidPortType('INVALID')).toBe(false);
     expect(isValidPortType('string')).toBe(false);
     expect(isValidPortType('')).toBe(false);
+  });
+});
+
+describe('stripOptionalUndefined', () => {
+  it('strips a trailing " | undefined"', () => {
+    expect(stripOptionalUndefined('string | undefined')).toBe('string');
+    expect(stripOptionalUndefined('number | undefined')).toBe('number');
+    expect(stripOptionalUndefined('Foo[] | undefined')).toBe('Foo[]');
+  });
+
+  it('strips a leading "undefined | "', () => {
+    expect(stripOptionalUndefined('undefined | string')).toBe('string');
+  });
+
+  it('leaves a type without undefined unchanged', () => {
+    expect(stripOptionalUndefined('string')).toBe('string');
+    expect(stripOptionalUndefined('Map<string, number>')).toBe('Map<string, number>');
+    expect(stripOptionalUndefined('string | null')).toBe('string | null');
+  });
+
+  it('does not touch "undefined" appearing inside a wider union', () => {
+    // Only the redundant optional marker at the edges is removed.
+    expect(stripOptionalUndefined('string | undefined | number')).toBe(
+      'string | undefined | number'
+    );
   });
 });

@@ -128,7 +128,10 @@ export function registerDebugTools(mcp: McpServer): void {
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       workflowName: z.string().optional().describe('Specific workflow function name (for multi-workflow files)'),
-      params: z.record(z.unknown()).optional().describe('Parameters to pass to the workflow'),
+      params: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe('Parameters to pass to the workflow'),
       breakpoints: z.array(z.string()).optional().describe('Node IDs to set as initial breakpoints'),
       checkpoint: z.boolean().optional().describe('Enable checkpointing to disk after each node (default: false)'),
     },

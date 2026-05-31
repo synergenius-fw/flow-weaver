@@ -12,7 +12,7 @@ import {
   KNOWN_NODETYPE_TAGS, KNOWN_WORKFLOW_TAGS, KNOWN_PATTERN_TAGS, STANDARD_JSDOC_TAGS,
   getKnownWorkflowTags,
 } from './constants';
-import { inferDataTypeFromTS } from './type-mappings';
+import { inferDataTypeFromTS, stripOptionalUndefined } from './type-mappings';
 import { findClosestMatches } from './utils/string-distance';
 import type { TagHandlerRegistry } from './parser/tag-registry';
 import {
@@ -852,7 +852,11 @@ export class JSDocParser {
         return pName === name || pName === `_${name}`;
       });
       if (param) {
-        tsType = param.getType().getText(param);
+        const rawTsType = param.getType().getText(param);
+        tsType =
+          param.isOptional() || param.hasInitializer()
+            ? stripOptionalUndefined(rawTsType)
+            : rawTsType;
         type = inferDataTypeFromTS(tsType);
       } else {
         type = 'ANY';

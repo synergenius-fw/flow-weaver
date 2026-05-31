@@ -70,7 +70,7 @@ export function registerTemplateTools(mcp: McpServer): void {
         .optional()
         .describe('Preview only — return generated code without writing (default: false)'),
       config: z
-        .record(z.unknown())
+        .record(z.string(), z.unknown())
         .optional()
         .describe('Template configuration (e.g. { nodes: ["fetch", "parse"], input: "rawData" })'),
     },

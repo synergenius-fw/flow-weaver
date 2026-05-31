@@ -10,8 +10,10 @@ import type { TNodeTypeAST } from '../ast/types.js';
 const stepSchema = z.object({
   name: z.string().describe('Function name for this node'),
   description: z.string().optional().describe('Brief description of what this node does'),
-  inputs: z.record(z.string()).describe('Input ports as { portName: dataType } (e.g. { email: "STRING" })'),
-  outputs: z.record(z.string()).describe('Output ports as { portName: dataType }'),
+  inputs: z
+    .record(z.string(), z.string())
+    .describe('Input ports as { portName: dataType } (e.g. { email: "STRING" })'),
+  outputs: z.record(z.string(), z.string()).describe('Output ports as { portName: dataType }'),
 });
 
 /**

@@ -22,7 +22,7 @@ import { EXECUTION_STRATEGIES, RESERVED_PORT_NAMES, isControlFlowPort } from './
 import { getErrorMessage } from './utils/error-utils';
 import { assignImplicitPortOrders } from './utils/port-ordering';
 import { stripGeneratedSections, hasInPlaceMarkers } from './api/generate-in-place';
-import { inferDataTypeFromTS } from './type-mappings';
+import { inferDataTypeFromTS, stripOptionalUndefined } from './type-mappings';
 import { generateJSDocPortTag } from './annotation-generator';
 import { resolvePackageTypesPath } from './resolve-package-types';
 import { getPackageExports } from './npm-packages';
@@ -1563,9 +1563,10 @@ export class AnnotationParser {
     const firstParamIsExecute = params.length > 0 && params[0].getName() === 'execute';
     for (const param of params) {
       const paramName = param.getName();
-      const tsType = param.getType().getText(param);
-      const dataType = inferDataTypeFromTS(tsType);
       const optional = param.isOptional() || param.hasInitializer();
+      const rawTsType = param.getType().getText(param);
+      const tsType = optional ? stripOptionalUndefined(rawTsType) : rawTsType;
+      const dataType = inferDataTypeFromTS(tsType);
       inputs[paramName] = {
         dataType,
         optional: optional || undefined,
@@ -2515,7 +2516,11 @@ export class AnnotationParser {
             const paramName = param.getName();
             const paramType = param.getType();
             const portType = this.inferPortType(paramType);
-            const paramTypeText = paramType.getText(param);
+            const rawParamTypeText = paramType.getText(param);
+            const paramTypeText =
+              param.isOptional() || param.hasInitializer()
+                ? stripOptionalUndefined(rawParamTypeText)
+                : rawParamTypeText;
             const tsSchema = portType === 'OBJECT' ? this.extractTypeSchema(paramType) : undefined;
             const startPortConfig = config?.startPorts?.[paramName];
             ports[paramName] = {

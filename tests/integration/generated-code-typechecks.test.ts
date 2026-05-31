@@ -25,7 +25,12 @@ function typeCheckInMemory(code: string, fileName: string = "test.ts"): {
     skipLibCheck: true,
     target: ts.ScriptTarget.ES2020,
     module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeJs,
+    // Bundler resolution matches the project's own tsconfig and, unlike the
+    // legacy Node10 resolution (ModuleResolutionKind.NodeJs), is not deprecated
+    // under TypeScript 6. The old value emitted a TS6 deprecation diagnostic that
+    // landed in the error list and made this check fail even though the
+    // generated code type-checks cleanly.
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
     strict: false,
     esModuleInterop: true,
     allowSyntheticDefaultImports: true,
