@@ -27,11 +27,28 @@ const mockInput = vi.fn();
 vi.mock('@inquirer/input', () => ({ default: mockInput }));
 
 const mockSpawn = vi.fn();
+// Intercept execSync so `npm install` never runs the real (network) install.
+// These tests cover initCommand's install-result REPORTING branches, not npm
+// itself; a real `npm install` is slow, flakes under CI load (>60s timeout),
+// and leaves a partially-written node_modules that races the afterEach
+// rmSync (ENOTEMPTY). `npmInstallBehavior` lets each test pick success/fail
+// deterministically and instantly; every other command (git init, etc.)
+// passes through to the real execSync.
+let npmInstallBehavior: 'success' | 'fail' = 'success';
 vi.mock('child_process', async (importOriginal) => {
   const orig = await importOriginal<typeof import('child_process')>();
   return {
     ...orig,
     spawn: (...args: unknown[]) => mockSpawn(...args),
+    execSync: (command: string, options?: unknown) => {
+      if (typeof command === 'string' && command.includes('npm install')) {
+        if (npmInstallBehavior === 'fail') {
+          throw new Error('npm install failed (mocked): simulated install failure');
+        }
+        return Buffer.from(''); // success, no real install
+      }
+      return orig.execSync(command as string, options as never);
+    },
   };
 });
 
@@ -77,6 +94,7 @@ beforeEach(() => {
   });
   mockCompileCommand.mockReset().mockResolvedValue(undefined);
   mockLoadPackTemplates.mockReset().mockResolvedValue(undefined);
+  npmInstallBehavior = 'success';
   origIsTTY = process.stdin.isTTY;
 });
 
@@ -108,10 +126,11 @@ describe('initCommand non-JSON output branches', () => {
 
   it('reports failed install in human mode', async () => {
     const { initCommand } = await import('../../src/cli/commands/init');
-    // Use a temp dir but make npm install fail by using a dir without valid package.json path
     const targetDir = path.join(TEMP_DIR, 'install-fail');
 
-    // The scaffolded package.json has "latest" dep which will fail npm install in a temp dir
+    // Deterministically fail the install (mocked) instead of relying on a real
+    // `npm install` to fail, which is slow + flaky under CI load.
+    npmInstallBehavior = 'fail';
     await initCommand(targetDir, {
       name: 'installfail',
       template: 'sequential',

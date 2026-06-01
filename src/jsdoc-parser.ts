@@ -41,9 +41,56 @@ import {
  * @param fieldName - The name of the field to extract from the return type
  * @returns The TypeScript type string, or undefined if extraction fails
  */
+/**
+ * Get a callback type's call signatures deterministically.
+ *
+ * ts-morph 28 / TypeScript 6 lazily initializes the type checker. On a "cold"
+ * checker (the first complex inference after a fresh/reset ts-morph Project),
+ * `Type.getCallSignatures()` for a function-typed parameter NON-DETERMINISTICALLY
+ * returns an empty array even though the type genuinely has a call signature.
+ * That made scoped-port inference (which reads the callback's signature to derive
+ * port types) flake: the port came out with no `tsType`. A test-only checker
+ * warmup masked it unreliably; this is the real fix.
+ *
+ * Force the checker to materialize the signatures: if the direct call returns
+ * none, retry via the APPARENT type (`getApparentType()` drives the checker to
+ * resolve the type's structure), then via the type's symbol declaration's type
+ * (re-resolving from the declaration forces a full type computation). Returns the
+ * first non-empty signature list, or an empty array only when the type truly has
+ * no call signature.
+ */
+function resolveCallSignatures(callbackType: Type): ReturnType<Type['getCallSignatures']> {
+  let sigs = callbackType.getCallSignatures();
+  if (sigs.length > 0) return sigs;
+
+  // Retry 1: apparent type forces the checker to resolve the type's structure.
+  try {
+    sigs = callbackType.getApparentType().getCallSignatures();
+    if (sigs.length > 0) return sigs;
+  } catch {
+    // getApparentType can throw on exotic types; fall through to the next retry.
+  }
+
+  // Retry 2: re-resolve the type from its symbol's declaration. Reading the
+  // declaration's type recomputes it through the (now-touched) checker, which
+  // reliably materializes call signatures the cold first pass missed.
+  try {
+    const symbol = callbackType.getSymbol() ?? callbackType.getAliasSymbol();
+    const decl = symbol?.getDeclarations()?.[0];
+    if (decl) {
+      sigs = decl.getType().getCallSignatures();
+      if (sigs.length > 0) return sigs;
+    }
+  } catch {
+    // Best-effort; fall through.
+  }
+
+  return sigs;
+}
+
 function extractCallbackReturnFieldType(callbackType: Type, fieldName: string): string | undefined {
-  // Get call signatures from the callback type
-  const callSignatures = callbackType.getCallSignatures();
+  // Get call signatures from the callback type (cold-checker-safe).
+  const callSignatures = resolveCallSignatures(callbackType);
   if (callSignatures.length === 0) {
     return undefined;
   }
@@ -111,8 +158,8 @@ function getPropertyType(property: TsMorphSymbol, containerType: Type): Type | u
  * @returns The TypeScript type string, or undefined if extraction fails
  */
 function extractCallbackParamType(callbackType: Type, paramName: string): string | undefined {
-  // Get call signatures from the callback type
-  const callSignatures = callbackType.getCallSignatures();
+  // Get call signatures from the callback type (cold-checker-safe).
+  const callSignatures = resolveCallSignatures(callbackType);
   if (callSignatures.length === 0) {
     return undefined;
   }

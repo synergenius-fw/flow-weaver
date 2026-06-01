@@ -81,12 +81,18 @@ jobs:
 
       - name: Pack, verify, and publish to Verdaccio
         run: |
-          npm pack --pack-destination /tmp
-          TARBALL=$(ls /tmp/synergenius-flow-weaver-*.tgz)
+          # Pack into a clean per-run dir and read the EXACT filename npm
+          # pack prints (last stdout line). The old `ls /tmp/...-*.tgz` glob
+          # broke on self-hosted runners when a prior run left a stale
+          # tarball in /tmp: it matched two files, so $TARBALL became a
+          # newline-joined pair and `tar`/`npm publish` got an invalid path.
+          PACKDIR=$(mktemp -d)
+          TARBALL_NAME=$(npm pack --pack-destination "$PACKDIR" --silent | tail -n1)
+          TARBALL="$PACKDIR/$TARBALL_NAME"
           echo "Tarball: $TARBALL"
           tar -tzf "$TARBALL" | grep README.md || (echo "ERROR: README.md not in tarball" && exit 1)
           npm publish "$TARBALL"
-          rm -f "$TARBALL"
+          rm -rf "$PACKDIR"
 
       - name: Verify README on Verdaccio registry
         run: |

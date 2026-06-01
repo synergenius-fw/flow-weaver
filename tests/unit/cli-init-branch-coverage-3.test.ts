@@ -27,11 +27,28 @@ const mockInput = vi.fn();
 vi.mock('@inquirer/input', () => ({ default: mockInput }));
 
 const mockSpawn = vi.fn();
+// Intercept execSync so `npm install` never runs the real (network) install.
+// These tests cover initCommand's install-result REPORTING branches, not npm
+// itself; a real `npm install` is slow, flakes under CI load (>60s timeout),
+// and leaves a partially-written node_modules that races the afterEach
+// rmSync (ENOTEMPTY). `npmInstallBehavior` lets each test pick success/fail
+// deterministically and instantly; every other command (git init, etc.)
+// passes through to the real execSync.
+let npmInstallBehavior: 'success' | 'fail' = 'success';
 vi.mock('child_process', async (importOriginal) => {
   const orig = await importOriginal<typeof import('child_process')>();
   return {
     ...orig,
     spawn: (...args: unknown[]) => mockSpawn(...args),
+    execSync: (command: string, options?: unknown) => {
+      if (typeof command === 'string' && command.includes('npm install')) {
+        if (npmInstallBehavior === 'fail') {
+          throw new Error('npm install failed (mocked): simulated install failure');
+        }
+        return Buffer.from('');
+      }
+      return orig.execSync(command as string, options as never);
+    },
   };
 });
 
@@ -77,6 +94,7 @@ beforeEach(() => {
   });
   mockCompileCommand.mockReset().mockResolvedValue(undefined);
   mockLoadPackTemplates.mockReset().mockResolvedValue(undefined);
+  npmInstallBehavior = 'success';
   origIsTTY = process.stdin.isTTY;
 });
 
@@ -472,9 +490,10 @@ describe('initCommand ExitPromptError handling', () => {
 describe('initCommand spinner fail branch', () => {
   it('calls spinner.fail when npm install fails in human mode (line 648)', async () => {
     const { initCommand } = await import('../../src/cli/commands/init');
-    // Create a dir that will have a valid scaffold but npm install will fail
     const targetDir = path.join(TEMP_DIR, 'spinner-fail');
 
+    // Deterministically fail the install (mocked) instead of a real npm install.
+    npmInstallBehavior = 'fail';
     await initCommand(targetDir, {
       name: 'spinnerfail',
       template: 'sequential',
@@ -572,6 +591,8 @@ describe('initCommand install failure warning in human mode', () => {
     const { initCommand } = await import('../../src/cli/commands/init');
     const targetDir = path.join(TEMP_DIR, 'install-fail-warn');
 
+    // Deterministically fail the install (mocked) instead of a real npm install.
+    npmInstallBehavior = 'fail';
     await initCommand(targetDir, {
       name: 'installfailwarn',
       template: 'sequential',
