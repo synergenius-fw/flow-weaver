@@ -822,31 +822,21 @@ export class AnnotationParser {
     }
 
     try {
-      const dtsContent = fs.readFileSync(dtsPath, 'utf-8');
-      const dtsFile = this.project.createSourceFile(
-        `__npm_dts__/${imp.importSource}.d.ts`,
-        dtsContent,
-        { overwrite: true }
+      // Infer node types from the resolved `.d.ts` AND from any files it
+      // re-exports (`export * from './x'`, `export { y } from './x'`).
+      // Modern packages ship a barrel `index.d.ts` that only re-exports its
+      // real declarations from sub-files (e.g. pack-core's
+      // `export * from './node-types/index.js'`); reading the barrel alone
+      // finds zero functions and the import falls back to a `{ result }`
+      // stub, dropping every real port. Inference happens inside the walk
+      // while each sub-file's ts-morph SourceFile is still alive.
+      const allNodeTypes = this.inferNodeTypesDeep(
+        dtsPath,
+        imp.importSource,
+        new Set<string>(),
+        new Set<string>(),
+        0
       );
-
-      const fns = extractFunctionLikes(dtsFile);
-      const allNodeTypes: TNodeTypeAST[] = [];
-      const seenNames = new Set<string>();
-
-      for (const fn of fns) {
-        const fnName = fn.getName();
-        if (!fnName) continue;
-        // Skip duplicate function names (overloaded declarations in .d.ts)
-        if (seenNames.has(fnName)) continue;
-        seenNames.add(fnName);
-
-        const nodeType = this.inferNodeTypeFromFunction(fn, fnName, dtsPath);
-        nodeType.importSource = imp.importSource;
-        nodeType.functionText = undefined;
-        allNodeTypes.push(nodeType);
-      }
-
-      this.project.removeSourceFile(dtsFile);
 
       // Cache all node types from this package (with mtime of the .d.ts file)
       const dtsMtime2 = fs.statSync(dtsPath).mtimeMs;
@@ -870,6 +860,107 @@ export class AnnotationParser {
     }
 
     return this.createImportStub(imp);
+  }
+
+  /**
+   * Read a `.d.ts`, infer node types from its function declarations, and
+   * follow re-export barrels (`export * from './x'`,
+   * `export { y } from './x'`) to the files that actually declare the
+   * functions. Inference runs here (not in the caller) so each function's
+   * ts-morph node is read while its SourceFile is still alive. Removing the
+   * SourceFile before inference would detach the node and throw
+   * "Attempted to get information from a node that was removed".
+   *
+   * Why: modern packages ship a barrel `index.d.ts` that only re-exports
+   * from sub-files. Reading the barrel alone yields zero functions, so an
+   * `@fwImport` of such a package fell back to a `{ result }` stub. Walking
+   * the re-exports resolves the real declarations (and their `@input` /
+   * `@output` JSDoc), so the node's true ports are recovered.
+   *
+   * `visitedFiles` guards re-export cycles; `seenNames` de-dupes a function
+   * re-exported through multiple paths (first declaration wins); `depth`
+   * bounds the walk so a pathological barrel graph can't run away.
+   */
+  private inferNodeTypesDeep(
+    dtsPath: string,
+    importSource: string,
+    visitedFiles: Set<string>,
+    seenNames: Set<string>,
+    depth: number
+  ): TNodeTypeAST[] {
+    const MAX_DEPTH = 8;
+    const resolved = path.resolve(dtsPath);
+    if (visitedFiles.has(resolved) || depth > MAX_DEPTH) return [];
+    visitedFiles.add(resolved);
+
+    let dtsContent: string;
+    try {
+      dtsContent = fs.readFileSync(resolved, 'utf-8');
+    } catch (err) {
+      // The entry `.d.ts` (depth 0) failing to read is a hard error the
+      // caller surfaces as a "Failed to parse ... generic stub" warning.
+      // A re-exported sub-file (depth > 0) failing is best-effort: skip it
+      // and keep whatever the other files resolved.
+      if (depth === 0) throw err;
+      return [];
+    }
+
+    const sf = this.project.createSourceFile(
+      `__npm_dts__/${resolved.replace(/[^A-Za-z0-9._-]/g, '_')}.d.ts`,
+      dtsContent,
+      { overwrite: true }
+    );
+
+    const out: TNodeTypeAST[] = [];
+    try {
+      for (const fn of extractFunctionLikes(sf)) {
+        const fnName = fn.getName();
+        if (!fnName) continue;
+        // Skip duplicate function names (overloads, or re-exported via
+        // multiple barrels). First declaration encountered wins.
+        if (seenNames.has(fnName)) continue;
+        seenNames.add(fnName);
+
+        const nodeType = this.inferNodeTypeFromFunction(fn, fnName, resolved);
+        nodeType.importSource = importSource;
+        nodeType.functionText = undefined;
+        out.push(nodeType);
+      }
+
+      // Follow `export ... from '<relative>'` declarations to sibling files.
+      const baseDir = path.dirname(resolved);
+      for (const exp of sf.getExportDeclarations()) {
+        const spec = exp.getModuleSpecifierValue();
+        if (!spec || !spec.startsWith('.')) continue;
+        const target = this.resolveReExportedDts(baseDir, spec);
+        if (!target) continue;
+        out.push(
+          ...this.inferNodeTypesDeep(target, importSource, visitedFiles, seenNames, depth + 1)
+        );
+      }
+    } finally {
+      this.project.removeSourceFile(sf);
+    }
+    return out;
+  }
+
+  /**
+   * Resolve a relative re-export specifier (as written in a `.d.ts`, which
+   * commonly points at the compiled `.js`, e.g. `./node-types/index.js`) to
+   * the matching `.d.ts` on disk. Tries the literal `.d.ts`, the `.js`->`.d.ts`
+   * swap, and the `<dir>/index.d.ts` directory form.
+   */
+  private resolveReExportedDts(baseDir: string, spec: string): string | null {
+    const noExt = spec.replace(/\.(js|mjs|cjs|jsx|ts|tsx)$/, '');
+    const candidates = [
+      path.resolve(baseDir, `${noExt}.d.ts`),
+      path.resolve(baseDir, noExt, 'index.d.ts'),
+      path.resolve(baseDir, spec), // already a .d.ts path
+    ];
+    for (const c of candidates) {
+      if (c.endsWith('.d.ts') && fs.existsSync(c)) return c;
+    }
+    return null;
   }
 
   /**

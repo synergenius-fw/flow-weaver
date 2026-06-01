@@ -1,5 +1,5 @@
 import type { TParseOptions as ASTParseOptions, TWorkflowAST } from '../ast/types';
-import { parser } from '../parser';
+import { parser, type TExternalNodeType } from '../parser';
 import { getErrorMessage } from '../utils/error-utils';
 
 export interface ParseOptions extends Partial<ASTParseOptions> {
@@ -18,6 +18,16 @@ export interface ParseOptions extends Partial<ASTParseOptions> {
    * marketplace packs are discovered and registered before parsing.
    */
   projectDir?: string;
+  /**
+   * Definitions of foreign nodeTypes the workflow references by name
+   * (an `@node <id> <foreignType>` from another pack). Forwarded to the
+   * underlying `parser.parse(filePath, externalNodeTypes)` so the
+   * reference resolves without the foreign pack's source on the parse
+   * path. Callers that resolve these from a wire manifest (rather than
+   * from `node_modules`) pass them here. Omit when the file declares
+   * every nodeType it uses.
+   */
+  externalNodeTypes?: TExternalNodeType[];
 }
 
 export interface ParseResult {
@@ -68,8 +78,11 @@ export async function parseWorkflow(
       await parser.loadPackHandlers(options.projectDir);
     }
 
-    // Parse the file to extract nodes and workflows
-    const parsed = parser.parse(filePath);
+    // Parse the file to extract nodes and workflows. Foreign nodeTypes
+    // the caller supplied (e.g. resolved from a pack's wire manifest)
+    // are threaded through so `@node <id> <foreignType>` references
+    // resolve on this path the same way the low-level parser supports.
+    const parsed = parser.parse(filePath, options?.externalNodeTypes);
     warnings.push(...parsed.warnings);
     errors.push(...parsed.errors);
 

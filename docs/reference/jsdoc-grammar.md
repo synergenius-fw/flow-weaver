@@ -185,7 +185,7 @@ fwImportTag    ::= "@fwImport" IDENTIFIER IDENTIFIER "from" QUOTED_STRING
 QUOTED_STRING  ::= STRING | "'" { any character except "'" } "'"
 ```
 
-Import npm package functions or local module exports as node types. The imported function becomes an expression node that can be instantiated with `@node`. Both double and single quotes are accepted for the module specifier.
+Import npm package functions or local module exports as node types. The imported function becomes a node that can be instantiated with `@node`. Both double and single quotes are accepted for the module specifier.
 
 **Examples:**
 
@@ -193,13 +193,16 @@ Import npm package functions or local module exports as node types. The imported
 @fwImport npm/lodash/map map from "lodash"
 @fwImport npm/date-fns/format format from "date-fns"
 @fwImport local/utils/helper helper from './utils'
+@fwImport waitForApproval waitForApproval from "@synergenius/flow-weaver-pack-core"
 ```
 
-- First identifier: node type name (used in `@node` tags, convention: `npm/pkg/fn` or `local/path/fn`)
+- First identifier: node type name (used in `@node` tags, convention: `npm/pkg/fn` or `local/path/fn`, or just the function name for a marketplace pack node)
 - Second identifier: exported function name to import
 - String: package name or relative path
-
-Port types are inferred from TypeScript `.d.ts` files when available. Falls back to a stub with `ANY` result port if inference fails.
+- Port types are inferred from the imported function's TypeScript `.d.ts`
+- Inference follows re-export barrels: packages whose entry `.d.ts` is a barrel (`export * from './sub'` / `export { fn } from './sub'`) resolve correctly. This is the common shape for marketplace packs (e.g. `@synergenius/flow-weaver-pack-core` re-exports its node types)
+- A function annotated with `@flowWeaver nodeType` in the `.d.ts` keeps its full port set (inputs, outputs, `onSuccess`/`onFailure`); a plain function maps to an expression node. With no `.d.ts`, the import falls back to a stub with a single `ANY` `result` port
+- The compiler emits a real `import { fn } from "<pkg>"` in the generated output, so the function is callable at run time. The package must be resolvable from where the compiled workflow runs (installed in `node_modules`, or otherwise on the module resolution path)
 
 ## @node
 

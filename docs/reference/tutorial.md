@@ -163,9 +163,10 @@ This is useful when:
 
 - The function already exists and does what you need
 - You want to use popular libraries (lodash, date-fns, etc.) directly
+- You want a node type from a marketplace pack (e.g. `waitForApproval` from `@synergenius/flow-weaver-pack-core`)
 - You don't want to write wrapper boilerplate
 
-Port types are inferred from TypeScript definitions. See `fw docs jsdoc-grammar` for full syntax.
+Port types are inferred from TypeScript definitions, including packages that re-export their node types through a barrel `index.d.ts`. See `fw docs jsdoc-grammar` for full syntax.
 
 After adding each function, validate to catch errors early:
 

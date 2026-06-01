@@ -36,6 +36,8 @@ export const MARKERS = {
   RUNTIME_END: '// @flow-weaver-runtime-end',
   BODY_START: '// @flow-weaver-body-start',
   BODY_END: '// @flow-weaver-body-end',
+  IMPORTS_START: '// @flow-weaver-imports-start',
+  IMPORTS_END: '// @flow-weaver-imports-end',
 };
 
 export interface InPlaceGenerateOptions {
@@ -194,6 +196,20 @@ export function generateInPlace(
     hasChanges = true;
   }
 
+  // Step 2.5: Emit executable `import { fn } from "pkg"` statements for
+  // `@fwImport` node types. The `@fwImport` JSDoc declares intent + persists
+  // across re-parses, but the generated body CALLS the imported function by
+  // bare name (`await waitForApproval(...)`), so without a real import the
+  // module throws `<fn> is not defined` at run time. Step 1 deliberately
+  // does NOT inline imported node bodies ("the import statement handles
+  // them") — this step is what actually emits that import. Idempotent via
+  // the IMPORTS markers.
+  const importsResult = ensureFwImportStatements(result, ast);
+  if (importsResult.changed) {
+    result = importsResult.code;
+    hasChanges = true;
+  }
+
   // Step 3: Generate and insert/replace runtime section (always inlined — zero runtime dependencies)
   const runtimeCode = generateRuntimeSection(ast.functionName, production, moduleFormat);
   const runtimeResult = replaceOrInsertSection(
@@ -289,6 +305,65 @@ function generateRuntimeSection(
   lines.push(generateInlineRuntime(production));
 
   return lines.join('\n');
+}
+
+/**
+ * Emit executable `import { <fn> } from "<pkg>"` statements for every
+ * `@fwImport` node type (those carrying `importSource`), so the generated
+ * body's bare call (`await waitForApproval(...)`) resolves at run time.
+ *
+ * The block is delimited by IMPORTS markers and inserted at the very top of
+ * the file (before any other content), so it's idempotent across re-runs
+ * and survives alongside the user's own imports. When the workflow uses no
+ * `@fwImport` node types the block is empty (markers only) — harmless.
+ *
+ * Default-export imports are written `import <fn> from "<pkg>"`; named ones
+ * `import { <fn> } from "<pkg>"`. The function name is derived the same way
+ * as the persisted `@fwImport` JSDoc (npm/<pkg>/<fn> convention or explicit
+ * functionName).
+ */
+function ensureFwImportStatements(
+  source: string,
+  ast: TWorkflowAST,
+): { code: string; changed: boolean } {
+  const importNodeTypes = ast.nodeTypes.filter((nt) => nt.importSource);
+
+  // Build one import per (functionName, importSource), de-duped.
+  const seen = new Set<string>();
+  const importLines: string[] = [];
+  for (const nt of importNodeTypes) {
+    let fnName = nt.functionName;
+    if (nt.functionName === nt.name && nt.name.startsWith('npm/')) {
+      const parts = nt.name.split('/');
+      fnName = parts[parts.length - 1];
+    }
+    const key = `${fnName} ${nt.importSource}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    importLines.push(`import { ${fnName} } from '${nt.importSource}';`);
+  }
+
+  const block = [MARKERS.IMPORTS_START, ...importLines, MARKERS.IMPORTS_END].join('\n');
+
+  // Replace an existing marker block if present (idempotent re-runs).
+  const startIdx = source.indexOf(MARKERS.IMPORTS_START);
+  const endIdx = source.indexOf(MARKERS.IMPORTS_END);
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const before = source.slice(0, startIdx);
+    const after = source.slice(endIdx + MARKERS.IMPORTS_END.length);
+    const next = `${before}${block}${after}`;
+    return { code: next, changed: next !== source };
+  }
+
+  // No existing block. If there are no imports to emit, do nothing (avoid
+  // littering files that don't use @fwImport with an empty marker block).
+  if (importLines.length === 0) {
+    return { code: source, changed: false };
+  }
+
+  // Insert at the very top so the imports precede every statement.
+  const next = `${block}\n${source}`;
+  return { code: next, changed: true };
 }
 
 /**
