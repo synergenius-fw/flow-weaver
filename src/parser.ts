@@ -105,6 +105,22 @@ function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
 
 // Port ordering functions imported from ./utils/port-ordering
 
+/**
+ * Is `nt` the generic import stub `createImportStub` emits when an
+ * `@fwImport` package cannot be resolved on disk? Such a stub carries an
+ * `importSource`, no inputs, and a single `{ result }` output. We detect
+ * it structurally (rather than tagging the AST) so a caller-supplied
+ * `externalNodeType` with the real port shape can replace it during the
+ * `fullParse` merge. A real imported type (resolved from a readable
+ * `.d.ts`) has its actual ports and is left untouched.
+ */
+function isImportStub(nt: TNodeTypeAST): boolean {
+  if (!(nt as { importSource?: string }).importSource) return false;
+  const inputKeys = Object.keys(nt.inputs ?? {});
+  const outputKeys = Object.keys(nt.outputs ?? {});
+  return inputKeys.length === 0 && outputKeys.length === 1 && outputKeys[0] === 'result';
+}
+
 /** Exposed for tests that need direct access to the shared ts-morph Project */
 export function getParserProject(): Project {
   return getSharedProject();
@@ -324,11 +340,33 @@ export class AnnotationParser {
     // Merge external (runtime-loaded) node types so the parser can validate references
     if (externalNodeTypes?.length) {
       for (const ext of externalNodeTypes) {
-        const alreadyKnown = nodeTypes.some(
+        const existingIdx = nodeTypes.findIndex(
           (nt) => nt.name === ext.name || nt.functionName === ext.name
         );
-        if (!alreadyKnown) {
+        if (existingIdx === -1) {
           nodeTypes.push(externalToAST(ext));
+          continue;
+        }
+        // A same-named type already exists. If it is a port-less import
+        // STUB (the fallback `extractImportedNodeTypes` produces when an
+        // `@fwImport` package cannot be resolved on disk -- the on-device
+        // case: a Console install dir has no `node_modules` to read the
+        // package `.d.ts` from), the caller-supplied external type carries
+        // the REAL port shape (resolved from the install's wire manifest)
+        // and must win. Without this, the stub's `{ result }` output + empty
+        // inputs would shadow the real ports and every `@connect` to the
+        // node fails validation with "does not have port ...".
+        if (isImportStub(nodeTypes[existingIdx])) {
+          // Preserve the stub's `importSource` so downstream `@fwImport`
+          // re-emission (generate-in-place) still writes the import line;
+          // only the ports come from the external type.
+          const replacement = externalToAST(ext);
+          const stubImportSource = (nodeTypes[existingIdx] as { importSource?: string })
+            .importSource;
+          if (stubImportSource) {
+            (replacement as { importSource?: string }).importSource = stubImportSource;
+          }
+          nodeTypes[existingIdx] = replacement;
         }
       }
     }
@@ -1482,10 +1520,40 @@ export class AnnotationParser {
       // NPM types come from @import annotations in JSDoc (persisted to survive re-parsing).
       // Deduplicate: @fwImport types take precedence over external/runtime types with the same name.
       // Without this, each parse+generate cycle adds one more duplicate @fwImport entry.
-      const importedNames = new Set(importedNpmNodeTypes.map((nt) => nt.name));
+      //
+      // EXCEPTION (offline-device): when an `@fwImport` package cannot be
+      // resolved on disk (a Console install dir has no `node_modules` to
+      // read the package `.d.ts` from), `resolveImportAnnotation` returns a
+      // port-less STUB (`inputs: {}`, `outputs: { result }`). A stub must
+      // NOT shadow a real same-named type the caller supplied via
+      // `externalNodeTypes` (resolved from the install's wire manifest):
+      // that real type carries the actual ports, and letting the stub win
+      // makes every `@connect` to the node fail validation with "does not
+      // have port ...". So for a stub import, if a real same-named type is
+      // available, drop the stub and keep the real type (preserving its
+      // `importSource` so `@fwImport` re-emission still writes the import).
+      const realNameToType = new Map<string, TNodeTypeAST>();
+      for (const nt of allAvailableNodeTypes) {
+        if (!isImportStub(nt) && !importedNpmNodeTypes.includes(nt)) {
+          realNameToType.set(nt.name, nt);
+        }
+      }
+      const resolvedImportedTypes: TNodeTypeAST[] = importedNpmNodeTypes.map((imp) => {
+        if (isImportStub(imp)) {
+          const real = realNameToType.get(imp.name);
+          if (real) {
+            const merged: TNodeTypeAST = { ...real };
+            const impSource = (imp as { importSource?: string }).importSource;
+            if (impSource) (merged as { importSource?: string }).importSource = impSource;
+            return merged;
+          }
+        }
+        return imp;
+      });
+      const importedNames = new Set(resolvedImportedTypes.map((nt) => nt.name));
       // Use allAvailableNodeTypes (includes synthetic MAP_ITERATOR types from @map macros)
       const dedupedAvailableTypes = allAvailableNodeTypes.filter((nt) => !importedNames.has(nt.name));
-      const workflowNodeTypes = [...dedupedAvailableTypes, ...importedNpmNodeTypes];
+      const workflowNodeTypes = [...dedupedAvailableTypes, ...resolvedImportedTypes];
 
       // Inject synthetic coercion node types for any __fw_ instances
       for (const inst of instances) {
