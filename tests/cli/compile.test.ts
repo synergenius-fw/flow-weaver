@@ -771,5 +771,80 @@ export function inPlaceWorkflow(execute: boolean): Promise<{ onSuccess: boolean;
       expect(generated.code).toContain('GeneratedExecutionContext');
       expect(generated.code).toContain('@flow-weaver-runtime-start');
     });
+
+    it('injects a `params` parameter when the author signature omits it (zero-data-port workflow)', () => {
+      // Regression: the generated body always references `params` (the
+      // recursion-depth guard reads `params.__rd__`). A workflow whose
+      // author signature declares NO data ports (only `execute`, e.g. a
+      // single zero-input node) used to compile to `(execute, __abortSignal__)`
+      // with no `params`, so the body threw `ReferenceError: params is not
+      // defined` at runtime. The in-place generator must inject `params`.
+      const content = `
+/**
+ * @flowWeaver nodeType
+ * @expression
+ * @output never - Never produced
+ */
+function boom(): { never: string } {
+  throw new Error('always throws');
+}
+
+/**
+ * @flowWeaver workflow
+ * @node b boom
+ * @connect b.never -> Exit.never
+ */
+export function alwaysThrows(execute: boolean): { onSuccess: boolean; onFailure: boolean; never: string } {
+  throw new Error('Not implemented');
+}
+`;
+      const result = parser.parseFromString(content, 'zero-params.ts');
+      expect(result.errors).toHaveLength(0);
+      const generated = generateInPlace(content, result.workflows[0], { production: false });
+
+      // The body references params (the recursion-depth guard reads it via
+      // a TS cast); the signature must now declare it.
+      expect(generated.code).toContain('params as { __rd__?: number }');
+      expect(generated.code).toMatch(/function alwaysThrows\(\s*execute[^)]*\bparams\b/);
+      // params must precede __abortSignal__ (positional order matters: the
+      // runtime invokes fn(execute, params, ...)).
+      const sig = generated.code.slice(
+        generated.code.indexOf('function alwaysThrows('),
+        generated.code.indexOf(')', generated.code.indexOf('function alwaysThrows(')) + 1,
+      );
+      expect(sig.indexOf('params')).toBeLessThan(sig.indexOf('__abortSignal__'));
+    });
+
+    it('does not duplicate `params` when the author already declares it', () => {
+      const content = `
+/**
+ * @flowWeaver nodeType
+ * @expression
+ * @output result - Echoed value
+ */
+function echoNode(message: string): { result: string } {
+  return { result: message };
+}
+
+/**
+ * @flowWeaver workflow
+ * @param {string} message - The message
+ * @node e echoNode
+ * @connect Start.message -> e.message
+ * @connect e.result -> Exit.result
+ */
+export function echoFlow(execute: boolean, params: { message: string }): { onSuccess: boolean; onFailure: boolean; result: string } {
+  throw new Error('Not implemented');
+}
+`;
+      const result = parser.parseFromString(content, 'has-params.ts');
+      const generated = generateInPlace(content, result.workflows[0], { production: false });
+      const sig = generated.code.slice(
+        generated.code.indexOf('function echoFlow('),
+        generated.code.indexOf(')', generated.code.indexOf('function echoFlow(')) + 1,
+      );
+      // Exactly one `params` in the signature (no duplicate injected).
+      expect(sig.match(/\bparams\b/g)?.length).toBe(1);
+    });
   });
 });

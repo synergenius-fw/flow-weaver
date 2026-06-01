@@ -208,6 +208,22 @@ export function generateInPlace(
     hasChanges = true;
   }
 
+  // Step 3.5: Ensure function signature includes the `params` parameter.
+  // The generated body unconditionally references `params` (the recursion-
+  // depth guard reads `params.__rd__`, and every Start data port reads
+  // `params.<portName>`). A workflow whose author signature declares data
+  // ports gets `params` for free, but one with NO Start data ports (e.g. a
+  // single zero-input node, author signature `(execute)`) omits it, so the
+  // generated body throws `ReferenceError: params is not defined` at
+  // runtime. Inject `params` right after `execute` when absent. Runs BEFORE
+  // the abort-signal step so the final order stays (execute, params,
+  // __abortSignal__).
+  const paramsResult = ensureParamsParameter(result, ast.functionName);
+  if (paramsResult.changed) {
+    result = paramsResult.code;
+    hasChanges = true;
+  }
+
   // Step 4: Ensure function signature includes __abortSignal__ parameter
   const signatureResult = ensureAbortSignalParameter(result, ast.functionName);
   if (signatureResult.changed) {
@@ -290,6 +306,70 @@ function detectFunctionIsAsync(source: string, functionName: string): boolean {
   });
 
   return isAsync;
+}
+
+/**
+ * Ensure the workflow function has the `params` parameter.
+ *
+ * The generated body always references `params`: the recursion-depth guard
+ * reads `params.__rd__`, and every Start data port is read as
+ * `params.<portName>`. A workflow whose author signature declares data ports
+ * already has `params`, but one with NO Start data ports (a single zero-input
+ * node, author signature `(execute)`) omits it, and the generated body then
+ * throws `ReferenceError: params is not defined` at runtime.
+ *
+ * `params` must be the SECOND positional parameter (right after `execute`),
+ * because the runtime invokes the workflow as `fn(execute, params, ...)`.
+ * Insert it immediately after the first parameter. If the function somehow
+ * has no parameters, insert it after the opening paren (the `execute` guard
+ * param is always present in practice, so this is defensive).
+ */
+function ensureParamsParameter(
+  source: string,
+  functionName: string
+): { code: string; changed: boolean } {
+  const sourceFile = ts.createSourceFile('temp.ts', source, ts.ScriptTarget.Latest, true);
+
+  let functionNode: ts.FunctionDeclaration | undefined;
+
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === functionName) {
+      functionNode = node;
+    }
+  });
+
+  if (!functionNode) {
+    return { code: source, changed: false };
+  }
+
+  // Already has a `params` parameter: nothing to do.
+  const hasParams = functionNode.parameters.some(
+    (param) => ts.isIdentifier(param.name) && param.name.text === 'params'
+  );
+  if (hasParams) {
+    return { code: source, changed: false };
+  }
+
+  const PARAMS_DECL = 'params: Record<string, unknown> = {}';
+
+  const firstParam = functionNode.parameters[0];
+  if (!firstParam) {
+    // No parameters at all: insert right after the opening paren.
+    const openParen = source.indexOf('(', functionNode.name?.end || 0);
+    if (openParen === -1) {
+      return { code: source, changed: false };
+    }
+    const before = source.slice(0, openParen + 1);
+    const after = source.slice(openParen + 1);
+    return { code: before + PARAMS_DECL + after, changed: true };
+  }
+
+  // Insert after the first parameter (execute) with a comma so `params`
+  // lands in the second positional slot.
+  const firstParamEnd = firstParam.end;
+  const before = source.slice(0, firstParamEnd);
+  const after = source.slice(firstParamEnd);
+  return { code: before + ', ' + PARAMS_DECL + after, changed: true };
 }
 
 /**

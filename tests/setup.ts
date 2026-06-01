@@ -12,22 +12,30 @@ import { generateCode } from '../src/api/generate';
 import { parser } from '../src/parser';
 import { resetSharedProject } from '../src/shared-project';
 
-// Warm the ts-morph checker for callback-type inference before any real test
-// parses. Each file runs in its own process (isolate:true), and the FIRST
-// complex inference on a cold checker is non-deterministic: ts-morph can return
-// undefined for a callback parameter/return type until the checker is fully
-// initialized, which made the scoped-port inference tests flake (~1 run in N)
-// regardless of isolation. Running the real parser once on a tiny fixture that
-// has both a scoped OUTPUT (callback parameter) and a scoped INPUT (callback
-// return) drives that exact code path to completion, so the checker is warm for
-// it by the time the actual tests run. This is far cheaper than the old warmup
-// (which resolved every property of a synthetic type per file); it parses one
-// 6-line function.
-const warmFixture = path.join(os.tmpdir(), `fw-warm-${process.pid}.ts`);
-try {
-  fs.writeFileSync(
-    warmFixture,
-    `/**
+// Warm the ts-morph checker for callback-type inference. The FIRST complex
+// inference on a COLD checker is non-deterministic: ts-morph (notably v28)
+// can return `undefined` for a callback parameter/return type until the
+// checker is fully initialized, which makes the scoped-port inference tests
+// flake (`expected undefined to be defined`). Parsing a tiny fixture that has
+// both a scoped OUTPUT (callback parameter) and a scoped INPUT (callback
+// return) drives that exact code path to completion, leaving the checker warm.
+//
+// CRITICAL: this MUST run per-file in `beforeAll`, not just once at module
+// import. The `shared` vitest project runs with `isolate: false` (files share
+// one process + one ts-morph Project to amortize the expensive Project), and
+// the `afterAll` below calls `resetSharedProject()` after EVERY file, which
+// discards the warmed checker. So a module-level warmup only protects the
+// first file in the shard. Every subsequent file starts on a freshly-reset,
+// cold checker, and the first one that does complex inference
+// (scoped-port-type-inference) flakes. Re-warming in `beforeAll` guarantees a
+// warm checker at the start of each file regardless of run order or which
+// project (isolated/shared) hosts it.
+function warmTsMorphChecker(): void {
+  const warmFixture = path.join(os.tmpdir(), `fw-warm-${process.pid}-${Date.now()}.ts`);
+  try {
+    fs.writeFileSync(
+      warmFixture,
+      `/**
  * @flowWeaver nodeType
  * @scope s
  * @output i scope:s
@@ -37,22 +45,31 @@ function __warm(execute: boolean, cb: (i: number) => { o: boolean }): { onSucces
   return { onSuccess: true };
 }
 `
-  );
-  parser.parse(warmFixture);
-  // Drop only the warm fixture's cache entry; do NOT reset the Project, or the
-  // checker would go cold again and the warmup would be pointless. The fixture
-  // lives at a unique temp path no test references, so leaving it in the Project
-  // is harmless.
-  parser.clearParseCache();
-} catch {
-  // Warmup is best-effort; never let it fail a run.
-} finally {
-  try {
-    fs.unlinkSync(warmFixture);
+    );
+    parser.parse(warmFixture);
+    // Drop only the warm fixture's cache entry; do NOT reset the Project, or
+    // the checker would go cold again and the warmup would be pointless. The
+    // fixture lives at a unique temp path no test references, so leaving it in
+    // the Project is harmless.
+    parser.clearParseCache();
   } catch {
-    /* ignore */
+    // Warmup is best-effort; never let it fail a run.
+  } finally {
+    try {
+      fs.unlinkSync(warmFixture);
+    } catch {
+      /* ignore */
+    }
   }
 }
+
+// Warm at module import (covers the first file before any beforeAll fires)...
+warmTsMorphChecker();
+// ...and again before every file, after the prior file's afterAll reset left
+// the checker cold.
+beforeAll(() => {
+  warmTsMorphChecker();
+});
 
 // Use OS temp directory - no PID suffix to ensure consistency across forks
 const outputDir = path.join(os.tmpdir(), 'flow-weaver-tests-output');
