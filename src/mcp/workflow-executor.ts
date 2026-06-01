@@ -10,6 +10,7 @@ import ts from 'typescript';
 import { compileWorkflow } from '../api/index.js';
 import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
+import type { TExternalNodeType } from '../parser.js';
 import type { AgentChannel } from './agent-channel.js';
 import type { DebugController } from '../runtime/debug-controller.js';
 
@@ -79,7 +80,7 @@ export interface ExecuteWorkflowResult {
 export async function executeWorkflowFromFile(
   filePath: string,
   params?: Record<string, unknown>,
-  options?: { workflowName?: string; production?: boolean; includeTrace?: boolean; mocks?: FwMockConfig; agentChannel?: AgentChannel; debugController?: DebugController; onEvent?: (event: ExecutionTraceEvent) => void }
+  options?: { workflowName?: string; production?: boolean; includeTrace?: boolean; mocks?: FwMockConfig; agentChannel?: AgentChannel; debugController?: DebugController; onEvent?: (event: ExecutionTraceEvent) => void; externalNodeTypes?: TExternalNodeType[] }
 ): Promise<ExecuteWorkflowResult> {
   const resolvedPath = path.resolve(filePath);
   const includeTrace = options?.includeTrace !== false;
@@ -115,7 +116,15 @@ export async function executeWorkflowFromFile(
       await compileWorkflow(tmpTsFile, {
         write: true,
         inPlace: true,
-        parse: { workflowName: wf.functionName },
+        // Forward caller-supplied foreign nodeType definitions so a
+        // workflow that references a node from another package (an
+        // `@node <id> <foreignType>` the file doesn't declare, e.g.
+        // pack-core's `waitForApproval`) resolves its real ports during
+        // the executor's own compile. Without this the internal parse
+        // can't see those nodeTypes and falls back to a stub, failing
+        // validation. Callers that resolve foreign defs from a wire
+        // manifest (no node_modules to read a .d.ts) pass them here.
+        parse: { workflowName: wf.functionName, externalNodeTypes: options?.externalNodeTypes },
         generate: { production },
       });
     }
