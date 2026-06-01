@@ -49,6 +49,19 @@ export type TExternalNodeType = {
   name: string;
   functionName?: string;
   ports?: Array<{ name: string; type?: string; direction?: string; defaultLabel?: string }>;
+  /**
+   * Whether the node's implementation is async (returns a Promise). The
+   * code generator emits `await` for the node's call ONLY when its
+   * nodeType is async; a missing/false value generates a synchronous
+   * call. Carrying it on the wire matters for runtime-provided foreign
+   * nodes resolved from a pack manifest (the on-device case): e.g.
+   * pack-core's `waitForApproval` is async, and without `isAsync` the
+   * generated workflow calls it un-awaited, so its resolved
+   * `{ approved, onSuccess, ... }` read back as `undefined` on a pending
+   * Promise and every downstream gate silently takes its `!execute` /
+   * failure path.
+   */
+  isAsync?: boolean;
 };
 
 /**
@@ -97,7 +110,10 @@ function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
     outputs,
     hasSuccessPort: 'onSuccess' in outputs,
     hasFailurePort: 'onFailure' in outputs,
-    isAsync: false,
+    // Honor the supplied async flag so codegen emits `await` for an async
+    // foreign node (e.g. pack-core `waitForApproval`). Defaults to sync
+    // when the caller doesn't say, preserving prior behavior.
+    isAsync: ext.isAsync === true,
     executeWhen: EXECUTION_STRATEGIES.CONJUNCTION,
     variant: 'FUNCTION',
   };
