@@ -73,3 +73,6 @@ temp/
 
 # Worktrees
 .worktrees/
+
+# Per-customer licensed builds (scripts/make-licensed-copy.mjs output)
+licensed-out/

@@ -17,10 +17,19 @@ import { parser } from '../../src/parser';
 
 describe('Scoped INPUT port type inference', () => {
   const testDir = path.join(os.tmpdir(), `fw-scoped-type-inference-${process.pid}`);
-  const testFile = path.join(testDir, 'scoped-type-inference.ts');
+  // Unique file PER TEST. All tests write to `testFile` then parse it; a single
+  // shared path let concurrent tests in this file clobber each other's content
+  // mid-parse, surfacing under CI's parallel load as intermittent
+  // "expected undefined to be defined". A fresh path per test removes the race.
+  let testFile = path.join(testDir, 'scoped-type-inference.ts');
+  let testSeq = 0;
 
   beforeAll(() => {
     fs.mkdirSync(testDir, { recursive: true });
+  });
+
+  beforeEach(() => {
+    testFile = path.join(testDir, `scoped-type-inference-${testSeq++}.ts`);
   });
 
   afterAll(() => {

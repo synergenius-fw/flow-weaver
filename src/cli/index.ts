@@ -18,6 +18,7 @@ import { Command, Option } from 'commander';
 import { parseIntStrict } from './utils/parse-int-strict.js';
 import { logger } from './utils/logger.js';
 import { getErrorMessage } from '../utils/error-utils.js';
+import { enforceLicense, LicenseError } from './license.js';
 
 // ---------------------------------------------------------------------------
 // All command handlers are lazy-loaded via dynamic import() inside their
@@ -710,6 +711,28 @@ if (!process.argv.slice(2).length) {
   console.log('  Run ' + logger.highlight('fw --help') + ' for all commands.');
   console.log();
   process.exit(0);
+}
+
+// Licensed-build gate (OFF by default; see ./license.ts). NO-OP for the normal
+// package + every library importer; only an exported licensable artifact (with
+// the injected `license-mode` marker) enforces a license here. `--help` /
+// `--version` stay ungated so a customer can always inspect the tool.
+{
+  const argv = process.argv.slice(2);
+  const onlyHelpOrVersion = argv.every((a) =>
+    ['-h', '--help', '-V', '--version', 'help'].includes(a),
+  );
+  if (!onlyHelpOrVersion) {
+    try {
+      enforceLicense();
+    } catch (err) {
+      if (err instanceof LicenseError) {
+        process.stderr.write(`flow-weaver: ${err.message}\n`);
+        process.exit(2);
+      }
+      throw err;
+    }
+  }
 }
 
 // Register pack-contributed CLI commands, then parse.
