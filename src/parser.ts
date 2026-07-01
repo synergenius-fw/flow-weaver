@@ -62,6 +62,19 @@ export type TExternalNodeType = {
    * failure path.
    */
   isAsync?: boolean;
+  /**
+   * Whether the node is an `@expression` node (data-in, data-out, no
+   * `execute` step port; the generator calls it WITHOUT the leading
+   * `execute` argument and auto-sets `onSuccess`/`onFailure`). Carrying
+   * it on the wire matters for runtime-provided foreign nodes resolved
+   * from a pack manifest (the on-device case): e.g. pack-core's
+   * `resolveMonth(spec)` / `resolveFiscalYear(spec)` are expression
+   * nodes, and without `expression` the generated workflow calls them
+   * with the regular `(execute, ...args)` signature, so the boolean
+   * `execute` lands in the first data parameter (`spec`) and the node
+   * throws (`(spec ?? '').trim is not a function`) at run time.
+   */
+  expression?: boolean;
 };
 
 /**
@@ -71,6 +84,7 @@ export type TExternalNodeType = {
 function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
   const inputs: Record<string, TPortDefinition> = {};
   const outputs: Record<string, TPortDefinition> = {};
+  const isExpression = ext.expression === true;
 
   if (ext.ports) {
     for (const port of ext.ports) {
@@ -86,8 +100,11 @@ function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
     }
   }
 
-  // Ensure mandatory ports exist
-  if (!inputs.execute) {
+  // Ensure mandatory ports exist. Expression nodes have no `execute` step
+  // port (they are called data-in/data-out), so only regular nodes get the
+  // synthetic execute input. onSuccess/onFailure exist for both (the
+  // generator auto-sets them for expression nodes).
+  if (!isExpression && !inputs.execute) {
     inputs.execute = { dataType: 'STEP', label: 'Execute' };
   }
   if (!outputs.onSuccess) {
@@ -116,6 +133,9 @@ function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
     isAsync: ext.isAsync === true,
     executeWhen: EXECUTION_STRATEGIES.CONJUNCTION,
     variant: 'FUNCTION',
+    // Honor the expression flag so codegen calls the node WITHOUT the
+    // leading `execute` arg (e.g. pack-core `resolveMonth(spec)`).
+    ...(isExpression && { expression: true }),
   };
 }
 
