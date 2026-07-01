@@ -17,8 +17,15 @@ code-owner review and green CI.
 - **PR required**, 1 approving review, code-owner review
   (`.github/CODEOWNERS`), squash-merge only, stale reviews dismissed on
   push.
-- **Required status checks** (strict): `check`, `build`,
-  `test (1)`, `test (2)`, `test (3)`.
+- **Required status checks** (strict): `build` and `check`. `check` is
+  the `ci.yml` aggregate gate (`if: always()`, `needs: [build, test,
+  coverage]`): it fails if any test shard or coverage fails and passes
+  when they are legitimately skipped. The `test (1..3)` shards are NOT
+  required directly, because `ci.yml` deliberately skips them on
+  `release/v*` PRs (`if: is_release == 'false'`) and a skipped required
+  check would block every release PR forever. Requiring the `check`
+  aggregate keeps test coverage enforced on real PRs without that
+  deadlock.
 - **Bypass actors** (`bypass_mode: pull_request`): @moraispgsi (owner)
   and @otelom (co-admin) can merge a PR without satisfying every rule as
   the emergency escape hatch, but can NO LONGER push raw commits to

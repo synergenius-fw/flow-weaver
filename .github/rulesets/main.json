@@ -41,19 +41,10 @@
         "do_not_enforce_on_create": false,
         "required_status_checks": [
           {
-            "context": "check"
-          },
-          {
             "context": "build"
           },
           {
-            "context": "test (1)"
-          },
-          {
-            "context": "test (2)"
-          },
-          {
-            "context": "test (3)"
+            "context": "check"
           }
         ]
       }
