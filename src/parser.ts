@@ -100,11 +100,15 @@ function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
     }
   }
 
-  // Ensure mandatory ports exist. Expression nodes have no `execute` step
-  // port (they are called data-in/data-out), so only regular nodes get the
-  // synthetic execute input. onSuccess/onFailure exist for both (the
-  // generator auto-sets them for expression nodes).
-  if (!isExpression && !inputs.execute) {
+  // Ensure mandatory ports exist. EVERY node -- expression nodes included --
+  // gets the `execute` STEP input and onSuccess/onFailure STEP outputs, exactly
+  // as source-parsed node types do (see the mandatory-port merge in
+  // `extractNodeTypes`). These STEP ports are what `@path` / `@connect` wire
+  // and what the validator checks; dropping `execute` for expression nodes
+  // breaks `@path Start -> ... -> <exprNode> -> ...` with "does not have input
+  // port execute". The `expression` flag below only changes CODEGEN (the call
+  // omits the leading `execute` arg), never the port set.
+  if (!inputs.execute) {
     inputs.execute = { dataType: 'STEP', label: 'Execute' };
   }
   if (!outputs.onSuccess) {

@@ -96,20 +96,36 @@ describe('expression externalNodeType generates an execute-less call', () => {
     expect(firstArg).toMatch(/_spec$/);
   });
 
-  it('marks the resolved nodeType expression and omits the execute input', () => {
+  it('marks the resolved nodeType expression but KEEPS the execute STEP port', () => {
+    // The execute port must exist so `@path`/`@connect` can STEP-wire the node
+    // (exactly like a source-parsed @expression node keeps execute). The
+    // `expression` flag only changes codegen, not the port set. Dropping the
+    // port breaks path validation: "Node ... does not have input port execute".
     const parsed = parser.parse(tempFile, [RESOLVE_MONTH_EXPRESSION]);
     const nt = parsed.nodeTypes.find((n) => n.name === 'resolveMonth');
     expect(nt).toBeDefined();
     expect((nt as { expression?: boolean }).expression).toBe(true);
-    expect(nt!.inputs.execute).toBeUndefined();
+    expect(nt!.inputs.execute).toBeDefined();
+    expect(nt!.inputs.execute!.dataType).toBe('STEP');
   });
 
-  it('a non-expression external type still gets the execute-first signature', () => {
+  it('a non-expression external type keeps execute and is called execute-first', () => {
     const regular: TExternalNodeType = { ...RESOLVE_MONTH_EXPRESSION, expression: false };
     parser.clearCache();
     const parsed = parser.parse(tempFile, [regular]);
     const nt = parsed.nodeTypes.find((n) => n.name === 'resolveMonth');
     expect((nt as { expression?: boolean }).expression).toBeFalsy();
     expect(nt!.inputs.execute).toBeDefined();
+  });
+
+  it('validates a @path through the expression node (execute STEP-wires)', () => {
+    // The regression: dropping execute made `@path Start -> r -> Exit` fail
+    // with "Node r does not have input port execute". With the port kept, the
+    // path validates cleanly.
+    const parsed = parser.parse(tempFile, [RESOLVE_MONTH_EXPRESSION]);
+    const pathErrors = (parsed.errors ?? []).filter((e) =>
+      /does not have input port "?execute"?/i.test(typeof e === 'string' ? e : (e as { message?: string }).message ?? ''),
+    );
+    expect(pathErrors).toEqual([]);
   });
 });
