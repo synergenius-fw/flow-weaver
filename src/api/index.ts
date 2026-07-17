@@ -111,4 +111,4 @@ export { type CommandResult, runCommand, getAvailableCommands } from './command-
 export { AnnotationParser } from '../parser.js';
 export { compileTargetRegistry, type CompileTarget } from '../generator/compile-target-registry.js';
 export { devModeRegistry, type DevModeProvider, type DevModeOptions } from '../generator/dev-mode-registry.js';
-export { tagHandlerRegistry, type TagHandlerRegistry, type TTagHandlerFn, type TTagHandlerContext } from '../parser/tag-registry.js';
+export { tagHandlerRegistry, type TagHandlerRegistry, type TTagHandlerFn, type TTagHandlerContext, type TTagSerializerFn } from '../parser/tag-registry.js';

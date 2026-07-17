@@ -203,19 +203,31 @@ export class AnnotationParser {
     // Load tag handlers
     const handlers = await discoverTagHandlers(projectDir);
     for (const discovered of handlers) {
-      // Skip if these tags are already registered (e.g. by side-effect imports)
-      if (discovered.tags.every((t) => this.tagRegistry.has(t))) continue;
+      // Handler may already be registered (e.g. by side-effect imports), but we
+      // still need to load the module to pick up the serializer, so don't skip
+      // the whole entry — guard the handler registration itself instead.
+      const handlerAlreadyRegistered = discovered.tags.every((t) => this.tagRegistry.has(t));
 
       try {
         const mod = await import(pathToFileURL(discovered.absoluteFile).href);
-        const handlerFn = discovered.exportName ? mod[discovered.exportName] : mod.default;
-        if (typeof handlerFn === 'function') {
-          this.tagRegistry.register(
-            discovered.tags,
-            discovered.namespace,
-            discovered.scope,
-            handlerFn,
-          );
+        if (!handlerAlreadyRegistered) {
+          const handlerFn = discovered.exportName ? mod[discovered.exportName] : mod.default;
+          if (typeof handlerFn === 'function') {
+            this.tagRegistry.register(
+              discovered.tags,
+              discovered.namespace,
+              discovered.scope,
+              handlerFn,
+            );
+          }
+        }
+        // Symmetric emission: register the namespace's serializer (inverse of
+        // the handler) so JSDoc regeneration re-emits every tag the pack parses.
+        if (discovered.serializerExport) {
+          const serializerFn = mod[discovered.serializerExport];
+          if (typeof serializerFn === 'function') {
+            this.tagRegistry.registerSerializer(discovered.namespace, serializerFn);
+          }
         }
       } catch {
         // Skip handlers that fail to load (pack may not be built)

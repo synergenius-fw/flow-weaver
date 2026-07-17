@@ -31,11 +31,25 @@ export type TRegisteredTagHandler = {
 };
 
 /**
+ * The reverse of a tag handler: given a namespace's accumulated deploy data
+ * (the object a handler populated during parsing), produce the JSDoc annotation
+ * lines that regenerate it. Each returned string is a full comment line,
+ * including the leading ` * ` prefix (e.g. ` * @secret NPM_TOKEN`).
+ *
+ * Registered per namespace so JSDoc regeneration stays symmetric with parsing:
+ * whatever tags a pack learns to parse, it also emits — no core changes needed.
+ */
+export type TTagSerializerFn = (
+  deployData: Record<string, unknown>,
+) => string[];
+
+/**
  * Registry mapping tag names to pack-provided handler functions.
  * Used by the JSDoc parser to delegate tags it doesn't natively handle.
  */
 export class TagHandlerRegistry {
   private handlers = new Map<string, TRegisteredTagHandler>();
+  private serializers = new Map<string, TTagSerializerFn>();
 
   /** Register a handler for one or more tag names. */
   register(
@@ -48,6 +62,29 @@ export class TagHandlerRegistry {
     for (const tag of tags) {
       this.handlers.set(tag, entry);
     }
+  }
+
+  /**
+   * Register (or clear) the serializer for a namespace. Passing `undefined`
+   * removes it — used to keep round-trip emission symmetric with parsing.
+   */
+  registerSerializer(namespace: string, serializer: TTagSerializerFn | undefined): void {
+    if (serializer) {
+      this.serializers.set(namespace, serializer);
+    } else {
+      this.serializers.delete(namespace);
+    }
+  }
+
+  /**
+   * Serialize a namespace's deploy data back to JSDoc annotation lines.
+   * Returns `[]` when no serializer is registered for the namespace or the
+   * serializer produced nothing.
+   */
+  serialize(namespace: string, deployData: Record<string, unknown>): string[] {
+    const serializer = this.serializers.get(namespace);
+    if (!serializer) return [];
+    return serializer(deployData) ?? [];
   }
 
   /** Check if a handler is registered for the given tag. */

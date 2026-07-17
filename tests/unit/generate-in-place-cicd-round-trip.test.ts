@@ -22,6 +22,39 @@ import * as os from 'node:os';
 
 function ensureCicdHandler() {
   if (tagHandlerRegistry.has('secret')) return;
+  // The real cicd pack registers BOTH a tag handler (parse) and a serializer
+  // (emit). Core no longer hardcodes CI/CD annotation emission, so the mock
+  // must provide the serializer too, mirroring the pack.
+  tagHandlerRegistry.registerSerializer('cicd', (data: any) => {
+    const out: string[] = [];
+    if (Array.isArray(data.triggers)) {
+      for (const t of data.triggers) {
+        const parts = [String(t.type || '')];
+        if (t.branches) parts.push(`branches="${t.branches}"`);
+        if (t.types) parts.push(`types="${t.types}"`);
+        if (t.pattern) parts.push(`pattern="${t.pattern}"`);
+        if (t.cron) parts.push(`cron="${t.cron}"`);
+        out.push(` * @trigger ${parts.join(' ')}`);
+      }
+    }
+    if (Array.isArray(data.secrets)) {
+      for (const s of data.secrets) {
+        let line = ` * @secret ${s.name}`;
+        if (s.description) line += ` - ${s.description}`;
+        out.push(line);
+      }
+    }
+    if (data.runner) out.push(` * @runner ${data.runner}`);
+    if (Array.isArray(data.caches)) {
+      for (const c of data.caches) {
+        let line = ` * @cache ${c.strategy || 'npm'}`;
+        if (c.key) line += ` key="${c.key}"`;
+        if (c.path) line += ` path="${c.path}"`;
+        out.push(line);
+      }
+    }
+    return out;
+  });
   tagHandlerRegistry.register(
     ['secret', 'runner', 'cache', '_cicdTrigger'],
     'cicd',

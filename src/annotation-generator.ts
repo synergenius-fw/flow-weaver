@@ -3,6 +3,7 @@ import { mapToTypeScript } from "./type-mappings";
 import { isExecutePort, isSuccessPort, isFailurePort, isControlFlowPort } from "./constants";
 import { shouldUseStepTag } from "./utils/port-tag-utils";
 import { detectSugarPatterns, filterStaleMacros } from "./sugar-optimizer";
+import { serializePackDeployAnnotations } from "./parser/serialize-deploy-annotations";
 
 export interface GenerateAnnotationsOptions {
   includeComments?: boolean;
@@ -256,42 +257,10 @@ export class AnnotationGenerator {
       lines.push(line);
     }
 
-    // CI/CD annotations round-trip (from pack-contributed tag handlers)
-    if (workflow.options?.cicd) {
-      const cicd = workflow.options.cicd as Record<string, unknown>;
-      // @trigger (CI/CD style: push, pull_request, etc.)
-      if (cicd.triggers && Array.isArray(cicd.triggers)) {
-        for (const trigger of cicd.triggers as Array<Record<string, unknown>>) {
-          const parts: string[] = [String(trigger.type || '')];
-          if (trigger.branches) parts.push(`branches="${trigger.branches}"`);
-          if (trigger.types) parts.push(`types="${trigger.types}"`);
-          if (trigger.pattern) parts.push(`pattern="${trigger.pattern}"`);
-          if (trigger.cron) parts.push(`cron="${trigger.cron}"`);
-          lines.push(` * @trigger ${parts.join(' ')}`);
-        }
-      }
-      // @secret
-      if (cicd.secrets && Array.isArray(cicd.secrets)) {
-        for (const secret of cicd.secrets as Array<Record<string, unknown>>) {
-          let line = ` * @secret ${secret.name}`;
-          if (secret.description) line += ` - ${secret.description}`;
-          lines.push(line);
-        }
-      }
-      // @runner
-      if (cicd.runner) {
-        lines.push(` * @runner ${cicd.runner}`);
-      }
-      // @cache
-      if (cicd.caches && Array.isArray(cicd.caches)) {
-        for (const cache of cicd.caches as Array<Record<string, unknown>>) {
-          let line = ` * @cache ${cache.strategy || 'npm'}`;
-          if (cache.key) line += ` key="${cache.key}"`;
-          if (cache.path) line += ` path="${cache.path}"`;
-          lines.push(line);
-        }
-      }
-    }
+    // Pack-namespace annotations round-trip (e.g. CI/CD). Emission is symmetric
+    // with parsing: each pack registers a serializer for its deploy namespace,
+    // so whatever tags it learns to parse it also re-emits — no core changes.
+    lines.push(...serializePackDeployAnnotations(workflow.options?.deploy));
 
     // Add name if different from export name
     if (workflow.name && workflow.name !== workflow.functionName) {

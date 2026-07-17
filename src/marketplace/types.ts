@@ -207,6 +207,14 @@ export type TManifestTagHandler = {
   file: string;
   /** Named export from the file (default: "default") */
   exportName?: string;
+  /**
+   * Named export of a serializer (TTagSerializerFn) that emits this
+   * namespace's JSDoc annotations from its deploy data — the inverse of the
+   * handler. Keeps annotation regeneration symmetric with parsing so no tags
+   * are dropped. Resolved from the same `file`. When omitted, core emits
+   * nothing for the namespace (legacy behavior on packs without a serializer).
+   */
+  serializerExport?: string;
 };
 
 /**

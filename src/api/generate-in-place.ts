@@ -27,6 +27,7 @@ import {
 } from '../annotation-generator';
 import { shouldWorkflowBeAsync } from '../generator/async-detection';
 import { detectSugarPatterns, filterStaleMacros } from '../sugar-optimizer';
+import { serializePackDeployAnnotations } from '../parser/serialize-deploy-annotations';
 import * as ts from 'typescript';
 import * as path from 'path';
 
@@ -1614,38 +1615,10 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
     if (t.period) line += ` period="${t.period}"`;
     lines.push(line);
   }
-  // CI/CD annotations round-trip (from pack-contributed tag handlers)
-  if (ast.options?.cicd) {
-    const cicd = ast.options.cicd as Record<string, unknown>;
-    if (cicd.triggers && Array.isArray(cicd.triggers)) {
-      for (const trigger of cicd.triggers as Array<Record<string, unknown>>) {
-        const parts: string[] = [String(trigger.type || '')];
-        if (trigger.branches) parts.push(`branches="${trigger.branches}"`);
-        if (trigger.types) parts.push(`types="${trigger.types}"`);
-        if (trigger.pattern) parts.push(`pattern="${trigger.pattern}"`);
-        if (trigger.cron) parts.push(`cron="${trigger.cron}"`);
-        lines.push(` * @trigger ${parts.join(' ')}`);
-      }
-    }
-    if (cicd.secrets && Array.isArray(cicd.secrets)) {
-      for (const secret of cicd.secrets as Array<Record<string, unknown>>) {
-        let line = ` * @secret ${secret.name}`;
-        if (secret.description) line += ` - ${secret.description}`;
-        lines.push(line);
-      }
-    }
-    if (cicd.runner) {
-      lines.push(` * @runner ${cicd.runner}`);
-    }
-    if (cicd.caches && Array.isArray(cicd.caches)) {
-      for (const cache of cicd.caches as Array<Record<string, unknown>>) {
-        let line = ` * @cache ${cache.strategy || 'npm'}`;
-        if (cache.key) line += ` key="${cache.key}"`;
-        if (cache.path) line += ` path="${cache.path}"`;
-        lines.push(line);
-      }
-    }
-  }
+  // Pack-namespace annotations round-trip (e.g. CI/CD). Emission is symmetric
+  // with parsing: each pack registers a serializer for its deploy namespace,
+  // so whatever tags it learns to parse it also re-emits — no core changes.
+  lines.push(...serializePackDeployAnnotations(ast.options?.deploy));
   // Add name if different from function name
   if (ast.name && ast.name !== ast.functionName) {
     lines.push(` * @name ${ast.name}`);

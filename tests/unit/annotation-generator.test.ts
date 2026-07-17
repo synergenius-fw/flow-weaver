@@ -5,6 +5,7 @@
 
 import { generateNodeInstanceTag, annotationGenerator } from '../../src/annotation-generator';
 import { parseNodeLine } from '../../src/chevrotain-parser/node-parser';
+import { tagHandlerRegistry } from '../../src/parser/tag-registry';
 import type { TNodeInstanceAST, TWorkflowAST } from '../../src/ast/types';
 
 const w: string[] = [];
@@ -328,6 +329,39 @@ describe('Annotation Generator', () => {
   });
 
   describe('CI/CD workflow annotation preservation', () => {
+    // Emission is now driven by a pack-registered serializer over
+    // options.deploy[namespace] (symmetric with tag parsing). This block
+    // registers a cicd serializer that mirrors what the real pack does.
+    beforeAll(() => {
+      tagHandlerRegistry.registerSerializer('cicd', (data: any) => {
+        const out: string[] = [];
+        if (Array.isArray(data.triggers)) {
+          for (const t of data.triggers) {
+            const parts = [String(t.type || '')];
+            if (t.branches) parts.push(`branches="${t.branches}"`);
+            out.push(` * @trigger ${parts.join(' ')}`);
+          }
+        }
+        if (Array.isArray(data.secrets)) {
+          for (const s of data.secrets) {
+            let line = ` * @secret ${s.name}`;
+            if (s.description) line += ` - ${s.description}`;
+            out.push(line);
+          }
+        }
+        if (data.runner) out.push(` * @runner ${data.runner}`);
+        if (Array.isArray(data.caches)) {
+          for (const c of data.caches) {
+            let line = ` * @cache ${c.strategy || 'npm'}`;
+            if (c.key) line += ` key="${c.key}"`;
+            out.push(line);
+          }
+        }
+        return out;
+      });
+    });
+    afterAll(() => tagHandlerRegistry.registerSerializer('cicd', undefined));
+
     it('should preserve @secret, @runner, @cache in generated workflow annotation', () => {
       const workflow = {
         name: 'ciPipeline',
@@ -339,10 +373,12 @@ describe('Annotation Generator', () => {
         startPorts: {},
         exitPorts: {},
         options: {
-          cicd: {
-            secrets: [{ name: 'NPM_TOKEN', description: 'NPM auth token' }],
-            runner: 'ubuntu-latest',
-            caches: [{ strategy: 'npm', key: 'package-lock.json' }],
+          deploy: {
+            cicd: {
+              secrets: [{ name: 'NPM_TOKEN', description: 'NPM auth token' }],
+              runner: 'ubuntu-latest',
+              caches: [{ strategy: 'npm', key: 'package-lock.json' }],
+            },
           },
         },
       } as any;
@@ -365,8 +401,10 @@ describe('Annotation Generator', () => {
         startPorts: {},
         exitPorts: {},
         options: {
-          cicd: {
-            triggers: [{ type: 'push', branches: 'main' }],
+          deploy: {
+            cicd: {
+              triggers: [{ type: 'push', branches: 'main' }],
+            },
           },
         },
       } as any;
