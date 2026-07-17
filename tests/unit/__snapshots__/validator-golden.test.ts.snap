@@ -1,0 +1,658 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-dependencies.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "composedWorkflow",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-execution-strategies.ts 1`] = `
+{
+  "parsedWorkflowCount": 0,
+  "perWorkflow": [],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-foreach.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "processArray",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-port-configs.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "portConfigWorkflow",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-pull.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "pullExecutionWorkflow",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-scoped.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "scopedWorkflow",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-sync-pull.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "syncPullWorkflow",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "calculate",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-autoconnect.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "textDecorator",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-branching.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [
+          {
+            "code": "UNUSED_OUTPUT_PORT",
+            "docUrl": null,
+            "message": "Output port "isValid" of node "validate" is never connected. Data will be discarded.",
+            "node": "validate",
+            "type": "warning",
+          },
+        ],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [
+          {
+            "code": "UNUSED_OUTPUT_PORT",
+            "docUrl": null,
+            "message": "Output port "isValid" of node "validate" is never connected. Data will be discarded.",
+            "node": "validate",
+            "type": "warning",
+          },
+        ],
+      },
+      "workflow": "ValidateAndProcess",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-error.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "validateAndDouble",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-error-onFailure.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "validateWithErrorHandling",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-expressions.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "expressionsWorkflow",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-pipeline.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [
+          {
+            "code": "UNUSED_OUTPUT_PORT",
+            "docUrl": null,
+            "message": "Output port "result" of node "outputter" is never connected. Data will be discarded.",
+            "node": "outputter",
+            "type": "warning",
+          },
+          {
+            "code": "UNREACHABLE_EXIT_PORT",
+            "docUrl": null,
+            "message": "Exit port "result" has no incoming connection. Return value will be undefined.",
+            "node": null,
+            "type": "warning",
+          },
+        ],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [
+          {
+            "code": "UNUSED_OUTPUT_PORT",
+            "docUrl": null,
+            "message": "Output port "result" of node "outputter" is never connected. Data will be discarded.",
+            "node": "outputter",
+            "type": "warning",
+          },
+          {
+            "code": "UNREACHABLE_EXIT_PORT",
+            "docUrl": null,
+            "message": "Exit port "result" has no incoming connection. Return value will be undefined.",
+            "node": null,
+            "type": "warning",
+          },
+        ],
+      },
+      "workflow": "dataPipeline",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/minimal-hello-world.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "helloWorld",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/real-world/example-invalid.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [
+          {
+            "code": "UNKNOWN_TARGET_NODE",
+            "docUrl": null,
+            "message": "Connection references unknown target node: "nonexistent"",
+            "node": null,
+            "type": "error",
+          },
+          {
+            "code": "UNKNOWN_SOURCE_PORT",
+            "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+            "message": "Node "triple" does not have output port "wrongPort"",
+            "node": "triple",
+            "type": "error",
+          },
+          {
+            "code": "UNDEFINED_NODE",
+            "docUrl": null,
+            "message": "Workflow references undefined node: "nonexistent"",
+            "node": "nonexistent",
+            "type": "error",
+          },
+          {
+            "code": "MISSING_REQUIRED_INPUT",
+            "docUrl": null,
+            "message": "Node "triple" has unconnected required input port "value". Connect a value to it, or mark it optional with @input [value].",
+            "node": "triple",
+            "type": "error",
+          },
+        ],
+        "valid": false,
+        "warnings": [
+          {
+            "code": "UNUSED_OUTPUT_PORT",
+            "docUrl": null,
+            "message": "Output port "tripled" of node "triple" is never connected. Data will be discarded.",
+            "node": "triple",
+            "type": "warning",
+          },
+        ],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [
+          {
+            "code": "UNKNOWN_TARGET_NODE",
+            "docUrl": null,
+            "message": "Connection references unknown target node: "nonexistent"",
+            "node": null,
+            "type": "error",
+          },
+          {
+            "code": "UNKNOWN_SOURCE_PORT",
+            "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+            "message": "Node "triple" does not have output port "wrongPort"",
+            "node": "triple",
+            "type": "error",
+          },
+          {
+            "code": "UNDEFINED_NODE",
+            "docUrl": null,
+            "message": "Workflow references undefined node: "nonexistent"",
+            "node": "nonexistent",
+            "type": "error",
+          },
+          {
+            "code": "MISSING_REQUIRED_INPUT",
+            "docUrl": null,
+            "message": "Node "triple" has unconnected required input port "value". Connect a value to it, or mark it optional with @input [value].",
+            "node": "triple",
+            "type": "error",
+          },
+        ],
+        "valid": false,
+        "warnings": [
+          {
+            "code": "UNUSED_OUTPUT_PORT",
+            "docUrl": null,
+            "message": "Output port "tripled" of node "triple" is never connected. Data will be discarded.",
+            "node": "triple",
+            "type": "warning",
+          },
+        ],
+      },
+      "workflow": "invalidWorkflow",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/validation-demo.ts 1`] = `
+{
+  "parsedWorkflowCount": 0,
+  "perWorkflow": [],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-cases/data-pipeline.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "contactPipeline",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-cases/hello-world.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "helloWorld",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-cases/human-approval.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [],
+      },
+      "workflow": "purchaseApproval",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-cases/parallel-enrichment.ts 1`] = `
+{
+  "parsedWorkflowCount": 1,
+  "perWorkflow": [
+    {
+      "draft": {
+        "errors": [],
+        "valid": true,
+        "warnings": [
+          {
+            "code": "OBJECT_TYPE_MISMATCH",
+            "docUrl": null,
+            "message": "Structural type mismatch: sent.result outputs "AnalysisResult | null" but merge.sentiment expects "AnalysisResult". Verify the object shapes are compatible.",
+            "node": null,
+            "type": "warning",
+          },
+          {
+            "code": "OBJECT_TYPE_MISMATCH",
+            "docUrl": null,
+            "message": "Structural type mismatch: read.result outputs "AnalysisResult | null" but merge.readability expects "AnalysisResult". Verify the object shapes are compatible.",
+            "node": null,
+            "type": "warning",
+          },
+          {
+            "code": "OBJECT_TYPE_MISMATCH",
+            "docUrl": null,
+            "message": "Structural type mismatch: kw.result outputs "AnalysisResult | null" but merge.keywords expects "AnalysisResult". Verify the object shapes are compatible.",
+            "node": null,
+            "type": "warning",
+          },
+        ],
+      },
+      "parseErrors": [],
+      "strict": {
+        "errors": [],
+        "valid": true,
+        "warnings": [
+          {
+            "code": "OBJECT_TYPE_MISMATCH",
+            "docUrl": null,
+            "message": "Structural type mismatch: sent.result outputs "AnalysisResult | null" but merge.sentiment expects "AnalysisResult". Verify the object shapes are compatible.",
+            "node": null,
+            "type": "warning",
+          },
+          {
+            "code": "OBJECT_TYPE_MISMATCH",
+            "docUrl": null,
+            "message": "Structural type mismatch: read.result outputs "AnalysisResult | null" but merge.readability expects "AnalysisResult". Verify the object shapes are compatible.",
+            "node": null,
+            "type": "warning",
+          },
+          {
+            "code": "OBJECT_TYPE_MISMATCH",
+            "docUrl": null,
+            "message": "Structural type mismatch: kw.result outputs "AnalysisResult | null" but merge.keywords expects "AnalysisResult". Verify the object shapes are compatible.",
+            "node": null,
+            "type": "warning",
+          },
+        ],
+      },
+      "workflow": "contentAnalysis",
+    },
+  ],
+}
+`;
+
+exports[`WorkflowValidator scope-topology golden (debt #3) > scope diagnostics are stable: unknown-port 1`] = `
+{
+  "errors": [
+    {
+      "code": "UNKNOWN_TARGET_PORT",
+      "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+      "message": "Node "loop" does not have input port "items"",
+      "node": "loop",
+      "type": "error",
+    },
+    {
+      "code": "UNKNOWN_SOURCE_PORT",
+      "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+      "message": "Node "loop" does not have output port "nonExistentPort"",
+      "node": "loop",
+      "type": "error",
+    },
+    {
+      "code": "SCOPE_UNKNOWN_PORT",
+      "docUrl": null,
+      "message": "Scoped connection references non-existent output port "nonExistentPort" on "loop" in scope "loop". Available scoped outputs: item.",
+      "node": null,
+      "type": "error",
+    },
+  ],
+  "valid": false,
+  "warnings": [],
+}
+`;
+
+exports[`WorkflowValidator scope-topology golden (debt #3) > scope diagnostics are stable: wrong-scope-name 1`] = `
+{
+  "errors": [
+    {
+      "code": "UNKNOWN_TARGET_PORT",
+      "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+      "message": "Node "loop" does not have input port "items"",
+      "node": "loop",
+      "type": "error",
+    },
+    {
+      "code": "SCOPE_WRONG_SCOPE_NAME",
+      "docUrl": null,
+      "message": "Connection to "loop.result" uses scope qualifier ":wrongScope" but node "loop" does not define scope "wrongScope". Available scopes: loop.",
+      "node": null,
+      "type": "error",
+    },
+  ],
+  "valid": false,
+  "warnings": [
+    {
+      "code": "SCOPE_UNUSED_INPUT",
+      "docUrl": null,
+      "message": "Scoped input port "result" of "loop" (scope "loop") has no connection from inner nodes. Data will not flow back from the scope.",
+      "node": "loop",
+      "type": "warning",
+    },
+  ],
+}
+`;
