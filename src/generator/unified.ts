@@ -577,7 +577,6 @@ export function generateControlFlowWithExecutionContext(
         generatedNodes,
         lines,
         branchIndent,
-        false,
         branchingNodes,
         branchRegions,
         isAsync,
@@ -927,7 +926,6 @@ function generateScopedChildrenExecution(
         generatedNodes,
         lines,
         indent,
-        false,
         branchingNodes,
         branchRegions,
         isAsync,
@@ -1282,7 +1280,6 @@ function generateBranchingChainCode(
       generatedNodes,
       lines,
       nodeIndent,
-      false,
       branchingNodes,
       branchRegions,
       isAsync,
@@ -1345,96 +1342,37 @@ function generateBranchingChainCode(
   }
 }
 
-function generateBranchingNodeCode(
-  instance: { id: string; nodeType: string },
-  branchNode: TNodeTypeAST,
-  workflow: TWorkflowAST,
-  allNodeTypes: TNodeTypeAST[],
-  region: { successNodes: Set<string>; failureNodes: Set<string> },
-  availableVars: Map<string, string>,
-  generatedNodes: Set<string>,
-  lines: string[],
-  indent: string,
-  _generateReturns: boolean = true, // DEPRECATED: always false, kept for signature compat
-  branchingNodes: Set<string>,
-  branchRegions: Map<string, { successNodes: Set<string>; failureNodes: Set<string> }>,
-  isAsync: boolean,
-  ctxVar: string = 'ctx', // Context variable name (for scoped contexts)
-  bundleMode: boolean = false,
-  preDeclaredSuccessFlags: Set<string> = new Set(),
-  forceTrackSuccess: boolean = false,
-  production: boolean = false
-): void {
-  const instanceId = instance.id;
-  const safeId = toValidIdentifier(instanceId);
-  const functionName = branchNode.functionName;
-
-  // Debug controller: beforeNode hook for branching nodes
-  const emitDebugHooks = !production;
-  const outerIndent = indent;
-
-  // Only declare success flag if there are downstream nodes
-  const hasSuccessDownstream = region.successNodes.size > 0;
-  const hasFailureDownstream = region.failureNodes.size > 0;
-  const hasDownstream = hasSuccessDownstream || hasFailureDownstream;
-  // Track success flag when there are downstream nodes OR when chain code needs it
-  const trackSuccess = hasDownstream || forceTrackSuccess;
-
-  if (emitDebugHooks) {
-    // Hoist success flag declaration before the if block so it remains in scope
-    // for downstream branching code that runs after the if/else.
-    if (trackSuccess && !preDeclaredSuccessFlags.has(safeId)) {
-      lines.push(`${indent}let ${safeId}_success = false;`);
-    }
-    const awaitHook = isAsync ? 'await ' : '';
-    lines.push(`${indent}if (${awaitHook}__ctrl__.beforeNode('${instanceId}', ${ctxVar})) {`);
-    indent = `${indent}  `;
-  }
-  const awaitPrefix = isAsync ? 'await ' : '';
-
-  if (!production) {
-    lines.push('');
-    lines.push(`${indent}// ── ${instanceId} (${functionName}) ──`);
-  }
-  lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
-  lines.push(`${indent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
-  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${instanceId}';`);
-  lines.push(`${indent}${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
-  lines.push(`${indent}  nodeTypeName: '${functionName}',`);
-  lines.push(`${indent}  id: '${instanceId}',`);
-  lines.push(`${indent}  executionIndex: ${safeId}Idx,`);
-  lines.push(`${indent}  status: 'RUNNING',`);
-  lines.push(`${indent}});`);
-  lines.push('');
-
-  if (trackSuccess) {
-    if (preDeclaredSuccessFlags.has(safeId) || emitDebugHooks) {
-      // Flag was pre-declared (by chain code or hoisted for debug hooks) — assignment only
-      lines.push(`${indent}${safeId}_success = false;`);
-    } else {
-      lines.push(`${indent}let ${safeId}_success = false;`);
-    }
-    lines.push('');
-  }
-
-  lines.push(`${indent}try {`);
-  const getCall = isAsync ? `await ${ctxVar}.getVariable` : `${ctxVar}.getVariable`;
-  const setCall = isAsync ? `await ${ctxVar}.setVariable` : `${ctxVar}.setVariable`;
-  const argNames = buildNodeArgumentsWithContext({
-    node: branchNode,
-    workflow,
-    id: instanceId,
-    lines,
-    indent: `${indent}  `,
-    getCall,
-    isAsync,
-    emitInputEvents: true,
+/**
+ * Emits, into the branching node's `try` block, the node invocation and the
+ * extraction of its output ports into the execution context. Handles the five
+ * variants: expression, MAP_ITERATOR, IMPORTED_WORKFLOW/WORKFLOW, scoped, and
+ * regular. Extracted verbatim from generateBranchingNodeCode to reduce its
+ * length; behavior is identical (pure line emission).
+ */
+function emitBranchNodeCallAndOutputs(params: {
+  branchNode: TNodeTypeAST;
+  safeId: string;
+  instanceId: string;
+  functionName: string;
+  awaitKeyword: string;
+  argNames: string[];
+  setCall: string;
+  indent: string;
+  isAsync: boolean;
+  lines: string[];
+}): void {
+  const {
+    branchNode,
+    safeId,
+    instanceId,
+    functionName,
+    awaitKeyword,
+    argNames,
     setCall,
-    nodeTypeName: functionName,
-    bundleMode,
-    production,
-  });
-  const awaitKeyword = branchNode.isAsync ? 'await ' : '';
+    indent,
+    isAsync,
+    lines,
+  } = params;
 
   if (branchNode.expression) {
     // Expression branching node: call without execute, auto-set onSuccess/onFailure
@@ -1567,6 +1505,110 @@ function generateBranchingNodeCode(
       );
     });
   }
+}
+
+function generateBranchingNodeCode(
+  instance: { id: string; nodeType: string },
+  branchNode: TNodeTypeAST,
+  workflow: TWorkflowAST,
+  allNodeTypes: TNodeTypeAST[],
+  region: { successNodes: Set<string>; failureNodes: Set<string> },
+  availableVars: Map<string, string>,
+  generatedNodes: Set<string>,
+  lines: string[],
+  indent: string,
+  branchingNodes: Set<string>,
+  branchRegions: Map<string, { successNodes: Set<string>; failureNodes: Set<string> }>,
+  isAsync: boolean,
+  ctxVar: string = 'ctx', // Context variable name (for scoped contexts)
+  bundleMode: boolean = false,
+  preDeclaredSuccessFlags: Set<string> = new Set(),
+  forceTrackSuccess: boolean = false,
+  production: boolean = false
+): void {
+  const instanceId = instance.id;
+  const safeId = toValidIdentifier(instanceId);
+  const functionName = branchNode.functionName;
+
+  // Debug controller: beforeNode hook for branching nodes
+  const emitDebugHooks = !production;
+  const outerIndent = indent;
+
+  // Only declare success flag if there are downstream nodes
+  const hasSuccessDownstream = region.successNodes.size > 0;
+  const hasFailureDownstream = region.failureNodes.size > 0;
+  const hasDownstream = hasSuccessDownstream || hasFailureDownstream;
+  // Track success flag when there are downstream nodes OR when chain code needs it
+  const trackSuccess = hasDownstream || forceTrackSuccess;
+
+  if (emitDebugHooks) {
+    // Hoist success flag declaration before the if block so it remains in scope
+    // for downstream branching code that runs after the if/else.
+    if (trackSuccess && !preDeclaredSuccessFlags.has(safeId)) {
+      lines.push(`${indent}let ${safeId}_success = false;`);
+    }
+    const awaitHook = isAsync ? 'await ' : '';
+    lines.push(`${indent}if (${awaitHook}__ctrl__.beforeNode('${instanceId}', ${ctxVar})) {`);
+    indent = `${indent}  `;
+  }
+  const awaitPrefix = isAsync ? 'await ' : '';
+
+  if (!production) {
+    lines.push('');
+    lines.push(`${indent}// ── ${instanceId} (${functionName}) ──`);
+  }
+  lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
+  lines.push(`${indent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
+  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${instanceId}';`);
+  lines.push(`${indent}${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
+  lines.push(`${indent}  nodeTypeName: '${functionName}',`);
+  lines.push(`${indent}  id: '${instanceId}',`);
+  lines.push(`${indent}  executionIndex: ${safeId}Idx,`);
+  lines.push(`${indent}  status: 'RUNNING',`);
+  lines.push(`${indent}});`);
+  lines.push('');
+
+  if (trackSuccess) {
+    if (preDeclaredSuccessFlags.has(safeId) || emitDebugHooks) {
+      // Flag was pre-declared (by chain code or hoisted for debug hooks) — assignment only
+      lines.push(`${indent}${safeId}_success = false;`);
+    } else {
+      lines.push(`${indent}let ${safeId}_success = false;`);
+    }
+    lines.push('');
+  }
+
+  lines.push(`${indent}try {`);
+  const getCall = isAsync ? `await ${ctxVar}.getVariable` : `${ctxVar}.getVariable`;
+  const setCall = isAsync ? `await ${ctxVar}.setVariable` : `${ctxVar}.setVariable`;
+  const argNames = buildNodeArgumentsWithContext({
+    node: branchNode,
+    workflow,
+    id: instanceId,
+    lines,
+    indent: `${indent}  `,
+    getCall,
+    isAsync,
+    emitInputEvents: true,
+    setCall,
+    nodeTypeName: functionName,
+    bundleMode,
+    production,
+  });
+  const awaitKeyword = branchNode.isAsync ? 'await ' : '';
+
+  emitBranchNodeCallAndOutputs({
+    branchNode,
+    safeId,
+    instanceId,
+    functionName,
+    awaitKeyword,
+    argNames,
+    setCall,
+    indent,
+    isAsync,
+    lines,
+  });
   lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);
@@ -1709,7 +1751,6 @@ function generateBranchingNodeCode(
           generatedNodes,
           lines,
           `${indent}  `,
-          false,
           branchingNodes,
           branchRegions,
           isAsync,
@@ -1799,7 +1840,6 @@ function generateBranchingNodeCode(
             generatedNodes,
             lines,
             `${indent}  `,
-            false,
             branchingNodes,
             branchRegions,
             isAsync,
