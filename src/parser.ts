@@ -18,18 +18,15 @@ import type {
   TPatternAST,
   TWorkflowMacro,
 } from './ast/types';
-import { EXECUTION_STRATEGIES, RESERVED_PORT_NAMES, isControlFlowPort } from './constants';
+import { EXECUTION_STRATEGIES, isControlFlowPort } from './constants';
 import { getErrorMessage } from './utils/error-utils';
-import { assignImplicitPortOrders } from './utils/port-ordering';
 import { stripGeneratedSections, hasInPlaceMarkers } from './api/generate-in-place';
-import { inferDataTypeFromTS, stripOptionalUndefined } from './type-mappings';
 import { generateJSDocPortTag } from './annotation-generator';
 import { resolvePackageTypesPath } from './resolve-package-types';
 import { getPackageExports } from './npm-packages';
 import { getSharedProject } from './shared-project';
 import { LRUCache } from './utils/lru-cache';
 import { COERCION_NODE_TYPES } from './built-in-nodes/coercion-types';
-import { BUILT_IN_NODE_TYPES } from './built-in-nodes/generated-registry';
 import { tagHandlerRegistry, type TagHandlerRegistry } from './parser/tag-registry';
 import {
   expandMapMacro,
@@ -44,6 +41,13 @@ import {
   parseExitPorts,
   capitalize,
 } from './parser/port-inference';
+import {
+  extractNodeTypes,
+  inferNodeTypeFromFunction,
+  inferAllUnannotatedFunctions,
+  inferNodeTypesFromUnannotated,
+  hasFlowWeaverAnnotation,
+} from './parser/node-inference';
 
 /**
  * Core option keys that must never be shadowed by a pack deploy namespace when
@@ -344,7 +348,7 @@ export class AnnotationParser {
 
       // Re-extract all node types (conservative approach for now)
       const warnings: string[] = [];
-      const nodeTypes = this.extractNodeTypes(sourceFile, warnings);
+      const nodeTypes = extractNodeTypes(sourceFile, warnings, this.tagRegistry);
 
       const result = {
         ...cached.result,
@@ -421,7 +425,7 @@ export class AnnotationParser {
     // Add current file to import stack BEFORE processing imports
     this.importStack.add(filePath);
 
-    const localNodeTypes = this.extractNodeTypes(sourceFile, warnings);
+    const localNodeTypes = extractNodeTypes(sourceFile, warnings, this.tagRegistry);
     const importedNodeTypes = this.extractImportedNodeTypes(sourceFile, filePath);
 
     // First pass: extract workflow signatures to enable same-file workflow invocation
@@ -466,7 +470,7 @@ export class AnnotationParser {
 
     // Auto-infer node types from unannotated functions referenced by @node,
     // and lazily inject built-in nodes (delay, waitForEvent, etc.) when referenced
-    const inferredNodeTypes = this.inferNodeTypesFromUnannotated(sourceFile, nodeTypes, localNodeTypes, warnings);
+    const inferredNodeTypes = inferNodeTypesFromUnannotated(sourceFile, nodeTypes, localNodeTypes, warnings);
     nodeTypes.push(...inferredNodeTypes);
 
     const workflows = this.extractWorkflows(sourceFile, nodeTypes, filePath, errors, warnings);
@@ -517,7 +521,7 @@ export class AnnotationParser {
 
     const errors: string[] = [];
     const warnings: string[] = [];
-    const localNodeTypes = this.extractNodeTypes(sourceFile, warnings);
+    const localNodeTypes = extractNodeTypes(sourceFile, warnings, this.tagRegistry);
 
     // First pass: extract workflow signatures to enable same-file workflow invocation
     const workflowSignatures = this.extractWorkflowSignatures(sourceFile, virtualPath, warnings);
@@ -527,7 +531,7 @@ export class AnnotationParser {
 
     // Auto-infer node types from unannotated functions referenced by @node,
     // and lazily inject built-in nodes (delay, waitForEvent, etc.) when referenced
-    const inferredNodeTypes = this.inferNodeTypesFromUnannotated(sourceFile, nodeTypes, localNodeTypes, warnings);
+    const inferredNodeTypes = inferNodeTypesFromUnannotated(sourceFile, nodeTypes, localNodeTypes, warnings);
     nodeTypes.push(...inferredNodeTypes);
 
     // Note: imports not supported for virtual files - would need filesystem access
@@ -686,7 +690,7 @@ export class AnnotationParser {
               overwrite: true,
             });
             const importWarnings: string[] = [];
-            const localNodeTypes = this.extractNodeTypes(importedFile, importWarnings);
+            const localNodeTypes = extractNodeTypes(importedFile, importWarnings, this.tagRegistry);
             // Recursively process imports (enables circular dependency detection)
             const importedFromFile = this.extractImportedNodeTypes(importedFile, importedFilePath);
             // Also extract workflows and convert them to node types
@@ -701,7 +705,7 @@ export class AnnotationParser {
             nodeTypes = [...localNodeTypes, ...importedFromFile, ...workflowAsNodeTypes];
 
             // Pre-infer all unannotated functions so the named-import filter can resolve them
-            const inferredFromImport = this.inferAllUnannotatedFunctions(importedFile, nodeTypes);
+            const inferredFromImport = inferAllUnannotatedFunctions(importedFile, nodeTypes);
             nodeTypes.push(...inferredFromImport);
 
             // Clean up imported source file to prevent Project bloat
@@ -805,7 +809,7 @@ export class AnnotationParser {
         if (seenNames.has(fnName)) continue;
         seenNames.add(fnName);
 
-        const nodeType = this.inferNodeTypeFromFunction(fn, fnName, dtsPath);
+        const nodeType = inferNodeTypeFromFunction(fn, fnName, dtsPath);
         // Mark as npm package import and prevent inlining
         nodeType.importSource = moduleSpecifier;
         nodeType.functionText = undefined;
@@ -895,7 +899,7 @@ export class AnnotationParser {
       }
 
       // Infer BEFORE removing the source file (ts-morph needs it)
-      const nodeType = this.inferNodeTypeFromFunction(fn, imp.name, importedFilePath);
+      const nodeType = inferNodeTypeFromFunction(fn, imp.name, importedFilePath);
       nodeType.importSource = imp.importSource;
       nodeType.functionText = undefined; // Don't inline external code
 
@@ -1052,7 +1056,7 @@ export class AnnotationParser {
         if (seenNames.has(fnName)) continue;
         seenNames.add(fnName);
 
-        const nodeType = this.inferNodeTypeFromFunction(fn, fnName, resolved);
+        const nodeType = inferNodeTypeFromFunction(fn, fnName, resolved);
         nodeType.importSource = importSource;
         nodeType.functionText = undefined;
         out.push(nodeType);
@@ -1121,221 +1125,6 @@ export class AnnotationParser {
     };
   }
 
-  private extractNodeTypes(sourceFile: SourceFile, warnings: string[]): TNodeTypeAST[] {
-    const nodeTypes: TNodeTypeAST[] = [];
-    extractFunctionLikes(sourceFile).forEach((fn: FunctionLike) => {
-      // Parse JSDoc comments
-      const config = jsdocParser.parseNodeType(fn, warnings, this.tagRegistry);
-      if (!config) {
-        const jsdocText = fn.getJsDocs().map((d) => d.getFullText()).join('');
-        if (jsdocText.includes('@flowWeaver nodeType')) {
-          warnings.push(
-            `Function "${fn.getName() || 'anonymous'}" has @flowWeaver annotation but could not be parsed. ` +
-            `Check for special characters (---) or malformed JSDoc syntax.`
-          );
-        }
-        return;
-      }
-
-      const functionName = fn.getName() || 'anonymous';
-      const nodeTypeName = config.name || functionName;
-
-      const inputs: Record<string, TPortDefinition> = {};
-      if (config.inputs) {
-        for (const [portName, portDef] of Object.entries(config.inputs)) {
-          inputs[portName] = {
-            dataType: portDef.type,
-            default: portDef.defaultValue as TSerializableValue,
-            optional: portDef.optional,
-            label: portDef.label,
-            expression: portDef.expression,
-            ...(portDef.scope && { scope: portDef.scope }),
-            ...(portDef.hidden && { hidden: portDef.hidden }),
-            ...(portDef.metadata && { metadata: portDef.metadata }),
-            ...(portDef.tsType && { tsType: portDef.tsType }),
-          };
-        }
-      }
-
-      const outputs: Record<string, TPortDefinition> = {};
-      if (config.outputs) {
-        for (const [portName, portDef] of Object.entries(config.outputs)) {
-          outputs[portName] = {
-            dataType: portDef.type,
-            label: portDef.label,
-            ...(portDef.scope && { scope: portDef.scope }),
-            ...(portDef.hidden && { hidden: portDef.hidden }),
-            ...(portDef.metadata && { metadata: portDef.metadata }),
-            ...(portDef.tsType && { tsType: portDef.tsType }),
-          };
-        }
-      }
-
-      // Ambient declarations (declare function) are stub nodes — interface only, no implementation.
-      // Force expression mode so ports are inferred from the TypeScript signature.
-      const isStub = fn.isAmbient?.() ?? false;
-      if (isStub) {
-        config.expression = true;
-      }
-
-      // Auto-infer ports for @expression nodes when @input/@output are missing.
-      // If the function has @expression but no explicit port annotations, infer
-      // data ports from the TypeScript function signature (same logic as unannotated functions).
-      if (config.expression) {
-        const hasExplicitDataInputs = Object.keys(inputs).some((k) => k !== 'execute');
-        const hasExplicitDataOutputs = Object.keys(outputs).some(
-          (k) => k !== 'onSuccess' && k !== 'onFailure'
-        );
-
-        if (!hasExplicitDataInputs || !hasExplicitDataOutputs) {
-          const inferred = this.inferNodeTypeFromFunction(
-            fn,
-            nodeTypeName,
-            fn.getSourceFile().getFilePath()
-          );
-          if (!hasExplicitDataInputs) {
-            // Copy inferred data inputs (skip control flow ports)
-            for (const [portName, portDef] of Object.entries(inferred.inputs)) {
-              if (portName === 'execute') continue;
-              inputs[portName] = portDef;
-            }
-          }
-          if (!hasExplicitDataOutputs) {
-            // Copy inferred data outputs (skip control flow ports)
-            for (const [portName, portDef] of Object.entries(inferred.outputs)) {
-              if (portName === 'onSuccess' || portName === 'onFailure') continue;
-              outputs[portName] = portDef;
-            }
-          }
-        }
-      }
-
-      // ALL nodes must have execute input and onSuccess/onFailure outputs
-      // Execute port is visible by default so users can connect execution flow
-      // Merge user-defined ports with mandatory defaults to preserve special properties
-      inputs.execute = {
-        label: 'Execute', // Default label
-        ...inputs.execute, // User can override label
-        dataType: 'STEP', // But dataType is mandatory
-      };
-      outputs.onSuccess = {
-        label: 'On Success', // Default label
-        ...outputs.onSuccess, // User can override label
-        dataType: 'STEP', // But dataType is mandatory
-        isControlFlow: true, // Always a control flow port
-      };
-      outputs.onFailure = {
-        label: 'On Failure', // Default label
-        ...outputs.onFailure, // User can override label
-        dataType: 'STEP', // But dataType is mandatory
-        failure: true, // Always a failure port
-        isControlFlow: true, // Always a control flow port
-      };
-
-      // Assign implicit port orders with mandatory port precedence
-      assignImplicitPortOrders(inputs);
-      assignImplicitPortOrders(outputs);
-
-      // Get function text (JSDoc comment + function). Stubs have no body to capture.
-      const jsDocs = fn.getJsDocs();
-      const jsDocText = jsDocs.map((doc: JSDoc) => doc.getText()).join('\n');
-      const functionText = isStub ? undefined : (jsDocText ? `${jsDocText}\n${fn.getText()}` : fn.getText());
-
-      // Detect async keyword on function declaration
-      const isAsync = fn.isAsync();
-
-      // Convert defaultConfig
-      let defaultConfig: TNodeTypeDefaultConfig | undefined = undefined;
-      if (config.defaultConfig) {
-        defaultConfig = {
-          label: config.defaultConfig.label,
-          description: config.defaultConfig.description,
-          pullExecution: config.defaultConfig.pullExecution,
-        };
-      }
-
-      // Extract unique scope names from ports (per-port scoped architecture)
-      const portScopes = new Set<string>();
-      Object.values(inputs).forEach((port) => {
-        if (port.scope) portScopes.add(port.scope);
-      });
-      Object.values(outputs).forEach((port) => {
-        if (port.scope) portScopes.add(port.scope);
-      });
-
-      // Determine scopes array:
-      // - If node has node-level scope: use that (old architecture)
-      // - Otherwise if ports have scopes: use unique port scopes ordered by function parameter position
-      // - Otherwise: undefined (no scopes)
-      let scopes: string[] | undefined;
-      if (config.scope) {
-        scopes = [config.scope];
-      } else if (portScopes.size > 0) {
-        // Order scopes by function parameter position (callback params whose name matches a scope)
-        const orderedScopes: string[] = [];
-        try {
-          const params = fn.getParameters();
-          for (const param of params) {
-            const paramName = param.getName();
-            if (portScopes.has(paramName)) {
-              orderedScopes.push(paramName);
-            }
-          }
-        } catch {
-          // Fall back to Set order if parameter extraction fails
-        }
-        // Add any scopes not found as params (e.g. from JSDoc-only scope declarations)
-        for (const scope of portScopes) {
-          if (!orderedScopes.includes(scope)) {
-            orderedScopes.push(scope);
-          }
-        }
-        scopes = orderedScopes;
-      }
-
-      nodeTypes.push({
-        type: 'NodeType',
-        name: nodeTypeName,
-        functionName,
-        variant: isStub ? 'STUB' : 'FUNCTION',
-        inputs,
-        outputs,
-        hasSuccessPort: RESERVED_PORT_NAMES.ON_SUCCESS in outputs,
-        hasFailurePort: RESERVED_PORT_NAMES.ON_FAILURE in outputs,
-        isAsync,
-        functionText,
-        executeWhen: (config.executeWhen as TExecuteWhen) || EXECUTION_STRATEGIES.CONJUNCTION,
-        defaultConfig,
-        scope: config.scope,
-        scopes,
-        ...(config.expression && { expression: true }),
-        ...(fn.getDeclarationKind?.() && { declarationKind: fn.getDeclarationKind!() }),
-        label: config.label,
-        description: config.description,
-        visuals:
-          config.color || config.icon || config.tags
-            ? {
-                color: config.color,
-                icon: config.icon,
-                tags: config.tags,
-              }
-            : undefined,
-        ...(config.deploy && { deploy: config.deploy }),
-        sourceLocation: {
-          file: sourceFile.getFilePath(),
-          line: fn.getStartLineNumber(false),
-          column: 0,
-        },
-      });
-    });
-    return nodeTypes;
-  }
-
-  /**
-   * Extract workflow signatures (metadata only) without validating instances.
-   * This enables same-file workflow invocation by making workflow ports available
-   * before the full workflow extraction pass.
-   */
   private extractWorkflowSignatures(
     sourceFile: SourceFile,
     filePath: string,
@@ -1805,266 +1594,6 @@ export class AnnotationParser {
    * Infer a TNodeTypeAST from a single function's TypeScript signature.
    * Shared helper used by both same-file and cross-file inference.
    */
-  private inferNodeTypeFromFunction(
-    fn: FunctionLike,
-    name: string,
-    filePath: string
-  ): TNodeTypeAST {
-    // Infer inputs from parameters
-    const inputs: Record<string, TPortDefinition> = {};
-    const params = fn.getParameters();
-    const firstParamIsExecute = params.length > 0 && params[0].getName() === 'execute';
-    for (const param of params) {
-      const paramName = param.getName();
-      const optional = param.isOptional() || param.hasInitializer();
-      const rawTsType = param.getType().getText(param);
-      const tsType = optional ? stripOptionalUndefined(rawTsType) : rawTsType;
-      const dataType = inferDataTypeFromTS(tsType);
-      inputs[paramName] = {
-        dataType,
-        optional: optional || undefined,
-        label: capitalize(paramName),
-        tsType,
-      };
-    }
-
-    // Infer outputs from return type
-    const outputs: Record<string, TPortDefinition> = {};
-    let returnType = fn.getReturnType();
-    const returnTypeText = returnType.getText();
-
-    // Unwrap Promise<T>
-    if (returnTypeText.startsWith('Promise<')) {
-      const typeArgs = returnType.getTypeArguments();
-      if (typeArgs && typeArgs.length > 0) {
-        returnType = typeArgs[0];
-      }
-    }
-
-    const unwrappedText = returnType.getText();
-
-    if (unwrappedText !== 'void' && unwrappedText !== 'undefined') {
-      const primitiveTypes = new Set(['string', 'number', 'boolean', 'any', 'unknown', 'never']);
-      const isPrimitive = primitiveTypes.has(unwrappedText);
-      const isArray = unwrappedText.endsWith('[]') || unwrappedText.startsWith('Array<');
-
-      const properties = returnType.getProperties();
-      const isObjectLike =
-        !isPrimitive && !isArray && returnType.isObject() && properties.length > 0;
-
-      if (isObjectLike) {
-        for (const prop of properties) {
-          const propName = prop.getName();
-          if (propName === 'onSuccess' || propName === 'onFailure') continue;
-          const propType = prop.getTypeAtLocation(fn.getTypeResolutionNode());
-          const propTypeText = propType.getText();
-          const dataType = inferDataTypeFromTS(propTypeText);
-          outputs[propName] = {
-            dataType,
-            label: capitalize(propName),
-            tsType: propTypeText,
-          };
-        }
-      } else {
-        const dataType = inferDataTypeFromTS(unwrappedText);
-        outputs.result = {
-          dataType,
-          label: 'Result',
-          tsType: unwrappedText,
-        };
-      }
-    }
-
-    // Add mandatory ports
-    inputs.execute = { dataType: 'STEP', label: 'Execute' };
-    outputs.onSuccess = { dataType: 'STEP', label: 'On Success', isControlFlow: true };
-    outputs.onFailure = {
-      dataType: 'STEP',
-      label: 'On Failure',
-      failure: true,
-      isControlFlow: true,
-    };
-
-    // Assign implicit port orders
-    assignImplicitPortOrders(inputs);
-    assignImplicitPortOrders(outputs);
-
-    // Build TNodeTypeAST
-    const jsDocs = fn.getJsDocs();
-    const jsDocText = jsDocs.map((doc: JSDoc) => doc.getText()).join('\n');
-    const functionText = jsDocText ? `${jsDocText}\n${fn.getText()}` : fn.getText();
-
-    return {
-      type: 'NodeType',
-      name,
-      functionName: name,
-      variant: 'FUNCTION',
-      inputs,
-      outputs,
-      hasSuccessPort: true,
-      hasFailurePort: true,
-      isAsync: fn.isAsync() || returnTypeText.startsWith('Promise<'),
-      executeWhen: EXECUTION_STRATEGIES.CONJUNCTION as TExecuteWhen,
-      expression: !firstParamIsExecute, // Expression only if original function lacks execute as first param
-      inferred: true,
-      functionText,
-      ...(fn.getDeclarationKind?.() && {
-        declarationKind: fn.getDeclarationKind!(),
-      }),
-      sourceLocation: {
-        file: filePath,
-        line: fn.getStartLineNumber(false),
-        column: 0,
-      },
-    };
-  }
-
-  /**
-   * Pre-infer ALL unannotated functions from a source file.
-   * Used for imported files so the named-import filter can scope them.
-   */
-  private inferAllUnannotatedFunctions(
-    sourceFile: SourceFile,
-    existingNodeTypes: TNodeTypeAST[]
-  ): TNodeTypeAST[] {
-    const allFunctions = extractFunctionLikes(sourceFile);
-    const existingNames = new Set<string>();
-    for (const nt of existingNodeTypes) {
-      existingNames.add(nt.name);
-      existingNames.add(nt.functionName);
-    }
-
-    const inferred: TNodeTypeAST[] = [];
-    for (const fn of allFunctions) {
-      const fnName = fn.getName();
-      if (!fnName) continue;
-
-      // Skip if already known (annotated or from another source)
-      if (existingNames.has(fnName)) continue;
-
-      // Must NOT have a valid @flowWeaver annotation
-      if (this.hasFlowWeaverAnnotation(fn)) continue;
-
-      inferred.push(this.inferNodeTypeFromFunction(fn, fnName, sourceFile.getFilePath()));
-      existingNames.add(fnName);
-    }
-
-    return inferred;
-  }
-
-  /**
-   * Auto-infer node types from unannotated functions referenced by @node.
-   *
-   * When a workflow references a function via @node that has no @flowWeaver
-   * nodeType annotation, we infer an expression node type from its TypeScript
-   * signature. Phase 1: same-file functions only.
-   */
-  private inferNodeTypesFromUnannotated(
-    sourceFile: SourceFile,
-    existingNodeTypes: TNodeTypeAST[],
-    localNodeTypes: TNodeTypeAST[],
-    warnings: string[]
-  ): TNodeTypeAST[] {
-    const allFunctions = extractFunctionLikes(sourceFile);
-
-    // 1. Pre-scan workflows for @node references to collect referenced type names
-    const referencedTypes = new Set<string>();
-    for (const fn of allFunctions) {
-      const config = jsdocParser.parseWorkflow(fn, []);
-      if (!config) continue;
-      for (const inst of config.instances || []) {
-        referencedTypes.add(inst.type);
-      }
-    }
-
-    // 2. Find unresolved types: referenced but not in existingNodeTypes
-    const existingNames = new Set<string>();
-    for (const nt of existingNodeTypes) {
-      existingNames.add(nt.name);
-      existingNames.add(nt.functionName);
-    }
-    const unresolvedTypes = new Set<string>();
-    for (const typeName of referencedTypes) {
-      if (!existingNames.has(typeName)) {
-        unresolvedTypes.add(typeName);
-      }
-    }
-
-    if (unresolvedTypes.size === 0) return [];
-
-    // 3. Match unresolved types to unannotated functions OR built-in nodes
-    const inferredNodeTypes: TNodeTypeAST[] = [];
-    const alreadyInferred = new Set<string>();
-    const builtInByName = new Map(BUILT_IN_NODE_TYPES.map((nt) => [nt.name, nt]));
-    const annotatedNames = new Set(localNodeTypes.map((nt) => nt.functionName));
-
-    for (const unresolvedType of unresolvedTypes) {
-      if (alreadyInferred.has(unresolvedType)) continue;
-
-      // 3a. Check built-in nodes first
-      const builtIn = builtInByName.get(unresolvedType);
-      if (builtIn) {
-        inferredNodeTypes.push(builtIn);
-        alreadyInferred.add(unresolvedType);
-
-        // Warn if a local unannotated function has the same name (it will be shadowed)
-        if (!annotatedNames.has(unresolvedType)) {
-          const shadowFn = allFunctions.find((fn) => fn.getName() === unresolvedType && !this.hasFlowWeaverAnnotation(fn));
-          if (shadowFn) {
-            warnings.push(
-              `Function '${unresolvedType}' exists in this file but is not annotated with @flowWeaver nodeType. ` +
-              `The built-in '${unresolvedType}' will be used instead. Add @flowWeaver nodeType to use your version.`
-            );
-          }
-        }
-        continue;
-      }
-
-      // 3b. Match unannotated local function
-      const matchedFn = allFunctions.find((fn) => {
-        if (fn.getName() !== unresolvedType) return false;
-        return !this.hasFlowWeaverAnnotation(fn);
-      });
-
-      if (!matchedFn) continue;
-
-      inferredNodeTypes.push(
-        this.inferNodeTypeFromFunction(matchedFn, unresolvedType, sourceFile.getFilePath())
-      );
-      alreadyInferred.add(unresolvedType);
-    }
-
-    return inferredNodeTypes;
-  }
-
-  /**
-   * Expand a @map macro into synthetic node type, instances, connections, and scope.
-   *
-   * @map loop proc over scan.files
-   *
-   * Expands to:
-   * - A synthetic MAP_ITERATOR node type for "loop" with scoped ports
-   * - An instance "loop" of that synthetic type
-   * - The child instance "proc" placed inside loop.iterate scope
-   * - All scoped connections auto-generated
-   * - Upstream connection from scan.files -> loop.items
-   */
-  private hasFlowWeaverAnnotation(fn: FunctionLike): boolean {
-    const validTypes = new Set(['nodeType', 'workflow', 'pattern']);
-    return fn.getJsDocs().some((doc) =>
-      doc.getTags().some((t) => {
-        if (t.getTagName() !== 'flowWeaver') return false;
-        const comment = t.getCommentText?.()?.trim() || '';
-        return validTypes.has(comment.split(/\s/)[0]);
-      })
-    );
-  }
-
-  /**
-   * Generate an annotation suggestion for ghost-text autocomplete.
-   * Analyzes the function nearest to cursorLine, diffs inferred ports against
-   * any existing @flowWeaver annotation, and returns only the missing lines.
-   */
   public generateAnnotationSuggestion(
     content: string,
     cursorLine: number,
@@ -2105,7 +1634,7 @@ export class AnnotationParser {
       if (cursorLine < fnStartLine - 30) return null;
 
       // Check existing JSDoc state
-      const hasAnnotation = this.hasFlowWeaverAnnotation(targetFn);
+      const hasAnnotation = hasFlowWeaverAnnotation(targetFn);
       const hasAnyJsDoc = targetFn.getJsDocs().length > 0;
 
       // If function has a JSDoc but NOT a @flowWeaver annotation, don't suggest
@@ -2113,7 +1642,7 @@ export class AnnotationParser {
       if (hasAnyJsDoc && !hasAnnotation) return null;
 
       // Infer full node type from function signature
-      const inferred = this.inferNodeTypeFromFunction(targetFn, fnName, virtualPath);
+      const inferred = inferNodeTypeFromFunction(targetFn, fnName, virtualPath);
 
       // Extract @param descriptions from existing JSDoc (if any)
       const paramDescriptions = new Map<string, string>();
@@ -2287,7 +1816,7 @@ export class AnnotationParser {
     for (const [nodeId, typeName] of nodeDecls) {
       const matchedFn = allFunctions.find((f) => f.getName() === typeName);
       if (matchedFn) {
-        resolvedTypes.set(nodeId, this.inferNodeTypeFromFunction(matchedFn, typeName, sourceFile.getFilePath()));
+        resolvedTypes.set(nodeId, inferNodeTypeFromFunction(matchedFn, typeName, sourceFile.getFilePath()));
       }
     }
 
