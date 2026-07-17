@@ -337,7 +337,10 @@ function ensureFwImportStatements(
       const parts = nt.name.split('/');
       fnName = parts[parts.length - 1];
     }
-    const key = `${fnName} ${nt.importSource}`;
+    // Collision-proof dedup key: JSON.stringify a tuple so no separator char
+    // can appear inside the operands (fnName is space-free today, but this
+    // removes the assumption entirely). The key is internal-only, never emitted.
+    const key = JSON.stringify([fnName, nt.importSource]);
     if (seen.has(key)) continue;
     seen.add(key);
     importLines.push(`import { ${fnName} } from '${nt.importSource}';`);
