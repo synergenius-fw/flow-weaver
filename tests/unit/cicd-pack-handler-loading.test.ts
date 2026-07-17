@@ -185,7 +185,7 @@ export function w(execute: boolean, params: { x: string }): { onSuccess: boolean
     const wf = result.workflows[0];
 
     // Debug: check what we got
-    const hasInngestTrigger = wf.trigger?.event === 'push';
+    const hasInngestTrigger = wf.options?.trigger?.event === 'push';
     const handlerCalled = captured.length > 0;
 
     // @trigger push should NOT be treated as Inngest event trigger
@@ -195,9 +195,12 @@ export function w(execute: boolean, params: { x: string }): { onSuccess: boolean
     expect(handlerCalled).toBe(true);
     expect(captured[0].comment).toContain('push');
 
-    // The handler writes to ctx.deploy['cicd'] which maps to wf.options.cicd
-    expect(wf.options?.cicd?.triggers).toBeDefined();
-    expect(wf.options?.cicd?.triggers?.[0]?.type).toBe('push');
+    // The handler writes to ctx.deploy['cicd']. Core no longer owns a typed
+    // `cicd` field (it lives in flow-weaver-pack-cicd via module augmentation),
+    // so read the namespace-agnostic deploy map here.
+    const cicd = wf.options?.deploy?.cicd as { triggers?: Array<{ type?: string }> } | undefined;
+    expect(cicd?.triggers).toBeDefined();
+    expect(cicd?.triggers?.[0]?.type).toBe('push');
   });
 });
 
@@ -223,7 +226,7 @@ describe('non-CICD workflows are unaffected by pack handlers', () => {
     const result = parser.parseFromString(SIMPLE_WORKFLOW_SOURCE, 'test.ts');
     const wf = result.workflows[0];
 
-    expect(wf.options?.cicd).toBeUndefined();
+    expect(wf.options?.deploy?.cicd).toBeUndefined();
   });
 
   it('simple workflow validates without errors', () => {

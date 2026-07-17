@@ -45,6 +45,34 @@ import {
   capitalize,
 } from './parser/port-inference';
 
+/**
+ * Core option keys that must never be shadowed by a pack deploy namespace when
+ * promoting `deploy[namespace]` to a top-level `options.<namespace>` mirror.
+ */
+const RESERVED_OPTION_KEYS = new Set([
+  'strictTypes', 'autoConnect', 'trigger', 'cancelOn', 'retries', 'timeout',
+  'throttle', 'deploy',
+]);
+
+/**
+ * Promote each pack deploy namespace to a top-level `options.<namespace>`
+ * convenience mirror (e.g. `deploy['cicd']` → `options.cicd`). Packs type these
+ * fields via module augmentation of TWorkflowOptions; core stays namespace-
+ * agnostic. Returns a partial options object to spread; reserved core keys are
+ * skipped so a namespace can never clobber a built-in option.
+ */
+function promoteDeployNamespaces(
+  deploy: Record<string, Record<string, unknown>> | undefined,
+): Record<string, unknown> {
+  if (!deploy) return {};
+  const promoted: Record<string, unknown> = {};
+  for (const [namespace, data] of Object.entries(deploy)) {
+    if (RESERVED_OPTION_KEYS.has(namespace)) continue;
+    if (data && typeof data === 'object') promoted[namespace] = data;
+  }
+  return promoted;
+}
+
 export interface ParseResult {
   workflows: TWorkflowAST[];
   nodeTypes: TNodeTypeAST[];
@@ -1668,10 +1696,11 @@ export class AnnotationParser {
             ...(config.retries !== undefined && { retries: config.retries }),
             ...(config.timeout && { timeout: config.timeout }),
             ...(config.throttle && { throttle: config.throttle }),
-            // CI/CD data comes from deploy['cicd'] (populated by extension tag handler)
-            ...(config.deploy?.['cicd'] && {
-              cicd: config.deploy['cicd'] as Record<string, unknown>,
-            }),
+            // Surface each pack deploy namespace as a top-level options.<namespace>
+            // convenience mirror (e.g. options.cicd from deploy['cicd']). Packs
+            // type these fields via module augmentation of TWorkflowOptions; core
+            // stays namespace-agnostic and keeps no vendor vocabulary.
+            ...promoteDeployNamespaces(config.deploy),
             // Per-target deployment config
             ...(config.deploy && { deploy: config.deploy }),
           },

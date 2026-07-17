@@ -407,8 +407,13 @@ export type TTypeCompatibility = {
 
 /**
  * Workflow-level options parsed from JSDoc annotations.
+ *
+ * Declared as an `interface` so packs can contribute domain-specific option
+ * fields via module augmentation (e.g. flow-weaver-pack-cicd augments this
+ * with `cicd?: TCICDOptions`). Core carries only generic options plus the
+ * `deploy` escape hatch; vendor/domain vocabularies live in their packs.
  */
-export type TWorkflowOptions = {
+export interface TWorkflowOptions {
   /** When true, type incompatibilities are errors instead of warnings */
   strictTypes?: boolean;
   /** When true, connections are auto-wired based on node declaration order */
@@ -424,213 +429,15 @@ export type TWorkflowOptions = {
   /** Rate limiting configuration */
   throttle?: { limit: number; period?: string };
 
-  // ── CI/CD domain annotations (shared across CI/CD targets) ─────
+  // ── Per-target deployment config from @deploy and pack tag handlers ──────
 
-  /** CI/CD pipeline configuration from @secret, @cache, @artifact, etc. */
-  cicd?: TCICDOptions;
-
-  // ── Per-target deployment config from @deploy annotations ──────
-
-  /** Target-specific config (e.g., deploy['github-actions'].runner) */
+  /**
+   * Namespaced deploy config. Pack tag handlers populate `deploy[namespace]`
+   * (e.g. `deploy['cicd']`, `deploy['github-actions'].runner`). Packs may
+   * additionally surface a typed convenience field via module augmentation.
+   */
   deploy?: Record<string, Record<string, unknown>>;
-};
-
-/**
- * CI/CD domain options — shared across all CI/CD export targets.
- * Populated from @secret, @runner, @cache, @artifact, @environment,
- * @matrix, @service, @concurrency, @job, @stage, @variables,
- * @before_script, @tags, @includes annotations.
- */
-export type TCICDOptions = {
-  /** Secret declarations for CI/CD pipelines */
-  secrets?: TCICDSecret[];
-  /** Default runner environment for CI/CD jobs */
-  runner?: string;
-  /** Cache configurations for CI/CD */
-  caches?: TCICDCache[];
-  /** Artifact declarations for CI/CD */
-  artifacts?: TCICDArtifact[];
-  /** Deployment environment configurations */
-  environments?: TCICDEnvironment[];
-  /** Matrix strategy for multi-version/OS testing */
-  matrix?: TCICDMatrix;
-  /** Sidecar service containers */
-  services?: TCICDService[];
-  /** Concurrency control */
-  concurrency?: { group: string; cancelInProgress?: boolean };
-  /** Extended CI/CD triggers (push, PR, dispatch, tag) */
-  triggers?: TCICDTrigger[];
-  /** Per-job configuration from @job annotations */
-  jobs?: TCICDJobConfig[];
-  /** Workflow-level default variables from @variables */
-  variables?: Record<string, string>;
-  /** Workflow-level before_script commands from @before_script */
-  beforeScript?: string[];
-  /** Workflow-level runner tags from @tags */
-  tags?: string[];
-  /** GitLab template includes from @includes */
-  includes?: TCICDInclude[];
-  /** Pipeline stage declarations from @stage */
-  stages?: TCICDStage[];
-};
-
-// ── CI/CD Types ──────────────────────────────────────────────────────
-
-/** Secret declaration from @secret annotation */
-export type TCICDSecret = {
-  /** Secret name (e.g., NPM_TOKEN) */
-  name: string;
-  /** Human-readable description */
-  description?: string;
-  /** Platform restriction (default: all) */
-  platform?: 'github' | 'gitlab' | 'all';
-  /** Which job scope uses this secret */
-  scope?: string;
-};
-
-/** Cache configuration from @cache annotation */
-export type TCICDCache = {
-  /** Cache strategy name (e.g., npm, pip, custom) */
-  strategy: string;
-  /** Cache path override (comma-separated for multiple paths) */
-  path?: string;
-  /** Cache key file (e.g., package-lock.json) */
-  key?: string;
-  /** Cache policy (pull, push, pull-push) */
-  policy?: string;
-  /** Files to use for cache key generation */
-  files?: string[];
-};
-
-/** Artifact declaration from @artifact annotation */
-export type TCICDArtifact = {
-  /** Artifact name */
-  name: string;
-  /** Path(s) to include */
-  path: string;
-  /** Retention in days */
-  retention?: number;
-};
-
-/** Deployment environment from @environment annotation */
-export type TCICDEnvironment = {
-  /** Environment name (e.g., production, staging) */
-  name: string;
-  /** Environment URL */
-  url?: string;
-  /** Number of required reviewers */
-  reviewers?: number;
-};
-
-/** Matrix strategy from @matrix annotation */
-export type TCICDMatrix = {
-  /** Dimension name → values (e.g., { "node": ["18","20","22"] }) */
-  dimensions: Record<string, string[]>;
-  /** Explicit include entries */
-  include?: Record<string, string>[];
-  /** Explicit exclude entries */
-  exclude?: Record<string, string>[];
-};
-
-/** Service container from @service annotation */
-export type TCICDService = {
-  /** Service name */
-  name: string;
-  /** Docker image */
-  image: string;
-  /** Environment variables */
-  env?: Record<string, string>;
-  /** Port mappings (host:container) */
-  ports?: string[];
-};
-
-/** CI/CD trigger from extended @trigger annotation */
-export type TCICDTrigger = {
-  /** Trigger type */
-  type: 'push' | 'pull_request' | 'schedule' | 'dispatch' | 'tag';
-  /** Branch filters */
-  branches?: string[];
-  /** Path filters */
-  paths?: string[];
-  /** Path ignore filters */
-  pathsIgnore?: string[];
-  /** Tag pattern (for tag triggers) */
-  pattern?: string;
-  /** PR event types (e.g., opened, synchronize) */
-  types?: string[];
-  /** Cron expression (for schedule triggers) */
-  cron?: string;
-  /** Dispatch inputs */
-  inputs?: Record<string, { description?: string; required?: boolean; default?: string; type?: string }>;
-};
-
-/** Per-job configuration from @job annotation */
-export type TCICDJobConfig = {
-  /** Job identifier (must match a [job: "name"] on @node declarations) */
-  id: string;
-  /** Maximum retry count on failure */
-  retry?: number;
-  /** Whether this job can fail without failing the pipeline */
-  allowFailure?: boolean;
-  /** Job-level timeout duration (e.g., "30m", "1h") */
-  timeout?: string;
-  /** Key-value environment variables */
-  variables?: Record<string, string>;
-  /** Runner selection tags */
-  tags?: string[];
-  /** Setup commands run before the main script */
-  beforeScript?: string[];
-  /** Conditional execution rules */
-  rules?: TCICDJobRule[];
-  /** Coverage regex pattern */
-  coverage?: string;
-  /** Test/coverage report declarations */
-  reports?: TCICDReport[];
-  /** Per-job runner override */
-  runner?: string;
-  /** GitLab template to extend */
-  extends?: string;
-};
-
-/** Conditional execution rule for a CI/CD job */
-export type TCICDJobRule = {
-  /** Condition expression (e.g., '$CI_COMMIT_BRANCH == "main"') */
-  if?: string;
-  /** When to run: always, never, manual, delayed */
-  when?: 'always' | 'never' | 'manual' | 'delayed';
-  /** Whether failure is allowed when this rule matches */
-  allowFailure?: boolean;
-  /** Variables to set when this rule matches */
-  variables?: Record<string, string>;
-  /** Changed file patterns that trigger this rule */
-  changes?: string[];
-};
-
-/** Report declaration for a CI/CD job */
-export type TCICDReport = {
-  /** Report type (junit, cobertura, codequality, sast, etc.) */
-  type: string;
-  /** Report file path */
-  path: string;
-};
-
-/** GitLab include directive from @includes annotation */
-export type TCICDInclude = {
-  /** Include type */
-  type: 'local' | 'project' | 'remote' | 'template';
-  /** File path or URL */
-  file: string;
-  /** Project path (for type=project) */
-  project?: string;
-  /** Git ref (for type=project) */
-  ref?: string;
-};
-
-/** Pipeline stage declaration from @stage annotation */
-export type TCICDStage = {
-  /** Stage name */
-  name: string;
-};
+}
 
 /**
  * Connection AST - A link between two ports.
