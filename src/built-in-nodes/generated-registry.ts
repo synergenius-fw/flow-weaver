@@ -13,6 +13,7 @@ export const BUILT_IN_NODE_TYPES: TNodeTypeAST[] = [
     name: 'delay',
     functionName: 'delay',
     isAsync: true,
+    receivesAbortSignal: true,
     hasSuccessPort: true,
     hasFailurePort: true,
     executeWhen: 'CONJUNCTION',
@@ -45,18 +46,43 @@ function __fw_lookupMock(section, key) {
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function delay(execute, duration) {
+async function delay(execute, duration, abortSignal) {
     if (!execute)
         return { onSuccess: false, onFailure: false, elapsed: false };
     const mocks = __fw_getMockConfig();
     if (mocks?.fast) {
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        await __fw_waitForDuration(1, abortSignal);
     }
     else {
         const ms = __fw_parseDuration(duration);
-        await new Promise((resolve) => setTimeout(resolve, ms));
+        await __fw_waitForDuration(ms, abortSignal);
     }
     return { onSuccess: true, onFailure: false, elapsed: true };
+}
+function __fw_waitForDuration(ms, abortSignal) {
+    if (abortSignal?.aborted)
+        return Promise.reject(new CancellationError());
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const onAbort = () => {
+            if (settled)
+                return;
+            settled = true;
+            clearTimeout(timer);
+            abortSignal?.removeEventListener('abort', onAbort);
+            reject(new CancellationError());
+        };
+        const timer = setTimeout(() => {
+            if (settled)
+                return;
+            settled = true;
+            abortSignal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, ms);
+        abortSignal?.addEventListener('abort', onAbort, { once: true });
+        if (abortSignal?.aborted)
+            onAbort();
+    });
 }
 function __fw_parseDuration(duration) {
     const match = duration.match(/^(\\d+)(ms|s|m|h|d)$/);
@@ -68,12 +94,37 @@ function __fw_parseDuration(duration) {
 }
 `.trim(),
     functionTextProduction: `
-async function delay(execute, duration) {
+async function delay(execute, duration, abortSignal) {
     if (!execute)
         return { onSuccess: false, onFailure: false, elapsed: false };
     const ms = __fw_parseDuration(duration);
-    await new Promise((resolve) => setTimeout(resolve, ms));
+    await __fw_waitForDuration(ms, abortSignal);
     return { onSuccess: true, onFailure: false, elapsed: true };
+}
+function __fw_waitForDuration(ms, abortSignal) {
+    if (abortSignal?.aborted)
+        return Promise.reject(new CancellationError());
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const onAbort = () => {
+            if (settled)
+                return;
+            settled = true;
+            clearTimeout(timer);
+            abortSignal?.removeEventListener('abort', onAbort);
+            reject(new CancellationError());
+        };
+        const timer = setTimeout(() => {
+            if (settled)
+                return;
+            settled = true;
+            abortSignal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, ms);
+        abortSignal?.addEventListener('abort', onAbort, { once: true });
+        if (abortSignal?.aborted)
+            onAbort();
+    });
 }
 function __fw_parseDuration(duration) {
     const match = duration.match(/^(\\d+)(ms|s|m|h|d)$/);
@@ -90,6 +141,7 @@ function __fw_parseDuration(duration) {
     name: 'waitForEvent',
     functionName: 'waitForEvent',
     isAsync: true,
+    receivesAbortSignal: false,
     hasSuccessPort: true,
     hasFailurePort: true,
     executeWhen: 'CONJUNCTION',
@@ -151,6 +203,7 @@ async function waitForEvent(execute, eventName, match, timeout) {
     name: 'invokeWorkflow',
     functionName: 'invokeWorkflow',
     isAsync: true,
+    receivesAbortSignal: true,
     hasSuccessPort: true,
     hasFailurePort: true,
     executeWhen: 'CONJUNCTION',
@@ -185,7 +238,7 @@ function __fw_lookupMock(section, key) {
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function invokeWorkflow(execute, functionId, payload, timeout) {
+async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal) {
     if (!execute)
         return { onSuccess: false, onFailure: false, result: {} };
     const mocks = __fw_getMockConfig();
@@ -199,10 +252,12 @@ async function invokeWorkflow(execute, functionId, payload, timeout) {
     const registry = globalThis.__fw_workflow_registry__;
     if (registry?.[functionId]) {
         try {
-            const result = await registry[functionId](true, payload);
+            const result = await registry[functionId](true, payload, abortSignal);
             return { onSuccess: true, onFailure: false, result: result ?? {} };
         }
-        catch {
+        catch (error) {
+            if (CancellationError.isCancellationError(error))
+                throw error;
             return { onSuccess: false, onFailure: true, result: {} };
         }
     }
@@ -210,16 +265,18 @@ async function invokeWorkflow(execute, functionId, payload, timeout) {
 }
 `.trim(),
     functionTextProduction: `
-async function invokeWorkflow(execute, functionId, payload, timeout) {
+async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal) {
     if (!execute)
         return { onSuccess: false, onFailure: false, result: {} };
     const registry = globalThis.__fw_workflow_registry__;
     if (registry?.[functionId]) {
         try {
-            const result = await registry[functionId](true, payload);
+            const result = await registry[functionId](true, payload, abortSignal);
             return { onSuccess: true, onFailure: false, result: result ?? {} };
         }
-        catch {
+        catch (error) {
+            if (CancellationError.isCancellationError(error))
+                throw error;
             return { onSuccess: false, onFailure: true, result: {} };
         }
     }
@@ -232,6 +289,7 @@ async function invokeWorkflow(execute, functionId, payload, timeout) {
     name: 'waitForAgent',
     functionName: 'waitForAgent',
     isAsync: true,
+    receivesAbortSignal: true,
     hasSuccessPort: true,
     hasFailurePort: true,
     executeWhen: 'CONJUNCTION',
@@ -266,7 +324,7 @@ function __fw_lookupMock(section, key) {
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function waitForAgent(execute, agentId, context, prompt) {
+async function waitForAgent(execute, agentId, context, prompt, abortSignal) {
     if (!execute)
         return { onSuccess: false, onFailure: false, agentResult: {} };
     const mocks = __fw_getMockConfig();
@@ -279,19 +337,19 @@ async function waitForAgent(execute, agentId, context, prompt) {
     }
     const channel = globalThis.__fw_agent_channel__;
     if (channel) {
-        const result = await channel.request({ agentId, context, prompt });
+        const result = await channel.request({ agentId, context, prompt }, abortSignal);
         return { onSuccess: true, onFailure: false, agentResult: result };
     }
     return { onSuccess: true, onFailure: false, agentResult: {} };
 }
 `.trim(),
     functionTextProduction: `
-async function waitForAgent(execute, agentId, context, prompt) {
+async function waitForAgent(execute, agentId, context, prompt, abortSignal) {
     if (!execute)
         return { onSuccess: false, onFailure: false, agentResult: {} };
     const channel = globalThis.__fw_agent_channel__;
     if (channel) {
-        const result = await channel.request({ agentId, context, prompt });
+        const result = await channel.request({ agentId, context, prompt }, abortSignal);
         return { onSuccess: true, onFailure: false, agentResult: result };
     }
     return { onSuccess: true, onFailure: false, agentResult: {} };

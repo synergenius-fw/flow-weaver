@@ -658,6 +658,7 @@ export function generateControlFlowWithExecutionContext(
       }
     }
   });
+  lines.push(`  ctx.checkAborted('${RESERVED_NODE_NAMES.EXIT}');`);
   lines.push(`  const exitIdx = ctx.addExecution('${RESERVED_NODE_NAMES.EXIT}');`);
   const exitConnections = workflow.connections.filter((conn) => isExitNode(conn.to.node));
   // Group exit connections by port (multiple connections to the same port are coalesced)
@@ -1359,6 +1360,7 @@ function emitBranchNodeCallAndOutputs(params: {
   setCall: string;
   indent: string;
   isAsync: boolean;
+  abortSignalExpression: string;
   lines: string[];
 }): void {
   const {
@@ -1371,6 +1373,7 @@ function emitBranchNodeCallAndOutputs(params: {
     setCall,
     indent,
     isAsync,
+    abortSignalExpression,
     lines,
   } = params;
 
@@ -1460,7 +1463,7 @@ function emitBranchNodeCallAndOutputs(params: {
 
     lines.push(`${indent}  const ${paramsVar} = ${paramsObj};`);
     lines.push(
-      `${indent}  const ${safeId}Result = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar});`
+      `${indent}  const ${safeId}Result = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar}, ${abortSignalExpression});`
     );
 
     // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
@@ -1594,6 +1597,7 @@ function generateBranchingNodeCode(
     nodeTypeName: functionName,
     bundleMode,
     production,
+    abortSignalExpression: `${ctxVar}.getAbortSignal()`,
   });
   const awaitKeyword = branchNode.isAsync ? 'await ' : '';
 
@@ -1607,6 +1611,7 @@ function generateBranchingNodeCode(
     setCall,
     indent,
     isAsync,
+    abortSignalExpression: `${ctxVar}.getAbortSignal()`,
     lines,
   });
   lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
@@ -1958,6 +1963,7 @@ function generatePullNodeWithContext(
     nodeTypeName: functionName,
     bundleMode,
     production,
+    abortSignalExpression: `${ctxVar}.getAbortSignal()`,
   });
 
   const resultVar = `${safeId}Result`;
@@ -1995,7 +2001,7 @@ function generatePullNodeWithContext(
 
     lines.push(`${indent}    const ${paramsVar} = ${paramsObj};`);
     lines.push(
-      `${indent}    const ${resultVar} = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar});`
+      `${indent}    const ${resultVar} = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar}, ${ctxVar}.getAbortSignal());`
     );
   } else if (nodeType.scope || (nodeType.scopes && nodeType.scopes.length > 0)) {
     // Scoped node call with positional arguments (uses _impl signature)
@@ -2255,6 +2261,7 @@ function generateNodeCallWithContext(
     nodeTypeName: functionName,
     bundleMode,
     production,
+    abortSignalExpression: `${ctxVar}.getAbortSignal()`,
   });
   const resultVar = `${safeId}Result`;
   const awaitKeyword = nodeType.isAsync ? 'await ' : '';
@@ -2379,7 +2386,7 @@ function generateNodeCallWithContext(
 
     lines.push(`${indent}  const ${paramsVar} = ${paramsObj};`);
     lines.push(
-      `${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar});`
+      `${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar}, ${ctxVar}.getAbortSignal());`
     );
 
     // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure

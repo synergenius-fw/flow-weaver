@@ -6,10 +6,10 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
+import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 // Inline invokeWorkflow definition with registry + mock logic.
-// This must be inlined because executeWorkflowFromFile copies the source to a temp dir,
+// This must be inlined because executeWorkflow copies the source to a temp dir,
 // making relative imports unresolvable.
 const INVOKE_WORKFLOW_DEF = `
 /**
@@ -99,11 +99,9 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflowFromFile(testFile, {
-        data: 'hello',
-      }, {
-        workflowName: 'mainWorkflow',
-      });
+      const result = await executeWorkflow({ filePath: testFile, params: {
+              data: 'hello',
+            }, workflowName: 'mainWorkflow' });
 
       // The invokeWorkflow node needs functionId to know which function to call.
       // Without a functionId connection, it defaults to no-op behavior.
@@ -138,11 +136,9 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflowFromFile(testFile, {
-        data: 'test',
-      }, {
-        workflowName: 'mainWorkflow',
-      });
+      const result = await executeWorkflow({ filePath: testFile, params: {
+              data: 'test',
+            }, workflowName: 'mainWorkflow' });
 
       // Without a matching sibling function and no mocks, should return no-op result
       expect(result.result).toBeDefined();
@@ -179,16 +175,13 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflowFromFile(testFile, {
-        data: 'test',
-      }, {
-        workflowName: 'mainWorkflow',
-        mocks: {
-          invocations: {
-            'some-function-id': { processed: 'mocked-value' },
-          },
-        },
-      });
+      const result = await executeWorkflow({ filePath: testFile, params: {
+              data: 'test',
+            }, workflowName: 'mainWorkflow', mocks: {
+                invocations: {
+                  'some-function-id': { processed: 'mocked-value' },
+                },
+              } });
 
       // When mocks are configured but no matching functionId, invokeWorkflow returns failure
       // (since there's no explicit functionId connection providing a matching key)
@@ -257,11 +250,9 @@ export async function callerWorkflow(execute: boolean, params: { input: string }
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflowFromFile(testFile, {
-        input: 'hello world',
-      }, {
-        workflowName: 'callerWorkflow',
-      });
+      const result = await executeWorkflow({ filePath: testFile, params: {
+              input: 'hello world',
+            }, workflowName: 'callerWorkflow' });
 
       // The callerWorkflow calls invokeWorkflow with functionId='helperWorkflow'
       // The registry should resolve helperWorkflow from the same module

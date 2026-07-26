@@ -28,10 +28,10 @@ const mockAgentOnPause = vi.fn(() => new Promise(() => {}));
 const mockAgentResume = vi.fn();
 
 vi.mock('../../src/mcp/workflow-executor', () => ({
-  executeWorkflowFromFile: vi.fn(async (_fp: string, _p: unknown, opts: Record<string, unknown>) => {
-    capturedExecOpts = opts;
+  executeWorkflow: vi.fn(async (request: Record<string, unknown>) => {
+    capturedExecOpts = request;
     // Fire onEvent if provided
-    if (opts.onEvent && typeof opts.onEvent === 'function' && mockExecResult) {
+    if (request.onEvent && typeof request.onEvent === 'function' && mockExecResult) {
       // Events will be fired via test setup
     }
     if (mockExecError) throw mockExecError;
@@ -151,7 +151,7 @@ async function getFriendlyErrorMock() {
 
 async function getExecutorMock() {
   const mod = await import('../../src/mcp/workflow-executor');
-  return mod.executeWorkflowFromFile as unknown as ReturnType<typeof vi.fn>;
+  return mod.executeWorkflow as unknown as ReturnType<typeof vi.fn>;
 }
 
 async function getCheckpointMocks() {
@@ -278,8 +278,8 @@ describe('streaming onEvent callback (lines 271-296)', () => {
     const logger = await getLogger();
     const execMock = await getExecutorMock();
 
-    execMock.mockImplementationOnce(async (_fp: string, _p: unknown, opts: Record<string, unknown>) => {
-      const onEvent = opts.onEvent as (e: unknown) => void;
+    execMock.mockImplementationOnce(async (request: Record<string, unknown>) => {
+      const onEvent = request.onEvent as (e: unknown) => void;
       if (onEvent) {
         onEvent({ type: 'STATUS_CHANGED', timestamp: 1000, data: { id: 'nodeA', status: 'RUNNING' } });
         onEvent({ type: 'STATUS_CHANGED', timestamp: 1050, data: { id: 'nodeA', status: 'SUCCEEDED' } });
@@ -304,8 +304,8 @@ describe('streaming onEvent callback (lines 271-296)', () => {
     const execMock = await getExecutorMock();
 
     let capturedOnEvent: unknown = 'not-set';
-    execMock.mockImplementationOnce(async (_fp: string, _p: unknown, opts: Record<string, unknown>) => {
-      capturedOnEvent = opts.onEvent;
+    execMock.mockImplementationOnce(async (request: Record<string, unknown>) => {
+      capturedOnEvent = request.onEvent;
       return makeResult();
     });
 
@@ -321,8 +321,8 @@ describe('streaming onEvent callback (lines 271-296)', () => {
     const logger = await getLogger();
     const execMock = await getExecutorMock();
 
-    execMock.mockImplementationOnce(async (_fp: string, _p: unknown, opts: Record<string, unknown>) => {
-      const onEvent = opts.onEvent as (e: unknown) => void;
+    execMock.mockImplementationOnce(async (request: Record<string, unknown>) => {
+      const onEvent = request.onEvent as (e: unknown) => void;
       if (onEvent) {
         onEvent({ type: 'STATUS_CHANGED', timestamp: 1000, data: { id: 'nodeB', status: 'RUNNING' } });
         onEvent({ type: 'STATUS_CHANGED', timestamp: 1200, data: { id: 'nodeB', status: 'SUCCEEDED' } });
@@ -625,8 +625,8 @@ describe('checkpoint and resume (lines 168-220)', () => {
     });
 
     let capturedParams: unknown;
-    execMock.mockImplementationOnce(async (_fp: string, p: unknown) => {
-      capturedParams = p;
+    execMock.mockImplementationOnce(async (request: Record<string, unknown>) => {
+      capturedParams = request.params;
       return makeResult();
     });
 
@@ -663,8 +663,8 @@ describe('production mode (lines 226-229)', () => {
     const execMock = await getExecutorMock();
 
     let opts: Record<string, unknown> = {};
-    execMock.mockImplementationOnce(async (_fp: string, _p: unknown, o: Record<string, unknown>) => {
-      opts = o;
+    execMock.mockImplementationOnce(async (request: Record<string, unknown>) => {
+      opts = request;
       return makeResult();
     });
 
@@ -680,8 +680,8 @@ describe('production mode (lines 226-229)', () => {
     const execMock = await getExecutorMock();
 
     let opts: Record<string, unknown> = {};
-    execMock.mockImplementationOnce(async (_fp: string, _p: unknown, o: Record<string, unknown>) => {
-      opts = o;
+    execMock.mockImplementationOnce(async (request: Record<string, unknown>) => {
+      opts = request;
       return makeResult();
     });
 

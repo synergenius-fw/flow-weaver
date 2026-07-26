@@ -17,19 +17,34 @@ const candidateExecutor = path.resolve(
   "workflow-executor.ts",
 );
 const workflowFile = path.join(directory, "fixtures", "sequential.ts");
+const cancellationWorkflowFile = path.join(
+  directory,
+  "fixtures",
+  "cancellation-portable.ts",
+);
 
 interface PortabilityObservation {
   readonly node: string;
   readonly electron: string | null;
   readonly result: unknown;
-  readonly eventTypes: readonly string[];
+  readonly eventTypes?: readonly string[];
+  readonly errorName?: string;
 }
 
-function executeInPlainNode(): Promise<PortabilityObservation> {
+function executeInPlainNode(
+  filePath = workflowFile,
+  workflowName = "sequential",
+  mode?: "cancel",
+): Promise<PortabilityObservation> {
   return new Promise((resolve, reject) => {
     const child = fork(
       childPath,
-      [candidateExecutor, workflowFile, "sequential"],
+      [
+        candidateExecutor,
+        filePath,
+        workflowName,
+        ...(mode === undefined ? [] : [mode]),
+      ],
       {
         execArgv: ["--import", "tsx"],
         stdio: ["ignore", "pipe", "pipe", "ipc"],
@@ -87,5 +102,16 @@ describe("standard Node.js executor portability", () => {
       result: 10,
     });
     expect(observed.eventTypes).toContain("WORKFLOW_COMPLETED");
+  });
+
+  it("cancels an engine-owned wait in a plain Node.js child process", async () => {
+    const observed = await executeInPlainNode(
+      cancellationWorkflowFile,
+      "cancellationPortable",
+      "cancel",
+    );
+
+    expect(observed.electron).toBeNull();
+    expect(observed.errorName).toBe("CancellationError");
   });
 });

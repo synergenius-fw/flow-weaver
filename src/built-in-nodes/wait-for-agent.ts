@@ -11,7 +11,8 @@ export async function waitForAgent(
   execute: boolean,
   agentId: string,
   context: object,
-  prompt?: string
+  prompt?: string,
+  abortSignal?: AbortSignal
 ): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, agentResult: {} };
 
@@ -28,10 +29,10 @@ export async function waitForAgent(
 
   // 2. Check agent channel (set by executor for pause/resume)
   const channel = (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ as
-    | { request: (req: object) => Promise<object> }
+    | { request: (req: object, abortSignal?: AbortSignal) => Promise<object> }
     | undefined;
   if (channel) {
-    const result = await channel.request({ agentId, context, prompt });
+    const result = await channel.request({ agentId, context, prompt }, abortSignal);
     return { onSuccess: true, onFailure: false, agentResult: result };
   }
 

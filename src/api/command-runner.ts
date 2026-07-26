@@ -225,9 +225,11 @@ const handlers: Record<string, CommandHandler> = {
 
   run: async (args) => {
     const filePath = resolveFile(args, args.cwd as string | undefined);
-    const { executeWorkflowFromFile } = await import('../mcp/workflow-executor.js');
+    const { executeWorkflow } = await import('../mcp/workflow-executor.js');
     const params = (args.params as Record<string, unknown>) ?? {};
-    const result = await executeWorkflowFromFile(filePath, params, {
+    const result = await executeWorkflow({
+      filePath,
+      params,
       workflowName: args.workflow as string | undefined,
     });
     return { data: result };

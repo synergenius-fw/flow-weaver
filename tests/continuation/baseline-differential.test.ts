@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { executeWorkflowFromFile as executeBaseline } from "@synergenius/flow-weaver-baseline/executor";
-import { executeWorkflowFromFile as executeCandidate } from "../../src/mcp/workflow-executor.js";
+import { executeWorkflow as executeCandidate } from "../../src/mcp/workflow-executor.js";
 
 interface CorpusCase {
   readonly name: string;
@@ -54,19 +54,33 @@ const corpus: readonly CorpusCase[] = [
   },
 ];
 
-type Executor = typeof executeCandidate;
+async function observeBaseline(testCase: CorpusCase) {
+  return observeResult(
+    await executeBaseline(
+      path.join(fixtureDirectory, testCase.fixture),
+      testCase.params,
+      {
+        workflowName: testCase.workflowName,
+        includeTrace: true,
+        production: false,
+      },
+    ),
+  );
+}
 
-async function observe(execute: Executor, testCase: CorpusCase) {
-  const observed = await execute(
-    path.join(fixtureDirectory, testCase.fixture),
-    testCase.params,
-    {
+async function observeCandidate(testCase: CorpusCase) {
+  return observeResult(
+    await executeCandidate({
+      filePath: path.join(fixtureDirectory, testCase.fixture),
+      params: testCase.params,
       workflowName: testCase.workflowName,
       includeTrace: true,
       production: false,
-    },
+    }),
   );
+}
 
+function observeResult(observed: Awaited<ReturnType<typeof executeCandidate>>) {
   return {
     functionName: observed.functionName,
     result: observed.result,
@@ -90,9 +104,9 @@ describe("Flow Weaver 0.34.10 differential continuation baseline", () => {
   it.each(corpus)(
     "$name is deterministic and candidate-equivalent",
     async (testCase) => {
-      const firstBaseline = await observe(executeBaseline, testCase);
-      const secondBaseline = await observe(executeBaseline, testCase);
-      const candidate = await observe(executeCandidate, testCase);
+      const firstBaseline = await observeBaseline(testCase);
+      const secondBaseline = await observeBaseline(testCase);
+      const candidate = await observeCandidate(testCase);
 
       expect(secondBaseline).toEqual(firstBaseline);
       expect(candidate).toEqual(firstBaseline);

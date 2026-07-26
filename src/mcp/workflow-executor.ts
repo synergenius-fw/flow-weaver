@@ -13,6 +13,7 @@ import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import type { TExternalNodeType } from '../parser.js';
 import type { AgentChannel } from './agent-channel.js';
 import type { DebugController } from '../runtime/debug-controller.js';
+import { CancellationError } from '../runtime/CancellationError.js';
 
 /** A single trace event captured during workflow execution. */
 export interface ExecutionTraceEvent {
@@ -48,8 +49,30 @@ export interface TraceSummary {
   totalDurationMs: number;
 }
 
-/** Result returned after executing a workflow from a file. */
-export interface ExecuteWorkflowResult {
+/** One execution-scoped request accepted by the public workflow executor. */
+export interface WorkflowExecutionRequest {
+  filePath: string;
+  params?: Record<string, unknown>;
+  workflowName?: string;
+  production?: boolean;
+  includeTrace?: boolean;
+  mocks?: FwMockConfig;
+  agentChannel?: AgentChannel;
+  debugController?: DebugController;
+  onEvent?: (event: ExecutionTraceEvent) => void;
+  externalNodeTypes?: TExternalNodeType[];
+  /**
+   * Parent-owned cooperative cancellation signal for this execution.
+   *
+   * Flow Weaver observes cancellation at generated node boundaries, nested
+   * scopes and engine-owned waits. A node that ignores cancellation is not
+   * preempted; a hard stop requires a parent-owned process boundary.
+   */
+  abortSignal?: AbortSignal;
+}
+
+/** Result returned after executing a workflow request. */
+export interface WorkflowExecutionResult {
   /** The return value of the executed workflow function. */
   result: unknown;
   /** The name of the exported function that was executed. */
@@ -67,23 +90,30 @@ export interface ExecuteWorkflowResult {
  * Copies the source to a temp file, compiles all workflows in-place (preserving sibling
  * functions for workflow composition), injects a trace-capturing debugger, and dynamically
  * imports and runs the target workflow function.
- * @param filePath - Path to the workflow `.ts` source file.
- * @param params - Parameters to pass to the workflow function.
- * @param options - Execution options.
- * @param options.workflowName - Name of a specific exported workflow function to execute.
- *   If omitted, the first exported function is used.
- * @param options.production - Enable production mode (no debug events). Defaults to `!includeTrace`.
- * @param options.includeTrace - Whether to capture and return execution trace events. Defaults to `true`.
+ * @param request - File, parameters, execution options, and parent-owned signal.
  * @returns The workflow result, function name, execution time, and optional trace.
  * @throws If no exported workflow function is found in the compiled module.
  */
-export async function executeWorkflowFromFile(
-  filePath: string,
-  params?: Record<string, unknown>,
-  options?: { workflowName?: string; production?: boolean; includeTrace?: boolean; mocks?: FwMockConfig; agentChannel?: AgentChannel; debugController?: DebugController; onEvent?: (event: ExecutionTraceEvent) => void; externalNodeTypes?: TExternalNodeType[] }
-): Promise<ExecuteWorkflowResult> {
+export async function executeWorkflow(
+  request: WorkflowExecutionRequest
+): Promise<WorkflowExecutionResult> {
+  const {
+    filePath,
+    params,
+    workflowName,
+    production: requestedProduction,
+    includeTrace: requestedIncludeTrace,
+    mocks,
+    agentChannel,
+    debugController,
+    onEvent,
+    externalNodeTypes,
+    abortSignal,
+  } = request;
+  if (abortSignal?.aborted) throw new CancellationError();
+
   const resolvedPath = path.resolve(filePath);
-  const includeTrace = options?.includeTrace !== false;
+  const includeTrace = requestedIncludeTrace !== false;
 
   // Copy source to temp file and compile ALL workflows in-place there.
   // In-place compilation preserves all functions in the module (node types,
@@ -109,9 +139,9 @@ export async function executeWorkflowFromFile(
     // Compile each workflow in-place so all function bodies are generated.
     // Debug controller requires dev mode (production: false) so that
     // __ctrl__.beforeNode/afterNode hooks are emitted in generated code.
-    const production = options?.debugController
+    const production = debugController
       ? false
-      : (options?.production ?? !includeTrace);
+      : (requestedProduction ?? !includeTrace);
     for (const wf of allWorkflows) {
       await compileWorkflow(tmpTsFile, {
         write: true,
@@ -124,7 +154,7 @@ export async function executeWorkflowFromFile(
         // can't see those nodeTypes and falls back to a stub, failing
         // validation. Callers that resolve foreign defs from a wire
         // manifest (no node_modules to read a .d.ts) pass them here.
-        parse: { workflowName: wf.functionName, externalNodeTypes: options?.externalNodeTypes },
+        parse: { workflowName: wf.functionName, externalNodeTypes },
         generate: { production },
       });
     }
@@ -190,7 +220,7 @@ export async function executeWorkflowFromFile(
               data: event,
             };
             trace.push(traceEvent);
-            options?.onEvent?.(traceEvent);
+            onEvent?.(traceEvent);
           },
           innerFlowInvocation: false,
         }
@@ -200,18 +230,18 @@ export async function executeWorkflowFromFile(
     (globalThis as unknown as Record<string, unknown>).__fw_debugger__ = debugger_;
 
     // Set mock config for built-in nodes (delay, waitForEvent, invokeWorkflow)
-    if (options?.mocks) {
-      (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = options.mocks;
+    if (mocks) {
+      (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = mocks;
     }
 
     // Set agent channel for waitForAgent pause/resume
-    if (options?.agentChannel) {
-      (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ = options.agentChannel;
+    if (agentChannel) {
+      (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ = agentChannel;
     }
 
     // Set debug controller for step-through debugging and checkpoint/resume
-    if (options?.debugController) {
-      (globalThis as unknown as Record<string, unknown>).__fw_debug_controller__ = options.debugController;
+    if (debugController) {
+      (globalThis as unknown as Record<string, unknown>).__fw_debug_controller__ = debugController;
     }
 
     // Dynamic import using file:// URL for cross-platform compatibility
@@ -228,15 +258,15 @@ export async function executeWorkflowFromFile(
     (globalThis as unknown as Record<string, unknown>).__fw_workflow_registry__ = workflowRegistry;
 
     // Find the target exported function
-    const exportedFn = findExportedFunction(mod, options?.workflowName);
+    const exportedFn = findExportedFunction(mod, workflowName);
     if (!exportedFn) {
       const available = Object.entries(mod)
         .filter(([k, v]) => k !== '__esModule' && typeof v === 'function')
         .map(([k]) => k);
       const availStr = available.length > 0 ? `. Available: ${available.join(', ')}` : '';
       throw new Error(
-        options?.workflowName
-          ? `Workflow "${options.workflowName}" not found in file${availStr}`
+        workflowName
+          ? `Workflow "${workflowName}" not found in file${availStr}`
           : `No exported workflow function found in file${availStr}`
       );
     }
@@ -245,7 +275,8 @@ export async function executeWorkflowFromFile(
 
     // Execute the workflow function: (execute, params, abortSignal?)
     // In-place compiled functions use the module-level debugger, not a parameter.
-    const result = await exportedFn.fn(true, params ?? {});
+    if (abortSignal?.aborted) throw new CancellationError();
+    const result = await exportedFn.fn(true, params ?? {}, abortSignal);
 
     const executionTime = Date.now() - startTime;
 

@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { parser } from '../../src/parser';
 import { generateCode } from '../../src/api/generate';
 import { mapToTypeScript } from '../../src/type-mappings';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
+import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 const FIXTURE_PATH = path.resolve(__dirname, '../fixtures/compiler-type-assertions.ts');
 
@@ -73,9 +73,9 @@ describe('compiler type assertion generation', () => {
   });
 
   it('compiles and runs without errors', async () => {
-    const result = await executeWorkflowFromFile(FIXTURE_PATH, {
-      raw: JSON.stringify({ name: 'test', value: 42 }),
-    });
+    const result = await executeWorkflow({ filePath: FIXTURE_PATH, params: {
+          raw: JSON.stringify({ name: 'test', value: 42 }),
+        } });
 
     expect(result.result).toBeDefined();
     const output = result.result as { onSuccess: boolean; result: string };

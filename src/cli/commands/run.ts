@@ -5,8 +5,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
-import { executeWorkflowFromFile } from '../../mcp/workflow-executor.js';
-import type { ExecuteWorkflowResult, ExecutionTraceEvent } from '../../mcp/workflow-executor.js';
+import { executeWorkflow } from '../../mcp/workflow-executor.js';
+import type { WorkflowExecutionResult, ExecutionTraceEvent } from '../../mcp/workflow-executor.js';
 import { AgentChannel } from '../../mcp/agent-channel.js';
 import { DebugController } from '../../runtime/debug-controller.js';
 import type { DebugPauseState } from '../../runtime/debug-controller.js';
@@ -296,7 +296,9 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
       : undefined;
 
     const channel = new AgentChannel();
-    const execPromise = executeWorkflowFromFile(filePath, params, {
+    const execPromise = executeWorkflow({
+      filePath,
+      params,
       workflowName: resumeWorkflowName ?? options.workflow,
       production: options.production ?? false,
       includeTrace,
@@ -330,12 +332,12 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
       return;
     }
 
-    let result!: ExecuteWorkflowResult;
+    let result!: WorkflowExecutionResult;
     let execDone = false;
 
     // Race loop: detect pauses, prompt user, resume
     while (!execDone) {
-      const promises: Promise<{ type: string; result?: ExecuteWorkflowResult; request?: object; state?: DebugPauseState }>[] = [
+      const promises: Promise<{ type: string; result?: WorkflowExecutionResult; request?: object; state?: DebugPauseState }>[] = [
         execPromise.then((r) => ({ type: 'completed' as const, result: r })),
         channel.onPause().then((req) => ({ type: 'agent_paused' as const, request: req })),
       ];
@@ -571,7 +573,7 @@ function printDebugHelp(): void {
 
 async function runDebugRepl(
   controller: DebugController,
-  execPromise: Promise<ExecuteWorkflowResult>,
+  execPromise: Promise<WorkflowExecutionResult>,
   agentChannel: AgentChannel,
   options: RunOptions
 ): Promise<unknown> {
@@ -588,7 +590,7 @@ async function runDebugRepl(
   ]);
 
   if (firstResult.type === 'completed') {
-    return (firstResult.result as ExecuteWorkflowResult).result;
+    return (firstResult.result as WorkflowExecutionResult).result;
   }
 
   let currentState = firstResult.state;
@@ -625,7 +627,7 @@ async function runDebugRepl(
       ]);
 
       if (raceResult.type === 'completed') {
-        const execResult = raceResult.result as ExecuteWorkflowResult;
+        const execResult = raceResult.result as WorkflowExecutionResult;
         if (!options.json) {
           logger.success(`\nWorkflow completed in ${execResult.executionTime}ms`);
         }

@@ -52,6 +52,7 @@ type TErrorLogEvent = {
   side?: "start" | "exit";
   executionIndex: number;
   error: string;
+  code?: string;
   innerFlowInvocation?: boolean;
 };
 
@@ -294,6 +295,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -341,6 +346,7 @@ class GeneratedExecutionContext {
     side?: "start" | "exit";
     executionIndex: number;
     error: string;
+    code?: string;
   }): Promise<void> {
     if (this.flowWeaverDebugger) {
       await this.flowWeaverDebugger.sendEvent({
@@ -483,9 +489,9 @@ export async function typeAssertionWorkflow(
     // Debug controller for step-through debugging and checkpoint/resume
     const __ctrl__: TDebugController = (
       typeof globalThis !== 'undefined' && (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__
-        ? (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__!
+        ? (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__
         : { beforeNode: () => true, afterNode: () => {} }
-    );
+    )!;
 
     const startIdx = ctx.addExecution('Start');
     await ctx.setVariable({ id: 'Start', portName: 'execute', executionIndex: startIdx, nodeTypeName: 'Start' }, execute);
@@ -499,8 +505,8 @@ export async function typeAssertionWorkflow(
 
     let loaderIdx: number | undefined;
     let procIdx: number | undefined;
-
     let loader_success = false;
+
 
     if (await __ctrl__.beforeNode('loader', ctx)) {
 
@@ -548,6 +554,7 @@ export async function typeAssertionWorkflow(
             id: 'loader',
             executionIndex: loaderIdx,
             error: error instanceof Error ? error.message : String(error),
+            code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,
           });
           await ctx.setVariable({ id: 'loader', portName: 'onSuccess', executionIndex: loaderIdx, nodeTypeName: 'loadConfig' }, false);
           await ctx.setVariable({ id: 'loader', portName: 'onFailure', executionIndex: loaderIdx, nodeTypeName: 'loadConfig' }, true);
@@ -575,11 +582,11 @@ export async function typeAssertionWorkflow(
         });
 
         try {
-          const proc_execute = await ctx.getVariable({ id: 'loader', portName: 'onSuccess', executionIndex: loaderIdx! }) as boolean;
+          const proc_execute = loaderIdx !== undefined ? await ctx.getVariable({ id: 'loader', portName: 'onSuccess', executionIndex: loaderIdx }) as boolean : false;
           await ctx.setVariable({ id: 'proc', portName: 'execute', executionIndex: procIdx, nodeTypeName: 'processData' }, proc_execute);
-          const proc_config = await ctx.getVariable({ id: 'loader', portName: 'config', executionIndex: loaderIdx! }) as Record<string, unknown>;
+          const proc_config = await ctx.getVariable({ id: 'loader', portName: 'config', executionIndex: loaderIdx! }) as Parameters<typeof processData>[1];
           await ctx.setVariable({ id: 'proc', portName: 'config', executionIndex: procIdx, nodeTypeName: 'processData' }, proc_config);
-          const procResult = processData(proc_execute, proc_config as unknown as MyConfig);
+          const procResult = processData(proc_execute, proc_config);
           await ctx.setVariable({ id: 'proc', portName: 'result', executionIndex: procIdx, nodeTypeName: 'processData' }, procResult.result);
           await ctx.setVariable({ id: 'proc', portName: 'onSuccess', executionIndex: procIdx, nodeTypeName: 'processData' }, procResult.onSuccess);
           await ctx.setVariable({ id: 'proc', portName: 'onFailure', executionIndex: procIdx, nodeTypeName: 'processData' }, procResult.onFailure);
@@ -604,6 +611,7 @@ export async function typeAssertionWorkflow(
               id: 'proc',
               executionIndex: procIdx,
               error: error instanceof Error ? error.message : String(error),
+              code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,
             });
             await ctx.setVariable({ id: 'proc', portName: 'onSuccess', executionIndex: procIdx, nodeTypeName: 'processData' }, false);
             await ctx.setVariable({ id: 'proc', portName: 'onFailure', executionIndex: procIdx, nodeTypeName: 'processData' }, true);
@@ -625,6 +633,7 @@ export async function typeAssertionWorkflow(
         status: 'CANCELLED',
       });
     }
+    ctx.checkAborted('Exit');
     const exitIdx = ctx.addExecution('Exit');
     const exit_result = procIdx !== undefined ? await ctx.getVariable({ id: 'proc', portName: 'result', executionIndex: procIdx }) : undefined;
     await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -632,7 +641,7 @@ export async function typeAssertionWorkflow(
     await ctx.setVariable({ id: 'Exit', portName: 'onSuccess', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_onSuccess);
 
     await ctx.setVariable({ id: 'Exit', portName: 'onFailure', executionIndex: exitIdx, nodeTypeName: 'Exit' }, false);
-    const finalResult = { onFailure: false, result: exit_result as string, onSuccess: exit_onSuccess as boolean };
+    const finalResult = { onSuccess: exit_onSuccess as boolean, onFailure: false, result: exit_result as string };
 
     await ctx.sendStatusChangedEvent({
       nodeTypeName: 'Exit',

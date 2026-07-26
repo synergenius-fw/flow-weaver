@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { compileWorkflow } from '../../src/api/compile';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
+import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 const tempDir = path.join(os.tmpdir(), `fw-multi-step-${process.pid}`);
 
@@ -113,11 +113,7 @@ describe('Multi-source step connections', () => {
     const filePath = path.join(tempDir, 'multi-step-exec.ts');
     fs.writeFileSync(filePath, MULTI_STEP_SOURCE_WORKFLOW);
 
-    const result = await executeWorkflowFromFile(
-      filePath,
-      { data: { value: 1 } },
-      { production: true, includeTrace: false }
-    );
+    const result = await executeWorkflow({ filePath: filePath, params: { data: { value: 1 } }, production: true, includeTrace: false });
 
     expect((result as unknown as Record<string, unknown>).error).toBeUndefined();
     expect(result.result).toBeDefined();

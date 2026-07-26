@@ -19,11 +19,11 @@ type TStatusType =
 type TVariableIdentification = {
   nodeTypeName: string;
   id: string;
-  scope?: string;
-  side?: "start" | "exit";
+  scope?: string | undefined;
+  side?: "start" | "exit" | undefined;
   portName: string;
   executionIndex: number;
-  key?: string;
+  key?: string | undefined;
 };
 
 type TStatusChangedEvent = {
@@ -52,6 +52,7 @@ type TErrorLogEvent = {
   side?: "start" | "exit";
   executionIndex: number;
   error: string;
+  code?: string;
   innerFlowInvocation?: boolean;
 };
 
@@ -70,12 +71,17 @@ type TEvent =
   | TWorkflowCompletedEvent;
 
 type TDebugger = {
-  sendEvent: (event: TEvent) => void;
+  sendEvent: (event: TEvent) => void | Promise<void>;
   innerFlowInvocation: boolean;
   sessionId?: string;
 };
 
 declare const __flowWeaverDebugger__: TDebugger | undefined;
+
+type TDebugController = {
+  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<boolean> | boolean;
+  afterNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;
+};
 
 declare const __abortSignal__: AbortSignal | undefined;
 
@@ -83,16 +89,16 @@ interface VariableAddress {
   id: string;
   portName: string;
   executionIndex: number;
-  nodeTypeName?: string;
-  scope?: string;
-  side?: 'start' | 'exit';
+  nodeTypeName?: string | undefined;
+  scope?: string | undefined;
+  side?: 'start' | 'exit' | undefined;
 }
 
 interface ExecutionInfo {
   id: string;
   index: number;
-  parentIndex?: number;
-  scopeName?: string;
+  parentIndex?: number | undefined;
+  scopeName?: string | undefined;
 }
 
 type VariableValue = unknown | (() => unknown) | (() => Promise<unknown>);
@@ -137,10 +143,10 @@ class GeneratedExecutionContext {
   private executionCounter: number = 0;
   private nodeExecutionCounts: Map<string, number> = new Map();
   private isAsync: boolean;
-  private flowWeaverDebugger?: TDebugger;
+  private flowWeaverDebugger?: TDebugger | undefined;
   private pullExecutors: Map<string, () => void | Promise<void>> = new Map();
   private nodeExecutionIndices: Map<string, number> = new Map();
-  private abortSignal?: AbortSignal;
+  private abortSignal?: AbortSignal | undefined;
 
   constructor(isAsync: boolean = true, flowWeaverDebugger?: TDebugger, abortSignal?: AbortSignal) {
     this.isAsync = isAsync;
@@ -217,10 +223,10 @@ class GeneratedExecutionContext {
 
   private retrieveVariable(address: VariableAddress): unknown | Promise<unknown> {
     const key = this.getVariableKey(address);
-    const value = this.variables.get(key);
-    if (value === undefined) {
+    if (!this.variables.has(key)) {
       throw new Error(`Variable not found: ${address.id}.${address.portName}[${address.executionIndex}]`);
     }
+    const value = this.variables.get(key);
     if (typeof value === "function") {
       const result = value();
       if (result instanceof Promise) {
@@ -240,8 +246,9 @@ class GeneratedExecutionContext {
     return this.executions.get(this.getExecutionKey(id, index));
   }
 
-  createScope(_parentNodeName: string, _parentIndex: number, _scopeName: string, cleanScope: boolean = false): GeneratedExecutionContext {
-    const scopedContext = new GeneratedExecutionContext(this.isAsync, this.flowWeaverDebugger, this.abortSignal);
+  createScope(_parentNodeName: string, _parentIndex: number, _scopeName: string, cleanScope: boolean = false, isAsyncOverride?: boolean): GeneratedExecutionContext {
+    const effectiveIsAsync = isAsyncOverride !== undefined ? isAsyncOverride : this.isAsync;
+    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, this.flowWeaverDebugger, this.abortSignal);
     // For per-port function scopes (cleanScope=true), start with empty variables
     // For node-level scopes (cleanScope=false), inherit parent variables
     scopedContext.variables = cleanScope ? new Map() : new Map(this.variables);
@@ -288,6 +295,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -298,16 +309,16 @@ class GeneratedExecutionContext {
     }
   }
 
-  sendStatusChangedEvent(args: {
+  async sendStatusChangedEvent(args: {
     nodeTypeName: string;
     id: string;
     scope?: string;
     side?: "start" | "exit";
     executionIndex: number;
     status: TStatusType;
-  }): void {
+  }): Promise<void> {
     if (this.flowWeaverDebugger) {
-      this.flowWeaverDebugger.sendEvent({
+      await this.flowWeaverDebugger.sendEvent({
         type: "STATUS_CHANGED",
         ...args,
         innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,
@@ -315,12 +326,12 @@ class GeneratedExecutionContext {
     }
   }
 
-  private sendVariableSetEvent(args: {
+  private async sendVariableSetEvent(args: {
     identifier: TVariableIdentification;
     value: unknown;
-  }): void {
+  }): Promise<void> {
     if (this.flowWeaverDebugger) {
-      this.flowWeaverDebugger.sendEvent({
+      await this.flowWeaverDebugger.sendEvent({
         type: "VARIABLE_SET",
         ...args,
         innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,
@@ -328,16 +339,17 @@ class GeneratedExecutionContext {
     }
   }
 
-  sendLogErrorEvent(args: {
+  async sendLogErrorEvent(args: {
     nodeTypeName: string;
     id: string;
     scope?: string;
     side?: "start" | "exit";
     executionIndex: number;
     error: string;
-  }): void {
+    code?: string;
+  }): Promise<void> {
     if (this.flowWeaverDebugger) {
-      this.flowWeaverDebugger.sendEvent({
+      await this.flowWeaverDebugger.sendEvent({
         type: "LOG_ERROR",
         ...args,
         innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,
@@ -345,93 +357,52 @@ class GeneratedExecutionContext {
     }
   }
 
-  sendWorkflowCompletedEvent(args: {
+  async sendWorkflowCompletedEvent(args: {
     executionIndex: number;
     status: "SUCCEEDED" | "FAILED" | "CANCELLED";
     result?: unknown;
-  }): void {
+  }): Promise<void> {
     if (this.flowWeaverDebugger) {
-      this.flowWeaverDebugger.sendEvent({
+      await this.flowWeaverDebugger.sendEvent({
         type: "WORKFLOW_COMPLETED",
         ...args,
         innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,
       });
     }
   }
-}
 
-
-// ============================================================================
-// Inline Debug Client (auto-created from FLOW_WEAVER_DEBUG env var)
-// ============================================================================
-
-interface DebugClient {
-  sendEvent: (event: unknown) => void;
-  innerFlowInvocation: boolean;
-  sessionId: string;
-}
-
-interface WebSocketLike {
-  readyState: number;
-  send: (data: string) => void;
-  on: (event: string, handler: () => void) => void;
-}
-
-function createFlowWeaverDebugClient(url: string, workflowExportName: string): DebugClient {
-  let ws: WebSocketLike | null = null;
-  let connected = false;
-  const queue: string[] = [];
-  const sessionId = Math.random().toString(36).substring(2, 15);
-
-  const connect = () => {
-    try {
-      // Node.js environment - require 'ws' package
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const WS = require('ws') as new (url: string) => WebSocketLike;
-      ws = new WS(url);
-
-      ws.on('open', () => {
-        connected = true;
-        // Send connect message
-        ws!.send(JSON.stringify({
-          type: 'connect',
-          sessionId,
-          workflowExportName,
-          clientInfo: {
-            platform: process.platform,
-            nodeVersion: process.version,
-            pid: process.pid
-          }
-        }));
-
-        // Flush queued events
-        while (queue.length > 0) {
-          const msg = queue.shift();
-          if (ws!.readyState === 1) ws!.send(msg!);
-        }
-      });
-
-      ws.on('error', () => { connected = false; });
-      ws.on('close', () => { connected = false; });
-    } catch (err: unknown) {
-      // Silently fail if 'ws' package not available
-      console.warn('[Flow Weaver] Debug client failed to connect:', err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  return {
-    sendEvent: (event: unknown) => {
-      const message = JSON.stringify({ type: 'event', sessionId, event });
-      if (!ws) connect();
-      if (connected && ws!.readyState === 1) {
-        ws!.send(message);
+  serialize(): {
+    variables: Record<string, unknown>;
+    executions: Record<string, ExecutionInfo>;
+    executionCounter: number;
+    nodeExecutionCounts: Record<string, number>;
+  } {
+    const vars: Record<string, unknown> = {};
+    for (const [key, value] of this.variables) {
+      if (typeof value === "function") {
+        try { vars[key] = (value as () => unknown)(); } catch { vars[key] = value; }
       } else {
-        queue.push(message);
+        vars[key] = value;
       }
-    },
-    innerFlowInvocation: false,
-    sessionId
-  };
+    }
+    const execs: Record<string, ExecutionInfo> = {};
+    for (const [key, info] of this.executions) { execs[key] = { ...info }; }
+    const nodeCounts: Record<string, number> = {};
+    for (const [key, count] of this.nodeExecutionIndices) { nodeCounts[key] = count; }
+    return { variables: vars, executions: execs, executionCounter: this.executionCounter, nodeExecutionCounts: nodeCounts };
+  }
+
+  restore(data: {
+    variables: Record<string, unknown>;
+    executions: Record<string, ExecutionInfo>;
+    executionCounter: number;
+    nodeExecutionCounts: Record<string, number>;
+  }): void {
+    this.variables = new Map(Object.entries(data.variables));
+    this.executions = new Map(Object.entries(data.executions));
+    this.executionCounter = data.executionCounter;
+    this.nodeExecutionIndices = new Map(Object.entries(data.nodeExecutionCounts));
+  }
 }
 
 // @flow-weaver-runtime-end
@@ -855,13 +826,7 @@ export async function processLead(
   // Edit the @flowWeaver annotations above to modify workflow behavior
   // ============================================================================
 
-    // Use passed debugger or auto-detect from environment variable
-    const __effectiveDebugger__ = (
-      typeof __flowWeaverDebugger__ !== 'undefined' ? __flowWeaverDebugger__ :
-      typeof process !== 'undefined' && process.env.FLOW_WEAVER_DEBUG
-        ? createFlowWeaverDebugClient(process.env.FLOW_WEAVER_DEBUG, 'processLead')
-        : undefined
-    );
+    const __effectiveDebugger__ = typeof __flowWeaverDebugger__ !== 'undefined' ? __flowWeaverDebugger__ : undefined;
 
     // Recursion depth protection
     const __rd__ = (params as { __rd__?: number }).__rd__ ?? 0;
@@ -871,151 +836,286 @@ export async function processLead(
 
     const ctx = new GeneratedExecutionContext(true, __effectiveDebugger__, __abortSignal__);
 
+    // Debug controller for step-through debugging and checkpoint/resume
+    const __ctrl__: TDebugController = (
+      typeof globalThis !== 'undefined' && (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__
+        ? (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__
+        : { beforeNode: () => true, afterNode: () => {} }
+    )!;
+
     const startIdx = ctx.addExecution('Start');
     await ctx.setVariable({ id: 'Start', portName: 'execute', executionIndex: startIdx, nodeTypeName: 'Start' }, execute);
     await ctx.setVariable({ id: 'Start', portName: 'lead', executionIndex: startIdx, nodeTypeName: 'Start' }, params.lead);
-    ctx.sendStatusChangedEvent({
+    await ctx.sendStatusChangedEvent({
       nodeTypeName: 'Start',
       id: 'Start',
       executionIndex: startIdx,
       status: 'SUCCEEDED',
     });
 
+    let validatorIdx: number | undefined;
     let enricherIdx: number | undefined;
     let scorerIdx: number | undefined;
     let categorizerIdx: number | undefined;
     let errorFormatterIdx: number | undefined;
-
-    ctx.checkAborted('validator');
-    const validatorIdx = ctx.addExecution('validator');
-    ctx.sendStatusChangedEvent({
-      nodeTypeName: 'validateLead',
-      id: 'validator',
-      executionIndex: validatorIdx,
-      status: 'RUNNING',
-    });
-  
     let validator_success = false;
-  
-    try {
-      await ctx.setVariable({ id: 'validator', portName: 'execute', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, true);
-      const validator_lead = await ctx.getVariable({ id: 'Start', portName: 'lead', executionIndex: startIdx });
-      await ctx.setVariable({ id: 'validator', portName: 'lead', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validator_lead);
-      const validatorResult = validateLead(true, validator_lead as RawLead);
-      await ctx.setVariable({ id: 'validator', portName: 'validationResult', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.validationResult);
-      await ctx.setVariable({ id: 'validator', portName: 'isValid', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.isValid);
-      await ctx.setVariable({ id: 'validator', portName: 'onSuccess', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.onSuccess);
-      await ctx.setVariable({ id: 'validator', portName: 'onFailure', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.onFailure);
-      ctx.sendStatusChangedEvent({
+    let enricher_success = false;
+    let scorer_success = false;
+
+
+    if (await __ctrl__.beforeNode('validator', ctx)) {
+
+      // ── validator (validateLead) ──
+      ctx.checkAborted('validator');
+      validatorIdx = ctx.addExecution('validator');
+      if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = 'validator';
+      await ctx.sendStatusChangedEvent({
         nodeTypeName: 'validateLead',
         id: 'validator',
         executionIndex: validatorIdx,
-        status: 'SUCCEEDED',
+        status: 'RUNNING',
       });
-      validator_success = validatorResult.onSuccess;
-    } catch (error: unknown) {
-      const isCancellation = CancellationError.isCancellationError(error);
-      ctx.sendStatusChangedEvent({
-        nodeTypeName: 'validateLead',
-        id: 'validator',
-        executionIndex: validatorIdx,
-        status: isCancellation ? 'CANCELLED' : 'FAILED',
-      });
-      if (!isCancellation) {
-        ctx.sendLogErrorEvent({
+
+      validator_success = false;
+
+      try {
+        await ctx.setVariable({ id: 'validator', portName: 'execute', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, true);
+        const validator_lead = await ctx.getVariable({ id: 'Start', portName: 'lead', executionIndex: startIdx }) as Parameters<typeof validateLead>[1];
+        await ctx.setVariable({ id: 'validator', portName: 'lead', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validator_lead);
+        const validatorResult = validateLead(true, validator_lead);
+        await ctx.setVariable({ id: 'validator', portName: 'validationResult', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.validationResult);
+        await ctx.setVariable({ id: 'validator', portName: 'isValid', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.isValid);
+        await ctx.setVariable({ id: 'validator', portName: 'onSuccess', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.onSuccess);
+        await ctx.setVariable({ id: 'validator', portName: 'onFailure', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, validatorResult.onFailure);
+        await ctx.sendStatusChangedEvent({
           nodeTypeName: 'validateLead',
           id: 'validator',
           executionIndex: validatorIdx,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        await ctx.setVariable({ id: 'validator', portName: 'onSuccess', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, false);
-        await ctx.setVariable({ id: 'validator', portName: 'onFailure', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, true);
-        validator_success = false;
-      }
-      throw error;
-    }
-  
-    if (validator_success) {
-      ctx.checkAborted('enricher');
-      enricherIdx = ctx.addExecution('enricher');
-      ctx.sendStatusChangedEvent({
-        nodeTypeName: 'enrichLead',
-        id: 'enricher',
-        executionIndex: enricherIdx,
-        status: 'RUNNING',
-      });
-    
-      let enricher_success = false;
-    
-      try {
-        const enricher_execute = await ctx.getVariable({ id: 'validator', portName: 'onSuccess', executionIndex: validatorIdx! });
-        await ctx.setVariable({ id: 'enricher', portName: 'execute', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricher_execute);
-        const enricher_lead = await ctx.getVariable({ id: 'Start', portName: 'lead', executionIndex: startIdx });
-        await ctx.setVariable({ id: 'enricher', portName: 'lead', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricher_lead);
-        const enricherResult = enrichLead(enricher_execute as boolean, enricher_lead as RawLead);
-        await ctx.setVariable({ id: 'enricher', portName: 'enrichedLead', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricherResult.enrichedLead);
-        await ctx.setVariable({ id: 'enricher', portName: 'onSuccess', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricherResult.onSuccess);
-        await ctx.setVariable({ id: 'enricher', portName: 'onFailure', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricherResult.onFailure);
-        ctx.sendStatusChangedEvent({
-          nodeTypeName: 'enrichLead',
-          id: 'enricher',
-          executionIndex: enricherIdx,
           status: 'SUCCEEDED',
         });
-        enricher_success = enricherResult.onSuccess;
+        await __ctrl__.afterNode('validator', ctx);
+        validator_success = validatorResult.onSuccess;
       } catch (error: unknown) {
         const isCancellation = CancellationError.isCancellationError(error);
-        ctx.sendStatusChangedEvent({
-          nodeTypeName: 'enrichLead',
-          id: 'enricher',
-          executionIndex: enricherIdx,
+        await ctx.sendStatusChangedEvent({
+          nodeTypeName: 'validateLead',
+          id: 'validator',
+          executionIndex: validatorIdx,
           status: isCancellation ? 'CANCELLED' : 'FAILED',
         });
         if (!isCancellation) {
           ctx.sendLogErrorEvent({
+            nodeTypeName: 'validateLead',
+            id: 'validator',
+            executionIndex: validatorIdx,
+            error: error instanceof Error ? error.message : String(error),
+            code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,
+          });
+          await ctx.setVariable({ id: 'validator', portName: 'onSuccess', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, false);
+          await ctx.setVariable({ id: 'validator', portName: 'onFailure', executionIndex: validatorIdx, nodeTypeName: 'validateLead' }, true);
+          validator_success = false;
+        }
+        const errorFormatterIdx = ctx.addExecution('errorFormatter');
+        await ctx.setVariable({ id: 'errorFormatter', portName: 'onSuccess', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, false);
+        await ctx.setVariable({ id: 'errorFormatter', portName: 'onFailure', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, false);
+        await ctx.sendStatusChangedEvent({
+          nodeTypeName: 'formatError',
+          id: 'errorFormatter',
+          executionIndex: errorFormatterIdx,
+          status: 'CANCELLED',
+        });
+        throw error;
+      }
+    } else {
+      validatorIdx = ctx.addExecution('validator');
+      validator_success = true;
+    }
+
+    if (validator_success) {
+      const errorFormatterIdx = ctx.addExecution('errorFormatter');
+      await ctx.setVariable({ id: 'errorFormatter', portName: 'onSuccess', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, false);
+      await ctx.setVariable({ id: 'errorFormatter', portName: 'onFailure', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, false);
+      await ctx.sendStatusChangedEvent({
+        nodeTypeName: 'formatError',
+        id: 'errorFormatter',
+        executionIndex: errorFormatterIdx,
+        status: 'CANCELLED',
+      });
+    } else {
+      if (await __ctrl__.beforeNode('errorFormatter', ctx)) {
+        ctx.checkAborted('errorFormatter');
+        errorFormatterIdx = ctx.addExecution('errorFormatter');
+        if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = 'errorFormatter';
+        await ctx.sendStatusChangedEvent({
+          nodeTypeName: 'formatError',
+          id: 'errorFormatter',
+          executionIndex: errorFormatterIdx,
+          status: 'RUNNING',
+        });
+        try {
+          const errorFormatter_execute = validatorIdx !== undefined ? await ctx.getVariable({ id: 'validator', portName: 'onFailure', executionIndex: validatorIdx }) as boolean : false;
+          await ctx.setVariable({ id: 'errorFormatter', portName: 'execute', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatter_execute);
+          const errorFormatter_validationResult = await ctx.getVariable({ id: 'validator', portName: 'validationResult', executionIndex: validatorIdx! }) as Parameters<typeof formatError>[1];
+          await ctx.setVariable({ id: 'errorFormatter', portName: 'validationResult', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatter_validationResult);
+          const errorFormatterResult = formatError(errorFormatter_execute, errorFormatter_validationResult);
+          await ctx.setVariable({ id: 'errorFormatter', portName: 'errorResponse', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatterResult.errorResponse);
+          await ctx.setVariable({ id: 'errorFormatter', portName: 'onSuccess', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatterResult.onSuccess);
+          await ctx.setVariable({ id: 'errorFormatter', portName: 'onFailure', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatterResult.onFailure);
+          await ctx.sendStatusChangedEvent({
+            nodeTypeName: 'formatError',
+            id: 'errorFormatter',
+            executionIndex: errorFormatterIdx,
+            status: 'SUCCEEDED',
+          });
+          await __ctrl__.afterNode('errorFormatter', ctx);
+        } catch (error: unknown) {
+          const isCancellation = CancellationError.isCancellationError(error);
+          await ctx.sendStatusChangedEvent({
+            nodeTypeName: 'formatError',
+            id: 'errorFormatter',
+            executionIndex: errorFormatterIdx,
+            status: isCancellation ? 'CANCELLED' : 'FAILED',
+          });
+          if (!isCancellation) {
+            ctx.sendLogErrorEvent({
+              nodeTypeName: 'formatError',
+              id: 'errorFormatter',
+              executionIndex: errorFormatterIdx,
+              error: error instanceof Error ? error.message : String(error),
+              code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,
+            });
+          }
+          throw error;
+        }
+      } else {
+        errorFormatterIdx = ctx.addExecution('errorFormatter');
+      }
+    }
+    if (validator_success) {
+      if (await __ctrl__.beforeNode('enricher', ctx)) {
+
+        // ── enricher (enrichLead) ──
+        ctx.checkAborted('enricher');
+        enricherIdx = ctx.addExecution('enricher');
+        if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = 'enricher';
+        await ctx.sendStatusChangedEvent({
+          nodeTypeName: 'enrichLead',
+          id: 'enricher',
+          executionIndex: enricherIdx,
+          status: 'RUNNING',
+        });
+
+        enricher_success = false;
+
+        try {
+          const enricher_execute = validatorIdx !== undefined ? await ctx.getVariable({ id: 'validator', portName: 'onSuccess', executionIndex: validatorIdx }) as boolean : false;
+          await ctx.setVariable({ id: 'enricher', portName: 'execute', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricher_execute);
+          const enricher_lead = await ctx.getVariable({ id: 'Start', portName: 'lead', executionIndex: startIdx }) as Parameters<typeof enrichLead>[1];
+          await ctx.setVariable({ id: 'enricher', portName: 'lead', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricher_lead);
+          const enricherResult = enrichLead(enricher_execute, enricher_lead);
+          await ctx.setVariable({ id: 'enricher', portName: 'enrichedLead', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricherResult.enrichedLead);
+          await ctx.setVariable({ id: 'enricher', portName: 'onSuccess', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricherResult.onSuccess);
+          await ctx.setVariable({ id: 'enricher', portName: 'onFailure', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, enricherResult.onFailure);
+          await ctx.sendStatusChangedEvent({
             nodeTypeName: 'enrichLead',
             id: 'enricher',
             executionIndex: enricherIdx,
-            error: error instanceof Error ? error.message : String(error),
+            status: 'SUCCEEDED',
           });
-          await ctx.setVariable({ id: 'enricher', portName: 'onSuccess', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, false);
-          await ctx.setVariable({ id: 'enricher', portName: 'onFailure', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, true);
-          enricher_success = false;
+          await __ctrl__.afterNode('enricher', ctx);
+          enricher_success = enricherResult.onSuccess;
+        } catch (error: unknown) {
+          const isCancellation = CancellationError.isCancellationError(error);
+          await ctx.sendStatusChangedEvent({
+            nodeTypeName: 'enrichLead',
+            id: 'enricher',
+            executionIndex: enricherIdx,
+            status: isCancellation ? 'CANCELLED' : 'FAILED',
+          });
+          if (!isCancellation) {
+            ctx.sendLogErrorEvent({
+              nodeTypeName: 'enrichLead',
+              id: 'enricher',
+              executionIndex: enricherIdx,
+              error: error instanceof Error ? error.message : String(error),
+              code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,
+            });
+            await ctx.setVariable({ id: 'enricher', portName: 'onSuccess', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, false);
+            await ctx.setVariable({ id: 'enricher', portName: 'onFailure', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, true);
+            enricher_success = false;
+          }
+          throw error;
         }
-        throw error;
+      } else {
+        enricherIdx = ctx.addExecution('enricher');
+        enricher_success = true;
       }
-    
-      if (enricher_success) {
+
+    } else {
+      const enricherIdx = ctx.addExecution('enricher');
+      await ctx.setVariable({ id: 'enricher', portName: 'onSuccess', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, false);
+      await ctx.setVariable({ id: 'enricher', portName: 'onFailure', executionIndex: enricherIdx, nodeTypeName: 'enrichLead' }, false);
+      await ctx.sendStatusChangedEvent({
+        nodeTypeName: 'enrichLead',
+        id: 'enricher',
+        executionIndex: enricherIdx,
+        status: 'CANCELLED',
+      });
+      const scorerIdx = ctx.addExecution('scorer');
+      await ctx.setVariable({ id: 'scorer', portName: 'onSuccess', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, false);
+      await ctx.setVariable({ id: 'scorer', portName: 'onFailure', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, false);
+      await ctx.sendStatusChangedEvent({
+        nodeTypeName: 'scoreLead',
+        id: 'scorer',
+        executionIndex: scorerIdx,
+        status: 'CANCELLED',
+      });
+      const categorizerIdx = ctx.addExecution('categorizer');
+      await ctx.setVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, false);
+      await ctx.setVariable({ id: 'categorizer', portName: 'onFailure', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, false);
+      await ctx.sendStatusChangedEvent({
+        nodeTypeName: 'categorizeLead',
+        id: 'categorizer',
+        executionIndex: categorizerIdx,
+        status: 'CANCELLED',
+      });
+    }
+    if (validator_success && enricher_success) {
+      if (await __ctrl__.beforeNode('scorer', ctx)) {
+
+        // ── scorer (scoreLead) ──
         ctx.checkAborted('scorer');
         scorerIdx = ctx.addExecution('scorer');
-        ctx.sendStatusChangedEvent({
+        if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = 'scorer';
+        await ctx.sendStatusChangedEvent({
           nodeTypeName: 'scoreLead',
           id: 'scorer',
           executionIndex: scorerIdx,
           status: 'RUNNING',
         });
-      
-        let scorer_success = false;
-      
+
+        scorer_success = false;
+
         try {
-          const scorer_execute = await ctx.getVariable({ id: 'enricher', portName: 'onSuccess', executionIndex: enricherIdx! });
+          const scorer_execute = enricherIdx !== undefined ? await ctx.getVariable({ id: 'enricher', portName: 'onSuccess', executionIndex: enricherIdx }) as boolean : false;
           await ctx.setVariable({ id: 'scorer', portName: 'execute', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorer_execute);
-          const scorer_lead = await ctx.getVariable({ id: 'enricher', portName: 'enrichedLead', executionIndex: enricherIdx! });
+          const scorer_lead = await ctx.getVariable({ id: 'enricher', portName: 'enrichedLead', executionIndex: enricherIdx! }) as Parameters<typeof scoreLead>[1];
           await ctx.setVariable({ id: 'scorer', portName: 'lead', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorer_lead);
-          const scorerResult = scoreLead(scorer_execute as boolean, scorer_lead as EnrichedLead);
+          const scorerResult = scoreLead(scorer_execute, scorer_lead);
           await ctx.setVariable({ id: 'scorer', portName: 'scoredLead', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorerResult.scoredLead);
           await ctx.setVariable({ id: 'scorer', portName: 'onSuccess', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorerResult.onSuccess);
           await ctx.setVariable({ id: 'scorer', portName: 'onFailure', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, scorerResult.onFailure);
-          ctx.sendStatusChangedEvent({
+          await ctx.sendStatusChangedEvent({
             nodeTypeName: 'scoreLead',
             id: 'scorer',
             executionIndex: scorerIdx,
             status: 'SUCCEEDED',
           });
+          await __ctrl__.afterNode('scorer', ctx);
           scorer_success = scorerResult.onSuccess;
         } catch (error: unknown) {
           const isCancellation = CancellationError.isCancellationError(error);
-          ctx.sendStatusChangedEvent({
+          await ctx.sendStatusChangedEvent({
             nodeTypeName: 'scoreLead',
             id: 'scorer',
             executionIndex: scorerIdx,
@@ -1027,6 +1127,7 @@ export async function processLead(
               id: 'scorer',
               executionIndex: scorerIdx,
               error: error instanceof Error ? error.message : String(error),
+              code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,
             });
             await ctx.setVariable({ id: 'scorer', portName: 'onSuccess', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, false);
             await ctx.setVariable({ id: 'scorer', portName: 'onFailure', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, true);
@@ -1034,117 +1135,117 @@ export async function processLead(
           }
           throw error;
         }
-      
-        if (scorer_success) {
-          ctx.checkAborted('categorizer');
-          categorizerIdx = ctx.addExecution('categorizer');
-          ctx.sendStatusChangedEvent({
+      } else {
+        scorerIdx = ctx.addExecution('scorer');
+        scorer_success = true;
+      }
+
+    } else {
+      const scorerIdx = ctx.addExecution('scorer');
+      await ctx.setVariable({ id: 'scorer', portName: 'onSuccess', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, false);
+      await ctx.setVariable({ id: 'scorer', portName: 'onFailure', executionIndex: scorerIdx, nodeTypeName: 'scoreLead' }, false);
+      await ctx.sendStatusChangedEvent({
+        nodeTypeName: 'scoreLead',
+        id: 'scorer',
+        executionIndex: scorerIdx,
+        status: 'CANCELLED',
+      });
+      const categorizerIdx = ctx.addExecution('categorizer');
+      await ctx.setVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, false);
+      await ctx.setVariable({ id: 'categorizer', portName: 'onFailure', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, false);
+      await ctx.sendStatusChangedEvent({
+        nodeTypeName: 'categorizeLead',
+        id: 'categorizer',
+        executionIndex: categorizerIdx,
+        status: 'CANCELLED',
+      });
+    }
+    if (validator_success && enricher_success && scorer_success) {
+      if (await __ctrl__.beforeNode('categorizer', ctx)) {
+
+        // ── categorizer (categorizeLead) ──
+        ctx.checkAborted('categorizer');
+        categorizerIdx = ctx.addExecution('categorizer');
+        if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = 'categorizer';
+        await ctx.sendStatusChangedEvent({
+          nodeTypeName: 'categorizeLead',
+          id: 'categorizer',
+          executionIndex: categorizerIdx,
+          status: 'RUNNING',
+        });
+
+        try {
+          const categorizer_execute = scorerIdx !== undefined ? await ctx.getVariable({ id: 'scorer', portName: 'onSuccess', executionIndex: scorerIdx }) as boolean : false;
+          await ctx.setVariable({ id: 'categorizer', portName: 'execute', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizer_execute);
+          const categorizer_lead = await ctx.getVariable({ id: 'scorer', portName: 'scoredLead', executionIndex: scorerIdx! }) as Parameters<typeof categorizeLead>[1];
+          await ctx.setVariable({ id: 'categorizer', portName: 'lead', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizer_lead);
+          const categorizerResult = categorizeLead(categorizer_execute, categorizer_lead);
+          await ctx.setVariable({ id: 'categorizer', portName: 'processedLead', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizerResult.processedLead);
+          await ctx.setVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizerResult.onSuccess);
+          await ctx.setVariable({ id: 'categorizer', portName: 'onFailure', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizerResult.onFailure);
+          await ctx.sendStatusChangedEvent({
             nodeTypeName: 'categorizeLead',
             id: 'categorizer',
             executionIndex: categorizerIdx,
-            status: 'RUNNING',
+            status: 'SUCCEEDED',
           });
-        
-          try {
-            const categorizer_execute = await ctx.getVariable({ id: 'scorer', portName: 'onSuccess', executionIndex: scorerIdx! });
-            await ctx.setVariable({ id: 'categorizer', portName: 'execute', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizer_execute);
-            const categorizer_lead = await ctx.getVariable({ id: 'scorer', portName: 'scoredLead', executionIndex: scorerIdx! });
-            await ctx.setVariable({ id: 'categorizer', portName: 'lead', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizer_lead);
-            const categorizerResult = categorizeLead(categorizer_execute as boolean, categorizer_lead as ScoredLead);
-            await ctx.setVariable({ id: 'categorizer', portName: 'processedLead', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizerResult.processedLead);
-            await ctx.setVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizerResult.onSuccess);
-            await ctx.setVariable({ id: 'categorizer', portName: 'onFailure', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, categorizerResult.onFailure);
-            ctx.sendStatusChangedEvent({
+          await __ctrl__.afterNode('categorizer', ctx);
+        } catch (error: unknown) {
+          const isCancellation = CancellationError.isCancellationError(error);
+          await ctx.sendStatusChangedEvent({
+            nodeTypeName: 'categorizeLead',
+            id: 'categorizer',
+            executionIndex: categorizerIdx,
+            status: isCancellation ? 'CANCELLED' : 'FAILED',
+          });
+          if (!isCancellation) {
+            ctx.sendLogErrorEvent({
               nodeTypeName: 'categorizeLead',
               id: 'categorizer',
               executionIndex: categorizerIdx,
-              status: 'SUCCEEDED',
+              error: error instanceof Error ? error.message : String(error),
+              code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,
             });
-          } catch (error: unknown) {
-            const isCancellation = CancellationError.isCancellationError(error);
-            ctx.sendStatusChangedEvent({
-              nodeTypeName: 'categorizeLead',
-              id: 'categorizer',
-              executionIndex: categorizerIdx,
-              status: isCancellation ? 'CANCELLED' : 'FAILED',
-            });
-            if (!isCancellation) {
-              ctx.sendLogErrorEvent({
-                nodeTypeName: 'categorizeLead',
-                id: 'categorizer',
-                executionIndex: categorizerIdx,
-                error: error instanceof Error ? error.message : String(error),
-              });
-              await ctx.setVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, false);
-              await ctx.setVariable({ id: 'categorizer', portName: 'onFailure', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, true);
-            }
-            throw error;
+            await ctx.setVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, false);
+            await ctx.setVariable({ id: 'categorizer', portName: 'onFailure', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, true);
           }
-        
+          throw error;
         }
+      } else {
+        categorizerIdx = ctx.addExecution('categorizer');
       }
+
     } else {
-      ctx.checkAborted('errorFormatter');
-      errorFormatterIdx = ctx.addExecution('errorFormatter');
-      ctx.sendStatusChangedEvent({
-        nodeTypeName: 'formatError',
-        id: 'errorFormatter',
-        executionIndex: errorFormatterIdx,
-        status: 'RUNNING',
+      const categorizerIdx = ctx.addExecution('categorizer');
+      await ctx.setVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, false);
+      await ctx.setVariable({ id: 'categorizer', portName: 'onFailure', executionIndex: categorizerIdx, nodeTypeName: 'categorizeLead' }, false);
+      await ctx.sendStatusChangedEvent({
+        nodeTypeName: 'categorizeLead',
+        id: 'categorizer',
+        executionIndex: categorizerIdx,
+        status: 'CANCELLED',
       });
-      try {
-        const errorFormatter_execute = await ctx.getVariable({ id: 'validator', portName: 'onFailure', executionIndex: validatorIdx! });
-        await ctx.setVariable({ id: 'errorFormatter', portName: 'execute', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatter_execute);
-        const errorFormatter_validationResult = await ctx.getVariable({ id: 'validator', portName: 'validationResult', executionIndex: validatorIdx! });
-        await ctx.setVariable({ id: 'errorFormatter', portName: 'validationResult', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatter_validationResult);
-        const errorFormatterResult = formatError(errorFormatter_execute as boolean, errorFormatter_validationResult as ValidationResult);
-        await ctx.setVariable({ id: 'errorFormatter', portName: 'errorResponse', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatterResult.errorResponse);
-        await ctx.setVariable({ id: 'errorFormatter', portName: 'onSuccess', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatterResult.onSuccess);
-        await ctx.setVariable({ id: 'errorFormatter', portName: 'onFailure', executionIndex: errorFormatterIdx, nodeTypeName: 'formatError' }, errorFormatterResult.onFailure);
-        ctx.sendStatusChangedEvent({
-          nodeTypeName: 'formatError',
-          id: 'errorFormatter',
-          executionIndex: errorFormatterIdx,
-          status: 'SUCCEEDED',
-        });
-      } catch (error: unknown) {
-        const isCancellation = CancellationError.isCancellationError(error);
-        ctx.sendStatusChangedEvent({
-          nodeTypeName: 'formatError',
-          id: 'errorFormatter',
-          executionIndex: errorFormatterIdx,
-          status: isCancellation ? 'CANCELLED' : 'FAILED',
-        });
-        if (!isCancellation) {
-          ctx.sendLogErrorEvent({
-            nodeTypeName: 'formatError',
-            id: 'errorFormatter',
-            executionIndex: errorFormatterIdx,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-        throw error;
-      }
     }
+    ctx.checkAborted('Exit');
     const exitIdx = ctx.addExecution('Exit');
     const exit_processedLead = categorizerIdx !== undefined ? await ctx.getVariable({ id: 'categorizer', portName: 'processedLead', executionIndex: categorizerIdx }) : undefined;
     await ctx.setVariable({ id: 'Exit', portName: 'processedLead', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_processedLead);
-    const exit_onSuccess = categorizerIdx !== undefined ? await ctx.getVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx }) : undefined;
+    const exit_onSuccess = categorizerIdx !== undefined ? await ctx.getVariable({ id: 'categorizer', portName: 'onSuccess', executionIndex: categorizerIdx }) : false;
     await ctx.setVariable({ id: 'Exit', portName: 'onSuccess', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_onSuccess);
     const exit_errorResponse = errorFormatterIdx !== undefined ? await ctx.getVariable({ id: 'errorFormatter', portName: 'errorResponse', executionIndex: errorFormatterIdx }) : undefined;
     await ctx.setVariable({ id: 'Exit', portName: 'errorResponse', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_errorResponse);
 
     await ctx.setVariable({ id: 'Exit', portName: 'onFailure', executionIndex: exitIdx, nodeTypeName: 'Exit' }, false);
-    const finalResult = { onFailure: false, processedLead: exit_processedLead as ProcessedLead | undefined, onSuccess: exit_onSuccess as boolean, errorResponse: exit_errorResponse as { success: false; errors: string[]; lead: RawLead } | undefined };
+    const finalResult = { onSuccess: exit_onSuccess as boolean, onFailure: false, processedLead: exit_processedLead as ProcessedLead | undefined, errorResponse: exit_errorResponse as { success: false; errors: string[]; lead: RawLead; } | undefined };
 
-    ctx.sendStatusChangedEvent({
+    await ctx.sendStatusChangedEvent({
       nodeTypeName: 'Exit',
       id: 'Exit',
       executionIndex: exitIdx,
       status: 'SUCCEEDED',
     });
     ctx.sendWorkflowCompletedEvent({
-      executionIndex: 0,
+      executionIndex: exitIdx,
       status: 'SUCCEEDED',
       result: finalResult,
     });

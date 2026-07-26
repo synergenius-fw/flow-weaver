@@ -144,7 +144,7 @@ describe('fw_workflow_run and fw_workflow_resume MCP tools', () => {
   it('DEBUG: direct executor with AgentChannel should pause', async () => {
     // Same as wait-for-agent.test.ts "should detect pause" but in this file
     const { AgentChannel } = await import('../../src/mcp/agent-channel.js');
-    const { executeWorkflowFromFile } = await import('../../src/mcp/workflow-executor.js');
+    const { executeWorkflow } = await import('../../src/mcp/workflow-executor.js');
 
     const testFile = path.join(outputDir, 'wfrun-debug-direct.ts');
     fs.writeFileSync(testFile, AGENT_WORKFLOW);
@@ -152,10 +152,7 @@ describe('fw_workflow_run and fw_workflow_resume MCP tools', () => {
     try {
       const channel = new AgentChannel();
 
-      const resultPromise = executeWorkflowFromFile(testFile, { task: 'review code' }, {
-        workflowName: 'agentWorkflow',
-        agentChannel: channel,
-      });
+      const resultPromise = executeWorkflow({ filePath: testFile, params: { task: 'review code' }, workflowName: 'agentWorkflow', agentChannel: channel });
 
       const request = await channel.onPause();
       expect(request).toHaveProperty('agentId');
@@ -171,7 +168,7 @@ describe('fw_workflow_run and fw_workflow_resume MCP tools', () => {
 
   it('DEBUG: raceAgentPause should detect pause', async () => {
     const { AgentChannel } = await import('../../src/mcp/agent-channel.js');
-    const { executeWorkflowFromFile } = await import('../../src/mcp/workflow-executor.js');
+    const { executeWorkflow } = await import('../../src/mcp/workflow-executor.js');
 
     const testFile = path.join(outputDir, 'wfrun-debug-race.ts');
     fs.writeFileSync(testFile, AGENT_WORKFLOW);
@@ -179,10 +176,7 @@ describe('fw_workflow_run and fw_workflow_resume MCP tools', () => {
     try {
       const channel = new AgentChannel();
 
-      const execPromise = executeWorkflowFromFile(testFile, { task: 'review code' }, {
-        workflowName: 'agentWorkflow',
-        agentChannel: channel,
-      });
+      const execPromise = executeWorkflow({ filePath: testFile, params: { task: 'review code' }, workflowName: 'agentWorkflow', agentChannel: channel });
 
       // This is exactly what raceAgentPause does
       const outcome = await Promise.race([

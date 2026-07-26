@@ -5,7 +5,8 @@
  */
 
 import { randomUUID } from 'crypto';
-import { executeWorkflowFromFile } from '../../mcp/workflow-executor.js';
+import { executeWorkflow } from '../../mcp/workflow-executor.js';
+import { CancellationError } from '../../runtime/CancellationError.js';
 import { WorkflowRegistry } from '../../server/workflow-registry.js';
 import type {
   WorkflowRequest,
@@ -91,7 +92,11 @@ export class UnifiedWorkflowExecutor {
     } catch (error) {
       // Check for specific error types
       if (error instanceof Error) {
-        if (error.name === 'AbortError' || error.message.includes('abort')) {
+        if (
+          CancellationError.isCancellationError(error) ||
+          error.name === 'AbortError' ||
+          error.message.includes('abort')
+        ) {
           return this.createErrorResponse<T>(
             request.workflowId,
             requestId,
@@ -243,23 +248,39 @@ export class UnifiedWorkflowExecutor {
     timeout: number,
     abortSignal?: AbortSignal
   ) {
-    // Create a promise that rejects on timeout
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      const timer = setTimeout(() => {
-        reject(new Error(`Workflow execution timed out after ${timeout}ms`));
-      }, timeout);
+    const timeoutController = new AbortController();
+    let cancellationCause: 'parent' | 'timeout' | undefined;
+    const onParentAbort = () => {
+      cancellationCause ??= 'parent';
+    };
 
-      // Clear timeout if abort signal fires
-      if (abortSignal) {
-        abortSignal.addEventListener('abort', () => {
-          clearTimeout(timer);
-          reject(new Error('Workflow execution was cancelled'));
-        });
+    if (abortSignal?.aborted) cancellationCause = 'parent';
+    else abortSignal?.addEventListener('abort', onParentAbort, { once: true });
+
+    const timer = setTimeout(() => {
+      cancellationCause ??= 'timeout';
+      timeoutController.abort();
+    }, timeout);
+    const executionSignal = abortSignal
+      ? AbortSignal.any([abortSignal, timeoutController.signal])
+      : timeoutController.signal;
+
+    try {
+      return await executeWorkflow({
+        filePath,
+        params,
+        ...options,
+        abortSignal: executionSignal,
+      });
+    } catch (error) {
+      if (cancellationCause === 'timeout') {
+        throw new Error(`Workflow execution timed out after ${timeout}ms`);
       }
-    });
-
-    // Race between execution and timeout
-    return Promise.race([executeWorkflowFromFile(filePath, params, options), timeoutPromise]);
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      abortSignal?.removeEventListener('abort', onParentAbort);
+    }
   }
 
   /**

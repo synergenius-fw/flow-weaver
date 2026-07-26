@@ -294,6 +294,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -569,6 +573,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -887,6 +892,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -1190,6 +1199,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = mhIdx !== undefined ? await ctx.getVariable({ id: 'mh', portName: 'out', executionIndex: mhIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -1506,6 +1516,10 @@ class GeneratedExecutionContext {
 
   isAborted(): boolean {
     return this.abortSignal?.aborted ?? false;
+  }
+
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
   }
 
   checkAborted(nodeId?: string): void {
@@ -1866,6 +1880,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -2184,6 +2199,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -2459,6 +2478,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = hIdx !== undefined ? await ctx.getVariable({ id: 'h', portName: 'out', executionIndex: hIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -2777,6 +2797,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -3071,6 +3095,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = hIdx !== undefined ? await ctx.getVariable({ id: 'h', portName: 'out', executionIndex: hIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -3387,6 +3412,10 @@ class GeneratedExecutionContext {
 
   isAborted(): boolean {
     return this.abortSignal?.aborted ?? false;
+  }
+
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
   }
 
   checkAborted(nodeId?: string): void {
@@ -3713,6 +3742,7 @@ export async function testWorkflow(
   } else {
     bbIdx = ctx.addExecution('bb');
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -4031,6 +4061,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -4334,6 +4368,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = mhIdx !== undefined ? await ctx.getVariable({ id: 'mh', portName: 'out', executionIndex: mhIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -4652,6 +4687,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -4844,6 +4883,7 @@ export async function testWorkflow(
   } else {
     bIdx = ctx.addExecution('b');
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx });
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -5162,6 +5202,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -5456,6 +5500,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = skIdx !== undefined ? await ctx.getVariable({ id: 'sk', portName: 'out', executionIndex: skIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -5774,6 +5819,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -6049,6 +6098,7 @@ export async function testWorkflow(
       failIdx = ctx.addExecution('fail');
     }
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = failIdx !== undefined ? await ctx.getVariable({ id: 'fail', portName: 'out', executionIndex: failIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -6367,6 +6417,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -6642,6 +6696,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -6960,6 +7015,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -7254,6 +7313,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -7572,6 +7632,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -7847,6 +7911,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = skIdx !== undefined ? await ctx.getVariable({ id: 'sk', portName: 'out', executionIndex: skIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -8163,6 +8228,10 @@ class GeneratedExecutionContext {
 
   isAborted(): boolean {
     return this.abortSignal?.aborted ?? false;
+  }
+
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
   }
 
   checkAborted(nodeId?: string): void {
@@ -8507,6 +8576,7 @@ export async function testWorkflow(
       failIdx = ctx.addExecution('fail');
     }
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -8825,6 +8895,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -9012,7 +9086,7 @@ export async function testWorkflow(
       };
     })(ctx);
       const __bParams__ = { value: b_value, __rd__: __rd__ + 1 };
-      const bResult = subWf(b_execute, __bParams__);
+      const bResult = subWf(b_execute, __bParams__, ctx.getAbortSignal());
       await ctx.setVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'subWf' }, bResult.onSuccess);
       await ctx.setVariable({ id: 'b', portName: 'onFailure', executionIndex: bIdx, nodeTypeName: 'subWf' }, bResult.onFailure);
       await ctx.setVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'subWf' }, bResult.result);
@@ -9120,6 +9194,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
   await ctx.setVariable({ id: 'Exit', portName: 'result', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_result);
@@ -9364,6 +9439,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -9533,6 +9612,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
 
@@ -9774,6 +9854,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -9971,6 +10055,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = mhIdx !== undefined ? await ctx.getVariable({ id: 'mh', portName: 'out', executionIndex: mhIdx }) : undefined;
 
@@ -10210,6 +10295,10 @@ class GeneratedExecutionContext {
 
   isAborted(): boolean {
     return this.abortSignal?.aborted ?? false;
+  }
+
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
   }
 
   checkAborted(nodeId?: string): void {
@@ -10456,6 +10545,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
 
@@ -10697,6 +10787,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -10866,6 +10960,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = hIdx !== undefined ? await ctx.getVariable({ id: 'h', portName: 'out', executionIndex: hIdx }) : undefined;
 
@@ -11107,6 +11202,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -11295,6 +11394,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = hIdx !== undefined ? await ctx.getVariable({ id: 'h', portName: 'out', executionIndex: hIdx }) : undefined;
 
@@ -11536,6 +11636,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -11748,6 +11852,7 @@ export async function testWorkflow(
     }
     throw error;
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
 
@@ -11989,6 +12094,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -12186,6 +12295,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = mhIdx !== undefined ? await ctx.getVariable({ id: 'mh', portName: 'out', executionIndex: mhIdx }) : undefined;
 
@@ -12427,6 +12537,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -12520,6 +12634,7 @@ export async function testWorkflow(
     }
     throw error;
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx });
 
@@ -12761,6 +12876,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -12949,6 +13068,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = skIdx !== undefined ? await ctx.getVariable({ id: 'sk', portName: 'out', executionIndex: skIdx }) : undefined;
 
@@ -13190,6 +13310,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -13359,6 +13483,7 @@ export async function testWorkflow(
       throw error;
     }
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = failIdx !== undefined ? await ctx.getVariable({ id: 'fail', portName: 'out', executionIndex: failIdx }) : undefined;
 
@@ -13600,6 +13725,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -13769,6 +13898,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
 
@@ -14010,6 +14140,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -14198,6 +14332,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
 
@@ -14439,6 +14574,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -14608,6 +14747,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = skIdx !== undefined ? await ctx.getVariable({ id: 'sk', portName: 'out', executionIndex: skIdx }) : undefined;
 
@@ -14849,6 +14989,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -15080,6 +15224,7 @@ export async function testWorkflow(
       throw error;
     }
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
 
@@ -15321,6 +15466,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -15412,7 +15561,7 @@ export async function testWorkflow(
       };
     })(ctx);
     const __bParams__ = { value: b_value, __rd__: __rd__ + 1 };
-    const bResult = subWf(b_execute, __bParams__);
+    const bResult = subWf(b_execute, __bParams__, ctx.getAbortSignal());
     await ctx.setVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'subWf' }, bResult.onSuccess);
     await ctx.setVariable({ id: 'b', portName: 'onFailure', executionIndex: bIdx, nodeTypeName: 'subWf' }, bResult.onFailure);
     await ctx.setVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'subWf' }, bResult.result);
@@ -15510,6 +15659,7 @@ export async function testWorkflow(
       status: 'CANCELLED',
     });
   }
+  ctx.checkAborted('Exit');
   const exitIdx = ctx.addExecution('Exit');
   const exit_result = okIdx !== undefined ? await ctx.getVariable({ id: 'ok', portName: 'out', executionIndex: okIdx }) : undefined;
 

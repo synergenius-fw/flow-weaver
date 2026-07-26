@@ -6,7 +6,7 @@ import { parseWorkflow } from '../api/index.js';
 import { getTopologicalOrder } from '../api/query.js';
 import { DebugController } from '../runtime/debug-controller.js';
 import { CheckpointWriter, loadCheckpoint, findLatestCheckpoint } from '../runtime/checkpoint.js';
-import { executeWorkflowFromFile } from './workflow-executor.js';
+import { executeWorkflow } from './workflow-executor.js';
 import { AgentChannel } from './agent-channel.js';
 import {
   storeDebugSession,
@@ -172,7 +172,9 @@ export function registerDebugTools(mcp: McpServer): void {
         const agentChannel = new AgentChannel();
 
         // Start execution (non-blocking: the workflow will pause at the first node)
-        const execPromise = executeWorkflowFromFile(args.filePath, args.params, {
+        const execPromise = executeWorkflow({
+          filePath: args.filePath,
+          params: args.params,
           workflowName: args.workflowName,
           includeTrace: true,
           agentChannel,
@@ -558,7 +560,9 @@ export function registerDebugTools(mcp: McpServer): void {
         const agentChannel = new AgentChannel();
 
         // Execute with the skip nodes configured
-        const execPromise = executeWorkflowFromFile(args.filePath, data.params, {
+        const execPromise = executeWorkflow({
+          filePath: args.filePath,
+          params: data.params,
           workflowName: data.workflowName,
           includeTrace: true,
           agentChannel,

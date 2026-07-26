@@ -401,6 +401,10 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   lines.push('    return this.abortSignal?.aborted ?? false;');
   lines.push('  }');
   lines.push('');
+  lines.push('  getAbortSignal(): AbortSignal | undefined {');
+  lines.push('    return this.abortSignal;');
+  lines.push('  }');
+  lines.push('');
   lines.push('  checkAborted(nodeId?: string): void {');
   lines.push('    if (this.abortSignal?.aborted) {');
   lines.push('      throw new CancellationError(');

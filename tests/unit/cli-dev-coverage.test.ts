@@ -100,9 +100,9 @@ describe('devCommand coverage', () => {
   it('should parse --params JSON and run once', async () => {
     const { devCommand } = await import('../../src/cli/commands/dev');
 
-    // Mock executeWorkflowFromFile to avoid actually running
+    // Mock executeWorkflow to avoid actually running
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockResolvedValue({
+    vi.spyOn(executor, 'executeWorkflow').mockResolvedValue({
       functionName: 'simpleWf',
       executionTime: 10,
       result: { onSuccess: true },
@@ -116,10 +116,11 @@ describe('devCommand coverage', () => {
       once: true,
     });
 
-    expect(executor.executeWorkflowFromFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ key: 'value' }),
-      expect.any(Object)
+    expect(executor.executeWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: expect.any(String),
+        params: expect.objectContaining({ key: 'value' }),
+      })
     );
   });
 
@@ -137,7 +138,7 @@ describe('devCommand coverage', () => {
     const { devCommand } = await import('../../src/cli/commands/dev');
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockResolvedValue({
+    vi.spyOn(executor, 'executeWorkflow').mockResolvedValue({
       functionName: 'simpleWf',
       executionTime: 5,
       result: { ok: true },
@@ -149,10 +150,11 @@ describe('devCommand coverage', () => {
 
     await devCommand(filePath, { paramsFile, once: true });
 
-    expect(executor.executeWorkflowFromFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ fromFile: true }),
-      expect.any(Object)
+    expect(executor.executeWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: expect.any(String),
+        params: expect.objectContaining({ fromFile: true }),
+      })
     );
   });
 
@@ -211,7 +213,7 @@ describe('devCommand coverage', () => {
     const { devCommand } = await import('../../src/cli/commands/dev');
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockResolvedValue({
+    vi.spyOn(executor, 'executeWorkflow').mockResolvedValue({
       functionName: 'simpleWf',
       executionTime: 7,
       result: { done: true },
@@ -235,7 +237,7 @@ describe('devCommand coverage', () => {
     const { devCommand } = await import('../../src/cli/commands/dev');
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockRejectedValue(
+    vi.spyOn(executor, 'executeWorkflow').mockRejectedValue(
       new Error('Runtime failure')
     );
 
@@ -256,7 +258,7 @@ describe('devCommand coverage', () => {
     const { devCommand } = await import('../../src/cli/commands/dev');
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockRejectedValue(
+    vi.spyOn(executor, 'executeWorkflow').mockRejectedValue(
       new Error('Execution error')
     );
 

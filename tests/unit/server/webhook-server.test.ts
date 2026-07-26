@@ -11,10 +11,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-// Mock executeWorkflowFromFile to avoid real compilation
+// Mock executeWorkflow to avoid real compilation
 const mockExecuteWorkflowFromFile = vi.fn();
 vi.mock('../../../src/mcp/workflow-executor.js', () => ({
-  executeWorkflowFromFile: (...a: unknown[]) => mockExecuteWorkflowFromFile(...a),
+  executeWorkflow: (...a: unknown[]) => mockExecuteWorkflowFromFile(...a),
 }));
 
 import { WebhookServer } from '../../../src/server/webhook-server.js';
@@ -431,7 +431,7 @@ describe('WebhookServer start/stop with mock Fastify', () => {
     await server.stop();
   });
 
-  it('execute route calls executeWorkflowFromFile for a known workflow', async () => {
+  it('execute route calls executeWorkflow for a known workflow', async () => {
     const server = createServerWithMockFastify();
     await server.start();
 
@@ -495,7 +495,7 @@ describe('WebhookServer start/stop with mock Fastify', () => {
     await server.stop();
   });
 
-  it('execute route returns 500 when executeWorkflowFromFile throws', async () => {
+  it('execute route returns 500 when executeWorkflow throws', async () => {
     const server = createServerWithMockFastify();
     await server.start();
 
@@ -575,8 +575,9 @@ describe('WebhookServer start/stop with mock Fastify', () => {
     );
 
     expect(result.success).toBe(true);
-    // The second arg to executeWorkflowFromFile should be {} (fallback)
-    expect(mockExecuteWorkflowFromFile.mock.calls[0][1]).toEqual({});
+    expect(mockExecuteWorkflowFromFile.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ params: {} }),
+    );
 
     await server.stop();
   });

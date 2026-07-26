@@ -146,6 +146,7 @@ export type TBuildNodeArgsOptions = {
   nodeTypeName?: string;
   bundleMode?: boolean;
   production?: boolean;
+  abortSignalExpression?: string;
 };
 
 /**
@@ -204,6 +205,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     nodeTypeName,
     bundleMode = false,
     production = false,
+    abortSignalExpression = 'ctx.getAbortSignal()',
   } = opts;
   const safeId = toValidIdentifier(id);
   const inputConnections = workflow.connections.filter((conn) => conn.to.node === id);
@@ -547,6 +549,10 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
 
     args.push(scopeFunctionVar);
   });
+
+  if (node.receivesAbortSignal) {
+    args.push(abortSignalExpression);
+  }
 
   return args;
 }

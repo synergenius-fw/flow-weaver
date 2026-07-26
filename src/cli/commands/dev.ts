@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { glob } from 'glob';
 import { compileCommand, type CompileOptions } from './compile.js';
-import { executeWorkflowFromFile } from '../../mcp/workflow-executor.js';
+import { executeWorkflow } from '../../mcp/workflow-executor.js';
 import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
@@ -144,7 +144,9 @@ async function compileAndRun(
 
   // Step 2: Run
   try {
-    const result = await executeWorkflowFromFile(filePath, params, {
+    const result = await executeWorkflow({
+      filePath,
+      params,
       workflowName: options.workflow,
       production: options.production ?? false,
       includeTrace: !options.production,

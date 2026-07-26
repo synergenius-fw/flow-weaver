@@ -294,6 +294,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -602,6 +606,7 @@ export async function helloWorld(
         status: 'CANCELLED',
       });
     }
+    ctx.checkAborted('Exit');
     const exitIdx = ctx.addExecution('Exit');
     const exit_message = sIdx !== undefined ? await ctx.getVariable({ id: 's', portName: 'result', executionIndex: sIdx }) : undefined;
     await ctx.setVariable({ id: 'Exit', portName: 'message', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_message);

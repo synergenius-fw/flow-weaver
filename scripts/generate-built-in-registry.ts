@@ -24,10 +24,10 @@ const ROOT = path.resolve(__dirname, '..');
 // ---------------------------------------------------------------------------
 
 const BUILT_IN_FILES = [
-  { file: 'delay.ts', functionName: 'delay' },
+  { file: 'delay.ts', functionName: 'delay', receivesAbortSignal: true },
   { file: 'wait-for-event.ts', functionName: 'waitForEvent' },
-  { file: 'invoke-workflow.ts', functionName: 'invokeWorkflow' },
-  { file: 'wait-for-agent.ts', functionName: 'waitForAgent' },
+  { file: 'invoke-workflow.ts', functionName: 'invokeWorkflow', receivesAbortSignal: true },
+  { file: 'wait-for-agent.ts', functionName: 'waitForAgent', receivesAbortSignal: true },
 ];
 
 const BUILT_IN_DIR = path.join(ROOT, 'src', 'built-in-nodes');
@@ -463,7 +463,7 @@ function escapeForTemplate(code: string): string {
 function main() {
   const entries: string[] = [];
 
-  for (const { file, functionName } of BUILT_IN_FILES) {
+  for (const { file, functionName, receivesAbortSignal } of BUILT_IN_FILES) {
     const source = readSource(file);
 
     // 1. Parse to get port definitions
@@ -496,6 +496,7 @@ function main() {
     name: '${functionName}',
     functionName: '${functionName}',
     isAsync: ${annotated.isAsync},
+    receivesAbortSignal: ${receivesAbortSignal ?? false},
     hasSuccessPort: ${annotated.hasSuccessPort},
     hasFailurePort: ${annotated.hasFailurePort},
     executeWhen: '${annotated.executeWhen}',

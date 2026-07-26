@@ -6,7 +6,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
+import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 describe('Workflow Executor Integration', () => {
   const outputDir = path.join(os.tmpdir(), `fw-executor-test-${process.pid}`);
@@ -47,7 +47,7 @@ export function simpleWorkflow(execute: boolean, params: { value: number }): { r
     const testFile = path.join(outputDir, 'executor-result.ts');
     fs.writeFileSync(testFile, createSimpleWorkflow());
 
-    const execResult = await executeWorkflowFromFile(testFile, { value: 5 });
+    const execResult = await executeWorkflow({ filePath: testFile, params: { value: 5 } });
 
     // Result should be the full object with all exit ports
     expect(execResult.result).toBeDefined();
@@ -61,13 +61,7 @@ export function simpleWorkflow(execute: boolean, params: { value: number }): { r
     const testFile = path.join(outputDir, 'executor-trace.ts');
     fs.writeFileSync(testFile, createSimpleWorkflow());
 
-    const execResult = await executeWorkflowFromFile(
-      testFile,
-      { value: 5 },
-      {
-        includeTrace: true,
-      }
-    );
+    const execResult = await executeWorkflow({ filePath: testFile, params: { value: 5 }, includeTrace: true });
 
     // Trace should be non-empty
     expect(execResult.trace).toBeDefined();
@@ -136,11 +130,7 @@ export function outerPipeline(execute: boolean, params: { value: number }): { re
     fs.writeFileSync(testFile, compositionSource);
 
     // outerPipeline(2): inner = triple(2)+5 = 11, outer = triple(11) = 33
-    const execResult = await executeWorkflowFromFile(
-      testFile,
-      { value: 2 },
-      { workflowName: 'outerPipeline' }
-    );
+    const execResult = await executeWorkflow({ filePath: testFile, params: { value: 2 }, workflowName: 'outerPipeline' });
 
     const result = execResult.result as Record<string, unknown>;
     expect(result.result).toBe(33);
@@ -151,13 +141,7 @@ export function outerPipeline(execute: boolean, params: { value: number }): { re
     const testFile = path.join(outputDir, 'executor-notrace.ts');
     fs.writeFileSync(testFile, createSimpleWorkflow());
 
-    const execResult = await executeWorkflowFromFile(
-      testFile,
-      { value: 5 },
-      {
-        includeTrace: false,
-      }
-    );
+    const execResult = await executeWorkflow({ filePath: testFile, params: { value: 5 }, includeTrace: false });
 
     // When trace is disabled, it should not be in the result
     expect(execResult.trace).toBeUndefined();

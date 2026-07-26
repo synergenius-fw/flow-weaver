@@ -244,6 +244,11 @@ export class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  /** Return the parent-owned signal without transferring ownership. */
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   /**
    * Throw CancellationError if the workflow has been aborted
    * @param nodeId - Optional node ID to include in the error

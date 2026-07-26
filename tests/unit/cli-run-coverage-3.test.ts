@@ -62,7 +62,7 @@ vi.mock('readline', () => ({
 }));
 
 vi.mock('../../src/mcp/workflow-executor', () => ({
-  executeWorkflowFromFile: vi.fn(async (_fp: string, _p: unknown, opts: Record<string, unknown>) => {
+  executeWorkflow: vi.fn(async (_request: Record<string, unknown>) => {
     if (mockExecError) throw mockExecError;
     if (mockExecResolve !== null) {
       // Caller set up a deferred promise; return it
@@ -158,7 +158,7 @@ async function getLogger() {
 
 async function getExecutorMock() {
   const mod = await import('../../src/mcp/workflow-executor');
-  return mod.executeWorkflowFromFile as unknown as ReturnType<typeof vi.fn>;
+  return mod.executeWorkflow as unknown as ReturnType<typeof vi.fn>;
 }
 
 beforeEach(() => {

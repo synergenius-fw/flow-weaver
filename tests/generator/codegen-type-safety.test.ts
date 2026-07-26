@@ -17,7 +17,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import { describe, it, expect } from 'vitest';
 import { mapToTypeScript } from '../../src/type-mappings';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
+import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 const FIXTURE_DIR = path.resolve(__dirname, '../fixtures/codegen-types');
 const WORKFLOW_PATH = path.join(FIXTURE_DIR, 'workflow.ts');
@@ -106,9 +106,9 @@ describe('cross-file workflow tsc --strict validity', () => {
 
 describe('cross-file workflow runtime execution', () => {
   it('runs correctly', async () => {
-    const result = await executeWorkflowFromFile(WORKFLOW_PATH, {
-      raw: JSON.stringify({ name: 'test-app', debug: true, maxRetries: 3 }),
-    });
+    const result = await executeWorkflow({ filePath: WORKFLOW_PATH, params: {
+          raw: JSON.stringify({ name: 'test-app', debug: true, maxRetries: 3 }),
+        } });
 
     expect(result.result).toBeDefined();
     const output = result.result as { onSuccess: boolean; output: string };

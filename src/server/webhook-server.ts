@@ -3,7 +3,7 @@
  */
 
 import { WorkflowRegistry } from './workflow-registry.js';
-import { executeWorkflowFromFile } from '../mcp/workflow-executor.js';
+import { executeWorkflow } from '../mcp/workflow-executor.js';
 import type {
   WebhookServerConfig,
   ExecutionResult,
@@ -163,7 +163,9 @@ export class WebhookServer {
 
         const startTime = Date.now();
         try {
-          const result = await executeWorkflowFromFile(endpoint.filePath, params, {
+          const result = await executeWorkflow({
+            filePath: endpoint.filePath,
+            params,
             workflowName: endpoint.functionName,
             production: this.config.production,
             includeTrace,

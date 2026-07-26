@@ -1,4 +1,5 @@
 import { getMockConfig, lookupMock } from './mock-types.js';
+import { CancellationError } from '../runtime/CancellationError.js';
 
 /**
  * @flowWeaver nodeType
@@ -11,7 +12,8 @@ export async function invokeWorkflow(
   execute: boolean,
   functionId: string,
   payload: object,
-  timeout?: string
+  timeout?: string,
+  abortSignal?: AbortSignal
 ): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, result: {} };
 
@@ -26,15 +28,16 @@ export async function invokeWorkflow(
     return { onSuccess: false, onFailure: true, result: {} };
   }
 
-  // Check local workflow registry (populated by executeWorkflowFromFile)
+  // Check local workflow registry (populated by executeWorkflow)
   const registry = (globalThis as unknown as Record<string, unknown>).__fw_workflow_registry__ as
     | Record<string, (...args: unknown[]) => unknown>
     | undefined;
   if (registry?.[functionId]) {
     try {
-      const result = await registry[functionId](true, payload);
+      const result = await registry[functionId](true, payload, abortSignal);
       return { onSuccess: true, onFailure: false, result: (result as object) ?? {} };
-    } catch {
+    } catch (error) {
+      if (CancellationError.isCancellationError(error)) throw error;
       return { onSuccess: false, onFailure: true, result: {} };
     }
   }

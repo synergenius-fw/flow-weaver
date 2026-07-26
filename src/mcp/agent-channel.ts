@@ -6,6 +6,8 @@
  * via `onPause()`, and later calls `resume()` to resolve the Promise and
  * continue execution from exactly where it paused.
  */
+import { CancellationError } from '../runtime/CancellationError.js';
+
 export class AgentChannel {
   private _resolve: ((result: object) => void) | null = null;
   private _reject: ((error: Error) => void) | null = null;
@@ -20,13 +22,37 @@ export class AgentChannel {
    * Called by the waitForAgent node to suspend execution.
    * Returns a Promise that resolves when `resume()` is called.
    */
-  async request(agentRequest: object): Promise<object> {
+  async request(agentRequest: object, abortSignal?: AbortSignal): Promise<object> {
+    if (abortSignal?.aborted) throw new CancellationError();
+
     // Signal the executor that we're pausing
     this._pauseResolve?.(agentRequest);
     // Suspend on a new Promise until resume() or fail() is called
     return new Promise<object>((resolve, reject) => {
-      this._resolve = resolve;
-      this._reject = reject;
+      let settled = false;
+      const cleanup = () => abortSignal?.removeEventListener('abort', onAbort);
+      const onAbort = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        this._resolve = null;
+        this._reject = null;
+        reject(new CancellationError());
+      };
+      this._resolve = (result) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(result);
+      };
+      this._reject = (error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+      abortSignal?.addEventListener('abort', onAbort, { once: true });
+      if (abortSignal?.aborted) onAbort();
     });
   }
 

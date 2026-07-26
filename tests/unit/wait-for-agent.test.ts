@@ -6,10 +6,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AgentChannel } from '../../src/mcp/agent-channel';
 import { waitForAgent } from '../../src/built-in-nodes/wait-for-agent';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
+import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 // Inline waitForAgent definition for integration tests.
-// Must be inlined because executeWorkflowFromFile copies to temp dir.
+// Must be inlined because executeWorkflow copies to temp dir.
 const WAIT_FOR_AGENT_DEF = `
 /**
  * @flowWeaver nodeType
@@ -224,10 +224,7 @@ export async function agentWorkflow(execute: boolean, params: { task: string }):
     try {
       const channel = new AgentChannel();
 
-      const resultPromise = executeWorkflowFromFile(testFile, { task: 'review code' }, {
-        workflowName: 'agentWorkflow',
-        agentChannel: channel,
-      });
+      const resultPromise = executeWorkflow({ filePath: testFile, params: { task: 'review code' }, workflowName: 'agentWorkflow', agentChannel: channel });
 
       // Wait for the workflow to pause
       const request = await channel.onPause();
@@ -278,10 +275,7 @@ export async function simpleWorkflow(execute: boolean, params: { num: number }):
     try {
       const channel = new AgentChannel();
 
-      const result = await executeWorkflowFromFile(testFile, { num: 5 }, {
-        workflowName: 'simpleWorkflow',
-        agentChannel: channel,
-      });
+      const result = await executeWorkflow({ filePath: testFile, params: { num: 5 }, workflowName: 'simpleWorkflow', agentChannel: channel });
 
       // Should complete normally without pausing
       expect(result.functionName).toBe('simpleWorkflow');
@@ -331,10 +325,7 @@ export async function multiAgentWorkflow(execute: boolean, params: { input: stri
     try {
       const channel = new AgentChannel();
 
-      const resultPromise = executeWorkflowFromFile(testFile, { input: 'start' }, {
-        workflowName: 'multiAgentWorkflow',
-        agentChannel: channel,
-      });
+      const resultPromise = executeWorkflow({ filePath: testFile, params: { input: 'start' }, workflowName: 'multiAgentWorkflow', agentChannel: channel });
 
       // First pause — agent1
       const req1 = await channel.onPause();

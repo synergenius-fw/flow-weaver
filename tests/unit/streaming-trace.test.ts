@@ -69,7 +69,7 @@ describe('streaming trace events', () => {
   describe('onEvent callback', () => {
     it('receives events in real-time alongside the trace array', () => {
       // Simulate the executor's sendEvent→onEvent wiring without running a full workflow.
-      // This mirrors the exact pattern from executeWorkflowFromFile where the debugger's
+      // This mirrors the exact pattern from executeWorkflow where the debugger's
       // sendEvent pushes to the trace array and also calls options.onEvent.
       const trace: ExecutionTraceEvent[] = [];
       const streamed: ExecutionTraceEvent[] = [];

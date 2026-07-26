@@ -36,7 +36,7 @@ describe('command-runner - query', () => {
 
 describe('command-runner - run', () => {
   it('should execute a workflow file and return data', async () => {
-    // The run handler delegates to executeWorkflowFromFile. We test that it
+    // The run handler delegates to executeWorkflow. We test that it
     // properly resolves the file and passes params through. A missing/invalid
     // file will cause a rejection, which confirms lines 225-231 are reached.
     await expect(

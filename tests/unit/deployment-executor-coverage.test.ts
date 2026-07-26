@@ -1,54 +1,31 @@
-/**
- * Coverage for src/deployment/core/executor.ts lines 254-256:
- * the abort signal listener inside executeWithTimeout that clears
- * the timeout and rejects with a cancellation error.
- */
 import { describe, it, expect, vi } from 'vitest';
+import { CancellationError } from '../../src/runtime/CancellationError.js';
 
 // Mock the workflow executor to control execution timing
 vi.mock('../../src/mcp/workflow-executor.js', () => ({
-  executeWorkflowFromFile: vi.fn(),
+  executeWorkflow: vi.fn(),
 }));
 
 import { UnifiedWorkflowExecutor } from '../../src/deployment/core/executor.js';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor.js';
+import { executeWorkflow } from '../../src/mcp/workflow-executor.js';
 
-const mockedExecute = vi.mocked(executeWorkflowFromFile);
+const mockedExecute = vi.mocked(executeWorkflow);
 
 describe('UnifiedWorkflowExecutor - abort signal handling', () => {
-  it('cancels execution when abort signal fires during executeFromFile', async () => {
-    // Make executeWorkflowFromFile hang indefinitely so the abort signal fires first
-    mockedExecute.mockImplementation(
-      () => new Promise(() => {}), // never resolves
-    );
+  it('forwards parent abort through the derived deployment signal', async () => {
+    let forwardedSignal: AbortSignal | undefined;
+    mockedExecute.mockImplementation(({ abortSignal }) => {
+      forwardedSignal = abortSignal;
+      return new Promise((_, reject) => {
+        abortSignal?.addEventListener(
+          'abort',
+          () => reject(new CancellationError()),
+          { once: true },
+        );
+      });
+    });
 
-    const executor = new UnifiedWorkflowExecutor({ defaultTimeout: 60000 });
     const controller = new AbortController();
-
-    const resultPromise = executor.executeFromFile(
-      '/fake/workflow.ts',
-      { input: 'test' },
-      {
-        source: 'cli',
-        environment: 'development',
-        includeTrace: false,
-        timeout: 60000,
-      },
-    );
-
-    // Fire the abort signal after a small delay
-    setTimeout(() => controller.abort(), 50);
-
-    // The result should come back as a cancellation (via the abort listener
-    // on lines 254-256). However, since executeFromFile doesn't pass abortSignal
-    // through, the cancellation will come from the general error handling.
-    // Let's use execute() instead which does pass the abortSignal.
-    mockedExecute.mockReset();
-    mockedExecute.mockImplementation(
-      () => new Promise(() => {}),
-    );
-
-    const controller2 = new AbortController();
     const executor2 = new UnifiedWorkflowExecutor({
       defaultTimeout: 60000,
       registry: {
@@ -71,23 +48,27 @@ describe('UnifiedWorkflowExecutor - abort signal handling', () => {
         includeTrace: false,
         timeout: 60000,
       },
-      abortSignal: controller2.signal,
+      abortSignal: controller.signal,
     });
 
-    // Fire abort after a short delay
-    setTimeout(() => controller2.abort(), 50);
+    await vi.waitFor(() => expect(forwardedSignal).toBeDefined());
+    expect(forwardedSignal).not.toBe(controller.signal);
+    controller.abort();
 
     const result = await resultPromise2;
     expect(result.success).toBe(false);
-    // The abort listener rejects with "Workflow execution was cancelled"
-    // which doesn't contain "abort", so the executor classifies it as
-    // a general execution error rather than CANCELLED.
-    expect(result.error?.message).toContain('cancelled');
+    expect(result.error?.code).toBe('CANCELLED');
   });
 
   it('returns TIMEOUT error when execution exceeds timeout', async () => {
-    mockedExecute.mockImplementation(
-      () => new Promise(() => {}), // never resolves
+    mockedExecute.mockImplementation(({ abortSignal }) =>
+      new Promise((_, reject) => {
+        abortSignal?.addEventListener(
+          'abort',
+          () => reject(new CancellationError()),
+          { once: true },
+        );
+      })
     );
 
     const executor = new UnifiedWorkflowExecutor({

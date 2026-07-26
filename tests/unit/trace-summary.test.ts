@@ -9,7 +9,7 @@ import {
   computeTraceSummary,
   type ExecutionTraceEvent,
 } from '../../src/mcp/workflow-executor';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
+import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 describe('computeTraceSummary', () => {
   it('should count succeeded/failed/cancelled nodes', () => {
@@ -83,7 +83,7 @@ describe('computeTraceSummary', () => {
     expect(summary.succeeded).toBe(1);
   });
 
-  it('should be included in ExecuteWorkflowResult when trace is enabled', async () => {
+  it('should be included in WorkflowExecutionResult when trace is enabled', async () => {
     const source = `
 /**
  * @flowWeaver nodeType
@@ -114,10 +114,7 @@ export async function simpleWorkflow(execute: boolean, params: { num: number }):
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflowFromFile(testFile, { num: 5 }, {
-        workflowName: 'simpleWorkflow',
-        includeTrace: true,
-      });
+      const result = await executeWorkflow({ filePath: testFile, params: { num: 5 }, workflowName: 'simpleWorkflow', includeTrace: true });
 
       expect(result.summary).toBeDefined();
       expect(result.summary!.totalNodes).toBeGreaterThan(0);

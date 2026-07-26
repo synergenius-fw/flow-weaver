@@ -51,10 +51,14 @@ function classify(file: string): InventoryCategory | undefined {
 }
 
 function buildInventory(): ReadonlyMap<string, InventoryCategory | undefined> {
-  const tracked = execFileSync("git", ["ls-files", "-z"], {
+  const tracked = execFileSync(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+    {
     cwd: repositoryRoot,
     encoding: "utf8",
-  })
+    },
+  )
     .split("\0")
     .filter(Boolean);
 
@@ -68,7 +72,7 @@ function buildInventory(): ReadonlyMap<string, InventoryCategory | undefined> {
   );
 }
 
-describe("one-major removal inventory", () => {
+describe("one-major removal inventory after the A1 executor cutover", () => {
   it("classifies every tracked old-ABI, global, checkpoint, and generated-body match", () => {
     const inventory = buildInventory();
     const unclassified = [...inventory]
@@ -84,12 +88,12 @@ describe("one-major removal inventory", () => {
     expect(unclassified).toEqual([]);
     expect(categoryCounts).toEqual({
       "a0-evidence": 4,
-      "contract-test": 90,
+      "contract-test": 72,
       documentation: 5,
       example: 1,
       "generated-artifact": 7,
       "generated-example": 3,
-      "production-implementation": 34,
+      "production-implementation": 29,
     });
   });
 
@@ -105,7 +109,7 @@ describe("one-major removal inventory", () => {
         "tests/continuation/baseline-differential.test.ts",
         "tests/continuation/debug-checkpoint-crash-baseline.test.ts",
         "tests/continuation/fixtures/debug-checkpoint-child.mjs",
-        "tests/continuation/fixtures/node-portability-child.mjs",
+        "tests/continuation/cancellation-a1.test.ts",
       ]),
     );
   });

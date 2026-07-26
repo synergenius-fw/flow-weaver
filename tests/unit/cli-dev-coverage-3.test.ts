@@ -6,7 +6,7 @@
  *    cleanup handler on SIGINT/SIGTERM, the "watching" success message
  *  - compileAndRun: friendly error branch where getFriendlyError returns null
  *  - JSON compile error branch (compile fails + json mode)
- *  - production option forwarding in executeWorkflowFromFile
+ *  - production option forwarding in executeWorkflow
  *  - format/clean options forwarding to compileCommand
  */
 
@@ -86,11 +86,11 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     stdoutSpy.mockRestore();
   });
 
-  it('should forward production flag to executeWorkflowFromFile', async () => {
+  it('should forward production flag to executeWorkflow', async () => {
     const { devCommand } = await import('../../src/cli/commands/dev');
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockResolvedValue({
+    vi.spyOn(executor, 'executeWorkflow').mockResolvedValue({
       functionName: 'simpleWf',
       executionTime: 3,
       result: { done: true },
@@ -100,18 +100,21 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     const filePath = writeFixture('prod-flag.ts', SIMPLE_WORKFLOW);
     await devCommand(filePath, { once: true, production: true });
 
-    expect(executor.executeWorkflowFromFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.any(Object),
-      expect.objectContaining({ production: true, includeTrace: false })
+    expect(executor.executeWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: expect.any(String),
+        params: expect.any(Object),
+        production: true,
+        includeTrace: false,
+      })
     );
   });
 
-  it('should forward workflow name option to executeWorkflowFromFile', async () => {
+  it('should forward workflow name option to executeWorkflow', async () => {
     const { devCommand } = await import('../../src/cli/commands/dev');
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockResolvedValue({
+    vi.spyOn(executor, 'executeWorkflow').mockResolvedValue({
       functionName: 'simpleWf',
       executionTime: 3,
       result: { done: true },
@@ -121,10 +124,12 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     const filePath = writeFixture('wf-name.ts', SIMPLE_WORKFLOW);
     await devCommand(filePath, { once: true, workflow: 'simpleWf' });
 
-    expect(executor.executeWorkflowFromFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.any(Object),
-      expect.objectContaining({ workflowName: 'simpleWf' })
+    expect(executor.executeWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: expect.any(String),
+        params: expect.any(Object),
+        workflowName: 'simpleWf',
+      })
     );
   });
 
@@ -134,7 +139,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     const compileSpy = vi.spyOn(compileModule, 'compileCommand').mockResolvedValue();
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockResolvedValue({
+    vi.spyOn(executor, 'executeWorkflow').mockResolvedValue({
       functionName: 'simpleWf',
       executionTime: 1,
       result: {},
@@ -188,7 +193,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     const { devCommand } = await import('../../src/cli/commands/dev');
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockResolvedValue({
+    vi.spyOn(executor, 'executeWorkflow').mockResolvedValue({
       functionName: 'simpleWf',
       executionTime: 1,
       result: {},
@@ -204,7 +209,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     const { devCommand } = await import('../../src/cli/commands/dev');
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockResolvedValue({
+    vi.spyOn(executor, 'executeWorkflow').mockResolvedValue({
       functionName: 'simpleWf',
       executionTime: 1,
       result: {},
@@ -236,7 +241,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     const successSpy = vi.spyOn(logger, 'success');
 
     const executor = await import('../../src/mcp/workflow-executor');
-    vi.spyOn(executor, 'executeWorkflowFromFile').mockResolvedValue({
+    vi.spyOn(executor, 'executeWorkflow').mockResolvedValue({
       functionName: 'simpleWf',
       executionTime: 42,
       result: { ok: true },

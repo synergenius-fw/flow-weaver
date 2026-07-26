@@ -162,7 +162,7 @@ describe('@fwImport (unresolvable pkg) + externalNodeTypes overrides the stub', 
   });
 
   it('compileWorkflow (the device run path): validates without throwing on stub ports', async () => {
-    // This is the exact path `executeWorkflowFromFile` takes on-device:
+    // This is the exact path `executeWorkflow` takes on-device:
     // compileWorkflow -> parseWorkflow (gets externalNodeTypes) -> validateWorkflow
     // (validates node-instance connections against the resolved node types).
     // Before the fix, the import stub shadowed the real ports and this threw

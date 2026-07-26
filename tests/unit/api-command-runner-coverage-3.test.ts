@@ -60,7 +60,7 @@ describe('command-runner - error paths for node/connection operations', () => {
 
 describe('command-runner - run with valid workflow', () => {
   it('executes run command and returns data (line 231)', async () => {
-    // The run handler calls executeWorkflowFromFile. If the fixture doesn't
+    // The run handler calls executeWorkflow. If the fixture doesn't
     // exist or isn't runnable, it throws. We just need to confirm the handler
     // is reached and either returns data or throws an execution error.
     const fakeFile = path.resolve(__dirname, '../../fixtures/basic/nonexistent.ts');

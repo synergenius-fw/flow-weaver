@@ -1,4 +1,5 @@
 import { getMockConfig } from './mock-types.js';
+import { CancellationError } from '../runtime/CancellationError.js';
 
 /**
  * @flowWeaver nodeType
@@ -7,20 +8,45 @@ import { getMockConfig } from './mock-types.js';
  */
 export async function delay(
   execute: boolean,
-  duration: string
+  duration: string,
+  abortSignal?: AbortSignal
 ): Promise<{ onSuccess: boolean; onFailure: boolean; elapsed: boolean }> {
   if (!execute) return { onSuccess: false, onFailure: false, elapsed: false };
 
   const mocks = getMockConfig();
   if (mocks?.fast) {
     // Fast mode: skip real sleep, keep async behavior with 1ms
-    await new Promise((resolve) => setTimeout(resolve, 1));
+    await waitForDuration(1, abortSignal);
   } else {
     const ms = parseDuration(duration);
-    await new Promise((resolve) => setTimeout(resolve, ms));
+    await waitForDuration(ms, abortSignal);
   }
 
   return { onSuccess: true, onFailure: false, elapsed: true };
+}
+
+function waitForDuration(ms: number, abortSignal?: AbortSignal): Promise<void> {
+  if (abortSignal?.aborted) return Promise.reject(new CancellationError());
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      abortSignal?.removeEventListener('abort', onAbort);
+      reject(new CancellationError());
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      abortSignal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    abortSignal?.addEventListener('abort', onAbort, { once: true });
+    if (abortSignal?.aborted) onAbort();
+  });
 }
 
 function parseDuration(duration: string): number {

@@ -274,7 +274,7 @@ export function brokenWf(execute: boolean): Promise<{ onSuccess: boolean }> {
     await devCommand(filePath, { once: true, json: true });
 
     // The workflow throws "Not implemented" so the run step should produce
-    // either a success or failure JSON depending on how executeWorkflowFromFile handles it.
+    // either a success or failure JSON depending on how executeWorkflow handles it.
     // We just verify it doesn't crash.
     writeSpy.mockRestore();
   });

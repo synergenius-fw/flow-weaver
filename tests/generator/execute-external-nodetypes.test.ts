@@ -1,5 +1,5 @@
 /**
- * `executeWorkflowFromFile` must thread `options.externalNodeTypes`
+ * `executeWorkflow` must thread `options.externalNodeTypes`
  * through its internal `compileWorkflow` -> `parseWorkflow` ->
  * `parser.parse` pipeline, so a workflow that references a foreign
  * nodeType by name (an `@node <id> <foreignType>` whose definition the
@@ -21,10 +21,10 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
+import { executeWorkflow } from '../../src/mcp/workflow-executor';
 import type { TExternalNodeType } from '../../src/parser';
 
-describe('executeWorkflowFromFile with externalNodeTypes', () => {
+describe('executeWorkflow with externalNodeTypes', () => {
   const outputDir = path.join(os.tmpdir(), `fw-exec-ext-${process.pid}`);
   let testFile: string;
 
@@ -89,16 +89,12 @@ export function usesForeignGate(
 
   it('fails to execute the foreign-gate workflow WITHOUT externalNodeTypes', async () => {
     await expect(
-      executeWorkflowFromFile(testFile, { execute: true }, { workflowName: 'usesForeignGate' }),
+      executeWorkflow({ filePath: testFile, params: { execute: true }, workflowName: 'usesForeignGate' }),
     ).rejects.toThrow(/gate|port/i);
   });
 
   it('executes the foreign-gate workflow WHEN externalNodeTypes is supplied', async () => {
-    const result = await executeWorkflowFromFile(
-      testFile,
-      { execute: true },
-      { workflowName: 'usesForeignGate', externalNodeTypes: [FOREIGN_GATE] },
-    );
+    const result = await executeWorkflow({ filePath: testFile, params: { execute: true }, workflowName: 'usesForeignGate', externalNodeTypes: [FOREIGN_GATE] });
     const out = result.result as Record<string, unknown>;
     expect(out.onSuccess).toBe(true);
     expect(out.passed).toBe('OK');

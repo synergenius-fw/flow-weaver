@@ -10,6 +10,7 @@
 
 import type { GeneratedExecutionContext } from './ExecutionContext';
 import type { CheckpointWriter } from './checkpoint';
+import { CancellationError } from './CancellationError';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -145,6 +146,7 @@ export class DebugController {
 
     if (shouldPause) {
       const action = await this.pause(nodeId, 'before', ctx);
+      ctx.checkAborted(nodeId);
       if (action.type === 'abort') {
         throw new Error(`Debug session aborted at node "${nodeId}"`);
       }
@@ -177,6 +179,7 @@ export class DebugController {
     // Pause after node in step mode
     if (this.mode === 'step') {
       const action = await this.pause(nodeId, 'after', ctx);
+      ctx.checkAborted(nodeId);
       if (action.type === 'abort') {
         throw new Error(`Debug session aborted after node "${nodeId}"`);
       }
@@ -273,14 +276,46 @@ export class DebugController {
     phase: 'before' | 'after',
     ctx: GeneratedExecutionContext
   ): Promise<DebugResumeAction> {
+    const abortSignal = ctx.getAbortSignal();
+    if (abortSignal?.aborted) {
+      throw new CancellationError(
+        `Workflow execution cancelled at debug ${phase} gate for node "${nodeId}"`,
+        0,
+        nodeId
+      );
+    }
+
     const state = this.buildState(nodeId, phase, ctx);
 
     // Signal the executor that we're paused
     this._pauseResolve?.(state);
 
-    // Suspend on a gate Promise until resume() is called
-    return new Promise<DebugResumeAction>((resolve) => {
-      this._gateResolve = (action) => resolve(action);
+    // Suspend on a gate Promise until resume() or parent cancellation.
+    return new Promise<DebugResumeAction>((resolve, reject) => {
+      let settled = false;
+      const cleanup = () => abortSignal?.removeEventListener('abort', onAbort);
+      const onAbort = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        this._gateResolve = null;
+        reject(
+          new CancellationError(
+            `Workflow execution cancelled at debug ${phase} gate for node "${nodeId}"`,
+            0,
+            nodeId
+          )
+        );
+      };
+
+      this._gateResolve = (action) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(action);
+      };
+      abortSignal?.addEventListener('abort', onAbort, { once: true });
+      if (abortSignal?.aborted) onAbort();
     });
   }
 

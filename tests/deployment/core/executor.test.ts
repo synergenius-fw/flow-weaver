@@ -8,7 +8,7 @@ import type { WorkflowRequest, ExecutionContext } from '../../../src/deployment/
 
 // Mock the underlying workflow executor so we can control what it returns
 vi.mock('../../../src/mcp/workflow-executor.js', () => ({
-  executeWorkflowFromFile: vi.fn(),
+  executeWorkflow: vi.fn(),
 }));
 
 // Mock the workflow registry module
@@ -16,9 +16,9 @@ vi.mock('../../../src/server/workflow-registry.js', () => ({
   WorkflowRegistry: vi.fn(),
 }));
 
-import { executeWorkflowFromFile } from '../../../src/mcp/workflow-executor.js';
+import { executeWorkflow } from '../../../src/mcp/workflow-executor.js';
 
-const mockedExecute = vi.mocked(executeWorkflowFromFile);
+const mockedExecute = vi.mocked(executeWorkflow);
 
 function makeRequest(overrides: Partial<WorkflowRequest> = {}): WorkflowRequest {
   return {

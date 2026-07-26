@@ -215,6 +215,8 @@ export type TNodeTypeAST = {
   executeWhen: TExecuteWhen;
   /** Whether the function is declared async */
   isAsync: boolean;
+  /** Engine appends the execution AbortSignal after declared node inputs. */
+  receivesAbortSignal?: boolean;
   /** Default configuration for instances */
   defaultConfig?: TNodeTypeDefaultConfig;
   /** Single scope name (e.g., 'iteration' for forEach) */

@@ -59,6 +59,7 @@ type TErrorLogEvent = {
   side?: "start" | "exit";
   executionIndex: number;
   error: string;
+  code?: string;
   innerFlowInvocation?: boolean;
 };
 
@@ -301,6 +302,10 @@ class GeneratedExecutionContext {
     return this.abortSignal?.aborted ?? false;
   }
 
+  getAbortSignal(): AbortSignal | undefined {
+    return this.abortSignal;
+  }
+
   checkAborted(nodeId?: string): void {
     if (this.abortSignal?.aborted) {
       throw new CancellationError(
@@ -348,6 +353,7 @@ class GeneratedExecutionContext {
     side?: "start" | "exit";
     executionIndex: number;
     error: string;
+    code?: string;
   }): Promise<void> {
     if (this.flowWeaverDebugger) {
       await this.flowWeaverDebugger.sendEvent({
@@ -461,8 +467,8 @@ export async function crossFileWorkflow(
 
     let parserIdx: number | undefined;
     let runnerIdx: number | undefined;
-
     let parser_success = false;
+
 
     if (await __ctrl__.beforeNode('parser', ctx)) {
 
@@ -510,6 +516,7 @@ export async function crossFileWorkflow(
             id: 'parser',
             executionIndex: parserIdx,
             error: error instanceof Error ? error.message : String(error),
+            code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,
           });
           await ctx.setVariable({ id: 'parser', portName: 'onSuccess', executionIndex: parserIdx, nodeTypeName: 'parseConfig' }, false);
           await ctx.setVariable({ id: 'parser', portName: 'onFailure', executionIndex: parserIdx, nodeTypeName: 'parseConfig' }, true);
@@ -537,7 +544,7 @@ export async function crossFileWorkflow(
         });
 
         try {
-          const runner_execute = await ctx.getVariable({ id: 'parser', portName: 'onSuccess', executionIndex: parserIdx! }) as boolean;
+          const runner_execute = parserIdx !== undefined ? await ctx.getVariable({ id: 'parser', portName: 'onSuccess', executionIndex: parserIdx }) as boolean : false;
           await ctx.setVariable({ id: 'runner', portName: 'execute', executionIndex: runnerIdx, nodeTypeName: 'runTask' }, runner_execute);
           const runner_config = await ctx.getVariable({ id: 'parser', portName: 'config', executionIndex: parserIdx! }) as Parameters<typeof runTask>[1];
           await ctx.setVariable({ id: 'runner', portName: 'config', executionIndex: runnerIdx, nodeTypeName: 'runTask' }, runner_config);
@@ -566,6 +573,7 @@ export async function crossFileWorkflow(
               id: 'runner',
               executionIndex: runnerIdx,
               error: error instanceof Error ? error.message : String(error),
+              code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,
             });
             await ctx.setVariable({ id: 'runner', portName: 'onSuccess', executionIndex: runnerIdx, nodeTypeName: 'runTask' }, false);
             await ctx.setVariable({ id: 'runner', portName: 'onFailure', executionIndex: runnerIdx, nodeTypeName: 'runTask' }, true);
@@ -587,6 +595,7 @@ export async function crossFileWorkflow(
         status: 'CANCELLED',
       });
     }
+    ctx.checkAborted('Exit');
     const exitIdx = ctx.addExecution('Exit');
     const exit_output = runnerIdx !== undefined ? await ctx.getVariable({ id: 'runner', portName: 'result', executionIndex: runnerIdx }) : undefined;
     await ctx.setVariable({ id: 'Exit', portName: 'output', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_output);
@@ -594,7 +603,7 @@ export async function crossFileWorkflow(
     await ctx.setVariable({ id: 'Exit', portName: 'onSuccess', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_onSuccess);
 
     await ctx.setVariable({ id: 'Exit', portName: 'onFailure', executionIndex: exitIdx, nodeTypeName: 'Exit' }, false);
-    const finalResult = { onFailure: false, output: exit_output as string, onSuccess: exit_onSuccess as boolean };
+    const finalResult = { onSuccess: exit_onSuccess as boolean, onFailure: false, output: exit_output as string };
 
     await ctx.sendStatusChangedEvent({
       nodeTypeName: 'Exit',

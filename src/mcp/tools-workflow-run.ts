@@ -11,7 +11,7 @@
 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { executeWorkflowFromFile } from './workflow-executor.js';
+import { executeWorkflow } from './workflow-executor.js';
 import { AgentChannel } from './agent-channel.js';
 import {
   storePendingRun,
@@ -80,15 +80,13 @@ export async function runWorkflowWithAgent(
   const agentChannel = new AgentChannel();
   const runId = generateRunId();
 
-  const executionPromise = executeWorkflowFromFile(
+  const executionPromise = executeWorkflow({
     filePath,
     params,
-    {
-      workflowName,
-      agentChannel,
-      includeTrace: true,
-    },
-  );
+    workflowName,
+    agentChannel,
+    includeTrace: true,
+  });
 
   const outcome = await raceAgentPause(executionPromise, agentChannel);
 

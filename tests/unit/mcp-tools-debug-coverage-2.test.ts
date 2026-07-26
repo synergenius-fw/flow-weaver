@@ -4,7 +4,7 @@
  * success/error paths with live sessions) and 567-620 (fw_resume_from_checkpoint
  * debug-mode and non-debug completion paths).
  *
- * Mocks executeWorkflowFromFile, checkpoint utilities, parseWorkflow, and
+ * Mocks executeWorkflow, checkpoint utilities, parseWorkflow, and
  * getTopologicalOrder so we can control execution outcomes without compiling
  * real workflows.
  */
@@ -29,7 +29,7 @@ vi.mock('fs', async (importOriginal) => {
 });
 
 vi.mock('../../src/mcp/workflow-executor', () => ({
-  executeWorkflowFromFile: vi.fn(),
+  executeWorkflow: vi.fn(),
 }));
 
 vi.mock('../../src/runtime/checkpoint', () => {
@@ -327,7 +327,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
     it('should return completed when workflow finishes immediately', async () => {
       const { parseWorkflow } = await import('../../src/api/index');
       const { getTopologicalOrder } = await import('../../src/api/query');
-      const { executeWorkflowFromFile } = await import('../../src/mcp/workflow-executor');
+      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
 
       vi.mocked(parseWorkflow).mockResolvedValue({
         ast: {} as any,
@@ -337,7 +337,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
         allWorkflows: [],
       });
       vi.mocked(getTopologicalOrder).mockReturnValue(['nodeA']);
-      vi.mocked(executeWorkflowFromFile).mockResolvedValue({ result: 'instant', functionName: 'test', executionTime: 0 });
+      vi.mocked(executeWorkflow).mockResolvedValue({ result: 'instant', functionName: 'test', executionTime: 0 });
 
       // Mock onPause to never resolve so the completed promise wins the race
       vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
@@ -356,7 +356,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
     it('should return error when execution rejects immediately', async () => {
       const { parseWorkflow } = await import('../../src/api/index');
       const { getTopologicalOrder } = await import('../../src/api/query');
-      const { executeWorkflowFromFile } = await import('../../src/mcp/workflow-executor');
+      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
 
       vi.mocked(parseWorkflow).mockResolvedValue({
         ast: {} as any,
@@ -366,7 +366,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
         allWorkflows: [],
       });
       vi.mocked(getTopologicalOrder).mockReturnValue(['nodeA']);
-      vi.mocked(executeWorkflowFromFile).mockRejectedValue(new Error('exec failed'));
+      vi.mocked(executeWorkflow).mockRejectedValue(new Error('exec failed'));
 
       vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
 
@@ -392,7 +392,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
   describe('fw_resume_from_checkpoint with debug mode', () => {
     it('should return paused state with debug info when resuming in debug mode', async () => {
       const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
-      const { executeWorkflowFromFile } = await import('../../src/mcp/workflow-executor');
+      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
 
       vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/.fw-checkpoints/ckpt.json');
       vi.mocked(loadCheckpoint).mockReturnValue({
@@ -403,7 +403,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
       });
 
       // Return a never-resolving promise so onPause wins the race
-      vi.mocked(executeWorkflowFromFile).mockReturnValue(new Promise(() => {}));
+      vi.mocked(executeWorkflow).mockReturnValue(new Promise(() => {}));
 
       const pauseState = {
         currentNodeId: 'nodeC',
@@ -434,7 +434,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
 
     it('should return completed when resume debug finishes immediately', async () => {
       const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
-      const { executeWorkflowFromFile } = await import('../../src/mcp/workflow-executor');
+      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
 
       vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/.fw-checkpoints/ckpt.json');
       vi.mocked(loadCheckpoint).mockReturnValue({
@@ -448,7 +448,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
         skipNodes: new Map([['nodeA', {}]]),
       });
 
-      vi.mocked(executeWorkflowFromFile).mockResolvedValue({ result: 'resumed-ok', functionName: 'test', executionTime: 0 });
+      vi.mocked(executeWorkflow).mockResolvedValue({ result: 'resumed-ok', functionName: 'test', executionTime: 0 });
       vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
 
       const result = await tools['fw_resume_from_checkpoint']({
@@ -466,7 +466,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
 
     it('should return error when resume debug execution fails', async () => {
       const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
-      const { executeWorkflowFromFile } = await import('../../src/mcp/workflow-executor');
+      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
 
       vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/.fw-checkpoints/ckpt.json');
       vi.mocked(loadCheckpoint).mockReturnValue({
@@ -486,7 +486,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
       const execPromise = new Promise((_resolve, reject) => {
         rejectFn = reject;
       });
-      vi.mocked(executeWorkflowFromFile).mockReturnValue(execPromise as any);
+      vi.mocked(executeWorkflow).mockReturnValue(execPromise as any);
       vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
 
       // Start the tool call, then reject
@@ -511,7 +511,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
   describe('fw_resume_from_checkpoint non-debug mode', () => {
     it('should run to completion and clean up checkpoint', async () => {
       const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
-      const { executeWorkflowFromFile } = await import('../../src/mcp/workflow-executor');
+      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
 
       vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/.fw-checkpoints/ckpt.json');
       vi.mocked(loadCheckpoint).mockReturnValue({
@@ -521,7 +521,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
         skipNodes: new Map([['nodeA', { out: 'v' }]]),
       });
 
-      vi.mocked(executeWorkflowFromFile).mockResolvedValue({ result: 'final', functionName: 'test', executionTime: 0 });
+      vi.mocked(executeWorkflow).mockResolvedValue({ result: 'final', functionName: 'test', executionTime: 0 });
 
       const result = await tools['fw_resume_from_checkpoint']({
         filePath: '/fake/workflow.ts',
@@ -539,7 +539,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
 
     it('should handle result without .result property', async () => {
       const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
-      const { executeWorkflowFromFile } = await import('../../src/mcp/workflow-executor');
+      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
 
       vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/ckpt.json');
       vi.mocked(loadCheckpoint).mockReturnValue({
@@ -555,7 +555,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
       });
 
       // Return a value that has no .result property
-      vi.mocked(executeWorkflowFromFile).mockResolvedValue('bare-value' as any);
+      vi.mocked(executeWorkflow).mockResolvedValue('bare-value' as any);
 
       const result = await tools['fw_resume_from_checkpoint']({
         filePath: '/fake/workflow.ts',

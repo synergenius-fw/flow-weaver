@@ -10,15 +10,15 @@ import * as path from 'path';
 import { describe, it, expect } from 'vitest';
 import { parser } from '../../src/parser';
 import { generateCode } from '../../src/api/generate';
-import { executeWorkflowFromFile } from '../../src/mcp/workflow-executor';
+import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 const FIXTURE_PATH = path.resolve(__dirname, '../fixtures/cancelled-branch-step-read.ts');
 
 describe('cancelled branch STEP port read', () => {
   it('runs main path without crashing (alt path CANCELLED)', async () => {
-    const result = await executeWorkflowFromFile(FIXTURE_PATH, {
-      ctx: JSON.stringify({ mode: 'main' }),
-    });
+    const result = await executeWorkflow({ filePath: FIXTURE_PATH, params: {
+          ctx: JSON.stringify({ mode: 'main' }),
+        } });
 
     expect(result.result).toBeDefined();
     const output = result.result as { onSuccess: boolean; result: string };
