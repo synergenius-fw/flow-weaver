@@ -191,6 +191,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@synergenius/flow-weaver-baseline": "npm:@synergenius/flow-weaver@0.34.10",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
