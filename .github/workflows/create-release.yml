@@ -60,24 +60,12 @@ jobs:
             echo "@fw:registry=https://npm.example.com/"
           } > ~/.npmrc
 
-      # npm itself authenticates fine with _auth (metadata + publish succeed),
-      # but `npm whoami` returns empty under basic-auth, so the preinstall
-      # guard (scripts/check-npm-auth.mjs) misfires and aborts the install.
-      # Skip it here exactly as the Console release workflow does.
       - run: npm install
-        env:
-          SYNERGENIUS_SKIP_AUTH_CHECK: '1'
 
       - name: Verify README exists
         run: |
           if [ ! -f README.md ]; then echo "ERROR: README.md missing" && exit 1; fi
           echo "README.md exists ($(wc -c < README.md) bytes)"
-
-      - name: Strip preinstall from published package.json
-        # Hook is dev-only; scripts/check-npm-auth.mjs lives only in the repo,
-        # not in the published tarball, so a consumer's npm install would hit
-        # MODULE_NOT_FOUND on the missing script.
-        run: npm pkg delete scripts.preinstall
 
       - name: Pack, verify, and publish to Verdaccio
         run: |
@@ -91,6 +79,7 @@ jobs:
           TARBALL="$PACKDIR/$TARBALL_NAME"
           echo "Tarball: $TARBALL"
           tar -tzf "$TARBALL" | grep README.md || (echo "ERROR: README.md not in tarball" && exit 1)
+          node scripts/verify-packed-executor-channel.mjs "$TARBALL"
           npm publish "$TARBALL"
           rm -rf "$PACKDIR"
 

@@ -26,12 +26,7 @@ jobs:
       - name: Authenticate to private Verdaccio
         run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
-      # NPM_TOKEN is basic-auth, under which `npm whoami` returns empty even
-      # when auth works, so the preinstall guard (scripts/check-npm-auth.mjs)
-      # misfires and aborts install. Skip it, exactly as create-release.yml does.
       - run: npm ci
-        env:
-          SYNERGENIUS_SKIP_AUTH_CHECK: '1'
 
       - name: Detect release PR
         id: detect
@@ -44,6 +39,12 @@ jobs:
 
       - run: npm run typecheck
       - run: npm run build
+      - name: Verify packed executor-channel
+        run: |
+          PACKDIR=$(mktemp -d)
+          TARBALL_NAME=$(npm pack --pack-destination "$PACKDIR" --silent | tail -n1)
+          node scripts/verify-packed-executor-channel.mjs "$PACKDIR/$TARBALL_NAME"
+          rm -rf "$PACKDIR"
 
   test:
     needs: build
@@ -65,8 +66,6 @@ jobs:
         run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - run: npm ci
-        env:
-          SYNERGENIUS_SKIP_AUTH_CHECK: '1'
 
       - name: Run tests (shard ${{ matrix.shard }}/3)
         run: npx vitest run --shard=${{ matrix.shard }}/3 --reporter=default
@@ -96,8 +95,6 @@ jobs:
         run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - run: npm ci
-        env:
-          SYNERGENIUS_SKIP_AUTH_CHECK: '1'
 
       - name: Run tests with coverage
         run: npx vitest run --reporter=default --reporter=json --outputFile=test-results.json --coverage
@@ -126,7 +123,7 @@ jobs:
           gistID: ${{ secrets.GIST_ID }}
           filename: flow-weaver-test-count.json
           label: tests
-          message: "${{ steps.test-count.outputs.passed }} passed"
+          message: '${{ steps.test-count.outputs.passed }} passed'
           color: brightgreen
 
   check:
