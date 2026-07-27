@@ -1,14 +1,15 @@
-import { createHash } from 'node:crypto';
-import { VERSION } from '../generated-version.js';
+import { createHash } from "node:crypto";
+import { VERSION } from "../generated-version.js";
+import { parseStrictJson, StrictJsonError } from "./strict-json.js";
 
 export const CONTINUATION_FORMAT_VERSION = 1 as const;
-export const GENERATOR_ABI = 'flow-weaver-generated-v2' as const;
+export const GENERATOR_ABI = "flow-weaver-generated-v2" as const;
 export const MAX_CONTINUATION_BYTES = 1024 * 1024;
 export const MAX_CONTINUATION_DEPTH = 32;
 export const MAX_CONTINUATION_ENTRIES = 10_000;
 export const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-export type DurableGateKind = 'approval' | 'input' | 'agent';
+export type DurableGateKind = "approval" | "input" | "agent";
 
 export type WireValue =
   | null
@@ -145,18 +146,18 @@ export interface ContinuationGraphCompatibility {
 }
 
 export type ContinuationRefusalReason =
-  | 'malformed'
-  | 'oversized'
-  | 'unsupported-format'
-  | 'incompatible-engine'
-  | 'incompatible-generator'
-  | 'wrong-workflow'
-  | 'wrong-bundle'
-  | 'wrong-graph'
-  | 'checksum-mismatch'
-  | 'stale-gate'
-  | 'wrong-run'
-  | 'ambiguous-effect';
+  | "malformed"
+  | "oversized"
+  | "unsupported-format"
+  | "incompatible-engine"
+  | "incompatible-generator"
+  | "wrong-workflow"
+  | "wrong-bundle"
+  | "wrong-graph"
+  | "checksum-mismatch"
+  | "stale-gate"
+  | "wrong-run"
+  | "ambiguous-effect";
 
 export interface ContinuationRefusal {
   readonly accepted: false;
@@ -172,20 +173,20 @@ export interface AcceptedContinuation {
 export type DecodedContinuation = AcceptedContinuation | ContinuationRefusal;
 
 const ENVELOPE_KEYS = [
-  'formatVersion',
-  'runId',
-  'gateId',
-  'gateKind',
-  'workflowId',
-  'bundleDigest',
-  'graphFingerprint',
-  'engineVersion',
-  'generatorAbi',
-  'location',
-  'state',
-  'receipts',
-  'createdAt',
-  'checksum',
+  "formatVersion",
+  "runId",
+  "gateId",
+  "gateKind",
+  "workflowId",
+  "bundleDigest",
+  "graphFingerprint",
+  "engineVersion",
+  "generatorAbi",
+  "location",
+  "state",
+  "receipts",
+  "createdAt",
+  "checksum",
 ] as const;
 
 const acceptedContinuations = new WeakSet<object>();
@@ -193,7 +194,7 @@ const acceptedContinuations = new WeakSet<object>();
 export function cloneAndFreezeWireValue<T extends WireValue>(value: T): T {
   const cloned = JSON.parse(canonicalize(value)) as T;
   const freeze = (entry: WireValue): void => {
-    if (typeof entry !== 'object' || entry === null) return;
+    if (typeof entry !== "object" || entry === null) return;
     for (const child of Array.isArray(entry) ? entry : Object.values(entry)) {
       freeze(child);
     }
@@ -208,14 +209,14 @@ export function assertAcceptedContinuation(
 ): asserts value is AcceptedContinuationEnvelope {
   if (!acceptedContinuations.has(value)) {
     throw new Error(
-      'ContinuationEnvelope must come from a successful decodeContinuation result',
+      "ContinuationEnvelope must come from a successful decodeContinuation result",
     );
   }
 }
 
 class WireValidationError extends Error {
   constructor(
-    readonly reason: 'malformed' | 'oversized',
+    readonly reason: "malformed" | "oversized",
     message: string,
   ) {
     super(message);
@@ -229,7 +230,7 @@ interface ValidationBudget {
 }
 
 function utf8Bytes(value: string): number {
-  return Buffer.byteLength(value, 'utf8');
+  return Buffer.byteLength(value, "utf8");
 }
 
 function assertWireValue(
@@ -239,66 +240,98 @@ function assertWireValue(
   budget: ValidationBudget,
 ): asserts value is WireValue {
   if (depth > MAX_CONTINUATION_DEPTH) {
-    throw new WireValidationError('oversized', `${path} exceeds maximum depth`);
+    throw new WireValidationError("oversized", `${path} exceeds maximum depth`);
   }
 
   budget.entries++;
   if (budget.entries > MAX_CONTINUATION_ENTRIES) {
-    throw new WireValidationError('oversized', 'continuation exceeds aggregate entry limit');
+    throw new WireValidationError(
+      "oversized",
+      "continuation exceeds aggregate entry limit",
+    );
   }
 
-  if (value === null || typeof value === 'boolean') return;
-  if (typeof value === 'number') {
+  if (value === null || typeof value === "boolean") return;
+  if (typeof value === "number") {
     if (!Number.isFinite(value)) {
-      throw new WireValidationError('malformed', `${path} contains a non-finite number`);
+      throw new WireValidationError(
+        "malformed",
+        `${path} contains a non-finite number`,
+      );
     }
     return;
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const bytes = utf8Bytes(value);
     if (bytes > MAX_CONTINUATION_STRING_BYTES) {
-      throw new WireValidationError('oversized', `${path} exceeds maximum string size`);
+      throw new WireValidationError(
+        "oversized",
+        `${path} exceeds maximum string size`,
+      );
     }
     budget.bytes += bytes;
     if (budget.bytes > MAX_CONTINUATION_BYTES) {
-      throw new WireValidationError('oversized', 'continuation exceeds maximum wire size');
+      throw new WireValidationError(
+        "oversized",
+        "continuation exceeds maximum wire size",
+      );
     }
     return;
   }
   if (
     value === undefined ||
-    typeof value === 'bigint' ||
-    typeof value === 'symbol' ||
-    typeof value === 'function'
+    typeof value === "bigint" ||
+    typeof value === "symbol" ||
+    typeof value === "function"
   ) {
-    throw new WireValidationError('malformed', `${path} is not a plain wire value`);
+    throw new WireValidationError(
+      "malformed",
+      `${path} is not a plain wire value`,
+    );
   }
   if (budget.seen.has(value)) {
-    throw new WireValidationError('malformed', `${path} contains a cycle or repeated object`);
+    throw new WireValidationError(
+      "malformed",
+      `${path} contains a cycle or repeated object`,
+    );
   }
   budget.seen.add(value);
 
   if (Array.isArray(value)) {
     if (Object.getOwnPropertySymbols(value).length > 0) {
-      throw new WireValidationError('malformed', `${path} contains a symbol property`);
+      throw new WireValidationError(
+        "malformed",
+        `${path} contains a symbol property`,
+      );
     }
     const descriptors = Object.getOwnPropertyDescriptors(value);
     for (const [key, descriptor] of Object.entries(descriptors)) {
-      if (key === 'length') continue;
+      if (key === "length") continue;
       if (
         !/^(0|[1-9]\d*)$/.test(key) ||
         descriptor.get ||
         descriptor.set ||
         !descriptor.enumerable
       ) {
-        throw new WireValidationError('malformed', `${path} contains an accessor or property`);
+        throw new WireValidationError(
+          "malformed",
+          `${path} contains an accessor or property`,
+        );
       }
     }
     for (let index = 0; index < value.length; index++) {
       if (!Object.hasOwn(descriptors, String(index))) {
-        throw new WireValidationError('malformed', `${path} contains a sparse array`);
+        throw new WireValidationError(
+          "malformed",
+          `${path} contains a sparse array`,
+        );
       }
-      assertWireValue(descriptors[String(index)].value, `${path}[${index}]`, depth + 1, budget);
+      assertWireValue(
+        descriptors[String(index)].value,
+        `${path}[${index}]`,
+        depth + 1,
+        budget,
+      );
     }
     budget.seen.delete(value);
     return;
@@ -306,22 +339,31 @@ function assertWireValue(
 
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) {
-    throw new WireValidationError('malformed', `${path} contains a class or host object`);
+    throw new WireValidationError(
+      "malformed",
+      `${path} contains a class or host object`,
+    );
   }
   if (Object.getOwnPropertySymbols(value).length > 0) {
-    throw new WireValidationError('malformed', `${path} contains a symbol property`);
+    throw new WireValidationError(
+      "malformed",
+      `${path} contains a symbol property`,
+    );
   }
   const descriptors = Object.getOwnPropertyDescriptors(value);
   for (const [key, descriptor] of Object.entries(descriptors)) {
     if (descriptor.get || descriptor.set || !descriptor.enumerable) {
       throw new WireValidationError(
-        'malformed',
+        "malformed",
         `${path}.${key} is an accessor or non-enumerable property`,
       );
     }
     const keyBytes = utf8Bytes(key);
     if (keyBytes > MAX_CONTINUATION_STRING_BYTES) {
-      throw new WireValidationError('oversized', `${path} contains an oversized key`);
+      throw new WireValidationError(
+        "oversized",
+        `${path} contains an oversized key`,
+      );
     }
     budget.bytes += keyBytes;
     assertWireValue(descriptor.value, `${path}.${key}`, depth + 1, budget);
@@ -330,7 +372,7 @@ function assertWireValue(
 }
 
 export function validateWireValue(value: unknown): asserts value is WireValue {
-  assertWireValue(value, '$', 0, { entries: 0, bytes: 0, seen: new Set() });
+  assertWireValue(value, "$", 0, { entries: 0, bytes: 0, seen: new Set() });
 }
 
 export function durableGateId(
@@ -338,26 +380,30 @@ export function durableGateId(
   kind: DurableGateKind,
   address: ExecutionAddress,
 ): string {
-  return createHash('sha256')
+  return createHash("sha256")
     .update(runId)
-    .update('\0')
+    .update("\0")
     .update(kind)
-    .update('\0')
+    .update("\0")
     .update(executionAddressKey(address))
-    .digest('hex');
+    .digest("hex");
 }
 
 function canonicalize(value: WireValue): string {
-  if (value === null || typeof value === 'boolean' || typeof value === 'number') {
+  if (
+    value === null ||
+    typeof value === "boolean" ||
+    typeof value === "number"
+  ) {
     return JSON.stringify(value);
   }
-  if (typeof value === 'string') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`;
+  if (typeof value === "string") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
   const record = value as { readonly [key: string]: WireValue };
   return `{${Object.keys(record)
     .sort()
     .map((key) => `${JSON.stringify(key)}:${canonicalize(record[key])}`)
-    .join(',')}}`;
+    .join(",")}}`;
 }
 
 export function canonicalWireValue(value: unknown): string {
@@ -376,13 +422,19 @@ function withoutChecksum(envelope: ContinuationEnvelope): WireValue {
 
 export function continuationChecksum(envelope: ContinuationEnvelope): string {
   validateWireValue(withoutChecksum(envelope));
-  return createHash('sha256').update(canonicalize(withoutChecksum(envelope))).digest('hex');
+  return createHash("sha256")
+    .update(canonicalize(withoutChecksum(envelope)))
+    .digest("hex");
 }
 
 export function createContinuationEnvelope(
   fields: Omit<
     ContinuationEnvelope,
-    'formatVersion' | 'engineVersion' | 'generatorAbi' | 'createdAt' | 'checksum'
+    | "formatVersion"
+    | "engineVersion"
+    | "generatorAbi"
+    | "createdAt"
+    | "checksum"
   > & {
     readonly engineVersion?: string;
     readonly generatorAbi?: string;
@@ -403,9 +455,11 @@ export function createContinuationEnvelope(
     state: fields.state,
     receipts: fields.receipts,
     createdAt: fields.createdAt ?? new Date().toISOString(),
-  } satisfies Omit<ContinuationEnvelope, 'checksum'>;
+  } satisfies Omit<ContinuationEnvelope, "checksum">;
   validateWireValue(unsigned);
-  const envelope = Object.assign({}, unsigned, { checksum: '' }) as ContinuationEnvelope;
+  const envelope = Object.assign({}, unsigned, {
+    checksum: "",
+  }) as ContinuationEnvelope;
   return { ...envelope, checksum: continuationChecksum(envelope) };
 }
 
@@ -416,30 +470,37 @@ function refusal(
   return { accepted: false, reason, message };
 }
 
-function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+function hasExactKeys(
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean {
   const actual = Object.keys(value).sort();
   const expected = [...keys].sort();
-  return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
+  return (
+    actual.length === expected.length &&
+    actual.every((key, index) => key === expected[index])
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
 function isGraphBranchPath(
   value: unknown,
-): value is ContinuationGraphNode['branchPath'] {
+): value is ContinuationGraphNode["branchPath"] {
   return (
     Array.isArray(value) &&
     value.every(
       (requirement) =>
         isRecord(requirement) &&
-        hasExactKeys(requirement, ['nodeId', 'arm']) &&
-        typeof requirement.nodeId === 'string' &&
+        hasExactKeys(requirement, ["nodeId", "arm"]) &&
+        typeof requirement.nodeId === "string" &&
         requirement.nodeId.length > 0 &&
-        typeof requirement.arm === 'string' &&
+        typeof requirement.arm === "string" &&
         requirement.arm.length > 0,
     )
   );
@@ -458,7 +519,7 @@ function hasRequiredAndOptionalKeys(
 }
 
 function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 function isFrame(value: unknown): value is WorkflowFrameAddress {
@@ -466,17 +527,19 @@ function isFrame(value: unknown): value is WorkflowFrameAddress {
     isRecord(value) &&
     hasRequiredAndOptionalKeys(
       value,
-      ['workflowId', 'invocation'],
-      ['callerNodeId', 'callerExecutionIndex'],
+      ["workflowId", "invocation"],
+      ["callerNodeId", "callerExecutionIndex"],
     ) &&
-    typeof value.workflowId === 'string' &&
+    typeof value.workflowId === "string" &&
     value.workflowId.length > 0 &&
     isNonNegativeInteger(value.invocation) &&
-    (value.callerNodeId === undefined || typeof value.callerNodeId === 'string') &&
+    (value.callerNodeId === undefined ||
+      typeof value.callerNodeId === "string") &&
     (value.callerExecutionIndex === undefined ||
       isNonNegativeInteger(value.callerExecutionIndex)) &&
-    ((value.callerNodeId === undefined && value.callerExecutionIndex === undefined) ||
-      (typeof value.callerNodeId === 'string' &&
+    ((value.callerNodeId === undefined &&
+      value.callerExecutionIndex === undefined) ||
+      (typeof value.callerNodeId === "string" &&
         isNonNegativeInteger(value.callerExecutionIndex)))
   );
 }
@@ -486,24 +549,32 @@ function isScope(value: unknown): value is ScopeAddress {
     isRecord(value) &&
     hasRequiredAndOptionalKeys(
       value,
-      ['parentNodeId', 'parentExecutionIndex', 'scopeName', 'invocation'],
-      ['loopIteration', 'branchArm'],
+      ["parentNodeId", "parentExecutionIndex", "scopeName", "invocation"],
+      ["loopIteration", "branchArm"],
     ) &&
-    typeof value.parentNodeId === 'string' &&
+    typeof value.parentNodeId === "string" &&
     value.parentNodeId.length > 0 &&
     isNonNegativeInteger(value.parentExecutionIndex) &&
-    typeof value.scopeName === 'string' &&
+    typeof value.scopeName === "string" &&
     value.scopeName.length > 0 &&
     isNonNegativeInteger(value.invocation) &&
-    (value.loopIteration === undefined || isNonNegativeInteger(value.loopIteration)) &&
-    (value.branchArm === undefined || typeof value.branchArm === 'string')
+    (value.loopIteration === undefined ||
+      isNonNegativeInteger(value.loopIteration)) &&
+    (value.branchArm === undefined || typeof value.branchArm === "string")
   );
 }
 
 function isAddress(value: unknown): value is ExecutionAddress {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['frames', 'scopes', 'branches', 'nodeId', 'nodeType', 'executionIndex']) &&
+    hasExactKeys(value, [
+      "frames",
+      "scopes",
+      "branches",
+      "nodeId",
+      "nodeType",
+      "executionIndex",
+    ]) &&
     Array.isArray(value.frames) &&
     value.frames.length > 0 &&
     value.frames.every(isFrame) &&
@@ -514,24 +585,24 @@ function isAddress(value: unknown): value is ExecutionAddress {
       (branch) =>
         isRecord(branch) &&
         hasExactKeys(branch, [
-          'workflowId',
-          'frameDepth',
-          'nodeId',
-          'executionIndex',
-          'arm',
+          "workflowId",
+          "frameDepth",
+          "nodeId",
+          "executionIndex",
+          "arm",
         ]) &&
-        typeof branch.workflowId === 'string' &&
+        typeof branch.workflowId === "string" &&
         branch.workflowId.length > 0 &&
         isNonNegativeInteger(branch.frameDepth) &&
-        typeof branch.nodeId === 'string' &&
+        typeof branch.nodeId === "string" &&
         branch.nodeId.length > 0 &&
         isNonNegativeInteger(branch.executionIndex) &&
-        typeof branch.arm === 'string' &&
+        typeof branch.arm === "string" &&
         branch.arm.length > 0,
     ) &&
-    typeof value.nodeId === 'string' &&
+    typeof value.nodeId === "string" &&
     value.nodeId.length > 0 &&
-    typeof value.nodeType === 'string' &&
+    typeof value.nodeType === "string" &&
     value.nodeType.length > 0 &&
     isNonNegativeInteger(value.executionIndex)
   );
@@ -540,9 +611,9 @@ function isAddress(value: unknown): value is ExecutionAddress {
 function isVariable(value: unknown): value is ContinuationVariable {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['address', 'portName', 'value']) &&
+    hasExactKeys(value, ["address", "portName", "value"]) &&
     isAddress(value.address) &&
-    typeof value.portName === 'string' &&
+    typeof value.portName === "string" &&
     value.portName.length > 0
   );
 }
@@ -550,9 +621,9 @@ function isVariable(value: unknown): value is ContinuationVariable {
 function isReceipt(value: unknown): value is EffectReceipt {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['address', 'operationKey', 'receipt']) &&
+    hasExactKeys(value, ["address", "operationKey", "receipt"]) &&
     isAddress(value.address) &&
-    typeof value.operationKey === 'string' &&
+    typeof value.operationKey === "string" &&
     /^[0-9a-f]{64}$/.test(value.operationKey)
   );
 }
@@ -560,7 +631,7 @@ function isReceipt(value: unknown): value is EffectReceipt {
 function isState(value: unknown): value is ContinuationState {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ['completed', 'variables', 'nextBoundary']) &&
+    hasExactKeys(value, ["completed", "variables", "nextBoundary"]) &&
     Array.isArray(value.completed) &&
     value.completed.every(isAddress) &&
     Array.isArray(value.variables) &&
@@ -569,20 +640,22 @@ function isState(value: unknown): value is ContinuationState {
   );
 }
 
-function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelope {
+function structurallyValidEnvelope(
+  value: unknown,
+): value is ContinuationEnvelope {
   if (!isRecord(value) || !hasExactKeys(value, ENVELOPE_KEYS)) return false;
   if (
-    typeof value.formatVersion !== 'number' ||
-    typeof value.runId !== 'string' ||
-    typeof value.gateId !== 'string' ||
-    !['approval', 'input', 'agent'].includes(value.gateKind as string) ||
-    typeof value.workflowId !== 'string' ||
-    typeof value.bundleDigest !== 'string' ||
-    typeof value.graphFingerprint !== 'string' ||
-    typeof value.engineVersion !== 'string' ||
-    typeof value.generatorAbi !== 'string' ||
-    typeof value.createdAt !== 'string' ||
-    typeof value.checksum !== 'string' ||
+    typeof value.formatVersion !== "number" ||
+    typeof value.runId !== "string" ||
+    typeof value.gateId !== "string" ||
+    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    typeof value.workflowId !== "string" ||
+    typeof value.bundleDigest !== "string" ||
+    typeof value.graphFingerprint !== "string" ||
+    typeof value.engineVersion !== "string" ||
+    typeof value.generatorAbi !== "string" ||
+    typeof value.createdAt !== "string" ||
+    typeof value.checksum !== "string" ||
     value.runId.length === 0 ||
     !/^[0-9a-f]{64}$/.test(value.gateId) ||
     value.workflowId.length === 0 ||
@@ -596,7 +669,8 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     !/^[0-9a-f]{64}$/.test(value.graphFingerprint) ||
     !/^[0-9a-f]{64}$/.test(value.checksum) ||
     !isExactIsoUtc(value.createdAt) ||
-    executionAddressKey(value.location) !== executionAddressKey(value.state.nextBoundary)
+    executionAddressKey(value.location) !==
+      executionAddressKey(value.state.nextBoundary)
   ) {
     return false;
   }
@@ -605,7 +679,9 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
 
 function isExactIsoUtc(value: string): boolean {
   const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value;
+  return (
+    Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value
+  );
 }
 
 function graphNodeFor(
@@ -702,8 +778,7 @@ function hasCompleteRequiredPrefix(
     if (boundaryNodeId === undefined) return false;
     const boundaryNode = graph.nodes.find(
       (node) =>
-        node.workflowId === frame.workflowId &&
-        node.nodeId === boundaryNodeId,
+        node.workflowId === frame.workflowId && node.nodeId === boundaryNodeId,
     );
     if (boundaryNode === undefined) return false;
 
@@ -777,7 +852,9 @@ function addressBelongsToGraph(
   }
   const workflowId = address.frames.at(-1)?.workflowId;
   const node = graphNodeForAddress(graph, address);
-  const graphNodeInFrames = (nodeId: string): ContinuationGraphNode | undefined =>
+  const graphNodeInFrames = (
+    nodeId: string,
+  ): ContinuationGraphNode | undefined =>
     address.frames
       .map((frame) =>
         graph.nodes.find(
@@ -792,7 +869,9 @@ function addressBelongsToGraph(
     node === undefined ||
     address.scopes.some((scope) => {
       const parent = graphNodeInFrames(scope.parentNodeId);
-      return parent === undefined || !parent.scopeNames.includes(scope.scopeName);
+      return (
+        parent === undefined || !parent.scopeNames.includes(scope.scopeName)
+      );
     }) ||
     address.branches.some((branch) => {
       const frame = address.frames[branch.frameDepth];
@@ -856,35 +935,57 @@ export function decodeContinuation(
 ): DecodedContinuation {
   let value: unknown = input;
   try {
-    if (typeof input === 'string') {
+    if (typeof input === "string") {
       if (utf8Bytes(input) > MAX_CONTINUATION_BYTES) {
-        return refusal('oversized', 'continuation exceeds maximum wire size');
+        return refusal("oversized", "continuation exceeds maximum wire size");
       }
-      value = JSON.parse(input);
+      value = parseStrictJson(input, {
+        maxDepth: MAX_CONTINUATION_DEPTH,
+        maxStringBytes: MAX_CONTINUATION_STRING_BYTES,
+        maxObjectKeys: MAX_CONTINUATION_ENTRIES,
+        maxArrayItems: MAX_CONTINUATION_ENTRIES,
+        maxAggregateEntries: MAX_CONTINUATION_ENTRIES,
+      });
     }
     validateWireValue(value);
   } catch (error) {
     if (error instanceof WireValidationError) {
       return refusal(error.reason, error.message);
     }
-    return refusal('malformed', 'continuation is not valid JSON');
+    if (error instanceof StrictJsonError) {
+      return refusal(error.code, error.message);
+    }
+    return refusal("malformed", "continuation is not valid JSON");
   }
 
   if (!structurallyValidEnvelope(value)) {
-    return refusal('malformed', 'continuation has missing, unknown, or invalid fields');
+    return refusal(
+      "malformed",
+      "continuation has missing, unknown, or invalid fields",
+    );
   }
   if (value.formatVersion !== CONTINUATION_FORMAT_VERSION) {
-    return refusal('unsupported-format', `unsupported continuation format ${value.formatVersion}`);
+    return refusal(
+      "unsupported-format",
+      `unsupported continuation format ${value.formatVersion}`,
+    );
   }
   if (continuationChecksum(value) !== value.checksum) {
-    return refusal('checksum-mismatch', 'continuation checksum does not match');
+    return refusal("checksum-mismatch", "continuation checksum does not match");
   }
-  if (value.gateId !== durableGateId(value.runId, value.gateKind, value.location)) {
-    return refusal('malformed', 'continuation gate identity does not match its execution address');
+  if (
+    value.gateId !== durableGateId(value.runId, value.gateKind, value.location)
+  ) {
+    return refusal(
+      "malformed",
+      "continuation gate identity does not match its execution address",
+    );
   }
   const graphNodes = compatibility.graph.nodes;
   const graphNodeKeys = new Set(
-    graphNodes.map((node) => `${node.workflowId}\0${node.nodeId}\0${node.nodeType}`),
+    graphNodes.map(
+      (node) => `${node.workflowId}\0${node.nodeId}\0${node.nodeType}`,
+    ),
   );
   const graphOrderKeys = new Set(
     graphNodes.map((node) => `${node.workflowId}\0${node.executionOrder}`),
@@ -908,7 +1009,7 @@ export function decodeContinuation(
           ),
         ).size !== node.branchPath.length ||
         node.branchPath.some(
-          (requirement: ContinuationGraphNode['branchPath'][number]) => {
+          (requirement: ContinuationGraphNode["branchPath"][number]) => {
             const owner = graphNodes.find(
               (candidate) =>
                 candidate.workflowId === node.workflowId &&
@@ -920,11 +1021,11 @@ export function decodeContinuation(
           },
         ) ||
         !Array.isArray(node.predecessors) ||
-        new Set(node.predecessors.map((predecessor) => predecessor.nodeId)).size !==
-          node.predecessors.length ||
+        new Set(node.predecessors.map((predecessor) => predecessor.nodeId))
+          .size !== node.predecessors.length ||
         node.predecessors.some(
           (predecessor) =>
-            typeof predecessor.nodeId !== 'string' ||
+            typeof predecessor.nodeId !== "string" ||
             predecessor.nodeId.length === 0 ||
             predecessor.nodeId === node.nodeId ||
             !isGraphBranchPath(predecessor.branchPath) ||
@@ -941,10 +1042,10 @@ export function decodeContinuation(
                   canonicalWireValue(predecessorNode.branchPath) ||
                 predecessor.branchPath.some(
                   (
-                    requirement: ContinuationGraphPredecessor['branchPath'][number],
+                    requirement: ContinuationGraphPredecessor["branchPath"][number],
                   ) =>
                     !node.branchPath.some(
-                      (active: ContinuationGraphNode['branchPath'][number]) =>
+                      (active: ContinuationGraphNode["branchPath"][number]) =>
                         active.nodeId === requirement.nodeId &&
                         active.arm === requirement.arm,
                     ),
@@ -954,43 +1055,63 @@ export function decodeContinuation(
             new Set(
               predecessor.branchPath.map(
                 (
-                  requirement: ContinuationGraphPredecessor['branchPath'][number],
+                  requirement: ContinuationGraphPredecessor["branchPath"][number],
                 ) => `${requirement.nodeId}\0${requirement.arm}`,
               ),
             ).size !== predecessor.branchPath.length ||
-            predecessor.branchPath.some((
-              requirement: ContinuationGraphPredecessor['branchPath'][number],
-            ) => {
-              const owner = graphNodes.find(
-                (candidate) =>
-                  candidate.workflowId === node.workflowId &&
-                  candidate.nodeId === requirement.nodeId,
-              );
-              return (
-                typeof requirement.nodeId !== 'string' ||
-                typeof requirement.arm !== 'string' ||
-                owner === undefined ||
-                !owner.branchArms.includes(requirement.arm)
-              );
-            }),
+            predecessor.branchPath.some(
+              (
+                requirement: ContinuationGraphPredecessor["branchPath"][number],
+              ) => {
+                const owner = graphNodes.find(
+                  (candidate) =>
+                    candidate.workflowId === node.workflowId &&
+                    candidate.nodeId === requirement.nodeId,
+                );
+                return (
+                  typeof requirement.nodeId !== "string" ||
+                  typeof requirement.arm !== "string" ||
+                  owner === undefined ||
+                  !owner.branchArms.includes(requirement.arm)
+                );
+              },
+            ),
         ),
     ) ||
-    !addressBelongsToGraph(compatibility.graph, compatibility.workflowId, value.location) ||
-    graphNodeForAddress(compatibility.graph, value.location)?.durableGate !== value.gateKind
+    !addressBelongsToGraph(
+      compatibility.graph,
+      compatibility.workflowId,
+      value.location,
+    ) ||
+    graphNodeForAddress(compatibility.graph, value.location)?.durableGate !==
+      value.gateKind
   ) {
-    return refusal('wrong-graph', 'continuation boundary is not owned by the compiled graph');
+    return refusal(
+      "wrong-graph",
+      "continuation boundary is not owned by the compiled graph",
+    );
   }
   const completed = new Set(value.state.completed.map(executionAddressKey));
   if (completed.size !== value.state.completed.length) {
-    return refusal('malformed', 'continuation contains duplicate completed addresses');
+    return refusal(
+      "malformed",
+      "continuation contains duplicate completed addresses",
+    );
   }
   if (
     value.state.completed.some(
       (address) =>
-        !addressBelongsToGraph(compatibility.graph, compatibility.workflowId, address),
+        !addressBelongsToGraph(
+          compatibility.graph,
+          compatibility.workflowId,
+          address,
+        ),
     )
   ) {
-    return refusal('wrong-graph', 'continuation contains an address outside the compiled graph');
+    return refusal(
+      "wrong-graph",
+      "continuation contains an address outside the compiled graph",
+    );
   }
   const boundaryProgress = progressVector(compatibility.graph, value.location);
   if (
@@ -1003,15 +1124,21 @@ export function decodeContinuation(
       ) {
         return true;
       }
-      if (value.location.branches.length === 0 || address.branches.length === 0) {
+      if (
+        value.location.branches.length === 0 ||
+        address.branches.length === 0
+      ) {
         return false;
       }
-      return !isCanonicalAddressPrefix(address.branches, value.location.branches);
+      return !isCanonicalAddressPrefix(
+        address.branches,
+        value.location.branches,
+      );
     })
   ) {
     return refusal(
-      'wrong-graph',
-      'continuation completed state is not a valid execution prefix before its boundary',
+      "wrong-graph",
+      "continuation completed state is not a valid execution prefix before its boundary",
     );
   }
   if (
@@ -1022,15 +1149,18 @@ export function decodeContinuation(
     )
   ) {
     return refusal(
-      'wrong-graph',
-      'continuation is missing a required compiled predecessor before its boundary',
+      "wrong-graph",
+      "continuation is missing a required compiled predecessor before its boundary",
     );
   }
   const variableKeys = new Set<string>();
   for (const variable of value.state.variables) {
     const address = executionAddressKey(variable.address);
     const key = `${address}\0${variable.portName}`;
-    const graphNode = graphNodeForAddress(compatibility.graph, variable.address);
+    const graphNode = graphNodeForAddress(
+      compatibility.graph,
+      variable.address,
+    );
     if (
       !completed.has(address) ||
       variableKeys.has(key) ||
@@ -1038,7 +1168,7 @@ export function decodeContinuation(
       !graphNode.outputPorts.includes(variable.portName)
     ) {
       return refusal(
-        'wrong-graph',
+        "wrong-graph",
         `continuation variable ${variable.address.frames.at(-1)?.workflowId}.${variable.address.nodeId}.${variable.portName} is not a unique graph-owned output of a completed address`,
       );
     }
@@ -1050,12 +1180,13 @@ export function decodeContinuation(
     if (
       receiptAddresses.has(address) ||
       !completed.has(address) ||
-      graphNodeForAddress(compatibility.graph, receipt.address)?.durableEffect !== true ||
+      graphNodeForAddress(compatibility.graph, receipt.address)
+        ?.durableEffect !== true ||
       receipt.operationKey !== operationKey(value.runId, receipt.address)
     ) {
       return refusal(
-        'malformed',
-        'continuation effect receipts must be unique, completed, and match their operation identity',
+        "malformed",
+        "continuation effect receipts must be unique, completed, and match their operation identity",
       );
     }
     receiptAddresses.add(address);
@@ -1063,32 +1194,50 @@ export function decodeContinuation(
   if (
     value.state.completed.some(
       (address) =>
-        graphNodeForAddress(compatibility.graph, address)?.durableEffect === true &&
-        !receiptAddresses.has(executionAddressKey(address)),
+        graphNodeForAddress(compatibility.graph, address)?.durableEffect ===
+          true && !receiptAddresses.has(executionAddressKey(address)),
     )
   ) {
-    return refusal('malformed', 'every completed effect requires its exact durable receipt');
+    return refusal(
+      "malformed",
+      "every completed effect requires its exact durable receipt",
+    );
   }
   if (value.engineVersion !== (compatibility.engineVersion ?? VERSION)) {
-    return refusal('incompatible-engine', 'continuation engine version does not match');
+    return refusal(
+      "incompatible-engine",
+      "continuation engine version does not match",
+    );
   }
   if (value.generatorAbi !== (compatibility.generatorAbi ?? GENERATOR_ABI)) {
-    return refusal('incompatible-generator', 'continuation generator ABI does not match');
+    return refusal(
+      "incompatible-generator",
+      "continuation generator ABI does not match",
+    );
   }
   if (value.runId !== compatibility.runId) {
-    return refusal('wrong-run', 'continuation belongs to another run');
+    return refusal("wrong-run", "continuation belongs to another run");
   }
   if (value.workflowId !== compatibility.workflowId) {
-    return refusal('wrong-workflow', 'continuation belongs to another workflow');
+    return refusal(
+      "wrong-workflow",
+      "continuation belongs to another workflow",
+    );
   }
   if (value.bundleDigest !== compatibility.bundleDigest) {
-    return refusal('wrong-bundle', 'continuation belongs to another bundle');
+    return refusal("wrong-bundle", "continuation belongs to another bundle");
   }
   if (value.graphFingerprint !== compatibility.graphFingerprint) {
-    return refusal('wrong-graph', 'continuation belongs to another workflow graph');
+    return refusal(
+      "wrong-graph",
+      "continuation belongs to another workflow graph",
+    );
   }
-  if (compatibility.gateId !== undefined && value.gateId !== compatibility.gateId) {
-    return refusal('stale-gate', 'continuation gate is stale or reordered');
+  if (
+    compatibility.gateId !== undefined &&
+    value.gateId !== compatibility.gateId
+  ) {
+    return refusal("stale-gate", "continuation gate is stale or reordered");
   }
   const accepted = cloneAndFreezeWireValue(
     value as unknown as WireValue,
@@ -1113,9 +1262,9 @@ function isCanonicalAddressPrefix(
 
 export function operationKey(runId: string, address: ExecutionAddress): string {
   validateWireValue(address);
-  return createHash('sha256')
+  return createHash("sha256")
     .update(runId)
-    .update('\0')
+    .update("\0")
     .update(canonicalize(address as unknown as WireValue))
-    .digest('hex');
+    .digest("hex");
 }

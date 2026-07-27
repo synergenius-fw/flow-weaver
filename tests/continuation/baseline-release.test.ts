@@ -39,7 +39,7 @@ describe("frozen Stitch continuation baseline dependency", () => {
     });
   });
 
-  it("pins the exact A2 candidate engine source tree", () => {
+  it("pins the exact A3 candidate engine source tree", () => {
     expect(() =>
       execFileSync("git", ["diff", "--quiet", "--", "src"], {
         cwd: repositoryRoot,
@@ -50,11 +50,15 @@ describe("frozen Stitch continuation baseline dependency", () => {
       cwd: repositoryRoot,
       encoding: "utf8",
     }).trim();
-    const sourceTree = execFileSync("git", ["rev-parse", `${candidateTree}:src`], {
-      cwd: repositoryRoot,
-      encoding: "utf8",
-    }).trim();
+    const sourceTree = execFileSync(
+      "git",
+      ["rev-parse", `${candidateTree}:src`],
+      {
+        cwd: repositoryRoot,
+        encoding: "utf8",
+      },
+    ).trim();
 
-    expect(sourceTree).toBe("225605b5945c5d5d80cfce815114acd32a60df20");
+    expect(sourceTree).toBe("656ad1578ebdf8e29f9ad30b573c17957bd13760");
   });
 });

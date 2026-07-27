@@ -91,6 +91,10 @@
       "types": "./dist/mcp/workflow-executor.d.ts",
       "default": "./dist/mcp/workflow-executor.js"
     },
+    "./executor-channel": {
+      "types": "./dist/executor-channel/index.d.ts",
+      "default": "./dist/executor-channel/index.js"
+    },
     "./context": {
       "types": "./dist/context/index.d.ts",
       "default": "./dist/context/index.js"
