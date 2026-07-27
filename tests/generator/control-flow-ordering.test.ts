@@ -5,10 +5,7 @@
  * not just STEP (control-flow) connections.
  */
 
-import {
-  buildControlFlowGraph,
-  performKahnsTopologicalSort,
-} from '../../src/generator/control-flow';
+import { buildControlFlowGraph, performKahnsTopologicalSort } from '../../src/generator/control-flow';
 import { parser } from '../../src/parser';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -154,12 +151,19 @@ describe('buildControlFlowGraph — data-flow ordering', () => {
     fs.writeFileSync(tmpFile, DATA_CHAIN_THEN_BRANCH);
 
     try {
-      const result = await compileWorkflow(tmpFile, { write: true, generate: { production: true } });
+      const result = await compileWorkflow(tmpFile, {
+        write: true,
+        generate: { production: true },
+      });
       expect(result.code).toBeDefined();
 
       // Import and execute — must not throw "Cannot access aggIdx before initialization"
       const compiled = await import(tmpFile);
-      const execResult = await compiled.testWorkflow(true, { question: 'hello' });
+      const execResult = await compiled.testWorkflow(
+        true,
+        { question: 'hello' },
+        testHelpers.createRuntime('testWorkflow'),
+      );
 
       // plan returns ['hello'], proc passes through, agg passes through,
       // eval sees sources=['hello'] → onSuccess → goodPath → "GOOD:hello"

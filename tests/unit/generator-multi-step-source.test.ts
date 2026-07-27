@@ -113,7 +113,13 @@ describe('Multi-source step connections', () => {
     const filePath = path.join(tempDir, 'multi-step-exec.ts');
     fs.writeFileSync(filePath, MULTI_STEP_SOURCE_WORKFLOW);
 
-    const result = await executeWorkflow({ filePath: filePath, params: { data: { value: 1 } }, production: true, includeTrace: false });
+    const result = await executeWorkflow({
+      runId: 'test:multi-step-exec',
+      filePath,
+      params: { data: { value: 1 } },
+      production: true,
+      includeTrace: false,
+    });
 
     expect((result as unknown as Record<string, unknown>).error).toBeUndefined();
     expect(result.result).toBeDefined();

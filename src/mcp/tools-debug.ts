@@ -5,9 +5,7 @@ import * as fs from 'fs';
 import { parseWorkflow } from '../api/index.js';
 import { getTopologicalOrder } from '../api/query.js';
 import { DebugController } from '../runtime/debug-controller.js';
-import { CheckpointWriter, loadCheckpoint, findLatestCheckpoint } from '../runtime/checkpoint.js';
 import { executeWorkflow } from './workflow-executor.js';
-import { AgentChannel } from './agent-channel.js';
 import {
   storeDebugSession,
   getDebugSession,
@@ -42,10 +40,26 @@ async function raceDebugPause(
 > {
   try {
     const raceResult = await Promise.race([
-      session.executionPromise.then((r) => ({
-        type: 'completed' as const,
-        result: (r as { result?: unknown })?.result ?? r,
-      })),
+      session.executionPromise.then((result) => {
+        if (
+          typeof result === 'object' &&
+          result !== null &&
+          (result as { kind?: unknown }).kind === 'yielded'
+        ) {
+          throw new Error(
+            'The live debugger is not a durable coordinator and cannot persist a yielded continuation',
+          );
+        }
+        return {
+          type: 'completed' as const,
+          result:
+            typeof result === 'object' &&
+            result !== null &&
+            (result as { kind?: unknown }).kind === 'completed'
+              ? (result as { result?: unknown }).result
+              : result,
+        };
+      }),
       session.controller.onPause().then((state) => ({
         type: 'paused' as const,
         state,
@@ -133,14 +147,12 @@ export function registerDebugTools(mcp: McpServer): void {
         .optional()
         .describe('Parameters to pass to the workflow'),
       breakpoints: z.array(z.string()).optional().describe('Node IDs to set as initial breakpoints'),
-      checkpoint: z.boolean().optional().describe('Enable checkpointing to disk after each node (default: false)'),
     },
     async (args: {
       filePath: string;
       workflowName?: string;
       params?: Record<string, unknown>;
       breakpoints?: string[];
-      checkpoint?: boolean;
     }) => {
       try {
         const debugId = `debug-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -148,36 +160,20 @@ export function registerDebugTools(mcp: McpServer): void {
         // Get execution order from the workflow file
         const executionOrder = await getExecutionOrder(args.filePath, args.workflowName);
 
-        // Set up checkpoint writer if requested
-        let checkpointWriter: CheckpointWriter | undefined;
-        if (args.checkpoint) {
-          checkpointWriter = new CheckpointWriter(
-            args.filePath,
-            args.workflowName ?? 'default',
-            debugId,
-            args.params
-          );
-        }
-
         // Create the debug controller
         const controller = new DebugController({
           debug: true,
-          checkpoint: args.checkpoint ?? false,
-          checkpointWriter,
           breakpoints: args.breakpoints,
           executionOrder,
         });
 
-        // Create agent channel in case the workflow uses waitForAgent
-        const agentChannel = new AgentChannel();
-
         // Start execution (non-blocking: the workflow will pause at the first node)
         const execPromise = executeWorkflow({
+          runId: debugId,
           filePath: args.filePath,
           params: args.params,
           workflowName: args.workflowName,
           includeTrace: true,
-          agentChannel,
           debugController: controller,
         });
 
@@ -491,153 +487,6 @@ export function registerDebugTools(mcp: McpServer): void {
       return makeToolResult({
         breakpoints: session.controller.getBreakpoints(),
       });
-    }
-  );
-
-  // -------------------------------------------------------------------------
-  // fw_resume_from_checkpoint — Resume a crashed workflow
-  // -------------------------------------------------------------------------
-  mcp.tool(
-    'fw_resume_from_checkpoint',
-    'Resume a workflow from a checkpoint file written after a crash. Skips already-completed ' +
-      'nodes and re-runs from the last checkpoint position.',
-    {
-      filePath: z.string().describe('Path to the workflow .ts file'),
-      checkpointFile: z
-        .string()
-        .optional()
-        .describe('Path to the checkpoint file. If omitted, auto-detects the latest.'),
-      workflowName: z
-        .string()
-        .optional()
-        .describe('Workflow function name (for multi-workflow files)'),
-      debug: z
-        .boolean()
-        .optional()
-        .describe('Enter step-through debug mode at the resume point (default: false)'),
-    },
-    async (args: {
-      filePath: string;
-      checkpointFile?: string;
-      workflowName?: string;
-      debug?: boolean;
-    }) => {
-      try {
-        // Find checkpoint file
-        const checkpointPath =
-          args.checkpointFile ?? findLatestCheckpoint(args.filePath, args.workflowName);
-
-        if (!checkpointPath) {
-          return makeErrorResult(
-            'NO_CHECKPOINT',
-            `No checkpoint file found for ${args.filePath}. ` +
-              'Checkpoints are created when running with checkpoint: true.'
-          );
-        }
-
-        // Load and validate checkpoint
-        const { data, stale, rerunNodes, skipNodes } = loadCheckpoint(
-          checkpointPath,
-          args.filePath
-        );
-
-        const skippedCount = data.completedNodes.length - rerunNodes.length;
-
-        // Create debug controller with skip nodes from checkpoint
-        const controller = new DebugController({
-          debug: args.debug ?? false,
-          checkpoint: true,
-          checkpointWriter: new CheckpointWriter(
-            args.filePath,
-            data.workflowName,
-            `resume-${Date.now()}`,
-            data.params
-          ),
-          executionOrder: data.executionOrder,
-          skipNodes,
-        });
-
-        const agentChannel = new AgentChannel();
-
-        // Execute with the skip nodes configured
-        const execPromise = executeWorkflow({
-          filePath: args.filePath,
-          params: data.params,
-          workflowName: data.workflowName,
-          includeTrace: true,
-          agentChannel,
-          debugController: controller,
-        });
-
-        // If debug mode, handle like fw_debug_workflow
-        if (args.debug) {
-          const debugId = `debug-resume-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-          const session: DebugSession = {
-            debugId,
-            filePath: args.filePath,
-            workflowName: data.workflowName,
-            controller,
-            executionPromise: execPromise,
-            createdAt: Date.now(),
-            tmpFiles: [],
-          };
-          storeDebugSession(session);
-
-          const outcome = await raceDebugPause(session);
-
-          if (outcome.type === 'paused') {
-            return makeToolResult({
-              debugId,
-              status: 'paused',
-              resumedFrom: checkpointPath,
-              skippedNodes: skippedCount,
-              ...(rerunNodes.length > 0 && { rerunNodes }),
-              ...(stale && { warning: 'Workflow file has changed since checkpoint was written.' }),
-              state: outcome.state,
-            });
-          }
-
-          if (outcome.type === 'completed') {
-            cleanupDebugSession(debugId);
-            return makeToolResult({
-              status: 'completed',
-              resumedFrom: checkpointPath,
-              skippedNodes: skippedCount,
-              ...(rerunNodes.length > 0 && { rerunNodes }),
-              result: outcome.result,
-            });
-          }
-
-          cleanupDebugSession(debugId);
-          return makeErrorResult('EXECUTION_ERROR', outcome.message);
-        }
-
-        // Non-debug mode: run to completion
-        const result = await execPromise;
-
-        // Clean up the checkpoint file on successful completion
-        const writer = new CheckpointWriter(
-          args.filePath,
-          data.workflowName,
-          '',
-          {}
-        );
-        writer.cleanup();
-
-        return makeToolResult({
-          status: 'completed',
-          resumedFrom: checkpointPath,
-          skippedNodes: skippedCount,
-          ...(rerunNodes.length > 0 && { rerunNodes }),
-          ...(stale && { warning: 'Workflow file has changed since checkpoint was written.' }),
-          result: (result as { result?: unknown })?.result ?? result,
-        });
-      } catch (err) {
-        return makeErrorResult(
-          'RESUME_ERROR',
-          err instanceof Error ? err.message : String(err)
-        );
-      }
     }
   );
 

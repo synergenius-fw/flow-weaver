@@ -5,12 +5,11 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
+import { randomUUID } from 'node:crypto';
 import { executeWorkflow } from '../../mcp/workflow-executor.js';
-import type { WorkflowExecutionResult, ExecutionTraceEvent } from '../../mcp/workflow-executor.js';
-import { AgentChannel } from '../../mcp/agent-channel.js';
+import type { WorkflowExecutionOutcome, ExecutionTraceEvent } from '../../mcp/workflow-executor.js';
 import { DebugController } from '../../runtime/debug-controller.js';
 import type { DebugPauseState } from '../../runtime/debug-controller.js';
-import { CheckpointWriter, loadCheckpoint, findLatestCheckpoint } from '../../runtime/checkpoint.js';
 import { getTopologicalOrder } from '../../api/query.js';
 import { logger } from '../utils/logger.js';
 import { getFriendlyError } from '../../friendly-errors.js';
@@ -50,10 +49,6 @@ export interface RunOptions {
   mocksFile?: string;
   /** Start in step-through debug mode */
   debug?: boolean;
-  /** Enable checkpointing to disk after each node */
-  checkpoint?: boolean;
-  /** Resume from a checkpoint file (true for auto-detect, or a file path) */
-  resume?: boolean | string;
   /** Initial breakpoint node IDs */
   breakpoint?: string[];
 }
@@ -166,62 +161,9 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
   }
 
   try {
-    // Handle --resume: load checkpoint and set up skip nodes
-    let resumeSkipNodes: Map<string, Record<string, unknown>> | undefined;
-    let resumeCheckpointPath: string | undefined;
-    let resumeParams: Record<string, unknown> | undefined;
-    let resumeWorkflowName: string | undefined;
-    let resumeExecutionOrder: string[] | undefined;
-    let resumeRerunNodes: string[] | undefined;
-    let resumeStale = false;
-
-    if (options.resume) {
-      const checkpointPath =
-        typeof options.resume === 'string'
-          ? options.resume
-          : findLatestCheckpoint(filePath, options.workflow);
-
-      if (!checkpointPath) {
-        throw new Error(
-          `No checkpoint file found for ${displayPath(filePath)}. ` +
-          'Checkpoints are created when running with --checkpoint.'
-        );
-      }
-
-      const { data, stale, rerunNodes, skipNodes } = loadCheckpoint(
-        checkpointPath,
-        filePath
-      );
-
-      resumeSkipNodes = skipNodes;
-      resumeCheckpointPath = checkpointPath;
-      resumeParams = data.params;
-      resumeWorkflowName = data.workflowName;
-      resumeExecutionOrder = data.executionOrder;
-      resumeRerunNodes = rerunNodes;
-      resumeStale = stale;
-
-      // Use checkpoint params if none provided
-      if (Object.keys(params).length === 0) {
-        params = data.params;
-      }
-
-      if (!options.json) {
-        const skipped = data.completedNodes.length - rerunNodes.length;
-        logger.info(`Resuming from checkpoint: ${checkpointPath}`);
-        logger.info(`Skipping ${skipped} completed nodes`);
-        if (rerunNodes.length > 0) {
-          logger.info(`Re-running ${rerunNodes.length} nodes: ${rerunNodes.join(', ')}`);
-        }
-        if (stale) {
-          logger.warn('Workflow file has changed since checkpoint was written.');
-        }
-      }
-    }
-
     // Determine trace inclusion:
     // Include trace data if --trace or --stream is explicitly set.
-    // Also include when not in production mode (needed for debug/checkpoint).
+    // Also include when not in production mode (needed for live debugging).
     // Display of trace results is gated separately on options.trace/options.stream.
     const includeTrace = options.stream || options.trace || !options.production;
 
@@ -229,42 +171,22 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
       logger.info('Running with mock data');
     }
 
-    // Set up debug controller if --debug, --checkpoint, or --resume
-    const useDebug = options.debug || options.checkpoint || options.resume;
+    // Set up the execution-scoped live debug controller.
+    const useDebug = options.debug;
     let debugController: DebugController | undefined;
 
     if (useDebug) {
       // Get execution order for the controller
-      let executionOrder = resumeExecutionOrder;
-      if (!executionOrder) {
-        const source = fs.readFileSync(filePath, 'utf8');
-        const parsed = await parseWorkflow(source, { workflowName: options.workflow, projectDir: path.dirname(filePath) });
-        if (parsed.errors.length === 0) {
-          executionOrder = getTopologicalOrder(parsed.ast);
-        } else {
-          executionOrder = [];
-        }
-      }
-
-      // Set up checkpoint writer
-      let checkpointWriter: CheckpointWriter | undefined;
-      if (options.checkpoint || options.resume) {
-        const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        checkpointWriter = new CheckpointWriter(
-          filePath,
-          resumeWorkflowName ?? options.workflow ?? 'default',
-          runId,
-          params
-        );
-      }
+      let executionOrder: string[];
+      const source = fs.readFileSync(filePath, 'utf8');
+      const parsed = await parseWorkflow(source, { workflowName: options.workflow, projectDir: path.dirname(filePath) });
+      executionOrder =
+        parsed.errors.length === 0 ? getTopologicalOrder(parsed.ast) : [];
 
       debugController = new DebugController({
         debug: options.debug ?? false,
-        checkpoint: !!(options.checkpoint || options.resume),
-        checkpointWriter,
         breakpoints: options.breakpoint,
         executionOrder,
-        skipNodes: resumeSkipNodes,
       });
     }
 
@@ -295,22 +217,22 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
         }
       : undefined;
 
-    const channel = new AgentChannel();
+    const runId = randomUUID();
     const execPromise = executeWorkflow({
+      runId,
       filePath,
       params,
-      workflowName: resumeWorkflowName ?? options.workflow,
+      workflowName: options.workflow,
       production: options.production ?? false,
       includeTrace,
       mocks,
-      agentChannel: channel,
       debugController,
       onEvent,
     });
 
     // If debug mode is active and interactive, enter the debug REPL
     if (options.debug && debugController && process.stdin.isTTY) {
-      const debugResult = await runDebugRepl(debugController, execPromise, channel, options);
+      const debugResult = await runDebugRepl(debugController, execPromise, options);
       if (timedOut) return;
 
       if (options.json) {
@@ -318,9 +240,6 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
           JSON.stringify({
             success: true,
             result: debugResult,
-            ...(resumeCheckpointPath && { resumedFrom: resumeCheckpointPath }),
-            ...(resumeRerunNodes && resumeRerunNodes.length > 0 && { rerunNodes: resumeRerunNodes }),
-            ...(resumeStale && { warning: 'Workflow changed since checkpoint.' }),
           }, null, 2) + '\n'
         );
       } else {
@@ -332,69 +251,15 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
       return;
     }
 
-    let result!: WorkflowExecutionResult;
-    let execDone = false;
-
-    // Race loop: detect pauses, prompt user, resume
-    while (!execDone) {
-      const promises: Promise<{ type: string; result?: WorkflowExecutionResult; request?: object; state?: DebugPauseState }>[] = [
-        execPromise.then((r) => ({ type: 'completed' as const, result: r })),
-        channel.onPause().then((req) => ({ type: 'agent_paused' as const, request: req })),
-      ];
-
-      // Also race against debug controller pause if present (non-interactive checkpoint mode)
-      if (debugController) {
-        promises.push(
-          debugController.onPause().then((state) => ({ type: 'debug_paused' as const, state }))
-        );
-      }
-
-      const raceResult = await Promise.race(promises);
-
-      if (raceResult.type === 'completed') {
-        result = raceResult.result!;
-        execDone = true;
-      } else if (raceResult.type === 'debug_paused') {
-        // Non-interactive debug mode (checkpoint only, no --debug flag):
-        // Auto-continue, the checkpoint was written in afterNode
-        debugController!.resume({ type: 'continue' });
-      } else {
-        // Workflow paused at waitForAgent
-        const request = raceResult.request as { agentId?: string; context?: unknown; prompt?: string };
-
-        if (!process.stdin.isTTY) {
-          throw new Error(
-            'Workflow paused at waitForAgent but stdin is not interactive. ' +
-            'Use --mocks to provide agent responses.'
-          );
-        }
-
-        // Display prompt info to stderr (keeps stdout clean for --json)
-        const label = request.prompt || `Agent "${request.agentId}" is requesting input`;
-        if (!options.json) {
-          logger.newline();
-          logger.section('Waiting for Input');
-          logger.info(label);
-          if (request.context && Object.keys(request.context as object).length > 0) {
-            logger.log(`  Context: ${JSON.stringify(request.context, null, 2)}`);
-          }
-        }
-
-        // Prompt user for JSON response
-        const userInput = await promptForInput('Enter response (JSON): ');
-        let parsed: Record<string, unknown>;
-        try {
-          parsed = JSON.parse(userInput);
-        } catch {
-          // If not valid JSON, wrap as { response: "..." }
-          parsed = { response: userInput };
-        }
-
-        channel.resume(parsed);
-      }
-    }
+    const result = await execPromise;
 
     if (timedOut) return; // Don't output if already timed out
+
+    if (result.kind === 'yielded') {
+      throw new Error(
+        'fw run is not a durable coordinator and cannot persist a yielded continuation',
+      );
+    }
 
     if (options.json) {
       // JSON output for scripting
@@ -406,8 +271,6 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
             executionTime: result.executionTime,
             result: result.result,
             ...(includeTrace && result.trace && { traceCount: result.trace.length }),
-            ...(resumeCheckpointPath && { resumedFrom: resumeCheckpointPath }),
-            ...(resumeRerunNodes && resumeRerunNodes.length > 0 && { rerunNodes: resumeRerunNodes }),
           },
           null,
           2
@@ -573,8 +436,7 @@ function printDebugHelp(): void {
 
 async function runDebugRepl(
   controller: DebugController,
-  execPromise: Promise<WorkflowExecutionResult>,
-  agentChannel: AgentChannel,
+  execPromise: Promise<WorkflowExecutionOutcome>,
   options: RunOptions
 ): Promise<unknown> {
   if (!options.json) {
@@ -590,7 +452,12 @@ async function runDebugRepl(
   ]);
 
   if (firstResult.type === 'completed') {
-    return (firstResult.result as WorkflowExecutionResult).result;
+    if (firstResult.result.kind === 'yielded') {
+      throw new Error(
+        'fw run debug mode is not a durable coordinator and cannot persist a yielded continuation',
+      );
+    }
+    return firstResult.result.result;
   }
 
   let currentState = firstResult.state;
@@ -623,35 +490,26 @@ async function runDebugRepl(
       const raceResult = await Promise.race([
         execPromise.then((r) => ({ type: 'completed' as const, result: r })),
         controller.onPause().then((state) => ({ type: 'paused' as const, state })),
-        agentChannel.onPause().then((req) => ({ type: 'agent_paused' as const, request: req })),
       ]);
 
       if (raceResult.type === 'completed') {
-        const execResult = raceResult.result as WorkflowExecutionResult;
+        const execResult = raceResult.result;
+        if (execResult.kind === 'yielded') {
+          fail(
+            new Error(
+              'fw run debug mode is not a durable coordinator and cannot persist a yielded continuation',
+            ),
+          );
+          return;
+        }
         if (!options.json) {
-          logger.success(`\nWorkflow completed in ${execResult.executionTime}ms`);
+          logger.success(`\nWorkflow ${execResult.kind} in ${execResult.executionTime}ms`);
         }
         finish(execResult.result);
       } else if (raceResult.type === 'paused') {
         currentState = raceResult.state;
         printDebugState(currentState);
         rl.prompt();
-      } else {
-        // Agent pause during debug: prompt user for agent input
-        const request = raceResult.request as { agentId?: string; prompt?: string };
-        const label = request.prompt || `Agent "${request.agentId}" is requesting input`;
-        logger.log(`\n[waitForAgent] ${label}`);
-        rl.question('Agent response (JSON): ', (answer) => {
-          let parsed: Record<string, unknown>;
-          try {
-            parsed = JSON.parse(answer);
-          } catch {
-            parsed = { response: answer };
-          }
-          agentChannel.resume(parsed);
-          // Re-race after agent resume
-          handleResume().catch(fail);
-        });
       }
     }
 
@@ -839,18 +697,5 @@ async function runDebugRepl(
     });
 
     rl.prompt();
-  });
-}
-
-function promptForInput(question: string): Promise<string> {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stderr, // prompts to stderr, not stdout
-    });
-    rl.question(question, (answer: string) => {
-      rl.close();
-      resolve(answer.trim());
-    });
   });
 }

@@ -80,6 +80,11 @@ export class UnifiedWorkflowExecutor {
         timeout,
         request.abortSignal
       );
+      if (result.kind === 'yielded') {
+        throw new Error(
+          'UnifiedWorkflowExecutor is not a durable coordinator and cannot persist a yielded continuation',
+        );
+      }
 
       return {
         success: true,
@@ -199,6 +204,11 @@ export class UnifiedWorkflowExecutor {
         timeout,
         request.abortSignal
       );
+      if (result.kind === 'yielded') {
+        throw new Error(
+          'UnifiedWorkflowExecutor.executeFromFile is not a durable coordinator and cannot persist a yielded continuation',
+        );
+      }
 
       return {
         success: true,
@@ -267,6 +277,7 @@ export class UnifiedWorkflowExecutor {
 
     try {
       return await executeWorkflow({
+        runId: randomUUID(),
         filePath,
         params,
         ...options,

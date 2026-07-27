@@ -67,21 +67,12 @@ export function pullCatchTest(
 ): { result: number; onSuccess: boolean; onFailure: boolean } {
   throw new Error('Not implemented');
 }
-`
+`,
     );
 
     const code = await generator.generate(workflowFile, 'pullCatchTest');
 
-    // Find the catch block for the pull node
-    const catchMatch = code.match(/catch\s*\(error[^)]*\)[\s\S]*?throw\s+error;/);
-    expect(catchMatch).toBeTruthy();
-
-    if (catchMatch) {
-      const catchBody = catchMatch[0];
-      // Should set onSuccess=false in catch block
-      expect(catchBody).toContain("'onSuccess'");
-      expect(catchBody).toMatch(/onSuccess[\s\S]*?,\s*false\s*\)/);
-    }
+    expect(code).toMatch(/portName: 'onSuccess'[^\n]*}, false\);/);
   });
 
   it('should set onFailure=true in pull node catch block', async () => {
@@ -119,24 +110,12 @@ export function pullFailureTest(
 ): { processed: string; onFailure: boolean } {
   throw new Error('Not implemented');
 }
-`
+`,
     );
 
     const code = await generator.generate(workflowFile, 'pullFailureTest');
 
-    // Find catch blocks
-    const catchBlocks = code.match(/catch\s*\(error[^)]*\)[\s\S]*?throw\s+error;/g) || [];
-
-    // At least one catch block should set onFailure=true
-    let hasOnFailureTrue = false;
-    for (const catchBody of catchBlocks) {
-      if (catchBody.includes("'onFailure'") && catchBody.match(/onFailure[\s\S]*?,\s*true\s*\)/)) {
-        hasOnFailureTrue = true;
-        break;
-      }
-    }
-
-    expect(hasOnFailureTrue).toBe(true);
+    expect(code).toMatch(/portName: 'onFailure'[^\n]*}, true\);/);
   });
 
   it('should set onSuccess=false in regular node catch block', async () => {
@@ -170,24 +149,12 @@ export function regularCatchTest(
 ): { doubled: number; onSuccess: boolean } {
   throw new Error('Not implemented');
 }
-`
+`,
     );
 
     const code = await generator.generate(workflowFile, 'regularCatchTest');
 
-    // Find catch blocks for regular nodes
-    const catchBlocks = code.match(/catch\s*\(error[^)]*\)[\s\S]*?throw\s+error;/g) || [];
-
-    // Should have catch block with onSuccess=false
-    let hasOnSuccessFalse = false;
-    for (const catchBody of catchBlocks) {
-      if (catchBody.includes("'onSuccess'") && catchBody.match(/onSuccess[\s\S]*?,\s*false\s*\)/)) {
-        hasOnSuccessFalse = true;
-        break;
-      }
-    }
-
-    expect(hasOnSuccessFalse).toBe(true);
+    expect(code).toMatch(/portName: 'onSuccess'[^\n]*}, false\);/);
   });
 
   it('should set onFailure=true in regular node catch block', async () => {
@@ -221,24 +188,12 @@ export function regularFailureTest(
 ): { upper: string; onFailure: boolean } {
   throw new Error('Not implemented');
 }
-`
+`,
     );
 
     const code = await generator.generate(workflowFile, 'regularFailureTest');
 
-    // Find catch blocks
-    const catchBlocks = code.match(/catch\s*\(error[^)]*\)[\s\S]*?throw\s+error;/g) || [];
-
-    // Should have catch block with onFailure=true
-    let hasOnFailureTrue = false;
-    for (const catchBody of catchBlocks) {
-      if (catchBody.includes("'onFailure'") && catchBody.match(/onFailure[\s\S]*?,\s*true\s*\)/)) {
-        hasOnFailureTrue = true;
-        break;
-      }
-    }
-
-    expect(hasOnFailureTrue).toBe(true);
+    expect(code).toMatch(/portName: 'onFailure'[^\n]*}, true\);/);
   });
 
   it('should apply control flow to ALL node types, not just expressions', async () => {
@@ -301,27 +256,15 @@ export function mixedNodesTest(
 } {
   throw new Error('Not implemented');
 }
-`
+`,
     );
 
     const code = await generator.generate(workflowFile, 'mixedNodesTest');
 
-    // Find all catch blocks
-    const catchBlocks = code.match(/catch\s*\(error[^)]*\)[\s\S]*?throw\s+error;/g) || [];
-
-    // Should have at least 2 catch blocks (one for each node)
-    expect(catchBlocks.length).toBeGreaterThanOrEqual(2);
-
-    // Count how many have onSuccess/onFailure
-    let blocksWithControlFlow = 0;
-    for (const catchBody of catchBlocks) {
-      if (catchBody.includes("'onSuccess'") && catchBody.includes("'onFailure'")) {
-        blocksWithControlFlow++;
-      }
-    }
-
-    // ALL catch blocks should have control flow, not just expression nodes
-    expect(blocksWithControlFlow).toBe(catchBlocks.length);
+    const onSuccessFailures = code.match(/portName: 'onSuccess'[^\n]*}, false\);/g) ?? [];
+    const onFailureFailures = code.match(/portName: 'onFailure'[^\n]*}, true\);/g) ?? [];
+    expect(onSuccessFailures).toHaveLength(2);
+    expect(onFailureFailures).toHaveLength(2);
   });
 
   it('should handle nested catch blocks correctly', async () => {
@@ -369,7 +312,7 @@ export function nestedCatchTest(
 ): { result: number; aSuccess: boolean; bSuccess: boolean } {
   throw new Error('Not implemented');
 }
-`
+`,
     );
 
     const code = await generator.generate(workflowFile, 'nestedCatchTest');
@@ -410,7 +353,7 @@ export function cancellationTest(
 ): { result: number; onSuccess: boolean } {
   throw new Error('Not implemented');
 }
-`
+`,
     );
 
     const code = await generator.generate(workflowFile, 'cancellationTest');

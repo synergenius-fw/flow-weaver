@@ -1,60 +1,16 @@
 /**
  * Tests for local invokeWorkflow resolution.
- * When executing locally, invokeWorkflow should resolve sibling exported functions
- * via the globalThis.__fw_workflow_registry__ instead of returning a no-op.
+ * When executing locally, invokeWorkflow resolves sibling exported functions
+ * through the execution-scoped workflow registry.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
-// Inline invokeWorkflow definition with registry + mock logic.
-// This must be inlined because executeWorkflow copies the source to a temp dir,
-// making relative imports unresolvable.
-const INVOKE_WORKFLOW_DEF = `
-/**
- * @flowWeaver nodeType
- * @input [functionId] - Inngest function ID
- * @input payload - Data to pass
- * @input [timeout] - Max wait time
- * @output result - Return value
- */
-async function invokeWorkflow(
-  execute: boolean,
-  functionId: string,
-  payload: object,
-  timeout?: string
-): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }> {
-  if (!execute) return { onSuccess: false, onFailure: false, result: {} };
-
-  const mocks = (globalThis as any).__fw_mocks__;
-  if (mocks) {
-    const mockResult = mocks.invocations?.[functionId];
-    if (mockResult !== undefined) {
-      return { onSuccess: true, onFailure: false, result: mockResult };
-    }
-    return { onSuccess: false, onFailure: true, result: {} };
-  }
-
-  const registry = (globalThis as any).__fw_workflow_registry__;
-  if (registry?.[functionId]) {
-    try {
-      const result = await registry[functionId](true, payload);
-      return { onSuccess: true, onFailure: false, result: result ?? {} };
-    } catch {
-      return { onSuccess: false, onFailure: true, result: {} };
-    }
-  }
-
-  return { onSuccess: true, onFailure: false, result: {} };
-}
-`;
-
 describe('Local invokeWorkflow Resolution', () => {
   it('should call sibling exported function when invoked locally', async () => {
     const source = `
-${INVOKE_WORKFLOW_DEF}
-
 /**
  * @flowWeaver nodeType
  * @input data - string
@@ -81,13 +37,13 @@ export async function subWorkflow(execute: boolean, params: { input: string }): 
 
 /**
  * @flowWeaver workflow
- * @param data - string
+ * @param payload - object
  * @returns {object} result - Invocation result
- * @node inv invokeWorkflow
- * @connect Start.data -> inv.payload
+ * @node inv invokeWorkflow [expr: functionId="'subWorkflow'"]
+ * @connect Start.payload -> inv.payload
  * @connect inv.result -> Exit.result
  */
-export async function mainWorkflow(execute: boolean, params: { data: string }): Promise<{
+export async function mainWorkflow(execute: boolean, params: { payload: object }): Promise<{
   onSuccess: boolean; onFailure: boolean; result: object;
 }> {
   // @flow-weaver-body
@@ -99,14 +55,17 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflow({ filePath: testFile, params: {
-              data: 'hello',
-            }, workflowName: 'mainWorkflow' });
+      const result = await executeWorkflow({
+        runId: 'invoke-local-sibling',
+        filePath: testFile,
+        params: {
+          payload: { input: 'hello' },
+        },
+        workflowName: 'mainWorkflow',
+      });
 
-      // The invokeWorkflow node needs functionId to know which function to call.
-      // Without a functionId connection, it defaults to no-op behavior.
-      expect(result.result).toBeDefined();
-      expect(result.functionName).toBe('mainWorkflow');
+      const workflowResult = result.result as { result: { result: string } };
+      expect(workflowResult.result.result).toBe('HELLO');
     } finally {
       fs.unlinkSync(testFile);
     }
@@ -114,13 +73,11 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
 
   it('should fall back to no-op for unknown functionId without mocks', async () => {
     const source = `
-${INVOKE_WORKFLOW_DEF}
-
 /**
  * @flowWeaver workflow
  * @param data - string
  * @returns {object} result - Invocation result
- * @node inv invokeWorkflow
+ * @node inv invokeWorkflow [expr: functionId="'missingWorkflow'"]
  * @connect Start.data -> inv.payload
  * @connect inv.result -> Exit.result
  */
@@ -136,13 +93,21 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflow({ filePath: testFile, params: {
-              data: 'test',
-            }, workflowName: 'mainWorkflow' });
+      const result = await executeWorkflow({
+        runId: 'invoke-local-noop',
+        filePath: testFile,
+        params: {
+          data: 'test',
+        },
+        workflowName: 'mainWorkflow',
+      });
 
       // Without a matching sibling function and no mocks, should return no-op result
       expect(result.result).toBeDefined();
-      const workflowResult = result.result as { onSuccess: boolean; result: object };
+      const workflowResult = result.result as {
+        onSuccess: boolean;
+        result: object;
+      };
       expect(workflowResult.onSuccess).toBe(true);
       // The result from invokeWorkflow no-op is {}
       expect(workflowResult.result).toEqual({});
@@ -153,13 +118,11 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
 
   it('should use mocks when available (existing behavior preserved)', async () => {
     const source = `
-${INVOKE_WORKFLOW_DEF}
-
 /**
  * @flowWeaver workflow
  * @param data - string
  * @returns {object} result - Invocation result
- * @node inv invokeWorkflow
+ * @node inv invokeWorkflow [expr: functionId="'some-function-id'"]
  * @connect Start.data -> inv.payload
  * @connect inv.result -> Exit.result
  */
@@ -175,13 +138,19 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflow({ filePath: testFile, params: {
-              data: 'test',
-            }, workflowName: 'mainWorkflow', mocks: {
-                invocations: {
-                  'some-function-id': { processed: 'mocked-value' },
-                },
-              } });
+      const result = await executeWorkflow({
+        runId: 'invoke-local-mocks',
+        filePath: testFile,
+        params: {
+          data: 'test',
+        },
+        workflowName: 'mainWorkflow',
+        mocks: {
+          invocations: {
+            'some-function-id': { processed: 'mocked-value' },
+          },
+        },
+      });
 
       // When mocks are configured but no matching functionId, invokeWorkflow returns failure
       // (since there's no explicit functionId connection providing a matching key)
@@ -193,8 +162,6 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
 
   it('should resolve in-file sibling function via registry', async () => {
     const source = `
-${INVOKE_WORKFLOW_DEF}
-
 /**
  * @flowWeaver nodeType
  * @input text - string
@@ -250,9 +217,14 @@ export async function callerWorkflow(execute: boolean, params: { input: string }
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflow({ filePath: testFile, params: {
-              input: 'hello world',
-            }, workflowName: 'callerWorkflow' });
+      const result = await executeWorkflow({
+        runId: 'invoke-local-registry',
+        filePath: testFile,
+        params: {
+          input: 'hello world',
+        },
+        workflowName: 'callerWorkflow',
+      });
 
       // The callerWorkflow calls invokeWorkflow with functionId='helperWorkflow'
       // The registry should resolve helperWorkflow from the same module

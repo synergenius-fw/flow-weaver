@@ -1,8 +1,8 @@
 /**
  * Type definitions for the mock configuration used during local testing.
- * When present on globalThis.__fw_mocks__, built-in nodes use mock data
- * instead of their default no-op/sleep behavior.
+ * Built-in nodes receive this data through one execution-scoped runtime.
  */
+import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 export interface FwMockConfig {
   /** Mock event data keyed by event name. Used by waitForEvent. */
@@ -16,20 +16,17 @@ export interface FwMockConfig {
 }
 
 /**
- * Read the mock config from globalThis, returning undefined if not set.
+ * Read mock configuration from the execution-scoped runtime.
  */
-export function getMockConfig(): FwMockConfig | undefined {
-  return (globalThis as unknown as Record<string, unknown>).__fw_mocks__ as
-    | FwMockConfig
-    | undefined;
+export function getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
+  return runtime?.runtime.services.mocks;
 }
 
 /**
  * Look up a mock value from a section, supporting instance-qualified keys.
  *
  * Checks "instanceId:key" first (for per-node targeting), then falls back
- * to plain "key". The instance ID comes from __fw_current_node_id__ which
- * the generated code sets before each node invocation.
+ * to plain "key".
  *
  * @example
  * ```json
@@ -43,12 +40,14 @@ export function getMockConfig(): FwMockConfig | undefined {
  * When the node "retryCall" invokes "api/process", it gets `{ status: "ok" }`.
  * Any other node invoking "api/process" gets `{ status: "default" }`.
  */
-export function lookupMock<T>(section: Record<string, T> | undefined, key: string): T | undefined {
+export function lookupMock<T>(
+  section: Record<string, T> | undefined,
+  key: string,
+  runtime?: NodeExecutionRuntime,
+): T | undefined {
   if (!section) return undefined;
 
-  const nodeId = (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__ as
-    | string
-    | undefined;
+  const nodeId = runtime?.nodeId;
   if (nodeId) {
     const qualified = section[`${nodeId}:${key}`];
     if (qualified !== undefined) return qualified;

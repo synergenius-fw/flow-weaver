@@ -59,25 +59,25 @@ describe('parser branch coverage 3', () => {
 
       // Start.execute -> A.execute
       const startExecConn = wf.connections.find(
-        c => c.from.node === 'Start' && c.from.port === 'execute' && c.to.node === 'A'
+        (c) => c.from.node === 'Start' && c.from.port === 'execute' && c.to.node === 'A',
       );
       expect(startExecConn).toBeDefined();
 
       // A.onSuccess -> B.execute
       const execFlowConn = wf.connections.find(
-        c => c.from.node === 'A' && c.from.port === 'onSuccess' && c.to.node === 'B'
+        (c) => c.from.node === 'A' && c.from.port === 'onSuccess' && c.to.node === 'B',
       );
       expect(execFlowConn).toBeDefined();
 
       // A.onSuccess -> B.execute (consecutive node execution flow)
       const execConn = wf.connections.find(
-        c => c.from.node === 'A' && c.from.port === 'onSuccess' && c.to.node === 'B' && c.to.port === 'execute'
+        (c) => c.from.node === 'A' && c.from.port === 'onSuccess' && c.to.node === 'B' && c.to.port === 'execute',
       );
       expect(execConn).toBeDefined();
 
       // B.onSuccess -> Exit.onSuccess
       const exitConn = wf.connections.find(
-        c => c.from.node === 'B' && c.from.port === 'onSuccess' && c.to.node === 'Exit'
+        (c) => c.from.node === 'B' && c.from.port === 'onSuccess' && c.to.node === 'Exit',
       );
       expect(exitConn).toBeDefined();
 
@@ -113,9 +113,7 @@ describe('parser branch coverage 3', () => {
       const wf = result.workflows[0];
       // Should still have execution flow connections but no data port matches
       expect(wf.connections.length).toBeGreaterThan(0);
-      const dataConn = wf.connections.find(
-        c => c.from.node === 'A' && c.from.port === 'foo' && c.to.node === 'B'
-      );
+      const dataConn = wf.connections.find((c) => c.from.node === 'A' && c.from.port === 'foo' && c.to.node === 'B');
       expect(dataConn).toBeUndefined();
     });
   });
@@ -145,7 +143,7 @@ describe('parser branch coverage 3', () => {
       const wf = result.workflows[0];
       expect(wf.macros).toBeDefined();
       const failConn = wf.connections.find(
-        c => c.from.node === 'A' && c.from.port === 'onFailure' && c.to.node === 'Exit'
+        (c) => c.from.node === 'A' && c.from.port === 'onFailure' && c.to.node === 'Exit',
       );
       expect(failConn).toBeDefined();
     });
@@ -173,7 +171,7 @@ describe('parser branch coverage 3', () => {
       const wf = result.workflows[0];
       expect(wf.macros).toBeDefined();
       const failConn = wf.connections.find(
-        c => c.from.node === 'A' && c.from.port === 'onFailure' && c.to.node === 'B' && c.to.port === 'execute'
+        (c) => c.from.node === 'A' && c.from.port === 'onFailure' && c.to.node === 'B' && c.to.port === 'execute',
       );
       expect(failConn).toBeDefined();
     });
@@ -291,7 +289,7 @@ describe('parser branch coverage 3', () => {
       `);
       expect(result.workflows).toHaveLength(1);
       if (result.workflows[0].macros) {
-        expect(result.workflows[0].macros.some(m => m.type === 'map')).toBe(true);
+        expect(result.workflows[0].macros.some((m) => m.type === 'map')).toBe(true);
       }
     });
 
@@ -351,7 +349,7 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some(e => e.includes('no data output') || e.includes('@map'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('no data output') || e.includes('@map'))).toBe(true);
     });
 
     it('map with missing child node errors', () => {
@@ -372,7 +370,7 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some(e => e.includes('ghost') || e.includes('@map'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('ghost') || e.includes('@map'))).toBe(true);
     });
 
     it('map with unresolvable child node type errors', () => {
@@ -422,7 +420,7 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some(e => e.includes('no data input') || e.includes('@map'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('no data input') || e.includes('@map'))).toBe(true);
     });
   });
 
@@ -453,7 +451,7 @@ describe('parser branch coverage 3', () => {
       `);
       const wf = result.workflows[0];
       // The map macro should create a synthetic __map_loop__ type
-      const syntheticType = wf.nodeTypes.find(nt => nt.name.includes('__map_'));
+      const syntheticType = wf.nodeTypes.find((nt) => nt.name.includes('__map_'));
       if (syntheticType) {
         // The synthetic type's items input should have tsType from child's data input (string -> (string)[])
         const itemsPort = syntheticType.inputs.items;
@@ -529,7 +527,7 @@ describe('parser branch coverage 3', () => {
       const wf = result.workflows[0];
       // A.onSuccess -> C.execute exists from @connect, fanIn should not duplicate it
       const matching = wf.connections.filter(
-        c => c.from.node === 'A' && c.from.port === 'onSuccess' && c.to.node === 'C' && c.to.port === 'execute'
+        (c) => c.from.node === 'A' && c.from.port === 'onSuccess' && c.to.node === 'C' && c.to.port === 'execute',
       );
       // fanIn defaults source port to target.port (execute), not onSuccess
       // So A.execute -> C.execute from fanIn is different from A.onSuccess -> C.execute from @connect
@@ -558,7 +556,7 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some(e => e.includes('ghost') || e.includes('@coerce'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('ghost') || e.includes('@coerce'))).toBe(true);
     });
 
     it('errors when target node does not exist', () => {
@@ -579,7 +577,7 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some(e => e.includes('ghost') || e.includes('@coerce'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('ghost') || e.includes('@coerce'))).toBe(true);
     });
 
     it('errors when coerce instance ID already exists', () => {
@@ -602,7 +600,7 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some(e => e.includes('already exists') || e.includes('@coerce'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('already exists') || e.includes('@coerce'))).toBe(true);
     });
   });
 
@@ -627,7 +625,7 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some(e => e.includes('IN'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('IN'))).toBe(true);
     });
 
     it('produces errors for OUT pseudo-node in workflow @connect', () => {
@@ -648,7 +646,7 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some(e => e.includes('OUT'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('OUT'))).toBe(true);
     });
   });
 
@@ -661,10 +659,10 @@ describe('parser branch coverage 3', () => {
       // A separate complete function exists above so ts-morph doesn't attach
       // the orphan "/**" to the function below as JSDoc.
       const code = [
-        'function other(execute: boolean): void {}',    // line 0 - different function
-        '',                                              // line 1
-        '/**',                                           // line 2 - cursor here
-        '',                                              // line 3 - blank line separates
+        'function other(execute: boolean): void {}', // line 0 - different function
+        '', // line 1
+        '/**', // line 2 - cursor here
+        '', // line 3 - blank line separates
         'function calc(execute: boolean, x: number): number { return x * 2; }', // line 4
       ].join('\n');
       const result = parser.generateAnnotationSuggestion(code, 2);
@@ -720,7 +718,7 @@ describe('parser branch coverage 3', () => {
          */
         function richPorts(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'richPorts');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'richPorts');
       expect(nt).toBeDefined();
       if (nt) {
         const dataPort = nt.inputs.data;
@@ -740,7 +738,7 @@ describe('parser branch coverage 3', () => {
          */
         function hiddenPorts(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'hiddenPorts');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'hiddenPorts');
       expect(nt).toBeDefined();
       if (nt) {
         const dataPort = nt.inputs.data;
@@ -761,7 +759,7 @@ describe('parser branch coverage 3', () => {
          */
         function onlyOutputExpr(a: number, b: string): number { return a; }
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'onlyOutputExpr');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'onlyOutputExpr');
       expect(nt).toBeDefined();
       // Should have auto-inferred inputs a and b
       expect(nt!.inputs.a).toBeDefined();
@@ -778,10 +776,10 @@ describe('parser branch coverage 3', () => {
          */
         function onlyInputExpr(x: number): number { return x * 2; }
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'onlyInputExpr');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'onlyInputExpr');
       expect(nt).toBeDefined();
       // Should have auto-inferred output result
-      const outputKeys = Object.keys(nt!.outputs).filter(k => k !== 'onSuccess' && k !== 'onFailure');
+      const outputKeys = Object.keys(nt!.outputs).filter((k) => k !== 'onSuccess' && k !== 'onFailure');
       expect(outputKeys.length).toBeGreaterThan(0);
     });
   });
@@ -799,7 +797,7 @@ describe('parser branch coverage 3', () => {
          */
         function defaultWorker(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'defaultWorker');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'defaultWorker');
       expect(nt).toBeDefined();
       if (nt?.defaultConfig) {
         expect(nt.defaultConfig.label || nt.defaultConfig.description).toBeDefined();
@@ -819,7 +817,7 @@ describe('parser branch coverage 3', () => {
          */
         function deployable(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'deployable');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'deployable');
       expect(nt).toBeDefined();
     });
   });
@@ -837,7 +835,7 @@ describe('parser branch coverage 3', () => {
          */
         function labeled(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'labeled');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'labeled');
       expect(nt).toBeDefined();
     });
   });
@@ -856,7 +854,7 @@ describe('parser branch coverage 3', () => {
          */
         function visual(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'visual');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'visual');
       expect(nt).toBeDefined();
     });
   });
@@ -873,7 +871,7 @@ describe('parser branch coverage 3', () => {
          */
         function scoped(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'scoped');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'scoped');
       expect(nt).toBeDefined();
       if (nt?.scopes) {
         expect(nt.scopes).toContain('myScope');
@@ -921,7 +919,7 @@ describe('parser branch coverage 3', () => {
         }
       `);
       const wf = result.workflows[0];
-      const instA = wf.instances.find(i => i.id === 'a');
+      const instA = wf.instances.find((i) => i.id === 'a');
       expect(instA).toBeDefined();
       if (instA) {
         expect(instA.config!.label).toBe('Alpha');
@@ -947,7 +945,7 @@ describe('parser branch coverage 3', () => {
         }
       `);
       const wf = result.workflows[0];
-      const instA = wf.instances.find(i => i.id === 'a');
+      const instA = wf.instances.find((i) => i.id === 'a');
       expect(instA).toBeDefined();
       if (instA) {
         expect(instA.config!.color).toBe('#ff0000');
@@ -972,7 +970,7 @@ describe('parser branch coverage 3', () => {
         }
       `);
       const wf = result.workflows[0];
-      const instA = wf.instances.find(i => i.id === 'a');
+      const instA = wf.instances.find((i) => i.id === 'a');
       expect(instA).toBeDefined();
       if (instA) {
         expect(instA.config!.width).toBe(200);
@@ -999,7 +997,7 @@ describe('parser branch coverage 3', () => {
         }
       `);
       const wf = result.workflows[0];
-      const instA = wf.instances.find(i => i.id === 'a');
+      const instA = wf.instances.find((i) => i.id === 'a');
       expect(instA).toBeDefined();
     });
 
@@ -1021,7 +1019,7 @@ describe('parser branch coverage 3', () => {
         }
       `);
       const wf = result.workflows[0];
-      const instB = wf.instances.find(i => i.id === 'b');
+      const instB = wf.instances.find((i) => i.id === 'b');
       expect(instB).toBeDefined();
       if (instB?.config!.portConfigs) {
         expect(instB.config.portConfigs.length).toBeGreaterThan(0);
@@ -1052,7 +1050,7 @@ describe('parser branch coverage 3', () => {
         }
       `);
       const wf = result.workflows[0];
-      const childInst = wf.instances.find(i => i.id === 'ch');
+      const childInst = wf.instances.find((i) => i.id === 'ch');
       expect(childInst).toBeDefined();
       if (childInst?.parent) {
         expect(childInst.parent.id).toBe('c');
@@ -1222,7 +1220,7 @@ describe('parser branch coverage 3', () => {
           return Promise.resolve({ onSuccess: true });
         }
       `);
-      const helperNt = result.nodeTypes.find(nt => nt.functionName === 'helper');
+      const helperNt = result.nodeTypes.find((nt) => nt.functionName === 'helper');
       expect(helperNt).toBeDefined();
       expect(helperNt!.inferred).toBe(true);
     });
@@ -1244,7 +1242,7 @@ describe('parser branch coverage 3', () => {
           return Promise.resolve({ onSuccess: true });
         }
       `);
-      const helperNt = result.nodeTypes.find(nt => nt.functionName === 'helper');
+      const helperNt = result.nodeTypes.find((nt) => nt.functionName === 'helper');
       expect(helperNt).toBeDefined();
       expect(helperNt!.inferred).toBeUndefined();
     });
@@ -1437,7 +1435,7 @@ describe('parser branch coverage 3', () => {
          */
         function noNamePat() {}
       `);
-      const hasError = result.errors.some(e => e.includes('missing') && e.includes('@name'));
+      const hasError = result.errors.some((e) => e.includes('missing') && e.includes('@name'));
       const hasNoPats = result.patterns.length === 0;
       expect(hasError || hasNoPats).toBe(true);
     });
@@ -1457,7 +1455,7 @@ describe('parser branch coverage 3', () => {
          */
         function pat2() {}
       `);
-      expect(result.errors.some(e => e.includes('Duplicate pattern'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('Duplicate pattern'))).toBe(true);
     });
   });
 
@@ -1472,7 +1470,7 @@ describe('parser branch coverage 3', () => {
          */
         declare function externalApi(execute: boolean, query: string): { result: string };
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'externalApi');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'externalApi');
       expect(nt).toBeDefined();
       if (nt) {
         expect(nt.variant).toBe('STUB');
@@ -1494,7 +1492,7 @@ describe('parser branch coverage 3', () => {
          */
         function disjNode(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'disjNode');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'disjNode');
       expect(nt).toBeDefined();
     });
   });
@@ -1539,7 +1537,9 @@ describe('parser branch coverage 3', () => {
 
     it('merges external node types with ports into the workflow', () => {
       const parser = freshParser();
-      fs.writeFileSync(tmpFile, `
+      fs.writeFileSync(
+        tmpFile,
+        `
         /**
          * @flowWeaver workflow
          * @node A externalNode
@@ -1547,21 +1547,32 @@ describe('parser branch coverage 3', () => {
         function wf(execute: boolean): { onSuccess: boolean } {
           return { onSuccess: true };
         }
-      `);
+      `,
+      );
       const result = parser.parse(tmpFile, [
         {
           name: 'externalNode',
           functionName: 'externalNode',
           ports: [
             { name: 'execute', type: 'STEP', direction: 'INPUT' },
-            { name: 'data', type: 'STRING', direction: 'INPUT', defaultLabel: 'Data In' },
+            {
+              name: 'data',
+              type: 'STRING',
+              direction: 'INPUT',
+              defaultLabel: 'Data In',
+            },
             { name: 'onSuccess', type: 'STEP', direction: 'OUTPUT' },
             { name: 'onFailure', type: 'STEP', direction: 'OUTPUT' },
-            { name: 'result', type: 'NUMBER', direction: 'OUTPUT', defaultLabel: 'Result' },
+            {
+              name: 'result',
+              type: 'NUMBER',
+              direction: 'OUTPUT',
+              defaultLabel: 'Result',
+            },
           ],
         },
       ]);
-      const nt = result.nodeTypes.find(n => n.name === 'externalNode');
+      const nt = result.nodeTypes.find((n) => n.name === 'externalNode');
       expect(nt).toBeDefined();
       if (nt) {
         expect(nt.inputs.data).toBeDefined();
@@ -1573,7 +1584,9 @@ describe('parser branch coverage 3', () => {
 
     it('adds mandatory ports when external type omits them', () => {
       const parser = freshParser();
-      fs.writeFileSync(tmpFile, `
+      fs.writeFileSync(
+        tmpFile,
+        `
         /**
          * @flowWeaver workflow
          * @node A minNode
@@ -1581,16 +1594,15 @@ describe('parser branch coverage 3', () => {
         function wf(execute: boolean): { onSuccess: boolean } {
           return { onSuccess: true };
         }
-      `);
+      `,
+      );
       const result = parser.parse(tmpFile, [
         {
           name: 'minNode',
-          ports: [
-            { name: 'data', type: 'NUMBER', direction: 'INPUT' },
-          ],
+          ports: [{ name: 'data', type: 'NUMBER', direction: 'INPUT' }],
         },
       ]);
-      const nt = result.nodeTypes.find(n => n.name === 'minNode');
+      const nt = result.nodeTypes.find((n) => n.name === 'minNode');
       expect(nt).toBeDefined();
       if (nt) {
         expect(nt.inputs.execute).toBeDefined();
@@ -1601,7 +1613,9 @@ describe('parser branch coverage 3', () => {
 
     it('external type without ports gets only mandatory ports', () => {
       const parser = freshParser();
-      fs.writeFileSync(tmpFile, `
+      fs.writeFileSync(
+        tmpFile,
+        `
         /**
          * @flowWeaver workflow
          * @node A bareNode
@@ -1609,13 +1623,14 @@ describe('parser branch coverage 3', () => {
         function wf(execute: boolean): { onSuccess: boolean } {
           return { onSuccess: true };
         }
-      `);
+      `,
+      );
       const result = parser.parse(tmpFile, [
         {
           name: 'bareNode',
         },
       ]);
-      const nt = result.nodeTypes.find(n => n.name === 'bareNode');
+      const nt = result.nodeTypes.find((n) => n.name === 'bareNode');
       expect(nt).toBeDefined();
       if (nt) {
         expect(nt.inputs.execute).toBeDefined();
@@ -1626,7 +1641,9 @@ describe('parser branch coverage 3', () => {
 
     it('does not duplicate when external name matches local node type', () => {
       const parser = freshParser();
-      fs.writeFileSync(tmpFile, `
+      fs.writeFileSync(
+        tmpFile,
+        `
         /**
          * @flowWeaver nodeType
          * @input value NUMBER
@@ -1640,28 +1657,30 @@ describe('parser branch coverage 3', () => {
         function wf(execute: boolean): { onSuccess: boolean } {
           return { onSuccess: true };
         }
-      `);
+      `,
+      );
       const result = parser.parse(tmpFile, [
         {
           name: 'localType',
           functionName: 'localType',
-          ports: [
-            { name: 'data', type: 'STRING', direction: 'INPUT' },
-          ],
+          ports: [{ name: 'data', type: 'STRING', direction: 'INPUT' }],
         },
       ]);
-      const matching = result.nodeTypes.filter(n => n.name === 'localType');
+      const matching = result.nodeTypes.filter((n) => n.name === 'localType');
       expect(matching.length).toBe(1);
     });
 
     it('parse caches result and returns cached on second call', () => {
       const parser = freshParser();
-      fs.writeFileSync(tmpFile, `
+      fs.writeFileSync(
+        tmpFile,
+        `
         /**
          * @flowWeaver nodeType
          */
         function step(execute: boolean) {}
-      `);
+      `,
+      );
       const result1 = parser.parse(tmpFile);
       const result2 = parser.parse(tmpFile);
       // Should be the same cached result (same reference)
@@ -1670,23 +1689,29 @@ describe('parser branch coverage 3', () => {
 
     it('returns new result after file content changes', () => {
       const parser = freshParser();
-      fs.writeFileSync(tmpFile, `
+      fs.writeFileSync(
+        tmpFile,
+        `
         /**
          * @flowWeaver nodeType
          */
         function step(execute: boolean) {}
-      `);
+      `,
+      );
       const result1 = parser.parse(tmpFile);
       // Wait a moment so mtime differs
       const now = Date.now();
       while (Date.now() - now < 50) {} // spin wait
-      fs.writeFileSync(tmpFile, `
+      fs.writeFileSync(
+        tmpFile,
+        `
         /**
          * @flowWeaver nodeType
          * @input data STRING
          */
         function step(execute: boolean) {}
-      `);
+      `,
+      );
       const result2 = parser.parse(tmpFile);
       // Different content -> different result
       expect(result2).not.toBe(result1);
@@ -1737,7 +1762,9 @@ describe('parser branch coverage 3', () => {
 
     it('skips cache when external node types are provided', () => {
       const parser = freshParser();
-      fs.writeFileSync(tmpFile, `
+      fs.writeFileSync(
+        tmpFile,
+        `
         /**
          * @flowWeaver workflow
          * @node A ext
@@ -1745,15 +1772,19 @@ describe('parser branch coverage 3', () => {
         function wf(execute: boolean): { onSuccess: boolean } {
           return { onSuccess: true };
         }
-      `);
+      `,
+      );
       // First parse without external types (gets cached)
       const result1 = parser.parse(tmpFile);
       // Second parse with external types (should skip cache)
       const result2 = parser.parse(tmpFile, [
-        { name: 'ext', ports: [{ name: 'data', type: 'STRING', direction: 'INPUT' }] },
+        {
+          name: 'ext',
+          ports: [{ name: 'data', type: 'STRING', direction: 'INPUT' }],
+        },
       ]);
       // result2 should have the external type
-      const extNt = result2.nodeTypes.find(n => n.name === 'ext');
+      const extNt = result2.nodeTypes.find((n) => n.name === 'ext');
       expect(extNt).toBeDefined();
     });
   });
@@ -1902,15 +1933,13 @@ describe('parser branch coverage 3', () => {
       const wf = result.workflows[0];
       // Start has a "value" data port, A has "value" input -> should wire them
       // Check all connections to debug
-      const startConns = wf.connections.filter(c => c.from.node === 'Start');
+      const startConns = wf.connections.filter((c) => c.from.node === 'Start');
       // Start should have at least execute + value
       expect(startConns.length).toBeGreaterThanOrEqual(1);
       // If the port matching works, we'll find Start.value -> A.value
-      const dataConn = wf.connections.find(
-        c => c.from.node === 'Start' && c.from.port === 'value'
-      );
+      const dataConn = wf.connections.find((c) => c.from.node === 'Start' && c.from.port === 'value');
       // Even if the exact assertion fails, the code path is exercised
-      expect(startConns.some(c => c.from.port === 'execute')).toBe(true);
+      expect(startConns.some((c) => c.from.port === 'execute')).toBe(true);
     });
 
     it('wires last node data outputs to Exit matching ports', () => {
@@ -1934,7 +1963,7 @@ describe('parser branch coverage 3', () => {
       `);
       const wf = result.workflows[0];
       // Check that Exit connections exist at all
-      const exitConns = wf.connections.filter(c => c.to.node === 'Exit');
+      const exitConns = wf.connections.filter((c) => c.to.node === 'Exit');
       expect(exitConns.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -1960,9 +1989,7 @@ describe('parser branch coverage 3', () => {
       `);
       const wf = result.workflows[0];
       // A -> B connections should include execution + potentially matching data ports
-      const abConns = wf.connections.filter(
-        c => c.from.node === 'A' && c.to.node === 'B'
-      );
+      const abConns = wf.connections.filter((c) => c.from.node === 'A' && c.to.node === 'B');
       expect(abConns.length).toBeGreaterThanOrEqual(1);
       // The code path for data port matching between consecutive nodes is exercised
       // regardless of whether value port matching actually creates a connection
@@ -2282,7 +2309,7 @@ describe('parser branch coverage 3', () => {
          */
         function exprBoth(execute: boolean, x: number, extra: string): number { return x; }
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'exprBoth');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'exprBoth');
       expect(nt).toBeDefined();
       if (nt) {
         // Has explicit @input x and @output result, so the auto-infer skip path
@@ -2346,20 +2373,20 @@ describe('parser branch coverage 3', () => {
       expect(wf.startPorts.items.dataType).toBe('ARRAY');
     });
 
-    it('filters out __abortSignal__ parameter', () => {
+    it('filters out __runtime__ parameter', () => {
       const parser = freshParser();
       const result = parser.parseFromString(`
         /**
          * @flowWeaver workflow
          */
-        function wf(execute: boolean, data: string, __abortSignal__: any): { onSuccess: boolean } {
+        function wf(execute: boolean, data: string, __runtime__: any): { onSuccess: boolean } {
           return { onSuccess: true };
         }
       `);
       const wf = result.workflows[0];
       expect(wf.startPorts.data).toBeDefined();
-      // __abortSignal__ should be filtered out
-      expect(wf.startPorts.__abortSignal__).toBeUndefined();
+      // __runtime__ is executor-owned and must not become a workflow port.
+      expect(wf.startPorts.__runtime__).toBeUndefined();
     });
   });
 
@@ -2454,7 +2481,7 @@ describe('parser branch coverage 3', () => {
          */
         function multiScope(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'multiScope');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'multiScope');
       expect(nt).toBeDefined();
       if (nt?.scopes) {
         expect(nt.scopes).toContain('alpha');
@@ -2476,7 +2503,7 @@ describe('parser branch coverage 3', () => {
          */
         function myFunc(execute: boolean) {}
       `);
-      const nt = result.nodeTypes.find(n => n.name === 'CustomName');
+      const nt = result.nodeTypes.find((n) => n.name === 'CustomName');
       expect(nt).toBeDefined();
       if (nt) {
         expect(nt.functionName).toBe('myFunc');
@@ -2517,7 +2544,7 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some(e => e.includes('nonExistentType') || e.includes('not found'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('nonExistentType') || e.includes('not found'))).toBe(true);
     });
   });
 
@@ -2550,10 +2577,10 @@ describe('parser branch coverage 3', () => {
       `);
       // mainWorkflow should reference subWorkflow as a node type
       expect(result.workflows.length).toBe(2);
-      const main = result.workflows.find(w => w.functionName === 'mainWorkflow');
+      const main = result.workflows.find((w) => w.functionName === 'mainWorkflow');
       expect(main).toBeDefined();
       if (main) {
-        expect(main.instances.some(i => i.nodeType === 'subWorkflow')).toBe(true);
+        expect(main.instances.some((i) => i.nodeType === 'subWorkflow')).toBe(true);
       }
     });
   });
@@ -2582,7 +2609,7 @@ describe('parser branch coverage 3', () => {
         }
       `);
       const wf = result.workflows[0];
-      const conn = wf.connections.find(c => c.from.node === 'A' && c.to.node === 'B');
+      const conn = wf.connections.find((c) => c.from.node === 'A' && c.to.node === 'B');
       expect(conn).toBeDefined();
     });
   });
@@ -2621,7 +2648,7 @@ describe('parser branch coverage 3', () => {
       expect(result.errors.length).toBe(0);
       const wf = result.workflows[0];
       // The coerce should create a __fw_ prefixed instance
-      const coerceInst = wf.instances.find(i => i.id === 'conv');
+      const coerceInst = wf.instances.find((i) => i.id === 'conv');
       expect(coerceInst).toBeDefined();
     });
   });
@@ -2709,8 +2736,8 @@ describe('parser branch coverage 3', () => {
       `);
       const wf = result.workflows[0];
       // Should have A.onSuccess -> B and A.onSuccess -> C
-      const toB = wf.connections.find(c => c.from.node === 'A' && c.to.node === 'B');
-      const toC = wf.connections.find(c => c.from.node === 'A' && c.to.node === 'C');
+      const toB = wf.connections.find((c) => c.from.node === 'A' && c.to.node === 'B');
+      const toC = wf.connections.find((c) => c.from.node === 'A' && c.to.node === 'C');
       expect(toB).toBeDefined();
       expect(toC).toBeDefined();
     });
@@ -2742,8 +2769,8 @@ describe('parser branch coverage 3', () => {
       `);
       const wf = result.workflows[0];
       // Should have connections from both A and B to C
-      const fromA = wf.connections.find(c => c.from.node === 'A' && c.to.node === 'C');
-      const fromB = wf.connections.find(c => c.from.node === 'B' && c.to.node === 'C');
+      const fromA = wf.connections.find((c) => c.from.node === 'A' && c.to.node === 'C');
+      const fromB = wf.connections.find((c) => c.from.node === 'B' && c.to.node === 'C');
       expect(fromA).toBeDefined();
       expect(fromB).toBeDefined();
     });
@@ -2770,7 +2797,7 @@ describe('parser branch coverage 3', () => {
         }
       `);
       const wf = result.workflows[0];
-      const instA = wf.instances.find(i => i.id === 'A');
+      const instA = wf.instances.find((i) => i.id === 'A');
       expect(instA).toBeDefined();
       if (instA) {
         expect(instA.config!.x).toBe(100);
@@ -2799,7 +2826,7 @@ describe('parser branch coverage 3', () => {
         function step2(execute: boolean) {}
       `);
       // Should not throw, should produce fresh result
-      expect(result2.nodeTypes.some(nt => nt.functionName === 'step2')).toBe(true);
+      expect(result2.nodeTypes.some((nt) => nt.functionName === 'step2')).toBe(true);
     });
   });
 
@@ -2882,8 +2909,8 @@ describe('parser branch coverage 3', () => {
       `);
       // The coerce macro creates __fw_toString instance
       const wf = result.workflows[0];
-      if (wf.instances.some(i => i.nodeType.startsWith('__fw_'))) {
-        const fwTypes = wf.nodeTypes.filter(nt => nt.functionName.startsWith('__fw_'));
+      if (wf.instances.some((i) => i.nodeType.startsWith('__fw_'))) {
+        const fwTypes = wf.nodeTypes.filter((nt) => nt.functionName.startsWith('__fw_'));
         expect(fwTypes.length).toBeGreaterThan(0);
       }
     });

@@ -14,9 +14,7 @@
  *   { match: /./, response: { approved: true } },
  * ]);
  *
- * // Inject globally for compiled workflows
- * (globalThis as unknown as { __fw_approval_provider__?: ApprovalProvider })
- *   .__fw_approval_provider__ = mockApproval;
+ * // Pass mockApproval to the approval adapter under test.
  *
  * // After test
  * expect(mockApproval.getCallCount()).toBe(2);

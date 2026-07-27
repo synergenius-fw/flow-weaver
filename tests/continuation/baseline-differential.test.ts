@@ -71,6 +71,7 @@ async function observeBaseline(testCase: CorpusCase) {
 async function observeCandidate(testCase: CorpusCase) {
   return observeResult(
     await executeCandidate({
+      runId: `baseline-differential:${testCase.name}`,
       filePath: path.join(fixtureDirectory, testCase.fixture),
       params: testCase.params,
       workflowName: testCase.workflowName,

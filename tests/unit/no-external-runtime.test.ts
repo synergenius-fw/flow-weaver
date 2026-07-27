@@ -54,12 +54,31 @@ function makeMinimalAST(overrides: Partial<TWorkflowAST> = {}): TWorkflowAST {
     nodeTypes: [nodeA],
     instances: [{ type: 'NodeInstance', id: 'a', nodeType: 'nodeA' }],
     connections: [
-      { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-      { type: 'Connection', from: { node: 'Start', port: 'value' }, to: { node: 'a', port: 'value' } },
-      { type: 'Connection', from: { node: 'a', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
-      { type: 'Connection', from: { node: 'a', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+      {
+        type: 'Connection',
+        from: { node: 'Start', port: 'execute' },
+        to: { node: 'a', port: 'execute' },
+      },
+      {
+        type: 'Connection',
+        from: { node: 'Start', port: 'value' },
+        to: { node: 'a', port: 'value' },
+      },
+      {
+        type: 'Connection',
+        from: { node: 'a', port: 'onSuccess' },
+        to: { node: 'Exit', port: 'onSuccess' },
+      },
+      {
+        type: 'Connection',
+        from: { node: 'a', port: 'result' },
+        to: { node: 'Exit', port: 'result' },
+      },
     ],
-    startPorts: { execute: { dataType: 'STEP' }, value: { dataType: 'NUMBER' } },
+    startPorts: {
+      execute: { dataType: 'STEP' },
+      value: { dataType: 'NUMBER' },
+    },
     exitPorts: {
       onSuccess: { dataType: 'STEP', isControlFlow: true },
       onFailure: { dataType: 'STEP', failure: true, isControlFlow: true },
@@ -198,7 +217,8 @@ describe('generateCode: no external runtime imports', () => {
       expression: false,
       inferred: false,
       sourceLocation: { file: MOCK_FILE, line: 1, column: 0 },
-      functionText: 'function addNumbers(execute: boolean, a: number, b: number) { return { onSuccess: true, onFailure: false, result: a + b }; }',
+      functionText:
+        'function addNumbers(execute: boolean, a: number, b: number) { return { onSuccess: true, onFailure: false, result: a + b }; }',
       ...overrides,
     };
   }
@@ -210,13 +230,39 @@ describe('generateCode: no external runtime imports', () => {
       name: 'testWorkflow',
       functionName: 'testWorkflow',
       nodeTypes,
-      instances: [{ type: 'NodeInstance', id: 'n1', nodeType: nodeTypes[0]?.name || 'addNumbers' }],
+      instances: [
+        {
+          type: 'NodeInstance',
+          id: 'n1',
+          nodeType: nodeTypes[0]?.name || 'addNumbers',
+        },
+      ],
       connections: [
-        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'n1', port: 'execute' } },
-        { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'n1', port: 'a' } },
-        { type: 'Connection', from: { node: 'Start', port: 'b' }, to: { node: 'n1', port: 'b' } },
-        { type: 'Connection', from: { node: 'n1', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
-        { type: 'Connection', from: { node: 'n1', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'execute' },
+          to: { node: 'n1', port: 'execute' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'a' },
+          to: { node: 'n1', port: 'a' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'b' },
+          to: { node: 'n1', port: 'b' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'n1', port: 'onSuccess' },
+          to: { node: 'Exit', port: 'onSuccess' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'n1', port: 'result' },
+          to: { node: 'Exit', port: 'result' },
+        },
       ],
       startPorts: {
         execute: { dataType: 'STEP' },
@@ -267,7 +313,9 @@ describe('generateCode: no external runtime imports', () => {
     const nodeType = makeBundleNodeType();
     const ast = makeBundleWorkflow([nodeType]);
 
-    const code = generateCode(ast, { moduleFormat: 'cjs' }) as unknown as string;
+    const code = generateCode(ast, {
+      moduleFormat: 'cjs',
+    }) as unknown as string;
 
     assertNoExternalRuntimeImport(code);
     assertInlineRuntimePresent(code);
@@ -303,7 +351,8 @@ describe('generateCode: bundle mode with inline runtime', () => {
       expression: false,
       inferred: false,
       sourceLocation: { file: MOCK_FILE, line: 1, column: 0 },
-      functionText: 'function addNumbers(execute: boolean, a: number, b: number) { return { onSuccess: true, onFailure: false, result: a + b }; }',
+      functionText:
+        'function addNumbers(execute: boolean, a: number, b: number) { return { onSuccess: true, onFailure: false, result: a + b }; }',
       ...overrides,
     };
   }
@@ -315,13 +364,39 @@ describe('generateCode: bundle mode with inline runtime', () => {
       name: 'testWorkflow',
       functionName: 'testWorkflow',
       nodeTypes,
-      instances: [{ type: 'NodeInstance', id: 'n1', nodeType: nodeTypes[0]?.name || 'addNumbers' }],
+      instances: [
+        {
+          type: 'NodeInstance',
+          id: 'n1',
+          nodeType: nodeTypes[0]?.name || 'addNumbers',
+        },
+      ],
       connections: [
-        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'n1', port: 'execute' } },
-        { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'n1', port: 'a' } },
-        { type: 'Connection', from: { node: 'Start', port: 'b' }, to: { node: 'n1', port: 'b' } },
-        { type: 'Connection', from: { node: 'n1', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
-        { type: 'Connection', from: { node: 'n1', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'execute' },
+          to: { node: 'n1', port: 'execute' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'a' },
+          to: { node: 'n1', port: 'a' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'b' },
+          to: { node: 'n1', port: 'b' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'n1', port: 'onSuccess' },
+          to: { node: 'Exit', port: 'onSuccess' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'n1', port: 'result' },
+          to: { node: 'Exit', port: 'result' },
+        },
       ],
       startPorts: {
         execute: { dataType: 'STEP' },
@@ -343,7 +418,7 @@ describe('generateCode: bundle mode with inline runtime', () => {
     const ast = makeBundleWorkflow([nodeType]);
 
     const code = generateCode(ast, {
-      externalNodeTypes: { 'addNumbers': '../node-types/addnumbers.js' },
+      externalNodeTypes: { addNumbers: '../node-types/addnumbers.js' },
       bundleMode: true,
     }) as unknown as string;
 
@@ -360,7 +435,7 @@ describe('generateCode: bundle mode with inline runtime', () => {
     const ast = makeBundleWorkflow([nodeType]);
 
     const code = generateCode(ast, {
-      externalNodeTypes: { 'addNumbers': '../node-types/addnumbers.js' },
+      externalNodeTypes: { addNumbers: '../node-types/addnumbers.js' },
       bundleMode: true,
     }) as unknown as string;
 
@@ -379,7 +454,7 @@ describe('generateCode: bundle mode with inline runtime', () => {
     const ast = makeBundleWorkflow([nodeType]);
 
     const code = generateCode(ast, {
-      externalNodeTypes: { 'multiply': '../node-types/multiply.js' },
+      externalNodeTypes: { multiply: '../node-types/multiply.js' },
       bundleMode: true,
     }) as unknown as string;
 
@@ -415,10 +490,26 @@ describe('generateCode: bundle mode with inline runtime', () => {
     const ast = makeBundleWorkflow([importedWorkflow], {
       instances: [{ type: 'NodeInstance', id: 'n1', nodeType: 'subWorkflow' }],
       connections: [
-        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'n1', port: 'execute' } },
-        { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'n1', port: 'input' } },
-        { type: 'Connection', from: { node: 'n1', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
-        { type: 'Connection', from: { node: 'n1', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'execute' },
+          to: { node: 'n1', port: 'execute' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'a' },
+          to: { node: 'n1', port: 'input' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'n1', port: 'onSuccess' },
+          to: { node: 'Exit', port: 'onSuccess' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'n1', port: 'result' },
+          to: { node: 'Exit', port: 'result' },
+        },
       ],
     });
 
@@ -452,7 +543,8 @@ describe('generateCode: bundle mode with inline runtime', () => {
       isAsync: false,
       executeWhen: 'CONJUNCTION',
       sourceLocation: { file: '/other/math-utils.ts', line: 1, column: 0 },
-      functionText: 'function addNumbers(execute: boolean, a: number, b: number) { return { onSuccess: true, onFailure: false, result: a + b }; }',
+      functionText:
+        'function addNumbers(execute: boolean, a: number, b: number) { return { onSuccess: true, onFailure: false, result: a + b }; }',
     };
 
     const ast = makeBundleWorkflow([importedNode]);
@@ -472,13 +564,13 @@ describe('generateCode: bundle mode with inline runtime', () => {
 // ---------------------------------------------------------------------------
 
 describe('Debug infrastructure with inline runtime', () => {
-  it('dev mode includes TDebugger type inline (not imported)', () => {
+  it('dev mode reads debugger services from the explicit runtime', () => {
     const source = makeSourceWithNodeType();
     const ast = makeMinimalAST();
     const result = generateInPlace(source, ast, { production: false });
 
-    // Dev mode has debugger infrastructure
-    expect(result.code).toContain('__flowWeaverDebugger__');
+    expect(result.code).toContain('runtime.services.debugger');
+    expect(result.code).not.toContain('__flowWeaverDebugger__');
     // But it comes from inline runtime, never external import
     assertNoExternalRuntimeImport(result.code);
   });
@@ -512,7 +604,8 @@ describe('Debug infrastructure with inline runtime', () => {
       isAsync: false,
       executeWhen: 'CONJUNCTION',
       sourceLocation: { file: MOCK_FILE, line: 1, column: 0 },
-      functionText: 'function addNumbers(execute: boolean, a: number) { return { onSuccess: true, onFailure: false, result: a }; }',
+      functionText:
+        'function addNumbers(execute: boolean, a: number) { return { onSuccess: true, onFailure: false, result: a }; }',
     };
 
     const ast: TWorkflowAST = {
@@ -523,10 +616,26 @@ describe('Debug infrastructure with inline runtime', () => {
       nodeTypes: [nodeType],
       instances: [{ type: 'NodeInstance', id: 'n1', nodeType: 'addNumbers' }],
       connections: [
-        { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'n1', port: 'execute' } },
-        { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'n1', port: 'a' } },
-        { type: 'Connection', from: { node: 'n1', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
-        { type: 'Connection', from: { node: 'n1', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'execute' },
+          to: { node: 'n1', port: 'execute' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'a' },
+          to: { node: 'n1', port: 'a' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'n1', port: 'onSuccess' },
+          to: { node: 'Exit', port: 'onSuccess' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'n1', port: 'result' },
+          to: { node: 'Exit', port: 'result' },
+        },
       ],
       startPorts: { execute: { dataType: 'STEP' }, a: { dataType: 'NUMBER' } },
       exitPorts: {

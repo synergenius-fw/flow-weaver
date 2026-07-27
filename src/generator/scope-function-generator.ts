@@ -1,6 +1,6 @@
 import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST } from '../ast';
 import { isSuccessPort, isFailurePort, isExecutePort } from '../constants';
-import { buildNodeArgumentsWithContext, toValidIdentifier } from './code-utils';
+import { buildDurableGatePayload, buildNodeArgumentsWithContext, toValidIdentifier } from './code-utils';
 import { performKahnsTopologicalSort, buildControlFlowGraph } from './control-flow';
 import { mapToTypeScript } from '../type-mappings';
 
@@ -86,7 +86,7 @@ export function generateScopeFunctionClosure(
   workflow: TWorkflowAST,
   childInstances: TNodeInstanceAST[],
   isAsync: boolean,
-  production: boolean
+  production: boolean,
 ): string {
   const lines: string[] = [];
 
@@ -138,7 +138,7 @@ export function generateScopeFunctionClosure(
   lines.push(`    // Create scoped context for child nodes`);
   const isAsyncOverrideArg = isAsync ? '' : ', false';
   lines.push(
-    `    const scopedCtx = ctx.createScope('${parentNodeId}', ${safeParentId}Idx!, '${scopeName}', true${isAsyncOverrideArg});`
+    `    const scopedCtx = ctx.createScope('${parentNodeId}', ${safeParentId}Idx!, '${scopeName}', true${isAsyncOverrideArg});`,
   );
   lines.push(``);
 
@@ -148,13 +148,11 @@ export function generateScopeFunctionClosure(
     lines.push(`    // Set scope parameters as variables for child nodes`);
     scopedOutputPorts.forEach((portName) => {
       // Store using parent node ID so connections from parent.port work
-      lines.push(
-        `    const scopeParamIdx_${portName} = scopedCtx.addExecution('${parentNodeId}_param_${portName}');`
-      );
+      lines.push(`    const scopeParamIdx_${portName} = scopedCtx.addExecution('${parentNodeId}_param_${portName}');`);
       const setCall = isAsync ? `await scopedCtx.setVariable` : `scopedCtx.setVariable`;
       // Include scope and side for scoped OUTPUT ports (start side of scope)
       lines.push(
-        `    ${setCall}({ id: '${parentNodeId}', portName: '${portName}', executionIndex: scopeParamIdx_${portName}, nodeTypeName: '${parentNodeType.functionName}', scope: '${scopeName}', side: 'start' }, ${portName});`
+        `    ${setCall}({ id: '${parentNodeId}', portName: '${portName}', executionIndex: scopeParamIdx_${portName}, nodeTypeName: '${parentNodeType.functionName}', scope: '${scopeName}', side: 'start' }, ${portName});`,
       );
     });
     lines.push(``);
@@ -199,9 +197,7 @@ export function generateScopeFunctionClosure(
     // Get node types for children
     const childNodeTypes = childInstances
       .map((c) => {
-        return workflow.nodeTypes?.find(
-          (nt) => nt.name === c.nodeType || nt.functionName === c.nodeType
-        );
+        return workflow.nodeTypes?.find((nt) => nt.name === c.nodeType || nt.functionName === c.nodeType);
       })
       .filter((nt): nt is TNodeTypeAST => nt !== undefined);
 
@@ -213,12 +209,10 @@ export function generateScopeFunctionClosure(
       if (!child) return;
 
       const childNodeType = workflow.nodeTypes?.find(
-        (nt) => nt.name === child.nodeType || nt.functionName === child.nodeType
+        (nt) => nt.name === child.nodeType || nt.functionName === child.nodeType,
       );
       if (!childNodeType) {
-        lines.push(
-          `    // WARNING: Node type '${child.nodeType}' not found for child '${child.id}'`
-        );
+        lines.push(`    // WARNING: Node type '${child.nodeType}' not found for child '${child.id}'`);
         return;
       }
 
@@ -231,22 +225,17 @@ export function generateScopeFunctionClosure(
       lines.push(``);
       lines.push(`    // Execute: ${child.id} (${child.nodeType})`);
 
-      // Debug controller: beforeNode hook for scoped children
-      // When enabled, wraps the child execution so breakpoints can pause on scoped nodes.
+      // Live debugging may pause but cannot skip a durable boundary.
       if (emitDebugHooks) {
         const awaitHook = isAsync ? 'await ' : '';
-        // Hoist Idx declaration before the if block so it stays in scope after.
-        // Initialize to -1 so getVariable can still read checkpointed values when beforeNode skips.
-        lines.push(`    let ${safeChildId}Idx: number = -1;`);
-        lines.push(`    if (${awaitHook}__ctrl__.beforeNode('${child.id}', scopedCtx)) {`);
-        childIndent = '      ';
+        lines.push(`    ${awaitHook}__ctrl__.beforeNode('${child.id}', scopedCtx);`);
       }
 
       lines.push(`${childIndent}scopedCtx.checkAborted('${child.id}');`);
-      // Use assignment when debug hooks hoist the declaration, const otherwise
-      const idxDecl = emitDebugHooks ? '' : 'const ';
+      const idxDecl = 'const ';
       lines.push(`${childIndent}${idxDecl}${safeChildId}Idx = scopedCtx.addExecution('${child.id}');`);
-      lines.push(`${childIndent}if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${child.id}';`);
+      lines.push(`${childIndent}if (scopedCtx.shouldExecute('${child.id}', '${child.nodeType}', ${safeChildId}Idx)) {`);
+      childIndent = `${childIndent}  `;
       lines.push(`${childIndent}${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
       lines.push(`${childIndent}  nodeTypeName: '${child.nodeType}',`);
       lines.push(`${childIndent}  id: '${child.id}',`);
@@ -266,7 +255,7 @@ export function generateScopeFunctionClosure(
 
       // Find connections from parent scoped OUTPUT ports to this child
       const parentConnections = workflow.connections.filter(
-        (conn) => conn.from.node === parentNodeId && conn.to.node === child.id
+        (conn) => conn.from.node === parentNodeId && conn.to.node === child.id,
       );
 
       parentConnections.forEach((conn) => {
@@ -278,15 +267,13 @@ export function generateScopeFunctionClosure(
           const scopeParamIdxVar = `scopeParamIdx_${conn.from.port}`;
           // Get the target port type for the type cast
           const targetPortDef = childNodeType.inputs[targetPort];
-          const portType = targetPortDef
-            ? mapToTypeScript(targetPortDef.dataType, targetPortDef.tsType)
-            : 'unknown';
+          const portType = targetPortDef ? mapToTypeScript(targetPortDef.dataType, targetPortDef.tsType) : 'unknown';
           argLines.push(
-            `${tryIndent}const ${varName} = ${getCall}({ id: '${parentNodeId}', portName: '${conn.from.port}', executionIndex: ${scopeParamIdxVar} }) as ${portType};`
+            `${tryIndent}const ${varName} = ${getCall}({ id: '${parentNodeId}', portName: '${conn.from.port}', executionIndex: ${scopeParamIdxVar} }) as ${portType};`,
           );
           // Emit VARIABLE_SET for the child's INPUT port so breakpoints and inspection work
           argLines.push(
-            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${targetPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${varName});`
+            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${targetPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${varName});`,
           );
           preHandledPorts.add(targetPort);
         }
@@ -307,22 +294,33 @@ export function generateScopeFunctionClosure(
         setCall: childSetCall,
         nodeTypeName: child.nodeType,
         production,
+        runtimeContextExpression: 'scopedCtx',
       });
 
       // Add argument building lines
       argLines.forEach((line) => lines.push(line));
 
       // Call the child node function
-      if (childNodeType.expression) {
-        // Expression nodes use original signature (positional args, no execute)
-        lines.push(
-          `${tryIndent}const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`
+      if (childNodeType.durableGate) {
+        const trailingRuntimeArgs =
+          (childNodeType.receivesAbortSignal ? 1 : 0) + (childNodeType.receivesRuntime ? 1 : 0);
+        const gateArgs = args.slice(
+          childNodeType.expression ? 0 : 1,
+          trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
         );
+        lines.push(
+          `${tryIndent}const ${safeChildId}Result = scopedCtx.resolveGate('${childNodeType.durableGate}', '${child.id}', '${child.nodeType}', ${safeChildId}Idx, ${buildDurableGatePayload(gateArgs)} as WireValue) as any;`,
+        );
+      } else if (childNodeType.durableEffect) {
+        lines.push(
+          `${tryIndent}const ${safeChildId}Result = await scopedCtx.executeEffect('${child.id}', '${child.nodeType}', ${safeChildId}Idx, async (__operationKey__) => ${child.nodeType}(${[...args, '__operationKey__'].join(', ')}));`,
+        );
+      } else if (childNodeType.expression) {
+        // Expression nodes use original signature (positional args, no execute)
+        lines.push(`${tryIndent}const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`);
       } else {
         // Regular node call with positional arguments
-        lines.push(
-          `${tryIndent}const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`
-        );
+        lines.push(`${tryIndent}const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`);
       }
 
       // Store outputs (including onSuccess/onFailure for debugging)
@@ -333,24 +331,24 @@ export function generateScopeFunctionClosure(
           if (portDef.failure || isFailurePort(outPort)) {
             // Failure ports always false on success (expression nodes always succeed)
             lines.push(
-              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, false);`
+              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, false);`,
             );
           } else if (portDef.isControlFlow || isSuccessPort(outPort)) {
             // Success control flow ports always true (expression nodes always succeed)
             lines.push(
-              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, true);`
+              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, true);`,
             );
           } else {
             // Data outputs read from result object
             lines.push(
-              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`
+              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`,
             );
           }
         });
       } else {
         Object.keys(childNodeType.outputs || {}).forEach((outPort) => {
           lines.push(
-            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`
+            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`,
           );
         });
       }
@@ -362,12 +360,16 @@ export function generateScopeFunctionClosure(
       lines.push(`${tryIndent}  executionIndex: ${safeChildId}Idx,`);
       lines.push(`${tryIndent}  status: 'SUCCEEDED',`);
       lines.push(`${tryIndent}});`);
+      lines.push(`${tryIndent}scopedCtx.commitNode('${child.id}', '${child.nodeType}', ${safeChildId}Idx);`);
       // Debug controller: afterNode hook for scoped children
       if (emitDebugHooks) {
         const awaitHook = isAsync ? 'await ' : '';
         lines.push(`${tryIndent}${awaitHook}__ctrl__.afterNode('${child.id}', scopedCtx);`);
       }
       lines.push(`${childIndent}} catch (error: unknown) {`);
+      lines.push(
+        `${tryIndent}if ((error as { code?: unknown })?.code === 'FLOW_WEAVER_DURABLE_GATE_YIELD') throw error;`,
+      );
       lines.push(`${tryIndent}const isCancellation = CancellationError.isCancellationError(error);`);
       lines.push(`${tryIndent}${awaitPrefix}scopedCtx.sendStatusChangedEvent({`);
       lines.push(`${tryIndent}  nodeTypeName: '${child.nodeType}',`);
@@ -382,16 +384,13 @@ export function generateScopeFunctionClosure(
       lines.push(`${tryIndent}    executionIndex: ${safeChildId}Idx,`);
       lines.push(`${tryIndent}    error: error instanceof Error ? error.message : String(error),`);
       lines.push(
-        `${tryIndent}    code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`
+        `${tryIndent}    code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`,
       );
       lines.push(`${tryIndent}  });`);
       lines.push(`${tryIndent}}`);
       lines.push(`${tryIndent}throw error;`);
       lines.push(`${childIndent}}`);
-      // Close debug controller beforeNode if-block
-      if (emitDebugHooks) {
-        lines.push(`    }`);
-      }
+      lines.push(`    }`);
     });
     lines.push(``);
   }
@@ -437,12 +436,11 @@ export function generateScopeFunctionClosure(
 
       // STEP ports (success/failure) may be undefined for expression nodes — use hasVariable with default
       const isStepPort = portName === 'success' || portName === 'failure';
-      const defaultValue =
-        portName === 'success' ? 'true' : portName === 'failure' ? 'false' : 'undefined';
+      const defaultValue = portName === 'success' ? 'true' : portName === 'failure' ? 'false' : 'undefined';
 
       if (isStepPort) {
         lines.push(
-          `    const ${varName} = scopedCtx.hasVariable(${varAddr}) ? ${getCallAfterMerge}(${varAddr}) as ${portType} : ${defaultValue};`
+          `    const ${varName} = scopedCtx.hasVariable(${varAddr}) ? ${getCallAfterMerge}(${varAddr}) as ${portType} : ${defaultValue};`,
         );
       } else {
         lines.push(`    const ${varName} = ${getCallAfterMerge}(${varAddr}) as ${portType};`);
@@ -452,21 +450,20 @@ export function generateScopeFunctionClosure(
       if (!production) {
         const setCallAfterMerge = isAsync ? 'await ctx.setVariable' : 'ctx.setVariable';
         lines.push(
-          `    ${setCallAfterMerge}({ id: '${parentNodeId}', portName: '${portName}', executionIndex: scopeExitIdx, scope: '${scopeName}', side: 'exit', nodeTypeName: '${parentNodeType.functionName}' }, ${varName});`
+          `    ${setCallAfterMerge}({ id: '${parentNodeId}', portName: '${portName}', executionIndex: scopeExitIdx, scope: '${scopeName}', side: 'exit', nodeTypeName: '${parentNodeType.functionName}' }, ${varName});`,
         );
       }
 
       returnObj.push(`${portName}: ${varName}`);
     } else {
       // No connection found - default STEP ports to true/false, others to undefined
-      const defaultValue =
-        portName === 'success' ? 'true' : portName === 'failure' ? 'false' : 'undefined';
+      const defaultValue = portName === 'success' ? 'true' : portName === 'failure' ? 'false' : 'undefined';
 
       // Emit VARIABLE_SET for unconnected ports (debug mode only)
       if (!production) {
         const setCallAfterMerge = isAsync ? 'await ctx.setVariable' : 'ctx.setVariable';
         lines.push(
-          `    ${setCallAfterMerge}({ id: '${parentNodeId}', portName: '${portName}', executionIndex: scopeExitIdx, scope: '${scopeName}', side: 'exit', nodeTypeName: '${parentNodeType.functionName}' }, ${defaultValue});`
+          `    ${setCallAfterMerge}({ id: '${parentNodeId}', portName: '${portName}', executionIndex: scopeExitIdx, scope: '${scopeName}', side: 'exit', nodeTypeName: '${parentNodeType.functionName}' }, ${defaultValue});`,
         );
       }
 

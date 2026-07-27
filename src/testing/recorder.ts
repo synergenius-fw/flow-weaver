@@ -7,8 +7,7 @@
  *
  * const recorder = createRecordingProvider(realLlmProvider);
  *
- * // Use recorder.provider as the LLM provider in your workflow
- * (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ = recorder.provider;
+ * // Pass recorder.provider to the node or adapter under test.
  *
  * // Run workflow...
  *

@@ -1,4 +1,5 @@
 import { getMockConfig, lookupMock } from './mock-types.js';
+import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 /**
  * @flowWeaver nodeType
@@ -12,13 +13,14 @@ export async function waitForAgent(
   agentId: string,
   context: object,
   prompt?: string,
-  abortSignal?: AbortSignal
+  _abortSignal?: AbortSignal,
+  runtime?: NodeExecutionRuntime,
 ): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, agentResult: {} };
 
   // 1. Check mocks first (supports instance-qualified keys)
-  const mocks = getMockConfig();
-  const mockResult = lookupMock(mocks?.agents, agentId);
+  const mocks = getMockConfig(runtime);
+  const mockResult = lookupMock(mocks?.agents, agentId, runtime);
   if (mockResult !== undefined) {
     return { onSuccess: true, onFailure: false, agentResult: mockResult };
   }
@@ -27,15 +29,10 @@ export async function waitForAgent(
     return { onSuccess: false, onFailure: true, agentResult: {} };
   }
 
-  // 2. Check agent channel (set by executor for pause/resume)
-  const channel = (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ as
-    | { request: (req: object, abortSignal?: AbortSignal) => Promise<object> }
-    | undefined;
-  if (channel) {
-    const result = await channel.request({ agentId, context, prompt }, abortSignal);
-    return { onSuccess: true, onFailure: false, agentResult: result };
-  }
-
-  // 3. No mocks, no channel: no-op
-  return { onSuccess: true, onFailure: false, agentResult: {} };
+  // The compiler replaces this declared agent gate with a terminal durable
+  // yield. Reaching the implementation without a mock means the generated
+  // program did not apply the durable-gate boundary and must fail closed.
+  void context;
+  void prompt;
+  throw new Error('waitForAgent requires a generated durable agent gate');
 }

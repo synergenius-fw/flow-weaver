@@ -9,16 +9,16 @@
  * along on the event.
  */
 
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
-import { generator } from "../../src/generator";
-import { TEvent, TErrorLogEvent } from "../../src/runtime/events";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import { generator } from '../../src/generator';
+import { TEvent, TErrorLogEvent } from '../../src/runtime/events';
 
-describe("LOG_ERROR carries the thrown Error.code", () => {
+describe('LOG_ERROR carries the thrown Error.code', () => {
   const uniqueId = `log-error-code-${process.pid}-${Date.now()}`;
   const tempDir = path.join(os.tmpdir(), `flow-weaver-${uniqueId}`);
-  const testFile = path.join(tempDir, "log-error-code-test.ts");
+  const testFile = path.join(tempDir, 'log-error-code-test.ts');
 
   beforeEach(() => {
     fs.mkdirSync(tempDir, { recursive: true });
@@ -28,10 +28,10 @@ describe("LOG_ERROR carries the thrown Error.code", () => {
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true });
     }
-    global.testHelpers?.cleanupOutput?.("log-error-code.generated.ts");
+    global.testHelpers?.cleanupOutput?.('log-error-code.generated.ts');
   });
 
-  it("surfaces err.code on the LOG_ERROR event when a node throws a coded error", async () => {
+  it('surfaces err.code on the LOG_ERROR event when a node throws a coded error', async () => {
     const content = `
 /**
  * @flowWeaver nodeType
@@ -57,15 +57,12 @@ export async function codedErrorWorkflow(execute: boolean, params: { x: number }
 `;
     fs.writeFileSync(testFile, content);
 
-    const code = await generator.generate(testFile, "codedErrorWorkflow", {
+    const code = await generator.generate(testFile, 'codedErrorWorkflow', {
       production: false,
     });
 
-    const outputFile = path.join(
-      global.testHelpers.outputDir,
-      "log-error-code.generated.ts"
-    );
-    fs.writeFileSync(outputFile, code, "utf-8");
+    const outputFile = path.join(global.testHelpers.outputDir, 'log-error-code.generated.ts');
+    fs.writeFileSync(outputFile, code, 'utf-8');
     const { codedErrorWorkflow } = await import(outputFile);
 
     const events: TEvent[] = [];
@@ -76,17 +73,21 @@ export async function codedErrorWorkflow(execute: boolean, params: { x: number }
 
     // The node throws; the workflow halts. We don't care about the return
     // value here, only the emitted LOG_ERROR event.
-    await codedErrorWorkflow(true, { x: 1 }, mockDebugger).catch(() => undefined);
+    await codedErrorWorkflow(
+      true,
+      { x: 1 },
+      testHelpers.createRuntime('codedErrorWorkflow', {
+        debugger: mockDebugger,
+      }),
+    ).catch(() => undefined);
 
-    const logErrors = events.filter(
-      (e): e is TErrorLogEvent => e.type === "LOG_ERROR"
-    );
+    const logErrors = events.filter((e): e is TErrorLogEvent => e.type === 'LOG_ERROR');
 
-    const boomError = logErrors.find((e) => e.id === "boom1");
+    const boomError = logErrors.find((e) => e.id === 'boom1');
     expect(boomError).toBeDefined();
     // The message still rides along (unchanged behaviour).
-    expect(boomError?.error).toContain("Boom message.");
+    expect(boomError?.error).toContain('Boom message.');
     // The structured code is the new contract.
-    expect(boomError?.code).toBe("ERR_BOOM_TEST");
+    expect(boomError?.code).toBe('ERR_BOOM_TEST');
   });
 });

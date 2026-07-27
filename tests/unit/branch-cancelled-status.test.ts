@@ -83,10 +83,7 @@ export async function branchCancelledSuccessWorkflow(execute: boolean, params: {
       production: false,
     });
 
-    const outputFile = path.join(
-      global.testHelpers.outputDir,
-      'branch-cancelled-success.generated.ts'
-    );
+    const outputFile = path.join(global.testHelpers.outputDir, 'branch-cancelled-success.generated.ts');
     fs.writeFileSync(outputFile, code, 'utf-8');
     const { branchCancelledSuccessWorkflow } = await import(outputFile);
 
@@ -96,11 +93,15 @@ export async function branchCancelledSuccessWorkflow(execute: boolean, params: {
       innerFlowInvocation: false,
     };
 
-    await branchCancelledSuccessWorkflow(true, { x: 5 }, mockDebugger);
-
-    const statusEvents = events.filter(
-      (e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED'
+    await branchCancelledSuccessWorkflow(
+      true,
+      { x: 5 },
+      testHelpers.createRuntime('branchCancelledSuccessWorkflow', {
+        debugger: mockDebugger,
+      }),
     );
+
+    const statusEvents = events.filter((e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED');
 
     // onFailure1 should be CANCELLED since success path was taken
     const cancelledEvents = statusEvents.filter((e) => e.status === 'CANCELLED');
@@ -164,10 +165,7 @@ export async function branchCancelledFailureWorkflow(execute: boolean, params: {
       production: false,
     });
 
-    const outputFile = path.join(
-      global.testHelpers.outputDir,
-      'branch-cancelled-failure.generated.ts'
-    );
+    const outputFile = path.join(global.testHelpers.outputDir, 'branch-cancelled-failure.generated.ts');
     fs.writeFileSync(outputFile, code, 'utf-8');
     const { branchCancelledFailureWorkflow } = await import(outputFile);
 
@@ -177,11 +175,15 @@ export async function branchCancelledFailureWorkflow(execute: boolean, params: {
       innerFlowInvocation: false,
     };
 
-    await branchCancelledFailureWorkflow(true, { x: 5 }, mockDebugger);
-
-    const statusEvents = events.filter(
-      (e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED'
+    await branchCancelledFailureWorkflow(
+      true,
+      { x: 5 },
+      testHelpers.createRuntime('branchCancelledFailureWorkflow', {
+        debugger: mockDebugger,
+      }),
     );
+
+    const statusEvents = events.filter((e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED');
 
     // onSuccess1 should be CANCELLED since failure path was taken
     const cancelledEvents = statusEvents.filter((e) => e.status === 'CANCELLED');
@@ -244,10 +246,7 @@ export async function branchCancelledIndexWorkflow(execute: boolean, params: { x
       production: false,
     });
 
-    const outputFile = path.join(
-      global.testHelpers.outputDir,
-      'branch-cancelled-index.generated.ts'
-    );
+    const outputFile = path.join(global.testHelpers.outputDir, 'branch-cancelled-index.generated.ts');
     fs.writeFileSync(outputFile, code, 'utf-8');
     const { branchCancelledIndexWorkflow } = await import(outputFile);
 
@@ -257,11 +256,15 @@ export async function branchCancelledIndexWorkflow(execute: boolean, params: { x
       innerFlowInvocation: false,
     };
 
-    await branchCancelledIndexWorkflow(true, { x: 5 }, mockDebugger);
-
-    const statusEvents = events.filter(
-      (e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED'
+    await branchCancelledIndexWorkflow(
+      true,
+      { x: 5 },
+      testHelpers.createRuntime('branchCancelledIndexWorkflow', {
+        debugger: mockDebugger,
+      }),
     );
+
+    const statusEvents = events.filter((e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED');
 
     const cancelledEvents = statusEvents.filter((e) => e.status === 'CANCELLED');
 
@@ -326,10 +329,7 @@ export async function branchCancelledOrderWorkflow(execute: boolean, params: { x
       production: false,
     });
 
-    const outputFile = path.join(
-      global.testHelpers.outputDir,
-      'branch-cancelled-order.generated.ts'
-    );
+    const outputFile = path.join(global.testHelpers.outputDir, 'branch-cancelled-order.generated.ts');
     fs.writeFileSync(outputFile, code, 'utf-8');
     const { branchCancelledOrderWorkflow } = await import(outputFile);
 
@@ -339,26 +339,24 @@ export async function branchCancelledOrderWorkflow(execute: boolean, params: { x
       innerFlowInvocation: false,
     };
 
-    await branchCancelledOrderWorkflow(true, { x: 5 }, mockDebugger);
-
-    const statusEvents = events.filter(
-      (e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED'
+    await branchCancelledOrderWorkflow(
+      true,
+      { x: 5 },
+      testHelpers.createRuntime('branchCancelledOrderWorkflow', {
+        debugger: mockDebugger,
+      }),
     );
+
+    const statusEvents = events.filter((e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED');
 
     // Find the index of branch1 SUCCEEDED
-    const branch1SucceededIdx = statusEvents.findIndex(
-      (e) => e.id === 'branch1' && e.status === 'SUCCEEDED'
-    );
+    const branch1SucceededIdx = statusEvents.findIndex((e) => e.id === 'branch1' && e.status === 'SUCCEEDED');
 
     // Find the index of onFailure1 CANCELLED
-    const onFailure1CancelledIdx = statusEvents.findIndex(
-      (e) => e.id === 'onFailure1' && e.status === 'CANCELLED'
-    );
+    const onFailure1CancelledIdx = statusEvents.findIndex((e) => e.id === 'onFailure1' && e.status === 'CANCELLED');
 
     // Find the index of onSuccess1 RUNNING
-    const onSuccess1RunningIdx = statusEvents.findIndex(
-      (e) => e.id === 'onSuccess1' && e.status === 'RUNNING'
-    );
+    const onSuccess1RunningIdx = statusEvents.findIndex((e) => e.id === 'onSuccess1' && e.status === 'RUNNING');
 
     expect(branch1SucceededIdx).toBeGreaterThan(-1);
     expect(onFailure1CancelledIdx).toBeGreaterThan(-1);
@@ -411,10 +409,7 @@ export async function noFailureBranchWorkflow(execute: boolean, params: { x: num
       production: false,
     });
 
-    const outputFile = path.join(
-      global.testHelpers.outputDir,
-      'branch-cancelled-no-failure.generated.ts'
-    );
+    const outputFile = path.join(global.testHelpers.outputDir, 'branch-cancelled-no-failure.generated.ts');
     fs.writeFileSync(outputFile, code, 'utf-8');
     const { noFailureBranchWorkflow } = await import(outputFile);
 
@@ -424,11 +419,15 @@ export async function noFailureBranchWorkflow(execute: boolean, params: { x: num
       innerFlowInvocation: false,
     };
 
-    await noFailureBranchWorkflow(true, { x: 5 }, mockDebugger);
-
-    const statusEvents = events.filter(
-      (e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED'
+    await noFailureBranchWorkflow(
+      true,
+      { x: 5 },
+      testHelpers.createRuntime('noFailureBranchWorkflow', {
+        debugger: mockDebugger,
+      }),
     );
+
+    const statusEvents = events.filter((e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED');
 
     // onSuccess1 should be CANCELLED since failure path was taken (and there's no failure node)
     const cancelledEvents = statusEvents.filter((e) => e.status === 'CANCELLED');
@@ -478,10 +477,7 @@ export async function throwingBranchWorkflow(execute: boolean, params: { x: numb
       production: false,
     });
 
-    const outputFile = path.join(
-      global.testHelpers.outputDir,
-      'branch-cancelled-throwing.generated.ts'
-    );
+    const outputFile = path.join(global.testHelpers.outputDir, 'branch-cancelled-throwing.generated.ts');
     fs.writeFileSync(outputFile, code, 'utf-8');
     const { throwingBranchWorkflow } = await import(outputFile);
 
@@ -493,14 +489,18 @@ export async function throwingBranchWorkflow(execute: boolean, params: { x: numb
 
     // Should throw but we catch it to check events
     try {
-      await throwingBranchWorkflow(true, { x: 5 }, mockDebugger);
+      await throwingBranchWorkflow(
+        true,
+        { x: 5 },
+        testHelpers.createRuntime('throwingBranchWorkflow', {
+          debugger: mockDebugger,
+        }),
+      );
     } catch (_e) {
       // Expected to throw
     }
 
-    const statusEvents = events.filter(
-      (e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED'
-    );
+    const statusEvents = events.filter((e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED');
 
     // branch1 should be FAILED (it threw)
     const failedEvents = statusEvents.filter((e) => e.status === 'FAILED');

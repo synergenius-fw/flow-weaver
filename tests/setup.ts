@@ -11,6 +11,11 @@ import { parseWorkflow } from '../src/api/parse';
 import { generateCode } from '../src/api/generate';
 import { parser } from '../src/parser';
 import { resetSharedProject } from '../src/shared-project';
+import {
+  createWorkflowRuntime,
+  type WorkflowRuntime,
+  type WorkflowRuntimeServices,
+} from '../src/runtime/durable-execution';
 
 // Warm the ts-morph checker for callback-type inference. The FIRST complex
 // inference on a COLD checker is non-deterministic: ts-morph (notably v28)
@@ -43,7 +48,7 @@ try {
 function __warm(execute: boolean, cb: (i: number) => { o: boolean }): { onSuccess: boolean } {
   return { onSuccess: true };
 }
-`
+`,
   );
   parser.parse(warmFixture);
   parser.clearParseCache();
@@ -81,22 +86,35 @@ afterAll(() => {
 
 // Extend global with test helpers
 declare global {
-   
   var testHelpers: {
     outputDir: string;
     cleanupOutput: (filename: string) => void;
     readOutput: (filename: string) => string;
-    generateFast: (
-      filePath: string,
-      workflowName: string,
-      options?: { production?: boolean }
-    ) => Promise<string>;
+    createRuntime: (
+      workflowId: string,
+      services?: WorkflowRuntimeServices,
+      abortSignal?: AbortSignal,
+    ) => WorkflowRuntime;
+    generateFast: (filePath: string, workflowName: string, options?: { production?: boolean }) => Promise<string>;
   };
 }
 
 // Global test utilities
 (globalThis as { testHelpers?: typeof globalThis.testHelpers }).testHelpers = {
   outputDir,
+
+  createRuntime(
+    workflowId: string,
+    services: WorkflowRuntimeServices = {},
+    abortSignal?: AbortSignal,
+  ): WorkflowRuntime {
+    return createWorkflowRuntime({
+      runId: `test:${workflowId}:${crypto.randomUUID()}`,
+      workflowId,
+      services,
+      abortSignal,
+    });
+  },
 
   /**
    * Clean up generated files after tests
@@ -120,11 +138,7 @@ declare global {
    * Fast workflow generation without console logging.
    * Use this instead of generator.generate() for better test performance.
    */
-  async generateFast(
-    filePath: string,
-    workflowName: string,
-    options: { production?: boolean } = {}
-  ): Promise<string> {
+  async generateFast(filePath: string, workflowName: string, options: { production?: boolean } = {}): Promise<string> {
     const parseResult = await parseWorkflow(filePath, { workflowName });
     if (parseResult.errors.length > 0) {
       throw new Error(`Parse errors: ${parseResult.errors.join(', ')}`);

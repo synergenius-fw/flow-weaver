@@ -3,18 +3,18 @@
  * including ports with constant expressions and default values
  */
 
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
-import { generator } from "../../src/generator";
-import { generateCode } from "../../src/api/generate";
-import { TEvent, TVariableSetEvent } from "../../src/runtime/events";
-import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST } from "../../src/ast/types";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import { generator } from '../../src/generator';
+import { generateCode } from '../../src/api/generate';
+import { TEvent, TVariableSetEvent } from '../../src/runtime/events';
+import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST } from '../../src/ast/types';
 
-describe("Input port VARIABLE_SET events", () => {
+describe('Input port VARIABLE_SET events', () => {
   const uniqueId = `input-port-events-${process.pid}-${Date.now()}`;
   const tempDir = path.join(os.tmpdir(), `flow-weaver-${uniqueId}`);
-  const testFile = path.join(tempDir, "input-port-events-test.ts");
+  const testFile = path.join(tempDir, 'input-port-events-test.ts');
 
   beforeEach(() => {
     fs.mkdirSync(tempDir, { recursive: true });
@@ -24,12 +24,12 @@ describe("Input port VARIABLE_SET events", () => {
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true });
     }
-    global.testHelpers?.cleanupOutput?.("input-port-connected.generated.ts");
-    global.testHelpers?.cleanupOutput?.("input-port-default.generated.ts");
-    global.testHelpers?.cleanupOutput?.("input-port-constant.generated.ts");
+    global.testHelpers?.cleanupOutput?.('input-port-connected.generated.ts');
+    global.testHelpers?.cleanupOutput?.('input-port-default.generated.ts');
+    global.testHelpers?.cleanupOutput?.('input-port-constant.generated.ts');
   });
 
-  it("should emit VARIABLE_SET for input ports with connections", async () => {
+  it('should emit VARIABLE_SET for input ports with connections', async () => {
     const content = `
 /**
  * @flowWeaver nodeType
@@ -53,12 +53,12 @@ export async function connectedInputWorkflow(execute: boolean, params: { x: numb
 `;
     fs.writeFileSync(testFile, content);
 
-    const code = await generator.generate(testFile, "connectedInputWorkflow", {
+    const code = await generator.generate(testFile, 'connectedInputWorkflow', {
       production: false,
     });
 
-    const outputFile = path.join(global.testHelpers.outputDir, "input-port-connected.generated.ts");
-    fs.writeFileSync(outputFile, code, "utf-8");
+    const outputFile = path.join(global.testHelpers.outputDir, 'input-port-connected.generated.ts');
+    fs.writeFileSync(outputFile, code, 'utf-8');
     const { connectedInputWorkflow } = await import(outputFile);
 
     const events: TEvent[] = [];
@@ -67,22 +67,24 @@ export async function connectedInputWorkflow(execute: boolean, params: { x: numb
       innerFlowInvocation: false,
     };
 
-    await connectedInputWorkflow(true, { x: 5 }, mockDebugger);
-
-    const variableSetEvents = events.filter(
-      (e): e is TVariableSetEvent => e.type === "VARIABLE_SET"
+    await connectedInputWorkflow(
+      true,
+      { x: 5 },
+      testHelpers.createRuntime('connectedInputWorkflow', {
+        debugger: mockDebugger,
+      }),
     );
+
+    const variableSetEvents = events.filter((e): e is TVariableSetEvent => e.type === 'VARIABLE_SET');
 
     // Should have VARIABLE_SET for double1.x (input port)
-    const inputEvents = variableSetEvents.filter(
-      (e) => e.identifier.id === "double1" && e.identifier.portName === "x"
-    );
+    const inputEvents = variableSetEvents.filter((e) => e.identifier.id === 'double1' && e.identifier.portName === 'x');
 
     expect(inputEvents.length).toBeGreaterThan(0);
     expect(inputEvents[0].value).toBe(5);
   });
 
-  it("should emit VARIABLE_SET for input ports with default values", async () => {
+  it('should emit VARIABLE_SET for input ports with default values', async () => {
     const content = `
 /**
  * @flowWeaver nodeType
@@ -105,12 +107,12 @@ export async function defaultInputWorkflow(execute: boolean, params: {}): Promis
 `;
     fs.writeFileSync(testFile, content);
 
-    const code = await generator.generate(testFile, "defaultInputWorkflow", {
+    const code = await generator.generate(testFile, 'defaultInputWorkflow', {
       production: false,
     });
 
-    const outputFile = path.join(global.testHelpers.outputDir, "input-port-default.generated.ts");
-    fs.writeFileSync(outputFile, code, "utf-8");
+    const outputFile = path.join(global.testHelpers.outputDir, 'input-port-default.generated.ts');
+    fs.writeFileSync(outputFile, code, 'utf-8');
     const { defaultInputWorkflow } = await import(outputFile);
 
     const events: TEvent[] = [];
@@ -119,67 +121,71 @@ export async function defaultInputWorkflow(execute: boolean, params: {}): Promis
       innerFlowInvocation: false,
     };
 
-    await defaultInputWorkflow(true, {}, mockDebugger);
-
-    const variableSetEvents = events.filter(
-      (e): e is TVariableSetEvent => e.type === "VARIABLE_SET"
+    await defaultInputWorkflow(
+      true,
+      {},
+      testHelpers.createRuntime('defaultInputWorkflow', {
+        debugger: mockDebugger,
+      }),
     );
+
+    const variableSetEvents = events.filter((e): e is TVariableSetEvent => e.type === 'VARIABLE_SET');
 
     // Should have VARIABLE_SET for withDefault1.x using default value
     const inputEvents = variableSetEvents.filter(
-      (e) => e.identifier.id === "withDefault1" && e.identifier.portName === "x"
+      (e) => e.identifier.id === 'withDefault1' && e.identifier.portName === 'x',
     );
 
     expect(inputEvents.length).toBeGreaterThan(0);
     expect(inputEvents[0].value).toBe(10);
   });
 
-  it("should emit VARIABLE_SET for input ports with constant expressions at instance level", async () => {
+  it('should emit VARIABLE_SET for input ports with constant expressions at instance level', async () => {
     // Build the AST programmatically for instance-level constant
     const nodeType: TNodeTypeAST = {
-      type: "NodeType",
-      name: "multiply",
-      functionName: "multiply",
-      inputs: { x: { dataType: "NUMBER" } },
-      outputs: { result: { dataType: "NUMBER" } },
+      type: 'NodeType',
+      name: 'multiply',
+      functionName: 'multiply',
+      inputs: { x: { dataType: 'NUMBER' } },
+      outputs: { result: { dataType: 'NUMBER' } },
       hasSuccessPort: true,
       hasFailurePort: true,
       isAsync: false,
-      executeWhen: "CONJUNCTION",
+      executeWhen: 'CONJUNCTION',
     };
 
     const instance: TNodeInstanceAST = {
-      type: "NodeInstance",
-      id: "multiply1",
-      nodeType: "multiply",
+      type: 'NodeInstance',
+      id: 'multiply1',
+      nodeType: 'multiply',
       config: {
         portConfigs: [
           {
-            portName: "x",
-            direction: "INPUT",
-            expression: "42",
+            portName: 'x',
+            direction: 'INPUT',
+            expression: '42',
           },
         ],
       },
     };
 
     const workflow: TWorkflowAST = {
-      type: "Workflow",
-      name: "constantInputWorkflow",
-      functionName: "constantInputWorkflow",
-      sourceFile: "test.ts",
+      type: 'Workflow',
+      name: 'constantInputWorkflow',
+      functionName: 'constantInputWorkflow',
+      sourceFile: 'test.ts',
       nodeTypes: [nodeType],
       instances: [instance],
       connections: [
         {
-          type: "Connection",
-          from: { node: "multiply1", port: "result" },
-          to: { node: "Exit", port: "result" },
+          type: 'Connection',
+          from: { node: 'multiply1', port: 'result' },
+          to: { node: 'Exit', port: 'result' },
         },
       ],
       scopes: {},
       startPorts: {},
-      exitPorts: { result: { dataType: "NUMBER" } },
+      exitPorts: { result: { dataType: 'NUMBER' } },
       imports: [],
     };
 
@@ -195,8 +201,8 @@ function multiply(execute: boolean, x: number) {
 ${code}
 `;
 
-    const outputFile = path.join(global.testHelpers.outputDir, "input-port-constant.generated.ts");
-    fs.writeFileSync(outputFile, fullCode, "utf-8");
+    const outputFile = path.join(global.testHelpers.outputDir, 'input-port-constant.generated.ts');
+    fs.writeFileSync(outputFile, fullCode, 'utf-8');
     const { constantInputWorkflow } = await import(outputFile);
 
     const events: TEvent[] = [];
@@ -205,18 +211,22 @@ ${code}
       innerFlowInvocation: false,
     };
 
-    const result = await constantInputWorkflow(true, {}, mockDebugger);
+    const result = await constantInputWorkflow(
+      true,
+      {},
+      testHelpers.createRuntime('constantInputWorkflow', {
+        debugger: mockDebugger,
+      }),
+    );
 
     // Result should be 42 * 3 = 126
     expect(result.result).toBe(126);
 
-    const variableSetEvents = events.filter(
-      (e): e is TVariableSetEvent => e.type === "VARIABLE_SET"
-    );
+    const variableSetEvents = events.filter((e): e is TVariableSetEvent => e.type === 'VARIABLE_SET');
 
     // Should have VARIABLE_SET for multiply1.x with constant value 42
     const inputEvents = variableSetEvents.filter(
-      (e) => e.identifier.id === "multiply1" && e.identifier.portName === "x"
+      (e) => e.identifier.id === 'multiply1' && e.identifier.portName === 'x',
     );
 
     expect(inputEvents.length).toBeGreaterThan(0);

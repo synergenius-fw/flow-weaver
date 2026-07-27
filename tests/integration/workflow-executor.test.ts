@@ -47,7 +47,11 @@ export function simpleWorkflow(execute: boolean, params: { value: number }): { r
     const testFile = path.join(outputDir, 'executor-result.ts');
     fs.writeFileSync(testFile, createSimpleWorkflow());
 
-    const execResult = await executeWorkflow({ filePath: testFile, params: { value: 5 } });
+    const execResult = await executeWorkflow({
+      runId: 'test:executor-result',
+      filePath: testFile,
+      params: { value: 5 },
+    });
 
     // Result should be the full object with all exit ports
     expect(execResult.result).toBeDefined();
@@ -61,7 +65,12 @@ export function simpleWorkflow(execute: boolean, params: { value: number }): { r
     const testFile = path.join(outputDir, 'executor-trace.ts');
     fs.writeFileSync(testFile, createSimpleWorkflow());
 
-    const execResult = await executeWorkflow({ filePath: testFile, params: { value: 5 }, includeTrace: true });
+    const execResult = await executeWorkflow({
+      runId: 'test:executor-trace',
+      filePath: testFile,
+      params: { value: 5 },
+      includeTrace: true,
+    });
 
     // Trace should be non-empty
     expect(execResult.trace).toBeDefined();
@@ -130,7 +139,12 @@ export function outerPipeline(execute: boolean, params: { value: number }): { re
     fs.writeFileSync(testFile, compositionSource);
 
     // outerPipeline(2): inner = triple(2)+5 = 11, outer = triple(11) = 33
-    const execResult = await executeWorkflow({ filePath: testFile, params: { value: 2 }, workflowName: 'outerPipeline' });
+    const execResult = await executeWorkflow({
+      runId: 'test:executor-nested',
+      filePath: testFile,
+      params: { value: 2 },
+      workflowName: 'outerPipeline',
+    });
 
     const result = execResult.result as Record<string, unknown>;
     expect(result.result).toBe(33);
@@ -141,7 +155,12 @@ export function outerPipeline(execute: boolean, params: { value: number }): { re
     const testFile = path.join(outputDir, 'executor-notrace.ts');
     fs.writeFileSync(testFile, createSimpleWorkflow());
 
-    const execResult = await executeWorkflow({ filePath: testFile, params: { value: 5 }, includeTrace: false });
+    const execResult = await executeWorkflow({
+      runId: 'test:executor-no-trace',
+      filePath: testFile,
+      params: { value: 5 },
+      includeTrace: false,
+    });
 
     // When trace is disabled, it should not be in the result
     expect(execResult.trace).toBeUndefined();

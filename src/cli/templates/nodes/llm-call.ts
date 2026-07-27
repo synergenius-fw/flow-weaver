@@ -26,7 +26,7 @@ const createMockProvider = (): LLMProvider => ({
   },
 });
 
-const llmProvider: LLMProvider = (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ ?? createMockProvider();
+const llmProvider: LLMProvider = createMockProvider();
 
 /**
  * Calls an LLM with messages and optional tools

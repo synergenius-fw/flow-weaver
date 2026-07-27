@@ -181,8 +181,6 @@ fw run <input> [options]
 | `--mocks <json>` | Mock config for built-in nodes as JSON | — |
 | `--mocks-file <path>` | Path to JSON file with mock config | — |
 | `-d, --debug` | Start in step-through debug mode | `false` |
-| `--checkpoint` | Enable checkpointing to disk after each node | `false` |
-| `--resume [file]` | Resume from a checkpoint file (auto-detects latest if no file given) | — |
 | `-b, --breakpoint <nodeIds...>` | Set initial breakpoints (repeatable) | — |
 
 **Examples:**
@@ -192,12 +190,10 @@ fw run workflow.ts --params-file input.json --trace
 fw run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
 fw run workflow.ts --timeout 30000 --json
 fw run workflow.ts --debug
-fw run workflow.ts --checkpoint
-fw run workflow.ts --resume
 fw run workflow.ts --debug --breakpoint processData --breakpoint validate
 ```
 
-> See also: [Built-in Nodes](built-in-nodes) for mock configuration details, [Debugging](debugging) for debug REPL commands and checkpoint details.
+> See also: [Built-in Nodes](built-in-nodes) for mock configuration details and [Debugging](debugging) for live debug REPL commands.
 
 ---
 

@@ -3,16 +3,16 @@
  * Each node should have its execution index start at 0.
  */
 
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
-import { generator } from "../../src/generator";
-import { TEvent, TStatusChangedEvent } from "../../src/runtime/events";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import { generator } from '../../src/generator';
+import { TEvent, TStatusChangedEvent } from '../../src/runtime/events';
 
-describe("Per-node execution index", () => {
+describe('Per-node execution index', () => {
   const uniqueId = `per-node-exec-${process.pid}-${Date.now()}`;
   const tempDir = path.join(os.tmpdir(), `flow-weaver-${uniqueId}`);
-  const testFile = path.join(tempDir, "per-node-exec-index-test.ts");
+  const testFile = path.join(tempDir, 'per-node-exec-index-test.ts');
 
   beforeEach(() => {
     fs.mkdirSync(tempDir, { recursive: true });
@@ -22,7 +22,7 @@ describe("Per-node execution index", () => {
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true });
     }
-    global.testHelpers?.cleanupOutput?.("per-node-exec-index.generated.ts");
+    global.testHelpers?.cleanupOutput?.('per-node-exec-index.generated.ts');
   });
 
   it("should have execution index 0 for each node's first execution", async () => {
@@ -51,13 +51,13 @@ export async function testWorkflow(execute: boolean, params: { x: number }): Pro
     fs.writeFileSync(testFile, content);
 
     // Generate code with debugger (non-production mode)
-    const code = await generator.generate(testFile, "testWorkflow", {
+    const code = await generator.generate(testFile, 'testWorkflow', {
       production: false,
     });
 
     // Write and import generated code
-    const outputFile = path.join(global.testHelpers.outputDir, "per-node-exec-index.generated.ts");
-    fs.writeFileSync(outputFile, code, "utf-8");
+    const outputFile = path.join(global.testHelpers.outputDir, 'per-node-exec-index.generated.ts');
+    fs.writeFileSync(outputFile, code, 'utf-8');
     const { testWorkflow } = await import(outputFile);
 
     // Collect events
@@ -68,17 +68,15 @@ export async function testWorkflow(execute: boolean, params: { x: number }): Pro
     };
 
     // Execute workflow with debugger
-    await testWorkflow(true, { x: 5 }, mockDebugger);
+    await testWorkflow(true, { x: 5 }, testHelpers.createRuntime('testWorkflow', { debugger: mockDebugger }));
 
     // Get status events only
-    const statusEvents = events.filter(
-      (e): e is TStatusChangedEvent => e.type === "STATUS_CHANGED"
-    );
+    const statusEvents = events.filter((e): e is TStatusChangedEvent => e.type === 'STATUS_CHANGED');
 
     // Get the first SUCCEEDED event for each node (their first execution)
-    const startEvent = statusEvents.find((e) => e.id === "Start" && e.status === "SUCCEEDED");
-    const double1Event = statusEvents.find((e) => e.id === "double1" && e.status === "SUCCEEDED");
-    const exitEvent = statusEvents.find((e) => e.id === "Exit" && e.status === "SUCCEEDED");
+    const startEvent = statusEvents.find((e) => e.id === 'Start' && e.status === 'SUCCEEDED');
+    const double1Event = statusEvents.find((e) => e.id === 'double1' && e.status === 'SUCCEEDED');
+    const exitEvent = statusEvents.find((e) => e.id === 'Exit' && e.status === 'SUCCEEDED');
 
     expect(startEvent).toBeDefined();
     expect(double1Event).toBeDefined();

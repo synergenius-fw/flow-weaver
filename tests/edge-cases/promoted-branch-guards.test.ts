@@ -105,7 +105,7 @@ function onFailureHandler(data: string): { result: string } {
  */
 export function promotedGuardWorkflow(
   execute: boolean,
-  params: { value: string }, __abortSignal__?: AbortSignal
+  params: { value: string }
 ): { onSuccess: boolean; onFailure: boolean; successResult?: string; failureResult?: string } {
   throw new Error('Generated');
 }
@@ -124,7 +124,11 @@ describe('Promoted branch guards', () => {
   it('promoted expression node only executes on the correct branch (success path)', async () => {
     const mod = await import(outputFile);
     // router flag='yes' → onSuccess, so only s (onSuccessHandler) should run
-    const result = await mod.promotedGuardWorkflow(true, { value: 'yes' });
+    const result = await mod.promotedGuardWorkflow(
+      true,
+      { value: 'yes' },
+      testHelpers.createRuntime('promotedGuardWorkflow'),
+    );
     expect(result.successResult).toBe('SUCCESS:yes');
     expect(result.failureResult).toBeUndefined();
   });
@@ -132,7 +136,11 @@ describe('Promoted branch guards', () => {
   it('promoted expression node only executes on the correct branch (failure path)', async () => {
     const mod = await import(outputFile);
     // router flag='no' → onFailure, so only f (onFailureHandler) should run
-    const result = await mod.promotedGuardWorkflow(true, { value: 'no' });
+    const result = await mod.promotedGuardWorkflow(
+      true,
+      { value: 'no' },
+      testHelpers.createRuntime('promotedGuardWorkflow'),
+    );
     expect(result.failureResult).toBe('FAILURE:no');
     expect(result.successResult).toBeUndefined();
   });
@@ -196,7 +204,7 @@ function handlerB(value: string): { result: string } {
  */
 export function multiExitCoalesce(
   execute: boolean,
-  params: { input: string }, __abortSignal__?: AbortSignal
+  params: { input: string }
 ): { onSuccess: boolean; onFailure: boolean; result?: string } {
   throw new Error('Generated');
 }
@@ -214,13 +222,13 @@ describe('Multiple exit connection coalescing', () => {
 
   it('data port coalesces: success path returns handlerA result', async () => {
     const mod = await import(outputFile);
-    const result = await mod.multiExitCoalesce(true, { input: 'A' });
+    const result = await mod.multiExitCoalesce(true, { input: 'A' }, testHelpers.createRuntime('multiExitCoalesce'));
     expect(result.result).toBe('A:A');
   });
 
   it('data port coalesces: failure path returns handlerB result', async () => {
     const mod = await import(outputFile);
-    const result = await mod.multiExitCoalesce(true, { input: 'B' });
+    const result = await mod.multiExitCoalesce(true, { input: 'B' }, testHelpers.createRuntime('multiExitCoalesce'));
     expect(result.result).toBe('B:B');
   });
 });
@@ -281,7 +289,7 @@ function rightHandler(value: string): { result: string } {
  */
 export function multiOnSuccess(
   execute: boolean,
-  params: { input: string }, __abortSignal__?: AbortSignal
+  params: { input: string }
 ): { onSuccess: boolean; onFailure: boolean } {
   throw new Error('Generated');
 }
@@ -299,13 +307,13 @@ describe('Multiple connections to Exit.onSuccess', () => {
 
   it('left path returns onSuccess: true', async () => {
     const mod = await import(outputFile);
-    const result = await mod.multiOnSuccess(true, { input: 'left' });
+    const result = await mod.multiOnSuccess(true, { input: 'left' }, testHelpers.createRuntime('multiOnSuccess'));
     expect(result.onSuccess).toBe(true);
   });
 
   it('right path returns onSuccess: true', async () => {
     const mod = await import(outputFile);
-    const result = await mod.multiOnSuccess(true, { input: 'right' });
+    const result = await mod.multiOnSuccess(true, { input: 'right' }, testHelpers.createRuntime('multiOnSuccess'));
     expect(result.onSuccess).toBe(true);
   });
 });

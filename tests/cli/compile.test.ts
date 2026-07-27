@@ -30,7 +30,9 @@ export function simpleWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
       const result = parser.parseFromString(content, 'simple.ts');
       expect(result.errors).toHaveLength(0);
 
-      const generated = generateCode(result.workflows[0], { production: false });
+      const generated = generateCode(result.workflows[0], {
+        production: false,
+      });
       expect(generated).toContain('GeneratedExecutionContext');
       expect(generated).toContain('simpleWorkflow');
     });
@@ -87,7 +89,9 @@ export function multiNodeWorkflow(execute: boolean): Promise<{ onSuccess: boolea
 }
 `;
       const result = parser.parseFromString(content, 'multi.ts');
-      const generated = generateCode(result.workflows[0], { production: false });
+      const generated = generateCode(result.workflows[0], {
+        production: false,
+      });
 
       expect(generated).toContain('nodeA');
       expect(generated).toContain('nodeB');
@@ -168,9 +172,7 @@ export function invalidWorkflow(execute: boolean): Promise<{ onSuccess: boolean;
       fs.writeFileSync(tmpFile, content);
 
       try {
-        await expect(compileWorkflow(tmpFile, { write: false })).rejects.toThrow(
-          /[Vv]alidation error|[Pp]arse error/
-        );
+        await expect(compileWorkflow(tmpFile, { write: false })).rejects.toThrow(/[Vv]alidation error|[Pp]arse error/);
       } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
@@ -251,10 +253,7 @@ export function validWorkflow(execute: boolean): Promise<{ onSuccess: boolean; o
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-skip-'));
       const tmpFile = path.join(tmpDir, 'main.ts');
       // File imports a nonexistent module — would cause parse error if not skipped
-      fs.writeFileSync(
-        tmpFile,
-        'import { foo } from "./nonexistent-module.js";\nexport const bar = foo;\n'
-      );
+      fs.writeFileSync(tmpFile, 'import { foo } from "./nonexistent-module.js";\nexport const bar = foo;\n');
 
       const errorOutput: string[] = [];
       const origError = console.error;
@@ -600,9 +599,9 @@ export function dirWorkflow(execute: boolean): Promise<{ onSuccess: boolean; onF
     it('should throw when no files match', async () => {
       const { compileCommand } = await import('../../src/cli/commands/compile');
 
-      await expect(
-        compileCommand('/nonexistent/path/that/does/not/exist/**/*.ts', {})
-      ).rejects.toThrow(/No files found|Compilation failed/);
+      await expect(compileCommand('/nonexistent/path/that/does/not/exist/**/*.ts', {})).rejects.toThrow(
+        /No files found|Compilation failed/,
+      );
     });
   });
 
@@ -708,8 +707,8 @@ export function strictErrorWf(execute: boolean): Promise<{ onSuccess: boolean; o
 
   describe('generateInPlace', () => {
     it('should stabilize after multiple compilations', () => {
-      // Note: First compile adds __abortSignal__ param, which changes the AST
-      // on second parse. After 2-3 compiles, it should stabilize.
+      // The first compile injects the explicit runtime parameter. A subsequent
+      // parse/compile must then be stable.
       const content = `
 /**
  * @flowWeaver nodeType
@@ -730,16 +729,22 @@ export function stableWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
       const result = parser.parseFromString(content, 'stable.ts');
 
       // First compilation
-      const first = generateInPlace(content, result.workflows[0], { production: false });
+      const first = generateInPlace(content, result.workflows[0], {
+        production: false,
+      });
       expect(first.hasChanges).toBe(true);
 
       // Second compilation
       const result2 = parser.parseFromString(first.code, 'stable2.ts');
-      const second = generateInPlace(first.code, result2.workflows[0], { production: false });
+      const second = generateInPlace(first.code, result2.workflows[0], {
+        production: false,
+      });
 
       // Third compilation - should stabilize
       const result3 = parser.parseFromString(second.code, 'stable3.ts');
-      const third = generateInPlace(second.code, result3.workflows[0], { production: false });
+      const third = generateInPlace(second.code, result3.workflows[0], {
+        production: false,
+      });
 
       // After stabilization, code should be identical
       expect(second.code).toBe(third.code);
@@ -765,7 +770,9 @@ export function inPlaceWorkflow(execute: boolean): Promise<{ onSuccess: boolean;
 }
 `;
       const result = parser.parseFromString(content, 'inplace.ts');
-      const generated = generateInPlace(content, result.workflows[0], { production: false });
+      const generated = generateInPlace(content, result.workflows[0], {
+        production: false,
+      });
 
       expect(generated.hasChanges).toBe(true);
       expect(generated.code).toContain('GeneratedExecutionContext');
@@ -776,8 +783,8 @@ export function inPlaceWorkflow(execute: boolean): Promise<{ onSuccess: boolean;
       // Regression: the generated body always references `params` (the
       // recursion-depth guard reads `params.__rd__`). A workflow whose
       // author signature declares NO data ports (only `execute`, e.g. a
-      // single zero-input node) used to compile to `(execute, __abortSignal__)`
-      // with no `params`, so the body threw `ReferenceError: params is not
+      // single zero-input node) used to compile without `params`, so the body
+      // threw `ReferenceError: params is not
       // defined` at runtime. The in-place generator must inject `params`.
       const content = `
 /**
@@ -800,19 +807,21 @@ export function alwaysThrows(execute: boolean): { onSuccess: boolean; onFailure:
 `;
       const result = parser.parseFromString(content, 'zero-params.ts');
       expect(result.errors).toHaveLength(0);
-      const generated = generateInPlace(content, result.workflows[0], { production: false });
+      const generated = generateInPlace(content, result.workflows[0], {
+        production: false,
+      });
 
       // The body references params (the recursion-depth guard reads it via
       // a TS cast); the signature must now declare it.
       expect(generated.code).toContain('params as { __rd__?: number }');
       expect(generated.code).toMatch(/function alwaysThrows\(\s*execute[^)]*\bparams\b/);
-      // params must precede __abortSignal__ (positional order matters: the
+      // params must precede __runtime__ (positional order is part of the ABI).
       // runtime invokes fn(execute, params, ...)).
       const sig = generated.code.slice(
         generated.code.indexOf('function alwaysThrows('),
         generated.code.indexOf(')', generated.code.indexOf('function alwaysThrows(')) + 1,
       );
-      expect(sig.indexOf('params')).toBeLessThan(sig.indexOf('__abortSignal__'));
+      expect(sig.indexOf('params')).toBeLessThan(sig.indexOf('__runtime__'));
     });
 
     it('does not duplicate `params` when the author already declares it', () => {
@@ -838,7 +847,9 @@ export function echoFlow(execute: boolean, params: { message: string }): { onSuc
 }
 `;
       const result = parser.parseFromString(content, 'has-params.ts');
-      const generated = generateInPlace(content, result.workflows[0], { production: false });
+      const generated = generateInPlace(content, result.workflows[0], {
+        production: false,
+      });
       const sig = generated.code.slice(
         generated.code.indexOf('function echoFlow('),
         generated.code.indexOf(')', generated.code.indexOf('function echoFlow(')) + 1,

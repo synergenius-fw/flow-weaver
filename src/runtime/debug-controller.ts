@@ -1,15 +1,10 @@
 /**
  * DebugController intercepts workflow execution at node boundaries,
- * enabling step-through debugging and checkpoint/resume.
- *
- * Injected via globalThis.__fw_debug_controller__ (same pattern as
- * __fw_debugger__ and __fw_agent_channel__). The generated code calls
- * beforeNode/afterNode at each node boundary; the controller decides
- * whether to skip, pause, checkpoint, or continue.
+ * enabling live step-through debugging. It is execution-scoped and is not a
+ * durable continuation or crash-recovery mechanism.
  */
 
 import type { GeneratedExecutionContext } from './ExecutionContext';
-import type { CheckpointWriter } from './checkpoint';
 import { CancellationError } from './CancellationError';
 
 // ---------------------------------------------------------------------------
@@ -20,7 +15,7 @@ export type DebugMode =
   | 'step'                  // Pause before every node
   | 'continue'              // Run to completion
   | 'continueToBreakpoint'  // Run until a breakpoint is hit
-  | 'run';                  // No pausing (checkpoint-only mode)
+  | 'run';                  // No pausing
 
 export interface DebugPauseState {
   /** Node we're paused at */
@@ -53,23 +48,17 @@ export type DebugResumeAction =
  * needs beforeNode/afterNode — so this type is what gets imported.
  */
 export type TDebugController = {
-  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<boolean> | boolean;
+  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;
   afterNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;
 };
 
 export interface DebugControllerConfig {
   /** Enable step-through debugging (pauses before first node) */
   debug?: boolean;
-  /** Enable checkpointing to disk after each node */
-  checkpoint?: boolean;
-  /** Checkpoint writer instance (required when checkpoint=true) */
-  checkpointWriter?: CheckpointWriter;
   /** Initial breakpoint node IDs */
   breakpoints?: string[];
   /** Execution order (set by executor after compilation) */
   executionOrder?: string[];
-  /** Nodes to skip on resume (loaded from checkpoint) */
-  skipNodes?: Map<string, Record<string, unknown>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,14 +74,7 @@ export class DebugController {
   private position: number = 0;
   private lastCompletedNodeId: string | null = null;
 
-  // Checkpoint
-  private checkpointEnabled: boolean;
-  private checkpointWriter: CheckpointWriter | null;
-
-  // Skip nodes (for resume from checkpoint)
-  private skipNodes: Map<string, Record<string, unknown>>;
-
-  // Pause/resume channel (mirrors AgentChannel pattern)
+  // Execution-scoped live debugger pause state.
   private _gateResolve: ((action: DebugResumeAction) => void) | null = null;
   private _pauseResolve: ((state: DebugPauseState) => void) | null = null;
   private _pausePromise: Promise<DebugPauseState>;
@@ -103,10 +85,7 @@ export class DebugController {
   constructor(config: DebugControllerConfig = {}) {
     this.mode = config.debug ? 'step' : 'run';
     this.breakpoints = new Set(config.breakpoints ?? []);
-    this.checkpointEnabled = config.checkpoint ?? false;
-    this.checkpointWriter = config.checkpointWriter ?? null;
     this.executionOrder = config.executionOrder ?? [];
-    this.skipNodes = config.skipNodes ?? new Map();
     this._pausePromise = this._createPausePromise();
   }
 
@@ -121,23 +100,10 @@ export class DebugController {
 
   /**
    * Called before a node executes.
-   * Returns true if the node should execute, false to skip.
    */
-  async beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<boolean> {
+  async beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> {
     // Apply any pending variable modifications
     this.applyPendingModifications(ctx);
-
-    // If this node should be skipped (resume from checkpoint), restore its
-    // outputs into the context and return false
-    if (this.skipNodes.has(nodeId)) {
-      const savedOutputs = this.skipNodes.get(nodeId)!;
-      this.restoreNodeOutputs(nodeId, savedOutputs, ctx);
-      this.completedNodes.push(nodeId);
-      this.completedSet.add(nodeId);
-      this.lastCompletedNodeId = nodeId;
-      this.position++;
-      return false;
-    }
 
     // Check if we should pause here
     const shouldPause =
@@ -154,7 +120,6 @@ export class DebugController {
       this.applyAction(action);
     }
 
-    return true;
   }
 
   /**
@@ -165,16 +130,6 @@ export class DebugController {
     this.completedSet.add(nodeId);
     this.lastCompletedNodeId = nodeId;
     this.position++;
-
-    // Write checkpoint to disk
-    if (this.checkpointEnabled && this.checkpointWriter) {
-      await this.checkpointWriter.write(
-        this.completedNodes,
-        this.executionOrder,
-        this.position,
-        ctx
-      );
-    }
 
     // Pause after node in step mode
     if (this.mode === 'step') {
@@ -352,30 +307,8 @@ export class DebugController {
     this.pendingModifications.clear();
   }
 
-  private restoreNodeOutputs(
-    nodeId: string,
-    outputs: Record<string, unknown>,
-    ctx: GeneratedExecutionContext
-  ): void {
-    // outputs is keyed by "portName:executionIndex" -> value
-    // Don't call ctx.addExecution here: the generated code's else block handles
-    // execution registration so local variables (e.g. dIdx) are set correctly.
-    for (const [portKey, value] of Object.entries(outputs)) {
-      const colonIdx = portKey.lastIndexOf(':');
-      if (colonIdx === -1) continue;
-      const portName = portKey.substring(0, colonIdx);
-      const executionIndex = parseInt(portKey.substring(colonIdx + 1), 10);
-
-      ctx.setVariable(
-        { id: nodeId, portName, executionIndex },
-        value
-      );
-    }
-  }
-
   private extractVariables(ctx: GeneratedExecutionContext): Record<string, unknown> {
-    const serialized = ctx.serialize();
-    return serialized.variables;
+    return ctx.inspectVariables();
   }
 
   private extractNodeOutputs(

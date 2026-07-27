@@ -21,13 +21,6 @@ import {
   getProviderCode,
 } from '../../src/cli/templates/providers/index';
 
-import {
-  generateMockApproval,
-  generateCallbackApproval,
-  generateWebhookApproval,
-  getApprovalCode,
-} from '../../src/cli/templates/approvals/index';
-
 describe('Template code generation', () => {
   describe('toCamelCase', () => {
     it('should convert hyphenated strings', () => {
@@ -459,45 +452,6 @@ describe('Template code generation', () => {
       it('should pass model to provider generator', () => {
         const code = getProviderCode('openai', 'gpt-4-turbo');
         expect(code).toContain('gpt-4-turbo');
-      });
-    });
-  });
-
-  describe('Approval strategy code generators', () => {
-    it('should generate mock approval provider', () => {
-      const code = generateMockApproval();
-      expect(code).toContain('MOCK APPROVAL PROVIDER');
-      expect(code).toContain('Auto-approving');
-      expect(code).toContain('approved: true');
-    });
-
-    it('should generate callback approval provider', () => {
-      const code = generateCallbackApproval();
-      expect(code).toContain('CALLBACK APPROVAL PROVIDER');
-      expect(code).toContain('ApprovalProvider');
-    });
-
-    it('should generate webhook approval provider', () => {
-      const code = generateWebhookApproval();
-      expect(code).toContain('WEBHOOK APPROVAL PROVIDER');
-      expect(code).toContain('ApprovalProvider');
-    });
-
-    describe('getApprovalCode', () => {
-      it('should return mock for mock strategy', () => {
-        expect(getApprovalCode('mock')).toContain('MOCK APPROVAL');
-      });
-
-      it('should return callback for callback strategy', () => {
-        expect(getApprovalCode('callback')).toContain('CALLBACK APPROVAL');
-      });
-
-      it('should return webhook for webhook strategy', () => {
-        expect(getApprovalCode('webhook')).toContain('WEBHOOK APPROVAL');
-      });
-
-      it('should default to mock for unknown strategy', () => {
-        expect(getApprovalCode('unknown')).toContain('MOCK APPROVAL');
       });
     });
   });

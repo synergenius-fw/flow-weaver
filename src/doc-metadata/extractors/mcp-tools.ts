@@ -518,12 +518,6 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         description: 'Node IDs to set as initial breakpoints',
         required: false,
       },
-      {
-        name: 'checkpoint',
-        type: 'boolean',
-        description: 'Enable checkpointing to disk after each node (default: false)',
-        required: false,
-      },
     ],
   },
   {
@@ -641,38 +635,6 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         name: 'nodeId',
         type: 'string',
         description: 'Node ID for add/remove',
-        required: false,
-      },
-    ],
-  },
-  {
-    name: 'fw_resume_from_checkpoint',
-    description:
-      'Resume a workflow from a checkpoint file written after a crash. Skips completed nodes and re-runs from the last checkpoint position.',
-    category: 'debug',
-    params: [
-      {
-        name: 'filePath',
-        type: 'string',
-        description: 'Path to the workflow .ts file',
-        required: true,
-      },
-      {
-        name: 'checkpointFile',
-        type: 'string',
-        description: 'Path to the checkpoint file. If omitted, auto-detects the latest.',
-        required: false,
-      },
-      {
-        name: 'workflowName',
-        type: 'string',
-        description: 'Workflow function name (for multi-workflow files)',
-        required: false,
-      },
-      {
-        name: 'debug',
-        type: 'boolean',
-        description: 'Enter step-through debug mode at the resume point (default: false)',
         required: false,
       },
     ],

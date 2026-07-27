@@ -4,9 +4,9 @@
  * Optimized: All workflows generated once in top-level beforeAll
  */
 
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 const OUTPUT_DIR = path.join(os.tmpdir(), `flow-weaver-execution-tests-${process.pid}`);
 
@@ -381,12 +381,12 @@ beforeAll(async () => {
 
   for (const [name, source] of Object.entries(SOURCES)) {
     const sourceFile = path.join(OUTPUT_DIR, `${name}.ts`);
-    fs.writeFileSync(sourceFile, source, "utf-8");
+    fs.writeFileSync(sourceFile, source, 'utf-8');
 
     const code = await testHelpers.generateFast(sourceFile, name);
 
     const outputFile = path.join(OUTPUT_DIR, `${name}.generated.ts`);
-    fs.writeFileSync(outputFile, code, "utf-8");
+    fs.writeFileSync(outputFile, code, 'utf-8');
 
     modules[name] = await import(outputFile);
   }
@@ -398,37 +398,47 @@ afterAll(() => {
   }
 });
 
+function executeGenerated(workflowName: string, execute: boolean, params: Record<string, unknown>) {
+  return modules[workflowName][workflowName](execute, params, testHelpers.createRuntime(workflowName));
+}
+
 // =============================================================================
 // BASIC TESTS
 // =============================================================================
 
-describe("Basic Workflow Execution", () => {
-  describe("Single Node - Addition", () => {
-    it("should execute with positive numbers", async () => {
-      const result = await modules.addNumbers.addNumbers(true, { a: 5, b: 3 });
+describe('Basic Workflow Execution', () => {
+  describe('Single Node - Addition', () => {
+    it('should execute with positive numbers', async () => {
+      const result = await executeGenerated('addNumbers', true, { a: 5, b: 3 });
       expect(result.sum).toBe(8);
       expect(result.onSuccess).toBe(true);
       expect(result.onFailure).toBe(false);
     });
 
-    it("should execute with negative numbers", async () => {
-      const result = await modules.addNumbers.addNumbers(true, { a: -5, b: -3 });
+    it('should execute with negative numbers', async () => {
+      const result = await executeGenerated('addNumbers', true, {
+        a: -5,
+        b: -3,
+      });
       expect(result.sum).toBe(-8);
     });
 
-    it("should execute with zero", async () => {
-      const result = await modules.addNumbers.addNumbers(true, { a: 0, b: 0 });
+    it('should execute with zero', async () => {
+      const result = await executeGenerated('addNumbers', true, { a: 0, b: 0 });
       expect(result.sum).toBe(0);
     });
 
-    it("should handle execute=false", async () => {
-      const result = await modules.addNumbers.addNumbers(false, { a: 5, b: 3 });
+    it('should handle execute=false', async () => {
+      const result = await executeGenerated('addNumbers', false, {
+        a: 5,
+        b: 3,
+      });
       expect(result.sum).toBe(8);
     });
   });
 
-  describe("Two Nodes - Chain", () => {
-    it("should chain operations: (a + b) * factor", async () => {
+  describe('Two Nodes - Chain', () => {
+    it('should chain operations: (a + b) * factor', async () => {
       const testCases = [
         { input: { a: 5, b: 3, factor: 2 }, expected: 16 },
         { input: { a: 10, b: 5, factor: 3 }, expected: 45 },
@@ -437,23 +447,23 @@ describe("Basic Workflow Execution", () => {
       ];
 
       for (const { input, expected } of testCases) {
-        const result = await modules.calculate.calculate(true, input);
+        const result = await executeGenerated('calculate', true, input);
         expect(result.result).toBe(expected);
         expect(result.onSuccess).toBe(true);
       }
     });
   });
 
-  describe("String Operations", () => {
-    it("should transform and concatenate strings", async () => {
+  describe('String Operations', () => {
+    it('should transform and concatenate strings', async () => {
       const testCases = [
-        { input: { text: "hello", suffix: "!" }, expected: "HELLO!" },
-        { input: { text: "world", suffix: "..." }, expected: "WORLD..." },
-        { input: { text: "", suffix: "test" }, expected: "test" },
+        { input: { text: 'hello', suffix: '!' }, expected: 'HELLO!' },
+        { input: { text: 'world', suffix: '...' }, expected: 'WORLD...' },
+        { input: { text: '', suffix: 'test' }, expected: 'test' },
       ];
 
       for (const { input, expected } of testCases) {
-        const result = await modules.processString.processString(true, input);
+        const result = await executeGenerated('processString', true, input);
         expect(result.result).toBe(expected);
       }
     });
@@ -464,21 +474,25 @@ describe("Basic Workflow Execution", () => {
 // INTERMEDIATE TESTS
 // =============================================================================
 
-describe("Intermediate Workflow Execution", () => {
-  describe("Branching - Success/Failure Paths", () => {
-    it("should execute success path for positive values", async () => {
-      const result = await modules.validateAndDouble.validateAndDouble(true, { value: 5 });
+describe('Intermediate Workflow Execution', () => {
+  describe('Branching - Success/Failure Paths', () => {
+    it('should execute success path for positive values', async () => {
+      const result = await executeGenerated('validateAndDouble', true, {
+        value: 5,
+      });
       expect(result.result).toBe(10);
     });
 
-    it("should not execute doubler for negative values", async () => {
-      const result = await modules.validateAndDouble.validateAndDouble(true, { value: -5 });
+    it('should not execute doubler for negative values', async () => {
+      const result = await executeGenerated('validateAndDouble', true, {
+        value: -5,
+      });
       expect(result.result).toBeUndefined();
     });
   });
 
-  describe("Multiple Outputs", () => {
-    it("should return multiple outputs", async () => {
+  describe('Multiple Outputs', () => {
+    it('should return multiple outputs', async () => {
       const testCases = [
         { value: 5, doubled: 10, tripled: 15, squared: 25 },
         { value: 3, doubled: 6, tripled: 9, squared: 9 },
@@ -486,7 +500,9 @@ describe("Intermediate Workflow Execution", () => {
       ];
 
       for (const tc of testCases) {
-        const result = await modules.multiOutput.multiOutput(true, { value: tc.value });
+        const result = await executeGenerated('multiOutput', true, {
+          value: tc.value,
+        });
         expect(result.doubled).toBe(tc.doubled);
         expect(result.tripled).toBe(tc.tripled);
         expect(result.squared).toBe(tc.squared);
@@ -494,8 +510,8 @@ describe("Intermediate Workflow Execution", () => {
     });
   });
 
-  describe("Boolean Logic", () => {
-    it("should perform boolean operations", async () => {
+  describe('Boolean Logic', () => {
+    it('should perform boolean operations', async () => {
       const testCases = [
         { a: true, b: true, and: true, or: true },
         { a: true, b: false, and: false, or: true },
@@ -504,7 +520,10 @@ describe("Intermediate Workflow Execution", () => {
       ];
 
       for (const tc of testCases) {
-        const result = await modules.booleanLogic.booleanLogic(true, { a: tc.a, b: tc.b });
+        const result = await executeGenerated('booleanLogic', true, {
+          a: tc.a,
+          b: tc.b,
+        });
         expect(result.andResult).toBe(tc.and);
         expect(result.orResult).toBe(tc.or);
       }
@@ -516,11 +535,15 @@ describe("Intermediate Workflow Execution", () => {
 // COMPLEX TESTS
 // =============================================================================
 
-describe("Complex Workflow Execution", () => {
-  describe("Async Operations", () => {
-    it("should handle async nodes", async () => {
+describe('Complex Workflow Execution', () => {
+  describe('Async Operations', () => {
+    it('should handle async nodes', async () => {
       const start = Date.now();
-      const result = await modules.asyncWorkflow.asyncWorkflow(true, { value: 10, delay: 50, addend: 5 });
+      const result = await executeGenerated('asyncWorkflow', true, {
+        value: 10,
+        delay: 50,
+        addend: 5,
+      });
       const elapsed = Date.now() - start;
 
       expect(result.result).toBe(15);
@@ -528,8 +551,8 @@ describe("Complex Workflow Execution", () => {
     });
   });
 
-  describe("Array Processing", () => {
-    it("should process arrays", async () => {
+  describe('Array Processing', () => {
+    it('should process arrays', async () => {
       const testCases = [
         { numbers: [1, 2, 3, 4, 5], count: 5, sum: 15 },
         { numbers: [], count: 0, sum: 0 },
@@ -538,15 +561,17 @@ describe("Complex Workflow Execution", () => {
       ];
 
       for (const tc of testCases) {
-        const result = await modules.processArray.processArray(true, { numbers: tc.numbers });
+        const result = await executeGenerated('processArray', true, {
+          numbers: tc.numbers,
+        });
         expect(result.count).toBe(tc.count);
         expect(result.sum).toBe(tc.sum);
       }
     });
   });
 
-  describe("Object Handling", () => {
-    it("should process objects", async () => {
+  describe('Object Handling', () => {
+    it('should process objects', async () => {
       const testCases = [
         { obj: { a: 1, b: 2 }, keyCount: 2 },
         { obj: {}, keyCount: 0 },
@@ -554,15 +579,17 @@ describe("Complex Workflow Execution", () => {
       ];
 
       for (const tc of testCases) {
-        const result = await modules.processObject.processObject(true, { obj: tc.obj });
+        const result = await executeGenerated('processObject', true, {
+          obj: tc.obj,
+        });
         expect(result.keyCount).toBe(tc.keyCount);
         expect(JSON.parse(result.json)).toEqual(tc.obj);
       }
     });
   });
 
-  describe("Long Chain - 5 Nodes", () => {
-    it("should chain 5 nodes correctly", async () => {
+  describe('Long Chain - 5 Nodes', () => {
+    it('should chain 5 nodes correctly', async () => {
       const testCases = [
         { input: 0, expected: 5 },
         { input: 10, expected: 15 },
@@ -571,7 +598,9 @@ describe("Complex Workflow Execution", () => {
       ];
 
       for (const { input, expected } of testCases) {
-        const result = await modules.addFive.addFive(true, { value: input });
+        const result = await executeGenerated('addFive', true, {
+          value: input,
+        });
         expect(result.result).toBe(expected);
       }
     });

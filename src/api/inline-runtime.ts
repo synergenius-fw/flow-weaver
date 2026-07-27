@@ -112,23 +112,13 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('  sessionId?: string;');
     lines.push('};');
     lines.push('');
-    // Declare __flowWeaverDebugger__ so TypeScript knows it might exist at runtime
-    // (e.g., passed as a function parameter or injected by execution harness)
-    lines.push('declare const __flowWeaverDebugger__: TDebugger | undefined;');
-    lines.push('');
-
-    // Debug controller type for step-through debugging and checkpoint/resume
+    // Debug controller type for live step-through debugging only.
     lines.push('type TDebugController = {');
-    lines.push('  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<boolean> | boolean;');
+    lines.push('  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;');
     lines.push('  afterNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;');
     lines.push('};');
     lines.push('');
   }
-
-  // Declare __abortSignal__ so TypeScript knows it might exist at runtime
-  // (passed as a function parameter for cancellation support)
-  lines.push('declare const __abortSignal__: AbortSignal | undefined;');
-  lines.push('');
 
   lines.push('interface VariableAddress {');
   lines.push('  id: string;');
@@ -137,6 +127,7 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   lines.push('  nodeTypeName?: string | undefined;');
   lines.push('  scope?: string | undefined;');
   lines.push("  side?: 'start' | 'exit' | undefined;");
+  lines.push('  durable?: boolean | undefined;');
   lines.push('}');
   lines.push('');
   lines.push('interface ExecutionInfo {');
@@ -144,6 +135,35 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   lines.push('  index: number;');
   lines.push('  parentIndex?: number | undefined;');
   lines.push('  scopeName?: string | undefined;');
+  lines.push('}');
+  lines.push('');
+  lines.push("type DurableGateKind = 'approval' | 'input' | 'agent';");
+  lines.push('type WireValue = null | boolean | number | string | readonly WireValue[] | { readonly [key: string]: WireValue };');
+  lines.push('interface WorkflowFrameAddress { workflowId: string; invocation: number; callerNodeId?: string; callerExecutionIndex?: number; }');
+  lines.push('interface ScopeAddress { parentNodeId: string; parentExecutionIndex: number; scopeName: string; invocation: number; loopIteration?: number; branchArm?: string; }');
+  lines.push('interface BranchAddress { workflowId: string; frameDepth: number; nodeId: string; executionIndex: number; arm: string; }');
+  lines.push('interface ExecutionAddress { frames: readonly WorkflowFrameAddress[]; scopes: readonly ScopeAddress[]; branches: readonly BranchAddress[]; nodeId: string; nodeType: string; executionIndex: number; }');
+  lines.push('interface WorkflowRuntime {');
+  lines.push('  readonly runId: string;');
+  lines.push('  readonly abortSignal?: AbortSignal;');
+  lines.push(
+    production
+      ? '  readonly services: { debugger?: unknown; debugController?: unknown; mocks?: unknown; workflowRegistry?: Readonly<Record<string, (...args: unknown[]) => unknown>>; effectAdapter?: unknown };'
+      : '  readonly services: { debugger?: TDebugger; debugController?: TDebugController; mocks?: unknown; workflowRegistry?: Readonly<Record<string, (...args: unknown[]) => unknown>>; effectAdapter?: unknown };'
+  );
+  lines.push('  readonly frames: readonly WorkflowFrameAddress[];');
+  lines.push('  readonly scopes: readonly ScopeAddress[];');
+  lines.push('  readonly branches: readonly BranchAddress[];');
+  lines.push('  readonly durable: {');
+  lines.push('    address(runtime: WorkflowRuntime, nodeId: string, nodeType: string, executionIndex: number): ExecutionAddress;');
+  lines.push('    shouldExecute(address: ExecutionAddress): boolean;');
+  lines.push('    commitNode(address: ExecutionAddress): void;');
+  lines.push('    setVariable(address: ExecutionAddress, portName: string, value: unknown): void;');
+  lines.push('    getVariable(address: ExecutionAddress, portName: string, allowAncestorLookup?: boolean): unknown;');
+  lines.push('    resolveGate(runtime: WorkflowRuntime, boundary: { kind: DurableGateKind; nodeId: string; nodeType: string; executionIndex: number; payload: WireValue }): WireValue;');
+  lines.push('    executeEffect<T extends WireValue>(runtime: WorkflowRuntime, boundary: { nodeId: string; nodeType: string; executionIndex: number }, execute: (operationKey: string) => Promise<{ result: T; receipt: WireValue }>): Promise<T>;');
+  lines.push('    assertResumeResolutionConsumed(): void;');
+  lines.push('  };');
   lines.push('}');
   lines.push('');
   lines.push('type VariableValue = unknown | (() => unknown) | (() => Promise<unknown>);');
@@ -199,22 +219,28 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
 
   lines.push('  private pullExecutors: Map<string, () => void | Promise<void>> = new Map();');
   lines.push('  private nodeExecutionIndices: Map<string, number> = new Map();');
-  lines.push('  private abortSignal?: AbortSignal | undefined;');
+  lines.push('  private runtime: WorkflowRuntime;');
+  lines.push('  private scopeInvocationCounts: Map<string, number> = new Map();');
+  lines.push('  private nestedInvocationCounts: Map<string, number> = new Map();');
+  lines.push('  private branchStack: BranchAddress[];');
+  lines.push('  private allowAncestorDurableVariables = true;');
   lines.push('');
 
   // Constructor
   if (production) {
-    lines.push('  constructor(isAsync: boolean = true, abortSignal?: AbortSignal) {');
+    lines.push('  constructor(isAsync: boolean = true, runtime: WorkflowRuntime) {');
     lines.push('    this.isAsync = isAsync;');
-    lines.push('    this.abortSignal = abortSignal;');
+    lines.push('    this.runtime = runtime;');
+    lines.push('    this.branchStack = [...runtime.branches];');
     lines.push('  }');
   } else {
     lines.push(
-      '  constructor(isAsync: boolean = true, flowWeaverDebugger?: TDebugger, abortSignal?: AbortSignal) {'
+      '  constructor(isAsync: boolean = true, runtime: WorkflowRuntime) {'
     );
     lines.push('    this.isAsync = isAsync;');
-    lines.push('    this.flowWeaverDebugger = flowWeaverDebugger;');
-    lines.push('    this.abortSignal = abortSignal;');
+    lines.push('    this.flowWeaverDebugger = runtime.services.debugger;');
+    lines.push('    this.runtime = runtime;');
+    lines.push('    this.branchStack = [...runtime.branches];');
     lines.push('  }');
   }
   lines.push('');
@@ -247,6 +273,9 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   );
   lines.push('    const key = this.getVariableKey(address);');
   lines.push('    this.variables.set(key, value);');
+  lines.push('    if (typeof value !== "function" && address.durable !== false) {');
+  lines.push('      this.runtime.durable.setVariable(this.executionAddress(address), address.portName, value);');
+  lines.push('    }');
 
   if (!production) {
     lines.push('    if (this.flowWeaverDebugger) {');
@@ -301,12 +330,16 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   // retrieveVariable
   lines.push('  private retrieveVariable(address: VariableAddress): unknown | Promise<unknown> {');
   lines.push('    const key = this.getVariableKey(address);');
+  lines.push('    let value = this.variables.get(key);');
   lines.push('    if (!this.variables.has(key)) {');
   lines.push(
-    '      throw new Error(`Variable not found: ${address.id}.${address.portName}[${address.executionIndex}]`);'
+    '      value = this.runtime.durable.getVariable(this.executionAddress(address), address.portName, this.allowAncestorDurableVariables);'
   );
+  lines.push('      if (value === undefined) {');
+  lines.push('        throw new Error(`Variable not found: ${address.id}.${address.portName}[${address.executionIndex}]`);');
+  lines.push('      }');
+  lines.push('      this.variables.set(key, value);');
   lines.push('    }');
-  lines.push('    const value = this.variables.get(key);');
   lines.push('    if (typeof value === "function") {');
   lines.push('      const result = value();');
   lines.push('      if (result instanceof Promise) {');
@@ -321,7 +354,65 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   // hasVariable
   lines.push('  hasVariable(address: VariableAddress): boolean {');
   lines.push('    const key = this.getVariableKey(address);');
-  lines.push('    return this.variables.has(key);');
+  lines.push(
+    '    return this.variables.has(key) || this.runtime.durable.getVariable(this.executionAddress(address), address.portName, this.allowAncestorDurableVariables) !== undefined;'
+  );
+  lines.push('  }');
+  lines.push('');
+
+  lines.push('  executionAddress(address: Pick<VariableAddress, "id" | "executionIndex" | "nodeTypeName">): ExecutionAddress {');
+  lines.push('    const runtime = this.getRuntime();');
+  lines.push('    return runtime.durable.address(runtime, address.id, address.nodeTypeName ?? address.id, address.executionIndex);');
+  lines.push('  }');
+  lines.push('');
+  lines.push('  shouldExecute(nodeId: string, nodeType: string, executionIndex: number): boolean {');
+  lines.push('    const runtime = this.getRuntime();');
+  lines.push('    return runtime.durable.shouldExecute(runtime.durable.address(runtime, nodeId, nodeType, executionIndex));');
+  lines.push('  }');
+  lines.push('');
+  lines.push('  commitNode(nodeId: string, nodeType: string, executionIndex: number): void {');
+  lines.push('    const runtime = this.getRuntime();');
+  lines.push('    runtime.durable.commitNode(runtime.durable.address(runtime, nodeId, nodeType, executionIndex));');
+  lines.push('  }');
+  lines.push('');
+  lines.push('  resolveGate(kind: DurableGateKind, nodeId: string, nodeType: string, executionIndex: number, payload: WireValue): WireValue {');
+  lines.push('    const runtime = this.getRuntime();');
+  lines.push('    return runtime.durable.resolveGate(runtime, { kind, nodeId, nodeType, executionIndex, payload });');
+  lines.push('  }');
+  lines.push('');
+  lines.push('  executeEffect<T extends WireValue>(nodeId: string, nodeType: string, executionIndex: number, execute: (operationKey: string) => Promise<{ result: T; receipt: WireValue }>): Promise<T> {');
+  lines.push('    const runtime = this.getRuntime();');
+  lines.push('    return runtime.durable.executeEffect(runtime, { nodeId, nodeType, executionIndex }, execute);');
+  lines.push('  }');
+  lines.push('');
+  lines.push('  createNestedRuntime(workflowId: string, callerNodeId: string, callerExecutionIndex: number): WorkflowRuntime {');
+  lines.push('    const invocation = this.nestedInvocationCounts.get(callerNodeId) ?? 0;');
+  lines.push('    this.nestedInvocationCounts.set(callerNodeId, invocation + 1);');
+  lines.push('    const parentRuntime = this.getRuntime();');
+  lines.push('    return { ...parentRuntime, frames: [...parentRuntime.frames, { workflowId, invocation, callerNodeId, callerExecutionIndex }], scopes: parentRuntime.scopes };');
+  lines.push('  }');
+  lines.push('');
+  lines.push('  enterBranch(nodeId: string, executionIndex: number, arm: string): void { const frameDepth = this.runtime.frames.length - 1; const workflowId = this.runtime.frames[frameDepth].workflowId; this.branchStack.push({ workflowId, frameDepth, nodeId, executionIndex, arm }); }');
+  lines.push('  exitBranch(): void { this.branchStack.pop(); }');
+  lines.push('  getRuntime(): WorkflowRuntime { return { ...this.runtime, branches: [...this.branchStack] }; }');
+  lines.push('  forkParallel(): GeneratedExecutionContext {');
+  lines.push('    const parallelContext = new GeneratedExecutionContext(this.isAsync, this.getRuntime());');
+  lines.push('    parallelContext.variables = new Map(this.variables);');
+  lines.push('    parallelContext.executions = new Map(this.executions);');
+  lines.push('    parallelContext.executionCounter = this.executionCounter;');
+  lines.push('    parallelContext.pullExecutors = new Map(this.pullExecutors);');
+  lines.push('    parallelContext.nodeExecutionIndices = new Map(this.nodeExecutionIndices);');
+  lines.push('    parallelContext.nodeExecutionCounts = new Map(this.nodeExecutionCounts);');
+  lines.push('    parallelContext.scopeInvocationCounts = new Map(this.scopeInvocationCounts);');
+  lines.push('    parallelContext.nestedInvocationCounts = new Map(this.nestedInvocationCounts);');
+  lines.push('    parallelContext.allowAncestorDurableVariables = this.allowAncestorDurableVariables;');
+  lines.push('    return parallelContext;');
+  lines.push('  }');
+  lines.push('  mergeParallel(parallelContext: GeneratedExecutionContext): void {');
+  lines.push('    this.mergeScope(parallelContext);');
+  lines.push('    parallelContext.nodeExecutionIndices.forEach((index, id) => { this.nodeExecutionIndices.set(id, index); });');
+  lines.push('    parallelContext.scopeInvocationCounts.forEach((count, key) => { this.scopeInvocationCounts.set(key, Math.max(this.scopeInvocationCounts.get(key) ?? 0, count)); });');
+  lines.push('    parallelContext.nestedInvocationCounts.forEach((count, key) => { this.nestedInvocationCounts.set(key, Math.max(this.nestedInvocationCounts.get(key) ?? 0, count)); });');
   lines.push('  }');
   lines.push('');
 
@@ -338,18 +429,26 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   lines.push(
     '    const effectiveIsAsync = isAsyncOverride !== undefined ? isAsyncOverride : this.isAsync;'
   );
+  lines.push('    const scopeKey = `${_parentNodeName}:${_parentIndex}:${_scopeName}`;');
+  lines.push('    const scopeInvocation = this.scopeInvocationCounts.get(scopeKey) ?? 0;');
+  lines.push('    this.scopeInvocationCounts.set(scopeKey, scopeInvocation + 1);');
+  lines.push('    const parentRuntime = this.getRuntime();');
+  lines.push('    const scopedRuntime: WorkflowRuntime = { ...parentRuntime, scopes: [...parentRuntime.scopes, { parentNodeId: _parentNodeName, parentExecutionIndex: _parentIndex, scopeName: _scopeName, invocation: scopeInvocation, loopIteration: scopeInvocation }] };');
   if (production) {
     lines.push(
-      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, this.abortSignal);'
+      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, scopedRuntime);'
     );
   } else {
     lines.push(
-      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, this.flowWeaverDebugger, this.abortSignal);'
+      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, scopedRuntime);'
     );
   }
   lines.push('    // For per-port function scopes (cleanScope=true), start with empty variables');
   lines.push('    // For node-level scopes (cleanScope=false), inherit parent variables');
   lines.push('    scopedContext.variables = cleanScope ? new Map() : new Map(this.variables);');
+  lines.push(
+    '    scopedContext.allowAncestorDurableVariables = this.allowAncestorDurableVariables && !cleanScope;'
+  );
   lines.push('    scopedContext.executions = new Map(this.executions);');
   lines.push('    scopedContext.executionCounter = this.executionCounter;');
   lines.push('    scopedContext.nodeExecutionCounts = new Map(this.nodeExecutionCounts);');
@@ -398,15 +497,15 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
 
   // Cancellation methods
   lines.push('  isAborted(): boolean {');
-  lines.push('    return this.abortSignal?.aborted ?? false;');
+  lines.push('    return this.runtime.abortSignal?.aborted ?? false;');
   lines.push('  }');
   lines.push('');
   lines.push('  getAbortSignal(): AbortSignal | undefined {');
-  lines.push('    return this.abortSignal;');
+  lines.push('    return this.runtime.abortSignal;');
   lines.push('  }');
   lines.push('');
   lines.push('  checkAborted(nodeId?: string): void {');
-  lines.push('    if (this.abortSignal?.aborted) {');
+  lines.push('    if (this.runtime.abortSignal?.aborted) {');
   lines.push('      throw new CancellationError(');
   lines.push("        `Workflow execution cancelled${nodeId ? ` at ${nodeId}` : ''}`,");
   lines.push('        this.executionCounter,');
@@ -494,40 +593,15 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('  }');
   }
 
-  // Serialize/restore methods (dev mode only, used by debug controller and checkpointing)
+  // Live debugger inspection never invokes lazy values.
   if (!production) {
     lines.push('');
-    lines.push('  serialize(): {');
-    lines.push('    variables: Record<string, unknown>;');
-    lines.push('    executions: Record<string, ExecutionInfo>;');
-    lines.push('    executionCounter: number;');
-    lines.push('    nodeExecutionCounts: Record<string, number>;');
-    lines.push('  } {');
+    lines.push('  inspectVariables(): Record<string, unknown> {');
     lines.push('    const vars: Record<string, unknown> = {};');
     lines.push('    for (const [key, value] of this.variables) {');
-    lines.push('      if (typeof value === "function") {');
-    lines.push('        try { vars[key] = (value as () => unknown)(); } catch { vars[key] = value; }');
-    lines.push('      } else {');
-    lines.push('        vars[key] = value;');
-    lines.push('      }');
+    lines.push('      vars[key] = typeof value === "function" ? "[lazy value]" : value;');
     lines.push('    }');
-    lines.push('    const execs: Record<string, ExecutionInfo> = {};');
-    lines.push('    for (const [key, info] of this.executions) { execs[key] = { ...info }; }');
-    lines.push('    const nodeCounts: Record<string, number> = {};');
-    lines.push('    for (const [key, count] of this.nodeExecutionIndices) { nodeCounts[key] = count; }');
-    lines.push('    return { variables: vars, executions: execs, executionCounter: this.executionCounter, nodeExecutionCounts: nodeCounts };');
-    lines.push('  }');
-    lines.push('');
-    lines.push('  restore(data: {');
-    lines.push('    variables: Record<string, unknown>;');
-    lines.push('    executions: Record<string, ExecutionInfo>;');
-    lines.push('    executionCounter: number;');
-    lines.push('    nodeExecutionCounts: Record<string, number>;');
-    lines.push('  }): void {');
-    lines.push('    this.variables = new Map(Object.entries(data.variables));');
-    lines.push('    this.executions = new Map(Object.entries(data.executions));');
-    lines.push('    this.executionCounter = data.executionCounter;');
-    lines.push('    this.nodeExecutionIndices = new Map(Object.entries(data.nodeExecutionCounts));');
+    lines.push('    return vars;');
     lines.push('  }');
   }
 

@@ -109,13 +109,6 @@ vi.mock('../../src/cli/utils/logger', () => ({
   },
 }));
 
-vi.mock('../../src/mcp/agent-channel', () => ({
-  AgentChannel: class MockAgentChannel {
-    onPause = mockAgentOnPause;
-    resume = mockAgentResume;
-  },
-}));
-
 vi.mock('../../src/runtime/debug-controller', () => ({
   DebugController: class MockDebugController {
     resume = mockControllerResume;
@@ -143,6 +136,7 @@ const DUMMY_SOURCE = 'export function dummy() {}';
 
 function makeResult(overrides: Record<string, unknown> = {}) {
   return {
+    kind: 'completed',
     result: { answer: 42 },
     functionName: 'testWf',
     executionTime: 100,
@@ -207,6 +201,24 @@ describe('debug REPL (runDebugRepl)', () => {
 
     expect(logger.section).toHaveBeenCalledWith('Flow Weaver Debug');
     expect(logger.success).toHaveBeenCalledWith('Debug session completed');
+    cleanup();
+  });
+
+  it('should refuse an immediate durable yield in debug mode', async () => {
+    const { runCommand } = await import('../../src/cli/commands/run');
+    const filePath = writeFixture('debug-yield.ts', DUMMY_SOURCE);
+    const logger = await getLogger();
+    const cleanup = setupDebugRepl();
+    const originalExitCode = process.exitCode;
+    mockExecResult = makeResult({ kind: 'yielded' });
+
+    await runCommand(filePath, { debug: true });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining('not a durable coordinator'),
+    );
+    expect(logger.success).not.toHaveBeenCalledWith('Debug session completed');
+    process.exitCode = originalExitCode;
     cleanup();
   });
 
@@ -781,100 +793,7 @@ describe('debug REPL (runDebugRepl)', () => {
     cleanup();
   });
 
-  it('should handle agent pause during debug REPL with JSON response', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('debug-agent.ts', DUMMY_SOURCE);
-    const logger = await getLogger();
-    const cleanup = setupDebugRepl();
-    const execMock = await getExecutorMock();
-
-    let resolveExec!: (v: unknown) => void;
-    execMock.mockReturnValueOnce(new Promise((r) => { resolveExec = r; }));
-
-    const runPromise = runCommand(filePath, { debug: true });
-    await new Promise((r) => setTimeout(r, 20));
-
-    // First: controller pauses
-    controllerPauseResolvers[0]({
-      currentNodeId: 'nodeA', phase: 'before', position: 0,
-      executionOrder: ['nodeA'], variables: {}, breakpoints: [],
-    });
-    await new Promise((r) => setTimeout(r, 20));
-
-    // Send continue, which will trigger handleResume
-    // Set up so agent pauses during handleResume
-    controllerPauseResolvers = [];
-    agentPauseResolvers = [];
-
-    // When continue is called, handleResume races exec/controller/agent.
-    // We want agent to win the race.
-    rlLineHandlers[0]('c');
-    await new Promise((r) => setTimeout(r, 20));
-
-    // Trigger agent pause
-    if (agentPauseResolvers.length > 0) {
-      agentPauseResolvers[0]({ agentId: 'myAgent', prompt: 'What should I do?' });
-      await new Promise((r) => setTimeout(r, 20));
-
-      expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('[waitForAgent] What should I do?'));
-      expect(mockRlQuestion).toHaveBeenCalled();
-
-      // Answer the agent question with valid JSON
-      if (rlQuestionCallbacks.length > 0) {
-        rlQuestionCallbacks[0]('{"action": "proceed"}');
-        await new Promise((r) => setTimeout(r, 20));
-
-        expect(mockAgentResume).toHaveBeenCalledWith({ action: 'proceed' });
-      }
-    }
-
-    // Now resolve execution
-    resolveExec(makeResult());
-    await runPromise;
-    cleanup();
-  });
-
-  it('should handle agent pause with non-JSON response (wraps as { response })', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('debug-agent-text.ts', DUMMY_SOURCE);
-    const cleanup = setupDebugRepl();
-    const execMock = await getExecutorMock();
-
-    let resolveExec!: (v: unknown) => void;
-    execMock.mockReturnValueOnce(new Promise((r) => { resolveExec = r; }));
-
-    const runPromise = runCommand(filePath, { debug: true });
-    await new Promise((r) => setTimeout(r, 20));
-
-    controllerPauseResolvers[0]({
-      currentNodeId: 'nodeA', phase: 'before', position: 0,
-      executionOrder: ['nodeA'], variables: {}, breakpoints: [],
-    });
-    await new Promise((r) => setTimeout(r, 20));
-
-    controllerPauseResolvers = [];
-    agentPauseResolvers = [];
-    rlLineHandlers[0]('c');
-    await new Promise((r) => setTimeout(r, 20));
-
-    if (agentPauseResolvers.length > 0) {
-      agentPauseResolvers[0]({ agentId: 'myAgent' });
-      await new Promise((r) => setTimeout(r, 20));
-
-      if (rlQuestionCallbacks.length > 0) {
-        rlQuestionCallbacks[0]('plain text response');
-        await new Promise((r) => setTimeout(r, 20));
-
-        expect(mockAgentResume).toHaveBeenCalledWith({ response: 'plain text response' });
-      }
-    }
-
-    resolveExec(makeResult());
-    await runPromise;
-    cleanup();
-  });
-
-  it('should show debug state with long output values truncated', async () => {
+   it('should show debug state with long output values truncated', async () => {
     const { runCommand } = await import('../../src/cli/commands/run');
     const filePath = writeFixture('debug-truncate.ts', DUMMY_SOURCE);
     const logger = await getLogger();
@@ -940,63 +859,6 @@ describe('debug REPL (runDebugRepl)', () => {
     cleanup();
   });
 
-  it('should output JSON with resume info from debug REPL', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('debug-resume-json.ts', DUMMY_SOURCE);
-    const cleanup = setupDebugRepl();
-    const execMock = await getExecutorMock();
-    const { loadCheckpoint } = await import('../../src/runtime/checkpoint') as any;
-
-    (loadCheckpoint as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-      data: {
-        params: { x: 1 },
-        workflowName: 'testWf',
-        executionOrder: ['nodeA'],
-        completedNodes: ['nodeA'],
-      },
-      stale: true,
-      rerunNodes: ['nodeA'],
-      skipNodes: new Map(),
-    });
-
-    let resolveExec!: (v: unknown) => void;
-    execMock.mockReturnValueOnce(new Promise((r) => { resolveExec = r; }));
-
-    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-
-    const runPromise = runCommand(filePath, {
-      debug: true,
-      json: true,
-      resume: '/ckpt.json',
-    });
-    await new Promise((r) => setTimeout(r, 20));
-
-    controllerPauseResolvers[0]({
-      currentNodeId: 'nodeA', phase: 'before', position: 0,
-      executionOrder: ['nodeA'], variables: {}, breakpoints: [],
-    });
-    await new Promise((r) => setTimeout(r, 20));
-
-    rlLineHandlers[0]('q');
-    await new Promise((r) => setTimeout(r, 10));
-    resolveExec(makeResult());
-    await runPromise;
-
-    const jsonCalls = writeSpy.mock.calls.filter(
-      (c) => typeof c[0] === 'string' && (c[0] as string).includes('"success"')
-    );
-    if (jsonCalls.length > 0) {
-      const parsed = JSON.parse(jsonCalls[0][0] as string);
-      expect(parsed.success).toBe(true);
-      expect(parsed.resumedFrom).toBe('/ckpt.json');
-      expect(parsed.rerunNodes).toEqual(['nodeA']);
-      expect(parsed.warning).toBe('Workflow changed since checkpoint.');
-    }
-
-    writeSpy.mockRestore();
-    cleanup();
-  });
-
   it('should re-pause in REPL after step when another pause occurs', async () => {
     const { runCommand } = await import('../../src/cli/commands/run');
     const filePath = writeFixture('debug-repause.ts', DUMMY_SOURCE);
@@ -1042,227 +904,7 @@ describe('debug REPL (runDebugRepl)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Agent pause in the race loop (non-debug mode, lines 337-392)
-// ---------------------------------------------------------------------------
-
-describe('agent pause in race loop (non-debug, non-interactive)', () => {
-  it('should throw when agent pauses and stdin is not a TTY', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('agent-no-tty.ts', DUMMY_SOURCE);
-    const logger = await getLogger();
-    const execMock = await getExecutorMock();
-
-    const origIsTTY = process.stdin.isTTY;
-    Object.defineProperty(process.stdin, 'isTTY', { value: false, writable: true, configurable: true });
-
-    // Set up: exec hangs, agent pause wins the race
-    let resolveExec!: (v: unknown) => void;
-    execMock.mockReturnValueOnce(new Promise((r) => { resolveExec = r; }));
-
-    const origExitCode = process.exitCode;
-    const runPromise = runCommand(filePath, {});
-
-    await new Promise((r) => setTimeout(r, 20));
-
-    // Trigger agent pause
-    if (agentPauseResolvers.length > 0) {
-      agentPauseResolvers[0]({ agentId: 'testAgent', prompt: 'Need input' });
-    }
-
-    await runPromise;
-
-    expect(logger.error).toHaveBeenCalledWith(
-      expect.stringContaining('stdin is not interactive')
-    );
-
-    Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, writable: true, configurable: true });
-    process.exitCode = origExitCode;
-    resolveExec(makeResult());
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Non-interactive debug_paused auto-continue in checkpoint mode (line 355-358)
-// ---------------------------------------------------------------------------
-
-describe('non-interactive checkpoint debug_paused auto-continue', () => {
-  it('should auto-continue when debug pauses in checkpoint-only mode (no --debug)', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('ckpt-auto.ts', DUMMY_SOURCE);
-    const execMock = await getExecutorMock();
-
-    let resolveExec!: (v: unknown) => void;
-    execMock.mockReturnValueOnce(new Promise((r) => { resolveExec = r; }));
-
-    const runPromise = runCommand(filePath, { checkpoint: true });
-    await new Promise((r) => setTimeout(r, 20));
-
-    // Trigger debug pause (checkpoint mode, not interactive debug)
-    if (controllerPauseResolvers.length > 0) {
-      controllerPauseResolvers[0]({
-        currentNodeId: 'nodeA', phase: 'before', position: 0,
-        executionOrder: ['nodeA'], variables: {}, breakpoints: [],
-      });
-    }
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(mockControllerResume).toHaveBeenCalledWith({ type: 'continue' });
-
-    resolveExec(makeResult());
-    await runPromise;
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Agent pause in race loop with TTY (lines 359-392 + promptForInput 834-845)
-// ---------------------------------------------------------------------------
-
-describe('agent pause in race loop with TTY (non-debug)', () => {
-  it('should prompt user and resume agent channel with valid JSON response', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('agent-tty-json.ts', DUMMY_SOURCE);
-    const logger = await getLogger();
-    const execMock = await getExecutorMock();
-
-    const origIsTTY = process.stdin.isTTY;
-    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
-
-    // First call: agent pause wins. Second call: exec completes.
-    let resolveExec!: (v: unknown) => void;
-    execMock.mockReturnValueOnce(new Promise((r) => { resolveExec = r; }));
-
-    const runPromise = runCommand(filePath, {});
-    await new Promise((r) => setTimeout(r, 20));
-
-    // Trigger agent pause
-    if (agentPauseResolvers.length > 0) {
-      agentPauseResolvers[0]({ agentId: 'bot', prompt: 'Give me data', context: { key: 'val' } });
-    }
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(logger.section).toHaveBeenCalledWith('Waiting for Input');
-    expect(logger.info).toHaveBeenCalledWith('Give me data');
-    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Context:'));
-
-    // The promptForInput uses readline.createInterface().question
-    // Our mock queues the callback
-    if (rlQuestionCallbacks.length > 0) {
-      rlQuestionCallbacks[0]('{"data": 123}');
-    }
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(mockAgentResume).toHaveBeenCalledWith({ data: 123 });
-
-    // Now resolve the execution for the second loop iteration
-    resolveExec(makeResult());
-    await runPromise;
-
-    Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, writable: true, configurable: true });
-  });
-
-  it('should wrap non-JSON user input as { response } when agent pauses', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('agent-tty-text.ts', DUMMY_SOURCE);
-    const execMock = await getExecutorMock();
-
-    const origIsTTY = process.stdin.isTTY;
-    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
-
-    let resolveExec!: (v: unknown) => void;
-    execMock.mockReturnValueOnce(new Promise((r) => { resolveExec = r; }));
-
-    const runPromise = runCommand(filePath, {});
-    await new Promise((r) => setTimeout(r, 20));
-
-    if (agentPauseResolvers.length > 0) {
-      agentPauseResolvers[0]({ agentId: 'bot' });
-    }
-    await new Promise((r) => setTimeout(r, 20));
-
-    if (rlQuestionCallbacks.length > 0) {
-      rlQuestionCallbacks[0]('just text');
-    }
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(mockAgentResume).toHaveBeenCalledWith({ response: 'just text' });
-
-    resolveExec(makeResult());
-    await runPromise;
-
-    Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, writable: true, configurable: true });
-  });
-
-  it('should use default agent label when no prompt is provided', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('agent-tty-default.ts', DUMMY_SOURCE);
-    const logger = await getLogger();
-    const execMock = await getExecutorMock();
-
-    const origIsTTY = process.stdin.isTTY;
-    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
-
-    let resolveExec!: (v: unknown) => void;
-    execMock.mockReturnValueOnce(new Promise((r) => { resolveExec = r; }));
-
-    const runPromise = runCommand(filePath, {});
-    await new Promise((r) => setTimeout(r, 20));
-
-    if (agentPauseResolvers.length > 0) {
-      agentPauseResolvers[0]({ agentId: 'myBot', context: {} });
-    }
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(logger.info).toHaveBeenCalledWith('Agent "myBot" is requesting input');
-
-    if (rlQuestionCallbacks.length > 0) {
-      rlQuestionCallbacks[0]('{}');
-    }
-    await new Promise((r) => setTimeout(r, 20));
-
-    resolveExec(makeResult());
-    await runPromise;
-
-    Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, writable: true, configurable: true });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// fail() function in debug REPL (lines 604-609)
-// ---------------------------------------------------------------------------
-
-describe('debug REPL fail function', () => {
-  it('should invoke fail path when agent resume callback throws in handleResume', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('debug-fail.ts', DUMMY_SOURCE);
-    const logger = await getLogger();
-
-    const origIsTTY = process.stdin.isTTY;
-    Object.defineProperty(process.stdin, 'isTTY', { value: true, writable: true, configurable: true });
-
-    const execMock = await getExecutorMock();
-    // The exec promise rejects, which should cause handleResume to reject,
-    // which calls fail().
-    execMock.mockReturnValueOnce(Promise.reject(new Error('execution failed')));
-
-    const origExitCode = process.exitCode;
-    const runPromise = runCommand(filePath, { debug: true });
-    await new Promise((r) => setTimeout(r, 50));
-
-    // The error should be caught by the outer try/catch in runCommandInner
-    await runPromise;
-
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('execution failed'));
-    process.exitCode = origExitCode;
-
-    Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, writable: true, configurable: true });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// printDebugState edge cases (lines 534-546)
-// ---------------------------------------------------------------------------
-
-describe('printDebugState edge cases', () => {
+ describe('printDebugState edge cases', () => {
   it('should not show outputs when phase is before', async () => {
     const { runCommand } = await import('../../src/cli/commands/run');
     const filePath = writeFixture('debug-before-phase.ts', DUMMY_SOURCE);

@@ -545,7 +545,9 @@ export function syncParallel(execute: boolean, params: { num: number }): {
     fs.writeFileSync(testFile, source);
 
     try {
-      const code = await global.testHelpers.generateFast(testFile, 'syncParallel', { production: true });
+      const code = await global.testHelpers.generateFast(testFile, 'syncParallel', {
+        production: true,
+      });
       // Sync workflows must not use Promise.all since there's no event loop concurrency
       expect(code).not.toContain('Promise.all');
       // Both nodes should still be called
@@ -607,7 +609,7 @@ export async function parallelExec(execute: boolean, params: { num: number }): P
       fs.writeFileSync(outputFile, code, 'utf-8');
 
       const { parallelExec } = await import(outputFile);
-      const result = await parallelExec(true, { num: 5 });
+      const result = await parallelExec(true, { num: 5 }, testHelpers.createRuntime('parallelExec'));
 
       expect(result.doubled).toBe(10);
       expect(result.tripled).toBe(15);

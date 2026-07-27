@@ -5,12 +5,12 @@
  * a scope function and calls it for each item in its iteration.
  */
 
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
-import { generator } from "../../src/generator";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import { generator } from '../../src/generator';
 
-describe("Scope Iteration", () => {
+describe('Scope Iteration', () => {
   const outputDir = path.join(os.tmpdir(), `flow-weaver-scope-iteration-${process.pid}`);
 
   beforeEach(() => {
@@ -22,7 +22,7 @@ describe("Scope Iteration", () => {
     // Note: Using import() instead of require() - cache is handled by unique file names
   });
 
-  it("should pass item index to child nodes if connected", async () => {
+  it('should pass item index to child nodes if connected', async () => {
     const source = `
 /**
  * @flowWeaver nodeType
@@ -82,22 +82,24 @@ export function formatAll(
 }
 `;
 
-    const testFile = path.join(outputDir, "with-index.ts");
+    const testFile = path.join(outputDir, 'with-index.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, "formatAll", { production: true });
-    const outputFile = path.join(outputDir, "with-index.generated.ts");
+    const code = await generator.generate(testFile, 'formatAll', {
+      production: true,
+    });
+    const outputFile = path.join(outputDir, 'with-index.generated.ts');
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
 
-    const result = module.formatAll(true, { items: ['a', 'b', 'c'] });
+    const result = module.formatAll(true, { items: ['a', 'b', 'c'] }, testHelpers.createRuntime('formatAll'));
 
     expect(result.onSuccess).toBe(true);
     expect(result.results).toEqual(['0: a', '1: b', '2: c']);
   });
 
-  it("should execute multiple child nodes in sequence per iteration", async () => {
+  it('should execute multiple child nodes in sequence per iteration', async () => {
     const source = `
 /**
  * @flowWeaver nodeType
@@ -164,17 +166,19 @@ export function transformAll(
 }
 `;
 
-    const testFile = path.join(outputDir, "multi-child.ts");
+    const testFile = path.join(outputDir, 'multi-child.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, "transformAll", { production: true });
-    const outputFile = path.join(outputDir, "multi-child.generated.ts");
+    const code = await generator.generate(testFile, 'transformAll', {
+      production: true,
+    });
+    const outputFile = path.join(outputDir, 'multi-child.generated.ts');
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
 
     // [1, 2, 3] -> add 1 -> [2, 3, 4] -> multiply 2 -> [4, 6, 8]
-    const result = module.transformAll(true, { items: [1, 2, 3] });
+    const result = module.transformAll(true, { items: [1, 2, 3] }, testHelpers.createRuntime('transformAll'));
 
     expect(result.onSuccess).toBe(true);
     expect(result.results).toEqual([4, 6, 8]);

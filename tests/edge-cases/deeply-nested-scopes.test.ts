@@ -3,13 +3,15 @@
  * Tests workflow parsing and generation with multiple levels of nested scopes
  */
 
-import { parser } from "../../src/parser";
-import { GeneratedExecutionContext } from "../../src/runtime/ExecutionContext";
+import { parser } from '../../src/parser';
+import { GeneratedExecutionContext } from '../../src/runtime/ExecutionContext';
 
-describe("Deeply Nested Scopes", () => {
-  describe("Scope Context Nesting", () => {
-    it("should handle 5 levels of nested scope contexts", async () => {
-      const ctx = new GeneratedExecutionContext(true);
+describe('Deeply Nested Scopes', () => {
+  const createContext = () => new GeneratedExecutionContext(true, testHelpers.createRuntime('deeplyNestedScopes'));
+
+  describe('Scope Context Nesting', () => {
+    it('should handle 5 levels of nested scope contexts', async () => {
+      const ctx = createContext();
 
       // Simulate 5 levels of nested scopes
       let currentCtx = ctx;
@@ -18,8 +20,12 @@ describe("Deeply Nested Scopes", () => {
       for (let level = 1; level <= 5; level++) {
         const parentIdx = currentCtx.addExecution(`level${level - 1}`);
         await currentCtx.setVariable(
-          { id: `level${level - 1}`, portName: "data", executionIndex: parentIdx },
-          `data from level ${level - 1}`
+          {
+            id: `level${level - 1}`,
+            portName: 'data',
+            executionIndex: parentIdx,
+          },
+          `data from level ${level - 1}`,
         );
 
         currentCtx = currentCtx.createScope(`level${level - 1}`, parentIdx, `scope${level}`, false);
@@ -30,11 +36,8 @@ describe("Deeply Nested Scopes", () => {
       const deepestCtx = scopes[scopes.length - 1];
 
       // Check we can add executions at deepest level
-      const deepIdx = deepestCtx.addExecution("deepNode");
-      await deepestCtx.setVariable(
-        { id: "deepNode", portName: "result", executionIndex: deepIdx },
-        "deep result"
-      );
+      const deepIdx = deepestCtx.addExecution('deepNode');
+      await deepestCtx.setVariable({ id: 'deepNode', portName: 'result', executionIndex: deepIdx }, 'deep result');
 
       // Merge back up through all levels
       for (let i = scopes.length - 1; i > 0; i--) {
@@ -42,14 +45,16 @@ describe("Deeply Nested Scopes", () => {
       }
 
       // Root context should now have the deep result
-      const result = await ctx.getVariable(
-        { id: "deepNode", portName: "result", executionIndex: deepIdx }
-      );
-      expect(result).toBe("deep result");
+      const result = await ctx.getVariable({
+        id: 'deepNode',
+        portName: 'result',
+        executionIndex: deepIdx,
+      });
+      expect(result).toBe('deep result');
     });
 
-    it("should handle 10 levels of clean (isolated) nested scopes", async () => {
-      const ctx = new GeneratedExecutionContext(true);
+    it('should handle 10 levels of clean (isolated) nested scopes', async () => {
+      const ctx = createContext();
 
       // Simulate 10 levels of isolated scopes (like nested forEach loops)
       let currentCtx = ctx;
@@ -66,51 +71,47 @@ describe("Deeply Nested Scopes", () => {
 
         // Each level sets its own variable
         const itemIdx = currentCtx.addExecution(`item${level}`);
-        await currentCtx.setVariable(
-          { id: `item${level}`, portName: "value", executionIndex: itemIdx },
-          level * 10
-        );
+        await currentCtx.setVariable({ id: `item${level}`, portName: 'value', executionIndex: itemIdx }, level * 10);
       }
 
       // Verify deepest scope has its variable
       const deepestCtx = scopes[scopes.length - 1];
-      const deepItemIdx = deepestCtx.addExecution("deepItem");
+      const deepItemIdx = deepestCtx.addExecution('deepItem');
       await deepestCtx.setVariable(
-        { id: "deepItem", portName: "result", executionIndex: deepItemIdx },
-        "nested 10 levels deep"
+        { id: 'deepItem', portName: 'result', executionIndex: deepItemIdx },
+        'nested 10 levels deep',
       );
 
       // Execution counter should reflect all nested executions
       expect(deepestCtx.getExecutionCount()).toBeGreaterThan(10);
     });
 
-    it("should maintain correct execution indices through nested scopes", async () => {
-      const ctx = new GeneratedExecutionContext(true);
+    it('should maintain correct execution indices through nested scopes', async () => {
+      const ctx = createContext();
       const executionOrder: number[] = [];
 
       // Level 0
-      const idx0 = ctx.addExecution("root");
+      const idx0 = ctx.addExecution('root');
       executionOrder.push(idx0);
 
       // Level 1
-      const scope1 = ctx.createScope("root", idx0, "scope1", true);
-      const idx1 = scope1.addExecution("child1");
+      const scope1 = ctx.createScope('root', idx0, 'scope1', true);
+      const idx1 = scope1.addExecution('child1');
       executionOrder.push(idx1);
 
       // Level 2
-      const scope2 = scope1.createScope("child1", idx1, "scope2", true);
-      const idx2 = scope2.addExecution("child2");
+      const scope2 = scope1.createScope('child1', idx1, 'scope2', true);
+      const idx2 = scope2.addExecution('child2');
       executionOrder.push(idx2);
 
       // Level 3
-      const scope3 = scope2.createScope("child2", idx2, "scope3", true);
-      const idx3 = scope3.addExecution("child3");
+      const scope3 = scope2.createScope('child2', idx2, 'scope3', true);
+      const idx3 = scope3.addExecution('child3');
       executionOrder.push(idx3);
 
-      // Indices should be monotonically increasing
-      for (let i = 1; i < executionOrder.length; i++) {
-        expect(executionOrder[i]).toBeGreaterThan(executionOrder[i - 1]);
-      }
+      // Each distinct node starts at occurrence zero. Scope identity is carried
+      // separately in the exact execution address.
+      expect(executionOrder).toEqual([0, 0, 0, 0]);
 
       // Merge back
       scope2.mergeScope(scope3);
@@ -122,8 +123,8 @@ describe("Deeply Nested Scopes", () => {
     });
   });
 
-  describe("Workflow Parsing with Scoped Ports", () => {
-    it("should parse workflow and track scoped ports through AST", () => {
+  describe('Workflow Parsing with Scoped Ports', () => {
+    it('should parse workflow and track scoped ports through AST', () => {
       // Note: [scope:X] syntax is not supported in JSDoc parsing
       // Scoped ports are set programmatically in the AST
       const sourceCode = `
@@ -150,13 +151,13 @@ export async function scopedWorkflow(execute: boolean, params: { data: any[] }):
 `;
 
       const parseResult = parser.parseFromString(sourceCode);
-      const workflow = parseResult.workflows.find(w => w.functionName === "scopedWorkflow");
+      const workflow = parseResult.workflows.find((w) => w.functionName === 'scopedWorkflow');
 
       expect(workflow).toBeDefined();
       expect(workflow!.instances).toHaveLength(1);
 
       // Verify the node type was parsed
-      const forEachType = workflow!.nodeTypes.find(nt => nt.functionName === "forEach");
+      const forEachType = workflow!.nodeTypes.find((nt) => nt.functionName === 'forEach');
       expect(forEachType).toBeDefined();
       expect(forEachType!.inputs.items).toBeDefined();
       expect(forEachType!.outputs.results).toBeDefined();

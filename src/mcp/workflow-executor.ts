@@ -5,15 +5,40 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { createHash } from 'crypto';
 import { pathToFileURL } from 'url';
 import ts from 'typescript';
-import { compileWorkflow } from '../api/index.js';
+import { compileWorkflow, parseWorkflow } from '../api/index.js';
+import {
+  durableBranchPaths,
+  validateDurableClosure,
+} from '../api/durable-validation.js';
 import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
+import { getTopologicalOrder } from '../api/query.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import type { TExternalNodeType } from '../parser.js';
-import type { AgentChannel } from './agent-channel.js';
 import type { DebugController } from '../runtime/debug-controller.js';
 import { CancellationError } from '../runtime/CancellationError.js';
+import {
+  createContinuationEnvelope,
+  decodeContinuation,
+  type ContinuationEnvelope,
+  type AcceptedContinuationEnvelope,
+  type ContinuationRefusal,
+  type DurableGate,
+  type WireValue,
+  canonicalWireValue,
+} from '../runtime/continuation.js';
+import {
+  acceptGateResolution,
+  createWorkflowRuntime,
+  isAmbiguousEffectError,
+  isDurableGateYield,
+  requireEffectRecovery,
+  type EffectAdapter,
+  type GateResolution,
+  type WorkflowRuntimeServices,
+} from '../runtime/durable-execution.js';
 
 /** A single trace event captured during workflow execution. */
 export interface ExecutionTraceEvent {
@@ -51,16 +76,29 @@ export interface TraceSummary {
 
 /** One execution-scoped request accepted by the public workflow executor. */
 export interface WorkflowExecutionRequest {
+  /** Stable coordinator-owned identity for the complete durable run. */
+  runId: string;
+  /**
+   * Coordinator-verified identity of the complete executable artifact closure.
+   * Required for durable yield or resume; Flow Weaver never substitutes a
+   * workflow-source hash for whole-bundle evidence.
+   */
+  bundleDigest?: string;
   filePath: string;
   params?: Record<string, unknown>;
   workflowName?: string;
   production?: boolean;
   includeTrace?: boolean;
   mocks?: FwMockConfig;
-  agentChannel?: AgentChannel;
   debugController?: DebugController;
   onEvent?: (event: ExecutionTraceEvent) => void;
   externalNodeTypes?: TExternalNodeType[];
+  /** Strict continuation input from a previously committed yielded outcome. */
+  continuation?: string | unknown;
+  /** Single durable resolution for the continuation's exact gate. */
+  resolution?: GateResolution;
+  /** Recovery contract for explicitly declared effect nodes. */
+  effectAdapter?: EffectAdapter;
   /**
    * Parent-owned cooperative cancellation signal for this execution.
    *
@@ -72,7 +110,8 @@ export interface WorkflowExecutionRequest {
 }
 
 /** Result returned after executing a workflow request. */
-export interface WorkflowExecutionResult {
+export interface CompletedExecutionOutcome {
+  readonly kind: 'completed';
   /** The return value of the executed workflow function. */
   result: unknown;
   /** The name of the exported function that was executed. */
@@ -83,6 +122,28 @@ export interface WorkflowExecutionResult {
   trace?: ExecutionTraceEvent[];
   /** Summary of trace events, included when `includeTrace` is enabled. */
   summary?: TraceSummary;
+}
+
+export interface YieldedExecutionOutcome {
+  readonly kind: 'yielded';
+  readonly gate: DurableGate;
+  readonly continuation: ContinuationEnvelope;
+  readonly functionName: string;
+  readonly executionTime: number;
+  readonly trace?: ExecutionTraceEvent[];
+  readonly summary?: TraceSummary;
+}
+
+export type WorkflowExecutionOutcome =
+  | CompletedExecutionOutcome
+  | YieldedExecutionOutcome;
+
+export class ContinuationRefusalError extends Error {
+  readonly name = 'ContinuationRefusalError';
+
+  constructor(readonly refusal: ContinuationRefusal) {
+    super(refusal.message);
+  }
 }
 
 /**
@@ -96,20 +157,31 @@ export interface WorkflowExecutionResult {
  */
 export async function executeWorkflow(
   request: WorkflowExecutionRequest
-): Promise<WorkflowExecutionResult> {
+): Promise<WorkflowExecutionOutcome> {
   const {
+    runId,
+    bundleDigest,
     filePath,
     params,
     workflowName,
     production: requestedProduction,
     includeTrace: requestedIncludeTrace,
     mocks,
-    agentChannel,
     debugController,
     onEvent,
     externalNodeTypes,
     abortSignal,
+    continuation,
+    resolution,
+    effectAdapter,
   } = request;
+  if (runId.trim().length === 0) {
+    throw new Error('runId must be a non-empty coordinator-owned identity');
+  }
+  if (bundleDigest !== undefined && !/^sha256:[0-9a-f]{64}$/.test(bundleDigest)) {
+    throw new Error('bundleDigest must use canonical sha256:<64hex> form');
+  }
+  const acceptedResolution = acceptGateResolution(resolution);
   if (abortSignal?.aborted) throw new CancellationError();
 
   const resolvedPath = path.resolve(filePath);
@@ -135,6 +207,247 @@ export async function executeWorkflow(
     // Discover all workflows in the file
     const source = fs.readFileSync(resolvedPath, 'utf8');
     const allWorkflows = getAvailableWorkflows(source);
+    const selectedWorkflow =
+      allWorkflows.find((workflow) => workflow.functionName === workflowName) ??
+      allWorkflows[0];
+    if (!selectedWorkflow) {
+      throw new Error('No workflow definition found in file');
+    }
+    const effectiveWorkflowId = selectedWorkflow.functionName;
+    const parsed = await parseWorkflow(resolvedPath, {
+      workflowName: effectiveWorkflowId,
+      projectDir: path.dirname(resolvedPath),
+      externalNodeTypes,
+    });
+    if (parsed.errors.length > 0) {
+      throw new Error(`Cannot fingerprint invalid workflow: ${parsed.errors.join('; ')}`);
+    }
+    const workflowsByName = new Map(
+      parsed.allWorkflows.map((workflow) => [workflow.functionName, workflow]),
+    );
+    const durableAnalysis = validateDurableClosure(
+      parsed.ast,
+      parsed.allWorkflows,
+      { enforce: false },
+    );
+    const capabilities = {
+      gate: durableAnalysis.hasDurableGate,
+      effect: durableAnalysis.hasDurableEffect,
+    };
+    if (capabilities.gate && bundleDigest === undefined) {
+      throw new ContinuationRefusalError({
+        accepted: false,
+        reason: 'wrong-bundle',
+        message:
+          'a workflow graph with durable gates requires coordinator-verified whole-bundle identity before execution',
+      });
+    }
+    if (capabilities.gate && capabilities.effect && effectAdapter === undefined) {
+      throw new ContinuationRefusalError({
+        accepted: false,
+        reason: 'ambiguous-effect',
+        message:
+          'a durable-gate graph with effects requires an operation-key recovery adapter before execution',
+      });
+    }
+    validateDurableClosure(parsed.ast, parsed.allWorkflows);
+    const reachableClosure = [...durableAnalysis.reachable]
+      .sort((left, right) => left.functionName.localeCompare(right.functionName));
+    const graphManifest = JSON.parse(
+      JSON.stringify(
+        reachableClosure.map((workflow) => ({
+          functionName: workflow.functionName,
+          instances: workflow.instances,
+          connections: workflow.connections,
+          scopes: workflow.scopes,
+          startPorts: workflow.startPorts,
+          exitPorts: workflow.exitPorts,
+          nodeTypes: workflow.nodeTypes.map((nodeType) => ({
+            name: nodeType.name,
+            functionName: nodeType.functionName,
+            inputs: nodeType.inputs,
+            outputs: nodeType.outputs,
+            expression: nodeType.expression,
+            scope: nodeType.scope,
+            durableGate: nodeType.durableGate,
+            durableEffect: nodeType.durableEffect,
+            durablePure: nodeType.durablePure,
+          })),
+        })),
+      ),
+    ) as WireValue;
+    const graphFingerprint = createHash('sha256')
+      .update(canonicalWireValue(graphManifest))
+      .digest('hex');
+    const continuationGraph = {
+      nodes: reachableClosure.flatMap((workflow) => {
+        const executionOrder = getTopologicalOrder(workflow, {
+          includeScopedChildren: true,
+        });
+        const branchPaths = durableBranchPaths(workflow);
+        return [
+          {
+            workflowId: workflow.functionName,
+            nodeId: 'Start',
+            nodeType: 'Start',
+            executionOrder: -1,
+            inputPorts: [],
+            outputPorts: Object.keys(workflow.startPorts),
+            scopeNames: [],
+            invokedWorkflows: [],
+            branchArms: [],
+            branchPath: [],
+            predecessors: [],
+          },
+          ...workflow.instances.map((instance) => {
+          const nodeType = workflow.nodeTypes.find(
+            (candidate) =>
+              candidate.name === instance.nodeType ||
+              candidate.functionName === instance.nodeType,
+          );
+          const instanceOrder = executionOrder.indexOf(instance.id);
+          const instanceBranchPath = branchPaths.get(instance.id) ?? [];
+          const invokedWorkflows =
+            instance.nodeType === 'invokeWorkflow'
+              ? reachableClosure.map((candidate) => candidate.functionName)
+              : workflowsByName.has(instance.nodeType)
+                ? [instance.nodeType]
+                : [];
+          return {
+            workflowId: workflow.functionName,
+            nodeId: instance.id,
+            nodeType: nodeType?.functionName ?? instance.nodeType,
+            executionOrder: instanceOrder,
+            inputPorts: Object.keys(nodeType?.inputs ?? {}),
+            outputPorts: Object.keys(nodeType?.outputs ?? {}),
+            scopeNames: [
+              ...(nodeType?.scope === undefined ? [] : [nodeType.scope]),
+              ...(nodeType?.scopes ?? []),
+              ...Object.values(nodeType?.inputs ?? {})
+                .map((port) => port.scope)
+                .filter((scope): scope is string => scope !== undefined),
+              ...Object.values(nodeType?.outputs ?? {})
+                .map((port) => port.scope)
+                .filter((scope): scope is string => scope !== undefined),
+            ].filter((scope, index, scopes) => scopes.indexOf(scope) === index),
+            invokedWorkflows,
+            ...(instance.parent !== undefined &&
+              instance.parent !== null && {
+                parentScope: {
+                  parentNodeId: instance.parent.id,
+                  scopeName: instance.parent.scope,
+                },
+              }),
+            branchArms: [
+              ...(Object.hasOwn(nodeType?.outputs ?? {}, 'onSuccess')
+                ? ['success']
+                : []),
+              ...(Object.hasOwn(nodeType?.outputs ?? {}, 'onFailure')
+                ? ['failure']
+                : []),
+            ],
+            branchPath: instanceBranchPath,
+            predecessors: [
+              { nodeId: 'Start', branchPath: [] },
+              ...executionOrder
+                .slice(0, instanceOrder)
+                .map((nodeId) => ({
+                  nodeId,
+                  branchPath: branchPaths.get(nodeId) ?? [],
+                }))
+                .filter((predecessor) =>
+                  predecessor.branchPath.every((requirement) =>
+                    instanceBranchPath.some(
+                      (active) =>
+                        active.nodeId === requirement.nodeId &&
+                        active.arm === requirement.arm,
+                    ),
+                  ),
+                ),
+            ],
+            ...(nodeType?.durableGate !== undefined && {
+              durableGate: nodeType.durableGate,
+            }),
+            ...(nodeType?.durableEffect === true && { durableEffect: true as const }),
+          };
+          }),
+        ];
+      }),
+    };
+    let acceptedContinuation: AcceptedContinuationEnvelope | undefined;
+    if (continuation !== undefined) {
+      if (bundleDigest === undefined) {
+        throw new ContinuationRefusalError({
+          accepted: false,
+          reason: 'wrong-bundle',
+          message: 'durable resume requires coordinator-verified whole-bundle identity',
+        });
+      }
+      const decoded = decodeContinuation(continuation, {
+        runId,
+        workflowId: effectiveWorkflowId,
+        bundleDigest,
+        graphFingerprint,
+        gateId: acceptedResolution?.gateId,
+        graph: continuationGraph,
+      });
+      if (!decoded.accepted) throw new ContinuationRefusalError(decoded);
+      if (acceptedResolution === undefined) {
+        throw new ContinuationRefusalError({
+          accepted: false,
+          reason: 'stale-gate',
+          message: 'a continuation resume requires its exact gate resolution',
+        });
+      }
+      acceptedContinuation = decoded.envelope;
+      for (const receipt of acceptedContinuation.receipts) {
+        const receiptWorkflowId = receipt.address.frames.at(-1)?.workflowId;
+        const receiptNode = continuationGraph.nodes.find(
+          (node) =>
+            node.workflowId === receiptWorkflowId &&
+            node.nodeId === receipt.address.nodeId &&
+            node.nodeType === receipt.address.nodeType,
+        );
+        let recovery;
+        try {
+          recovery = requireEffectRecovery(
+            await effectAdapter?.recover(receipt.operationKey, receipt.address),
+            receipt.operationKey,
+            receipt.address,
+          );
+        } catch {
+          recovery = { kind: 'ambiguous' as const };
+        }
+        const recordedResult = Object.fromEntries(
+          acceptedContinuation.state.variables
+            .filter(
+              (variable) =>
+                canonicalWireValue(variable.address) ===
+                  canonicalWireValue(receipt.address) &&
+                receiptNode?.outputPorts.includes(variable.portName) === true,
+            )
+            .map((variable) => [variable.portName, variable.value]),
+        );
+        if (
+          recovery?.kind !== 'committed' ||
+          canonicalWireValue(recovery.receipt) !== canonicalWireValue(receipt.receipt) ||
+          canonicalWireValue(recovery.result) !== canonicalWireValue(recordedResult)
+        ) {
+          throw new ContinuationRefusalError({
+            accepted: false,
+            reason: 'ambiguous-effect',
+            message:
+              'a completed effect continuation must be re-attested by its operation-key adapter',
+          });
+        }
+      }
+    } else if (acceptedResolution !== undefined) {
+      throw new ContinuationRefusalError({
+        accepted: false,
+        reason: 'stale-gate',
+        message: 'a gate resolution cannot be supplied without a continuation',
+      });
+    }
 
     // Compile each workflow in-place so all function bodies are generated.
     // Debug controller requires dev mode (production: false) so that
@@ -159,14 +472,7 @@ export async function executeWorkflow(
       });
     }
 
-    // Inject debugger binding: replace the TypeScript-only `declare const`
-    // with an actual assignment from globalThis so the executor can pass
-    // a trace-capturing debugger at runtime.
     let compiledCode = fs.readFileSync(tmpTsFile, 'utf8');
-    compiledCode = compiledCode.replace(
-      'declare const __flowWeaverDebugger__: TDebugger | undefined;',
-      'const __flowWeaverDebugger__ = (globalThis as any).__fw_debugger__;'
-    );
 
     // Transpile TypeScript to JavaScript so Node.js can import it directly
     const jsOutput = ts.transpileModule(compiledCode, {
@@ -226,36 +532,36 @@ export async function executeWorkflow(
         }
       : undefined;
 
-    // Set global debugger before import so compiled code picks it up
-    (globalThis as unknown as Record<string, unknown>).__fw_debugger__ = debugger_;
-
-    // Set mock config for built-in nodes (delay, waitForEvent, invokeWorkflow)
-    if (mocks) {
-      (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = mocks;
-    }
-
-    // Set agent channel for waitForAgent pause/resume
-    if (agentChannel) {
-      (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ = agentChannel;
-    }
-
-    // Set debug controller for step-through debugging and checkpoint/resume
-    if (debugController) {
-      (globalThis as unknown as Record<string, unknown>).__fw_debug_controller__ = debugController;
-    }
-
     // Dynamic import using file:// URL for cross-platform compatibility
     // (Windows paths like C:\... break with bare import() — "Received protocol 'c:'")
     const mod = await import(pathToFileURL(tmpFile).href);
 
     // Register exported functions for local invokeWorkflow resolution
     const workflowRegistry: Record<string, (...args: unknown[]) => unknown> = {};
-    for (const [key, value] of Object.entries(mod)) {
-      if (typeof value === 'function' && key !== '__esModule') {
-        workflowRegistry[key] = value as (...args: unknown[]) => unknown;
+    for (const workflow of parsed.allWorkflows) {
+      const value = mod[workflow.functionName];
+      if (typeof value === 'function') {
+        workflowRegistry[workflow.functionName] =
+          value as (...args: unknown[]) => unknown;
       }
     }
-    (globalThis as unknown as Record<string, unknown>).__fw_workflow_registry__ = workflowRegistry;
+    const services: WorkflowRuntimeServices & {
+      workflowRegistry?: Readonly<Record<string, (...args: unknown[]) => unknown>>;
+    } = {
+      debugger: debugger_,
+      debugController,
+      mocks,
+      effectAdapter,
+      workflowRegistry,
+    };
+    const runtime = createWorkflowRuntime({
+      runId,
+      workflowId: effectiveWorkflowId,
+      abortSignal,
+      services,
+      continuation: acceptedContinuation,
+      resolution: acceptedResolution,
+    });
 
     // Find the target exported function
     const exportedFn = findExportedFunction(mod, workflowName);
@@ -273,26 +579,59 @@ export async function executeWorkflow(
 
     const startTime = Date.now();
 
-    // Execute the workflow function: (execute, params, abortSignal?)
-    // In-place compiled functions use the module-level debugger, not a parameter.
+    // Execute the required v2 generated ABI: (execute, params, runtime).
     if (abortSignal?.aborted) throw new CancellationError();
-    const result = await exportedFn.fn(true, params ?? {}, abortSignal);
-
-    const executionTime = Date.now() - startTime;
-
-    return {
-      result,
-      functionName: exportedFn.name,
-      executionTime,
-      ...(includeTrace && { trace, summary: computeTraceSummary(trace) }),
-    };
+    try {
+      const result = await exportedFn.fn(true, params ?? {}, runtime);
+      runtime.durable.assertResumeResolutionConsumed();
+      const executionTime = Date.now() - startTime;
+      return {
+        kind: 'completed',
+        result,
+        functionName: exportedFn.name,
+        executionTime,
+        ...(includeTrace && { trace, summary: computeTraceSummary(trace) }),
+      };
+    } catch (error) {
+      if (isDurableGateYield(error)) {
+        if (bundleDigest === undefined) {
+          throw new ContinuationRefusalError({
+            accepted: false,
+            reason: 'wrong-bundle',
+            message: 'durable yield requires coordinator-verified whole-bundle identity',
+          });
+        }
+        runtime.durable.assertResumeResolutionConsumed();
+        const executionTime = Date.now() - startTime;
+        return {
+          kind: 'yielded',
+          gate: error.gate,
+          continuation: createContinuationEnvelope({
+            runId,
+            gateId: error.gate.id,
+            gateKind: error.gate.kind,
+            workflowId: effectiveWorkflowId,
+            bundleDigest,
+            graphFingerprint,
+            location: error.gate.address,
+            state: error.state,
+            receipts: error.receipts,
+          }),
+          functionName: exportedFn.name,
+          executionTime,
+          ...(includeTrace && { trace, summary: computeTraceSummary(trace) }),
+        };
+      }
+      if (isAmbiguousEffectError(error)) {
+        throw new ContinuationRefusalError({
+          accepted: false,
+          reason: 'ambiguous-effect',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   } finally {
-    // Clean up globals
-    delete (globalThis as unknown as Record<string, unknown>).__fw_debugger__;
-    delete (globalThis as unknown as Record<string, unknown>).__fw_mocks__;
-    delete (globalThis as unknown as Record<string, unknown>).__fw_workflow_registry__;
-    delete (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__;
-    delete (globalThis as unknown as Record<string, unknown>).__fw_debug_controller__;
     // Clean up temp files
     try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
     try { fs.unlinkSync(tmpTsFile); } catch { /* ignore */ }

@@ -4,7 +4,58 @@
  */
 
 import { generateInlineRuntime } from '../../src/api/inline-runtime';
+import { createWorkflowRuntime } from '../../src/runtime/durable-execution';
 import * as ts from 'typescript';
+
+interface GeneratedContext {
+  setVariable(address: {
+    id: string;
+    portName: string;
+    executionIndex: number;
+    nodeTypeName: string;
+  }, value: unknown): void | Promise<void>;
+  getVariable(address: {
+    id: string;
+    portName: string;
+    executionIndex: number;
+    nodeTypeName: string;
+  }): unknown | Promise<unknown>;
+  hasVariable(address: {
+    id: string;
+    portName: string;
+    executionIndex: number;
+    nodeTypeName: string;
+  }): boolean;
+  createScope(
+    parentNodeName: string,
+    parentIndex: number,
+    scopeName: string,
+    cleanScope: boolean,
+  ): GeneratedContext;
+}
+
+type GeneratedContextConstructor = new (
+  isAsync: boolean,
+  runtime: ReturnType<typeof createWorkflowRuntime>,
+) => GeneratedContext;
+
+function loadGeneratedExecutionContext(): GeneratedContextConstructor {
+  const source = generateInlineRuntime(true, true);
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2020,
+      module: ts.ModuleKind.CommonJS,
+    },
+  }).outputText;
+  const generatedExports: {
+    GeneratedExecutionContext?: GeneratedContextConstructor;
+  } = {};
+  new Function('exports', compiled)(generatedExports);
+  if (generatedExports.GeneratedExecutionContext === undefined) {
+    throw new Error('GeneratedExecutionContext was not exported');
+  }
+  return generatedExports.GeneratedExecutionContext;
+}
 
 describe('Inline Runtime API', () => {
   describe('generateInlineRuntime', () => {
@@ -64,10 +115,10 @@ describe('Inline Runtime API', () => {
         expect(code).toContain('interface ExecutionInfo');
       });
 
-      it('should have simple constructor without debugger', () => {
+      it('should require the explicit workflow runtime', () => {
         const code = generateInlineRuntime(true);
 
-        expect(code).toContain('constructor(isAsync: boolean = true, abortSignal?: AbortSignal)');
+        expect(code).toContain('constructor(isAsync: boolean = true, runtime: WorkflowRuntime)');
         expect(code).not.toContain('flowWeaverDebugger');
       });
     });
@@ -94,18 +145,17 @@ describe('Inline Runtime API', () => {
         expect(code).toContain('type TDebugger');
       });
 
-      it('should declare __flowWeaverDebugger__', () => {
+      it('should not declare a process-global debugger', () => {
         const code = generateInlineRuntime(false);
 
-        expect(code).toContain('declare const __flowWeaverDebugger__');
+        expect(code).not.toContain('__flowWeaverDebugger__');
       });
 
-      it('should have constructor with debugger parameter', () => {
+      it('should read debugger services from the explicit runtime', () => {
         const code = generateInlineRuntime(false);
 
-        expect(code).toContain(
-          'constructor(isAsync: boolean = true, flowWeaverDebugger?: TDebugger, abortSignal?: AbortSignal)'
-        );
+        expect(code).toContain('constructor(isAsync: boolean = true, runtime: WorkflowRuntime)');
+        expect(code).toContain('runtime.services.debugger');
       });
 
       it('should include debug event methods', () => {
@@ -127,6 +177,36 @@ describe('Inline Runtime API', () => {
     });
 
     describe('common functionality', () => {
+      it('does not recover ancestor durable state into a generated clean scope', async () => {
+        const GeneratedExecutionContext = loadGeneratedExecutionContext();
+        const runtime = createWorkflowRuntime({
+          runId: 'inline-clean-scope-resume',
+          workflowId: 'inline-clean-scope',
+        });
+        const rootContext = new GeneratedExecutionContext(true, runtime);
+        const address = {
+          id: 'source',
+          portName: 'value',
+          executionIndex: 0,
+          nodeTypeName: 'Source',
+        };
+        await rootContext.setVariable(address, 'recovered-root-value');
+
+        const inheritingScope = rootContext.createScope('scope', 0, 'inheriting', false);
+        expect(inheritingScope.hasVariable(address)).toBe(true);
+        await expect(inheritingScope.getVariable(address)).resolves.toBe('recovered-root-value');
+
+        const cleanScope = rootContext.createScope('scope', 0, 'clean', true);
+        expect(cleanScope.hasVariable(address)).toBe(false);
+        expect(() => cleanScope.getVariable(address)).toThrow('Variable not found: source.value[0]');
+
+        const nestedInheritingScope = cleanScope.createScope('nested', 0, 'inheriting', false);
+        expect(nestedInheritingScope.hasVariable(address)).toBe(false);
+        expect(() => nestedInheritingScope.getVariable(address)).toThrow(
+          'Variable not found: source.value[0]',
+        );
+      });
+
       it('should include pull executor registration', () => {
         const prodCode = generateInlineRuntime(true);
         const devCode = generateInlineRuntime(false);
@@ -200,6 +280,5 @@ describe('Inline Runtime API', () => {
       expect(code).toContain('sendLogErrorEvent(_args: unknown)');
       expect(code).toContain('sendWorkflowCompletedEvent(_args: unknown)');
     });
-
   });
 });

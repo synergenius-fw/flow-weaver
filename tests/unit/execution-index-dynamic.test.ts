@@ -10,7 +10,7 @@
  * Expected: All executionIndex values should be dynamic (e.g., sourceIdx, exitIdx)
  *
  * Additional: Pull nodes use `let` declarations so their index can be undefined.
- * When reading from a pull node, we must use non-null assertion (!) to satisfy TypeScript.
+ * A skipped pull execution resumes from the durable execution-zero value.
  */
 import * as path from 'path';
 import * as fs from 'fs';
@@ -78,9 +78,8 @@ export function pullWorkflow(
     // Should have a variable for the pull node's execution index
     expect(code).toMatch(/lazy1Idx/);
 
-    // Pull nodes use let declarations, so index can be undefined
-    // Must use non-null assertion (!) when reading from pull node
-    expect(code).toMatch(/executionIndex:\s*lazy1Idx!/);
+    // Pull nodes use let declarations, so a durable skip reads execution zero.
+    expect(code).toMatch(/executionIndex:\s*lazy1Idx \?\? 0/);
   });
 
   it('should use exitIdx in sendWorkflowCompletedEvent', async () => {

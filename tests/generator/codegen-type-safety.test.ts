@@ -14,18 +14,25 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { describe, it, expect } from 'vitest';
 import { mapToTypeScript } from '../../src/type-mappings';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 const FIXTURE_DIR = path.resolve(__dirname, '../fixtures/codegen-types');
 const WORKFLOW_PATH = path.join(FIXTURE_DIR, 'workflow.ts');
+const CLI_PATH = path.resolve(__dirname, '../../src/cli/index.ts');
 
 // Resolve tsc path
-const TSC_PATH = (() => {
-  try { return require.resolve('typescript/bin/tsc'); } catch { return 'npx tsc'; }
-})();
+const TSC_PATH = require.resolve('typescript/bin/tsc');
+
+function compileFixture(): void {
+  execFileSync(process.execPath, ['--import', 'tsx', CLI_PATH, 'compile', WORKFLOW_PATH], {
+    encoding: 'utf-8',
+    timeout: 30000,
+    cwd: path.resolve(__dirname, '../..'),
+  });
+}
 
 describe('mapToTypeScript', () => {
   it('preserves primitive types', () => {
@@ -35,13 +42,11 @@ describe('mapToTypeScript', () => {
   });
 
   it('strips absolute import() paths', () => {
-    expect(mapToTypeScript('OBJECT', 'import("/Users/foo/types").Config'))
-      .toBe('Record<string, unknown>');
+    expect(mapToTypeScript('OBJECT', 'import("/Users/foo/types").Config')).toBe('Record<string, unknown>');
   });
 
   it('strips relative import() paths', () => {
-    expect(mapToTypeScript('OBJECT', 'import("../types").Config'))
-      .toBe('Record<string, unknown>');
+    expect(mapToTypeScript('OBJECT', 'import("../types").Config')).toBe('Record<string, unknown>');
   });
 
   it('preserves structural types', () => {
@@ -57,37 +62,34 @@ describe('mapToTypeScript', () => {
 
 describe('cross-file workflow tsc --strict validity', () => {
   it('compiles the fixture', () => {
-    const output = execSync(
-      `npx flow-weaver compile ${WORKFLOW_PATH}`,
-      { encoding: 'utf-8', timeout: 30000, cwd: path.resolve(__dirname, '../..') }
-    );
+    compileFixture();
     const compiled = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
     expect(compiled).toContain('@flow-weaver-body-start');
   });
 
   it('generated code passes tsc --strict', () => {
     // First compile the workflow
-    execSync(
-      `npx flow-weaver compile ${WORKFLOW_PATH}`,
-      { encoding: 'utf-8', timeout: 30000, cwd: path.resolve(__dirname, '../..') }
-    );
+    compileFixture();
 
     // Create a tsconfig for the fixture directory
     const tsconfigPath = path.join(FIXTURE_DIR, 'tsconfig.test.json');
-    fs.writeFileSync(tsconfigPath, JSON.stringify({
-      compilerOptions: {
-        target: 'ES2022',
-        module: 'ES2022',
-        moduleResolution: 'bundler',
-        strict: true,
-        noEmit: true,
-        skipLibCheck: false,
-      },
-      include: ['workflow.ts', 'nodes.ts', 'types.ts'],
-    }));
+    fs.writeFileSync(
+      tsconfigPath,
+      JSON.stringify({
+        compilerOptions: {
+          target: 'ES2022',
+          module: 'ES2022',
+          moduleResolution: 'bundler',
+          strict: true,
+          noEmit: true,
+          skipLibCheck: false,
+        },
+        include: ['workflow.ts', 'nodes.ts', 'types.ts'],
+      }),
+    );
 
     try {
-      const tscOutput = execSync(`node ${TSC_PATH} --project ${tsconfigPath}`, {
+      execFileSync(process.execPath, [TSC_PATH, '--project', tsconfigPath], {
         encoding: 'utf-8',
         timeout: 30000,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -96,19 +98,27 @@ describe('cross-file workflow tsc --strict validity', () => {
     } catch (err: unknown) {
       const output = (err as { stdout?: string; stderr?: string }).stdout ?? '';
       // Clean up before failing
-      try { fs.unlinkSync(tsconfigPath); } catch {}
+      try {
+        fs.unlinkSync(tsconfigPath);
+      } catch {}
       throw new Error(`Generated code has TypeScript errors:\n${output}`);
     } finally {
-      try { fs.unlinkSync(tsconfigPath); } catch {}
+      try {
+        fs.unlinkSync(tsconfigPath);
+      } catch {}
     }
   });
 });
 
 describe('cross-file workflow runtime execution', () => {
   it('runs correctly', async () => {
-    const result = await executeWorkflow({ filePath: WORKFLOW_PATH, params: {
-          raw: JSON.stringify({ name: 'test-app', debug: true, maxRetries: 3 }),
-        } });
+    const result = await executeWorkflow({
+      runId: 'codegen-type-safety',
+      filePath: WORKFLOW_PATH,
+      params: {
+        raw: JSON.stringify({ name: 'test-app', debug: true, maxRetries: 3 }),
+      },
+    });
 
     expect(result.result).toBeDefined();
     const output = result.result as { onSuccess: boolean; output: string };

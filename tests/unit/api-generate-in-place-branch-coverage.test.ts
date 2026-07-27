@@ -5,12 +5,7 @@
  * stripGeneratedSections, and hasInPlaceMarkers.
  */
 
-import {
-  generateInPlace,
-  hasInPlaceMarkers,
-  stripGeneratedSections,
-  MARKERS,
-} from '../../src/api/generate-in-place';
+import { generateInPlace, hasInPlaceMarkers, stripGeneratedSections, MARKERS } from '../../src/api/generate-in-place';
 import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
 
 function makeNodeType(name: string, overrides: Partial<TNodeTypeAST> = {}): TNodeTypeAST {
@@ -47,11 +42,22 @@ function makeMinimalAST(overrides: Partial<TWorkflowAST> = {}): TWorkflowAST {
     nodeTypes: [nodeA],
     instances: [{ type: 'NodeInstance', id: 'a', nodeType: 'nodeA' }],
     connections: [
-      { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-      { type: 'Connection', from: { node: 'a', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+      {
+        type: 'Connection',
+        from: { node: 'Start', port: 'execute' },
+        to: { node: 'a', port: 'execute' },
+      },
+      {
+        type: 'Connection',
+        from: { node: 'a', port: 'onSuccess' },
+        to: { node: 'Exit', port: 'onSuccess' },
+      },
     ],
     startPorts: { execute: { dataType: 'STEP' } },
-    exitPorts: { onSuccess: { dataType: 'STEP' }, onFailure: { dataType: 'STEP' } },
+    exitPorts: {
+      onSuccess: { dataType: 'STEP' },
+      onFailure: { dataType: 'STEP' },
+    },
     imports: [],
     ...overrides,
   };
@@ -219,7 +225,9 @@ export function myWorkflow(
 }`;
 
       const ast = makeMinimalAST({ nodeTypes: [nodeA] });
-      const result = generateInPlace(source, ast, { allWorkflows: [ast, siblingAST] });
+      const result = generateInPlace(source, ast, {
+        allWorkflows: [ast, siblingAST],
+      });
 
       // nodeB should NOT be removed because it's used by siblingWorkflow
       expect(result.code).toContain('function nodeB');
@@ -296,16 +304,16 @@ export async function myWorkflow(
     });
   });
 
-  describe('__abortSignal__ parameter insertion', () => {
-    it('adds __abortSignal__ parameter when not present', () => {
+  describe('__runtime__ parameter insertion', () => {
+    it('adds __runtime__ parameter when not present', () => {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST();
       const result = generateInPlace(source, ast);
 
-      expect(result.code).toContain('__abortSignal__');
+      expect(result.code).toContain('__runtime__: WorkflowRuntime');
     });
 
-    it('does not duplicate __abortSignal__ if already present', () => {
+    it('replaces the superseded abort parameter with one runtime parameter', () => {
       const source = `/**
  * @flowWeaver nodeType
  * @input value {NUMBER}
@@ -330,11 +338,9 @@ export function myWorkflow(
       const ast = makeMinimalAST();
       const result = generateInPlace(source, ast);
 
-      const matches = result.code.match(/__abortSignal__/g);
-      // Should appear in parameter list and possibly in body, but NOT duplicated in params
-      const paramSection = result.code.slice(0, result.code.indexOf('{'));
-      const paramMatches = paramSection.match(/__abortSignal__/g);
-      expect(paramMatches?.length ?? 0).toBeLessThanOrEqual(2); // param name + type annotation
+      const paramSection = result.code.match(/function myWorkflow\(([\s\S]*?)\)/)?.[1] ?? '';
+      expect(paramSection).not.toContain('__abortSignal__');
+      expect(paramSection.match(/__runtime__/g)).toHaveLength(1);
     });
   });
 
@@ -550,7 +556,9 @@ function wf2() {
     it('emits @cancelOn when cancelOn option is set', () => {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST({
-        options: { cancelOn: { event: 'user.deleted', match: 'id', timeout: '30s' } },
+        options: {
+          cancelOn: { event: 'user.deleted', match: 'id', timeout: '30s' },
+        },
       });
       const result = generateInPlace(source, ast, { skipParamReturns: true });
 
@@ -646,8 +654,16 @@ function wf2() {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST({
         connections: [
-          { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-          { type: 'Connection', from: { node: 'a', port: 'result', scope: 'iterate' }, to: { node: 'Exit', port: 'onSuccess' } },
+          {
+            type: 'Connection',
+            from: { node: 'Start', port: 'execute' },
+            to: { node: 'a', port: 'execute' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'result', scope: 'iterate' },
+            to: { node: 'Exit', port: 'onSuccess' },
+          },
         ],
       });
       const result = generateInPlace(source, ast, { skipParamReturns: true });
@@ -696,10 +712,7 @@ function wf2() {
     it('emits @tag with and without tooltip', () => {
       const nodeA = makeNodeType('nodeA', {
         visuals: {
-          tags: [
-            { label: 'async', tooltip: 'Runs asynchronously' },
-            { label: 'pure' },
-          ],
+          tags: [{ label: 'async', tooltip: 'Runs asynchronously' }, { label: 'pure' }],
         },
       });
       const source = makeSourceWithNodeType();

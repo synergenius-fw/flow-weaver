@@ -52,11 +52,6 @@ vi.mock('../../src/api/query', () => ({
   getTopologicalOrder: vi.fn(),
 }));
 
-vi.mock('../../src/mcp/agent-channel', () => {
-  class MockAgentChannel {}
-  return { AgentChannel: MockAgentChannel };
-});
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -157,7 +152,10 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
 
   describe('fw_debug_step with existing session', () => {
     it('should return completed when execution finishes after step', async () => {
-      const completionResult = { result: { answer: 42 } };
+      const completionResult = {
+        kind: 'completed',
+        result: { answer: 42 },
+      };
       const execPromise = Promise.resolve(completionResult);
       const session = createPausedSession('step-complete', { executionPromise: execPromise });
 
@@ -234,7 +232,7 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
 
   describe('fw_debug_continue with existing session', () => {
     it('should return completed when execution finishes after continue', async () => {
-      const execPromise = Promise.resolve({ result: 'done' });
+      const execPromise = Promise.resolve({ kind: 'completed', result: 'done' });
       const session = createPausedSession('cont-complete', { executionPromise: execPromise });
 
       vi.spyOn(session.controller, 'onPause').mockReturnValue(new Promise(() => {}));
@@ -337,7 +335,12 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
         allWorkflows: [],
       });
       vi.mocked(getTopologicalOrder).mockReturnValue(['nodeA']);
-      vi.mocked(executeWorkflow).mockResolvedValue({ result: 'instant', functionName: 'test', executionTime: 0 });
+      vi.mocked(executeWorkflow).mockResolvedValue({
+        kind: 'completed',
+        result: 'instant',
+        functionName: 'test',
+        executionTime: 0,
+      });
 
       // Mock onPause to never resolve so the completed promise wins the race
       vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
@@ -382,188 +385,39 @@ describe('tools-debug coverage: step, continue, and resume paths', () => {
       expect(data.error.code).toBe('EXECUTION_ERROR');
       expect(data.error.message).toBe('exec failed');
     });
-  });
 
-  // -----------------------------------------------------------------------
-  // fw_resume_from_checkpoint: debug mode paused/completed/error (lines 567-606)
-  // and non-debug completion (lines 608-627)
-  // -----------------------------------------------------------------------
-
-  describe('fw_resume_from_checkpoint with debug mode', () => {
-    it('should return paused state with debug info when resuming in debug mode', async () => {
-      const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
+    it('should refuse an immediate durable yield', async () => {
+      const { parseWorkflow } = await import('../../src/api/index');
+      const { getTopologicalOrder } = await import('../../src/api/query');
       const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
 
-      vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/.fw-checkpoints/ckpt.json');
-      vi.mocked(loadCheckpoint).mockReturnValue({
-        data: makeCheckpointData(),
-        stale: true,
-        rerunNodes: ['nodeB'],
-        skipNodes: new Map([['nodeA', { out: 'val' }]]),
+      vi.mocked(parseWorkflow).mockResolvedValue({
+        ast: {} as any,
+        errors: [],
+        warnings: [],
+        availableWorkflows: [],
+        allWorkflows: [],
       });
-
-      // Return a never-resolving promise so onPause wins the race
-      vi.mocked(executeWorkflow).mockReturnValue(new Promise(() => {}));
-
-      const pauseState = {
-        currentNodeId: 'nodeC',
-        phase: 'before' as const,
-        position: 2,
-        executionOrder: ['nodeA', 'nodeB', 'nodeC'],
-        completedNodes: ['nodeA', 'nodeB'],
-        variables: {},
-        breakpoints: [],
-      };
-
-      vi.spyOn(DebugController.prototype, 'onPause').mockResolvedValue(pauseState);
-
-      const result = await tools['fw_resume_from_checkpoint']({
-        filePath: '/fake/workflow.ts',
-        debug: true,
-      });
-      const data = parseToolResult(result);
-
-      expect(data.success).toBe(true);
-      expect(data.data.status).toBe('paused');
-      expect(data.data.resumedFrom).toBe('/fake/.fw-checkpoints/ckpt.json');
-      expect(data.data.skippedNodes).toBe(1); // 2 completed - 1 rerun
-      expect(data.data.rerunNodes).toEqual(['nodeB']);
-      expect(data.data.warning).toContain('changed since checkpoint');
-      expect(data.data.state.currentNodeId).toBe('nodeC');
-    });
-
-    it('should return completed when resume debug finishes immediately', async () => {
-      const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
-      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
-
-      vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/.fw-checkpoints/ckpt.json');
-      vi.mocked(loadCheckpoint).mockReturnValue({
-        data: makeCheckpointData({
-          completedNodes: ['nodeA'],
-          executionOrder: ['nodeA', 'nodeB'],
-          position: 1,
-        }),
-        stale: false,
-        rerunNodes: [],
-        skipNodes: new Map([['nodeA', {}]]),
-      });
-
-      vi.mocked(executeWorkflow).mockResolvedValue({ result: 'resumed-ok', functionName: 'test', executionTime: 0 });
+      vi.mocked(getTopologicalOrder).mockReturnValue(['nodeA']);
+      vi.mocked(executeWorkflow).mockResolvedValue({
+        kind: 'yielded',
+        functionName: 'test',
+        executionTime: 0,
+      } as never);
       vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
 
-      const result = await tools['fw_resume_from_checkpoint']({
+      const result = await tools['fw_debug_workflow']({
         filePath: '/fake/workflow.ts',
-        debug: true,
+        params: {},
       });
-      const data = parseToolResult(result);
-
-      expect(data.success).toBe(true);
-      expect(data.data.status).toBe('completed');
-      // The result is extracted via (r as {result?}).result ?? r
-      expect(data.data.result).toBe('resumed-ok');
-      expect(data.data.resumedFrom).toBe('/fake/.fw-checkpoints/ckpt.json');
-    });
-
-    it('should return error when resume debug execution fails', async () => {
-      const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
-      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
-
-      vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/.fw-checkpoints/ckpt.json');
-      vi.mocked(loadCheckpoint).mockReturnValue({
-        data: makeCheckpointData({
-          completedNodes: ['nodeA'],
-          executionOrder: ['nodeA', 'nodeB'],
-          position: 1,
-        }),
-        stale: false,
-        rerunNodes: [],
-        skipNodes: new Map([['nodeA', {}]]),
-      });
-
-      // Use a deferred promise that rejects, so it doesn't reject synchronously
-      // before being assigned to session.executionPromise
-      let rejectFn: (err: Error) => void;
-      const execPromise = new Promise((_resolve, reject) => {
-        rejectFn = reject;
-      });
-      vi.mocked(executeWorkflow).mockReturnValue(execPromise as any);
-      vi.spyOn(DebugController.prototype, 'onPause').mockReturnValue(new Promise(() => {}));
-
-      // Start the tool call, then reject
-      const resultPromise = tools['fw_resume_from_checkpoint']({
-        filePath: '/fake/workflow.ts',
-        debug: true,
-      });
-
-      // Reject after a microtask so raceDebugPause is already listening
-      await Promise.resolve();
-      rejectFn!(new Error('resume boom'));
-
-      const result = await resultPromise;
       const data = parseToolResult(result);
 
       expect(data.success).toBe(false);
       expect(data.error.code).toBe('EXECUTION_ERROR');
-      expect(data.error.message).toBe('resume boom');
+      expect(data.error.message).toContain('not a durable coordinator');
     });
   });
 
-  describe('fw_resume_from_checkpoint non-debug mode', () => {
-    it('should run to completion and clean up checkpoint', async () => {
-      const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
-      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
+  // -----------------------------------------------------------------------
 
-      vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/.fw-checkpoints/ckpt.json');
-      vi.mocked(loadCheckpoint).mockReturnValue({
-        data: makeCheckpointData(),
-        stale: true,
-        rerunNodes: ['nodeB'],
-        skipNodes: new Map([['nodeA', { out: 'v' }]]),
-      });
-
-      vi.mocked(executeWorkflow).mockResolvedValue({ result: 'final', functionName: 'test', executionTime: 0 });
-
-      const result = await tools['fw_resume_from_checkpoint']({
-        filePath: '/fake/workflow.ts',
-      });
-      const data = parseToolResult(result);
-
-      expect(data.success).toBe(true);
-      expect(data.data.status).toBe('completed');
-      expect(data.data.resumedFrom).toBe('/fake/.fw-checkpoints/ckpt.json');
-      expect(data.data.skippedNodes).toBe(1); // 2 completed - 1 rerun
-      expect(data.data.rerunNodes).toEqual(['nodeB']);
-      expect(data.data.warning).toContain('changed since checkpoint');
-      expect(data.data.result).toBe('final');
-    });
-
-    it('should handle result without .result property', async () => {
-      const { loadCheckpoint, findLatestCheckpoint } = await import('../../src/runtime/checkpoint');
-      const { executeWorkflow } = await import('../../src/mcp/workflow-executor');
-
-      vi.mocked(findLatestCheckpoint).mockReturnValue('/fake/ckpt.json');
-      vi.mocked(loadCheckpoint).mockReturnValue({
-        data: makeCheckpointData({
-          completedNodes: [],
-          executionOrder: ['n'],
-          position: 0,
-          params: {},
-        }),
-        stale: false,
-        rerunNodes: [],
-        skipNodes: new Map(),
-      });
-
-      // Return a value that has no .result property
-      vi.mocked(executeWorkflow).mockResolvedValue('bare-value' as any);
-
-      const result = await tools['fw_resume_from_checkpoint']({
-        filePath: '/fake/workflow.ts',
-      });
-      const data = parseToolResult(result);
-
-      expect(data.success).toBe(true);
-      expect(data.data.result).toBe('bare-value');
-    });
-  });
 });

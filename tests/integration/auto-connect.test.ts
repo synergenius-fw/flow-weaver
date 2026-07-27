@@ -59,7 +59,7 @@ export function pipeline(execute: boolean, params: { name: string }): { greeting
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
-    const result = await module.pipeline(true, { name: '  alice  ' });
+    const result = await module.pipeline(true, { name: '  alice  ' }, testHelpers.createRuntime('pipeline'));
 
     expect(result.greeting).toBe('Hello, ALICE!');
     expect(result.onSuccess).toBe(true);
@@ -101,7 +101,7 @@ export function addWorkflow(execute: boolean, params: { a: number; b: number }):
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
-    const result = await module.addWorkflow(true, { a: 3, b: 7 });
+    const result = await module.addWorkflow(true, { a: 3, b: 7 }, testHelpers.createRuntime('addWorkflow'));
 
     expect(result.sum).toBe(10);
     expect(result.onSuccess).toBe(true);
@@ -153,7 +153,7 @@ export function threeStep(execute: boolean, params: { input: string }): { result
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
-    const result = await module.threeStep(true, { input: 'hello' });
+    const result = await module.threeStep(true, { input: 'hello' }, testHelpers.createRuntime('threeStep'));
 
     expect(result.result).toBe('Final: HELLO!');
     expect(result.onSuccess).toBe(true);
@@ -197,7 +197,11 @@ export function explicitConnections(execute: boolean, params: { value: number })
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
-    const result = await module.explicitConnections(true, { value: 5 });
+    const result = await module.explicitConnections(
+      true,
+      { value: 5 },
+      testHelpers.createRuntime('explicitConnections'),
+    );
 
     expect(result.result).toBe(10);
     expect(result.onSuccess).toBe(true);

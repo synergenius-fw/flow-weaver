@@ -7,7 +7,7 @@ import * as executorModule from "../../src/mcp/workflow-executor.js";
 import { CancellationError } from "../../src/runtime/CancellationError.js";
 import { GeneratedExecutionContext } from "../../src/runtime/ExecutionContext.js";
 import { DebugController } from "../../src/runtime/debug-controller.js";
-import { AgentChannel } from "../../src/mcp/agent-channel.js";
+import { createWorkflowRuntime } from "../../src/runtime/durable-execution.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -37,6 +37,7 @@ describe("A1 execution-scoped cancellation", () => {
 
     await expect(
       executeWorkflow({
+        runId: "a1-pre-aborted",
         filePath: path.join(import.meta.dirname, "fixtures", "sequential.ts"),
         params: { value: 4 },
         workflowName: "sequential",
@@ -74,6 +75,7 @@ export async function outerWait(
     const controller = new AbortController();
     const startedAt = Date.now();
     const execution = executeWorkflow({
+      runId: "a1-nested-delay",
       filePath,
       workflowName: "outerWait",
       abortSignal: controller.signal,
@@ -94,11 +96,11 @@ export async function outerWait(
 
   it("retains the exact signal in nested execution scopes", () => {
     const controller = new AbortController();
-    const root = new GeneratedExecutionContext(
-      true,
-      undefined,
-      controller.signal,
-    );
+    const root = new GeneratedExecutionContext(true, createWorkflowRuntime({
+      runId: "a1-scoped-signal",
+      workflowId: "scopedSignal",
+      abortSignal: controller.signal,
+    }));
     const parentIndex = root.addExecution("container");
     const nested = root.createScope(
       "container",
@@ -112,40 +114,11 @@ export async function outerWait(
     expect(() => nested.checkAborted("child")).toThrow(CancellationError);
   });
 
-  it("cancels an engine-owned agent wait", async () => {
-    const filePath = writeWorkflow(`
-/**
- * @flowWeaver workflow
- * @node agent waitForAgent [expr: agentId="'review'", context="{}"]
- * @path Start -> agent -> Exit
- */
-export async function waitsForAgent(
-  execute: boolean,
-): Promise<{ onSuccess: boolean; onFailure: boolean }> {
-  throw new Error("generated");
-}
-`);
-    const controller = new AbortController();
-    const agentChannel = new AgentChannel();
-    const execution = executeWorkflow({
-      filePath,
-      workflowName: "waitsForAgent",
-      abortSignal: controller.signal,
-      agentChannel,
-    });
-
-    await agentChannel.onPause();
-    controller.abort();
-
-    await expect(execution).rejects.toSatisfy((error: unknown) =>
-      CancellationError.isCancellationError(error),
-    );
-  });
-
   it("cancels an engine-owned debug gate", async () => {
     const controller = new AbortController();
     const debugController = new DebugController({ debug: true });
     const execution = executeWorkflow({
+      runId: "a1-debug-gate",
       filePath: path.join(import.meta.dirname, "fixtures", "sequential.ts"),
       params: { value: 4 },
       workflowName: "sequential",
@@ -163,11 +136,11 @@ export async function waitsForAgent(
 
   it("cancels debug gates after nodes and inside nested scopes", async () => {
     const afterController = new AbortController();
-    const afterContext = new GeneratedExecutionContext(
-      true,
-      undefined,
-      afterController.signal,
-    );
+    const afterContext = new GeneratedExecutionContext(true, createWorkflowRuntime({
+      runId: "a1-debug-after",
+      workflowId: "debugAfter",
+      abortSignal: afterController.signal,
+    }));
     const afterDebugController = new DebugController({ debug: true });
     const beforePause = afterDebugController.onPause();
     const beforeGate = afterDebugController.beforeNode("node", afterContext);
@@ -184,11 +157,11 @@ export async function waitsForAgent(
     );
 
     const scopeController = new AbortController();
-    const rootContext = new GeneratedExecutionContext(
-      true,
-      undefined,
-      scopeController.signal,
-    );
+    const rootContext = new GeneratedExecutionContext(true, createWorkflowRuntime({
+      runId: "a1-debug-scope",
+      workflowId: "debugScope",
+      abortSignal: scopeController.signal,
+    }));
     const parentIndex = rootContext.addExecution("container");
     const scopedContext = rootContext.createScope(
       "container",
@@ -209,11 +182,11 @@ export async function waitsForAgent(
 
   it("observes cancellation racing a debug resume continuation", async () => {
     const controller = new AbortController();
-    const context = new GeneratedExecutionContext(
-      true,
-      undefined,
-      controller.signal,
-    );
+    const context = new GeneratedExecutionContext(true, createWorkflowRuntime({
+      runId: "a1-debug-race",
+      workflowId: "debugRace",
+      abortSignal: controller.signal,
+    }));
     const debugController = new DebugController({ debug: true });
     const pause = debugController.onPause();
     const gate = debugController.beforeNode("node", context);
@@ -266,6 +239,7 @@ export async function nonCooperative(
     const controller = new AbortController();
     const startedAt = Date.now();
     const execution = executeWorkflow({
+      runId: "a1-non-cooperative",
       filePath,
       workflowName: "nonCooperative",
       abortSignal: controller.signal,

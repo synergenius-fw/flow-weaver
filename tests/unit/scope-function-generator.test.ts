@@ -107,7 +107,7 @@ describe('Scope Function Generator', () => {
         workflow,
         childInstances,
         true,
-        false
+        false,
       );
 
       // Should generate closure pattern
@@ -131,7 +131,7 @@ describe('Scope Function Generator', () => {
         workflow,
         childInstances,
         true,
-        false
+        false,
       );
 
       expect(code).toContain('ctx.createScope');
@@ -151,7 +151,7 @@ describe('Scope Function Generator', () => {
         workflow,
         childInstances,
         true, // async
-        false
+        false,
       );
 
       expect(code).toContain('async (');
@@ -170,7 +170,7 @@ describe('Scope Function Generator', () => {
         workflow,
         childInstances,
         false, // sync
-        false
+        false,
       );
 
       // Should not have async keyword
@@ -193,7 +193,7 @@ describe('Scope Function Generator', () => {
         workflow,
         childInstances,
         true,
-        false
+        false,
       );
 
       // Should execute child nodes
@@ -213,7 +213,7 @@ describe('Scope Function Generator', () => {
         workflow,
         childInstances,
         true,
-        false
+        false,
       );
 
       // Should return an object with scope results
@@ -232,7 +232,7 @@ describe('Scope Function Generator', () => {
         workflow,
         childInstances,
         true,
-        false
+        false,
       );
 
       // Should merge scoped context back
@@ -362,7 +362,7 @@ describe('Scope Function Generator', () => {
         workflow,
         childInstances,
         false,
-        false
+        false,
       );
 
       // success/failure should be read from child node's onSuccess/onFailure — NOT hardcoded
@@ -393,7 +393,7 @@ describe('Scope Function Generator', () => {
         workflow,
         [], // no children
         true,
-        false
+        false,
       );
 
       // Should still generate valid closure
@@ -504,7 +504,7 @@ describe('Scope Function Generator', () => {
         workflow,
         childInstances,
         true, // isAsync = true (workflow context is async)
-        false
+        false,
       );
 
       // The scope function MUST be async because the workflow context is async.
@@ -512,49 +512,6 @@ describe('Scope Function Generator', () => {
       expect(code).toContain('async (');
       expect(code).toContain('await scopedCtx.setVariable');
       expect(code).toContain('await scopedCtx.getVariable');
-    });
-
-    it('should guard getVariable against undefined childIdx when beforeNode returns false', () => {
-      // In debug mode (production=false), beforeNode wraps child execution in an if block.
-      // When beforeNode returns false, childIdx is never assigned.
-      // The return-value section references childIdx via getVariable — this must be guarded.
-      const parentNodeType = createScopedNodeType();
-      const workflow = createWorkflowWithScope();
-      // Add a connection from child1.processed -> parent.result (so return section references child1Idx)
-      workflow.connections.push({
-        type: 'Connection',
-        from: { node: 'child1', port: 'processed' },
-        to: { node: 'parent', port: 'result' },
-      });
-      const childInstances = workflow.instances.filter((i) => i.parent?.scope === 'forEach');
-
-      // Generate in DEBUG mode (production=false) so beforeNode hooks are emitted
-      const code = generateScopeFunctionClosure(
-        'forEach',
-        'parent',
-        parentNodeType,
-        workflow,
-        childInstances,
-        true,
-        false // debug mode
-      );
-
-      // The childIdx should be initialized before the if block, not left as undefined
-      // Either: initialize to a safe value, or guard the getVariable call
-      // Check that child1Idx is initialized with a fallback or the getVariable is guarded
-      const lines = code.split('\n');
-
-      // Find the let declaration line for child1Idx
-      const declLine = lines.find(l => l.includes('let child1Idx'));
-      expect(declLine).toBeDefined();
-
-      // The declaration should initialize the variable (not just `let child1Idx: number;`)
-      // OR the getVariable call in the return section should be guarded
-      const returnSection = code.slice(code.indexOf('Extract return values'));
-      const hasGuard = returnSection.includes('typeof child1Idx') ||
-        declLine!.includes('= -1') ||
-        declLine!.includes('= 0');
-      expect(hasGuard).toBe(true);
     });
   });
 });

@@ -5,14 +5,14 @@
  * preserve interface and type declarations from the source file.
  */
 
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
-import { generateCode } from "../../src/api/generate";
-import { generateInPlace } from "../../src/api/generate-in-place";
-import { parseWorkflow } from "../../src/api/parse";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import { generateCode } from '../../src/api/generate';
+import { generateInPlace } from '../../src/api/generate-in-place';
+import { parseWorkflow } from '../../src/api/parse';
 
-describe("Type Preservation", () => {
+describe('Type Preservation', () => {
   const tempDir = path.join(os.tmpdir(), `flow-weaver-type-preservation-${process.pid}`);
 
   // Helper to write file ensuring directory exists (handles parallel test cleanup)
@@ -79,62 +79,74 @@ export function processLeadWorkflow(
 }
 `;
 
-  describe("generateInPlace (CLI path)", () => {
-    it("should preserve interface declarations", async () => {
-      const testFile = path.join(tempDir, "in-place-types.ts");
+  describe('generateInPlace (CLI path)', () => {
+    it('should preserve interface declarations', async () => {
+      const testFile = path.join(tempDir, 'in-place-types.ts');
       writeFile(testFile, sourceWithTypes);
 
-      const parseResult = await parseWorkflow(testFile, { workflowName: "processLeadWorkflow" });
+      const parseResult = await parseWorkflow(testFile, {
+        workflowName: 'processLeadWorkflow',
+      });
       expect(parseResult.errors).toHaveLength(0);
 
       const result = generateInPlace(sourceWithTypes, parseResult.ast);
 
       // Should contain the interface definitions
-      expect(result.code).toContain("interface Lead {");
-      expect(result.code).toContain("interface ProcessedLead {");
+      expect(result.code).toContain('interface Lead {');
+      expect(result.code).toContain('interface ProcessedLead {');
 
       // Write and verify it compiles
       writeFile(testFile, result.code);
       const module = await import(testFile);
 
-      const execResult = await module.processLeadWorkflow(true, {
-        lead: { email: "test@example.com", name: "Test", company: "Acme" }
-      });
+      const execResult = await module.processLeadWorkflow(
+        true,
+        {
+          lead: { email: 'test@example.com', name: 'Test', company: 'Acme' },
+        },
+        testHelpers.createRuntime('processLeadWorkflow'),
+      );
 
-      expect(execResult.result.lead.name).toBe("Test");
-      expect(execResult.result.status).toBe("success");
+      expect(execResult.result.lead.name).toBe('Test');
+      expect(execResult.result.status).toBe('success');
     });
   });
 
-  describe("generateCode (standalone API path)", () => {
-    it("should preserve interface declarations from source file", async () => {
-      const testFile = path.join(tempDir, "standalone-types.ts");
+  describe('generateCode (standalone API path)', () => {
+    it('should preserve interface declarations from source file', async () => {
+      const testFile = path.join(tempDir, 'standalone-types.ts');
       writeFile(testFile, sourceWithTypes);
 
-      const parseResult = await parseWorkflow(testFile, { workflowName: "processLeadWorkflow" });
+      const parseResult = await parseWorkflow(testFile, {
+        workflowName: 'processLeadWorkflow',
+      });
       expect(parseResult.errors).toHaveLength(0);
 
       const code = generateCode(parseResult.ast, {});
 
       // Should contain the interface definitions
-      expect(code).toContain("interface Lead {");
-      expect(code).toContain("interface ProcessedLead {");
+      expect(code).toContain('interface Lead {');
+      expect(code).toContain('interface ProcessedLead {');
 
       // Write and verify it compiles
-      const outputFile = path.join(tempDir, "standalone-types.generated.ts");
+      const outputFile = path.join(tempDir, 'standalone-types.generated.ts');
       writeFile(outputFile, code);
       const module = await import(outputFile);
 
-      const execResult = await module.processLeadWorkflow(true, {
-        lead: { email: "test@example.com", name: "Test", company: "Acme" }
-      });
+      const execResult = await module.processLeadWorkflow(
+        true,
+        {
+          lead: { email: 'test@example.com', name: 'Test', company: 'Acme' },
+        },
+        testHelpers.createRuntime('processLeadWorkflow'),
+      );
 
-      expect(execResult.result.lead.name).toBe("Test");
-      expect(execResult.result.status).toBe("success");
+      expect(execResult.result.lead.name).toBe('Test');
+      expect(execResult.result.status).toBe('success');
     });
   });
 
-  describe("type alias preservation", () => {
+  describe('type alias preservation', () => {
     const sourceWithTypeAlias = `
 type Status = 'pending' | 'active' | 'completed';
 
@@ -180,29 +192,35 @@ export function updateTaskWorkflow(
 }
 `;
 
-    it("should preserve type alias declarations", async () => {
-      const testFile = path.join(tempDir, "type-alias.ts");
+    it('should preserve type alias declarations', async () => {
+      const testFile = path.join(tempDir, 'type-alias.ts');
       writeFile(testFile, sourceWithTypeAlias);
 
-      const parseResult = await parseWorkflow(testFile, { workflowName: "updateTaskWorkflow" });
+      const parseResult = await parseWorkflow(testFile, {
+        workflowName: 'updateTaskWorkflow',
+      });
       expect(parseResult.errors).toHaveLength(0);
 
       const code = generateCode(parseResult.ast, {});
 
       // Should contain type alias definitions
-      expect(code).toContain("type Status =");
-      expect(code).toContain("type Task =");
+      expect(code).toContain('type Status =');
+      expect(code).toContain('type Task =');
 
       // Write and verify it compiles
-      const outputFile = path.join(tempDir, "type-alias.generated.ts");
+      const outputFile = path.join(tempDir, 'type-alias.generated.ts');
       writeFile(outputFile, code);
       const module = await import(outputFile);
 
-      const execResult = await module.updateTaskWorkflow(true, {
-        task: { id: "1", title: "Test Task", status: "pending" as const }
-      });
+      const execResult = await module.updateTaskWorkflow(
+        true,
+        {
+          task: { id: '1', title: 'Test Task', status: 'pending' as const },
+        },
+        testHelpers.createRuntime('updateTaskWorkflow'),
+      );
 
-      expect(execResult.updated.status).toBe("completed");
+      expect(execResult.updated.status).toBe('completed');
     });
   });
 });

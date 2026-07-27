@@ -1,5 +1,6 @@
 import { getMockConfig, lookupMock } from './mock-types.js';
 import { CancellationError } from '../runtime/CancellationError.js';
+import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 /**
  * @flowWeaver nodeType
@@ -13,14 +14,15 @@ export async function invokeWorkflow(
   functionId: string,
   payload: object,
   timeout?: string,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  runtime?: NodeExecutionRuntime,
 ): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, result: {} };
 
-  const mocks = getMockConfig();
+  const mocks = getMockConfig(runtime);
   if (mocks) {
     // Mock mode — look up result by functionId (supports instance-qualified keys)
-    const mockResult = lookupMock(mocks.invocations, functionId);
+    const mockResult = lookupMock(mocks.invocations, functionId, runtime);
     if (mockResult !== undefined) {
       return { onSuccess: true, onFailure: false, result: mockResult };
     }
@@ -29,15 +31,35 @@ export async function invokeWorkflow(
   }
 
   // Check local workflow registry (populated by executeWorkflow)
-  const registry = (globalThis as unknown as Record<string, unknown>).__fw_workflow_registry__ as
-    | Record<string, (...args: unknown[]) => unknown>
-    | undefined;
+  const registry = runtime?.runtime.services.workflowRegistry;
   if (registry?.[functionId]) {
+    const nodeRuntime = runtime!;
+    if (
+      !Number.isSafeInteger(nodeRuntime.recursionDepth) ||
+      nodeRuntime.recursionDepth < 0 ||
+      nodeRuntime.recursionDepth >= 999
+    ) {
+      throw new Error('Max recursion depth exceeded (1000) in dynamic workflow invocation');
+    }
     try {
-      const result = await registry[functionId](true, payload, abortSignal);
+      const result = await registry[functionId](
+        true,
+        { ...payload, __rd__: nodeRuntime.recursionDepth + 1 },
+        nodeRuntime.createNestedRuntime(functionId),
+      );
       return { onSuccess: true, onFailure: false, result: (result as object) ?? {} };
     } catch (error) {
-      if (CancellationError.isCancellationError(error)) throw error;
+      const controlFlowCode =
+        typeof error === 'object' && error !== null
+          ? (error as { code?: unknown }).code
+          : undefined;
+      if (
+        CancellationError.isCancellationError(error) ||
+        controlFlowCode === 'FLOW_WEAVER_DURABLE_GATE_YIELD' ||
+        controlFlowCode === 'FLOW_WEAVER_AMBIGUOUS_EFFECT'
+      ) {
+        throw error;
+      }
       return { onSuccess: false, onFailure: true, result: {} };
     }
   }

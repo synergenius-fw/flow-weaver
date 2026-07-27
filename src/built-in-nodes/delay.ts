@@ -1,5 +1,6 @@
 import { getMockConfig } from './mock-types.js';
 import { CancellationError } from '../runtime/CancellationError.js';
+import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 /**
  * @flowWeaver nodeType
@@ -9,11 +10,12 @@ import { CancellationError } from '../runtime/CancellationError.js';
 export async function delay(
   execute: boolean,
   duration: string,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  runtime?: NodeExecutionRuntime,
 ): Promise<{ onSuccess: boolean; onFailure: boolean; elapsed: boolean }> {
   if (!execute) return { onSuccess: false, onFailure: false, elapsed: false };
 
-  const mocks = getMockConfig();
+  const mocks = getMockConfig(runtime);
   if (mocks?.fast) {
     // Fast mode: skip real sleep, keep async behavior with 1ms
     await waitForDuration(1, abortSignal);

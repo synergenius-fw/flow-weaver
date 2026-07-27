@@ -76,10 +76,11 @@ describe('built-in node execution (end-to-end)', () => {
   it('delay workflow executes with execute=true', async () => {
     const fn = modules.delayWorkflow.delayWorkflow as (
       execute: boolean,
-      params: Record<string, never>
+      params: Record<string, never>,
+      runtime: ReturnType<typeof testHelpers.createRuntime>,
     ) => Promise<{ onSuccess: boolean; onFailure: boolean }>;
 
-    const result = await fn(true, {});
+    const result = await fn(true, {}, testHelpers.createRuntime('delayWorkflow'));
     expect(result.onSuccess).toBe(true);
     expect(result.onFailure).toBe(false);
   });
@@ -87,30 +88,45 @@ describe('built-in node execution (end-to-end)', () => {
   it('delay workflow skips with execute=false', async () => {
     const fn = modules.delayWorkflow.delayWorkflow as (
       execute: boolean,
-      params: Record<string, never>
+      params: Record<string, never>,
+      runtime: ReturnType<typeof testHelpers.createRuntime>,
     ) => Promise<{ onSuccess: boolean; onFailure: boolean }>;
 
-    const result = await fn(false, {});
+    const result = await fn(false, {}, testHelpers.createRuntime('delayWorkflow'));
     expect(result.onFailure).toBe(false);
   });
 
-  it('waitForEvent workflow executes with execute=true', async () => {
+  it('does not let a direct caller consume a durable wait outcome', async () => {
     const fn = modules.waitEventWorkflow.waitEventWorkflow as (
       execute: boolean,
-      params: Record<string, never>
+      params: Record<string, never>,
+      runtime: ReturnType<typeof testHelpers.createRuntime>,
     ) => Promise<{ onSuccess: boolean; onFailure: boolean }>;
 
-    const result = await fn(true, {});
-    expect(result.onSuccess).toBe(true);
+    await expect(fn(true, {}, testHelpers.createRuntime('waitEventWorkflow'))).rejects.toMatchObject({
+      code: 'FLOW_WEAVER_DURABLE_GATE_YIELD',
+      gate: {
+        payload: {
+          arguments: [{ value: 'app/test' }, { absent: true }, { absent: true }],
+        },
+      },
+    });
   });
 
   it('invokeWorkflow workflow executes with execute=true', async () => {
     const fn = modules.invokeTest.invokeTest as (
       execute: boolean,
-      params: Record<string, never>
+      params: Record<string, never>,
+      runtime: ReturnType<typeof testHelpers.createRuntime>,
     ) => Promise<{ onSuccess: boolean; onFailure: boolean }>;
 
-    const result = await fn(true, {});
+    const result = await fn(
+      true,
+      {},
+      testHelpers.createRuntime('invokeTest', {
+        workflowRegistry: {},
+      }),
+    );
     expect(result.onSuccess).toBe(true);
   });
 });

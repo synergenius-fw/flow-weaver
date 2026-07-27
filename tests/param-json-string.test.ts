@@ -98,10 +98,14 @@ export function botWorkflow(
     fs.writeFileSync(testFile, source);
 
     const jsonString = '{"title":"Test Task","id":"task-123","instruction":"Fix the bug"}';
-    const execResult = await executeWorkflow({ filePath: testFile, params: {
-          taskJson: jsonString,
-          projectDir: '/tmp/test-project',
-        } });
+    const execResult = await executeWorkflow({
+      runId: 'param-json-string',
+      filePath: testFile,
+      params: {
+        taskJson: jsonString,
+        projectDir: '/tmp/test-project',
+      },
+    });
 
     const result = execResult.result as Record<string, unknown>;
     const ctx = JSON.parse(result.ctx as string);
@@ -180,11 +184,9 @@ export function botWorkflow(
     const testFile = path.join(outputDir, 'param-json-codegen-path.ts');
     fs.writeFileSync(testFile, source);
 
-    const generatedCode = await globalThis.testHelpers.generateFast(
-      testFile,
-      'botWorkflow',
-      { production: true },
-    );
+    const generatedCode = await globalThis.testHelpers.generateFast(testFile, 'botWorkflow', {
+      production: true,
+    });
 
     // The generated code must set Start.taskJson from params.taskJson
     expect(generatedCode).toContain('params.taskJson');
@@ -266,7 +268,11 @@ export function minimalJsonParam(
     fs.writeFileSync(testFile, source);
 
     const jsonString = '{"title":"Test"}';
-    const execResult = await executeWorkflow({ filePath: testFile, params: { taskJson: jsonString } });
+    const execResult = await executeWorkflow({
+      runId: 'param-json-string-special',
+      filePath: testFile,
+      params: { taskJson: jsonString },
+    });
     const result = execResult.result as Record<string, unknown>;
 
     // The node must receive the original JSON string (not undefined, not parsed)

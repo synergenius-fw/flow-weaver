@@ -51,15 +51,17 @@ export function prodWorkflow(execute: boolean, params: { n: number }): {
 
     try {
       const devCode = await global.testHelpers.generateFast(testFile, 'prodWorkflow');
-      const prodCode = await global.testHelpers.generateFast(testFile, 'prodWorkflow', { production: true });
+      const prodCode = await global.testHelpers.generateFast(testFile, 'prodWorkflow', {
+        production: true,
+      });
 
-      // Dev mode has debug controller and effective debugger
+      // Dev mode has an execution-scoped debug controller.
       expect(devCode).toContain('__ctrl__');
-      expect(devCode).toContain('__effectiveDebugger__');
+      expect(devCode).toContain('__runtime__.services.debugController');
 
       // Production mode omits them
       expect(prodCode).not.toContain('__ctrl__');
-      expect(prodCode).not.toContain('__effectiveDebugger__');
+      expect(prodCode).not.toContain('__runtime__.services.debugController');
 
       // Both produce valid code with the node call
       expect(devCode).toContain('double');
@@ -105,7 +107,9 @@ export function syncWf(execute: boolean, params: { n: number }): {
     fs.writeFileSync(testFile, source);
 
     try {
-      const code = await global.testHelpers.generateFast(testFile, 'syncWf', { production: true });
+      const code = await global.testHelpers.generateFast(testFile, 'syncWf', {
+        production: true,
+      });
       // Sync workflow should not have await keywords on ctx calls
       expect(code).toContain('ctx.setVariable');
       expect(code).toContain('ctx.getVariable');
@@ -762,8 +766,8 @@ export function disjWf(execute: boolean, params: { n: number }): {
 // --------------------------------------------------------------------------
 // 12. Abort signal / checkAborted is always emitted
 // --------------------------------------------------------------------------
-describe('Unified Generator: abort signal', () => {
-  it('emits checkAborted calls and __abortSignal__ parameter', async () => {
+describe('Unified Generator: cancellation runtime', () => {
+  it('emits checkAborted calls and the explicit runtime parameter', async () => {
     const source = `
 /**
  * @flowWeaver nodeType
@@ -796,7 +800,7 @@ export function abortWf(execute: boolean, params: { n: number }): {
     try {
       const code = await global.testHelpers.generateFast(testFile, 'abortWf');
       expect(code).toContain('checkAborted');
-      expect(code).toContain('__abortSignal__');
+      expect(code).toContain('__runtime__: WorkflowRuntime');
     } finally {
       global.testHelpers.cleanupOutput('abort-wf.ts');
     }

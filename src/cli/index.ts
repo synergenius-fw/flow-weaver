@@ -461,8 +461,6 @@ program
   .option('--mocks <json>', 'Mock config for built-in nodes (events, invocations, agents, fast) as JSON')
   .option('--mocks-file <path>', 'Path to JSON file with mock config for built-in nodes')
   .option('-d, --debug', 'Start in step-through debug mode')
-  .option('--checkpoint', 'Enable checkpointing to disk after each node')
-  .option('--resume [file]', 'Resume from a checkpoint file (auto-detects latest if no file)')
   .option('-b, --breakpoint <nodeIds...>', 'Set initial breakpoints (repeatable)')
   .action(wrapAction(async (input: string, options) => {
       const { runCommand } = await import('./commands/run.js');

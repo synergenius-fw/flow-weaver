@@ -76,10 +76,11 @@ export function usesForeignGate(
     fs.writeFileSync(testFile, SOURCE);
     // Inject the foreign node's impl; the generated code calls `gate(...)`
     // by bare name (parser-external nodes are not import-emitted).
-    (globalThis as unknown as { gate?: unknown }).gate = (
-      _execute: boolean,
-      input: string,
-    ) => ({ onSuccess: true, onFailure: false, passed: String(input).toUpperCase() });
+    (globalThis as unknown as { gate?: unknown }).gate = (_execute: boolean, input: string) => ({
+      onSuccess: true,
+      onFailure: false,
+      passed: String(input).toUpperCase(),
+    });
   });
 
   afterAll(() => {
@@ -89,12 +90,23 @@ export function usesForeignGate(
 
   it('fails to execute the foreign-gate workflow WITHOUT externalNodeTypes', async () => {
     await expect(
-      executeWorkflow({ filePath: testFile, params: { execute: true }, workflowName: 'usesForeignGate' }),
+      executeWorkflow({
+        runId: 'test:foreign-gate-missing',
+        filePath: testFile,
+        params: { execute: true },
+        workflowName: 'usesForeignGate',
+      }),
     ).rejects.toThrow(/gate|port/i);
   });
 
   it('executes the foreign-gate workflow WHEN externalNodeTypes is supplied', async () => {
-    const result = await executeWorkflow({ filePath: testFile, params: { execute: true }, workflowName: 'usesForeignGate', externalNodeTypes: [FOREIGN_GATE] });
+    const result = await executeWorkflow({
+      runId: 'test:foreign-gate',
+      filePath: testFile,
+      params: { execute: true },
+      workflowName: 'usesForeignGate',
+      externalNodeTypes: [FOREIGN_GATE],
+    });
     const out = result.result as Record<string, unknown>;
     expect(out.onSuccess).toBe(true);
     expect(out.passed).toBe('OK');

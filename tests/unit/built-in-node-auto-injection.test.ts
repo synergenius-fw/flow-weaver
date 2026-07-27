@@ -310,8 +310,8 @@ export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean
     expect(code).not.toContain('require(');
   });
 
-  // ── 13. Production mode for invokeWorkflow keeps registry ───────────
-  it('should strip mock code but keep workflow registry in production invokeWorkflow', () => {
+  // ── 13. Production mode for invokeWorkflow uses runtime registry ────
+  it('should strip mock code and use the explicit runtime workflow registry', () => {
     const parser = new AnnotationParser();
     const result = parser.parseFromString(`
 /** @flowWeaver workflow
@@ -324,10 +324,12 @@ export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean
 }
 `);
 
-    const code = generateCode(result.workflows[0], { production: true }) as string;
+    const code = generateCode(result.workflows[0], {
+      production: true,
+    }) as string;
     expect(code).not.toContain('__fw_getMockConfig');
     expect(code).not.toContain('__fw_lookupMock');
-    expect(code).toContain('__fw_workflow_registry__');
+    expect(code).toContain('runtime?.runtime.services.workflowRegistry');
     expect(code).toContain('async function invokeWorkflow');
   });
 
@@ -390,11 +392,19 @@ export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean
     const sourceResult = await delay(true, '100ms');
 
     // Verify source function returns expected structure
-    expect(sourceResult).toEqual({ onSuccess: true, onFailure: false, elapsed: true });
+    expect(sourceResult).toEqual({
+      onSuccess: true,
+      onFailure: false,
+      elapsed: true,
+    });
 
     // Run the real source function with execute=false
     const skipResult = await delay(false, '100ms');
-    expect(skipResult).toEqual({ onSuccess: false, onFailure: false, elapsed: false });
+    expect(skipResult).toEqual({
+      onSuccess: false,
+      onFailure: false,
+      elapsed: false,
+    });
 
     // Parse and compile a workflow that uses auto-injected delay
     const parser = new AnnotationParser();
@@ -434,7 +444,10 @@ export async function testWorkflow(execute: boolean): Promise<{ onSuccess: boole
     const before = fs.readFileSync(registryPath, 'utf-8');
 
     // Run the generator
-    execSync('npx tsx scripts/generate-built-in-registry.ts', { cwd: root, stdio: 'pipe' });
+    execSync('npx tsx scripts/generate-built-in-registry.ts', {
+      cwd: root,
+      stdio: 'pipe',
+    });
 
     // Read regenerated file
     const after = fs.readFileSync(registryPath, 'utf-8');
@@ -567,8 +580,8 @@ export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean
 
     expect(result.errors).toHaveLength(0);
     // Should have a warning about the unannotated delay function
-    const shadowWarning = result.warnings.find(w =>
-      w.includes('delay') && w.includes('not annotated') && w.includes('built-in')
+    const shadowWarning = result.warnings.find(
+      (w) => w.includes('delay') && w.includes('not annotated') && w.includes('built-in'),
     );
     expect(shadowWarning).toBeDefined();
     expect(shadowWarning).toContain('@flowWeaver nodeType');

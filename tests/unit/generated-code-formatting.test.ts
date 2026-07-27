@@ -76,7 +76,7 @@ export function simpleChain(
 
     it('should not have unnecessary non-null assertions after const declarations', () => {
       // startIdx is const, so no ! needed
-      expect(generatedCode).toContain('executionIndex: startIdx }');
+      expect(generatedCode).toMatch(/executionIndex: startIdx,[^\n]*\}/);
       expect(generatedCode).not.toMatch(/executionIndex: startIdx!/);
     });
 

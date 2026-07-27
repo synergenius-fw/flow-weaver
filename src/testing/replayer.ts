@@ -8,8 +8,7 @@
  * const recording = loadRecording(jsonFixture);
  * const replay = createReplayProvider(recording);
  *
- * // Use as LLM provider — calls are replayed in order
- * (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ = replay;
+ * // Pass replay to the node or adapter under test; calls replay in order.
  *
  * // Run workflow — LLM calls return recorded responses, no network calls
  *

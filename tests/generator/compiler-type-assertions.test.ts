@@ -73,9 +73,13 @@ describe('compiler type assertion generation', () => {
   });
 
   it('compiles and runs without errors', async () => {
-    const result = await executeWorkflow({ filePath: FIXTURE_PATH, params: {
-          raw: JSON.stringify({ name: 'test', value: 42 }),
-        } });
+    const result = await executeWorkflow({
+      runId: 'compiler-type-assertions',
+      filePath: FIXTURE_PATH,
+      params: {
+        raw: JSON.stringify({ name: 'test', value: 42 }),
+      },
+    });
 
     expect(result.result).toBeDefined();
     const output = result.result as { onSuccess: boolean; result: string };

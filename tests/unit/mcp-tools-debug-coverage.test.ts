@@ -1,7 +1,7 @@
 /**
  * Coverage tests for src/mcp/tools-debug.ts (lines 25-645)
  * Tests registerDebugTools via a fake McpServer. Focuses on tool registration,
- * error paths (session not found, no checkpoint, missing params), and the
+ * error paths (session not found, missing params), and the
  * debug session helpers (findVariableKey, cleanupDebugSession, raceDebugPause).
  */
 
@@ -81,28 +81,34 @@ describe('registerDebugTools coverage', () => {
     expect(tools['fw_debug_inspect']).toBeDefined();
     expect(tools['fw_debug_set_variable']).toBeDefined();
     expect(tools['fw_debug_breakpoint']).toBeDefined();
-    expect(tools['fw_resume_from_checkpoint']).toBeDefined();
+    expect(tools['fw_resume_from_checkpoint']).toBeUndefined();
     expect(tools['fw_list_debug_sessions']).toBeDefined();
   });
 
   // -- Error paths for non-existent sessions --
 
   it('fw_debug_step should return SESSION_NOT_FOUND for non-existent session', async () => {
-    const result = await tools['fw_debug_step']({ debugId: 'nonexistent-session-id' });
+    const result = await tools['fw_debug_step']({
+      debugId: 'nonexistent-session-id',
+    });
     const data = parseToolResult(result);
     expect(data.success).toBe(false);
     expect(data.error.code).toBe('SESSION_NOT_FOUND');
   });
 
   it('fw_debug_continue should return SESSION_NOT_FOUND for non-existent session', async () => {
-    const result = await tools['fw_debug_continue']({ debugId: 'nonexistent-session-id' });
+    const result = await tools['fw_debug_continue']({
+      debugId: 'nonexistent-session-id',
+    });
     const data = parseToolResult(result);
     expect(data.success).toBe(false);
     expect(data.error.code).toBe('SESSION_NOT_FOUND');
   });
 
   it('fw_debug_inspect should return SESSION_NOT_FOUND for non-existent session', async () => {
-    const result = await tools['fw_debug_inspect']({ debugId: 'nonexistent-session-id' });
+    const result = await tools['fw_debug_inspect']({
+      debugId: 'nonexistent-session-id',
+    });
     const data = parseToolResult(result);
     expect(data.success).toBe(false);
     expect(data.error.code).toBe('SESSION_NOT_FOUND');
@@ -137,17 +143,6 @@ describe('registerDebugTools coverage', () => {
     expect(Array.isArray(data.data)).toBe(true);
   });
 
-  it('fw_resume_from_checkpoint should return NO_CHECKPOINT when no checkpoint exists', async () => {
-    const filePath = writeFixture('resume-no-ckpt.ts', SIMPLE_WORKFLOW);
-    const result = await tools['fw_resume_from_checkpoint']({
-      filePath,
-      workflowName: 'simpleWf',
-    });
-    const data = parseToolResult(result);
-    expect(data.success).toBe(false);
-    expect(data.error.code).toBe('NO_CHECKPOINT');
-  });
-
   it('fw_debug_workflow should return error for non-existent file', async () => {
     const result = await tools['fw_debug_workflow']({
       filePath: '/tmp/nonexistent-debug-xyz.ts',
@@ -158,17 +153,6 @@ describe('registerDebugTools coverage', () => {
     expect(data.error.code).toBe('DEBUG_START_ERROR');
   });
 
-  it('fw_resume_from_checkpoint with nonexistent checkpoint file should return error', async () => {
-    const filePath = writeFixture('resume-bad-path.ts', SIMPLE_WORKFLOW);
-    const result = await tools['fw_resume_from_checkpoint']({
-      filePath,
-      checkpointFile: '/tmp/nonexistent-checkpoint-xyz.json',
-    });
-    const data = parseToolResult(result);
-    expect(data.success).toBe(false);
-    expect(data.error.code).toBe('RESUME_ERROR');
-  });
-
   // -- Testing with a real debug session by manually using debug-session store --
 
   it('fw_debug_inspect should return NOT_PAUSED when session has no pause state', async () => {
@@ -177,7 +161,6 @@ describe('registerDebugTools coverage', () => {
 
     const controller = new DebugController({
       debug: true,
-      checkpoint: false,
       executionOrder: ['p'],
     });
 
@@ -207,7 +190,6 @@ describe('registerDebugTools coverage', () => {
 
     const controller = new DebugController({
       debug: true,
-      checkpoint: false,
       executionOrder: ['p'],
     });
 
@@ -242,7 +224,6 @@ describe('registerDebugTools coverage', () => {
 
     const controller = new DebugController({
       debug: true,
-      checkpoint: false,
       executionOrder: ['p'],
     });
 
@@ -286,7 +267,6 @@ describe('registerDebugTools coverage', () => {
 
     const controller = new DebugController({
       debug: true,
-      checkpoint: false,
       executionOrder: ['p'],
     });
 
@@ -331,7 +311,6 @@ describe('registerDebugTools coverage', () => {
 
     const controller = new DebugController({
       debug: true,
-      checkpoint: false,
       executionOrder: ['p'],
     });
 
@@ -376,7 +355,6 @@ describe('registerDebugTools coverage', () => {
 
     const controller = new DebugController({
       debug: true,
-      checkpoint: false,
       executionOrder: ['p'],
     });
 
@@ -423,7 +401,6 @@ describe('registerDebugTools coverage', () => {
 
     const controller = new DebugController({
       debug: true,
-      checkpoint: false,
       executionOrder: ['p'],
     });
 

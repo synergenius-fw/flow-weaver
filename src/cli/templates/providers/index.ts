@@ -67,7 +67,7 @@ const _defaultLlmProvider: LLMProvider = {
   },
 };
 
-const llmProvider: LLMProvider = (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ ?? _defaultLlmProvider;
+const llmProvider: LLMProvider = _defaultLlmProvider;
 `;
 }
 
@@ -145,7 +145,7 @@ const _defaultLlmProvider: LLMProvider = {
   },
 };
 
-const llmProvider: LLMProvider = (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ ?? _defaultLlmProvider;
+const llmProvider: LLMProvider = _defaultLlmProvider;
 `;
 }
 
@@ -192,7 +192,7 @@ const _defaultLlmProvider: LLMProvider = {
   },
 };
 
-const llmProvider: LLMProvider = (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ ?? _defaultLlmProvider;
+const llmProvider: LLMProvider = _defaultLlmProvider;
 `;
 }
 
@@ -228,7 +228,7 @@ const _defaultLlmProvider: LLMProvider = {
   },
 };
 
-const llmProvider: LLMProvider = (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ ?? _defaultLlmProvider;
+const llmProvider: LLMProvider = _defaultLlmProvider;
 `;
 }
 

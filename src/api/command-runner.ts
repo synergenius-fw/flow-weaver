@@ -6,6 +6,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { parseWorkflow } from './parse.js';
 import { validateWorkflow } from './validate.js';
 import { compileWorkflow } from './compile.js';
@@ -228,10 +229,16 @@ const handlers: Record<string, CommandHandler> = {
     const { executeWorkflow } = await import('../mcp/workflow-executor.js');
     const params = (args.params as Record<string, unknown>) ?? {};
     const result = await executeWorkflow({
+      runId: randomUUID(),
       filePath,
       params,
       workflowName: args.workflow as string | undefined,
     });
+    if (result.kind === 'yielded') {
+      throw new Error(
+        'The programmatic command runner is not a durable coordinator and cannot persist a yielded continuation',
+      );
+    }
     return { data: result };
   },
 

@@ -1,55 +1,25 @@
-import type { NodeTemplate, ConfigSchema } from '../index';
+import type { NodeTemplate } from '../index';
 import { toPascalCase } from '../index';
-import { APPROVAL_TYPES } from '../shared/approval-types';
-import { getApprovalCode } from '../approvals/index';
-
-const configSchema: ConfigSchema = {
-  strategy: {
-    type: 'select',
-    label: 'Approval Strategy',
-    description: 'How approval requests are handled',
-    default: 'mock',
-    options: [
-      { value: 'mock', label: 'Mock (Testing)' },
-      { value: 'callback', label: 'Callback (Promise-based)' },
-      { value: 'webhook', label: 'Webhook (HTTP handler)' },
-    ],
-  },
-};
 
 export const humanApprovalNodeTemplate: NodeTemplate = {
   id: 'human-approval',
   name: 'Human Approval',
   description: 'Pause workflow and wait for human approval',
   category: 'workflow',
-  configSchema,
-  generate: (name: string, config?: Record<string, unknown>): string => {
+  generate: (name: string): string => {
     const funcName = name || 'humanApproval';
     const label = toPascalCase(funcName);
-    const strategy = (config?.strategy as string) || 'mock';
-    const approvalCode = getApprovalCode(strategy);
 
     return `
-// ============================================================
-// APPROVAL TYPES
-// ============================================================
-//
-// On durable targets, consider using the built-in waitForEvent node instead.
-// It maps to a platform-native durable pause for zero-cost waiting.
-
-${APPROVAL_TYPES}
-
-// ============================================================
-// APPROVAL PROVIDER
-// ============================================================
-
-${approvalCode}
-
 /**
- * Pause workflow and wait for human approval.
- * Returns whether the request was approved, along with the reviewer's response.
+ * Yield a durable human-approval gate.
+ *
+ * The generated engine never calls this body. A coordinator persists the
+ * yielded continuation and gate atomically, then supplies the exact resolution
+ * to a later compatible Node.js executor invocation.
  *
  * @flowWeaver nodeType
+ * @durableGate approval
  * @label ${label}
  * @color orange
  * @icon verified
@@ -75,37 +45,9 @@ async function ${funcName}(
   response?: string;
   reviewer?: string;
 }> {
-  if (!execute) {
-    return {
-      onSuccess: false,
-      onFailure: false,
-      approved: false,
-    };
-  }
-
-  try {
-    const result = await approvalProvider.requestApproval({
-      id: crypto.randomUUID(),
-      prompt,
-      context,
-      timeout,
-    });
-
-    return {
-      onSuccess: true,
-      onFailure: false,
-      approved: result.approved,
-      response: result.response,
-      reviewer: result.reviewer,
-    };
-  } catch (error) {
-    console.error('Approval request failed:', error);
-    return {
-      onSuccess: false,
-      onFailure: true,
-      approved: false,
-    };
-  }
+  throw new Error(
+    \`durable approval gate must not execute: \${execute}:\${prompt}:\${String(context)}:\${String(timeout)}\`,
+  );
 }
 `.trim();
   },

@@ -167,7 +167,7 @@ function report(execute: boolean, mainCtx?: string, fallbackResult?: string): { 
  */
 export function nestedBranchScopeWorkflow(
   execute: boolean,
-  params: { mode: string; flag: string }, __abortSignal__?: AbortSignal
+  params: { mode: string; flag: string }
 ): { onSuccess: boolean; onFailure: boolean; result?: string } {
   throw new Error('Generated');
 }
@@ -223,19 +223,31 @@ describe('Nested branching node _success variable scope', () => {
     // The key assertion: calling the function should NOT throw ReferenceError
     // about g_success being undefined. The result values depend on the
     // workflow's fan-in merge logic which is tested separately.
-    const result = await mod.nestedBranchScopeWorkflow(true, { mode: 'ok', flag: 'yes' });
+    const result = await mod.nestedBranchScopeWorkflow(
+      true,
+      { mode: 'ok', flag: 'yes' },
+      testHelpers.createRuntime('nestedBranchScopeWorkflow'),
+    );
     expect(result).toBeDefined();
   });
 
   it('should not throw ReferenceError when gate is disabled (mode=ok, flag=no)', async () => {
     const mod = await import(outputFile);
-    const result = await mod.nestedBranchScopeWorkflow(true, { mode: 'ok', flag: 'no' });
+    const result = await mod.nestedBranchScopeWorkflow(
+      true,
+      { mode: 'ok', flag: 'no' },
+      testHelpers.createRuntime('nestedBranchScopeWorkflow'),
+    );
     expect(result).toBeDefined();
   });
 
   it('should not throw ReferenceError on fallback path (mode=fail)', async () => {
     const mod = await import(outputFile);
-    const result = await mod.nestedBranchScopeWorkflow(true, { mode: 'fail', flag: 'yes' });
+    const result = await mod.nestedBranchScopeWorkflow(
+      true,
+      { mode: 'fail', flag: 'yes' },
+      testHelpers.createRuntime('nestedBranchScopeWorkflow'),
+    );
     expect(result).toBeDefined();
   });
 
@@ -263,7 +275,7 @@ describe('Nested branching node _success variable scope', () => {
     }
   });
 
-  it('all _success flags used as guards must be assigned true somewhere', () => {
+  it('all _success flags used as guards must be assigned from success state', () => {
     // Bug: flag is declared `let g_success = false` and used in `if (g_success)`
     // but never assigned `= true` after the node succeeds → downstream is dead code
     const guardPattern = /if \((\w+_success)\)/g;
@@ -274,17 +286,20 @@ describe('Nested branching node _success variable scope', () => {
     }
 
     for (const flag of guardedFlags) {
-      const assignPattern = new RegExp(`${flag}\\s*=\\s*true`);
-      expect(
-        generatedCode,
-        `${flag} is used as guard but never set to true — downstream nodes are dead code`,
-      ).toMatch(assignPattern);
+      const assignPattern = new RegExp(`${flag}\\s*=\\s*(?:true|\\w+Result\\.onSuccess)`);
+      expect(generatedCode, `${flag} is used as guard but never set to true — downstream nodes are dead code`).toMatch(
+        assignPattern,
+      );
     }
   });
 
   it('gate success path actually executes process node (runtime)', async () => {
     const mod = await import(outputFile);
-    const result = await mod.nestedBranchScopeWorkflow(true, { mode: 'ok', flag: 'yes' });
+    const result = await mod.nestedBranchScopeWorkflow(
+      true,
+      { mode: 'ok', flag: 'yes' },
+      testHelpers.createRuntime('nestedBranchScopeWorkflow'),
+    );
     // When gate is enabled, process should run and its output should reach report
     // via merge. The result should contain 'processed:' prefix from processCtx.
     expect(result.result).toContain('processed:');
@@ -292,7 +307,11 @@ describe('Nested branching node _success variable scope', () => {
 
   it('gate skip path uses skip context via merge (runtime)', async () => {
     const mod = await import(outputFile);
-    const result = await mod.nestedBranchScopeWorkflow(true, { mode: 'ok', flag: 'no' });
+    const result = await mod.nestedBranchScopeWorkflow(
+      true,
+      { mode: 'ok', flag: 'no' },
+      testHelpers.createRuntime('nestedBranchScopeWorkflow'),
+    );
     // When gate is disabled, process is skipped. Merge should use ctxB (built context).
     expect(result.result).toContain('built:');
     expect(result.result).not.toContain('processed:');
@@ -378,7 +397,7 @@ function fallbackOuter(data: string): { result: string } {
  */
 export function doubleNestedWorkflow(
   execute: boolean,
-  params: { mode: string; flag: string; level: string }, __abortSignal__?: AbortSignal
+  params: { mode: string; flag: string; level: string }
 ): { onSuccess: boolean; onFailure: boolean; result?: string } {
   throw new Error('Generated');
 }
@@ -412,20 +431,32 @@ describe('Double-nested branching scoping', () => {
 
   it('should execute all gates when all enabled', async () => {
     const mod = await import(outputFile);
-    const result = await mod.doubleNestedWorkflow(true, { mode: 'ok', flag: 'yes', level: 'high' });
+    const result = await mod.doubleNestedWorkflow(
+      true,
+      { mode: 'ok', flag: 'yes', level: 'high' },
+      testHelpers.createRuntime('doubleNestedWorkflow'),
+    );
     expect(result).toBeDefined();
     // Should not throw
   });
 
   it('should handle middle gate disabled', async () => {
     const mod = await import(outputFile);
-    const result = await mod.doubleNestedWorkflow(true, { mode: 'ok', flag: 'no', level: 'high' });
+    const result = await mod.doubleNestedWorkflow(
+      true,
+      { mode: 'ok', flag: 'no', level: 'high' },
+      testHelpers.createRuntime('doubleNestedWorkflow'),
+    );
     expect(result).toBeDefined();
   });
 
   it('should handle outer router fail path', async () => {
     const mod = await import(outputFile);
-    const result = await mod.doubleNestedWorkflow(true, { mode: 'skip', flag: 'yes', level: 'high' });
+    const result = await mod.doubleNestedWorkflow(
+      true,
+      { mode: 'skip', flag: 'yes', level: 'high' },
+      testHelpers.createRuntime('doubleNestedWorkflow'),
+    );
     expect(result).toBeDefined();
   });
 

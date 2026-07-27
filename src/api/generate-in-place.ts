@@ -28,6 +28,7 @@ import {
 import { shouldWorkflowBeAsync } from '../generator/async-detection';
 import { detectSugarPatterns, filterStaleMacros } from '../sugar-optimizer';
 import { serializePackDeployAnnotations } from '../parser/serialize-deploy-annotations';
+import { validateDurableClosure } from './durable-validation';
 import * as ts from 'typescript';
 import * as path from 'path';
 
@@ -86,7 +87,17 @@ export function generateInPlace(
   ast: TWorkflowAST,
   options: InPlaceGenerateOptions = {}
 ): InPlaceGenerateResult {
-  const { production = false, allWorkflows, moduleFormat = 'esm', sourceFile, skipParamReturns = false } = options;
+  const {
+    production = false,
+    allWorkflows,
+    moduleFormat = 'esm',
+    sourceFile,
+    skipParamReturns = false,
+  } = options;
+  const durableSequential = validateDurableClosure(
+    ast,
+    allWorkflows ?? [],
+  ).hasDurableGate;
 
   let result = sourceCode;
   let hasChanges = false;
@@ -233,16 +244,16 @@ export function generateInPlace(
   // single zero-input node, author signature `(execute)`) omits it, so the
   // generated body throws `ReferenceError: params is not defined` at
   // runtime. Inject `params` right after `execute` when absent. Runs BEFORE
-  // the abort-signal step so the final order stays (execute, params,
-  // __abortSignal__).
+  // the runtime step so the final order stays (execute, params, __runtime__).
   const paramsResult = ensureParamsParameter(result, ast.functionName);
   if (paramsResult.changed) {
     result = paramsResult.code;
     hasChanges = true;
   }
 
-  // Step 4: Ensure function signature includes __abortSignal__ parameter
-  const signatureResult = ensureAbortSignalParameter(result, ast.functionName);
+  // Step 4: replace the A1 signal/debug parameters with the one required,
+  // execution-scoped A2 runtime parameter.
+  const signatureResult = ensureRuntimeParameter(result, ast.functionName);
   if (signatureResult.changed) {
     result = signatureResult.code;
     hasChanges = true;
@@ -271,7 +282,7 @@ export function generateInPlace(
     hasChanges = true;
   }
 
-  const functionBody = generateFunctionBody(ast, production, isAsync);
+  const functionBody = generateFunctionBody(ast, production, isAsync, durableSequential);
   const bodyResult = replaceWorkflowFunctionBody(result, ast.functionName, functionBody);
   if (bodyResult.changed) {
     result = bodyResult.code;
@@ -452,10 +463,10 @@ function ensureParamsParameter(
 }
 
 /**
- * Ensure the workflow function has __abortSignal__ parameter.
- * Adds it if not present.
+ * Ensure the workflow function has exactly one __runtime__ parameter.
+ * The A2 major cutover removes generated debugger and AbortSignal parameters.
  */
-function ensureAbortSignalParameter(
+function ensureRuntimeParameter(
   source: string,
   functionName: string
 ): { code: string; changed: boolean } {
@@ -473,41 +484,19 @@ function ensureAbortSignalParameter(
     return { code: source, changed: false };
   }
 
-  // Check if __abortSignal__ parameter already exists
-  const hasAbortSignal = functionNode.parameters.some(
-    (param) => ts.isIdentifier(param.name) && param.name.text === '__abortSignal__'
-  );
+  const parameters = functionNode.parameters
+    .slice(0, 2)
+    .map((parameter) => parameter.getText(sourceFile));
+  parameters.push('__runtime__: WorkflowRuntime');
 
-  if (hasAbortSignal) {
-    return { code: source, changed: false };
-  }
-
-  // Find the closing parenthesis of the parameter list
-  const lastParam = functionNode.parameters[functionNode.parameters.length - 1];
-
-  if (!lastParam) {
-    // No parameters - find the opening parenthesis and insert after it
-    const openParen = source.indexOf('(', functionNode.name?.end || 0);
-    if (openParen === -1) {
-      return { code: source, changed: false };
-    }
-
-    const before = source.slice(0, openParen + 1);
-    const after = source.slice(openParen + 1);
-
-    return {
-      code: before + '__abortSignal__?: AbortSignal' + after,
-      changed: true,
-    };
-  }
-
-  // Has parameters - insert after the last one with a comma
-  const lastParamEnd = lastParam.end;
-  const before = source.slice(0, lastParamEnd);
-  const after = source.slice(lastParamEnd);
-
+  const openParen = source.indexOf('(', functionNode.name?.end ?? 0);
+  if (openParen === -1) return { code: source, changed: false };
+  const closeParen = functionNode.parameters.end;
+  const replacement = parameters.join(', ');
+  const current = source.slice(openParen + 1, closeParen);
+  if (current.trim() === replacement) return { code: source, changed: false };
   return {
-    code: before + ', __abortSignal__?: AbortSignal' + after,
+    code: source.slice(0, openParen + 1) + replacement + source.slice(closeParen),
     changed: true,
   };
 }
@@ -612,7 +601,12 @@ function ensurePromiseReturnType(
 /**
  * Generate the workflow function body
  */
-function generateFunctionBody(ast: TWorkflowAST, production: boolean, isAsync: boolean): string {
+function generateFunctionBody(
+  ast: TWorkflowAST,
+  production: boolean,
+  isAsync: boolean,
+  durableSequential: boolean,
+): string {
   const lines: string[] = [];
 
   lines.push('  // ============================================================================');
@@ -626,7 +620,9 @@ function generateFunctionBody(ast: TWorkflowAST, production: boolean, isAsync: b
     ast,
     ast.nodeTypes,
     isAsync, // Respect original function's async/sync nature
-    production
+    production,
+    false,
+    durableSequential,
   );
 
   // Add proper indentation

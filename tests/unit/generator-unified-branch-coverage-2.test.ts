@@ -922,7 +922,7 @@ describe('Unified Generator - exit source from pull and branch nodes', () => {
 
     const code = generateCode(workflow, { production: true });
     // Pull node exit source uses getVariable with ! (non-null assertion)
-    expect(code).toContain('peIdx!');
+    expect(code).toContain('peIdx ?? 0');
     expect(code).toContain('getVariable');
   });
 });

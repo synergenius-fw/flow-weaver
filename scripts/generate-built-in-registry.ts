@@ -23,11 +23,18 @@ const ROOT = path.resolve(__dirname, '..');
 // Configuration
 // ---------------------------------------------------------------------------
 
-const BUILT_IN_FILES = [
-  { file: 'delay.ts', functionName: 'delay', receivesAbortSignal: true },
-  { file: 'wait-for-event.ts', functionName: 'waitForEvent' },
-  { file: 'invoke-workflow.ts', functionName: 'invokeWorkflow', receivesAbortSignal: true },
-  { file: 'wait-for-agent.ts', functionName: 'waitForAgent', receivesAbortSignal: true },
+const BUILT_IN_FILES: Array<{
+  file: string;
+  functionName: string;
+  receivesAbortSignal?: boolean;
+  receivesRuntime?: boolean;
+  durableGate?: 'approval' | 'input' | 'agent';
+  durablePure?: boolean;
+}> = [
+  { file: 'delay.ts', functionName: 'delay', receivesAbortSignal: true, receivesRuntime: true, durablePure: true },
+  { file: 'wait-for-event.ts', functionName: 'waitForEvent', receivesRuntime: true, durableGate: 'input' as const },
+  { file: 'invoke-workflow.ts', functionName: 'invokeWorkflow', receivesAbortSignal: true, receivesRuntime: true, durablePure: true },
+  { file: 'wait-for-agent.ts', functionName: 'waitForAgent', receivesAbortSignal: true, receivesRuntime: true, durableGate: 'agent' as const },
 ];
 
 const BUILT_IN_DIR = path.join(ROOT, 'src', 'built-in-nodes');
@@ -41,14 +48,14 @@ function extractMockHelpers(): string {
   const mockSrc = fs.readFileSync(path.join(BUILT_IN_DIR, 'mock-types.ts'), 'utf-8');
 
   // Extract getMockConfig function body
-  const getMockMatch = mockSrc.match(/export function getMockConfig\(\)[^{]*\{([\s\S]*?\n\})/);
+  const getMockMatch = mockSrc.match(/export function getMockConfig\([^)]*\)[^{]*\{([\s\S]*?\n\})/);
   if (!getMockMatch) throw new Error('Could not extract getMockConfig from mock-types.ts');
 
   // Extract lookupMock function body
   const lookupMockMatch = mockSrc.match(/export function lookupMock[^{]*\{([\s\S]*?\n\})/);
   if (!lookupMockMatch) throw new Error('Could not extract lookupMock from mock-types.ts');
 
-  const getMockFull = `export function getMockConfig()${getMockMatch[0].slice(getMockMatch[0].indexOf('{'))}`;
+  const getMockFull = getMockMatch[0];
   const lookupMockFull = `export function lookupMock${lookupMockMatch[0].slice(lookupMockMatch[0].indexOf('<'))}`;
 
   // Transpile to JS and rename to __fw_ prefix
@@ -125,7 +132,7 @@ function extractFunctionBodies(source: string): string {
  */
 function inlineMockCalls(code: string): string {
   return code
-    .replace(/\bgetMockConfig\(\)/g, '__fw_getMockConfig()')
+    .replace(/\bgetMockConfig\(/g, '__fw_getMockConfig(')
     .replace(/\blookupMock\(/g, '__fw_lookupMock(');
 }
 
@@ -193,7 +200,7 @@ function createProductionTS(tsCode: string, functionName: string): string {
     }
 
     // Skip `const mocks = __fw_getMockConfig();`
-    if (trimmed.startsWith('const mocks = __fw_getMockConfig()')) {
+    if (trimmed.startsWith('const mocks = __fw_getMockConfig(')) {
       i++;
       // For delay: the next line is `if (mocks?.fast) { ... } else { ... }`
       // For waitForEvent/invokeWorkflow: `if (mocks) { ... }` block
@@ -463,7 +470,7 @@ function escapeForTemplate(code: string): string {
 function main() {
   const entries: string[] = [];
 
-  for (const { file, functionName, receivesAbortSignal } of BUILT_IN_FILES) {
+  for (const { file, functionName, receivesAbortSignal, receivesRuntime, durableGate, durablePure } of BUILT_IN_FILES) {
     const source = readSource(file);
 
     // 1. Parse to get port definitions
@@ -491,13 +498,17 @@ function main() {
 
     // 6. Build registry entry — helpers separated from main function
     const indent = '    ';
+    const durableClassification =
+      `${durableGate ? `    durableGate: '${durableGate}',\n` : ''}` +
+      `${durablePure ? '    durablePure: true,\n' : ''}`;
     const entry = `  {
     type: 'NodeType',
     name: '${functionName}',
     functionName: '${functionName}',
     isAsync: ${annotated.isAsync},
     receivesAbortSignal: ${receivesAbortSignal ?? false},
-    hasSuccessPort: ${annotated.hasSuccessPort},
+    receivesRuntime: ${receivesRuntime ?? false},
+${durableClassification}    hasSuccessPort: ${annotated.hasSuccessPort},
     hasFailurePort: ${annotated.hasFailurePort},
     executeWhen: '${annotated.executeWhen}',
     variant: '${annotated.variant ?? 'FUNCTION'}',

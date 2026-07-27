@@ -14,6 +14,7 @@ import { generateInlineRuntime, stripTypeScript } from './inline-runtime';
 import type { TOutputFormat } from './inline-runtime';
 import { validateWorkflowAsync } from '../generator/async-detection';
 import { extractTypeDeclarationsFromFile } from './extract-types';
+import { validateDurableClosure } from './durable-validation';
 import * as path from 'node:path';
 import * as fs from 'fs';
 
@@ -143,6 +144,10 @@ export function generateCode(
     generateStubs = false,
     outputFormat = 'typescript',
   } = options || {};
+  const durableSequential = validateDurableClosure(
+    ast,
+    allWorkflows,
+  ).hasDurableGate;
 
   // Check for stub nodes — refuse to generate unless explicitly allowed
   const stubNodeTypes = ast.nodeTypes.filter((nt) => nt.variant === 'STUB');
@@ -196,7 +201,8 @@ export function generateCode(
     ast.nodeTypes,
     shouldBeAsync,
     production,
-    bundleMode
+    bundleMode,
+    durableSequential,
   );
 
   // Build the complete module
@@ -484,7 +490,8 @@ export function generateCode(
         depWorkflow,
         production,
         allWorkflows,
-        generatedWorkflows
+        generatedWorkflows,
+        durableSequential,
       );
       const depLines = depFunctionCode.split('\n');
       depLines.forEach((line) => {
@@ -547,15 +554,9 @@ export function generateCode(
   lines.push(`  params: Record<string, unknown> = {},`);
   addLine();
 
-  // In development mode, accept optional debugger parameter for local debugging
-  // (environment variable is used as fallback)
-  if (!production) {
-    lines.push(`  __flowWeaverDebugger__?: TDebugger,`);
-    addLine();
-  }
-
-  // Accept optional AbortSignal for cancellation support
-  lines.push(`  __abortSignal__?: AbortSignal`);
+  // One execution-scoped runtime carries cancellation, tracing, services and
+  // continuation state. It is deliberately required in the v2 generated ABI.
+  lines.push(`  __runtime__: WorkflowRuntime`);
   addLine();
   addLine();
 
@@ -632,7 +633,8 @@ function generateWorkflowFunction(
   workflow: TWorkflowAST,
   production: boolean,
   allWorkflows: TWorkflowAST[],
-  generatedWorkflows: Set<string>
+  generatedWorkflows: Set<string>,
+  durableSequential: boolean,
 ): string {
   const lines: string[] = [];
 
@@ -657,7 +659,8 @@ function generateWorkflowFunction(
         depWorkflow,
         production,
         allWorkflows,
-        generatedWorkflows
+        generatedWorkflows,
+        durableSequential,
       );
       lines.push(depCode);
       lines.push('');
@@ -673,7 +676,8 @@ function generateWorkflowFunction(
     workflow.nodeTypes,
     shouldBeAsync,
     production,
-    false // bundleMode - local deps use positional args
+    false, // bundleMode - local deps use positional args
+    durableSequential,
   );
 
   // Generate function signature
@@ -699,13 +703,7 @@ function generateWorkflowFunction(
   // Use Record<string, unknown> for params to support HTTP handler compatibility
   lines.push(`  params: Record<string, unknown> = {},`);
 
-  // In development mode, accept optional debugger parameter
-  if (!production) {
-    lines.push(`  __flowWeaverDebugger__?: TDebugger,`);
-  }
-
-  // Accept optional AbortSignal for cancellation support
-  lines.push(`  __abortSignal__?: AbortSignal`);
+  lines.push(`  __runtime__: WorkflowRuntime`);
 
   const workflowHasBranching = hasBranching(workflow);
   const returnTypes: string[] = [];

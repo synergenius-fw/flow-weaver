@@ -9,10 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import {
-  listWorkflowTemplates,
-  generateWorkflowFromTemplate,
-} from '../../src/api/templates';
+import { listWorkflowTemplates, generateWorkflowFromTemplate } from '../../src/api/templates';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 const tempDir = path.join(os.tmpdir(), `fw-template-exec-${process.pid}`);
@@ -57,7 +54,13 @@ describe('Template execution smoke tests', () => {
       const filePath = path.join(tempDir, `${template.id}-exec.ts`);
       fs.writeFileSync(filePath, code);
 
-      const result = await executeWorkflow({ filePath: filePath, params: params, production: true, includeTrace: false });
+      const result = await executeWorkflow({
+        runId: `template-smoke:${template.id}`,
+        filePath,
+        params,
+        production: true,
+        includeTrace: false,
+      });
 
       expect((result as unknown as Record<string, unknown>).error).toBeUndefined();
       expect(result.result).toBeDefined();

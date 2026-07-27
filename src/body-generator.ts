@@ -23,8 +23,16 @@ export class BodyGenerator {
     isAsync: boolean = true,
     production: boolean = false,
     bundleMode: boolean = false,
+    durableSequential: boolean = false,
   ): string {
-    return generateControlFlowWithExecutionContext(workflow, nodeTypes, isAsync, production, bundleMode);
+    return generateControlFlowWithExecutionContext(
+      workflow,
+      nodeTypes,
+      isAsync,
+      production,
+      bundleMode,
+      durableSequential,
+    );
   }
   /**
    * Generates a workflow function body using default settings (async, non-production, non-bundled).
@@ -35,7 +43,7 @@ export class BodyGenerator {
    * @returns The generated function body as a string.
    */
   generateDirectCode(workflow: TWorkflowAST, nodeTypes: TNodeTypeAST[]): string {
-    return generateControlFlowWithExecutionContext(workflow, nodeTypes, true, false, false);
+    return generateControlFlowWithExecutionContext(workflow, nodeTypes, true, false, false, false);
   }
 }
 

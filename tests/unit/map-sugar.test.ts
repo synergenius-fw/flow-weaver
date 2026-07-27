@@ -158,7 +158,9 @@ export function mapWorkflow(
 describe('@map parser expansion', () => {
   const parser = new AnnotationParser();
 
-  function parseMapWorkflow(extraAnnotations = '', childNodeType = `
+  function parseMapWorkflow(
+    extraAnnotations = '',
+    childNodeType = `
 /**
  * @flowWeaver nodeType
  * @input value
@@ -167,7 +169,8 @@ describe('@map parser expansion', () => {
 function doubleIt(execute: boolean, value: number) {
   if (!execute) return { onSuccess: false, onFailure: false, doubled: 0 };
   return { onSuccess: true, onFailure: false, doubled: value * 2 };
-}`) {
+}`,
+  ) {
     return parser.parseFromString(`
 ${childNodeType}
 
@@ -192,7 +195,7 @@ export function mapWorkflow(
     expect(result.errors).toHaveLength(0);
     const workflow = result.workflows[0];
 
-    const syntheticType = workflow.nodeTypes.find(nt => nt.variant === 'MAP_ITERATOR');
+    const syntheticType = workflow.nodeTypes.find((nt) => nt.variant === 'MAP_ITERATOR');
     expect(syntheticType).toBeDefined();
     expect(syntheticType!.name).toBe('__map_loop__');
     expect(syntheticType!.isAsync).toBe(true);
@@ -201,7 +204,7 @@ export function mapWorkflow(
   it('should create MAP_ITERATOR node type with correct ports', () => {
     const result = parseMapWorkflow();
     const workflow = result.workflows[0];
-    const syntheticType = workflow.nodeTypes.find(nt => nt.variant === 'MAP_ITERATOR')!;
+    const syntheticType = workflow.nodeTypes.find((nt) => nt.variant === 'MAP_ITERATOR')!;
 
     // Non-scoped inputs
     expect(syntheticType.inputs.execute).toBeDefined();
@@ -235,12 +238,12 @@ export function mapWorkflow(
     const workflow = result.workflows[0];
 
     // Map iterator instance
-    const loopInstance = workflow.instances.find(inst => inst.id === 'loop');
+    const loopInstance = workflow.instances.find((inst) => inst.id === 'loop');
     expect(loopInstance).toBeDefined();
     expect(loopInstance!.nodeType).toBe('__map_loop__');
 
     // Child instance with parent scope
-    const procInstance = workflow.instances.find(inst => inst.id === 'proc');
+    const procInstance = workflow.instances.find((inst) => inst.id === 'proc');
     expect(procInstance).toBeDefined();
     expect(procInstance!.parent).toEqual({ id: 'loop', scope: 'iterate' });
   });
@@ -252,11 +255,7 @@ export function mapWorkflow(
     // Helper to find a connection
     const findConn = (fromNode: string, fromPort: string, toNode: string, toPort: string) =>
       workflow.connections.find(
-        c =>
-          c.from.node === fromNode &&
-          c.from.port === fromPort &&
-          c.to.node === toNode &&
-          c.to.port === toPort
+        (c) => c.from.node === fromNode && c.from.port === fromPort && c.to.node === toNode && c.to.port === toPort,
       );
 
     // loop.start:iterate -> proc.execute
@@ -288,11 +287,7 @@ export function mapWorkflow(
     const workflow = result.workflows[0];
 
     const upstreamConn = workflow.connections.find(
-      c =>
-        c.from.node === 'Start' &&
-        c.from.port === 'items' &&
-        c.to.node === 'loop' &&
-        c.to.port === 'items'
+      (c) => c.from.node === 'Start' && c.from.port === 'items' && c.to.node === 'loop' && c.to.port === 'items',
     );
     expect(upstreamConn).toBeDefined();
   });
@@ -326,7 +321,7 @@ export function mapWorkflow(
     // The child "doubleIt" has inputs: execute (STEP), value (NUMBER)
     // Auto-inferred input should be "value" (first non-execute data input)
     const itemConn = workflow.connections.find(
-      c => c.from.node === 'loop' && c.from.port === 'item' && c.to.node === 'proc'
+      (c) => c.from.node === 'loop' && c.from.port === 'item' && c.to.node === 'proc',
     );
     expect(itemConn).toBeDefined();
     expect(itemConn!.to.port).toBe('value');
@@ -339,7 +334,7 @@ export function mapWorkflow(
     // The child "doubleIt" has outputs: onSuccess (STEP), onFailure (STEP), doubled (NUMBER)
     // Auto-inferred output should be "doubled" (first non-control-flow data output)
     const processedConn = workflow.connections.find(
-      c => c.from.node === 'proc' && c.to.node === 'loop' && c.to.port === 'processed'
+      (c) => c.from.node === 'proc' && c.to.node === 'loop' && c.to.port === 'processed',
     );
     expect(processedConn).toBeDefined();
     expect(processedConn!.from.port).toBe('doubled');
@@ -379,13 +374,13 @@ export function mapWorkflow(
 
     // Should use explicit "file" input (not auto-inferred first port)
     const itemConn = workflow.connections.find(
-      c => c.from.node === 'loop' && c.from.port === 'item' && c.to.node === 'proc'
+      (c) => c.from.node === 'loop' && c.from.port === 'item' && c.to.node === 'proc',
     );
     expect(itemConn!.to.port).toBe('file');
 
     // Should use explicit "post" output (not auto-inferred first port)
     const processedConn = workflow.connections.find(
-      c => c.from.node === 'proc' && c.to.node === 'loop' && c.to.port === 'processed'
+      (c) => c.from.node === 'proc' && c.to.node === 'loop' && c.to.port === 'processed',
     );
     expect(processedConn!.from.port).toBe('post');
   });
@@ -423,7 +418,7 @@ export function mapWorkflow(
 `);
 
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors.some(e => e.includes('not found'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('not found'))).toBe(true);
   });
 
   it('should error when child node type has no data inputs', () => {
@@ -453,7 +448,7 @@ export function mapWorkflow(
 `);
 
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors.some(e => e.includes('no data input'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('no data input'))).toBe(true);
   });
 });
 
@@ -470,10 +465,7 @@ describe('@map generator (compiled output)', () => {
 
   afterAll(() => {
     // Clean up generated files
-    for (const f of [
-      'map-gen-test.ts',
-      'map-gen-test.generated.ts',
-    ]) {
+    for (const f of ['map-gen-test.ts', 'map-gen-test.generated.ts']) {
       const fp = path.join(outputDir, f);
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
     }
@@ -584,7 +576,7 @@ export async function mapE2eBasic(
     fs.writeFileSync(outputFile, generatedCode);
 
     const { mapE2eBasic } = await import(outputFile);
-    const result = await mapE2eBasic(true, { items: [1, 2, 3, 4, 5] });
+    const result = await mapE2eBasic(true, { items: [1, 2, 3, 4, 5] }, testHelpers.createRuntime('mapE2eBasic'));
 
     expect(result.onSuccess).toBe(true);
     expect(result.onFailure).toBe(false);
@@ -627,7 +619,7 @@ export async function mapE2eString(
     fs.writeFileSync(outputFile, generatedCode);
 
     const { mapE2eString } = await import(outputFile);
-    const result = await mapE2eString(true, { items: ['hello', 'world'] });
+    const result = await mapE2eString(true, { items: ['hello', 'world'] }, testHelpers.createRuntime('mapE2eString'));
 
     expect(result.onSuccess).toBe(true);
     expect(result.results).toEqual(['HELLO', 'WORLD']);
@@ -669,7 +661,7 @@ export async function mapE2eEmpty(
     fs.writeFileSync(outputFile, generatedCode);
 
     const { mapE2eEmpty } = await import(outputFile);
-    const result = await mapE2eEmpty(true, { items: [] });
+    const result = await mapE2eEmpty(true, { items: [] }, testHelpers.createRuntime('mapE2eEmpty'));
 
     expect(result.onSuccess).toBe(true);
     expect(result.results).toEqual([]);
@@ -711,7 +703,11 @@ export async function mapE2eExecuteFalse(
     fs.writeFileSync(outputFile, generatedCode);
 
     const { mapE2eExecuteFalse } = await import(outputFile);
-    const result = await mapE2eExecuteFalse(false, { items: [1, 2, 3] });
+    const result = await mapE2eExecuteFalse(
+      false,
+      { items: [1, 2, 3] },
+      testHelpers.createRuntime('mapE2eExecuteFalse'),
+    );
 
     // The framework always runs the workflow body. Whether the map node actually
     // iterates depends on how execute is wired — it's up to the node type.

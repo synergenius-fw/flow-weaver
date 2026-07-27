@@ -4,7 +4,7 @@ import type { DebugResumeAction } from '../../src/runtime/debug-controller';
 import { GeneratedExecutionContext } from '../../src/runtime/ExecutionContext';
 
 function makeCtx(): GeneratedExecutionContext {
-  return new GeneratedExecutionContext(true);
+  return new GeneratedExecutionContext(true, testHelpers.createRuntime('debugController'));
 }
 
 function addNodeToCtx(ctx: GeneratedExecutionContext, nodeId: string, portName: string, value: unknown): void {
@@ -39,48 +39,35 @@ describe('DebugController', () => {
   });
 
   describe('beforeNode / afterNode', () => {
-    it('returns true in run mode (node should execute)', async () => {
+    it('completes in run mode without pausing', async () => {
       const ctrl = new DebugController({ debug: false });
       const ctx = makeCtx();
-      const result = await ctrl.beforeNode('node1', ctx);
-      expect(result).toBe(true);
+      await expect(ctrl.beforeNode('node1', ctx)).resolves.toBeUndefined();
     });
 
     it('pauses in step mode and waits for resume', async () => {
-      const ctrl = new DebugController({ debug: true, executionOrder: ['node1'] });
+      const ctrl = new DebugController({
+        debug: true,
+        executionOrder: ['node1'],
+      });
       const ctx = makeCtx();
 
       // Start beforeNode in the background (it will pause)
-      let beforeResult: boolean | undefined;
-      const beforePromise = ctrl.beforeNode('node1', ctx).then((r) => {
-        beforeResult = r;
+      let beforeSettled = false;
+      const beforePromise = ctrl.beforeNode('node1', ctx).then(() => {
+        beforeSettled = true;
       });
 
       // Wait for the pause to be detected
       const pauseState = await ctrl.onPause();
       expect(pauseState.currentNodeId).toBe('node1');
       expect(pauseState.phase).toBe('before');
-      expect(beforeResult).toBeUndefined(); // Still paused
+      expect(beforeSettled).toBe(false);
 
       // Resume with step
       ctrl.resume({ type: 'step' });
       await beforePromise;
-      expect(beforeResult).toBe(true);
-    });
-
-    it('skips nodes in skipNodes set and returns false', async () => {
-      const skipNodes = new Map<string, Record<string, unknown>>();
-      skipNodes.set('node1', { 'result:0': 42 });
-
-      const ctrl = new DebugController({ skipNodes });
-      const ctx = makeCtx();
-
-      const result = await ctrl.beforeNode('node1', ctx);
-      expect(result).toBe(false);
-
-      // The skipped node's outputs should be restored
-      const value = await ctx.getVariable({ id: 'node1', portName: 'result', executionIndex: 0 });
-      expect(value).toBe(42);
+      expect(beforeSettled).toBe(true);
     });
 
     it('tracks completed nodes', async () => {
@@ -94,7 +81,10 @@ describe('DebugController', () => {
     });
 
     it('pauses after node in step mode', async () => {
-      const ctrl = new DebugController({ debug: true, executionOrder: ['node1'] });
+      const ctrl = new DebugController({
+        debug: true,
+        executionOrder: ['node1'],
+      });
       const ctx = makeCtx();
 
       // First pause: before node1
@@ -163,7 +153,10 @@ describe('DebugController', () => {
 
   describe('abort', () => {
     it('throws when action is abort', async () => {
-      const ctrl = new DebugController({ debug: true, executionOrder: ['node1'] });
+      const ctrl = new DebugController({
+        debug: true,
+        executionOrder: ['node1'],
+      });
       const ctx = makeCtx();
 
       const p = ctrl.onPause();
@@ -190,7 +183,11 @@ describe('DebugController', () => {
       // beforeNode applies pending modifications
       await ctrl.beforeNode('node2', ctx);
 
-      const value = await ctx.getVariable({ id: 'node1', portName: 'value', executionIndex: 0 });
+      const value = await ctx.getVariable({
+        id: 'node1',
+        portName: 'value',
+        executionIndex: 0,
+      });
       expect(value).toBe(42);
     });
   });
@@ -230,12 +227,11 @@ describe('DebugController', () => {
       const ctrl = new DebugController({ debug: false });
       const ctx = makeCtx();
 
-      // Should all pass through without pausing
-      expect(await ctrl.beforeNode('node1', ctx)).toBe(true);
+      await ctrl.beforeNode('node1', ctx);
       await ctrl.afterNode('node1', ctx);
-      expect(await ctrl.beforeNode('node2', ctx)).toBe(true);
+      await ctrl.beforeNode('node2', ctx);
       await ctrl.afterNode('node2', ctx);
-      expect(await ctrl.beforeNode('node3', ctx)).toBe(true);
+      await ctrl.beforeNode('node3', ctx);
       await ctrl.afterNode('node3', ctx);
 
       expect(ctrl.getCompletedNodes()).toEqual(['node1', 'node2', 'node3']);

@@ -62,7 +62,9 @@ describe('Branching chain flattening', () => {
   beforeAll(() => {
     fs.mkdirSync(FIXTURES_DIR, { recursive: true });
 
-    chain5Path = createFixtureFile('chain5', `
+    chain5Path = createFixtureFile(
+      'chain5',
+      `
 ${branchingNodeType('step1')}
 ${branchingNodeType('step2')}
 ${branchingNodeType('step3')}
@@ -90,7 +92,8 @@ ${branchingNodeType('step5')}
 export async function chain5Workflow(execute: boolean, params: { input: any }): Promise<{ onSuccess: boolean; onFailure: boolean; result?: any }> {
   throw new Error('Not implemented');
 }
-`);
+`,
+    );
 
     const nodeTypes = Array.from({ length: 10 }, (_, i) => branchingNodeType(`step${i}`)).join('\n');
     const nodes = Array.from({ length: 10 }, (_, i) => `@node s${i} step${i}`).join('\n * ');
@@ -108,7 +111,9 @@ export async function chain5Workflow(execute: boolean, params: { input: any }): 
       return lines.join('\n * ');
     }).join('\n * ');
 
-    chain10Path = createFixtureFile('chain10', `
+    chain10Path = createFixtureFile(
+      'chain10',
+      `
 ${nodeTypes}
 
 /**
@@ -119,9 +124,12 @@ ${nodeTypes}
 export async function chain10Workflow(execute: boolean, params: { input: any }): Promise<{ onSuccess: boolean; onFailure: boolean; result?: any }> {
   throw new Error('Not implemented');
 }
-`);
+`,
+    );
 
-    chainFailPath = createFixtureFile('chain_fail', `
+    chainFailPath = createFixtureFile(
+      'chain_fail',
+      `
 ${branchingNodeType('validate')}
 ${branchingNodeType('processData')}
 ${regularNodeType('handleError')}
@@ -143,7 +151,8 @@ ${regularNodeType('handleError')}
 export async function chainFailWorkflow(execute: boolean, params: { input: any }): Promise<{ onSuccess: boolean; onFailure: boolean; successResult?: any; errorResult?: any }> {
   throw new Error('Not implemented');
 }
-`);
+`,
+    );
   });
 
   afterAll(() => {
@@ -181,7 +190,11 @@ export async function chainFailWorkflow(execute: boolean, params: { input: any }
     try {
       const mod = await import(outputFile);
       // Test success path: validate succeeds, processData runs
-      const successResult = await mod.chainFailWorkflow(true, { input: { value: 'test' } });
+      const successResult = await mod.chainFailWorkflow(
+        true,
+        { input: { value: 'test' } },
+        testHelpers.createRuntime('chainFailWorkflow'),
+      );
       expect(successResult.successResult).toBeDefined();
       expect(successResult.errorResult).toBeUndefined();
     } finally {

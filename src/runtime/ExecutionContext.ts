@@ -1,5 +1,8 @@
 import type { TDebugger, TStatusType, TVariableIdentification } from './events';
 import { CancellationError } from './CancellationError';
+import type { WorkflowRuntime } from './durable-execution.js';
+import type { DurableGateKind, ExecutionAddress, WireValue } from './continuation.js';
+import type { BranchAddress } from './continuation.js';
 
 /**
  * Address for accessing a variable in the execution context
@@ -25,6 +28,8 @@ export interface VariableAddress {
   nodeTypeName?: string | undefined;
   scope?: string | undefined;
   side?: 'start' | 'exit' | undefined;
+  /** Inputs remain live/debug-visible but are never serialized as durable outputs. */
+  durable?: boolean | undefined;
 }
 
 export interface ExecutionInfo {
@@ -50,7 +55,7 @@ type VariableValue = unknown | (() => unknown) | (() => Promise<unknown>);
  *
  * @example
  * ```typescript
- * const ctx = new GeneratedExecutionContext(true, debugger);
+ * const ctx = new GeneratedExecutionContext(true, runtime);
  * const execIndex = ctx.addExecution('node1');
  * ctx.setVariable({ nodeName: 'node1', portName: 'result', executionIndex: execIndex }, 42);
  * const value = await ctx.getVariable({ nodeName: 'node1', portName: 'result', executionIndex: execIndex });
@@ -64,24 +69,31 @@ export class GeneratedExecutionContext {
   private flowWeaverDebugger?: TDebugger | undefined;
   private pullExecutors: Map<string, () => void | Promise<void>> = new Map();
   private nodeExecutionIndices: Map<string, number> = new Map();
-  private abortSignal?: AbortSignal | undefined;
+  private nodeExecutionCounts: Map<string, number> = new Map();
+  private runtime: WorkflowRuntime;
+  private scopeInvocationCounts: Map<string, number> = new Map();
+  private nestedInvocationCounts: Map<string, number> = new Map();
+  private branchStack: BranchAddress[];
+  private allowAncestorDurableVariables = true;
 
   /**
    * Create a new execution context
    * @param isAsync - Whether the workflow runs in async mode (default: true)
-   * @param flowWeaverDebugger - Optional debugger for emitting execution events
-   * @param abortSignal - Optional AbortSignal for cancellation support
+   * @param runtime - Required execution-scoped runtime
    */
-  constructor(isAsync: boolean = true, flowWeaverDebugger?: TDebugger, abortSignal?: AbortSignal) {
+  constructor(isAsync: boolean = true, runtime: WorkflowRuntime) {
     this.isAsync = isAsync;
-    this.flowWeaverDebugger = flowWeaverDebugger;
-    this.abortSignal = abortSignal;
+    this.flowWeaverDebugger = runtime.services.debugger;
+    this.runtime = runtime;
+    this.branchStack = [...runtime.branches];
   }
   registerPullExecutor(id: string, executor: () => void | Promise<void>): void {
     this.pullExecutors.set(id, executor);
   }
   addExecution(id: string, parentIndex?: number, scopeName?: string): number {
-    const index = this.executionCounter++;
+    const index = this.nodeExecutionCounts.get(id) ?? 0;
+    this.nodeExecutionCounts.set(id, index + 1);
+    this.executionCounter++;
     this.executions.set(this.getExecutionKey(id, index), {
       id,
       index,
@@ -94,6 +106,9 @@ export class GeneratedExecutionContext {
   setVariable(address: VariableAddress, value: VariableValue): void | Promise<void> {
     const key = this.getVariableKey(address);
     this.variables.set(key, value);
+    if (typeof value !== 'function' && address.durable !== false) {
+      this.runtime.durable.setVariable(this.executionAddress(address), address.portName, value);
+    }
     if (this.flowWeaverDebugger) {
       const actualValue = typeof value === 'function' ? value() : value;
       this.sendVariableSetEvent({
@@ -122,16 +137,14 @@ export class GeneratedExecutionContext {
         if (result instanceof Promise) {
           return result.then(() => {
             const trackedIndex = this.nodeExecutionIndices.get(address.id);
-            const finalAddress =
-              trackedIndex !== undefined ? { ...address, executionIndex: trackedIndex } : address;
+            const finalAddress = trackedIndex !== undefined ? { ...address, executionIndex: trackedIndex } : address;
             return this.retrieveVariable(finalAddress);
           });
         }
 
         // Handle sync executor (returns void)
         const trackedIndex = this.nodeExecutionIndices.get(address.id);
-        const finalAddress =
-          trackedIndex !== undefined ? { ...address, executionIndex: trackedIndex } : address;
+        const finalAddress = trackedIndex !== undefined ? { ...address, executionIndex: trackedIndex } : address;
         return this.retrieveVariable(finalAddress);
       }
     }
@@ -140,12 +153,18 @@ export class GeneratedExecutionContext {
   }
   private retrieveVariable(address: VariableAddress): unknown | Promise<unknown> {
     const key = this.getVariableKey(address);
+    let value = this.variables.get(key);
     if (!this.variables.has(key)) {
-      throw new Error(
-        `Variable not found: ${address.id}.${address.portName}[${address.executionIndex}]`
+      value = this.runtime.durable.getVariable(
+        this.executionAddress(address),
+        address.portName,
+        this.allowAncestorDurableVariables,
       );
+      if (value === undefined) {
+        throw new Error(`Variable not found: ${address.id}.${address.portName}[${address.executionIndex}]`);
+      }
+      this.variables.set(key, value);
     }
-    const value = this.variables.get(key);
     if (typeof value === 'function') {
       const result = value();
       if (result instanceof Promise) {
@@ -157,7 +176,14 @@ export class GeneratedExecutionContext {
   }
   hasVariable(address: VariableAddress): boolean {
     const key = this.getVariableKey(address);
-    return this.variables.has(key);
+    return (
+      this.variables.has(key) ||
+      this.runtime.durable.getVariable(
+        this.executionAddress(address),
+        address.portName,
+        this.allowAncestorDurableVariables,
+      ) !== undefined
+    );
   }
   getExecution(id: string, index: number): ExecutionInfo | undefined {
     return this.executions.get(this.getExecutionKey(id, index));
@@ -188,9 +214,27 @@ export class GeneratedExecutionContext {
     _parentNodeName: string,
     _parentIndex: number,
     _scopeName: string,
-    cleanScope: boolean = false
+    cleanScope: boolean = false,
   ): GeneratedExecutionContext {
-    const scopedContext = new GeneratedExecutionContext(this.isAsync, undefined, this.abortSignal);
+    const scopeKey = `${_parentNodeName}:${_parentIndex}:${_scopeName}`;
+    const invocation = this.scopeInvocationCounts.get(scopeKey) ?? 0;
+    this.scopeInvocationCounts.set(scopeKey, invocation + 1);
+    const parentRuntime = this.getRuntime();
+    const scopedRuntime: WorkflowRuntime = {
+      ...parentRuntime,
+      scopes: [
+        ...parentRuntime.scopes,
+        {
+          parentNodeId: _parentNodeName,
+          parentExecutionIndex: _parentIndex,
+          scopeName: _scopeName,
+          invocation,
+          loopIteration: invocation,
+        },
+      ],
+    };
+    const scopedContext = new GeneratedExecutionContext(this.isAsync, scopedRuntime);
+    scopedContext.allowAncestorDurableVariables = this.allowAncestorDurableVariables && !cleanScope;
 
     if (cleanScope) {
       // Fresh scope - don't copy parent variables (per-port scopes)
@@ -221,7 +265,44 @@ export class GeneratedExecutionContext {
       this.variables.set(key, value);
     });
     this.executionCounter = Math.max(this.executionCounter, scopedContext.executionCounter);
+    scopedContext.nodeExecutionCounts.forEach((count, id) => {
+      this.nodeExecutionCounts.set(id, Math.max(this.nodeExecutionCounts.get(id) ?? 0, count));
+    });
   }
+
+  /**
+   * Forks the mutable generated-code bookkeeping used by one Promise.all lane.
+   * Durable state remains execution-scoped and shared through `runtime`, while
+   * branch/scoped address stacks are copied so concurrent lanes cannot corrupt
+   * one another's continuation addresses.
+   */
+  forkParallel(): GeneratedExecutionContext {
+    const parallelContext = new GeneratedExecutionContext(this.isAsync, this.getRuntime());
+    parallelContext.variables = new Map(this.variables);
+    parallelContext.executions = new Map(this.executions);
+    parallelContext.executionCounter = this.executionCounter;
+    parallelContext.pullExecutors = new Map(this.pullExecutors);
+    parallelContext.nodeExecutionIndices = new Map(this.nodeExecutionIndices);
+    parallelContext.nodeExecutionCounts = new Map(this.nodeExecutionCounts);
+    parallelContext.scopeInvocationCounts = new Map(this.scopeInvocationCounts);
+    parallelContext.nestedInvocationCounts = new Map(this.nestedInvocationCounts);
+    parallelContext.allowAncestorDurableVariables = this.allowAncestorDurableVariables;
+    return parallelContext;
+  }
+
+  mergeParallel(parallelContext: GeneratedExecutionContext): void {
+    this.mergeScope(parallelContext);
+    parallelContext.nodeExecutionIndices.forEach((index, id) => {
+      this.nodeExecutionIndices.set(id, index);
+    });
+    parallelContext.scopeInvocationCounts.forEach((count, key) => {
+      this.scopeInvocationCounts.set(key, Math.max(this.scopeInvocationCounts.get(key) ?? 0, count));
+    });
+    parallelContext.nestedInvocationCounts.forEach((count, key) => {
+      this.nestedInvocationCounts.set(key, Math.max(this.nestedInvocationCounts.get(key) ?? 0, count));
+    });
+  }
+
   private getVariableKey(address: VariableAddress): string {
     return `${address.id}:${address.portName}:${address.executionIndex}`;
   }
@@ -235,18 +316,19 @@ export class GeneratedExecutionContext {
     this.variables.clear();
     this.executions.clear();
     this.executionCounter = 0;
+    this.nodeExecutionCounts.clear();
   }
 
   /**
    * Check if the workflow has been aborted
    */
   isAborted(): boolean {
-    return this.abortSignal?.aborted ?? false;
+    return this.runtime.abortSignal?.aborted ?? false;
   }
 
   /** Return the parent-owned signal without transferring ownership. */
   getAbortSignal(): AbortSignal | undefined {
-    return this.abortSignal;
+    return this.runtime.abortSignal;
   }
 
   /**
@@ -254,13 +336,86 @@ export class GeneratedExecutionContext {
    * @param nodeId - Optional node ID to include in the error
    */
   checkAborted(nodeId?: string): void {
-    if (this.abortSignal?.aborted) {
+    if (this.runtime.abortSignal?.aborted) {
       throw new CancellationError(
         `Workflow execution cancelled${nodeId ? ` at ${nodeId}` : ''}`,
         this.executionCounter,
-        nodeId
+        nodeId,
       );
     }
+  }
+
+  executionAddress(address: Pick<VariableAddress, 'id' | 'executionIndex' | 'nodeTypeName'>): ExecutionAddress {
+    const runtime = this.getRuntime();
+    return runtime.durable.address(runtime, address.id, address.nodeTypeName ?? address.id, address.executionIndex);
+  }
+
+  shouldExecute(nodeId: string, nodeType: string, executionIndex: number): boolean {
+    const runtime = this.getRuntime();
+    return runtime.durable.shouldExecute(runtime.durable.address(runtime, nodeId, nodeType, executionIndex));
+  }
+
+  commitNode(nodeId: string, nodeType: string, executionIndex: number): void {
+    const runtime = this.getRuntime();
+    runtime.durable.commitNode(runtime.durable.address(runtime, nodeId, nodeType, executionIndex));
+  }
+
+  resolveGate(
+    kind: DurableGateKind,
+    nodeId: string,
+    nodeType: string,
+    executionIndex: number,
+    payload: WireValue,
+  ): WireValue {
+    const runtime = this.getRuntime();
+    return runtime.durable.resolveGate(runtime, {
+      kind,
+      nodeId,
+      nodeType,
+      executionIndex,
+      payload,
+    });
+  }
+
+  executeEffect<T extends WireValue>(
+    nodeId: string,
+    nodeType: string,
+    executionIndex: number,
+    execute: (operationKey: string) => Promise<{ result: T; receipt: WireValue }>,
+  ): Promise<T> {
+    const runtime = this.getRuntime();
+    return runtime.durable.executeEffect(runtime, { nodeId, nodeType, executionIndex }, execute);
+  }
+
+  createNestedRuntime(workflowId: string, callerNodeId: string, callerExecutionIndex: number): WorkflowRuntime {
+    const invocation = this.nestedInvocationCounts.get(callerNodeId) ?? 0;
+    this.nestedInvocationCounts.set(callerNodeId, invocation + 1);
+    const parentRuntime = this.getRuntime();
+    return {
+      ...parentRuntime,
+      frames: [...parentRuntime.frames, { workflowId, invocation, callerNodeId, callerExecutionIndex }],
+      scopes: parentRuntime.scopes,
+    };
+  }
+
+  getRuntime(): WorkflowRuntime {
+    return { ...this.runtime, branches: [...this.branchStack] };
+  }
+
+  enterBranch(nodeId: string, executionIndex: number, arm: string): void {
+    const frameDepth = this.runtime.frames.length - 1;
+    const workflowId = this.runtime.frames[frameDepth].workflowId;
+    this.branchStack.push({
+      workflowId,
+      frameDepth,
+      nodeId,
+      executionIndex,
+      arm,
+    });
+  }
+
+  exitBranch(): void {
+    this.branchStack.pop();
   }
 
   sendStatusChangedEvent(args: {
@@ -319,59 +474,12 @@ export class GeneratedExecutionContext {
     }
   }
 
-  /**
-   * Serialize the execution context state for checkpointing.
-   * Function values are resolved to concrete values before serialization.
-   */
-  serialize(): {
-    variables: Record<string, unknown>;
-    executions: Record<string, ExecutionInfo>;
-    executionCounter: number;
-    nodeExecutionCounts: Record<string, number>;
-  } {
+  /** Return live debugger-visible variables without invoking lazy values. */
+  inspectVariables(): Record<string, unknown> {
     const vars: Record<string, unknown> = {};
     for (const [key, value] of this.variables) {
-      if (typeof value === 'function') {
-        try {
-          vars[key] = (value as () => unknown)();
-        } catch {
-          vars[key] = value; // Let the checkpoint layer handle the marker
-        }
-      } else {
-        vars[key] = value;
-      }
+      vars[key] = typeof value === 'function' ? '[lazy value]' : value;
     }
-
-    const execs: Record<string, ExecutionInfo> = {};
-    for (const [key, info] of this.executions) {
-      execs[key] = { ...info };
-    }
-
-    const nodeCounts: Record<string, number> = {};
-    for (const [key, count] of this.nodeExecutionIndices) {
-      nodeCounts[key] = count;
-    }
-
-    return {
-      variables: vars,
-      executions: execs,
-      executionCounter: this.executionCounter,
-      nodeExecutionCounts: nodeCounts,
-    };
-  }
-
-  /**
-   * Restore execution context state from a checkpoint.
-   */
-  restore(data: {
-    variables: Record<string, unknown>;
-    executions: Record<string, ExecutionInfo>;
-    executionCounter: number;
-    nodeExecutionCounts: Record<string, number>;
-  }): void {
-    this.variables = new Map(Object.entries(data.variables));
-    this.executions = new Map(Object.entries(data.executions));
-    this.executionCounter = data.executionCounter;
-    this.nodeExecutionIndices = new Map(Object.entries(data.nodeExecutionCounts));
+    return vars;
   }
 }

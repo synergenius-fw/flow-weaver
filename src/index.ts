@@ -131,6 +131,20 @@ export { portRef, port, workflow, nodeType, nodeInstance } from './ast/builder';
 // Runtime
 export { GeneratedExecutionContext } from './runtime/ExecutionContext';
 export type { TDebugger } from './runtime/events';
+export {
+  createWorkflowRuntime,
+  DurableExecution,
+  DurableGateYield,
+  AmbiguousEffectError,
+} from './runtime/durable-execution';
+export type {
+  WorkflowRuntime,
+  WorkflowRuntimeServices,
+  GateResolution,
+  EffectAdapter,
+  EffectRecovery,
+} from './runtime/durable-execution';
+export * from './runtime/continuation';
 
 // Node Types Generator (for generated .node-types files)
 export type { TLocalFunctionNodeType } from './node-types-generator';

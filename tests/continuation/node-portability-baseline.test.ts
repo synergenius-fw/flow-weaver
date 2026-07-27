@@ -29,12 +29,19 @@ interface PortabilityObservation {
   readonly result: unknown;
   readonly eventTypes?: readonly string[];
   readonly errorName?: string;
+  readonly outcome?: {
+    readonly kind: "completed" | "yielded";
+    readonly gate?: { readonly id: string };
+    readonly continuation?: unknown;
+  };
 }
 
 function executeInPlainNode(
   filePath = workflowFile,
   workflowName = "sequential",
-  mode?: "cancel",
+  mode?: "cancel" | "durable-yield" | "durable-resume",
+  continuation?: unknown,
+  gateId?: string,
 ): Promise<PortabilityObservation> {
   return new Promise((resolve, reject) => {
     const child = fork(
@@ -48,6 +55,13 @@ function executeInPlainNode(
       {
         execArgv: ["--import", "tsx"],
         stdio: ["ignore", "pipe", "pipe", "ipc"],
+        env: {
+          ...process.env,
+          ...(continuation === undefined
+            ? {}
+            : { FW_TEST_CONTINUATION: JSON.stringify(continuation) }),
+          ...(gateId === undefined ? {} : { FW_TEST_GATE_ID: gateId }),
+        },
       },
     );
     let stderr = "";
@@ -113,5 +127,33 @@ describe("standard Node.js executor portability", () => {
 
     expect(observed.electron).toBeNull();
     expect(observed.errorName).toBe("CancellationError");
+  });
+
+  it("resumes a durable gate in a different plain Node.js process", async () => {
+    const durableWorkflow = path.join(
+      directory,
+      "fixtures",
+      "durable-approval.ts",
+    );
+    const yielded = await executeInPlainNode(
+      durableWorkflow,
+      "durableApproval",
+      "durable-yield",
+    );
+    expect(yielded.electron).toBeNull();
+    expect(yielded.outcome?.kind).toBe("yielded");
+
+    const resumed = await executeInPlainNode(
+      durableWorkflow,
+      "durableApproval",
+      "durable-resume",
+      yielded.outcome?.continuation,
+      yielded.outcome?.gate?.id,
+    );
+    expect(resumed.electron).toBeNull();
+    expect(resumed.outcome).toMatchObject({
+      kind: "completed",
+      result: { onSuccess: true, onFailure: false, result: 9 },
+    });
   });
 });

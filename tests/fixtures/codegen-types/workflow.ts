@@ -83,14 +83,10 @@ type TDebugger = {
   sessionId?: string;
 };
 
-declare const __flowWeaverDebugger__: TDebugger | undefined;
-
 type TDebugController = {
-  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<boolean> | boolean;
+  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;
   afterNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;
 };
-
-declare const __abortSignal__: AbortSignal | undefined;
 
 interface VariableAddress {
   id: string;
@@ -99,6 +95,7 @@ interface VariableAddress {
   nodeTypeName?: string | undefined;
   scope?: string | undefined;
   side?: 'start' | 'exit' | undefined;
+  durable?: boolean | undefined;
 }
 
 interface ExecutionInfo {
@@ -106,6 +103,31 @@ interface ExecutionInfo {
   index: number;
   parentIndex?: number | undefined;
   scopeName?: string | undefined;
+}
+
+type DurableGateKind = 'approval' | 'input' | 'agent';
+type WireValue = null | boolean | number | string | readonly WireValue[] | { readonly [key: string]: WireValue };
+interface WorkflowFrameAddress { workflowId: string; invocation: number; callerNodeId?: string; callerExecutionIndex?: number; }
+interface ScopeAddress { parentNodeId: string; parentExecutionIndex: number; scopeName: string; invocation: number; loopIteration?: number; branchArm?: string; }
+interface BranchAddress { workflowId: string; frameDepth: number; nodeId: string; executionIndex: number; arm: string; }
+interface ExecutionAddress { frames: readonly WorkflowFrameAddress[]; scopes: readonly ScopeAddress[]; branches: readonly BranchAddress[]; nodeId: string; nodeType: string; executionIndex: number; }
+interface WorkflowRuntime {
+  readonly runId: string;
+  readonly abortSignal?: AbortSignal;
+  readonly services: { debugger?: TDebugger; debugController?: TDebugController; mocks?: unknown; workflowRegistry?: Readonly<Record<string, (...args: unknown[]) => unknown>>; effectAdapter?: unknown };
+  readonly frames: readonly WorkflowFrameAddress[];
+  readonly scopes: readonly ScopeAddress[];
+  readonly branches: readonly BranchAddress[];
+  readonly durable: {
+    address(runtime: WorkflowRuntime, nodeId: string, nodeType: string, executionIndex: number): ExecutionAddress;
+    shouldExecute(address: ExecutionAddress): boolean;
+    commitNode(address: ExecutionAddress): void;
+    setVariable(address: ExecutionAddress, portName: string, value: unknown): void;
+    getVariable(address: ExecutionAddress, portName: string): unknown;
+    resolveGate(runtime: WorkflowRuntime, boundary: { kind: DurableGateKind; nodeId: string; nodeType: string; executionIndex: number; payload: WireValue }): WireValue;
+    executeEffect<T extends WireValue>(runtime: WorkflowRuntime, boundary: { nodeId: string; nodeType: string; executionIndex: number }, execute: (operationKey: string) => Promise<{ result: T; receipt: WireValue }>): Promise<T>;
+    assertResumeResolutionConsumed(): void;
+  };
 }
 
 type VariableValue = unknown | (() => unknown) | (() => Promise<unknown>);
@@ -153,12 +175,16 @@ class GeneratedExecutionContext {
   private flowWeaverDebugger?: TDebugger | undefined;
   private pullExecutors: Map<string, () => void | Promise<void>> = new Map();
   private nodeExecutionIndices: Map<string, number> = new Map();
-  private abortSignal?: AbortSignal | undefined;
+  private runtime: WorkflowRuntime;
+  private scopeInvocationCounts: Map<string, number> = new Map();
+  private nestedInvocationCounts: Map<string, number> = new Map();
+  private branchStack: BranchAddress[];
 
-  constructor(isAsync: boolean = true, flowWeaverDebugger?: TDebugger, abortSignal?: AbortSignal) {
+  constructor(isAsync: boolean = true, runtime: WorkflowRuntime) {
     this.isAsync = isAsync;
-    this.flowWeaverDebugger = flowWeaverDebugger;
-    this.abortSignal = abortSignal;
+    this.flowWeaverDebugger = runtime.services.debugger;
+    this.runtime = runtime;
+    this.branchStack = [...runtime.branches];
   }
 
   registerPullExecutor(id: string, executor: () => void | Promise<void>): void {
@@ -184,6 +210,9 @@ class GeneratedExecutionContext {
   setVariable(address: VariableAddress, value: VariableValue): void | Promise<void> {
     const key = this.getVariableKey(address);
     this.variables.set(key, value);
+    if (typeof value !== "function" && address.durable !== false) {
+      this.runtime.durable.setVariable(this.executionAddress(address), address.portName, value);
+    }
     if (this.flowWeaverDebugger) {
       const actualValue = typeof value === "function" ? value() : value;
       this.sendVariableSetEvent({
@@ -230,10 +259,14 @@ class GeneratedExecutionContext {
 
   private retrieveVariable(address: VariableAddress): unknown | Promise<unknown> {
     const key = this.getVariableKey(address);
+    let value = this.variables.get(key);
     if (!this.variables.has(key)) {
-      throw new Error(`Variable not found: ${address.id}.${address.portName}[${address.executionIndex}]`);
+      value = this.runtime.durable.getVariable(this.executionAddress(address), address.portName);
+      if (value === undefined) {
+        throw new Error(`Variable not found: ${address.id}.${address.portName}[${address.executionIndex}]`);
+      }
+      this.variables.set(key, value);
     }
-    const value = this.variables.get(key);
     if (typeof value === "function") {
       const result = value();
       if (result instanceof Promise) {
@@ -246,7 +279,61 @@ class GeneratedExecutionContext {
 
   hasVariable(address: VariableAddress): boolean {
     const key = this.getVariableKey(address);
-    return this.variables.has(key);
+    return this.variables.has(key) || this.runtime.durable.getVariable(this.executionAddress(address), address.portName) !== undefined;
+  }
+
+  executionAddress(address: Pick<VariableAddress, "id" | "executionIndex" | "nodeTypeName">): ExecutionAddress {
+    const runtime = this.getRuntime();
+    return runtime.durable.address(runtime, address.id, address.nodeTypeName ?? address.id, address.executionIndex);
+  }
+
+  shouldExecute(nodeId: string, nodeType: string, executionIndex: number): boolean {
+    const runtime = this.getRuntime();
+    return runtime.durable.shouldExecute(runtime.durable.address(runtime, nodeId, nodeType, executionIndex));
+  }
+
+  commitNode(nodeId: string, nodeType: string, executionIndex: number): void {
+    const runtime = this.getRuntime();
+    runtime.durable.commitNode(runtime.durable.address(runtime, nodeId, nodeType, executionIndex));
+  }
+
+  resolveGate(kind: DurableGateKind, nodeId: string, nodeType: string, executionIndex: number, payload: WireValue): WireValue {
+    const runtime = this.getRuntime();
+    return runtime.durable.resolveGate(runtime, { kind, nodeId, nodeType, executionIndex, payload });
+  }
+
+  executeEffect<T extends WireValue>(nodeId: string, nodeType: string, executionIndex: number, execute: (operationKey: string) => Promise<{ result: T; receipt: WireValue }>): Promise<T> {
+    const runtime = this.getRuntime();
+    return runtime.durable.executeEffect(runtime, { nodeId, nodeType, executionIndex }, execute);
+  }
+
+  createNestedRuntime(workflowId: string, callerNodeId: string, callerExecutionIndex: number): WorkflowRuntime {
+    const invocation = this.nestedInvocationCounts.get(callerNodeId) ?? 0;
+    this.nestedInvocationCounts.set(callerNodeId, invocation + 1);
+    const parentRuntime = this.getRuntime();
+    return { ...parentRuntime, frames: [...parentRuntime.frames, { workflowId, invocation, callerNodeId, callerExecutionIndex }], scopes: parentRuntime.scopes };
+  }
+
+  enterBranch(nodeId: string, executionIndex: number, arm: string): void { const frameDepth = this.runtime.frames.length - 1; const workflowId = this.runtime.frames[frameDepth].workflowId; this.branchStack.push({ workflowId, frameDepth, nodeId, executionIndex, arm }); }
+  exitBranch(): void { this.branchStack.pop(); }
+  getRuntime(): WorkflowRuntime { return { ...this.runtime, branches: [...this.branchStack] }; }
+  forkParallel(): GeneratedExecutionContext {
+    const parallelContext = new GeneratedExecutionContext(this.isAsync, this.getRuntime());
+    parallelContext.variables = new Map(this.variables);
+    parallelContext.executions = new Map(this.executions);
+    parallelContext.executionCounter = this.executionCounter;
+    parallelContext.pullExecutors = new Map(this.pullExecutors);
+    parallelContext.nodeExecutionIndices = new Map(this.nodeExecutionIndices);
+    parallelContext.nodeExecutionCounts = new Map(this.nodeExecutionCounts);
+    parallelContext.scopeInvocationCounts = new Map(this.scopeInvocationCounts);
+    parallelContext.nestedInvocationCounts = new Map(this.nestedInvocationCounts);
+    return parallelContext;
+  }
+  mergeParallel(parallelContext: GeneratedExecutionContext): void {
+    this.mergeScope(parallelContext);
+    parallelContext.nodeExecutionIndices.forEach((index, id) => { this.nodeExecutionIndices.set(id, index); });
+    parallelContext.scopeInvocationCounts.forEach((count, key) => { this.scopeInvocationCounts.set(key, Math.max(this.scopeInvocationCounts.get(key) ?? 0, count)); });
+    parallelContext.nestedInvocationCounts.forEach((count, key) => { this.nestedInvocationCounts.set(key, Math.max(this.nestedInvocationCounts.get(key) ?? 0, count)); });
   }
 
   getExecution(id: string, index: number): ExecutionInfo | undefined {
@@ -255,7 +342,12 @@ class GeneratedExecutionContext {
 
   createScope(_parentNodeName: string, _parentIndex: number, _scopeName: string, cleanScope: boolean = false, isAsyncOverride?: boolean): GeneratedExecutionContext {
     const effectiveIsAsync = isAsyncOverride !== undefined ? isAsyncOverride : this.isAsync;
-    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, this.flowWeaverDebugger, this.abortSignal);
+    const scopeKey = `${_parentNodeName}:${_parentIndex}:${_scopeName}`;
+    const scopeInvocation = this.scopeInvocationCounts.get(scopeKey) ?? 0;
+    this.scopeInvocationCounts.set(scopeKey, scopeInvocation + 1);
+    const parentRuntime = this.getRuntime();
+    const scopedRuntime: WorkflowRuntime = { ...parentRuntime, scopes: [...parentRuntime.scopes, { parentNodeId: _parentNodeName, parentExecutionIndex: _parentIndex, scopeName: _scopeName, invocation: scopeInvocation, loopIteration: scopeInvocation }] };
+    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, scopedRuntime);
     // For per-port function scopes (cleanScope=true), start with empty variables
     // For node-level scopes (cleanScope=false), inherit parent variables
     scopedContext.variables = cleanScope ? new Map() : new Map(this.variables);
@@ -299,15 +391,15 @@ class GeneratedExecutionContext {
   }
 
   isAborted(): boolean {
-    return this.abortSignal?.aborted ?? false;
+    return this.runtime.abortSignal?.aborted ?? false;
   }
 
   getAbortSignal(): AbortSignal | undefined {
-    return this.abortSignal;
+    return this.runtime.abortSignal;
   }
 
   checkAborted(nodeId?: string): void {
-    if (this.abortSignal?.aborted) {
+    if (this.runtime.abortSignal?.aborted) {
       throw new CancellationError(
         `Workflow execution cancelled${nodeId ? ` at ${nodeId}` : ''}`,
         this.executionCounter,
@@ -378,41 +470,17 @@ class GeneratedExecutionContext {
     }
   }
 
-  serialize(): {
-    variables: Record<string, unknown>;
-    executions: Record<string, ExecutionInfo>;
-    executionCounter: number;
-    nodeExecutionCounts: Record<string, number>;
-  } {
+  inspectVariables(): Record<string, unknown> {
     const vars: Record<string, unknown> = {};
     for (const [key, value] of this.variables) {
-      if (typeof value === "function") {
-        try { vars[key] = (value as () => unknown)(); } catch { vars[key] = value; }
-      } else {
-        vars[key] = value;
-      }
+      vars[key] = typeof value === "function" ? "[lazy value]" : value;
     }
-    const execs: Record<string, ExecutionInfo> = {};
-    for (const [key, info] of this.executions) { execs[key] = { ...info }; }
-    const nodeCounts: Record<string, number> = {};
-    for (const [key, count] of this.nodeExecutionIndices) { nodeCounts[key] = count; }
-    return { variables: vars, executions: execs, executionCounter: this.executionCounter, nodeExecutionCounts: nodeCounts };
-  }
-
-  restore(data: {
-    variables: Record<string, unknown>;
-    executions: Record<string, ExecutionInfo>;
-    executionCounter: number;
-    nodeExecutionCounts: Record<string, number>;
-  }): void {
-    this.variables = new Map(Object.entries(data.variables));
-    this.executions = new Map(Object.entries(data.executions));
-    this.executionCounter = data.executionCounter;
-    this.nodeExecutionIndices = new Map(Object.entries(data.nodeExecutionCounts));
+    return vars;
   }
 }
 
 // @flow-weaver-runtime-end
+
 
 /**
  * @flowWeaver workflow
@@ -428,9 +496,7 @@ class GeneratedExecutionContext {
  * @returns onFailure [order:-1] - On Failure
  * @returns output [order:0] - Task output string
  */
-export async function crossFileWorkflow(
-  execute: boolean,
-  params: { raw: string }, __abortSignal__?: AbortSignal,
+export async function crossFileWorkflow(execute: boolean, params: { raw: string }, __runtime__: WorkflowRuntime
 ): Promise<{ onSuccess: boolean; onFailure: boolean; output: string }> {
   // @flow-weaver-body-start
   // ============================================================================
@@ -438,44 +504,40 @@ export async function crossFileWorkflow(
   // Edit the @flowWeaver annotations above to modify workflow behavior
   // ============================================================================
 
-    const __effectiveDebugger__ = typeof __flowWeaverDebugger__ !== 'undefined' ? __flowWeaverDebugger__ : undefined;
-
     // Recursion depth protection
     const __rd__ = (params as { __rd__?: number }).__rd__ ?? 0;
     if (__rd__ >= 1000) {
       throw new Error('Max recursion depth exceeded (1000) in workflow "crossFileWorkflow"');
     }
 
-    const ctx = new GeneratedExecutionContext(true, __effectiveDebugger__, __abortSignal__);
+    const ctx = new GeneratedExecutionContext(true, __runtime__);
 
-    // Debug controller for step-through debugging and checkpoint/resume
-    const __ctrl__: TDebugController = (
-      typeof globalThis !== 'undefined' && (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__
-        ? (globalThis as unknown as { __fw_debug_controller__?: TDebugController }).__fw_debug_controller__
-        : { beforeNode: () => true, afterNode: () => {} }
-    )!;
+    const __ctrl__: TDebugController = (__runtime__.services.debugController ?? { beforeNode: () => {}, afterNode: () => {} }) as TDebugController;
 
     const startIdx = ctx.addExecution('Start');
-    await ctx.setVariable({ id: 'Start', portName: 'execute', executionIndex: startIdx, nodeTypeName: 'Start' }, execute);
-    await ctx.setVariable({ id: 'Start', portName: 'raw', executionIndex: startIdx, nodeTypeName: 'Start' }, params.raw);
-    await ctx.sendStatusChangedEvent({
-      nodeTypeName: 'Start',
-      id: 'Start',
-      executionIndex: startIdx,
-      status: 'SUCCEEDED',
-    });
+    if (ctx.shouldExecute('Start', 'Start', startIdx)) {
+      await ctx.setVariable({ id: 'Start', portName: 'execute', executionIndex: startIdx, nodeTypeName: 'Start' }, execute);
+      await ctx.setVariable({ id: 'Start', portName: 'raw', executionIndex: startIdx, nodeTypeName: 'Start' }, params.raw);
+      await ctx.sendStatusChangedEvent({
+        nodeTypeName: 'Start',
+        id: 'Start',
+        executionIndex: startIdx,
+        status: 'SUCCEEDED',
+      });
+      ctx.commitNode('Start', 'Start', startIdx);
+    }
 
     let parserIdx: number | undefined;
     let runnerIdx: number | undefined;
     let parser_success = false;
 
 
-    if (await __ctrl__.beforeNode('parser', ctx)) {
+    await __ctrl__.beforeNode('parser', ctx);
 
-      // ── parser (parseConfig) ──
-      ctx.checkAborted('parser');
-      parserIdx = ctx.addExecution('parser');
-      if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = 'parser';
+    // ── parser (parseConfig) ──
+    ctx.checkAborted('parser');
+    parserIdx = ctx.addExecution('parser');
+    if (ctx.shouldExecute('parser', 'parseConfig', parserIdx)) {
       await ctx.sendStatusChangedEvent({
         nodeTypeName: 'parseConfig',
         id: 'parser',
@@ -486,9 +548,9 @@ export async function crossFileWorkflow(
       parser_success = false;
 
       try {
-        await ctx.setVariable({ id: 'parser', portName: 'execute', executionIndex: parserIdx, nodeTypeName: 'parseConfig' }, true);
-        const parser_raw = await ctx.getVariable({ id: 'Start', portName: 'raw', executionIndex: startIdx }) as string;
-        await ctx.setVariable({ id: 'parser', portName: 'raw', executionIndex: parserIdx, nodeTypeName: 'parseConfig' }, parser_raw);
+        await ctx.setVariable({ id: 'parser', portName: 'execute', executionIndex: parserIdx, nodeTypeName: 'parseConfig', durable: false }, true);
+        const parser_raw = await ctx.getVariable({ id: 'Start', portName: 'raw', executionIndex: startIdx, nodeTypeName: 'Start' }) as string;
+        await ctx.setVariable({ id: 'parser', portName: 'raw', executionIndex: parserIdx, nodeTypeName: 'parseConfig', durable: false }, parser_raw);
         const parserResult = parseConfig(parser_raw);
         const parserResult_raw: unknown = parserResult;
         await ctx.setVariable({ id: 'parser', portName: 'config', executionIndex: parserIdx, nodeTypeName: 'parseConfig' }, typeof parserResult_raw === 'object' && parserResult_raw !== null && 'config' in parserResult_raw ? parserResult_raw.config : parserResult_raw);
@@ -500,9 +562,11 @@ export async function crossFileWorkflow(
           executionIndex: parserIdx,
           status: 'SUCCEEDED',
         });
+        ctx.commitNode('parser', 'parseConfig', parserIdx);
         await __ctrl__.afterNode('parser', ctx);
         parser_success = true;
       } catch (error: unknown) {
+        if ((error as { code?: unknown })?.code === 'FLOW_WEAVER_DURABLE_GATE_YIELD') throw error;
         const isCancellation = CancellationError.isCancellationError(error);
         await ctx.sendStatusChangedEvent({
           nodeTypeName: 'parseConfig',
@@ -525,17 +589,16 @@ export async function crossFileWorkflow(
         throw error;
       }
     } else {
-      parserIdx = ctx.addExecution('parser');
-      parser_success = true;
+      parser_success = await ctx.getVariable({ id: 'parser', portName: 'onSuccess', executionIndex: parserIdx, nodeTypeName: 'parseConfig' }) as boolean;
     }
 
     if (parser_success) {
-      if (await __ctrl__.beforeNode('runner', ctx)) {
+      await __ctrl__.beforeNode('runner', ctx);
 
-        // ── runner (runTask) ──
-        ctx.checkAborted('runner');
-        runnerIdx = ctx.addExecution('runner');
-        if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = 'runner';
+      // ── runner (runTask) ──
+      ctx.checkAborted('runner');
+      runnerIdx = ctx.addExecution('runner');
+      if (ctx.shouldExecute('runner', 'runTask', runnerIdx)) {
         await ctx.sendStatusChangedEvent({
           nodeTypeName: 'runTask',
           id: 'runner',
@@ -544,10 +607,10 @@ export async function crossFileWorkflow(
         });
 
         try {
-          const runner_execute = parserIdx !== undefined ? await ctx.getVariable({ id: 'parser', portName: 'onSuccess', executionIndex: parserIdx }) as boolean : false;
-          await ctx.setVariable({ id: 'runner', portName: 'execute', executionIndex: runnerIdx, nodeTypeName: 'runTask' }, runner_execute);
-          const runner_config = await ctx.getVariable({ id: 'parser', portName: 'config', executionIndex: parserIdx! }) as Parameters<typeof runTask>[1];
-          await ctx.setVariable({ id: 'runner', portName: 'config', executionIndex: runnerIdx, nodeTypeName: 'runTask' }, runner_config);
+          const runner_execute = parserIdx !== undefined ? await ctx.getVariable({ id: 'parser', portName: 'onSuccess', executionIndex: parserIdx, nodeTypeName: 'parseConfig' }) as boolean : false;
+          await ctx.setVariable({ id: 'runner', portName: 'execute', executionIndex: runnerIdx, nodeTypeName: 'runTask', durable: false }, runner_execute);
+          const runner_config = await ctx.getVariable({ id: 'parser', portName: 'config', executionIndex: parserIdx!, nodeTypeName: 'parseConfig' }) as Parameters<typeof runTask>[1];
+          await ctx.setVariable({ id: 'runner', portName: 'config', executionIndex: runnerIdx, nodeTypeName: 'runTask', durable: false }, runner_config);
           const runnerResult = runTask(runner_execute, runner_config);
           await ctx.setVariable({ id: 'runner', portName: 'result', executionIndex: runnerIdx, nodeTypeName: 'runTask' }, runnerResult.result);
           await ctx.setVariable({ id: 'runner', portName: 'onSuccess', executionIndex: runnerIdx, nodeTypeName: 'runTask' }, runnerResult.onSuccess);
@@ -558,8 +621,10 @@ export async function crossFileWorkflow(
             executionIndex: runnerIdx,
             status: 'SUCCEEDED',
           });
+          ctx.commitNode('runner', 'runTask', runnerIdx);
           await __ctrl__.afterNode('runner', ctx);
         } catch (error: unknown) {
+          if ((error as { code?: unknown })?.code === 'FLOW_WEAVER_DURABLE_GATE_YIELD') throw error;
           const isCancellation = CancellationError.isCancellationError(error);
           await ctx.sendStatusChangedEvent({
             nodeTypeName: 'runTask',
@@ -581,7 +646,6 @@ export async function crossFileWorkflow(
           throw error;
         }
       } else {
-        runnerIdx = ctx.addExecution('runner');
       }
 
     } else {
@@ -597,9 +661,9 @@ export async function crossFileWorkflow(
     }
     ctx.checkAborted('Exit');
     const exitIdx = ctx.addExecution('Exit');
-    const exit_output = runnerIdx !== undefined ? await ctx.getVariable({ id: 'runner', portName: 'result', executionIndex: runnerIdx }) : undefined;
+    const exit_output = runnerIdx !== undefined ? await ctx.getVariable({ id: 'runner', portName: 'result', executionIndex: runnerIdx, nodeTypeName: 'runTask' }) : undefined;
     await ctx.setVariable({ id: 'Exit', portName: 'output', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_output);
-    const exit_onSuccess = runnerIdx !== undefined ? await ctx.getVariable({ id: 'runner', portName: 'onSuccess', executionIndex: runnerIdx }) : false;
+    const exit_onSuccess = runnerIdx !== undefined ? await ctx.getVariable({ id: 'runner', portName: 'onSuccess', executionIndex: runnerIdx, nodeTypeName: 'runTask' }) : false;
     await ctx.setVariable({ id: 'Exit', portName: 'onSuccess', executionIndex: exitIdx, nodeTypeName: 'Exit' }, exit_onSuccess);
 
     await ctx.setVariable({ id: 'Exit', portName: 'onFailure', executionIndex: exitIdx, nodeTypeName: 'Exit' }, false);
@@ -619,5 +683,4 @@ export async function crossFileWorkflow(
 
     return finalResult;
   // @flow-weaver-body-end
-  return { onSuccess: false, onFailure: true, output: '' };
 }

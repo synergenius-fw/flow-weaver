@@ -120,6 +120,12 @@ export type TExternalNodeType = {
    * throws (`(spec ?? '').trim is not a function`) at run time.
    */
   expression?: boolean;
+  /** Explicit compiler-known durable gate boundary. */
+  durableGate?: 'approval' | 'input' | 'agent';
+  /** Requires the durable idempotency/receipt effect contract. */
+  durableEffect?: boolean;
+  /** Explicitly safe to restore/skip without an effect receipt. */
+  durablePure?: boolean;
 };
 
 /**
@@ -179,12 +185,15 @@ function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
     // Honor the supplied async flag so codegen emits `await` for an async
     // foreign node (e.g. pack-core `waitForApproval`). Defaults to sync
     // when the caller doesn't say, preserving prior behavior.
-    isAsync: ext.isAsync === true,
+    isAsync: ext.isAsync === true || ext.durableEffect === true,
     executeWhen: EXECUTION_STRATEGIES.CONJUNCTION,
     variant: 'FUNCTION',
     // Honor the expression flag so codegen calls the node WITHOUT the
     // leading `execute` arg (e.g. pack-core `resolveMonth(spec)`).
     ...(isExpression && { expression: true }),
+    ...(ext.durableGate && { durableGate: ext.durableGate }),
+    ...(ext.durableEffect === true && { durableEffect: true }),
+    ...(ext.durablePure === true && { durablePure: true }),
   };
 }
 

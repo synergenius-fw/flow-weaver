@@ -4,6 +4,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { randomUUID } from 'node:crypto';
 import { glob } from 'glob';
 import { compileCommand, type CompileOptions } from './compile.js';
 import { executeWorkflow } from '../../mcp/workflow-executor.js';
@@ -145,6 +146,7 @@ async function compileAndRun(
   // Step 2: Run
   try {
     const result = await executeWorkflow({
+      runId: randomUUID(),
       filePath,
       params,
       workflowName: options.workflow,
@@ -152,6 +154,12 @@ async function compileAndRun(
       includeTrace: !options.production,
       mocks,
     });
+
+    if (result.kind === 'yielded') {
+      throw new Error(
+        'fw dev is not a durable coordinator and cannot persist a yielded continuation',
+      );
+    }
 
     if (options.json) {
       process.stdout.write(

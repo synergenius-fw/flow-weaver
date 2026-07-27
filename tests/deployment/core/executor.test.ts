@@ -609,6 +609,25 @@ describe('UnifiedWorkflowExecutor', () => {
   });
 
   describe('executeFromFile', () => {
+    it('refuses a yielded outcome because it is not a durable coordinator', async () => {
+      const executor = createExecutor();
+      mockedExecute.mockResolvedValueOnce({
+        kind: 'yielded',
+        functionName: 'approval',
+        executionTime: 1,
+      } as never);
+
+      const result = await executor.executeFromFile('/approval.ts', {});
+
+      expect(result).toMatchObject({
+        success: false,
+        error: {
+          code: 'EXECUTION_ERROR',
+          message: expect.stringContaining('not a durable coordinator'),
+        },
+      });
+    });
+
     it('should return EXECUTION_ERROR on failure', async () => {
       const executor = createExecutor();
       mockedExecute.mockRejectedValueOnce(new Error('file not found'));
@@ -690,6 +709,31 @@ describe('UnifiedWorkflowExecutor', () => {
   });
 
   describe('successful execution with registry', () => {
+    it('refuses a yielded registry outcome because it is not a durable coordinator', async () => {
+      const mockRegistry = {
+        getEndpoint: vi.fn().mockReturnValue({
+          filePath: '/workflows/approval.ts',
+          functionName: 'approval',
+        }),
+      } as any;
+      const executor = new UnifiedWorkflowExecutor({ registry: mockRegistry });
+      mockedExecute.mockResolvedValueOnce({
+        kind: 'yielded',
+        functionName: 'approval',
+        executionTime: 1,
+      } as never);
+
+      const result = await executor.execute(makeRequest({ workflowId: 'approval' }));
+
+      expect(result).toMatchObject({
+        success: false,
+        error: {
+          code: 'EXECUTION_ERROR',
+          message: expect.stringContaining('not a durable coordinator'),
+        },
+      });
+    });
+
     it('should return success when registry resolves the workflow', async () => {
       const mockRegistry = {
         getEndpoint: vi.fn().mockReturnValue({

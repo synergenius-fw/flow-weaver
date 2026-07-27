@@ -7,9 +7,9 @@
  * 2. Workflow calling workflow - correct parameter passing
  */
 
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 const OUTPUT_DIR = path.join(os.tmpdir(), `recursive-workflow-tests-${process.pid}`);
 
@@ -166,23 +166,31 @@ export function outerAdd(
 
 const modules: Record<string, any> = {};
 
+function runtime(workflowId: string) {
+  return testHelpers.createRuntime(workflowId, {
+    workflowRegistry: Object.fromEntries(Object.entries(modules).map(([name, loaded]) => [name, loaded[name]])),
+  });
+}
+
 beforeAll(async () => {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
   // Write all source files first
   for (const [name, source] of Object.entries(SOURCES)) {
-    fs.writeFileSync(path.join(OUTPUT_DIR, `${name}.ts`), source, "utf-8");
+    fs.writeFileSync(path.join(OUTPUT_DIR, `${name}.ts`), source, 'utf-8');
   }
 
   // Generate and import in parallel to avoid sequential ts-morph bottleneck
   await Promise.all(
     Object.keys(SOURCES).map(async (name) => {
       const sourceFile = path.join(OUTPUT_DIR, `${name}.ts`);
-      const code = await testHelpers.generateFast(sourceFile, name, { production: true });
+      const code = await testHelpers.generateFast(sourceFile, name, {
+        production: true,
+      });
       const outputFile = path.join(OUTPUT_DIR, `${name}.generated.ts`);
-      fs.writeFileSync(outputFile, code, "utf-8");
+      fs.writeFileSync(outputFile, code, 'utf-8');
       modules[name] = await import(outputFile);
-    })
+    }),
   );
 });
 
@@ -196,20 +204,28 @@ afterAll(() => {
 // DEPTH PROTECTION TESTS
 // =============================================================================
 
-describe("Recursive Workflow Depth Protection", () => {
-  describe("Infinite recursion prevention", () => {
-    it("should throw error when max recursion depth (1000) exceeded", () => {
-      expect(() => modules.infiniteLoop.infiniteLoop(true, { n: 0 }))
-        .toThrow(/max.*recursion.*depth.*exceeded/i);
+describe('Recursive Workflow Depth Protection', () => {
+  describe('Infinite recursion prevention', () => {
+    let recursionError: Error;
+
+    beforeAll(async () => {
+      try {
+        // Seed the generated internal counter immediately below the production
+        // boundary. This proves the 999 -> 1000 transition without allocating
+        // one thousand nested runtimes merely to reach the same guard.
+        await modules.infiniteLoop.infiniteLoop(true, { n: 0, __rd__: 999 }, runtime('infiniteLoop'));
+        throw new Error('Expected infinite workflow recursion to be rejected');
+      } catch (error) {
+        recursionError = error instanceof Error ? error : new Error(String(error));
+      }
     });
 
-    it("should include depth info in error message", async () => {
-      try {
-        await modules.infiniteLoop.infiniteLoop(true, { n: 0 });
-        expect.fail("Should have thrown an error");
-      } catch (e: any) {
-        expect(e.message).toContain("1000");
-      }
+    it('should throw error when max recursion depth (1000) exceeded', () => {
+      expect(recursionError.message).toMatch(/max.*recursion.*depth.*exceeded/i);
+    });
+
+    it('should include depth info in error message', () => {
+      expect(recursionError.message).toContain('1000');
     });
   });
 });
@@ -218,30 +234,36 @@ describe("Recursive Workflow Depth Protection", () => {
 // WORKFLOW CALLING WORKFLOW TESTS
 // =============================================================================
 
-describe("Workflow Calling Workflow", () => {
-  describe("Simple workflow chain", () => {
-    it("should execute outer workflow that calls inner workflow", async () => {
-      const result = await modules.outerQuadruple.outerQuadruple(true, { value: 5 });
+describe('Workflow Calling Workflow', () => {
+  describe('Simple workflow chain', () => {
+    it('should execute outer workflow that calls inner workflow', async () => {
+      const result = await modules.outerQuadruple.outerQuadruple(true, { value: 5 }, runtime('outerQuadruple'));
       expect(result.result).toBe(20);
     });
 
-    it("should work with different values", async () => {
-      expect((await modules.outerQuadruple.outerQuadruple(true, { value: 0 })).result).toBe(0);
-      expect((await modules.outerQuadruple.outerQuadruple(true, { value: 3 })).result).toBe(12);
-      expect((await modules.outerQuadruple.outerQuadruple(true, { value: -2 })).result).toBe(-8);
+    it('should work with different values', async () => {
+      expect((await modules.outerQuadruple.outerQuadruple(true, { value: 0 }, runtime('outerQuadruple'))).result).toBe(
+        0,
+      );
+      expect((await modules.outerQuadruple.outerQuadruple(true, { value: 3 }, runtime('outerQuadruple'))).result).toBe(
+        12,
+      );
+      expect((await modules.outerQuadruple.outerQuadruple(true, { value: -2 }, runtime('outerQuadruple'))).result).toBe(
+        -8,
+      );
     });
   });
 
-  describe("Workflow with multiple inputs", () => {
-    it("should pass multiple inputs correctly to nested workflow", async () => {
-      const result = await modules.outerAdd.outerAdd(true, { a: 5, b: 3 });
+  describe('Workflow with multiple inputs', () => {
+    it('should pass multiple inputs correctly to nested workflow', async () => {
+      const result = await modules.outerAdd.outerAdd(true, { a: 5, b: 3 }, runtime('outerAdd'));
       expect(result.sum).toBe(8);
     });
 
-    it("should handle different input combinations", async () => {
-      expect((await modules.outerAdd.outerAdd(true, { a: 0, b: 0 })).sum).toBe(0);
-      expect((await modules.outerAdd.outerAdd(true, { a: -5, b: 10 })).sum).toBe(5);
-      expect((await modules.outerAdd.outerAdd(true, { a: 100, b: -50 })).sum).toBe(50);
+    it('should handle different input combinations', async () => {
+      expect((await modules.outerAdd.outerAdd(true, { a: 0, b: 0 }, runtime('outerAdd'))).sum).toBe(0);
+      expect((await modules.outerAdd.outerAdd(true, { a: -5, b: 10 }, runtime('outerAdd'))).sum).toBe(5);
+      expect((await modules.outerAdd.outerAdd(true, { a: 100, b: -50 }, runtime('outerAdd'))).sum).toBe(50);
     });
   });
 });

@@ -5,21 +5,72 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-  computeTraceSummary,
-  type ExecutionTraceEvent,
-} from '../../src/mcp/workflow-executor';
+import { computeTraceSummary, type ExecutionTraceEvent } from '../../src/mcp/workflow-executor';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 describe('computeTraceSummary', () => {
   it('should count succeeded/failed/cancelled nodes', () => {
     const trace: ExecutionTraceEvent[] = [
-      { type: 'STATUS_CHANGED', timestamp: 1000, data: { type: 'STATUS_CHANGED', id: 'a', status: 'RUNNING', executionIndex: 0 } },
-      { type: 'STATUS_CHANGED', timestamp: 1010, data: { type: 'STATUS_CHANGED', id: 'a', status: 'SUCCEEDED', executionIndex: 0 } },
-      { type: 'STATUS_CHANGED', timestamp: 1020, data: { type: 'STATUS_CHANGED', id: 'b', status: 'RUNNING', executionIndex: 0 } },
-      { type: 'STATUS_CHANGED', timestamp: 1030, data: { type: 'STATUS_CHANGED', id: 'b', status: 'FAILED', executionIndex: 0 } },
-      { type: 'STATUS_CHANGED', timestamp: 1040, data: { type: 'STATUS_CHANGED', id: 'c', status: 'RUNNING', executionIndex: 0 } },
-      { type: 'STATUS_CHANGED', timestamp: 1050, data: { type: 'STATUS_CHANGED', id: 'c', status: 'CANCELLED', executionIndex: 0 } },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1000,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'a',
+          status: 'RUNNING',
+          executionIndex: 0,
+        },
+      },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1010,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'a',
+          status: 'SUCCEEDED',
+          executionIndex: 0,
+        },
+      },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1020,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'b',
+          status: 'RUNNING',
+          executionIndex: 0,
+        },
+      },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1030,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'b',
+          status: 'FAILED',
+          executionIndex: 0,
+        },
+      },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1040,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'c',
+          status: 'RUNNING',
+          executionIndex: 0,
+        },
+      },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1050,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'c',
+          status: 'CANCELLED',
+          executionIndex: 0,
+        },
+      },
     ];
 
     const summary = computeTraceSummary(trace);
@@ -31,10 +82,46 @@ describe('computeTraceSummary', () => {
 
   it('should include per-node timing', () => {
     const trace: ExecutionTraceEvent[] = [
-      { type: 'STATUS_CHANGED', timestamp: 1000, data: { type: 'STATUS_CHANGED', id: 'fast', status: 'RUNNING', executionIndex: 0 } },
-      { type: 'STATUS_CHANGED', timestamp: 1005, data: { type: 'STATUS_CHANGED', id: 'fast', status: 'SUCCEEDED', executionIndex: 0 } },
-      { type: 'STATUS_CHANGED', timestamp: 1010, data: { type: 'STATUS_CHANGED', id: 'slow', status: 'RUNNING', executionIndex: 0 } },
-      { type: 'STATUS_CHANGED', timestamp: 1110, data: { type: 'STATUS_CHANGED', id: 'slow', status: 'SUCCEEDED', executionIndex: 0 } },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1000,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'fast',
+          status: 'RUNNING',
+          executionIndex: 0,
+        },
+      },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1005,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'fast',
+          status: 'SUCCEEDED',
+          executionIndex: 0,
+        },
+      },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1010,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'slow',
+          status: 'RUNNING',
+          executionIndex: 0,
+        },
+      },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1110,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'slow',
+          status: 'SUCCEEDED',
+          executionIndex: 0,
+        },
+      },
     ];
 
     const summary = computeTraceSummary(trace);
@@ -61,9 +148,27 @@ describe('computeTraceSummary', () => {
 
   it('should compute total duration from first to last event', () => {
     const trace: ExecutionTraceEvent[] = [
-      { type: 'STATUS_CHANGED', timestamp: 5000, data: { type: 'STATUS_CHANGED', id: 'a', status: 'RUNNING', executionIndex: 0 } },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 5000,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'a',
+          status: 'RUNNING',
+          executionIndex: 0,
+        },
+      },
       { type: 'VARIABLE_SET', timestamp: 5050, data: { type: 'VARIABLE_SET' } },
-      { type: 'STATUS_CHANGED', timestamp: 5200, data: { type: 'STATUS_CHANGED', id: 'a', status: 'SUCCEEDED', executionIndex: 0 } },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 5200,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'a',
+          status: 'SUCCEEDED',
+          executionIndex: 0,
+        },
+      },
     ];
 
     const summary = computeTraceSummary(trace);
@@ -72,10 +177,28 @@ describe('computeTraceSummary', () => {
 
   it('should skip non-STATUS_CHANGED events when counting nodes', () => {
     const trace: ExecutionTraceEvent[] = [
-      { type: 'STATUS_CHANGED', timestamp: 1000, data: { type: 'STATUS_CHANGED', id: 'a', status: 'RUNNING', executionIndex: 0 } },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1000,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'a',
+          status: 'RUNNING',
+          executionIndex: 0,
+        },
+      },
       { type: 'VARIABLE_SET', timestamp: 1005, data: { type: 'VARIABLE_SET' } },
       { type: 'VARIABLE_SET', timestamp: 1008, data: { type: 'VARIABLE_SET' } },
-      { type: 'STATUS_CHANGED', timestamp: 1010, data: { type: 'STATUS_CHANGED', id: 'a', status: 'SUCCEEDED', executionIndex: 0 } },
+      {
+        type: 'STATUS_CHANGED',
+        timestamp: 1010,
+        data: {
+          type: 'STATUS_CHANGED',
+          id: 'a',
+          status: 'SUCCEEDED',
+          executionIndex: 0,
+        },
+      },
     ];
 
     const summary = computeTraceSummary(trace);
@@ -114,7 +237,13 @@ export async function simpleWorkflow(execute: boolean, params: { num: number }):
     fs.writeFileSync(testFile, source);
 
     try {
-      const result = await executeWorkflow({ filePath: testFile, params: { num: 5 }, workflowName: 'simpleWorkflow', includeTrace: true });
+      const result = await executeWorkflow({
+        runId: 'trace-summary',
+        filePath: testFile,
+        params: { num: 5 },
+        workflowName: 'simpleWorkflow',
+        includeTrace: true,
+      });
 
       expect(result.summary).toBeDefined();
       expect(result.summary!.totalNodes).toBeGreaterThan(0);

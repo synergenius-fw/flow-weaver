@@ -7,6 +7,15 @@ import {
   isSuccessPort,
   isFailurePort,
 } from '../constants';
+
+/**
+ * Encode positional durable-gate inputs without admitting JavaScript
+ * `undefined` into the wire payload. The tagged representation preserves the
+ * distinction between an omitted optional argument and an explicit null.
+ */
+export function buildDurableGatePayload(arguments_: readonly string[]): string {
+  return `{ arguments: [${arguments_.join(', ')}].map((value) => value === undefined ? { absent: true } : { value }) }`;
+}
 import { generateScopeFunctionClosure } from './scope-function-generator';
 import { mapToTypeScript } from '../type-mappings';
 
@@ -44,10 +53,17 @@ function resolveSourcePortDataType(
   const instance = workflow.instances.find((i) => i.id === sourceNodeId);
   if (!instance) return undefined;
   const nodeType = workflow.nodeTypes.find(
-    (nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType
+    (nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType,
   );
   if (!nodeType) return undefined;
   return nodeType.outputs?.[sourcePort]?.dataType;
+}
+
+function isPullExecutionSource(workflow: TWorkflowAST, sourceNodeId: string): boolean {
+  const instance = workflow.instances.find((candidate) => candidate.id === sourceNodeId);
+  if (!instance) return false;
+  const nodeType = workflow.nodeTypes.find((candidate) => candidate.name === instance.nodeType);
+  return Boolean(instance.config?.pullExecution ?? nodeType?.defaultConfig?.pullExecution);
 }
 
 /**
@@ -147,6 +163,7 @@ export type TBuildNodeArgsOptions = {
   bundleMode?: boolean;
   production?: boolean;
   abortSignalExpression?: string;
+  runtimeContextExpression?: string;
 };
 
 /**
@@ -206,6 +223,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     bundleMode = false,
     production = false,
     abortSignalExpression = 'ctx.getAbortSignal()',
+    runtimeContextExpression = 'ctx',
   } = opts;
   const safeId = toValidIdentifier(id);
   const inputConnections = workflow.connections.filter((conn) => conn.to.node === id);
@@ -215,8 +233,16 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
   const instance = workflow.instances.find((i) => i.id === id);
   const getInstancePortConfig = (portName: string) =>
     instance?.config?.portConfigs?.find(
-      (pc) => pc.portName === portName && (pc.direction == null || pc.direction === 'INPUT')
+      (pc) => pc.portName === portName && (pc.direction == null || pc.direction === 'INPUT'),
     );
+  const getSourceNodeTypeName = (sourceNode: string): string => {
+    if (isStartNode(sourceNode)) return 'Start';
+    const sourceInstance = workflow.instances.find((candidate) => candidate.id === sourceNode);
+    const sourceNodeType = workflow.nodeTypes.find(
+      (candidate) => candidate.name === sourceInstance?.nodeType || candidate.functionName === sourceInstance?.nodeType,
+    );
+    return sourceNodeType?.functionName ?? sourceInstance?.nodeType ?? sourceNode;
+  };
 
   // Handle execute port first
   const executeConnections = inputConnections.filter((conn) => conn.to.port === 'execute');
@@ -228,7 +254,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     // Still emit the event for the execute port so the UI shows it.
     if (emitInputEvents) {
       lines.push(
-        `${indent}${setCall}({ id: '${id}', portName: 'execute', executionIndex: ${safeId}Idx, nodeTypeName: '${effectiveNodeTypeName}' }, true);`
+        `${indent}${setCall}({ id: '${id}', portName: 'execute', executionIndex: ${safeId}Idx, nodeTypeName: '${effectiveNodeTypeName}', durable: false }, true);`,
       );
     }
     // Don't push execute to args - expression _impl doesn't receive it
@@ -247,12 +273,12 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
       const isConstSource = isStartNode(sourceNode) || sourceNode === instanceParent;
       if (isConstSource) {
         lines.push(
-          `${indent}const ${varName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) as boolean;`
+          `${indent}const ${varName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' }) as boolean;`,
         );
       } else {
         // Non-const source may be undefined (CANCELLED branch) — guard with false default
         lines.push(
-          `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) as boolean : false;`
+          `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' }) as boolean : false;`,
         );
       }
     } else {
@@ -263,16 +289,16 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
         const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
         const isConstSource = isStartNode(sourceNode) || sourceNode === instanceParent;
         if (isConstSource) {
-          return `(${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) as boolean)`;
+          return `(${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' }) as boolean)`;
         }
-        return `(${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) as boolean : false)`;
+        return `(${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' }) as boolean : false)`;
       });
       lines.push(`${indent}const ${varName} = ${parts.join(' || ')};`);
     }
     // Emit VARIABLE_SET for execute input port
     if (emitInputEvents) {
       lines.push(
-        `${indent}${setCall}({ id: '${id}', portName: 'execute', executionIndex: ${safeId}Idx, nodeTypeName: '${effectiveNodeTypeName}' }, ${varName});`
+        `${indent}${setCall}({ id: '${id}', portName: 'execute', executionIndex: ${safeId}Idx, nodeTypeName: '${effectiveNodeTypeName}', durable: false }, ${varName});`,
       );
     }
     args.push(varName);
@@ -280,7 +306,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     // Default execute to true - still emit event for the default value
     if (emitInputEvents) {
       lines.push(
-        `${indent}${setCall}({ id: '${id}', portName: 'execute', executionIndex: ${safeId}Idx, nodeTypeName: '${effectiveNodeTypeName}' }, true);`
+        `${indent}${setCall}({ id: '${id}', portName: 'execute', executionIndex: ${safeId}Idx, nodeTypeName: '${effectiveNodeTypeName}', durable: false }, true);`,
       );
     }
     args.push('true');
@@ -313,7 +339,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     const emitSetEvent = () => {
       if (emitInputEvents) {
         lines.push(
-          `${indent}${setCall}({ id: '${id}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${effectiveNodeTypeName}' }, ${varName});`
+          `${indent}${setCall}({ id: '${id}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${effectiveNodeTypeName}', durable: false }, ${varName});`,
         );
       }
     };
@@ -337,12 +363,9 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
         const sourceNode = connection.from.node;
         const sourcePort = connection.from.port;
         // Check if source node exists (Start node always exists)
-        const sourceExists =
-          isStartNode(sourceNode) || workflow.instances.some((i) => i.id === sourceNode);
+        const sourceExists = isStartNode(sourceNode) || workflow.instances.some((i) => i.id === sourceNode);
         if (!sourceExists) {
-          lines.push(
-            `${indent}const ${varName} = undefined; // Source node '${sourceNode}' not found`
-          );
+          lines.push(`${indent}const ${varName} = undefined; // Source node '${sourceNode}' not found`);
           args.push(varName);
           emitSetEvent();
           return;
@@ -350,6 +373,9 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
         const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
         const isConstSource = isStartNode(sourceNode) || sourceNode === instanceParent;
         const nonNullAssert = isConstSource ? '' : '!';
+        const sourceExecutionIndex = isPullExecutionSource(workflow, sourceNode)
+          ? `${sourceIdx} ?? 0`
+          : `${sourceIdx}${nonNullAssert}`;
         const rawPortType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
         // Use Parameters<typeof fn>[N] for non-primitive types to avoid bare
         // type names from external modules that aren't in scope. The function
@@ -366,49 +392,41 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
         if (portConfig.dataType === 'FUNCTION') {
           // Emit inline resolveFunction stub if not already declared in scope
           // This avoids a ReferenceError in self-contained generated code
-          lines.push(`${indent}const __resolveFunction = typeof resolveFunction === 'function' ? resolveFunction : (p: unknown) => ({ fn: typeof p === 'function' ? p : () => { throw new Error('Cannot resolve function reference'); }, source: 'direct' as const });`);
+          lines.push(
+            `${indent}const __resolveFunction = typeof resolveFunction === 'function' ? resolveFunction : (p: unknown) => ({ fn: typeof p === 'function' ? p : () => { throw new Error('Cannot resolve function reference'); }, source: 'direct' as const });`,
+          );
           const rawVarName = `${varName}_raw`;
           if (needsGuard) {
             lines.push(
-              `${indent}const ${rawVarName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) : undefined;`
+              `${indent}const ${rawVarName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' }) : undefined;`,
             );
             lines.push(
-              `${indent}const ${varName}_resolved = ${rawVarName} !== undefined ? __resolveFunction(${rawVarName}) : undefined;`
+              `${indent}const ${varName}_resolved = ${rawVarName} !== undefined ? __resolveFunction(${rawVarName}) : undefined;`,
             );
-            lines.push(
-              `${indent}const ${varName} = ${varName}_resolved?.fn as ${portType};`
-            );
+            lines.push(`${indent}const ${varName} = ${varName}_resolved?.fn as ${portType};`);
           } else {
             lines.push(
-              `${indent}const ${rawVarName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} });`
+              `${indent}const ${rawVarName} = ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceExecutionIndex}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' });`,
             );
-            lines.push(
-              `${indent}const ${varName}_resolved = __resolveFunction(${rawVarName});`
-            );
-            lines.push(
-              `${indent}const ${varName} = ${varName}_resolved.fn as ${portType};`
-            );
+            lines.push(`${indent}const ${varName}_resolved = __resolveFunction(${rawVarName});`);
+            lines.push(`${indent}const ${varName} = ${varName}_resolved.fn as ${portType};`);
           }
         } else {
           // Check for coercion (explicit or auto)
           const sourceDataType = resolveSourcePortDataType(workflow, sourceNode, sourcePort);
           const coerceExpr = getCoercionWrapper(connection, sourceDataType, portConfig.dataType);
           if (needsGuard) {
-            const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} })`;
+            const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' })`;
             const wrappedExpr = coerceExpr ? `${coerceExpr}(${getExpr})` : getExpr;
             lines.push(
-              `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${wrappedExpr} as ${portType} : undefined;`
+              `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${wrappedExpr} as ${portType} : undefined;`,
             );
           } else {
-            const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}${nonNullAssert} })`;
+            const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceExecutionIndex}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' })`;
             if (coerceExpr) {
-              lines.push(
-                `${indent}const ${varName} = ${coerceExpr}(${getExpr}) as ${portType};`
-              );
+              lines.push(`${indent}const ${varName} = ${coerceExpr}(${getExpr}) as ${portType};`);
             } else {
-              lines.push(
-                `${indent}const ${varName} = ${getExpr} as ${portType};`
-              );
+              lines.push(`${indent}const ${varName} = ${getExpr} as ${portType};`);
             }
           }
         }
@@ -430,7 +448,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
           const sourceNode = conn.from.node;
           const sourcePort = conn.from.port;
           const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
-          const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} })`;
+          const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' })`;
 
           // Per-connection coercion: each source gets its own coercion wrapper
           if (portConfig.dataType !== 'FUNCTION') {
@@ -444,21 +462,23 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
         });
         const ternary = attempts.join(' ?? ');
         const rawPortType2 = mapToTypeScript(portConfig.dataType, portConfig.tsType);
-        const isPrimitive2 = /^(string|number|boolean|void|unknown|any|never|null|undefined)(\[\])?$/.test(rawPortType2);
+        const isPrimitive2 = /^(string|number|boolean|void|unknown|any|never|null|undefined)(\[\])?$/.test(
+          rawPortType2,
+        );
         const paramIndex2 = args.length;
         const portType = isPrimitive2 ? rawPortType2 : `Parameters<typeof ${node.functionName}>[${paramIndex2}]`;
 
         // For FUNCTION type ports, add resolution step to handle registry IDs
         if (portConfig.dataType === 'FUNCTION') {
-          lines.push(`${indent}const __resolveFunction = typeof resolveFunction === 'function' ? resolveFunction : (p: unknown) => ({ fn: typeof p === 'function' ? p : () => { throw new Error('Cannot resolve function reference'); }, source: 'direct' as const });`);
+          lines.push(
+            `${indent}const __resolveFunction = typeof resolveFunction === 'function' ? resolveFunction : (p: unknown) => ({ fn: typeof p === 'function' ? p : () => { throw new Error('Cannot resolve function reference'); }, source: 'direct' as const });`,
+          );
           const rawVarName = `${varName}_raw`;
           lines.push(`${indent}const ${rawVarName} = ${ternary};`);
           lines.push(
-            `${indent}const ${varName}_resolved = ${rawVarName} !== undefined ? __resolveFunction(${rawVarName}) : undefined;`
+            `${indent}const ${varName}_resolved = ${rawVarName} !== undefined ? __resolveFunction(${rawVarName}) : undefined;`,
           );
-          lines.push(
-            `${indent}const ${varName} = ${varName}_resolved?.fn as ${portType};`
-          );
+          lines.push(`${indent}const ${varName} = ${varName}_resolved?.fn as ${portType};`);
         } else {
           lines.push(`${indent}const ${varName} = ${ternary} as ${portType};`);
         }
@@ -495,7 +515,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
       const paramIndex4 = args.length;
       const portType = isPrimitive4 ? rawPortType4 : `Parameters<typeof ${node.functionName}>[${paramIndex4}]`;
       lines.push(
-        `${indent}let ${varName}: ${portType} = undefined as unknown as ${portType}; // Required port '${portName}' has no connection`
+        `${indent}let ${varName}: ${portType} = undefined as unknown as ${portType}; // Required port '${portName}' has no connection`,
       );
       args.push(varName);
       emitSetEvent();
@@ -531,7 +551,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     // Do NOT inherit the workflow-level isAsync flag (which is true in dev mode for debugging).
     const hasAsyncChild = childInstances.some((child) => {
       const childNodeType = workflow.nodeTypes?.find(
-        (nt) => nt.name === child.nodeType || nt.functionName === child.nodeType
+        (nt) => nt.name === child.nodeType || nt.functionName === child.nodeType,
       );
       return childNodeType?.isAsync === true;
     });
@@ -543,7 +563,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
       workflow,
       childInstances,
       scopeIsAsync,
-      production
+      production,
     );
     lines.push(`${indent}const ${scopeFunctionVar} = ${scopeFunctionCode};`);
 
@@ -552,6 +572,11 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
 
   if (node.receivesAbortSignal) {
     args.push(abortSignalExpression);
+  }
+  if (node.receivesRuntime) {
+    args.push(
+      `{ nodeId: '${id}', runtime: ${runtimeContextExpression}.getRuntime(), recursionDepth: __rd__, createNestedRuntime: (workflowId: string) => ${runtimeContextExpression}.createNestedRuntime(workflowId, '${id}', ${safeId}Idx) }`,
+    );
   }
 
   return args;
@@ -562,7 +587,7 @@ export function generateNodeWithExecutionContext(
   workflow: TWorkflowAST,
   lines: string[],
   isAsync: boolean,
-  indent: string = '  '
+  indent: string = '  ',
 ): void {
   const nodeName = node.functionName;
   const safeNodeName = toValidIdentifier(nodeName); // Sanitize for use as JS variable name
@@ -570,7 +595,6 @@ export function generateNodeWithExecutionContext(
   const getCall = isAsync ? 'await ctx.getVariable' : 'ctx.getVariable';
   const setCall = isAsync ? 'await ctx.setVariable' : 'ctx.setVariable';
   lines.push(`${indent}const ${safeNodeName}Idx = ctx.addExecution('${nodeName}');`);
-  lines.push(`${indent}if (typeof globalThis !== 'undefined') (globalThis as unknown as { __fw_current_node_id__?: string }).__fw_current_node_id__ = '${nodeName}';`);
   lines.push(`${indent}${awaitPrefix}ctx.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${nodeName}',`);
   lines.push(`${indent}  id: '${nodeName}',`);
@@ -588,13 +612,11 @@ export function generateNodeWithExecutionContext(
     isAsync,
   });
   const resultVar = `${safeNodeName}Result`;
-  lines.push(
-    `${indent}  const ${resultVar} = ${awaitPrefix}${node.functionName}(${args.join(', ')});`
-  );
+  lines.push(`${indent}  const ${resultVar} = ${awaitPrefix}${node.functionName}(${args.join(', ')});`);
   Object.keys(node.outputs).forEach((portName) => {
     if (isSuccessPort(portName) || isFailurePort(portName)) return;
     lines.push(
-      `${indent}  ${setCall}({ id: '${nodeName}', portName: '${portName}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, ${resultVar}.${portName});`
+      `${indent}  ${setCall}({ id: '${nodeName}', portName: '${portName}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, ${resultVar}.${portName});`,
     );
   });
   lines.push(`${indent}  ${awaitPrefix}ctx.sendStatusChangedEvent({`);
@@ -608,12 +630,12 @@ export function generateNodeWithExecutionContext(
   if (hasOnSuccess || hasOnFailure) {
     if (hasOnSuccess) {
       lines.push(
-        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_SUCCESS}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, true);`
+        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_SUCCESS}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, true);`,
       );
     }
     if (hasOnFailure) {
       lines.push(
-        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_FAILURE}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, false);`
+        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_FAILURE}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, false);`,
       );
     }
   }
@@ -630,23 +652,23 @@ export function generateNodeWithExecutionContext(
   lines.push(`${indent}    executionIndex: ${safeNodeName}Idx,`);
   lines.push(`${indent}    error: error instanceof Error ? error.message : String(error),`);
   lines.push(
-    `${indent}    code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`
+    `${indent}    code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`,
   );
   lines.push(`${indent}  });`);
   if (hasOnSuccess || hasOnFailure) {
     if (hasOnSuccess) {
       lines.push(
-        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_SUCCESS}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, false);`
+        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_SUCCESS}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, false);`,
       );
     }
     if (hasOnFailure) {
       lines.push(
-        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_FAILURE}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, true);`
+        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_FAILURE}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, true);`,
       );
     }
   }
   const hasOnFailureConnection = workflow.connections.some(
-    (conn) => conn.from.node === nodeName && isFailurePort(conn.from.port)
+    (conn) => conn.from.node === nodeName && isFailurePort(conn.from.port),
   );
   if (hasOnFailureConnection) {
     lines.push(`${indent}  `);
@@ -662,7 +684,7 @@ export function buildExecutionContextReturnForBranch(
   isAsync: boolean,
   branchName: string,
   indent: string,
-  executedNodes: string[]
+  executedNodes: string[],
 ): string {
   const getCall = isAsync ? 'await ctx.getVariable' : 'ctx.getVariable';
   const exitConnections = workflow.connections.filter((conn) => isExitNode(conn.to.node));
@@ -672,16 +694,22 @@ export function buildExecutionContextReturnForBranch(
     const sourceNode = conn.from.node;
     const sourcePort = conn.from.port;
     const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
+    const sourceInstance = workflow.instances.find((candidate) => candidate.id === sourceNode);
+    const sourceNodeType = workflow.nodeTypes.find(
+      (candidate) => candidate.name === sourceInstance?.nodeType || candidate.functionName === sourceInstance?.nodeType,
+    );
+    const sourceNodeTypeName = isStartNode(sourceNode)
+      ? 'Start'
+      : (sourceNodeType?.functionName ?? sourceInstance?.nodeType ?? sourceNode);
     // Get exit port type for type casting
     const exitPortDef = workflow.exitPorts[exitPort];
-    const exitPortType =
-      exitPortDef?.tsType || (exitPortDef ? mapToTypeScript(exitPortDef.dataType) : 'unknown');
+    const exitPortType = exitPortDef?.tsType || (exitPortDef ? mapToTypeScript(exitPortDef.dataType) : 'unknown');
     if (!executedNodes.includes(sourceNode) && !isStartNode(sourceNode)) {
       returnProps.push(`${exitPort}: undefined`);
     } else {
       const varName = `exit_${exitPort}_${branchName}`;
       lines.push(
-        `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} }) : undefined;`
+        `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${sourceNodeTypeName}' }) : undefined;`,
       );
       // Cast to the exit port's declared type for type safety
       returnProps.push(`${exitPort}: ${varName} as ${exitPortType}`);

@@ -45,12 +45,14 @@ export function calc(execute: boolean, params: { a: number; b: number }): { sum:
     const testFile = path.join(outputDir, 'expression-add.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'calc', { production: true });
+    const code = await generator.generate(testFile, 'calc', {
+      production: true,
+    });
     const outputFile = path.join(outputDir, 'expression-add.generated.ts');
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
-    const result = await module.calc(true, { a: 3, b: 5 });
+    const result = await module.calc(true, { a: 3, b: 5 }, testHelpers.createRuntime('calc'));
 
     expect(result.sum).toBe(8);
     expect(result.onSuccess).toBe(true);
@@ -84,14 +86,16 @@ export function workflow(execute: boolean, params: { a: number }): { result: num
     const testFile = path.join(outputDir, 'expression-fail.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'workflow', { production: true });
+    const code = await generator.generate(testFile, 'workflow', {
+      production: true,
+    });
     const outputFile = path.join(outputDir, 'expression-fail.generated.ts');
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
     // The node throws, so the workflow should re-throw (no onFailure connection to handle it)
     // workflow is sync (no async node types), so it throws synchronously
-    expect(() => module.workflow(true, { a: 1 })).toThrow('intentional');
+    expect(() => module.workflow(true, { a: 1 }, testHelpers.createRuntime('workflow'))).toThrow('intentional');
   });
 
   it('should execute chained expression nodes: doubleIt(5) -> addTen produces 20 (F1 fix)', async () => {
@@ -131,12 +135,14 @@ export function mathPipeline(execute: boolean, params: { value: number }): { res
     const testFile = path.join(outputDir, 'expression-chain.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'mathPipeline', { production: true });
+    const code = await generator.generate(testFile, 'mathPipeline', {
+      production: true,
+    });
     const outputFile = path.join(outputDir, 'expression-chain.generated.ts');
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
-    const result = await module.mathPipeline(true, { value: 5 });
+    const result = await module.mathPipeline(true, { value: 5 }, testHelpers.createRuntime('mathPipeline'));
 
     // doubleIt(5) = { result: 10 }, then addTen(10) = { result: 20 }
     // Before F1 fix: addTen received { result: 10 } instead of 10, producing "[object Object]10"
@@ -179,12 +185,14 @@ export function helloWorld(execute: boolean, params: { name: string }): { messag
     const testFile = path.join(outputDir, 'expression-auto-infer.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'helloWorld', { production: true });
+    const code = await generator.generate(testFile, 'helloWorld', {
+      production: true,
+    });
     const outputFile = path.join(outputDir, 'expression-auto-infer.generated.ts');
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
-    const result = await module.helloWorld(true, { name: 'World' });
+    const result = await module.helloWorld(true, { name: 'World' }, testHelpers.createRuntime('helloWorld'));
 
     expect(result.message).toBe('HELLO, WORLD!!!!'); // 'Hello, World!' uppercased + '!!!'
     expect(result.onSuccess).toBe(true);
@@ -220,12 +228,14 @@ export function doubleWorkflow(execute: boolean, params: { value: number }): { d
     const testFile = path.join(outputDir, 'expression-partial-infer.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'doubleWorkflow', { production: true });
+    const code = await generator.generate(testFile, 'doubleWorkflow', {
+      production: true,
+    });
     const outputFile = path.join(outputDir, 'expression-partial-infer.generated.ts');
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
-    const result = await module.doubleWorkflow(true, { value: 5 });
+    const result = await module.doubleWorkflow(true, { value: 5 }, testHelpers.createRuntime('doubleWorkflow'));
 
     expect(result.doubled).toBe(10);
     expect(result.onSuccess).toBe(true);
@@ -267,12 +277,14 @@ export function calc(execute: boolean, params: { a: number; b: number }): { sum:
     const testFile = path.join(outputDir, 'expression-multi.ts');
     fs.writeFileSync(testFile, source);
 
-    const code = await generator.generate(testFile, 'calc', { production: true });
+    const code = await generator.generate(testFile, 'calc', {
+      production: true,
+    });
     const outputFile = path.join(outputDir, 'expression-multi.generated.ts');
     fs.writeFileSync(outputFile, code);
 
     const module = await import(outputFile);
-    const result = await module.calc(true, { a: 4, b: 3 });
+    const result = await module.calc(true, { a: 4, b: 3 }, testHelpers.createRuntime('calc'));
 
     expect(result.sum).toBe(7);
     expect(result.product).toBe(12);

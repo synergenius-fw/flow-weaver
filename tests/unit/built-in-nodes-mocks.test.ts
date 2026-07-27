@@ -3,10 +3,39 @@ import { delay } from '../../src/built-in-nodes/delay';
 import { waitForEvent } from '../../src/built-in-nodes/wait-for-event';
 import { invokeWorkflow } from '../../src/built-in-nodes/invoke-workflow';
 import { waitForAgent } from '../../src/built-in-nodes/wait-for-agent';
+import type { FwMockConfig } from '../../src/built-in-nodes/mock-types';
+import { createNestedWorkflowRuntime, type NodeExecutionRuntime } from '../../src/runtime/durable-execution';
 
+let mocks: FwMockConfig | undefined;
 afterEach(() => {
-  delete (globalThis as unknown as Record<string, unknown>).__fw_mocks__;
+  mocks = undefined;
 });
+
+function nodeRuntime(nodeId: string): NodeExecutionRuntime {
+  const runtime = testHelpers.createRuntime('builtInMocks', { mocks });
+  return {
+    nodeId,
+    runtime,
+    recursionDepth: 0,
+    createNestedRuntime: (workflowId: string) => createNestedWorkflowRuntime(runtime, workflowId, nodeId, 0),
+  };
+}
+
+function runDelay(execute: boolean, duration: string) {
+  return delay(execute, duration, undefined, nodeRuntime('delay'));
+}
+
+function runWaitForEvent(execute: boolean, eventName: string) {
+  return waitForEvent(execute, eventName, undefined, undefined, nodeRuntime('waitForEvent'));
+}
+
+function runInvokeWorkflow(execute: boolean, functionId: string, payload: object) {
+  return invokeWorkflow(execute, functionId, payload, undefined, undefined, nodeRuntime('invokeWorkflow'));
+}
+
+function runWaitForAgent(execute: boolean, agentId: string, context: object) {
+  return waitForAgent(execute, agentId, context, undefined, undefined, nodeRuntime('waitForAgent'));
+}
 
 // ---------------------------------------------------------------------------
 // delay
@@ -15,30 +44,42 @@ afterEach(() => {
 describe('delay with mocks', () => {
   it('sleeps for real duration when no mocks', async () => {
     const start = Date.now();
-    const result = await delay(true, '100ms');
+    const result = await runDelay(true, '100ms');
     expect(Date.now() - start).toBeGreaterThanOrEqual(80);
-    expect(result).toEqual({ onSuccess: true, onFailure: false, elapsed: true });
+    expect(result).toEqual({
+      onSuccess: true,
+      onFailure: false,
+      elapsed: true,
+    });
   });
 
   it('skips sleep in fast mode', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = { fast: true };
+    mocks = { fast: true };
     const start = Date.now();
-    const result = await delay(true, '10s');
+    const result = await runDelay(true, '10s');
     expect(Date.now() - start).toBeLessThan(50);
-    expect(result).toEqual({ onSuccess: true, onFailure: false, elapsed: true });
+    expect(result).toEqual({
+      onSuccess: true,
+      onFailure: false,
+      elapsed: true,
+    });
   });
 
   it('sleeps normally when mocks set but fast=false', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = { fast: false };
+    mocks = { fast: false };
     const start = Date.now();
-    await delay(true, '100ms');
+    await runDelay(true, '100ms');
     expect(Date.now() - start).toBeGreaterThanOrEqual(80);
   });
 
   it('returns inactive when execute=false regardless of mocks', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = { fast: true };
-    const result = await delay(false, '10s');
-    expect(result).toEqual({ onSuccess: false, onFailure: false, elapsed: false });
+    mocks = { fast: true };
+    const result = await runDelay(false, '10s');
+    expect(result).toEqual({
+      onSuccess: false,
+      onFailure: false,
+      elapsed: false,
+    });
   });
 });
 
@@ -48,10 +89,10 @@ describe('delay with mocks', () => {
 
 describe('waitForEvent with mocks', () => {
   it('returns mock data when event name matches', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       events: { 'app/expense.approved': { expenseId: '123', amount: 500 } },
     };
-    const result = await waitForEvent(true, 'app/expense.approved');
+    const result = await runWaitForEvent(true, 'app/expense.approved');
     expect(result).toEqual({
       onSuccess: true,
       onFailure: false,
@@ -60,10 +101,10 @@ describe('waitForEvent with mocks', () => {
   });
 
   it('returns onFailure when mocks active but event not found', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       events: { 'app/other-event': { data: 'x' } },
     };
-    const result = await waitForEvent(true, 'app/expense.approved');
+    const result = await runWaitForEvent(true, 'app/expense.approved');
     expect(result).toEqual({
       onSuccess: false,
       onFailure: true,
@@ -72,8 +113,8 @@ describe('waitForEvent with mocks', () => {
   });
 
   it('returns onFailure when mocks active with empty events', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = { events: {} };
-    const result = await waitForEvent(true, 'app/expense.approved');
+    mocks = { events: {} };
+    const result = await runWaitForEvent(true, 'app/expense.approved');
     expect(result).toEqual({
       onSuccess: false,
       onFailure: true,
@@ -82,8 +123,8 @@ describe('waitForEvent with mocks', () => {
   });
 
   it('returns onFailure when mocks active with no events key', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {};
-    const result = await waitForEvent(true, 'app/expense.approved');
+    mocks = {};
+    const result = await runWaitForEvent(true, 'app/expense.approved');
     expect(result).toEqual({
       onSuccess: false,
       onFailure: true,
@@ -92,7 +133,7 @@ describe('waitForEvent with mocks', () => {
   });
 
   it('uses original no-op behavior when no mocks', async () => {
-    const result = await waitForEvent(true, 'app/expense.approved');
+    const result = await runWaitForEvent(true, 'app/expense.approved');
     expect(result).toEqual({
       onSuccess: true,
       onFailure: false,
@@ -101,10 +142,10 @@ describe('waitForEvent with mocks', () => {
   });
 
   it('returns inactive when execute=false', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       events: { 'app/test': { data: 'x' } },
     };
-    const result = await waitForEvent(false, 'app/test');
+    const result = await runWaitForEvent(false, 'app/test');
     expect(result).toEqual({
       onSuccess: false,
       onFailure: false,
@@ -119,10 +160,12 @@ describe('waitForEvent with mocks', () => {
 
 describe('invokeWorkflow with mocks', () => {
   it('returns mock result when functionId matches', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       invocations: { 'payment/process': { transactionId: 'tx-456' } },
     };
-    const result = await invokeWorkflow(true, 'payment/process', { amount: 100 });
+    const result = await runInvokeWorkflow(true, 'payment/process', {
+      amount: 100,
+    });
     expect(result).toEqual({
       onSuccess: true,
       onFailure: false,
@@ -131,10 +174,10 @@ describe('invokeWorkflow with mocks', () => {
   });
 
   it('returns onFailure when functionId not found in mocks', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       invocations: { 'other/function': { data: 'x' } },
     };
-    const result = await invokeWorkflow(true, 'payment/process', {});
+    const result = await runInvokeWorkflow(true, 'payment/process', {});
     expect(result).toEqual({
       onSuccess: false,
       onFailure: true,
@@ -143,8 +186,8 @@ describe('invokeWorkflow with mocks', () => {
   });
 
   it('returns onFailure when mocks active with no invocations key', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {};
-    const result = await invokeWorkflow(true, 'payment/process', {});
+    mocks = {};
+    const result = await runInvokeWorkflow(true, 'payment/process', {});
     expect(result).toEqual({
       onSuccess: false,
       onFailure: true,
@@ -153,7 +196,7 @@ describe('invokeWorkflow with mocks', () => {
   });
 
   it('uses original no-op behavior when no mocks', async () => {
-    const result = await invokeWorkflow(true, 'payment/process', {});
+    const result = await runInvokeWorkflow(true, 'payment/process', {});
     expect(result).toEqual({
       onSuccess: true,
       onFailure: false,
@@ -162,10 +205,10 @@ describe('invokeWorkflow with mocks', () => {
   });
 
   it('returns inactive when execute=false', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       invocations: { 'payment/process': { ok: true } },
     };
-    const result = await invokeWorkflow(false, 'payment/process', {});
+    const result = await runInvokeWorkflow(false, 'payment/process', {});
     expect(result).toEqual({
       onSuccess: false,
       onFailure: false,
@@ -180,10 +223,12 @@ describe('invokeWorkflow with mocks', () => {
 
 describe('waitForAgent with mocks', () => {
   it('returns mock result when agentId matches', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       agents: { 'human-reviewer': { approved: true, note: 'LGTM' } },
     };
-    const result = await waitForAgent(true, 'human-reviewer', { data: 'test' });
+    const result = await runWaitForAgent(true, 'human-reviewer', {
+      data: 'test',
+    });
     expect(result).toEqual({
       onSuccess: true,
       onFailure: false,
@@ -192,10 +237,10 @@ describe('waitForAgent with mocks', () => {
   });
 
   it('returns onFailure when agentId not found in mocks', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       agents: { 'other-agent': { data: 'x' } },
     };
-    const result = await waitForAgent(true, 'human-reviewer', {});
+    const result = await runWaitForAgent(true, 'human-reviewer', {});
     expect(result).toEqual({
       onSuccess: false,
       onFailure: true,
@@ -204,8 +249,8 @@ describe('waitForAgent with mocks', () => {
   });
 
   it('returns onFailure when mocks active with empty agents', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = { agents: {} };
-    const result = await waitForAgent(true, 'human-reviewer', {});
+    mocks = { agents: {} };
+    const result = await runWaitForAgent(true, 'human-reviewer', {});
     expect(result).toEqual({
       onSuccess: false,
       onFailure: true,
@@ -213,20 +258,17 @@ describe('waitForAgent with mocks', () => {
     });
   });
 
-  it('uses original no-op behavior when no mocks', async () => {
-    const result = await waitForAgent(true, 'human-reviewer', {});
-    expect(result).toEqual({
-      onSuccess: true,
-      onFailure: false,
-      agentResult: {},
-    });
+  it('fails closed without a generated durable gate or mock', async () => {
+    await expect(runWaitForAgent(true, 'human-reviewer', {})).rejects.toThrow(
+      'requires a generated durable agent gate',
+    );
   });
 
   it('returns inactive when execute=false', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       agents: { 'human-reviewer': { approved: true } },
     };
-    const result = await waitForAgent(false, 'human-reviewer', {});
+    const result = await runWaitForAgent(false, 'human-reviewer', {});
     expect(result).toEqual({
       onSuccess: false,
       onFailure: false,
@@ -241,7 +283,7 @@ describe('waitForAgent with mocks', () => {
 
 describe('combined mocks', () => {
   it('handles events + invocations + fast simultaneously', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       events: { 'app/approved': { id: '1' } },
       invocations: { 'svc/fn': { ok: true } },
       fast: true,
@@ -249,19 +291,23 @@ describe('combined mocks', () => {
 
     const start = Date.now();
     const [delayResult, eventResult, invokeResult] = await Promise.all([
-      delay(true, '1h'),
-      waitForEvent(true, 'app/approved'),
-      invokeWorkflow(true, 'svc/fn', {}),
+      runDelay(true, '1h'),
+      runWaitForEvent(true, 'app/approved'),
+      runInvokeWorkflow(true, 'svc/fn', {}),
     ]);
     expect(Date.now() - start).toBeLessThan(50);
 
-    expect(delayResult).toEqual({ onSuccess: true, onFailure: false, elapsed: true });
+    expect(delayResult).toEqual({
+      onSuccess: true,
+      onFailure: false,
+      elapsed: true,
+    });
     expect(eventResult.eventData).toEqual({ id: '1' });
     expect(invokeResult.result).toEqual({ ok: true });
   });
 
   it('multiple events for different nodes', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    mocks = {
       events: {
         'app/approved': { id: '1' },
         'app/payment.confirmed': { txId: 'tx-789' },
@@ -269,9 +315,9 @@ describe('combined mocks', () => {
     };
 
     const [r1, r2, r3] = await Promise.all([
-      waitForEvent(true, 'app/approved'),
-      waitForEvent(true, 'app/payment.confirmed'),
-      waitForEvent(true, 'app/unknown'), // not in mocks
+      runWaitForEvent(true, 'app/approved'),
+      runWaitForEvent(true, 'app/payment.confirmed'),
+      runWaitForEvent(true, 'app/unknown'), // not in mocks
     ]);
 
     expect(r1.onSuccess).toBe(true);

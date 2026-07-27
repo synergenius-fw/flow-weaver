@@ -9,7 +9,7 @@ import type { TDebugger } from '../../src/runtime/events';
 
 describe('VariableAddress scope/side support', () => {
   it('should accept scope and side properties on setVariable address', () => {
-    const ctx = new GeneratedExecutionContext(false);
+    const ctx = new GeneratedExecutionContext(false, testHelpers.createRuntime('variableAddress'));
     const idx = ctx.addExecution('node1');
 
     // This should compile without errors — scope and side are valid
@@ -22,7 +22,7 @@ describe('VariableAddress scope/side support', () => {
         scope: 'attempt',
         side: 'start',
       },
-      42
+      42,
     );
 
     const value = ctx.getVariable({
@@ -40,7 +40,10 @@ describe('VariableAddress scope/side support', () => {
       innerFlowInvocation: false,
     };
 
-    const ctx = new GeneratedExecutionContext(false, debugger_);
+    const ctx = new GeneratedExecutionContext(
+      false,
+      testHelpers.createRuntime('variableAddress', { debugger: debugger_ }),
+    );
     const idx = ctx.addExecution('node1');
 
     ctx.setVariable(
@@ -52,7 +55,7 @@ describe('VariableAddress scope/side support', () => {
         scope: 'attempt',
         side: 'start',
       },
-      42
+      42,
     );
 
     expect(events).toHaveLength(1);
@@ -66,7 +69,7 @@ describe('VariableAddress scope/side support', () => {
   });
 
   it('should accept side: exit', () => {
-    const ctx = new GeneratedExecutionContext(false);
+    const ctx = new GeneratedExecutionContext(false, testHelpers.createRuntime('variableAddress'));
     const idx = ctx.addExecution('node1');
 
     // side: 'exit' should also be valid
@@ -79,7 +82,7 @@ describe('VariableAddress scope/side support', () => {
         scope: 'attempt',
         side: 'exit',
       },
-      99
+      99,
     );
 
     const value = ctx.getVariable({

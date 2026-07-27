@@ -151,6 +151,11 @@ export function extractNodeTypes(
     const jsDocs = fn.getJsDocs();
     const jsDocText = jsDocs.map((doc: JSDoc) => doc.getText()).join('\n');
     const functionText = isStub ? undefined : (jsDocText ? `${jsDocText}\n${fn.getText()}` : fn.getText());
+    const durableGate = functionText?.match(
+      /@durableGate\s+(approval|input|agent)\b/,
+    )?.[1] as 'approval' | 'input' | 'agent' | undefined;
+    const durableEffect = functionText?.includes('@durableEffect') === true;
+    const durablePure = functionText?.includes('@durablePure') === true;
 
     // Detect async keyword on function declaration
     const isAsync = fn.isAsync();
@@ -215,6 +220,9 @@ export function extractNodeTypes(
       hasFailurePort: RESERVED_PORT_NAMES.ON_FAILURE in outputs,
       isAsync,
       functionText,
+      ...(durableGate && { durableGate }),
+      ...(durableEffect && { durableEffect: true }),
+      ...(durablePure && { durablePure: true }),
       executeWhen: (config.executeWhen as TExecuteWhen) || EXECUTION_STRATEGIES.CONJUNCTION,
       defaultConfig,
       scope: config.scope,
@@ -334,6 +342,11 @@ export function inferNodeTypeFromFunction(
   const jsDocs = fn.getJsDocs();
   const jsDocText = jsDocs.map((doc: JSDoc) => doc.getText()).join('\n');
   const functionText = jsDocText ? `${jsDocText}\n${fn.getText()}` : fn.getText();
+  const durableGate = functionText.match(
+    /@durableGate\s+(approval|input|agent)\b/,
+  )?.[1] as 'approval' | 'input' | 'agent' | undefined;
+  const durableEffect = functionText.includes('@durableEffect');
+  const durablePure = functionText.includes('@durablePure');
 
   return {
     type: 'NodeType',
@@ -349,6 +362,9 @@ export function inferNodeTypeFromFunction(
     expression: !firstParamIsExecute, // Expression only if original function lacks execute as first param
     inferred: true,
     functionText,
+    ...(durableGate && { durableGate }),
+    ...(durableEffect && { durableEffect: true }),
+    ...(durablePure && { durablePure: true }),
     ...(fn.getDeclarationKind?.() && {
       declarationKind: fn.getDeclarationKind!(),
     }),

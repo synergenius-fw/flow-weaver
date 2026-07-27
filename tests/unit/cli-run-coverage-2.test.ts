@@ -81,13 +81,6 @@ vi.mock('../../src/cli/utils/logger', () => ({
   },
 }));
 
-vi.mock('../../src/mcp/agent-channel', () => ({
-  AgentChannel: class MockAgentChannel {
-    onPause = mockAgentOnPause;
-    resume = mockAgentResume;
-  },
-}));
-
 vi.mock('../../src/runtime/debug-controller', () => ({
   DebugController: class MockDebugController {
     resume = mockControllerResume;
@@ -115,6 +108,7 @@ const DUMMY_SOURCE = 'export function dummy() {}';
 
 function makeResult(overrides: Record<string, unknown> = {}) {
   return {
+    kind: 'completed',
     result: { answer: 42 },
     functionName: 'testWf',
     executionTime: 100,
@@ -470,193 +464,7 @@ describe('successful result output (lines 397-437)', () => {
   });
 });
 
-describe('checkpoint and resume (lines 168-220)', () => {
-  it('should resume from checkpoint with specific path', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('resume-path.ts', DUMMY_SOURCE);
-    const logger = await getLogger();
-    const { loadCheckpoint } = await getCheckpointMocks();
-
-    loadCheckpoint.mockReturnValueOnce({
-      data: {
-        params: { x: 10 },
-        workflowName: 'testWf',
-        executionOrder: ['a', 'b', 'c'],
-        completedNodes: ['a', 'b'],
-      },
-      stale: false,
-      rerunNodes: [],
-      skipNodes: new Map([['a', { out: 1 }], ['b', { out: 2 }]]),
-    });
-
-    await runCommand(filePath, { resume: '/some/checkpoint.json' });
-
-    expect(loadCheckpoint).toHaveBeenCalledWith('/some/checkpoint.json', filePath);
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Resuming from checkpoint'));
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Skipping 2 completed nodes'));
-  });
-
-  it('should resume with stale warning and rerun nodes', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('resume-stale.ts', DUMMY_SOURCE);
-    const logger = await getLogger();
-    const { loadCheckpoint } = await getCheckpointMocks();
-
-    loadCheckpoint.mockReturnValueOnce({
-      data: {
-        params: { x: 10 },
-        workflowName: 'testWf',
-        executionOrder: ['a', 'b', 'c'],
-        completedNodes: ['a', 'b'],
-      },
-      stale: true,
-      rerunNodes: ['b'],
-      skipNodes: new Map([['a', { out: 1 }]]),
-    });
-
-    await runCommand(filePath, { resume: '/some/checkpoint.json' });
-
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Workflow file has changed'));
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Re-running 1 nodes'));
-  });
-
-  it('should throw when no checkpoint found for auto-detect resume', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('resume-none.ts', DUMMY_SOURCE);
-    const logger = await getLogger();
-    const { findLatestCheckpoint } = await getCheckpointMocks();
-
-    findLatestCheckpoint.mockReturnValueOnce(null);
-
-    const origExitCode = process.exitCode;
-    await runCommand(filePath, { resume: true });
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('No checkpoint file found'));
-    process.exitCode = origExitCode;
-  });
-
-  it('should set up debug controller for --checkpoint mode', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('checkpoint-mode.ts', DUMMY_SOURCE);
-
-    await runCommand(filePath, { checkpoint: true });
-
-    expect(debugControllerCalls.length).toBeGreaterThan(0);
-  });
-
-  it('should auto-continue on debug_paused in non-interactive checkpoint mode', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('checkpoint-autocontinue.ts', DUMMY_SOURCE);
-    const execMock = await getExecutorMock();
-
-    // The race loop: first iteration debug pauses, second iteration exec completes
-    let pauseResolve!: (v: unknown) => void;
-    mockControllerOnPause.mockImplementationOnce(() => new Promise((r) => { pauseResolve = r; }));
-
-    const result = makeResult();
-    let execResolve!: (v: unknown) => void;
-    execMock.mockReturnValueOnce(new Promise((r) => { execResolve = r; }));
-
-    const runPromise = runCommand(filePath, { checkpoint: true });
-
-    // Wait a tick then trigger the debug pause
-    await new Promise((r) => setTimeout(r, 10));
-    pauseResolve({
-      currentNodeId: 'a', phase: 'before', completedNodes: [],
-      executionOrder: ['a'], position: 0, variables: {}, breakpoints: [],
-    });
-
-    // Wait for auto-continue
-    await new Promise((r) => setTimeout(r, 10));
-    expect(mockControllerResume).toHaveBeenCalledWith({ type: 'continue' });
-
-    // Now resolve execution
-    execResolve(result);
-    await runPromise;
-  });
-
-  it('should include resume info in JSON output', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('resume-json.ts', DUMMY_SOURCE);
-    const { loadCheckpoint } = await getCheckpointMocks();
-
-    loadCheckpoint.mockReturnValueOnce({
-      data: {
-        params: {},
-        workflowName: 'testWf',
-        executionOrder: ['a'],
-        completedNodes: ['a'],
-      },
-      stale: false,
-      rerunNodes: ['a'],
-      skipNodes: new Map(),
-    });
-
-    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-    await runCommand(filePath, { json: true, resume: '/ckpt.json' });
-
-    const jsonCalls = writeSpy.mock.calls.filter(
-      (c) => typeof c[0] === 'string' && c[0].includes('"success"')
-    );
-    expect(jsonCalls.length).toBeGreaterThanOrEqual(1);
-    const parsed = JSON.parse(jsonCalls[0][0] as string);
-    expect(parsed.success).toBe(true);
-    expect(parsed.resumedFrom).toBe('/ckpt.json');
-    expect(parsed.rerunNodes).toEqual(['a']);
-
-    writeSpy.mockRestore();
-  });
-
-  it('should use checkpoint params when no params provided', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('resume-params.ts', DUMMY_SOURCE);
-    const { loadCheckpoint } = await getCheckpointMocks();
-    const execMock = await getExecutorMock();
-
-    loadCheckpoint.mockReturnValueOnce({
-      data: {
-        params: { fromCheckpoint: true },
-        workflowName: 'testWf',
-        executionOrder: ['a'],
-        completedNodes: [],
-      },
-      stale: false,
-      rerunNodes: [],
-      skipNodes: new Map(),
-    });
-
-    let capturedParams: unknown;
-    execMock.mockImplementationOnce(async (request: Record<string, unknown>) => {
-      capturedParams = request.params;
-      return makeResult();
-    });
-
-    await runCommand(filePath, { resume: '/ckpt.json' });
-
-    expect(capturedParams).toEqual({ fromCheckpoint: true });
-  });
-});
-
-describe('debug controller parse fallback (lines 236-247)', () => {
-  it('should use empty execution order when parsing fails', async () => {
-    const { runCommand } = await import('../../src/cli/commands/run');
-    const filePath = writeFixture('debug-parse-fail.ts', DUMMY_SOURCE);
-    const parseMock = await getParseWorkflowMock();
-
-    parseMock.mockResolvedValueOnce({
-      errors: [{ code: 'ERR', message: 'parse failed' }],
-      ast: null,
-    });
-
-    await runCommand(filePath, { checkpoint: true });
-
-    expect(debugControllerCalls.length).toBeGreaterThan(0);
-    expect(debugControllerCalls[0][0]).toEqual(expect.objectContaining({
-      executionOrder: [],
-    }));
-  });
-});
-
-describe('production mode (lines 226-229)', () => {
+ describe('production mode (lines 226-229)', () => {
   it('should pass production=true and not include trace by default', async () => {
     const { runCommand } = await import('../../src/cli/commands/run');
     const filePath = writeFixture('production.ts', DUMMY_SOURCE);

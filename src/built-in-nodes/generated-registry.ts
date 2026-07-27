@@ -14,6 +14,8 @@ export const BUILT_IN_NODE_TYPES: TNodeTypeAST[] = [
     functionName: 'delay',
     isAsync: true,
     receivesAbortSignal: true,
+    receivesRuntime: true,
+    durablePure: true,
     hasSuccessPort: true,
     hasFailurePort: true,
     executeWhen: 'CONJUNCTION',
@@ -28,14 +30,14 @@ export const BUILT_IN_NODE_TYPES: TNodeTypeAST[] = [
       elapsed: { dataType: 'BOOLEAN', label: 'Always true after sleep completes', tsType: 'boolean' },
     },
     helperText: `
-function __fw_getMockConfig() {
-    return globalThis.__fw_mocks__;
+function __fw_getMockConfig(runtime) {
+    return runtime?.runtime.services.mocks;
 }
 
-function __fw_lookupMock(section, key) {
+function __fw_lookupMock(section, key, runtime) {
     if (!section)
         return undefined;
-    const nodeId = globalThis.__fw_current_node_id__;
+    const nodeId = runtime?.nodeId;
     if (nodeId) {
         const qualified = section[\`\${nodeId}:\${key}\`];
         if (qualified !== undefined)
@@ -46,10 +48,10 @@ function __fw_lookupMock(section, key) {
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function delay(execute, duration, abortSignal) {
+async function delay(execute, duration, abortSignal, runtime) {
     if (!execute)
         return { onSuccess: false, onFailure: false, elapsed: false };
-    const mocks = __fw_getMockConfig();
+    const mocks = __fw_getMockConfig(runtime);
     if (mocks?.fast) {
         await __fw_waitForDuration(1, abortSignal);
     }
@@ -94,7 +96,7 @@ function __fw_parseDuration(duration) {
 }
 `.trim(),
     functionTextProduction: `
-async function delay(execute, duration, abortSignal) {
+async function delay(execute, duration, abortSignal, runtime) {
     if (!execute)
         return { onSuccess: false, onFailure: false, elapsed: false };
     const ms = __fw_parseDuration(duration);
@@ -142,6 +144,8 @@ function __fw_parseDuration(duration) {
     functionName: 'waitForEvent',
     isAsync: true,
     receivesAbortSignal: false,
+    receivesRuntime: true,
+    durableGate: 'input',
     hasSuccessPort: true,
     hasFailurePort: true,
     executeWhen: 'CONJUNCTION',
@@ -158,14 +162,14 @@ function __fw_parseDuration(duration) {
       eventData: { dataType: 'OBJECT', label: 'The received event\'s data payload', tsType: 'object' },
     },
     helperText: `
-function __fw_getMockConfig() {
-    return globalThis.__fw_mocks__;
+function __fw_getMockConfig(runtime) {
+    return runtime?.runtime.services.mocks;
 }
 
-function __fw_lookupMock(section, key) {
+function __fw_lookupMock(section, key, runtime) {
     if (!section)
         return undefined;
-    const nodeId = globalThis.__fw_current_node_id__;
+    const nodeId = runtime?.nodeId;
     if (nodeId) {
         const qualified = section[\`\${nodeId}:\${key}\`];
         if (qualified !== undefined)
@@ -176,12 +180,12 @@ function __fw_lookupMock(section, key) {
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function waitForEvent(execute, eventName, match, timeout) {
+async function waitForEvent(execute, eventName, match, timeout, runtime) {
     if (!execute)
         return { onSuccess: false, onFailure: false, eventData: {} };
-    const mocks = __fw_getMockConfig();
+    const mocks = __fw_getMockConfig(runtime);
     if (mocks) {
-        const mockData = __fw_lookupMock(mocks.events, eventName);
+        const mockData = __fw_lookupMock(mocks.events, eventName, runtime);
         if (mockData !== undefined) {
             return { onSuccess: true, onFailure: false, eventData: mockData };
         }
@@ -191,7 +195,7 @@ async function waitForEvent(execute, eventName, match, timeout) {
 }
 `.trim(),
     functionTextProduction: `
-async function waitForEvent(execute, eventName, match, timeout) {
+async function waitForEvent(execute, eventName, match, timeout, runtime) {
     if (!execute)
         return { onSuccess: false, onFailure: false, eventData: {} };
     return { onSuccess: true, onFailure: false, eventData: {} };
@@ -204,6 +208,8 @@ async function waitForEvent(execute, eventName, match, timeout) {
     functionName: 'invokeWorkflow',
     isAsync: true,
     receivesAbortSignal: true,
+    receivesRuntime: true,
+    durablePure: true,
     hasSuccessPort: true,
     hasFailurePort: true,
     executeWhen: 'CONJUNCTION',
@@ -220,14 +226,14 @@ async function waitForEvent(execute, eventName, match, timeout) {
       result: { dataType: 'OBJECT', label: 'Return value from the invoked function', tsType: 'object' },
     },
     helperText: `
-function __fw_getMockConfig() {
-    return globalThis.__fw_mocks__;
+function __fw_getMockConfig(runtime) {
+    return runtime?.runtime.services.mocks;
 }
 
-function __fw_lookupMock(section, key) {
+function __fw_lookupMock(section, key, runtime) {
     if (!section)
         return undefined;
-    const nodeId = globalThis.__fw_current_node_id__;
+    const nodeId = runtime?.nodeId;
     if (nodeId) {
         const qualified = section[\`\${nodeId}:\${key}\`];
         if (qualified !== undefined)
@@ -238,26 +244,38 @@ function __fw_lookupMock(section, key) {
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal) {
+async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal, runtime) {
     if (!execute)
         return { onSuccess: false, onFailure: false, result: {} };
-    const mocks = __fw_getMockConfig();
+    const mocks = __fw_getMockConfig(runtime);
     if (mocks) {
-        const mockResult = __fw_lookupMock(mocks.invocations, functionId);
+        const mockResult = __fw_lookupMock(mocks.invocations, functionId, runtime);
         if (mockResult !== undefined) {
             return { onSuccess: true, onFailure: false, result: mockResult };
         }
         return { onSuccess: false, onFailure: true, result: {} };
     }
-    const registry = globalThis.__fw_workflow_registry__;
+    const registry = runtime?.runtime.services.workflowRegistry;
     if (registry?.[functionId]) {
+        const nodeRuntime = runtime;
+        if (!Number.isSafeInteger(nodeRuntime.recursionDepth) ||
+            nodeRuntime.recursionDepth < 0 ||
+            nodeRuntime.recursionDepth >= 999) {
+            throw new Error('Max recursion depth exceeded (1000) in dynamic workflow invocation');
+        }
         try {
-            const result = await registry[functionId](true, payload, abortSignal);
+            const result = await registry[functionId](true, { ...payload, __rd__: nodeRuntime.recursionDepth + 1 }, nodeRuntime.createNestedRuntime(functionId));
             return { onSuccess: true, onFailure: false, result: result ?? {} };
         }
         catch (error) {
-            if (CancellationError.isCancellationError(error))
+            const controlFlowCode = typeof error === 'object' && error !== null
+                ? error.code
+                : undefined;
+            if (CancellationError.isCancellationError(error) ||
+                controlFlowCode === 'FLOW_WEAVER_DURABLE_GATE_YIELD' ||
+                controlFlowCode === 'FLOW_WEAVER_AMBIGUOUS_EFFECT') {
                 throw error;
+            }
             return { onSuccess: false, onFailure: true, result: {} };
         }
     }
@@ -265,18 +283,30 @@ async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal
 }
 `.trim(),
     functionTextProduction: `
-async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal) {
+async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal, runtime) {
     if (!execute)
         return { onSuccess: false, onFailure: false, result: {} };
-    const registry = globalThis.__fw_workflow_registry__;
+    const registry = runtime?.runtime.services.workflowRegistry;
     if (registry?.[functionId]) {
+        const nodeRuntime = runtime;
+        if (!Number.isSafeInteger(nodeRuntime.recursionDepth) ||
+            nodeRuntime.recursionDepth < 0 ||
+            nodeRuntime.recursionDepth >= 999) {
+            throw new Error('Max recursion depth exceeded (1000) in dynamic workflow invocation');
+        }
         try {
-            const result = await registry[functionId](true, payload, abortSignal);
+            const result = await registry[functionId](true, { ...payload, __rd__: nodeRuntime.recursionDepth + 1 }, nodeRuntime.createNestedRuntime(functionId));
             return { onSuccess: true, onFailure: false, result: result ?? {} };
         }
         catch (error) {
-            if (CancellationError.isCancellationError(error))
+            const controlFlowCode = typeof error === 'object' && error !== null
+                ? error.code
+                : undefined;
+            if (CancellationError.isCancellationError(error) ||
+                controlFlowCode === 'FLOW_WEAVER_DURABLE_GATE_YIELD' ||
+                controlFlowCode === 'FLOW_WEAVER_AMBIGUOUS_EFFECT') {
                 throw error;
+            }
             return { onSuccess: false, onFailure: true, result: {} };
         }
     }
@@ -290,6 +320,8 @@ async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal
     functionName: 'waitForAgent',
     isAsync: true,
     receivesAbortSignal: true,
+    receivesRuntime: true,
+    durableGate: 'agent',
     hasSuccessPort: true,
     hasFailurePort: true,
     executeWhen: 'CONJUNCTION',
@@ -306,14 +338,14 @@ async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal
       agentResult: { dataType: 'OBJECT', label: 'Result returned by the agent', tsType: 'object' },
     },
     helperText: `
-function __fw_getMockConfig() {
-    return globalThis.__fw_mocks__;
+function __fw_getMockConfig(runtime) {
+    return runtime?.runtime.services.mocks;
 }
 
-function __fw_lookupMock(section, key) {
+function __fw_lookupMock(section, key, runtime) {
     if (!section)
         return undefined;
-    const nodeId = globalThis.__fw_current_node_id__;
+    const nodeId = runtime?.nodeId;
     if (nodeId) {
         const qualified = section[\`\${nodeId}:\${key}\`];
         if (qualified !== undefined)
@@ -324,35 +356,29 @@ function __fw_lookupMock(section, key) {
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function waitForAgent(execute, agentId, context, prompt, abortSignal) {
+async function waitForAgent(execute, agentId, context, prompt, _abortSignal, runtime) {
     if (!execute)
         return { onSuccess: false, onFailure: false, agentResult: {} };
-    const mocks = __fw_getMockConfig();
-    const mockResult = __fw_lookupMock(mocks?.agents, agentId);
+    const mocks = __fw_getMockConfig(runtime);
+    const mockResult = __fw_lookupMock(mocks?.agents, agentId, runtime);
     if (mockResult !== undefined) {
         return { onSuccess: true, onFailure: false, agentResult: mockResult };
     }
     if (mocks?.agents) {
         return { onSuccess: false, onFailure: true, agentResult: {} };
     }
-    const channel = globalThis.__fw_agent_channel__;
-    if (channel) {
-        const result = await channel.request({ agentId, context, prompt }, abortSignal);
-        return { onSuccess: true, onFailure: false, agentResult: result };
-    }
-    return { onSuccess: true, onFailure: false, agentResult: {} };
+    void context;
+    void prompt;
+    throw new Error('waitForAgent requires a generated durable agent gate');
 }
 `.trim(),
     functionTextProduction: `
-async function waitForAgent(execute, agentId, context, prompt, abortSignal) {
+async function waitForAgent(execute, agentId, context, prompt, _abortSignal, runtime) {
     if (!execute)
         return { onSuccess: false, onFailure: false, agentResult: {} };
-    const channel = globalThis.__fw_agent_channel__;
-    if (channel) {
-        const result = await channel.request({ agentId, context, prompt }, abortSignal);
-        return { onSuccess: true, onFailure: false, agentResult: result };
-    }
-    return { onSuccess: true, onFailure: false, agentResult: {} };
+    void context;
+    void prompt;
+    throw new Error('waitForAgent requires a generated durable agent gate');
 }
 `.trim(),
   },

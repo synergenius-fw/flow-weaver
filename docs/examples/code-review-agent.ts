@@ -4,7 +4,7 @@ interface LLMProvider {
   chat(messages: Array<{ role: string; content: string }>, options?: { temperature?: number }): Promise<string>;
 }
 
-const llm: LLMProvider = (globalThis as any).__fw_llm_provider__ ?? {
+const llm: LLMProvider = {
   async chat(messages: Array<{ role: string; content: string }>) {
     const content = messages[messages.length - 1]?.content ?? '';
     const findings: Array<{ file: string; line: number; category: string; description: string }> = [];

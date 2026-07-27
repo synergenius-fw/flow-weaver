@@ -26,10 +26,7 @@ describe('parser branch coverage 2', () => {
     });
 
     it('returns full annotation block when cursor is above unannotated function', () => {
-      const code = [
-        '',
-        'function add(a: number, b: number): number { return a + b; }',
-      ].join('\n');
+      const code = ['', 'function add(a: number, b: number): number { return a + b; }'].join('\n');
       const parser = freshParser();
       const result = parser.generateAnnotationSuggestion(code, 0);
       expect(result).not.toBeNull();
@@ -37,10 +34,9 @@ describe('parser branch coverage 2', () => {
     });
 
     it('returns null when function has regular JSDoc but no @flowWeaver', () => {
-      const code = [
-        '/** This is a regular JSDoc comment */',
-        'function add(a: number): number { return a; }',
-      ].join('\n');
+      const code = ['/** This is a regular JSDoc comment */', 'function add(a: number): number { return a; }'].join(
+        '\n',
+      );
       const parser = freshParser();
       const result = parser.generateAnnotationSuggestion(code, 0);
       expect(result).toBeNull();
@@ -75,11 +71,7 @@ describe('parser branch coverage 2', () => {
     it('generates continuation after user types "/**" on cursor line', () => {
       // The "/**" must be on its own line, followed by a blank line, then the function.
       // The function must be close enough (within 30 lines) for the suggestion to trigger.
-      const code = [
-        '  /**',
-        '',
-        'function add(a: number, b: number): number { return a + b; }',
-      ].join('\n');
+      const code = ['  /**', '', 'function add(a: number, b: number): number { return a + b; }'].join('\n');
       const parser = freshParser();
       const result = parser.generateAnnotationSuggestion(code, 0);
       // The cursor is on the "/**" line. If the function is detected, it should
@@ -198,12 +190,14 @@ describe('parser branch coverage 2', () => {
 
     it('throws for workflow with wrong first parameter name', () => {
       const parser = freshParser();
-      expect(() => parser.parseFromString(`
+      expect(() =>
+        parser.parseFromString(`
         /**
          * @flowWeaver workflow
          */
         function badSig(notExecute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
-      `)).toThrow(/Expected first parameter to be "execute: boolean"/);
+      `),
+      ).toThrow(/Expected first parameter to be "execute: boolean"/);
     });
 
     it('extracts data ports from multiple params after execute', () => {
@@ -236,18 +230,18 @@ describe('parser branch coverage 2', () => {
       expect(wf.startPorts.age).toBeDefined();
     });
 
-    it('filters out __abortSignal__ parameter', () => {
+    it('filters out __runtime__ parameter', () => {
       const parser = freshParser();
       const result = parser.parseFromString(`
         /**
          * @flowWeaver workflow
          */
-        function withAbort(execute: boolean, value: number, __abortSignal__: any): { onSuccess: boolean } {
+        function withRuntime(execute: boolean, value: number, __runtime__: any): { onSuccess: boolean } {
           return { onSuccess: true };
         }
       `);
       const wf = result.workflows[0];
-      expect(wf.startPorts.__abortSignal__).toBeUndefined();
+      expect(wf.startPorts.__runtime__).toBeUndefined();
       expect(wf.startPorts.value).toBeDefined();
     });
   });
@@ -287,7 +281,7 @@ describe('parser branch coverage 2', () => {
       expect(wf.connections.length).toBeGreaterThan(0);
       // Should include Start -> A.execute
       const startConn = wf.connections.find(
-        c => c.from.node === 'Start' && c.to.node === 'A' && c.to.port === 'execute'
+        (c) => c.from.node === 'Start' && c.to.node === 'A' && c.to.port === 'execute',
       );
       expect(startConn).toBeDefined();
     });
@@ -326,7 +320,7 @@ describe('parser branch coverage 2', () => {
       const wf = result.workflows[0];
       expect(wf.connections.length).toBeGreaterThan(0);
       expect(wf.macros).toBeDefined();
-      expect(wf.macros!.some(m => m.type === 'path')).toBe(true);
+      expect(wf.macros!.some((m) => m.type === 'path')).toBe(true);
     });
 
     it('reports error for @path with fewer than 2 steps', () => {
@@ -365,7 +359,7 @@ describe('parser branch coverage 2', () => {
          */
         function ghostPath(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
-      const hasGhostError = result.errors.some(e => e.includes('ghost'));
+      const hasGhostError = result.errors.some((e) => e.includes('ghost'));
       expect(hasGhostError).toBe(true);
     });
 
@@ -419,7 +413,7 @@ describe('parser branch coverage 2', () => {
         function fanWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
       const wf = result.workflows[0];
-      if (wf.macros && wf.macros.some(m => m.type === 'fanOut')) {
+      if (wf.macros && wf.macros.some((m) => m.type === 'fanOut')) {
         expect(wf.connections.length).toBeGreaterThan(0);
       }
     });
@@ -440,7 +434,7 @@ describe('parser branch coverage 2', () => {
          */
         function badFanOut(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
-      expect(result.errors.some(e => e.includes('ghost') || e.includes('fanOut'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('ghost') || e.includes('fanOut'))).toBe(true);
     });
 
     it('reports error when fanOut target does not exist', () => {
@@ -459,7 +453,7 @@ describe('parser branch coverage 2', () => {
          */
         function badTarget(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
-      expect(result.errors.some(e => e.includes('ghost') || e.includes('fanOut'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('ghost') || e.includes('fanOut'))).toBe(true);
     });
   });
 
@@ -486,7 +480,7 @@ describe('parser branch coverage 2', () => {
         function fanInWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
       const wf = result.workflows[0];
-      if (wf.macros && wf.macros.some(m => m.type === 'fanIn')) {
+      if (wf.macros && wf.macros.some((m) => m.type === 'fanIn')) {
         expect(wf.connections.length).toBeGreaterThan(0);
       }
     });
@@ -507,7 +501,7 @@ describe('parser branch coverage 2', () => {
          */
         function badFanIn(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
-      expect(result.errors.some(e => e.includes('ghost') || e.includes('fanIn'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('ghost') || e.includes('fanIn'))).toBe(true);
     });
 
     it('reports error when fanIn source does not exist', () => {
@@ -526,7 +520,7 @@ describe('parser branch coverage 2', () => {
          */
         function badSource(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
-      expect(result.errors.some(e => e.includes('ghost') || e.includes('fanIn'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('ghost') || e.includes('fanIn'))).toBe(true);
     });
   });
 
@@ -559,7 +553,7 @@ describe('parser branch coverage 2', () => {
         function coerceWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
       const wf = result.workflows[0];
-      if (wf.macros && wf.macros.some(m => m.type === 'coerce')) {
+      if (wf.macros && wf.macros.some((m) => m.type === 'coerce')) {
         expect(wf.connections.length).toBeGreaterThan(0);
       }
     });
@@ -607,7 +601,7 @@ describe('parser branch coverage 2', () => {
         function noNamePattern() {}
       `);
       // Should produce an error about missing @name
-      const hasNameError = result.errors.some(e => e.includes('missing') && e.includes('@name'));
+      const hasNameError = result.errors.some((e) => e.includes('missing') && e.includes('@name'));
       // Or it just skips silently
       expect(result.patterns.length === 0 || hasNameError).toBe(true);
     });
@@ -623,7 +617,7 @@ describe('parser branch coverage 2', () => {
          */
         function brokenPattern() {}
       `);
-      const hasWarning = result.warnings.some(w => w.includes('could not be parsed'));
+      const hasWarning = result.warnings.some((w) => w.includes('could not be parsed'));
       const hasPattern = result.patterns.length > 0;
       expect(hasWarning || !hasPattern).toBe(true);
     });
@@ -643,7 +637,7 @@ describe('parser branch coverage 2', () => {
          */
         function pat2() {}
       `);
-      const hasDupeError = result.errors.some(e => e.includes('Duplicate pattern'));
+      const hasDupeError = result.errors.some((e) => e.includes('Duplicate pattern'));
       expect(hasDupeError).toBe(true);
     });
   });
@@ -664,7 +658,7 @@ describe('parser branch coverage 2', () => {
          */
         function wf() {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'objectReturn');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'objectReturn');
       expect(nt).toBeDefined();
       expect(nt!.outputs.total).toBeDefined();
       expect(nt!.outputs.label).toBeDefined();
@@ -681,7 +675,7 @@ describe('parser branch coverage 2', () => {
          */
         function wf() {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'primitiveReturn');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'primitiveReturn');
       expect(nt).toBeDefined();
       expect(nt!.outputs.result).toBeDefined();
     });
@@ -697,12 +691,10 @@ describe('parser branch coverage 2', () => {
          */
         function wf() {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'voidReturn');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'voidReturn');
       expect(nt).toBeDefined();
       // Only mandatory ports, no data outputs
-      const dataOutputs = Object.keys(nt!.outputs).filter(
-        k => k !== 'onSuccess' && k !== 'onFailure'
-      );
+      const dataOutputs = Object.keys(nt!.outputs).filter((k) => k !== 'onSuccess' && k !== 'onFailure');
       expect(dataOutputs).toHaveLength(0);
     });
 
@@ -717,7 +709,7 @@ describe('parser branch coverage 2', () => {
          */
         function wf() {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'asyncReturn');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'asyncReturn');
       expect(nt).toBeDefined();
       expect(nt!.isAsync).toBe(true);
       expect(nt!.outputs.result).toBeDefined();
@@ -734,7 +726,7 @@ describe('parser branch coverage 2', () => {
          */
         function wf() {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'arrayReturn');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'arrayReturn');
       expect(nt).toBeDefined();
       expect(nt!.outputs.result).toBeDefined();
     });
@@ -750,7 +742,7 @@ describe('parser branch coverage 2', () => {
          */
         function wf() {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'notExecuteFirst');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'notExecuteFirst');
       expect(nt).toBeDefined();
       expect(nt!.expression).toBe(true);
     });
@@ -766,7 +758,7 @@ describe('parser branch coverage 2', () => {
          */
         function wf() {}
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'hasExecute');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'hasExecute');
       expect(nt).toBeDefined();
       expect(nt!.expression).toBe(false);
     });
@@ -785,7 +777,7 @@ describe('parser branch coverage 2', () => {
          */
         function halfExplicit(x: number): number { return x * 2; }
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'halfExplicit');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'halfExplicit');
       expect(nt).toBeDefined();
       expect(nt!.inputs.x).toBeDefined();
       // Output should be inferred since none declared
@@ -802,7 +794,7 @@ describe('parser branch coverage 2', () => {
          */
         function halfExplicit2(x: number): number { return x * 2; }
       `);
-      const nt = result.nodeTypes.find(n => n.functionName === 'halfExplicit2');
+      const nt = result.nodeTypes.find((n) => n.functionName === 'halfExplicit2');
       expect(nt).toBeDefined();
       // Input should be inferred
       expect(nt!.inputs.x).toBeDefined();
@@ -909,7 +901,7 @@ describe('parser branch coverage 2', () => {
         function wf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
       // Will produce error since customExternal doesn't exist
-      expect(result.errors.some(e => e.includes('customExternal'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('customExternal'))).toBe(true);
     });
   });
 
@@ -976,9 +968,9 @@ describe('parser branch coverage 2', () => {
       `);
       const wf = result.workflows[0];
       // Should have map macro expanded
-      if (wf.macros && wf.macros.some(m => m.type === 'map')) {
+      if (wf.macros && wf.macros.some((m) => m.type === 'map')) {
         // Verify the synthetic iterator instance was created
-        const loopInst = wf.instances.find(i => i.id === 'loop');
+        const loopInst = wf.instances.find((i) => i.id === 'loop');
         expect(loopInst).toBeDefined();
         expect(wf.connections.length).toBeGreaterThan(0);
       }
@@ -1001,7 +993,7 @@ describe('parser branch coverage 2', () => {
          */
         function mapBad(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
-      expect(result.errors.some(e => e.includes('ghost') || e.includes('@map'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('ghost') || e.includes('@map'))).toBe(true);
     });
   });
 
@@ -1059,7 +1051,7 @@ describe('parser branch coverage 2', () => {
          */
         function outWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
-      expect(result.errors.some(e => e.includes('OUT') && e.includes('pseudo-node'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('OUT') && e.includes('pseudo-node'))).toBe(true);
     });
   });
 
@@ -1102,7 +1094,7 @@ describe('parser branch coverage 2', () => {
         function labelWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
       const wf = result.workflows[0];
-      const inst = wf.instances.find(i => i.id === 'A');
+      const inst = wf.instances.find((i) => i.id === 'A');
       expect(inst).toBeDefined();
       if (inst?.config?.label) {
         expect(inst.config.label).toBe('Custom Label');
@@ -1133,7 +1125,7 @@ describe('parser branch coverage 2', () => {
         function scopeWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
       const wf = result.workflows[0];
-      const childInst = wf.instances.find(i => i.id === 'C');
+      const childInst = wf.instances.find((i) => i.id === 'C');
       if (childInst?.parent) {
         expect(childInst.parent.id).toBe('L');
         expect(childInst.parent.scope).toBe('iterate');
@@ -1162,8 +1154,8 @@ describe('parser branch coverage 2', () => {
         function wf() {}
       `);
       // annotated should be parsed as nodeType, notAnnotated should be inferred
-      const annotatedNt = result.nodeTypes.find(n => n.functionName === 'annotated');
-      const inferredNt = result.nodeTypes.find(n => n.functionName === 'notAnnotated');
+      const annotatedNt = result.nodeTypes.find((n) => n.functionName === 'annotated');
+      const inferredNt = result.nodeTypes.find((n) => n.functionName === 'notAnnotated');
       expect(annotatedNt).toBeDefined();
       expect(inferredNt).toBeDefined();
       expect(inferredNt!.inferred).toBe(true);
@@ -1184,7 +1176,7 @@ describe('parser branch coverage 2', () => {
          */
         function brokenWf() {}
       `);
-      const hasWarning = result.warnings.some(w => w.includes('could not be parsed'));
+      const hasWarning = result.warnings.some((w) => w.includes('could not be parsed'));
       const hasWorkflow = result.workflows.length > 0;
       expect(hasWarning || hasWorkflow).toBe(true);
     });

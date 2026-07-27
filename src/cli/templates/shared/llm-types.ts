@@ -79,7 +79,7 @@ export const LLM_MOCK_PROVIDER = `const createMockProvider = (): LLMProvider => 
   },
 });
 
-const llmProvider: LLMProvider = (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ ?? createMockProvider();`;
+const llmProvider: LLMProvider = createMockProvider();`;
 
 /** Mock provider with tool calling support (for ai-agent) */
 export const LLM_MOCK_PROVIDER_WITH_TOOLS = `const createMockProvider = (): LLMProvider => ({
@@ -109,4 +109,4 @@ export const LLM_MOCK_PROVIDER_WITH_TOOLS = `const createMockProvider = (): LLMP
   },
 });
 
-const llmProvider: LLMProvider = (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ ?? createMockProvider();`;
+const llmProvider: LLMProvider = createMockProvider();`;

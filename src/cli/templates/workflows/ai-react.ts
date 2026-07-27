@@ -44,7 +44,7 @@ const createMockReactProvider = (): LLMProvider => ({
   },
 });
 
-const llmProvider: LLMProvider = (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ ?? createMockReactProvider();
+const llmProvider: LLMProvider = createMockReactProvider();
 const MAX_STEPS = 10;
 
 const REACT_PROMPT = \`You are a ReAct (Reasoning + Acting) agent.

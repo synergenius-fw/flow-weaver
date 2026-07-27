@@ -1,7 +1,7 @@
 ---
 name: Flow Weaver Debugging
 description: Debugging workflows, validation, diagnostics, and error resolution
-keywords: [debug, troubleshooting, errors, WebSocket, diagnostics, runtime, validation, trace, step-through, checkpoint, resume, breakpoint, crash-recovery, REPL]
+keywords: [debug, troubleshooting, errors, WebSocket, diagnostics, runtime, validation, trace, step-through, breakpoint, REPL]
 ---
 
 # Flow Weaver Debugging Guide
@@ -327,7 +327,7 @@ fw run workflow.ts --debug --breakpoint processData --breakpoint formatOutput
 
 For LLM-driven debugging via MCP, use these tools:
 
-**`fw_debug_workflow`** starts a debug session. Pass the file path and optional parameters, breakpoints, and checkpoint flag. Returns a `debugId` and the initial pause state with all variable values, execution order, and current position.
+**`fw_debug_workflow`** starts a live developer debug session. Pass the file path and optional parameters and breakpoints. Returns a `debugId` and the initial pause state with all variable values, execution order, and current position.
 
 **`fw_debug_step`** advances one node. Returns the updated state after the node completes.
 
@@ -359,58 +359,17 @@ Example MCP sequence:
 
 ---
 
-## Checkpoint/Resume (Crash Recovery)
+## Durable gates are not debugger sessions
 
-Checkpointing writes workflow state to disk after each node completes. If the process crashes mid-execution, the checkpoint file persists and can resume the workflow from the last completed node, skipping work that was already done.
+Live step-through debugging retains an execution Promise and therefore ends
+when that Node.js process ends. It is not a crash-recovery facility.
 
-### Enabling Checkpoints
-
-```bash
-fw run workflow.ts --checkpoint --params '{"data": "large-dataset"}'
-```
-
-This creates a `.fw-checkpoints/` directory next to the workflow file containing one JSON file per run. The file is automatically deleted after successful completion, so you'll only see them after a crash.
-
-### Resuming from a Checkpoint
-
-```bash
-# Auto-detect the most recent checkpoint
-fw run workflow.ts --resume
-
-# Specify a checkpoint file
-fw run workflow.ts --resume .fw-checkpoints/myWorkflow-run-123.json
-
-# Resume in debug mode (step through from the resume point)
-fw run workflow.ts --resume --debug
-```
-
-Via MCP: `fw_resume_from_checkpoint(filePath: "workflow.ts")`.
-
-### How It Works
-
-After each node completes, the checkpoint writer serializes the execution context (all variable values, execution indices, and completion state) to a JSON file. On resume, the controller walks the topological execution order and skips nodes that have serialized outputs, restoring their values directly into the context.
-
-If the workflow file has changed since the checkpoint was written (detected via SHA-256 hash), a warning is shown but execution proceeds.
-
-### Handling Non-Serializable Values
-
-Not all values can survive serialization. Function values are invoked to get their concrete results. Promises and objects with circular references get marked as unserializable. When a checkpoint has unserializable outputs for a node, that node and all its downstream dependents are re-executed instead of being skipped.
-
-On resume, the tool reports what happened:
-
-```
-Resuming from checkpoint: .fw-checkpoints/pipeline-run-abc.json
-Skipping 5 completed nodes
-Re-running 2 nodes: processImage, formatOutput
-```
-
-### Checkpoint File Location
-
-Checkpoints live in `.fw-checkpoints/` next to the workflow file. Add this to `.gitignore`:
-
-```
-.fw-checkpoints/
-```
+Production approval, input, and agent waits compile to terminal durable yields.
+The executor returns a strict continuation envelope, and an external
+coordinator atomically persists that envelope with the gate. A later compatible
+Node.js executor resumes only with the exact run, workflow, verified executable
+bundle digest, graph fingerprint, gate, and resolution. See
+`docs/adr/0001-durable-gate-continuation.md`.
 
 ---
 

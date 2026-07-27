@@ -5,12 +5,7 @@
  * WORKFLOW variant skip, external sourceLocation skip, macro filtering in JSDoc, etc.
  */
 
-import {
-  generateInPlace,
-  hasInPlaceMarkers,
-  stripGeneratedSections,
-  MARKERS,
-} from '../../src/api/generate-in-place';
+import { generateInPlace, hasInPlaceMarkers, stripGeneratedSections, MARKERS } from '../../src/api/generate-in-place';
 import type { TWorkflowAST, TNodeTypeAST, TWorkflowMacro } from '../../src/ast/types';
 
 function makeNodeType(name: string, overrides: Partial<TNodeTypeAST> = {}): TNodeTypeAST {
@@ -47,11 +42,22 @@ function makeMinimalAST(overrides: Partial<TWorkflowAST> = {}): TWorkflowAST {
     nodeTypes: [nodeA],
     instances: [{ type: 'NodeInstance', id: 'a', nodeType: 'nodeA' }],
     connections: [
-      { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-      { type: 'Connection', from: { node: 'a', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+      {
+        type: 'Connection',
+        from: { node: 'Start', port: 'execute' },
+        to: { node: 'a', port: 'execute' },
+      },
+      {
+        type: 'Connection',
+        from: { node: 'a', port: 'onSuccess' },
+        to: { node: 'Exit', port: 'onSuccess' },
+      },
     ],
     startPorts: { execute: { dataType: 'STEP' } },
-    exitPorts: { onSuccess: { dataType: 'STEP' }, onFailure: { dataType: 'STEP' } },
+    exitPorts: {
+      onSuccess: { dataType: 'STEP' },
+      onFailure: { dataType: 'STEP' },
+    },
     imports: [],
     ...overrides,
   };
@@ -84,10 +90,7 @@ describe('generate-in-place branch coverage 2', () => {
     it('skips node types with variant WORKFLOW', () => {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST({
-        nodeTypes: [
-          makeNodeType('nodeA'),
-          makeNodeType('nodeB', { variant: 'WORKFLOW' }),
-        ],
+        nodeTypes: [makeNodeType('nodeA'), makeNodeType('nodeB', { variant: 'WORKFLOW' })],
       });
       const result = generateInPlace(source, ast);
       // Should not crash, nodeB with WORKFLOW variant is silently skipped
@@ -196,8 +199,8 @@ export function myWorkflow(
     });
   });
 
-  describe('ensureAbortSignalParameter with no params', () => {
-    it('adds __abortSignal__ to a function with no parameters', () => {
+  describe('ensure runtime parameter with no params', () => {
+    it('adds __runtime__ to a function with no parameters', () => {
       const source = `/**
  * @flowWeaver nodeType
  * @input value {NUMBER}
@@ -216,7 +219,7 @@ export function myWorkflow(): { onSuccess: boolean; onFailure: boolean } {
 }`;
       const ast = makeMinimalAST({ startPorts: {} });
       const result = generateInPlace(source, ast);
-      expect(result.code).toContain('__abortSignal__');
+      expect(result.code).toContain('__runtime__: WorkflowRuntime');
     });
   });
 
@@ -335,7 +338,8 @@ export function myWorkflow() {
   throw new Error('Not implemented');
 }`;
       const nodeA = makeNodeType('nodeA');
-      (nodeA as any).code = `function nodeA(execute: boolean, value: number): { onSuccess: boolean; result: number } { return { onSuccess: true, result: value }; }`;
+      (nodeA as any).code =
+        `function nodeA(execute: boolean, value: number): { onSuccess: boolean; result: number } { return { onSuccess: true, result: value }; }`;
       delete (nodeA as any).functionText;
       const ast = makeMinimalAST({ nodeTypes: [nodeA] });
       const result = generateInPlace(source, ast);
@@ -377,7 +381,12 @@ export function myWorkflow() {
         instances: [
           { type: 'NodeInstance', id: 'a', nodeType: 'nodeA' },
           { type: 'NodeInstance', id: 'mapInst', nodeType: 'MAP_ITERATOR' },
-          { type: 'NodeInstance', id: 'childInst', nodeType: 'nodeA', parent: 'mapInst.iterate' as any },
+          {
+            type: 'NodeInstance',
+            id: 'childInst',
+            nodeType: 'nodeA',
+            parent: 'mapInst.iterate' as any,
+          },
         ],
       });
       const result = generateInPlace(source, ast);
@@ -397,18 +406,25 @@ export function myWorkflow() {
         macros: [
           {
             type: 'path',
-            steps: [
-              { node: 'Start' },
-              { node: 'a', route: 'ok' },
-              { node: 'b', route: 'ok' },
-              { node: 'Exit' },
-            ],
+            steps: [{ node: 'Start' }, { node: 'a', route: 'ok' }, { node: 'b', route: 'ok' }, { node: 'Exit' }],
           } as TWorkflowMacro,
         ],
         connections: [
-          { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-          { type: 'Connection', from: { node: 'a', port: 'onSuccess' }, to: { node: 'b', port: 'execute' } },
-          { type: 'Connection', from: { node: 'b', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+          {
+            type: 'Connection',
+            from: { node: 'Start', port: 'execute' },
+            to: { node: 'a', port: 'execute' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'onSuccess' },
+            to: { node: 'b', port: 'execute' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'b', port: 'onSuccess' },
+            to: { node: 'Exit', port: 'onSuccess' },
+          },
         ],
       });
       const result = generateInPlace(source, ast);
@@ -428,15 +444,25 @@ export function myWorkflow() {
           {
             type: 'fanOut',
             source: { node: 'a', port: 'result' },
-            targets: [
-              { node: 'b', port: 'value' },
-            ],
+            targets: [{ node: 'b', port: 'value' }],
           } as TWorkflowMacro,
         ],
         connections: [
-          { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-          { type: 'Connection', from: { node: 'a', port: 'result' }, to: { node: 'b', port: 'value' } },
-          { type: 'Connection', from: { node: 'a', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+          {
+            type: 'Connection',
+            from: { node: 'Start', port: 'execute' },
+            to: { node: 'a', port: 'execute' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'result' },
+            to: { node: 'b', port: 'value' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'onSuccess' },
+            to: { node: 'Exit', port: 'onSuccess' },
+          },
         ],
       });
       const result = generateInPlace(source, ast);
@@ -456,15 +482,25 @@ export function myWorkflow() {
           {
             type: 'fanIn',
             target: { node: 'b', port: 'value' },
-            sources: [
-              { node: 'a', port: 'result' },
-            ],
+            sources: [{ node: 'a', port: 'result' }],
           } as TWorkflowMacro,
         ],
         connections: [
-          { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-          { type: 'Connection', from: { node: 'a', port: 'result' }, to: { node: 'b', port: 'value' } },
-          { type: 'Connection', from: { node: 'a', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+          {
+            type: 'Connection',
+            from: { node: 'Start', port: 'execute' },
+            to: { node: 'a', port: 'execute' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'result' },
+            to: { node: 'b', port: 'value' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'onSuccess' },
+            to: { node: 'Exit', port: 'onSuccess' },
+          },
         ],
       });
       const result = generateInPlace(source, ast);
@@ -488,9 +524,21 @@ export function myWorkflow() {
           } as TWorkflowMacro,
         ],
         connections: [
-          { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-          { type: 'Connection', from: { node: 'a', port: 'result' }, to: { node: 'b', port: 'result' } },
-          { type: 'Connection', from: { node: 'a', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+          {
+            type: 'Connection',
+            from: { node: 'Start', port: 'execute' },
+            to: { node: 'a', port: 'execute' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'result' },
+            to: { node: 'b', port: 'result' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'onSuccess' },
+            to: { node: 'Exit', port: 'onSuccess' },
+          },
         ],
       });
       const result = generateInPlace(source, ast);
@@ -514,9 +562,21 @@ export function myWorkflow() {
           } as TWorkflowMacro,
         ],
         connections: [
-          { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-          { type: 'Connection', from: { node: 'a', port: 'value' }, to: { node: 'b', port: 'value' } },
-          { type: 'Connection', from: { node: 'a', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+          {
+            type: 'Connection',
+            from: { node: 'Start', port: 'execute' },
+            to: { node: 'a', port: 'execute' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'value' },
+            to: { node: 'b', port: 'value' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'onSuccess' },
+            to: { node: 'Exit', port: 'onSuccess' },
+          },
         ],
       });
       const result = generateInPlace(source, ast);
@@ -543,20 +603,26 @@ export function myWorkflow() {
           { type: 'NodeInstance', id: 'coerce1', nodeType: 'COERCION' },
         ],
         connections: [
-          { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
-          { type: 'Connection', from: { node: 'a', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } },
+          {
+            type: 'Connection',
+            from: { node: 'Start', port: 'execute' },
+            to: { node: 'a', port: 'execute' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'a', port: 'onSuccess' },
+            to: { node: 'Exit', port: 'onSuccess' },
+          },
         ],
       });
       const result = generateInPlace(source, ast);
       // coerce instance should not appear as a @node in the workflow JSDoc
       // In dev mode, async keyword is added, so search for 'export async function' or 'export function'
-      const fnIdx = result.code.indexOf('export async function') !== -1
-        ? result.code.indexOf('export async function')
-        : result.code.indexOf('export function');
-      const workflowJsdoc = result.code.slice(
-        result.code.indexOf('@flowWeaver workflow'),
-        fnIdx
-      );
+      const fnIdx =
+        result.code.indexOf('export async function') !== -1
+          ? result.code.indexOf('export async function')
+          : result.code.indexOf('export function');
+      const workflowJsdoc = result.code.slice(result.code.indexOf('@flowWeaver workflow'), fnIdx);
       expect(workflowJsdoc).not.toContain('coerce1');
     });
   });
@@ -595,7 +661,7 @@ export function myWorkflow() {
     it('emits @scope tags for non-macro scopes', () => {
       const source = makeSourceWithNodeType();
       const ast = makeMinimalAST({
-        scopes: { 'myScope': ['a'] },
+        scopes: { myScope: ['a'] },
       });
       const result = generateInPlace(source, ast);
       expect(result.code).toContain('@scope myScope [a]');
@@ -615,7 +681,12 @@ export function myWorkflow() {
         instances: [
           { type: 'NodeInstance', id: 'a', nodeType: 'nodeA' },
           { type: 'NodeInstance', id: 'mapInst', nodeType: 'MAP_ITERATOR' },
-          { type: 'NodeInstance', id: 'childInst', nodeType: 'nodeA', parent: 'mapInst.iterate' as any },
+          {
+            type: 'NodeInstance',
+            id: 'childInst',
+            nodeType: 'nodeA',
+            parent: 'mapInst.iterate' as any,
+          },
         ],
         scopes: { 'mapInst.iterate': ['childInst'] },
       });
@@ -643,9 +714,19 @@ export function myWorkflow(): { onSuccess: boolean } {
         outputs: {},
         ports: [
           { name: 'execute', direction: 'INPUT', type: 'STEP' as any },
-          { name: 'data', direction: 'INPUT', type: 'STRING' as any, defaultLabel: 'Data' },
+          {
+            name: 'data',
+            direction: 'INPUT',
+            type: 'STRING' as any,
+            defaultLabel: 'Data',
+          },
           { name: 'onSuccess', direction: 'OUTPUT', type: 'STEP' as any },
-          { name: 'result', direction: 'OUTPUT', type: 'STRING' as any, defaultLabel: 'Result' },
+          {
+            name: 'result',
+            direction: 'OUTPUT',
+            type: 'STRING' as any,
+            defaultLabel: 'Result',
+          },
         ] as any,
       });
       const ast = makeMinimalAST({
@@ -804,7 +885,12 @@ export function myWorkflow(
           exitNode: { x: 540, y: 0 },
         },
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'nodeA', config: { x: 270, y: 0 } },
+          {
+            type: 'NodeInstance',
+            id: 'a',
+            nodeType: 'nodeA',
+            config: { x: 270, y: 0 },
+          },
         ],
       });
       const result = generateInPlace(source, ast);
@@ -894,7 +980,10 @@ export function myWorkflow(): { onSuccess: boolean; onFailure: boolean } {
   describe('nodeType @name tag matches functionName', () => {
     it('emits @name only when name differs from functionName', () => {
       const source = makeSourceWithNodeType();
-      const nodeA = makeNodeType('nodeA', { name: 'nodeA', functionName: 'nodeA' });
+      const nodeA = makeNodeType('nodeA', {
+        name: 'nodeA',
+        functionName: 'nodeA',
+      });
       const ast = makeMinimalAST({ nodeTypes: [nodeA] });
       const result = generateInPlace(source, ast);
       // @name should NOT appear since name === functionName
@@ -942,13 +1031,18 @@ export function myWorkflow(): { onSuccess: boolean; onFailure: boolean } {
         instances: [
           { type: 'NodeInstance', id: 'a', nodeType: 'nodeA' },
           { type: 'NodeInstance', id: 'mapInst', nodeType: 'MAP_ITERATOR' },
-          { type: 'NodeInstance', id: 'childInst', nodeType: 'nodeA', parent: 'mapInst.iterate' as any },
+          {
+            type: 'NodeInstance',
+            id: 'childInst',
+            nodeType: 'nodeA',
+            parent: 'mapInst.iterate' as any,
+          },
         ],
       });
       const result = generateInPlace(source, ast);
       expect(result.code).toContain('@map mapInst childInst over a.items');
       // Should NOT have parentheses for port mapping in the @map line itself
-      const mapLine = result.code.split('\n').find(l => l.includes('@map mapInst'));
+      const mapLine = result.code.split('\n').find((l) => l.includes('@map mapInst'));
       expect(mapLine).toBeDefined();
       expect(mapLine).not.toContain('(');
     });

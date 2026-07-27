@@ -4,6 +4,7 @@
 
 import { WorkflowRegistry } from './workflow-registry.js';
 import { executeWorkflow } from '../mcp/workflow-executor.js';
+import { randomUUID } from 'node:crypto';
 import type {
   WebhookServerConfig,
   ExecutionResult,
@@ -164,12 +165,18 @@ export class WebhookServer {
         const startTime = Date.now();
         try {
           const result = await executeWorkflow({
+            runId: randomUUID(),
             filePath: endpoint.filePath,
             params,
             workflowName: endpoint.functionName,
             production: this.config.production,
             includeTrace,
           });
+          if (result.kind === 'yielded') {
+            throw new Error(
+              'webhook execution is not a durable coordinator and cannot persist a yielded continuation',
+            );
+          }
 
           const response: ExecutionResult = {
             success: true,

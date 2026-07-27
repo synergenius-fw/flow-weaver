@@ -22,7 +22,7 @@ import { something } from 'somewhere';
 
 ${MARKERS.RUNTIME_START}
 // DO NOT EDIT
-import { GeneratedExecutionContext } from '@synergenius/flow-weaver/runtime';
+import { GeneratedExecutionContext, type WorkflowRuntime } from '@synergenius/flow-weaver/runtime';
 ${MARKERS.RUNTIME_END}
 
 /**
@@ -38,9 +38,9 @@ export async function doubleIt(execute: boolean, value: number) {
  * @flowWeaver workflow
  * @node d doubleIt
  */
-export async function myWorkflow(execute: boolean, params: { n: number }) {
+export async function myWorkflow(execute: boolean, params: { n: number }, __runtime__: WorkflowRuntime) {
   ${MARKERS.BODY_START}
-  const ctx = new GeneratedExecutionContext(true);
+  const ctx = new GeneratedExecutionContext(true, __runtime__);
   // ... generated execution code ...
   return { onSuccess: true, onFailure: false, result: 42 };
   ${MARKERS.BODY_END}
@@ -152,7 +152,9 @@ describe('strip command', () => {
     expect(original).toContain(MARKERS.BODY_START);
 
     // Output file stripped
-    const outputFiles = fs.readdirSync(outputDir, { recursive: true }) as string[];
+    const outputFiles = fs.readdirSync(outputDir, {
+      recursive: true,
+    }) as string[];
     const tsFiles = outputFiles.filter((f) => f.endsWith('.ts'));
     expect(tsFiles.length).toBeGreaterThan(0);
 

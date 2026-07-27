@@ -9,13 +9,7 @@ import * as os from 'os';
 import { parser } from '../../src/parser';
 import { generateCode } from '../../src/api/generate';
 import { validator } from '../../src/validator';
-import type {
-  TWorkflowAST,
-  TNodeTypeAST,
-  TNodeInstanceAST,
-  TConnectionAST,
-  TDataType,
-} from '../../src/ast/types';
+import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST, TConnectionAST, TDataType } from '../../src/ast/types';
 
 describe('Large Workflows', () => {
   /**
@@ -672,7 +666,10 @@ export function aggregator(execute: boolean, params: { query: string }): { onSuc
       expect(parseResult.errors).toHaveLength(0);
       expect(parseResult.workflows).toHaveLength(1);
 
-      const code = generateCode(parseResult.workflows[0], { sourceMap: false, production: true });
+      const code = generateCode(parseResult.workflows[0], {
+        sourceMap: false,
+        production: true,
+      });
       expect(code).toBeDefined();
 
       // The generated code should reference all three nodes
@@ -925,7 +922,11 @@ export function aggregatorFailing(execute: boolean, params: { query: string }): 
     });
 
     it('should produce correct exit values when branching source returns onSuccess:false (#45 semantic)', async () => {
-      const result = await mod.aggregatorFailing(true, { query: 'test' });
+      const result = await mod.aggregatorFailing(
+        true,
+        { query: 'test' },
+        testHelpers.createRuntime('aggregatorFailing'),
+      );
 
       // When fetchA returns onSuccess: false, the promoted merge node is skipped entirely
       // (guarded by sourceA_success). Exit gets false/undefined as fallback values.

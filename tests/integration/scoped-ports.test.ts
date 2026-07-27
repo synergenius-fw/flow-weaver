@@ -3,20 +3,20 @@
  * Tests end-to-end: workflow definition → code generation → execution → results
  */
 
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
-import { generator } from "../../src/generator";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import { generator } from '../../src/generator';
 
-describe("Scoped Ports Integration Tests", () => {
+describe('Scoped Ports Integration Tests', () => {
   const outputDir = global.testHelpers?.outputDir || path.join(os.tmpdir(), `flow-weaver-scoped-ports-${process.pid}`);
 
   beforeAll(async () => {
     fs.mkdirSync(outputDir, { recursive: true });
   });
 
-  describe("Simple forEach with scoped port", () => {
-    it("should generate and execute a forEach workflow with scoped iteration", async () => {
+  describe('Simple forEach with scoped port', () => {
+    it('should generate and execute a forEach workflow with scoped iteration', async () => {
       // Create a workflow file with scoped ports
       const workflowContent = `
 /**
@@ -81,18 +81,20 @@ export function processArray(
 export { forEach, doubleValue };
       `.trim();
 
-      const testFile = path.join(outputDir, "test-scoped-forEach.ts");
+      const testFile = path.join(outputDir, 'test-scoped-forEach.ts');
       fs.writeFileSync(testFile, workflowContent);
 
       // Generate the code
-      const generatedCode = await generator.generate(testFile, "processArray", { production: true });
+      const generatedCode = await generator.generate(testFile, 'processArray', {
+        production: true,
+      });
       expect(generatedCode).toBeDefined();
-      expect(generatedCode).toContain("createScope");
-      expect(generatedCode).toContain("mergeScope");
-      expect(generatedCode).toContain("forEach1_processItem_scopeFn");
+      expect(generatedCode).toContain('createScope');
+      expect(generatedCode).toContain('mergeScope');
+      expect(generatedCode).toContain('forEach1_processItem_scopeFn');
 
       // Write generated code to file
-      const outputFile = path.join(outputDir, "test-scoped-forEach.generated.ts");
+      const outputFile = path.join(outputDir, 'test-scoped-forEach.generated.ts');
       fs.writeFileSync(outputFile, generatedCode);
 
       // Import and execute the generated code
@@ -102,7 +104,7 @@ export { forEach, doubleValue };
       // Test execution with input: [1, 2, 3]
       let result;
       try {
-        result = await module.processArray(true, { items: [1, 2, 3] });
+        result = await module.processArray(true, { items: [1, 2, 3] }, testHelpers.createRuntime('processArray'));
       } catch (error: any) {
         console.error('[TEST] Execution error:', error.message);
         console.error('[TEST] Stack:', error.stack);
@@ -115,7 +117,7 @@ export { forEach, doubleValue };
       expect(result.results).toEqual([2, 4, 6]);
     });
 
-    it("should handle empty array", async () => {
+    it('should handle empty array', async () => {
       const workflowContent = `
 /**
  * @flowWeaver nodeType
@@ -174,26 +176,28 @@ export function processEmpty(
 export { forEach, addTen };
       `.trim();
 
-      const testFile = path.join(outputDir, "test-empty-array.ts");
+      const testFile = path.join(outputDir, 'test-empty-array.ts');
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processEmpty", { production: true });
-      const outputFile = path.join(outputDir, "test-empty-array.generated.ts");
+      const generatedCode = await generator.generate(testFile, 'processEmpty', {
+        production: true,
+      });
+      const outputFile = path.join(outputDir, 'test-empty-array.generated.ts');
       fs.writeFileSync(outputFile, generatedCode);
 
       // Using import() for TypeScript compatibility
       const module = await import(outputFile);
 
       // Test with empty array
-      const result = await module.processEmpty(true, { items: [] });
+      const result = await module.processEmpty(true, { items: [] }, testHelpers.createRuntime('processEmpty'));
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([]);
     });
   });
 
-  describe("Multiple operations in scope", () => {
-    it("should execute multiple nodes within the same scope in correct order", async () => {
+  describe('Multiple operations in scope', () => {
+    it('should execute multiple nodes within the same scope in correct order', async () => {
       const workflowContent = `
 /**
  * @flowWeaver nodeType
@@ -264,11 +268,13 @@ export function processChain(
 export { forEach, addFive, multiplyByTwo };
       `.trim();
 
-      const testFile = path.join(outputDir, "test-chain.ts");
+      const testFile = path.join(outputDir, 'test-chain.ts');
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processChain", { production: true });
-      const outputFile = path.join(outputDir, "test-chain.generated.ts");
+      const generatedCode = await generator.generate(testFile, 'processChain', {
+        production: true,
+      });
+      const outputFile = path.join(outputDir, 'test-chain.generated.ts');
       fs.writeFileSync(outputFile, generatedCode);
 
       // Using import() for TypeScript compatibility
@@ -277,15 +283,15 @@ export { forEach, addFive, multiplyByTwo };
       // Test: (value + 5) * 2
       // Input: [1, 2, 3]
       // Expected: [(1+5)*2, (2+5)*2, (3+5)*2] = [12, 14, 16]
-      const result = await module.processChain(true, { items: [1, 2, 3] });
+      const result = await module.processChain(true, { items: [1, 2, 3] }, testHelpers.createRuntime('processChain'));
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([12, 14, 16]);
     });
   });
 
-  describe("Edge Cases", () => {
-    it("should handle single item array", async () => {
+  describe('Edge Cases', () => {
+    it('should handle single item array', async () => {
       const workflowContent = `
 /**
  * @flowWeaver nodeType
@@ -344,23 +350,25 @@ export function processSingle(
 export { forEach, triple };
       `.trim();
 
-      const testFile = path.join(outputDir, "test-single-item.ts");
+      const testFile = path.join(outputDir, 'test-single-item.ts');
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processSingle", { production: true });
-      const outputFile = path.join(outputDir, "test-single-item.generated.ts");
+      const generatedCode = await generator.generate(testFile, 'processSingle', {
+        production: true,
+      });
+      const outputFile = path.join(outputDir, 'test-single-item.generated.ts');
       fs.writeFileSync(outputFile, generatedCode);
 
       // Using import() for TypeScript compatibility
       const module = await import(outputFile);
 
-      const result = await module.processSingle(true, { items: [5] });
+      const result = await module.processSingle(true, { items: [5] }, testHelpers.createRuntime('processSingle'));
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([15]);
     });
 
-    it("should handle large arrays efficiently", async () => {
+    it('should handle large arrays efficiently', async () => {
       const workflowContent = `
 /**
  * @flowWeaver nodeType
@@ -419,11 +427,13 @@ export function processLarge(
 export { forEach, increment };
       `.trim();
 
-      const testFile = path.join(outputDir, "test-large-array.ts");
+      const testFile = path.join(outputDir, 'test-large-array.ts');
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processLarge", { production: true });
-      const outputFile = path.join(outputDir, "test-large-array.generated.ts");
+      const generatedCode = await generator.generate(testFile, 'processLarge', {
+        production: true,
+      });
+      const outputFile = path.join(outputDir, 'test-large-array.generated.ts');
       fs.writeFileSync(outputFile, generatedCode);
 
       // Using import() for TypeScript compatibility
@@ -431,7 +441,7 @@ export { forEach, increment };
 
       // Test with 100 items
       const input = Array.from({ length: 100 }, (_, i) => i);
-      const result = await module.processLarge(true, { items: input });
+      const result = await module.processLarge(true, { items: input }, testHelpers.createRuntime('processLarge'));
 
       expect(result.onSuccess).toBe(true);
       expect(result.results.length).toBe(100);
@@ -439,7 +449,7 @@ export { forEach, increment };
       expect(result.results[99]).toBe(100);
     });
 
-    it("should handle any type values correctly", async () => {
+    it('should handle any type values correctly', async () => {
       const workflowContent = `
 /**
  * @flowWeaver nodeType
@@ -498,26 +508,32 @@ export function processAnyType(
 export { forEach, passThrough };
       `.trim();
 
-      const testFile = path.join(outputDir, "test-any-type.ts");
+      const testFile = path.join(outputDir, 'test-any-type.ts');
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processAnyType", { production: true });
-      const outputFile = path.join(outputDir, "test-any-type.generated.ts");
+      const generatedCode = await generator.generate(testFile, 'processAnyType', {
+        production: true,
+      });
+      const outputFile = path.join(outputDir, 'test-any-type.generated.ts');
       fs.writeFileSync(outputFile, generatedCode);
 
       // Using import() for TypeScript compatibility
       const module = await import(outputFile);
 
       // Test with mixed type values
-      const result = await module.processAnyType(true, { items: [1, "test", true, { foo: "bar" }] });
+      const result = await module.processAnyType(
+        true,
+        { items: [1, 'test', true, { foo: 'bar' }] },
+        testHelpers.createRuntime('processAnyType'),
+      );
 
       expect(result.onSuccess).toBe(true);
-      expect(result.results).toEqual([1, "test", true, { foo: "bar" }]);
+      expect(result.results).toEqual([1, 'test', true, { foo: 'bar' }]);
     });
   });
 
-  describe("Async Variants", () => {
-    it("should execute async operations within scoped iterations", async () => {
+  describe('Async Variants', () => {
+    it('should execute async operations within scoped iterations', async () => {
       const workflowContent = `
 /**
  * @flowWeaver nodeType
@@ -578,27 +594,31 @@ export async function processAsyncArray(
 export { forEachAsync, asyncDouble };
       `.trim();
 
-      const testFile = path.join(outputDir, "test-async-forEach.ts");
+      const testFile = path.join(outputDir, 'test-async-forEach.ts');
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processAsyncArray");
-      const outputFile = path.join(outputDir, "test-async-forEach.generated.ts");
+      const generatedCode = await generator.generate(testFile, 'processAsyncArray');
+      const outputFile = path.join(outputDir, 'test-async-forEach.generated.ts');
       fs.writeFileSync(outputFile, generatedCode);
 
       // Verify async/await keywords are in generated code
-      expect(generatedCode).toContain("async");
-      expect(generatedCode).toContain("await");
+      expect(generatedCode).toContain('async');
+      expect(generatedCode).toContain('await');
 
       // Using import() for TypeScript compatibility
       const module = await import(outputFile);
 
-      const result = await module.processAsyncArray(true, { items: [1, 2, 3] });
+      const result = await module.processAsyncArray(
+        true,
+        { items: [1, 2, 3] },
+        testHelpers.createRuntime('processAsyncArray'),
+      );
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([2, 4, 6]);
     });
 
-    it("should handle async chain of operations", async () => {
+    it('should handle async chain of operations', async () => {
       const workflowContent = `
 /**
  * @flowWeaver nodeType
@@ -672,11 +692,11 @@ export async function processAsyncChain(
 export { forEachAsync, asyncAddFive, asyncMultiplyThree };
       `.trim();
 
-      const testFile = path.join(outputDir, "test-async-chain.ts");
+      const testFile = path.join(outputDir, 'test-async-chain.ts');
       fs.writeFileSync(testFile, workflowContent);
 
-      const generatedCode = await generator.generate(testFile, "processAsyncChain");
-      const outputFile = path.join(outputDir, "test-async-chain.generated.ts");
+      const generatedCode = await generator.generate(testFile, 'processAsyncChain');
+      const outputFile = path.join(outputDir, 'test-async-chain.generated.ts');
       fs.writeFileSync(outputFile, generatedCode);
 
       // Using import() for TypeScript compatibility
@@ -685,7 +705,11 @@ export { forEachAsync, asyncAddFive, asyncMultiplyThree };
       // Test: (value + 5) * 3
       // Input: [1, 2, 3]
       // Expected: [(1+5)*3, (2+5)*3, (3+5)*3] = [18, 21, 24]
-      const result = await module.processAsyncChain(true, { items: [1, 2, 3] });
+      const result = await module.processAsyncChain(
+        true,
+        { items: [1, 2, 3] },
+        testHelpers.createRuntime('processAsyncChain'),
+      );
 
       expect(result.onSuccess).toBe(true);
       expect(result.results).toEqual([18, 21, 24]);

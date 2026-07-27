@@ -217,6 +217,14 @@ export type TNodeTypeAST = {
   isAsync: boolean;
   /** Engine appends the execution AbortSignal after declared node inputs. */
   receivesAbortSignal?: boolean;
+  /** Engine appends the execution-scoped node runtime after declared inputs. */
+  receivesRuntime?: boolean;
+  /** Explicit compiler-known durable gate boundary. */
+  durableGate?: 'approval' | 'input' | 'agent';
+  /** Explicit effect adapter contract; never inferred from a function name. */
+  durableEffect?: boolean;
+  /** Compiler-reviewed pure or orchestration node for gated workflows. */
+  durablePure?: boolean;
   /** Default configuration for instances */
   defaultConfig?: TNodeTypeDefaultConfig;
   /** Single scope name (e.g., 'iteration' for forEach) */

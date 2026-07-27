@@ -31,7 +31,9 @@ describe('Executing workflows from marketplace pack layout', () => {
     fs.mkdirSync(path.join(packDir, 'dist', 'node-types'), { recursive: true });
 
     // Node type TS source (for parsing)
-    fs.writeFileSync(path.join(packDir, 'src', 'node-types', 'upper.ts'), `
+    fs.writeFileSync(
+      path.join(packDir, 'src', 'node-types', 'upper.ts'),
+      `
 /**
  * @flowWeaver nodeType
  * @label Upper
@@ -48,18 +50,24 @@ export function upper(
   if (!execute) return { onSuccess: false, onFailure: false, result: '' };
   return { onSuccess: true, onFailure: false, result: text.toUpperCase() };
 }
-`);
+`,
+    );
 
     // Node type compiled JS (for runtime)
-    fs.writeFileSync(path.join(packDir, 'dist', 'node-types', 'upper.js'), `
+    fs.writeFileSync(
+      path.join(packDir, 'dist', 'node-types', 'upper.js'),
+      `
 export function upper(execute, text) {
   if (!execute) return { onSuccess: false, onFailure: false, result: '' };
   return { onSuccess: true, onFailure: false, result: text.toUpperCase() };
 }
-`);
+`,
+    );
 
     // Workflow TS source with import
-    fs.writeFileSync(path.join(packDir, 'src', 'workflows', 'upper-wf.ts'), `
+    fs.writeFileSync(
+      path.join(packDir, 'src', 'workflows', 'upper-wf.ts'),
+      `
 import { upper } from '../node-types/upper.js';
 
 /**
@@ -81,9 +89,16 @@ export async function upperWorkflow(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; output: string }> {
   return { onSuccess: false, onFailure: true, output: '' };
 }
-`);
+`,
+    );
 
-    const result = await executeWorkflow({ filePath: path.join(packDir, 'src', 'workflows', 'upper-wf.ts'), params: { text: 'hello' }, production: true, includeTrace: false });
+    const result = await executeWorkflow({
+      runId: 'test:executor-js-workflow',
+      filePath: path.join(packDir, 'src', 'workflows', 'upper-wf.ts'),
+      params: { text: 'hello' },
+      production: true,
+      includeTrace: false,
+    });
 
     expect((result as unknown as Record<string, unknown>).error).toBeUndefined();
     expect(result.result).toBeDefined();

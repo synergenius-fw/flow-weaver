@@ -18,10 +18,14 @@ function makeDebugger(): TDebugger & { events: TEvent[] } {
   };
 }
 
+function makeContext(debugger_?: TDebugger): GeneratedExecutionContext {
+  return new GeneratedExecutionContext(true, testHelpers.createRuntime('runtimeContext', { debugger: debugger_ }));
+}
+
 describe('ExecutionContext debugger event methods', () => {
   it('sendStatusChangedEvent emits when debugger is present', () => {
     const dbg = makeDebugger();
-    const ctx = new GeneratedExecutionContext(true, dbg);
+    const ctx = makeContext(dbg);
 
     ctx.sendStatusChangedEvent({
       nodeTypeName: 'Add',
@@ -35,7 +39,7 @@ describe('ExecutionContext debugger event methods', () => {
   });
 
   it('sendStatusChangedEvent is a no-op without debugger', () => {
-    const ctx = new GeneratedExecutionContext(true);
+    const ctx = makeContext();
     // Should not throw
     ctx.sendStatusChangedEvent({
       nodeTypeName: 'Add',
@@ -47,7 +51,7 @@ describe('ExecutionContext debugger event methods', () => {
 
   it('sendLogErrorEvent emits when debugger is present', () => {
     const dbg = makeDebugger();
-    const ctx = new GeneratedExecutionContext(true, dbg);
+    const ctx = makeContext(dbg);
 
     ctx.sendLogErrorEvent({
       nodeTypeName: 'Fetch',
@@ -61,7 +65,7 @@ describe('ExecutionContext debugger event methods', () => {
   });
 
   it('sendLogErrorEvent is a no-op without debugger', () => {
-    const ctx = new GeneratedExecutionContext(true);
+    const ctx = makeContext();
     ctx.sendLogErrorEvent({
       nodeTypeName: 'Fetch',
       id: 'fetch1',
@@ -72,7 +76,7 @@ describe('ExecutionContext debugger event methods', () => {
 
   it('sendWorkflowCompletedEvent emits when debugger is present', () => {
     const dbg = makeDebugger();
-    const ctx = new GeneratedExecutionContext(true, dbg);
+    const ctx = makeContext(dbg);
 
     ctx.sendWorkflowCompletedEvent({
       executionIndex: 0,
@@ -86,7 +90,7 @@ describe('ExecutionContext debugger event methods', () => {
 
   it('sendWorkflowCompletedEvent with FAILED status', () => {
     const dbg = makeDebugger();
-    const ctx = new GeneratedExecutionContext(true, dbg);
+    const ctx = makeContext(dbg);
 
     ctx.sendWorkflowCompletedEvent({
       executionIndex: 1,
@@ -100,7 +104,7 @@ describe('ExecutionContext debugger event methods', () => {
 
   it('sendWorkflowCompletedEvent with CANCELLED status', () => {
     const dbg = makeDebugger();
-    const ctx = new GeneratedExecutionContext(true, dbg);
+    const ctx = makeContext(dbg);
 
     ctx.sendWorkflowCompletedEvent({
       executionIndex: 0,
@@ -113,7 +117,7 @@ describe('ExecutionContext debugger event methods', () => {
   });
 
   it('sendWorkflowCompletedEvent is a no-op without debugger', () => {
-    const ctx = new GeneratedExecutionContext(true);
+    const ctx = makeContext();
     ctx.sendWorkflowCompletedEvent({
       executionIndex: 0,
       status: 'SUCCEEDED',
@@ -122,7 +126,7 @@ describe('ExecutionContext debugger event methods', () => {
 
   it('sendStatusChangedEvent includes scope and side when provided', () => {
     const dbg = makeDebugger();
-    const ctx = new GeneratedExecutionContext(true, dbg);
+    const ctx = makeContext(dbg);
 
     ctx.sendStatusChangedEvent({
       nodeTypeName: 'ForEach',
@@ -137,57 +141,5 @@ describe('ExecutionContext debugger event methods', () => {
     const event = dbg.events[0] as Record<string, unknown>;
     expect(event.scope).toBe('iteration');
     expect(event.side).toBe('start');
-  });
-});
-
-describe('ExecutionContext serialize', () => {
-  it('resolves function values to concrete values', () => {
-    const ctx = new GeneratedExecutionContext(true);
-    const idx = ctx.addExecution('node1');
-    ctx.setVariable(
-      { id: 'node1', portName: 'result', executionIndex: idx },
-      () => 42,
-    );
-
-    const serialized = ctx.serialize();
-    expect(serialized.variables['node1:result:0']).toBe(42);
-  });
-
-  it('keeps the raw value when function invocation throws', () => {
-    const ctx = new GeneratedExecutionContext(true);
-    const idx = ctx.addExecution('node1');
-    const badFn = () => {
-      throw new Error('boom');
-    };
-    ctx.setVariable(
-      { id: 'node1', portName: 'result', executionIndex: idx },
-      badFn,
-    );
-
-    const serialized = ctx.serialize();
-    // When function throws, serialize stores the function itself
-    expect(typeof serialized.variables['node1:result:0']).toBe('function');
-  });
-
-  it('serializes non-function values directly', () => {
-    const ctx = new GeneratedExecutionContext(true);
-    const idx = ctx.addExecution('node1');
-    ctx.setVariable(
-      { id: 'node1', portName: 'data', executionIndex: idx },
-      { key: 'value' },
-    );
-
-    const serialized = ctx.serialize();
-    expect(serialized.variables['node1:data:0']).toEqual({ key: 'value' });
-  });
-
-  it('includes execution info and counts', () => {
-    const ctx = new GeneratedExecutionContext(true);
-    const idx1 = ctx.addExecution('node1');
-    const idx2 = ctx.addExecution('node2');
-
-    const serialized = ctx.serialize();
-    expect(serialized.executionCounter).toBe(2);
-    expect(Object.keys(serialized.executions).length).toBe(2);
   });
 });

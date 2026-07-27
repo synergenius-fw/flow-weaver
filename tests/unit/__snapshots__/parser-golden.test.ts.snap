@@ -25505,6 +25505,7 @@ exports[`AnnotationParser golden (debt #4) > parse output is stable: use-cases/h
       "defaultConfig": undefined,
       "description": "Validates a purchase request before sending it for approval.
 Rejects requests with missing fields or amounts outside policy limits.",
+      "durablePure": true,
       "executeWhen": "CONJUNCTION",
       "functionName": "validateRequest",
       "functionText": "/**
@@ -25512,6 +25513,7 @@ Rejects requests with missing fields or amounts outside policy limits.",
  * Rejects requests with missing fields or amounts outside policy limits.
  *
  * @flowWeaver nodeType
+ * @durablePure
  * @label Validate Request
  * @color green
  * @icon shield
@@ -25688,7 +25690,7 @@ function validateRequest(
       "sourceLocation": {
         "column": 0,
         "file": "<ROOT>/use-cases/human-approval.ts",
-        "line": 56,
+        "line": 57,
       },
       "type": "NodeType",
       "variant": "FUNCTION",
@@ -25702,6 +25704,7 @@ function validateRequest(
       "defaultConfig": undefined,
       "description": "Retries its child node until it succeeds or the attempt limit is reached.
 Passes request context through to the child on every iteration via scoped ports.",
+      "durablePure": true,
       "executeWhen": "CONJUNCTION",
       "functionName": "retryUntilValid",
       "functionText": "/**
@@ -25709,6 +25712,7 @@ Passes request context through to the child on every iteration via scoped ports.
  * Passes request context through to the child on every iteration via scoped ports.
  *
  * @flowWeaver nodeType
+ * @durablePure
  * @label Retry Until Valid
  * @color blue
  * @icon refresh
@@ -25910,7 +25914,7 @@ async function retryUntilValid(
       "sourceLocation": {
         "column": 0,
         "file": "<ROOT>/use-cases/human-approval.ts",
-        "line": 128,
+        "line": 130,
       },
       "type": "NodeType",
       "variant": "FUNCTION",
@@ -25922,19 +25926,21 @@ async function retryUntilValid(
     },
     {
       "defaultConfig": undefined,
-      "description": "Prompts a human reviewer for a purchase decision via the agent channel.
+      "description": "Yields a durable agent gate for a human purchase decision.
 Returns onSuccess with the decision if the response contains a valid
 "approved" boolean. Returns onFailure on empty or malformed input so
 the parent retry scope re-prompts.",
+      "durableGate": "agent",
       "executeWhen": "CONJUNCTION",
       "functionName": "promptReviewer",
       "functionText": "/**
- * Prompts a human reviewer for a purchase decision via the agent channel.
+ * Yields a durable agent gate for a human purchase decision.
  * Returns onSuccess with the decision if the response contains a valid
  * "approved" boolean. Returns onFailure on empty or malformed input so
  * the parent retry scope re-prompts.
  *
  * @flowWeaver nodeType
+ * @durableGate agent
  * @label Prompt Reviewer
  * @color orange
  * @icon verified
@@ -25949,44 +25955,9 @@ async function promptReviewer(
   item: string,
   amount: number
 ): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }> {
-  if (!execute) return { onSuccess: false, onFailure: false, result: {} };
-
-  // 1. Check mocks first (--mocks '{"agents": {"human-reviewer": {...}}}')
-  const mocks = (globalThis as unknown as Record<string, unknown>).__fw_mocks__ as
-    | { agents?: Record<string, object> }
-    | undefined;
-  if (mocks?.agents?.['human-reviewer']) {
-    const raw = mocks.agents['human-reviewer'] as Record<string, unknown>;
-    if (typeof raw.approved !== 'boolean') {
-      return { onSuccess: false, onFailure: true, result: {} };
-    }
-    return { onSuccess: true, onFailure: false, result: raw };
-  }
-
-  // 2. Agent channel (interactive terminal or pause/resume)
-  const channel = (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ as
-    | { request: (req: object) => Promise<object> }
-    | undefined;
-
-  let raw: Record<string, unknown>;
-
-  if (channel) {
-    raw = (await channel.request({
-      agentId: 'human-reviewer',
-      context: { requesterId, item, amount },
-      prompt: \`Approve purchase of \${item} ($\${amount.toLocaleString()}) requested by \${requesterId}?\\nRespond with JSON, e.g. {"approved": true, "reviewer": "your name"}\`,
-    })) as Record<string, unknown>;
-  } else {
-    // 3. No mocks, no channel: auto-approve for demo/testing
-    raw = { approved: true, reviewer: 'auto', note: 'Auto-approved (no review channel)' };
-  }
-
-  // Validate: must have an explicit "approved" boolean
-  if (raw == null || typeof raw.approved !== 'boolean') {
-    return { onSuccess: false, onFailure: true, result: {} };
-  }
-
-  return { onSuccess: true, onFailure: false, result: raw };
+  throw new Error(
+    \`durable reviewer gate must not execute: \${execute}:\${requesterId}:\${item}:\${amount}\`,
+  );
 }",
       "hasFailurePort": true,
       "hasSuccessPort": true,
@@ -26066,7 +26037,7 @@ async function promptReviewer(
       "sourceLocation": {
         "column": 0,
         "file": "<ROOT>/use-cases/human-approval.ts",
-        "line": 169,
+        "line": 172,
       },
       "type": "NodeType",
       "variant": "FUNCTION",
@@ -26079,12 +26050,14 @@ async function promptReviewer(
     {
       "defaultConfig": undefined,
       "description": "Takes the reviewer decision and produces the final outcome summary.",
+      "durablePure": true,
       "executeWhen": "CONJUNCTION",
       "functionName": "finalizeDecision",
       "functionText": "/**
  * Takes the reviewer decision and produces the final outcome summary.
  *
  * @flowWeaver nodeType
+ * @durablePure
  * @label Finalize Decision
  * @color purple
  * @icon checkCircle
@@ -26234,7 +26207,7 @@ function finalizeDecision(
       "sourceLocation": {
         "column": 0,
         "file": "<ROOT>/use-cases/human-approval.ts",
-        "line": 229,
+        "line": 198,
       },
       "type": "NodeType",
       "variant": "FUNCTION",
@@ -26364,7 +26337,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 282,
+            "line": 251,
           },
           "to": {
             "node": "val",
@@ -26380,7 +26353,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 283,
+            "line": 252,
           },
           "to": {
             "node": "val",
@@ -26396,7 +26369,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 284,
+            "line": 253,
           },
           "to": {
             "node": "val",
@@ -26412,7 +26385,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 285,
+            "line": 254,
           },
           "to": {
             "node": "val",
@@ -26428,7 +26401,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 286,
+            "line": 255,
           },
           "to": {
             "node": "val",
@@ -26444,7 +26417,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 287,
+            "line": 256,
           },
           "to": {
             "node": "retry",
@@ -26460,7 +26433,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 288,
+            "line": 257,
           },
           "to": {
             "node": "retry",
@@ -26476,7 +26449,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 289,
+            "line": 258,
           },
           "to": {
             "node": "retry",
@@ -26492,7 +26465,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 290,
+            "line": 259,
           },
           "to": {
             "node": "retry",
@@ -26509,7 +26482,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 291,
+            "line": 260,
           },
           "to": {
             "node": "prompt",
@@ -26526,7 +26499,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 292,
+            "line": 261,
           },
           "to": {
             "node": "prompt",
@@ -26543,7 +26516,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 293,
+            "line": 262,
           },
           "to": {
             "node": "prompt",
@@ -26560,7 +26533,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 294,
+            "line": 263,
           },
           "to": {
             "node": "prompt",
@@ -26576,7 +26549,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 295,
+            "line": 264,
           },
           "to": {
             "node": "retry",
@@ -26593,7 +26566,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 296,
+            "line": 265,
           },
           "to": {
             "node": "retry",
@@ -26610,7 +26583,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 297,
+            "line": 266,
           },
           "to": {
             "node": "retry",
@@ -26627,7 +26600,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 298,
+            "line": 267,
           },
           "to": {
             "node": "fin",
@@ -26643,7 +26616,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 299,
+            "line": 268,
           },
           "to": {
             "node": "fin",
@@ -26659,7 +26632,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 300,
+            "line": 269,
           },
           "to": {
             "node": "fin",
@@ -26675,7 +26648,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 301,
+            "line": 270,
           },
           "to": {
             "node": "fin",
@@ -26691,7 +26664,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 302,
+            "line": 271,
           },
           "to": {
             "node": "fin",
@@ -26707,7 +26680,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 303,
+            "line": 272,
           },
           "to": {
             "node": "Exit",
@@ -26723,7 +26696,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 304,
+            "line": 273,
           },
           "to": {
             "node": "Exit",
@@ -26739,7 +26712,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 305,
+            "line": 274,
           },
           "to": {
             "node": "Exit",
@@ -26755,7 +26728,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 306,
+            "line": 275,
           },
           "to": {
             "node": "Exit",
@@ -26771,7 +26744,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 307,
+            "line": 276,
           },
           "to": {
             "node": "Exit",
@@ -26787,7 +26760,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 308,
+            "line": 277,
           },
           "to": {
             "node": "Exit",
@@ -26850,7 +26823,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 278,
+            "line": 247,
           },
           "type": "NodeInstance",
         },
@@ -26870,7 +26843,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 279,
+            "line": 248,
           },
           "type": "NodeInstance",
         },
@@ -26888,7 +26861,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 280,
+            "line": 249,
           },
           "type": "NodeInstance",
         },
@@ -26902,7 +26875,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 281,
+            "line": 250,
           },
           "type": "NodeInstance",
         },
@@ -26913,6 +26886,7 @@ function finalizeDecision(
           "defaultConfig": undefined,
           "description": "Validates a purchase request before sending it for approval.
 Rejects requests with missing fields or amounts outside policy limits.",
+          "durablePure": true,
           "executeWhen": "CONJUNCTION",
           "functionName": "validateRequest",
           "functionText": "/**
@@ -26920,6 +26894,7 @@ Rejects requests with missing fields or amounts outside policy limits.",
  * Rejects requests with missing fields or amounts outside policy limits.
  *
  * @flowWeaver nodeType
+ * @durablePure
  * @label Validate Request
  * @color green
  * @icon shield
@@ -27096,7 +27071,7 @@ function validateRequest(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 56,
+            "line": 57,
           },
           "type": "NodeType",
           "variant": "FUNCTION",
@@ -27110,6 +27085,7 @@ function validateRequest(
           "defaultConfig": undefined,
           "description": "Retries its child node until it succeeds or the attempt limit is reached.
 Passes request context through to the child on every iteration via scoped ports.",
+          "durablePure": true,
           "executeWhen": "CONJUNCTION",
           "functionName": "retryUntilValid",
           "functionText": "/**
@@ -27117,6 +27093,7 @@ Passes request context through to the child on every iteration via scoped ports.
  * Passes request context through to the child on every iteration via scoped ports.
  *
  * @flowWeaver nodeType
+ * @durablePure
  * @label Retry Until Valid
  * @color blue
  * @icon refresh
@@ -27318,7 +27295,7 @@ async function retryUntilValid(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 128,
+            "line": 130,
           },
           "type": "NodeType",
           "variant": "FUNCTION",
@@ -27330,19 +27307,21 @@ async function retryUntilValid(
         },
         {
           "defaultConfig": undefined,
-          "description": "Prompts a human reviewer for a purchase decision via the agent channel.
+          "description": "Yields a durable agent gate for a human purchase decision.
 Returns onSuccess with the decision if the response contains a valid
 "approved" boolean. Returns onFailure on empty or malformed input so
 the parent retry scope re-prompts.",
+          "durableGate": "agent",
           "executeWhen": "CONJUNCTION",
           "functionName": "promptReviewer",
           "functionText": "/**
- * Prompts a human reviewer for a purchase decision via the agent channel.
+ * Yields a durable agent gate for a human purchase decision.
  * Returns onSuccess with the decision if the response contains a valid
  * "approved" boolean. Returns onFailure on empty or malformed input so
  * the parent retry scope re-prompts.
  *
  * @flowWeaver nodeType
+ * @durableGate agent
  * @label Prompt Reviewer
  * @color orange
  * @icon verified
@@ -27357,44 +27336,9 @@ async function promptReviewer(
   item: string,
   amount: number
 ): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }> {
-  if (!execute) return { onSuccess: false, onFailure: false, result: {} };
-
-  // 1. Check mocks first (--mocks '{"agents": {"human-reviewer": {...}}}')
-  const mocks = (globalThis as unknown as Record<string, unknown>).__fw_mocks__ as
-    | { agents?: Record<string, object> }
-    | undefined;
-  if (mocks?.agents?.['human-reviewer']) {
-    const raw = mocks.agents['human-reviewer'] as Record<string, unknown>;
-    if (typeof raw.approved !== 'boolean') {
-      return { onSuccess: false, onFailure: true, result: {} };
-    }
-    return { onSuccess: true, onFailure: false, result: raw };
-  }
-
-  // 2. Agent channel (interactive terminal or pause/resume)
-  const channel = (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ as
-    | { request: (req: object) => Promise<object> }
-    | undefined;
-
-  let raw: Record<string, unknown>;
-
-  if (channel) {
-    raw = (await channel.request({
-      agentId: 'human-reviewer',
-      context: { requesterId, item, amount },
-      prompt: \`Approve purchase of \${item} ($\${amount.toLocaleString()}) requested by \${requesterId}?\\nRespond with JSON, e.g. {"approved": true, "reviewer": "your name"}\`,
-    })) as Record<string, unknown>;
-  } else {
-    // 3. No mocks, no channel: auto-approve for demo/testing
-    raw = { approved: true, reviewer: 'auto', note: 'Auto-approved (no review channel)' };
-  }
-
-  // Validate: must have an explicit "approved" boolean
-  if (raw == null || typeof raw.approved !== 'boolean') {
-    return { onSuccess: false, onFailure: true, result: {} };
-  }
-
-  return { onSuccess: true, onFailure: false, result: raw };
+  throw new Error(
+    \`durable reviewer gate must not execute: \${execute}:\${requesterId}:\${item}:\${amount}\`,
+  );
 }",
           "hasFailurePort": true,
           "hasSuccessPort": true,
@@ -27474,7 +27418,7 @@ async function promptReviewer(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 169,
+            "line": 172,
           },
           "type": "NodeType",
           "variant": "FUNCTION",
@@ -27487,12 +27431,14 @@ async function promptReviewer(
         {
           "defaultConfig": undefined,
           "description": "Takes the reviewer decision and produces the final outcome summary.",
+          "durablePure": true,
           "executeWhen": "CONJUNCTION",
           "functionName": "finalizeDecision",
           "functionText": "/**
  * Takes the reviewer decision and produces the final outcome summary.
  *
  * @flowWeaver nodeType
+ * @durablePure
  * @label Finalize Decision
  * @color purple
  * @icon checkCircle
@@ -27642,7 +27588,7 @@ function finalizeDecision(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/human-approval.ts",
-            "line": 229,
+            "line": 198,
           },
           "type": "NodeType",
           "variant": "FUNCTION",

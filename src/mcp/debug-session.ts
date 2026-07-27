@@ -1,7 +1,6 @@
 /**
  * In-memory registry for active debug sessions.
- * Mirrors the pattern of run-registry.ts but tracks DebugController state
- * instead of AgentChannel state.
+ * Tracks execution-scoped DebugController state for live developer sessions.
  */
 
 import type { DebugController, DebugPauseState } from '../runtime/debug-controller.js';
@@ -23,6 +22,16 @@ export interface DebugSession {
 const debugSessions = new Map<string, DebugSession>();
 
 export function storeDebugSession(session: DebugSession): void {
+  const candidate = session as DebugSession & Record<string, unknown>;
+  if (
+    Object.hasOwn(candidate, 'continuation') ||
+    Object.hasOwn(candidate, 'gate') ||
+    Object.hasOwn(candidate, 'gateId')
+  ) {
+    throw new Error(
+      'Live debug sessions cannot retain durable continuation or gate state',
+    );
+  }
   debugSessions.set(session.debugId, session);
 }
 

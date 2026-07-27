@@ -48,6 +48,11 @@ committed to the execution context and before any successor begins. An agent
 gate may yield before a model turn or after a complete turn and its durable
 receipts. It may not yield during token streaming or during a tool call.
 
+For any reachable workflow closure containing a gate, every node has exactly
+one compiler classification: pure/orchestration, gate, or effect. Unknown or
+contradictory local and external definitions are refused at compile time,
+including scoped children and sibling workflow invocations.
+
 The engine returns the envelope to its caller. It never writes the production
 continuation to a file or database. The coordinator must commit the
 continuation and gate record atomically before it acknowledges the yield.
@@ -62,8 +67,8 @@ The first format is a closed record with these fields:
 | `runId` and `gateId` | Exact identities supplied by the authorized caller                        |
 | `gateKind`           | `approval`, `input`, or `agent`                                           |
 | `workflowId`         | Canonical workflow identity                                               |
-| `bundleDigest`       | SHA-256 of the exact pinned workflow bundle                               |
-| `graphFingerprint`   | SHA-256 of the canonical compiled graph                                   |
+| `bundleDigest`       | Coordinator-verified `sha256:<64hex>` identity of the complete executable bundle closure |
+| `graphFingerprint`   | Bare 64-hex SHA-256 of the canonical compiled graph                       |
 | `engineVersion`      | Exact Flow Weaver version that yielded                                    |
 | `generatorAbi`       | Exact generated-function ABI identifier                                   |
 | `location`           | Exact nested execution address and next safe boundary                     |
@@ -91,7 +96,7 @@ A node id is not an execution address. The address contains:
 - the node instance id and its execution index
 - the complete scope ancestry
 - each loop container execution and iteration ordinal
-- each active branch and branch arm
+- each active branch and branch arm, qualified by owning workflow and frame depth
 - the next compiler-known boundary
 
 Variables and receipts are keyed by this address plus port name. Resume does
@@ -141,6 +146,41 @@ object, renderer or main-process state, or operating-system serialization.
 A continuation may resume on a different compatible Node executor when its
 engine, generator, workflow, bundle, and graph identities match.
 
+The executor never derives `bundleDigest` from the workflow source file:
+imports and other executable dependencies may change independently. Durable
+yield and resume require verified whole-bundle evidence from the coordinator.
+The distinct graph fingerprint is a canonical digest of the full reachable
+workflow closure. Dynamic local invocation conservatively includes every
+workflow in the source bundle.
+
+Format 1 does not execute durable-capable graph lanes concurrently. Generation
+is sequential for any closure containing a gate, ensuring a terminal yield has
+no live sibling lane. Parallel durable execution requires a later explicit
+cancellation and all-settled contract.
+
+Format 1 refuses every generated scope callback in a closure containing a
+durable gate. The scope owner is ordinary node code and may repeat or call its
+callback concurrently, so sequential outer generation is not proof of settled
+lanes or independently authenticated execution ordinals. A later format may
+admit this topology only with explicit ordinal, cancellation, and all-settled
+contracts.
+
+Consequently every accepted Format 1 frame invocation, caller execution, node
+execution, and branch-owner execution ordinal is zero. Any other ordinal is
+refused by the decoder before effect re-attestation or node execution.
+
+The same fail-closed closure validation is intrinsic to every public generation
+entry point. Durable-gate closures also refuse pull or lazy execution, whose
+optional predecessors cannot form a complete prefix, and durable boundaries
+after branch convergence, where the selected arm is no longer present in the
+boundary address. Gates inside an active branch retain that exact branch path
+and remain supported.
+
+Dynamic local invocation carries the generated recursion depth across registry
+calls and refuses depth 1,000. Conservative closure inclusion terminates over
+a visited workflow set during compile and preflight, while runtime self or
+mutual invocation cycles remain strictly bounded.
+
 Electron is one trusted Node executor implementation. It may provide native
 brokers and a per-run process boundary. Neither the engine nor the envelope
 imports or names Electron APIs.
@@ -176,6 +216,28 @@ The decoder returns a typed refusal before execution. Stable refusal reasons
 include malformed, oversized, unsupported-format, incompatible-engine,
 incompatible-generator, wrong-workflow, wrong-bundle, wrong-graph,
 checksum-mismatch, stale-gate, wrong-run, and ambiguous-effect.
+
+Address comparisons, gate ids, operation keys, duplicate detection, and state
+ownership all use the same canonical structural encoding. Object property
+order introduced by JSONB or another canonical store cannot change identity.
+Completed state must be a strict compiled execution prefix before the recorded
+gate. The compatibility manifest names every required predecessor together
+with its compiled branch path, and every graph node declares its exact active
+transitive compiled branch path, so an omitted ancestor branch or missing
+active predecessor is refused as well as a future completion. Branch
+ownership is workflow- and frame-qualified, so repeated node ids across nested
+or recursive workflow frames cannot alias. The decoder compares the observed
+branch path with the compiled boundary path at every workflow frame, not only
+the terminal gate frame. Nested frames must match a declared caller target,
+scopes and branch arms must belong to the compiled graph, and only outputs of
+completed nodes may be retained as variables. The decoder
+returns a deeply frozen clone so caller mutation after validation cannot alter
+runtime state. Every public runtime construction path likewise clones and
+freezes a validated gate resolution before asynchronous preflight and binds an
+accepted continuation to its exact run and root workflow before exposing a
+runtime.
+Every claimed completed effect is re-attested through its operation-key
+adapter and the same exact closed recovery decoder before workflow code starts.
 
 Rollback is mechanical. Stitch retains the prior engine artifact while runs
 pin it. An older decoder refuses a newer format. It never guesses, truncates,

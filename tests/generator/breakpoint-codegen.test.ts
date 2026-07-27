@@ -3,7 +3,7 @@
  *
  * Covers:
  * - inline-runtime.ts: generateInlineRuntime emits `async sendStatusChangedEvent`
- *   so the injected __flowWeaverDebugger__.sendEvent (which is async) can be awaited.
+ *   so the execution-scoped debugger's sendEvent (which is async) can be awaited.
  * - inline-runtime.ts: TDebugger.sendEvent type accepts `void | Promise<void>` so
  *   an async implementation is assignable without a type error.
  * - Generators (unified / code-utils / scope-function-generator): every call to
@@ -138,7 +138,9 @@ export async function singleNode(execute: boolean, params: { num: number }): Pro
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-single.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-single.ts', source);
+  });
 
   test('10 — there are sendStatusChangedEvent call sites', () => {
     expect(callSiteLines(code).length).toBeGreaterThan(0);
@@ -194,7 +196,9 @@ export function syncWorkflow(execute: boolean, params: { num: number }): {
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-sync.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-sync.ts', source);
+  });
 
   test('15 — dev mode sync workflow: all sendStatusChangedEvent calls are awaited', () => {
     // In dev mode, even sync workflows are wrapped in async so the debugger can
@@ -251,14 +255,18 @@ export async function chainWorkflow(execute: boolean, params: { num: number }): 
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-chain.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-chain.ts', source);
+  });
 
   test('17 — zero un-awaited call sites across entire chain', () => {
     expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
   });
 
   test('18 — at least 2 RUNNING await calls (one per user node)', () => {
-    const runningCalls = [...code.matchAll(/await\s+\w+\.sendStatusChangedEvent\(\{[\s\S]*?status:\s*['"]RUNNING['"]/g)];
+    const runningCalls = [
+      ...code.matchAll(/await\s+\w+\.sendStatusChangedEvent\(\{[\s\S]*?status:\s*['"]RUNNING['"]/g),
+    ];
     expect(runningCalls.length).toBeGreaterThanOrEqual(2);
   });
 });
@@ -308,7 +316,9 @@ export async function parallelWorkflow(execute: boolean, params: { num: number }
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-parallel.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-parallel.ts', source);
+  });
 
   test('19 — parallel workflow has zero un-awaited sendStatusChangedEvent calls', () => {
     expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
@@ -377,7 +387,9 @@ export async function branchWorkflow(execute: boolean, params: { num: number }):
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-branch.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-branch.ts', source);
+  });
 
   test('21 — branching workflow has zero un-awaited sendStatusChangedEvent calls', () => {
     expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
@@ -431,7 +443,9 @@ export async function startExitWorkflow(execute: boolean, params: { num: number 
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-startExit.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-startExit.ts', source);
+  });
 
   test('25 — Start node status event is awaited', () => {
     expect(code).toMatch(/await\s+ctx\.sendStatusChangedEvent\(\{[\s\S]*?nodeTypeName:\s*['"]Start['"]/);
@@ -619,7 +633,9 @@ export async function scopedAsyncWorkflow(
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-scoped-async.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-scoped-async.ts', source);
+  });
 
   test('41 — scoped async workflow has zero un-awaited sendStatusChangedEvent calls', () => {
     expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
@@ -698,7 +714,9 @@ export function scopedSyncWorkflow(
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-scoped-sync.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-scoped-sync.ts', source);
+  });
 
   test('43 — scoped sync workflow: scope function stays sync (parent node expects sync callback)', () => {
     // Scope functions must NOT be forced async in dev mode because parent nodes
@@ -706,10 +724,10 @@ export function scopedSyncWorkflow(
     // return Promises instead of values, causing undefined results.
     // The workflow body IS async (for breakpoints), but scope callbacks respect
     // the parent node's sync/async expectation.
-    const scopeLines = code.split('\n').filter(l => l.includes('scopedCtx.sendStatusChangedEvent'));
+    const scopeLines = code.split('\n').filter((l) => l.includes('scopedCtx.sendStatusChangedEvent'));
     expect(scopeLines.length).toBeGreaterThan(0); // scope calls exist
     // Scope calls must NOT be awaited — the parent node calls the callback synchronously
-    const awaitedScopeLines = scopeLines.filter(l => /await\s/.test(l));
+    const awaitedScopeLines = scopeLines.filter((l) => /await\s/.test(l));
     expect(awaitedScopeLines).toHaveLength(0);
   });
 
@@ -777,7 +795,9 @@ export function syncBranchWorkflow(execute: boolean, params: { num: number }): {
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-sync-branch.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-sync-branch.ts', source);
+  });
 
   test('45 — sync branching workflow in dev mode has ALL calls awaited (debugger support)', () => {
     expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
@@ -835,7 +855,9 @@ export async function successOnlyWorkflow(execute: boolean, params: { num: numbe
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-success-only.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-success-only.ts', source);
+  });
 
   test('47 — success-only branch has zero un-awaited sendStatusChangedEvent calls', () => {
     expect(unAwaitedCallSiteLines(code)).toHaveLength(0);
@@ -967,7 +989,9 @@ export async function pullNodeWorkflow(execute: boolean, params: { num: number }
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-pull-async.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-pull-async.ts', source);
+  });
 
   test('55 — async pull node executor function is async', () => {
     // generatePullNodeWithContext wraps the node in `const d_executor = async () => {`
@@ -1034,7 +1058,9 @@ export function noImportsWorkflow(execute: boolean, params: { num: number }): {
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-no-imports.ts', syncSource); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-no-imports.ts', syncSource);
+  });
 
   test('57 — generated code has ZERO import statements from @synergenius/flow-weaver', () => {
     // This is a non-negotiable invariant. The runtime must be inlined, never imported.
@@ -1044,11 +1070,9 @@ export function noImportsWorkflow(execute: boolean, params: { num: number }): {
 
   test('58 — generated code has ZERO import statements from any external package', () => {
     // Only relative imports (./foo, ../bar) are acceptable. No bare specifiers.
-    const importLines = code.split('\n').filter((l) =>
-      /^\s*(import\s|const\s+\w+\s*=\s*require)/.test(l)
-    );
+    const importLines = code.split('\n').filter((l) => /^\s*(import\s|const\s+\w+\s*=\s*require)/.test(l));
     const externalImports = importLines.filter(
-      (l) => !l.includes("'./") && !l.includes("'../") && !l.includes('"./')  && !l.includes('"../')
+      (l) => !l.includes("'./") && !l.includes("'../") && !l.includes('"./') && !l.includes('"../'),
     );
     expect(externalImports).toHaveLength(0);
   });
@@ -1086,7 +1110,9 @@ export function noAnyWorkflow(execute: boolean, params: { num: number }): {
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-no-any.ts', syncSource); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-no-any.ts', syncSource);
+  });
 
   test('59 — generated code contains zero `as any` casts', () => {
     const anyMatches = code.match(/as any\b/g);
@@ -1130,7 +1156,9 @@ export function syncDebugWorkflow(execute: boolean, params: { num: number }): {
   `;
 
   let code: string;
-  beforeAll(async () => { code = await compileWorkflow('bp-sync-debug.ts', source); });
+  beforeAll(async () => {
+    code = await compileWorkflow('bp-sync-debug.ts', source);
+  });
 
   test('61 — dev mode sync workflow has ALL sendStatusChangedEvent calls awaited', () => {
     expect(unAwaitedCallSiteLines(code)).toHaveLength(0);

@@ -1,4 +1,9 @@
-import { generateInPlace, hasInPlaceMarkers, MARKERS, type InPlaceGenerateOptions } from '../../src/api/generate-in-place';
+import {
+  generateInPlace,
+  hasInPlaceMarkers,
+  MARKERS,
+  type InPlaceGenerateOptions,
+} from '../../src/api/generate-in-place';
 import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
 import { createMultiInputNodeType, createNodeInstance } from '../helpers/test-fixtures';
 import { parser } from '../../src/parser';
@@ -38,8 +43,16 @@ describe('In-Place Generation', () => {
     nodeTypes: [createMultiInputNodeType('add', 'add')],
     instances: [createNodeInstance('adder', 'add', { x: 200, y: 100 })],
     connections: [
-      { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'adder', port: 'a' } },
-      { type: 'Connection', from: { node: 'Start', port: 'b' }, to: { node: 'adder', port: 'b' } },
+      {
+        type: 'Connection',
+        from: { node: 'Start', port: 'a' },
+        to: { node: 'adder', port: 'a' },
+      },
+      {
+        type: 'Connection',
+        from: { node: 'Start', port: 'b' },
+        to: { node: 'adder', port: 'b' },
+      },
       {
         type: 'Connection',
         from: { node: 'adder', port: 'result' },
@@ -180,17 +193,16 @@ export async function calculate(execute: boolean, params: { a: number; b: number
   throw new Error('Not implemented');
 }`;
 
-      const result = generateInPlace(sourceCode, createSimpleAST(), { production: true });
+      const result = generateInPlace(sourceCode, createSimpleAST(), {
+        production: true,
+      });
 
       // Production mode should not have debug client
       expect(result.code).not.toContain('FLOW_WEAVER_DEBUG');
       expect(result.code).not.toContain('createFlowWeaverDebugClient');
     });
 
-    it('should use typeof check for debugger parameter (regression test)', () => {
-      // This test ensures generated code works when function signature lacks __flowWeaverDebugger__ param
-      // Bug: Previously generated `__flowWeaverDebugger__ || (...)` which fails if param not in signature
-      // Fix: Generate `typeof __flowWeaverDebugger__ !== 'undefined' ? __flowWeaverDebugger__ : (...)`
+    it('should read debugger services only from the explicit runtime', () => {
       const sourceCode = `/**
  * @flowWeaver workflow
  * @node adder add
@@ -201,10 +213,8 @@ export async function calculate(execute: boolean, params: { a: number; b: number
 
       const result = generateInPlace(sourceCode, createSimpleAST());
 
-      // Should use typeof check, not direct reference
-      expect(result.code).toContain("typeof __flowWeaverDebugger__ !== 'undefined'");
-      // Should NOT have direct reference without typeof check
-      expect(result.code).not.toMatch(/= __flowWeaverDebugger__ \|\|/);
+      expect(result.code).toContain('runtime.services.debugger');
+      expect(result.code).not.toContain('__flowWeaverDebugger__');
     });
 
     it('should INSERT new node type function when it does not exist', () => {
@@ -528,9 +538,7 @@ export async function myWorkflow(execute: boolean) {
 
       expect(result.hasChanges).toBe(true);
       // Should have portLabel attribute with both port labels
-      expect(result.code).toContain(
-        '[portLabel: input="Custom Input Label", output="Label with \\"quotes\\""]'
-      );
+      expect(result.code).toContain('[portLabel: input="Custom Input Label", output="Label with \\"quotes\\""]');
     });
 
     it('should serialize port constant expressions to @node tag [expr: ...] attribute', () => {
@@ -724,7 +732,10 @@ function myWorkflow(execute: boolean) {
             type: 'NodeType',
             name: 'double',
             functionName: 'double',
-            inputs: { execute: { dataType: 'STEP' }, value: { dataType: 'NUMBER' } },
+            inputs: {
+              execute: { dataType: 'STEP' },
+              value: { dataType: 'NUMBER' },
+            },
             outputs: {
               onSuccess: { dataType: 'STEP' },
               onFailure: { dataType: 'STEP' },
@@ -784,7 +795,10 @@ async function myAsyncWorkflow(execute: boolean) {
             type: 'NodeType',
             name: 'double',
             functionName: 'double',
-            inputs: { execute: { dataType: 'STEP' }, value: { dataType: 'NUMBER' } },
+            inputs: {
+              execute: { dataType: 'STEP' },
+              value: { dataType: 'NUMBER' },
+            },
             outputs: {
               onSuccess: { dataType: 'STEP' },
               onFailure: { dataType: 'STEP' },
@@ -1224,7 +1238,10 @@ export function scopedDemo(execute: boolean): { onSuccess: boolean; onFailure: b
         connections: [],
         scopes: {},
         startPorts: {},
-        exitPorts: { onSuccess: { dataType: 'BOOLEAN' }, onFailure: { dataType: 'BOOLEAN' } },
+        exitPorts: {
+          onSuccess: { dataType: 'BOOLEAN' },
+          onFailure: { dataType: 'BOOLEAN' },
+        },
         imports: [],
       };
 
@@ -1396,11 +1413,7 @@ export function myWorkflow(execute: boolean): { onSuccess: boolean } {
 
       // Step 2: Parse the generated code - this is where the bug manifests
       // Write to temp file and parse
-      const tempFile = path.join(
-        os.tmpdir(),
-        `flow-weaver-${process.pid}`,
-        'jsdoc-newline-test.ts'
-      );
+      const tempFile = path.join(os.tmpdir(), `flow-weaver-${process.pid}`, 'jsdoc-newline-test.ts');
       fs.mkdirSync(path.dirname(tempFile), { recursive: true });
       fs.writeFileSync(tempFile, result.code, 'utf-8');
 
@@ -1510,11 +1523,7 @@ export function myWorkflow(execute: boolean) {
   throw new Error('Not implemented');
 }`;
 
-      const tempFile = path.join(
-        os.tmpdir(),
-        `flow-weaver-${process.pid}`,
-        'description-roundtrip.ts'
-      );
+      const tempFile = path.join(os.tmpdir(), `flow-weaver-${process.pid}`, 'description-roundtrip.ts');
       fs.mkdirSync(path.dirname(tempFile), { recursive: true });
       fs.writeFileSync(tempFile, sourceCode, 'utf-8');
 
@@ -2780,7 +2789,7 @@ export function negatePipeline(execute: boolean, params: { value: number }) {
       // mathPipeline must still have @flowWeaver workflow, NOT @flowWeaver nodeType
       const mathSection = result.code.slice(
         result.code.indexOf('export function mathPipeline') - 200,
-        result.code.indexOf('export function mathPipeline')
+        result.code.indexOf('export function mathPipeline'),
       );
       expect(mathSection).toContain('@flowWeaver workflow');
       expect(mathSection).not.toContain('@flowWeaver nodeType');
@@ -3053,7 +3062,10 @@ export function myPipeline(execute: boolean, params: { input: string }): { resul
       let modifiedAST = addConnection(parsed.workflows[0], 's1.output', 'Exit.result');
       // This is the guard that applyModifyOperation now applies
       if (modifiedAST.options?.autoConnect) {
-        modifiedAST = { ...modifiedAST, options: { ...modifiedAST.options, autoConnect: undefined } };
+        modifiedAST = {
+          ...modifiedAST,
+          options: { ...modifiedAST.options, autoConnect: undefined },
+        };
       }
 
       // Generate — should now have explicit @connect and no @autoConnect
@@ -3075,7 +3087,9 @@ export function myPipeline(execute: boolean, params: { input: string }): { resul
     beforeEach(() => {
       // Create temp dir with fake @synergenius/flow-weaver installed
       tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-ext-runtime-'));
-      fs.mkdirSync(path.join(tempDir, 'node_modules', '@synergenius', 'flow-weaver'), { recursive: true });
+      fs.mkdirSync(path.join(tempDir, 'node_modules', '@synergenius', 'flow-weaver'), {
+        recursive: true,
+      });
     });
 
     afterEach(() => {
@@ -3091,9 +3105,21 @@ export function myPipeline(execute: boolean, params: { input: string }): { resul
       nodeTypes: [createMultiInputNodeType('add', 'add')],
       instances: [createNodeInstance('adder', 'add', { x: 200, y: 100 })],
       connections: [
-        { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'adder', port: 'a' } },
-        { type: 'Connection', from: { node: 'Start', port: 'b' }, to: { node: 'adder', port: 'b' } },
-        { type: 'Connection', from: { node: 'adder', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'a' },
+          to: { node: 'adder', port: 'a' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'b' },
+          to: { node: 'adder', port: 'b' },
+        },
+        {
+          type: 'Connection',
+          from: { node: 'adder', port: 'result' },
+          to: { node: 'Exit', port: 'result' },
+        },
       ],
       scopes: {},
       startPorts: { a: { dataType: 'NUMBER' }, b: { dataType: 'NUMBER' } },
@@ -3102,7 +3128,7 @@ export function myPipeline(execute: boolean, params: { input: string }): { resul
       ui: { startNode: { x: 0, y: 100 }, exitNode: { x: 400, y: 100 } },
     });
 
-    it('should inline runtime with __flowWeaverDebugger__ in dev mode', () => {
+    it('should inline execution-scoped debugger services in dev mode', () => {
       const sourceCode = `/**
  * @flowWeaver workflow
  * @node adder add
@@ -3209,9 +3235,21 @@ export function calculate(execute: boolean, params: { a: number; b: number }) {
         nodeTypes: [createMultiInputNodeType('add', 'add')],
         instances: [createNodeInstance('adder', 'add', { x: 500, y: 200 })],
         connections: [
-          { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'adder', port: 'a' } },
-          { type: 'Connection', from: { node: 'Start', port: 'b' }, to: { node: 'adder', port: 'b' } },
-          { type: 'Connection', from: { node: 'adder', port: 'result' }, to: { node: 'Exit', port: 'result' } },
+          {
+            type: 'Connection',
+            from: { node: 'Start', port: 'a' },
+            to: { node: 'adder', port: 'a' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'Start', port: 'b' },
+            to: { node: 'adder', port: 'b' },
+          },
+          {
+            type: 'Connection',
+            from: { node: 'adder', port: 'result' },
+            to: { node: 'Exit', port: 'result' },
+          },
         ],
         scopes: {},
         startPorts: { a: { dataType: 'NUMBER' }, b: { dataType: 'NUMBER' } },
@@ -3228,7 +3266,7 @@ export function calculate(execute: boolean, params: { a: number; b: number }) {
       // The FIRST workflow's @node should have updated positions
       // Find the first workflow's JSDoc block
       const firstWorkflowJSDocMatch = result.code.match(
-        /\/\*\*[\s\S]*?@flowWeaver workflow[\s\S]*?\*\/\s*\nexport function calculate/
+        /\/\*\*[\s\S]*?@flowWeaver workflow[\s\S]*?\*\/\s*\nexport function calculate/,
       );
       expect(firstWorkflowJSDocMatch).toBeTruthy();
       const firstJSDoc = firstWorkflowJSDocMatch![0];

@@ -1,4 +1,5 @@
 import { getMockConfig, lookupMock } from './mock-types.js';
+import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 /**
  * @flowWeaver nodeType
@@ -11,14 +12,15 @@ export async function waitForEvent(
   execute: boolean,
   eventName: string,
   match?: string,
-  timeout?: string
+  timeout?: string,
+  runtime?: NodeExecutionRuntime,
 ): Promise<{ onSuccess: boolean; onFailure: boolean; eventData: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, eventData: {} };
 
-  const mocks = getMockConfig();
+  const mocks = getMockConfig(runtime);
   if (mocks) {
     // Mock mode — look up event data by name (supports instance-qualified keys)
-    const mockData = lookupMock(mocks.events, eventName);
+    const mockData = lookupMock(mocks.events, eventName, runtime);
     if (mockData !== undefined) {
       return { onSuccess: true, onFailure: false, eventData: mockData };
     }

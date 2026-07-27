@@ -58,9 +58,12 @@ export function parseStartPorts(
 
     // Extract data ports from parameters beyond execute
     if (params.length > 1) {
-      // Filter out __abortSignal__ which is injected by generateInPlace and
-      // is not a user-visible port.
-      const dataParams = params.slice(1).filter(p => p.getName() !== '__abortSignal__');
+      // Filter engine-owned generated ABI parameters from user-visible ports.
+      const dataParams = params.slice(1).filter(
+        p =>
+          p.getName() !== '__runtime__' &&
+          !['AbortSignal', 'TDebugger'].includes(p.getType().getText(p))
+      );
 
       // Multiple separate params: each becomes its own port
       // Single param with object type: expand its properties into ports

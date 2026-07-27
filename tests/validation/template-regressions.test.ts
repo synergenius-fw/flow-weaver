@@ -128,97 +128,60 @@ describe('agent rule integration regressions', () => {
     });
   });
 
-  describe('globalThis provider injection', () => {
-    it('llm-call node template should use globalThis fallback', () => {
+  describe('execution-local provider generation', () => {
+    it('llm-call node template should not use process globals', () => {
       const code = generateNodeFromTemplate('llm-call', 'myLlm');
-      expect(code).toContain('__fw_llm_provider__');
+      expect(code).not.toContain('__fw_llm_provider__');
+      expect(code).toContain('const llmProvider');
     });
 
     // ai-agent-durable and ai-pipeline-durable are tested in flow-weaver-pack-inngest
     it.each(['ai-agent', 'ai-react', 'ai-chat', 'ai-rag'])(
-      '%s workflow template should use globalThis fallback',
+      '%s workflow template should not use process globals',
       (templateId) => {
         const code = generateWorkflowFromTemplate(templateId, { workflowName: 'test' });
-        expect(code).toContain('__fw_llm_provider__');
+        expect(code).not.toContain('__fw_llm_provider__');
+        expect(code).toContain('const llmProvider');
       },
     );
 
-    it('human-approval node template should use globalThis approval fallback', () => {
+    it('human-approval node template should declare a durable compiler gate', () => {
       const code = generateNodeFromTemplate('human-approval', 'myApproval');
-      expect(code).toContain('__fw_approval_provider__');
+      expect(code).toContain('@durableGate approval');
+      expect(code).not.toContain('new Promise');
+      expect(code).not.toContain('pendingApprovals');
     });
   });
 });
 
-describe('approval strategy regressions', () => {
-  describe('strategy code generation', () => {
-    it('mock strategy should generate valid approval provider code', () => {
-      const code = generateNodeFromTemplate('human-approval', 'review');
-      // Default is mock
-      expect(code).toContain('ApprovalProvider');
-      expect(code).toContain('ApprovalRequest');
-      expect(code).toContain('ApprovalResult');
-      expect(code).toContain('approvalProvider');
-      expect(code).toContain('_defaultApprovalProvider');
-      expect(code).toContain('Auto-approving');
-    });
-
-    it('callback strategy should generate pendingApprovals and resolveApproval', () => {
-      const code = generateNodeFromTemplate('human-approval', 'review', { strategy: 'callback' });
-      expect(code).toContain('_pendingApprovals');
-      expect(code).toContain('resolveApproval');
-      expect(code).toContain('getPendingApprovals');
-      expect(code).toContain('parseTimeout');
-      expect(code).toContain('__fw_approval_provider__');
-    });
-
-    it('webhook strategy should generate handler function', () => {
-      const code = generateNodeFromTemplate('human-approval', 'review', { strategy: 'webhook' });
-      expect(code).toContain('createApprovalHandler');
-      expect(code).toContain('/approve/');
-      expect(code).toContain('/reject/');
-      expect(code).toContain('/pending');
-      expect(code).toContain('__fw_approval_provider__');
-    });
-  });
-
+describe('durable approval template regressions', () => {
   describe('node annotations preserved', () => {
-    it.each(['mock', 'callback', 'webhook'])(
-      '%s strategy should preserve @flowWeaver annotations',
-      (strategy) => {
-        const code = generateNodeFromTemplate('human-approval', 'myApproval', { strategy });
-        expect(code).toContain('@flowWeaver nodeType');
-        expect(code).toContain('@color orange');
-        expect(code).toContain('@icon verified');
-        expect(code).toContain('@output approved');
-        expect(code).toContain('@output response');
-        expect(code).toContain('@output reviewer');
-      },
-    );
+    it('preserves the durable gate and public ports', () => {
+      const code = generateNodeFromTemplate('human-approval', 'myApproval');
+      expect(code).toContain('@flowWeaver nodeType');
+      expect(code).toContain('@durableGate approval');
+      expect(code).toContain('@color orange');
+      expect(code).toContain('@icon verified');
+      expect(code).toContain('@output approved');
+      expect(code).toContain('@output response');
+      expect(code).toContain('@output reviewer');
+    });
   });
 
   describe('agent detection compatibility', () => {
     it('generated code should have approved output for agent detection', () => {
-      // Agent detection looks for 'approved' in output ports.
-      // All strategies must generate the same function signature.
-      const strategies = ['mock', 'callback', 'webhook'];
-      for (const strategy of strategies) {
-        const code = generateNodeFromTemplate('human-approval', 'gate', { strategy });
-        expect(code).toContain('approved: boolean');
-        expect(code).toContain('response?: string');
-        expect(code).toContain('reviewer?: string');
-      }
+      const code = generateNodeFromTemplate('human-approval', 'gate');
+      expect(code).toContain('approved: boolean');
+      expect(code).toContain('response?: string');
+      expect(code).toContain('reviewer?: string');
     });
   });
 
   describe('no any casts', () => {
-    it.each(['mock', 'callback', 'webhook'])(
-      '%s strategy should not contain "as any"',
-      (strategy) => {
-        const code = generateNodeFromTemplate('human-approval', 'test', { strategy });
-        expect(code).not.toContain('as any');
-      },
-    );
+    it('does not contain "as any"', () => {
+      const code = generateNodeFromTemplate('human-approval', 'test');
+      expect(code).not.toContain('as any');
+    });
   });
 
   describe('expression node template preview must include mandatory ports', () => {

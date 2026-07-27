@@ -10,8 +10,7 @@
  *   { match: /./, response: { content: 'Default answer', toolCalls: [], finishReason: 'stop' } },
  * ]);
  *
- * // Inject globally for compiled workflows
- * (globalThis as unknown as { __fw_llm_provider__?: LLMProvider }).__fw_llm_provider__ = mockLlm;
+ * // Pass mockLlm to the node or adapter under test.
  *
  * // After test
  * expect(mockLlm.getCallCount()).toBe(2);

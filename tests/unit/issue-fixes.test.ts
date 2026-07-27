@@ -20,6 +20,7 @@ import { waitForEvent } from '../../src/built-in-nodes/wait-for-event';
 import { waitForAgent } from '../../src/built-in-nodes/wait-for-agent';
 import { WorkflowValidator } from '../../src/validator';
 import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
+import { createNestedWorkflowRuntime, type NodeExecutionRuntime } from '../../src/runtime/durable-execution';
 
 // Mock parseWorkflow for validateMockConfig tests (avoid filesystem access)
 vi.mock('../../src/api/index', () => ({
@@ -36,7 +37,10 @@ describe('AnnotationGenerator multi-line descriptions', () => {
     functionName: 'testNode',
     description,
     inputs: { execute: { dataType: 'STEP' } },
-    outputs: { onSuccess: { dataType: 'STEP' }, onFailure: { dataType: 'STEP', failure: true } },
+    outputs: {
+      onSuccess: { dataType: 'STEP' },
+      onFailure: { dataType: 'STEP', failure: true },
+    },
     hasSuccessPort: true,
     hasFailurePort: true,
     executeWhen: 'CONJUNCTION',
@@ -72,7 +76,7 @@ describe('AnnotationGenerator multi-line descriptions', () => {
     // Each continuation line should have the JSDoc prefix
     const lines = output.split('\n');
     const descLines = lines.filter(
-      (l) => l.includes('First line') || l.includes('Second line') || l.includes('Third line')
+      (l) => l.includes('First line') || l.includes('Second line') || l.includes('Third line'),
     );
     for (const line of descLines) {
       expect(line.trimStart()).toMatch(/^\* /);
@@ -117,9 +121,15 @@ describe('Init config.yaml generation', () => {
 // ── Scoped mock targeting (lookupMock) ──────────────────────────────────────
 
 describe('lookupMock', () => {
-  afterEach(() => {
-    delete (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__;
-  });
+  function nodeRuntime(nodeId: string): NodeExecutionRuntime {
+    const runtime = testHelpers.createRuntime('lookupMock');
+    return {
+      nodeId,
+      runtime,
+      recursionDepth: 0,
+      createNestedRuntime: (workflowId: string) => createNestedWorkflowRuntime(runtime, workflowId, nodeId, 0),
+    };
+  }
 
   it('should return value for plain key', () => {
     const section = { 'api/process': { status: 'ok' } };
@@ -138,27 +148,24 @@ describe('lookupMock', () => {
   });
 
   it('should prefer instance-qualified key over plain key', () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__ = 'retryCall';
     const section = {
       'retryCall:api/process': { status: 'retry-specific' },
       'api/process': { status: 'default' },
     };
-    const result = lookupMock(section, 'api/process');
+    const result = lookupMock(section, 'api/process', nodeRuntime('retryCall'));
     expect(result).toEqual({ status: 'retry-specific' });
   });
 
   it('should fall back to plain key when no instance-qualified match', () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__ = 'otherNode';
     const section = {
       'retryCall:api/process': { status: 'retry-specific' },
       'api/process': { status: 'default' },
     };
-    const result = lookupMock(section, 'api/process');
+    const result = lookupMock(section, 'api/process', nodeRuntime('otherNode'));
     expect(result).toEqual({ status: 'default' });
   });
 
-  it('should work without __fw_current_node_id__ set', () => {
-    // No node ID on globalThis
+  it('should work without a node execution runtime', () => {
     const section = {
       'retryCall:api/process': { status: 'retry-specific' },
       'api/process': { status: 'default' },
@@ -171,57 +178,60 @@ describe('lookupMock', () => {
 // ── Built-in nodes use scoped mock targeting ────────────────────────────────
 
 describe('Built-in nodes with scoped mocks', () => {
-  afterEach(() => {
-    delete (globalThis as unknown as Record<string, unknown>).__fw_mocks__;
-    delete (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__;
-    delete (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__;
-  });
+  function nodeRuntime(
+    nodeId: string,
+    mocks: NonNullable<Parameters<typeof testHelpers.createRuntime>[1]>['mocks'],
+  ): NodeExecutionRuntime {
+    const runtime = testHelpers.createRuntime('mockBuiltIns', { mocks });
+    return {
+      nodeId,
+      runtime,
+      recursionDepth: 0,
+      createNestedRuntime: (workflowId: string) => createNestedWorkflowRuntime(runtime, workflowId, nodeId, 0),
+    };
+  }
 
   it('invokeWorkflow uses instance-qualified mock key', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__ = 'callA';
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    const mocks = {
       invocations: {
         'callA:svc/fn': { result: 'from-A' },
         'svc/fn': { result: 'default' },
       },
     };
-    const result = await invokeWorkflow(true, 'svc/fn', {});
+    const result = await invokeWorkflow(true, 'svc/fn', {}, undefined, undefined, nodeRuntime('callA', mocks));
     expect(result.result).toEqual({ result: 'from-A' });
   });
 
   it('waitForEvent uses instance-qualified mock key', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__ = 'evt1';
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    const mocks = {
       events: {
         'evt1:app/order': { orderId: 'scoped' },
         'app/order': { orderId: 'default' },
       },
     };
-    const result = await waitForEvent(true, 'app/order');
+    const result = await waitForEvent(true, 'app/order', undefined, undefined, nodeRuntime('evt1', mocks));
     expect(result.eventData).toEqual({ orderId: 'scoped' });
   });
 
   it('waitForAgent uses instance-qualified mock key', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__ = 'agent1';
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    const mocks = {
       agents: {
         'agent1:reviewer': { approved: true },
-        'reviewer': { approved: false },
+        reviewer: { approved: false },
       },
     };
-    const result = await waitForAgent(true, 'reviewer', {});
+    const result = await waitForAgent(true, 'reviewer', {}, undefined, undefined, nodeRuntime('agent1', mocks));
     expect(result.agentResult).toEqual({ approved: true });
   });
 
   it('falls back to unscoped key when no instance match', async () => {
-    (globalThis as unknown as Record<string, unknown>).__fw_current_node_id__ = 'otherNode';
-    (globalThis as unknown as Record<string, unknown>).__fw_mocks__ = {
+    const mocks = {
       invocations: {
         'callA:svc/fn': { result: 'from-A' },
         'svc/fn': { result: 'default' },
       },
     };
-    const result = await invokeWorkflow(true, 'svc/fn', {});
+    const result = await invokeWorkflow(true, 'svc/fn', {}, undefined, undefined, nodeRuntime('otherNode', mocks));
     expect(result.result).toEqual({ result: 'default' });
   });
 });
@@ -247,7 +257,7 @@ describe('Validator docUrl', () => {
   const createWorkflow = (
     instances: TWorkflowAST['instances'],
     connections: TWorkflowAST['connections'] = [],
-    nodeTypes: TNodeTypeAST[] = []
+    nodeTypes: TNodeTypeAST[] = [],
   ): TWorkflowAST => ({
     type: 'Workflow',
     functionName: 'testWorkflow',
@@ -266,7 +276,7 @@ describe('Validator docUrl', () => {
     const workflow = createWorkflow(
       [{ type: 'NodeInstance', id: 'bad', nodeType: 'nonExistent' }],
       [],
-      [createNodeType('validType')]
+      [createNodeType('validType')],
     );
 
     const validator = new WorkflowValidator();
@@ -291,7 +301,7 @@ describe('Validator docUrl', () => {
           to: { node: 'n2', port: 'execute' },
         },
       ],
-      [nodeType]
+      [nodeType],
     );
 
     const validator = new WorkflowValidator();
@@ -311,7 +321,7 @@ describe('Validator docUrl', () => {
         { type: 'NodeInstance', id: 'dup', nodeType: 'myNode' },
       ],
       [],
-      [nodeType]
+      [nodeType],
     );
 
     const validator = new WorkflowValidator();
@@ -346,13 +356,13 @@ describe('validateMockConfig', () => {
     });
 
     await validateMockConfig(
-      { invocation: { 'svc/fn': {} } } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
-      '/fake/workflow.ts'
+      {
+        invocation: { 'svc/fn': {} },
+      } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
+      '/fake/workflow.ts',
     );
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('unknown key "invocation"')
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('unknown key "invocation"'));
   });
 
   it('should warn when mock section has no matching node type in workflow', async () => {
@@ -362,21 +372,21 @@ describe('validateMockConfig', () => {
       errors: [],
       warnings: [],
       ast: {
-        instances: [
-          { type: 'NodeInstance', id: 'n1', nodeType: 'fetchData' },
-        ],
+        instances: [{ type: 'NodeInstance', id: 'n1', nodeType: 'fetchData' }],
       } as unknown as TWorkflowAST,
       availableWorkflows: [],
       allWorkflows: [],
     });
 
     await validateMockConfig(
-      { invocations: { 'svc/fn': { result: 'ok' } } } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
-      '/fake/workflow.ts'
+      {
+        invocations: { 'svc/fn': { result: 'ok' } },
+      } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
+      '/fake/workflow.ts',
     );
 
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('has "invocations" entries but workflow has no invokeWorkflow nodes')
+      expect.stringContaining('has "invocations" entries but workflow has no invokeWorkflow nodes'),
     );
   });
 
@@ -386,17 +396,17 @@ describe('validateMockConfig', () => {
       errors: [],
       warnings: [],
       ast: {
-        instances: [
-          { type: 'NodeInstance', id: 'call1', nodeType: 'invokeWorkflow' },
-        ],
+        instances: [{ type: 'NodeInstance', id: 'call1', nodeType: 'invokeWorkflow' }],
       } as unknown as TWorkflowAST,
       availableWorkflows: [],
       allWorkflows: [],
     });
 
     await validateMockConfig(
-      { invocations: { 'svc/fn': { result: 'ok' } } } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
-      '/fake/workflow.ts'
+      {
+        invocations: { 'svc/fn': { result: 'ok' } },
+      } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
+      '/fake/workflow.ts',
     );
 
     // No warnings about unused sections
@@ -409,8 +419,10 @@ describe('validateMockConfig', () => {
 
     // Should not throw
     await validateMockConfig(
-      { invocations: { 'svc/fn': { result: 'ok' } } } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
-      '/fake/workflow.ts'
+      {
+        invocations: { 'svc/fn': { result: 'ok' } },
+      } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
+      '/fake/workflow.ts',
     );
 
     // No section warnings (only key validation still runs, but all keys are valid here)
@@ -428,8 +440,10 @@ describe('validateMockConfig', () => {
     });
 
     await validateMockConfig(
-      { invocations: { 'svc/fn': { result: 'ok' } } } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
-      '/fake/workflow.ts'
+      {
+        invocations: { 'svc/fn': { result: 'ok' } },
+      } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
+      '/fake/workflow.ts',
     );
 
     // No section-level warnings because we bailed on parse errors
@@ -457,7 +471,7 @@ describe('validateMockConfig', () => {
         events: { 'app/done': { status: 'ok' } },
         invocations: { 'svc/fn': { result: 'ok' } },
       } as unknown as import('../../src/built-in-nodes/mock-types').FwMockConfig,
-      '/fake/workflow.ts'
+      '/fake/workflow.ts',
     );
 
     expect(warnSpy).not.toHaveBeenCalled();
@@ -485,48 +499,74 @@ describe('MCP progressive streaming (onEvent → progress notifications)', () =>
     const onEvent = progressToken
       ? (event: { type: string; timestamp: number; data?: Record<string, unknown> }) => {
           eventCount++;
-          extra.sendNotification({
-            method: 'notifications/progress' as const,
-            params: {
-              progressToken,
-              progress: eventCount,
-              message: event.type === 'STATUS_CHANGED'
-                ? `${event.data?.id ?? ''}: ${event.data?.status ?? ''}`
-                : event.type,
-            },
-          }).catch(() => {});
+          extra
+            .sendNotification({
+              method: 'notifications/progress' as const,
+              params: {
+                progressToken,
+                progress: eventCount,
+                message:
+                  event.type === 'STATUS_CHANGED' ? `${event.data?.id ?? ''}: ${event.data?.status ?? ''}` : event.type,
+              },
+            })
+            .catch(() => {});
         }
       : undefined;
 
     expect(onEvent).toBeDefined();
 
     // Simulate trace events
-    onEvent!({ type: 'STATUS_CHANGED', timestamp: 1000, data: { id: 'fetchNode', status: 'RUNNING' } });
-    onEvent!({ type: 'VARIABLE_SET', timestamp: 1050, data: { nodeId: 'fetchNode', name: 'result' } });
-    onEvent!({ type: 'STATUS_CHANGED', timestamp: 1100, data: { id: 'fetchNode', status: 'SUCCEEDED' } });
+    onEvent!({
+      type: 'STATUS_CHANGED',
+      timestamp: 1000,
+      data: { id: 'fetchNode', status: 'RUNNING' },
+    });
+    onEvent!({
+      type: 'VARIABLE_SET',
+      timestamp: 1050,
+      data: { nodeId: 'fetchNode', name: 'result' },
+    });
+    onEvent!({
+      type: 'STATUS_CHANGED',
+      timestamp: 1100,
+      data: { id: 'fetchNode', status: 'SUCCEEDED' },
+    });
 
     expect(extra.sendNotification).toHaveBeenCalledTimes(3);
     expect(notifications[0]).toEqual({
       method: 'notifications/progress',
-      params: { progressToken: 'tok-123', progress: 1, message: 'fetchNode: RUNNING' },
+      params: {
+        progressToken: 'tok-123',
+        progress: 1,
+        message: 'fetchNode: RUNNING',
+      },
     });
     expect(notifications[1]).toEqual({
       method: 'notifications/progress',
-      params: { progressToken: 'tok-123', progress: 2, message: 'VARIABLE_SET' },
+      params: {
+        progressToken: 'tok-123',
+        progress: 2,
+        message: 'VARIABLE_SET',
+      },
     });
     expect(notifications[2]).toEqual({
       method: 'notifications/progress',
-      params: { progressToken: 'tok-123', progress: 3, message: 'fetchNode: SUCCEEDED' },
+      params: {
+        progressToken: 'tok-123',
+        progress: 3,
+        message: 'fetchNode: SUCCEEDED',
+      },
     });
   });
 
   it('should not create onEvent when no progressToken', () => {
-    const extra = { _meta: {} as Record<string, unknown>, sendNotification: vi.fn() };
+    const extra = {
+      _meta: {} as Record<string, unknown>,
+      sendNotification: vi.fn(),
+    };
 
     const progressToken = extra._meta?.progressToken;
-    const onEvent = progressToken
-      ? () => {}
-      : undefined;
+    const onEvent = progressToken ? () => {} : undefined;
 
     expect(onEvent).toBeUndefined();
   });
@@ -542,16 +582,26 @@ describe('MCP progressive streaming (onEvent → progress notifications)', () =>
     const onEvent = progressToken
       ? (event: { type: string; timestamp: number; data?: Record<string, unknown> }) => {
           eventCount++;
-          extra.sendNotification({
-            method: 'notifications/progress' as const,
-            params: { progressToken, progress: eventCount, message: event.type },
-          }).catch(() => {});
+          extra
+            .sendNotification({
+              method: 'notifications/progress' as const,
+              params: {
+                progressToken,
+                progress: eventCount,
+                message: event.type,
+              },
+            })
+            .catch(() => {});
         }
       : undefined;
 
     // Should not throw even though sendNotification rejects
     expect(() => {
-      onEvent!({ type: 'STATUS_CHANGED', timestamp: 1000, data: { id: 'n1', status: 'RUNNING' } });
+      onEvent!({
+        type: 'STATUS_CHANGED',
+        timestamp: 1000,
+        data: { id: 'n1', status: 'RUNNING' },
+      });
     }).not.toThrow();
   });
 });

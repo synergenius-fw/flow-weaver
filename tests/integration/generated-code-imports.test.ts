@@ -4,20 +4,20 @@
  * Tests that generated code is completely standalone with zero runtime dependencies
  */
 
-import { describe, expect, test } from "vitest";
-import { parseWorkflow } from "../../src/api/parse";
-import { generateCode } from "../../src/api/generate";
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
+import { describe, expect, test } from 'vitest';
+import { parseWorkflow } from '../../src/api/parse';
+import { generateCode } from '../../src/api/generate';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
-describe("Generated Code - Standalone (Zero Dependencies)", () => {
+describe('Generated Code - Standalone (Zero Dependencies)', () => {
   let tempDir: string;
   let testWorkflowFile: string;
 
   beforeAll(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fw-import-test-"));
-    testWorkflowFile = path.join(tempDir, "test-workflow.ts");
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-import-test-'));
+    testWorkflowFile = path.join(tempDir, 'test-workflow.ts');
 
     const testWorkflowContent = `
 /**
@@ -51,7 +51,7 @@ export async function calculateSum(
 }
 `;
 
-    fs.writeFileSync(testWorkflowFile, testWorkflowContent, "utf-8");
+    fs.writeFileSync(testWorkflowFile, testWorkflowContent, 'utf-8');
   });
 
   afterAll(() => {
@@ -60,86 +60,112 @@ export async function calculateSum(
     }
   });
 
-  test("should generate standalone code with inlined ExecutionContext", async () => {
-    const parseResult = await parseWorkflow(testWorkflowFile, { workflowName: "calculateSum" });
-    const generatedCode = await generateCode(parseResult.ast, { production: false });
+  test('should generate standalone code with inlined ExecutionContext', async () => {
+    const parseResult = await parseWorkflow(testWorkflowFile, {
+      workflowName: 'calculateSum',
+    });
+    const generatedCode = await generateCode(parseResult.ast, {
+      production: false,
+    });
 
     // Verify ExecutionContext is defined INLINE, not imported
-    expect(generatedCode).toContain("class GeneratedExecutionContext");
+    expect(generatedCode).toContain('class GeneratedExecutionContext');
 
     // Should NOT import from any external package
-    expect(generatedCode).not.toContain("import { GeneratedExecutionContext }");
+    expect(generatedCode).not.toContain('import { GeneratedExecutionContext }');
     expect(generatedCode).not.toContain("from '@synergenius/flow-weaver'");
     expect(generatedCode).not.toContain("from '../src/runtime/ExecutionContext'");
-    expect(generatedCode).not.toContain("from \"../src/runtime/ExecutionContext\"");
+    expect(generatedCode).not.toContain('from "../src/runtime/ExecutionContext"');
   });
 
-  test("should generate code with zero external dependencies", async () => {
-    const parseResult = await parseWorkflow(testWorkflowFile, { workflowName: "calculateSum" });
-    const generatedCode = await generateCode(parseResult.ast, { production: false });
+  test('should generate code with zero external dependencies', async () => {
+    const parseResult = await parseWorkflow(testWorkflowFile, {
+      workflowName: 'calculateSum',
+    });
+    const generatedCode = await generateCode(parseResult.ast, {
+      production: false,
+    });
 
     // Write generated code to a temp file
-    const generatedFile = path.join(tempDir, "calculateSum.generated.ts");
-    fs.writeFileSync(generatedFile, generatedCode, "utf-8");
+    const generatedFile = path.join(tempDir, 'calculateSum.generated.ts');
+    fs.writeFileSync(generatedFile, generatedCode, 'utf-8');
 
     // Verify file was created
     expect(fs.existsSync(generatedFile)).toBe(true);
 
     // Check that the generated code has proper standalone structure
-    expect(generatedCode).toContain("export async function calculateSum");
-    expect(generatedCode).toContain("const ctx = new GeneratedExecutionContext(");
+    expect(generatedCode).toContain('export async function calculateSum');
+    expect(generatedCode).toContain('const ctx = new GeneratedExecutionContext(');
 
     // Verify all runtime types are inlined
-    expect(generatedCode).toContain("type TStatusType");
-    expect(generatedCode).toContain("interface ExecutionInfo");
+    expect(generatedCode).toContain('type TStatusType');
+    expect(generatedCode).toContain('interface ExecutionInfo');
   });
 
-  test("should generate minimal production code without debug infrastructure", async () => {
-    const parseResult = await parseWorkflow(testWorkflowFile, { workflowName: "calculateSum" });
-    const generatedCode = await generateCode(parseResult.ast, { production: true });
+  test('should generate minimal production code without debug infrastructure', async () => {
+    const parseResult = await parseWorkflow(testWorkflowFile, {
+      workflowName: 'calculateSum',
+    });
+    const generatedCode = await generateCode(parseResult.ast, {
+      production: true,
+    });
 
     // Production mode should have inlined ExecutionContext
-    expect(generatedCode).toContain("class GeneratedExecutionContext");
+    expect(generatedCode).toContain('class GeneratedExecutionContext');
 
     // Should NOT have debug client code
-    expect(generatedCode).not.toContain("createFlowWeaverDebugClient");
-    expect(generatedCode).not.toContain("FLOW_WEAVER_DEBUG");
-    expect(generatedCode).not.toContain("__flowWeaverDebugger__");
+    expect(generatedCode).not.toContain('createFlowWeaverDebugClient');
+    expect(generatedCode).not.toContain('FLOW_WEAVER_DEBUG');
+    expect(generatedCode).not.toContain('__flowWeaverDebugger__');
 
     // Should NOT have TDebugger type
-    expect(generatedCode).not.toContain("type TDebugger");
+    expect(generatedCode).not.toContain('type TDebugger');
   });
 
-  test("should generate development code with debug infrastructure", async () => {
-    const parseResult = await parseWorkflow(testWorkflowFile, { workflowName: "calculateSum" });
-    const generatedCode = await generateCode(parseResult.ast, { production: false });
+  test('should generate development code with debug infrastructure', async () => {
+    const parseResult = await parseWorkflow(testWorkflowFile, {
+      workflowName: 'calculateSum',
+    });
+    const generatedCode = await generateCode(parseResult.ast, {
+      production: false,
+    });
 
-    // Development mode should have debug infrastructure (but not debug client, which was removed)
-    expect(generatedCode).not.toContain("createFlowWeaverDebugClient");
-    expect(generatedCode).toContain("__flowWeaverDebugger__");
+    // Development mode reads debugger services from the explicit runtime.
+    expect(generatedCode).not.toContain('createFlowWeaverDebugClient');
+    expect(generatedCode).toContain('runtime.services.debugger');
+    expect(generatedCode).not.toContain('__flowWeaverDebugger__');
   });
 
-  test("should generate code with source maps and inline runtime", async () => {
-    const parseResult = await parseWorkflow(testWorkflowFile, { workflowName: "calculateSum" });
-    const result = await generateCode(parseResult.ast, { production: false, sourceMap: true });
+  test('should generate code with source maps and inline runtime', async () => {
+    const parseResult = await parseWorkflow(testWorkflowFile, {
+      workflowName: 'calculateSum',
+    });
+    const result = await generateCode(parseResult.ast, {
+      production: false,
+      sourceMap: true,
+    });
 
     // Verify result has both code and sourceMap
-    expect(result).toHaveProperty("code");
-    expect(result).toHaveProperty("sourceMap");
+    expect(result).toHaveProperty('code');
+    expect(result).toHaveProperty('sourceMap');
 
     const { code, sourceMap } = result as { code: string; sourceMap: string };
 
     // Verify ExecutionContext is inlined, not imported
-    expect(code).toContain("class GeneratedExecutionContext");
-    expect(code).not.toContain("import { GeneratedExecutionContext }");
+    expect(code).toContain('class GeneratedExecutionContext');
+    expect(code).not.toContain('import { GeneratedExecutionContext }');
 
     // Verify source map is valid JSON
     expect(() => JSON.parse(sourceMap)).not.toThrow();
   });
 
-  test("should not contain any external runtime imports", async () => {
-    const parseResult = await parseWorkflow(testWorkflowFile, { workflowName: "calculateSum" });
-    const generatedCode = await generateCode(parseResult.ast, { production: false });
+  test('should not contain any external runtime imports', async () => {
+    const parseResult = await parseWorkflow(testWorkflowFile, {
+      workflowName: 'calculateSum',
+    });
+    const generatedCode = await generateCode(parseResult.ast, {
+      production: false,
+    });
 
     // Check for any potential imports - should be completely standalone
     const importPatterns = [

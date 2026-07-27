@@ -16,9 +16,13 @@ const FIXTURE_PATH = path.resolve(__dirname, '../fixtures/cancelled-branch-step-
 
 describe('cancelled branch STEP port read', () => {
   it('runs main path without crashing (alt path CANCELLED)', async () => {
-    const result = await executeWorkflow({ filePath: FIXTURE_PATH, params: {
-          ctx: JSON.stringify({ mode: 'main' }),
-        } });
+    const result = await executeWorkflow({
+      runId: 'test:cancelled-branch',
+      filePath: FIXTURE_PATH,
+      params: {
+        ctx: JSON.stringify({ mode: 'main' }),
+      },
+    });
 
     expect(result.result).toBeDefined();
     const output = result.result as { onSuccess: boolean; result: string };
@@ -38,7 +42,7 @@ describe('cancelled branch STEP port read', () => {
     // getVariable calls for STEP ports from branched nodes should have
     // undefined guards, not bare non-null assertions
     const unguardedStepReads = (generated as unknown as string).match(
-      /getVariable\(\{[^}]*portName:\s*'onSuccess'[^}]*executionIndex:\s*\w+Idx!\s*\}/g
+      /getVariable\(\{[^}]*portName:\s*'onSuccess'[^}]*executionIndex:\s*\w+Idx!\s*\}/g,
     );
     expect(unguardedStepReads).toBeNull();
   });

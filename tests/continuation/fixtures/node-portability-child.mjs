@@ -16,15 +16,34 @@ if (
 
 const executorModule = await import(pathToFileURL(executorPath).href);
 const controller = mode === "cancel" ? new AbortController() : undefined;
+const continuation =
+  mode === "durable-resume" && process.env.FW_TEST_CONTINUATION
+    ? JSON.parse(process.env.FW_TEST_CONTINUATION)
+    : undefined;
+const gateId =
+  mode === "durable-resume" ? process.env.FW_TEST_GATE_ID : undefined;
 
 try {
   const result = await executorModule.executeWorkflow({
+    runId: `node-portability:${workflowName}`,
+    bundleDigest:
+      mode === "durable-yield" || mode === "durable-resume"
+        ? `sha256:${"a".repeat(64)}`
+        : undefined,
     filePath: workflowFile,
-    params: { value: 4 },
+    params: { value: mode === "durable-resume" ? 999 : 4 },
     workflowName,
     includeTrace: true,
     production: false,
     abortSignal: controller?.signal,
+    continuation,
+    resolution:
+      gateId === undefined
+        ? undefined
+        : {
+            gateId,
+            value: { onSuccess: true, onFailure: false, value: 8 },
+          },
     onEvent: (event) => {
       if (
         mode === "cancel" &&
@@ -40,6 +59,7 @@ try {
     node: process.versions.node,
     electron: process.versions.electron ?? null,
     result: result.result,
+    outcome: result,
     eventTypes: result.trace?.map((event) => event.type) ?? [],
   });
 } catch (error) {

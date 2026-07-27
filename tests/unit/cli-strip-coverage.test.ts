@@ -56,7 +56,7 @@ const COMPILED_FILE = `\
 import { something } from 'somewhere';
 
 ${MARKERS.RUNTIME_START}
-import { GeneratedExecutionContext } from '@synergenius/flow-weaver/runtime';
+import { GeneratedExecutionContext, type WorkflowRuntime } from '@synergenius/flow-weaver/runtime';
 ${MARKERS.RUNTIME_END}
 
 /**
@@ -70,9 +70,9 @@ export async function doubleIt(execute: boolean, value: number) {
  * @flowWeaver workflow
  * @node d doubleIt
  */
-export async function myWorkflow(execute: boolean, params: { n: number }) {
+export async function myWorkflow(execute: boolean, params: { n: number }, __runtime__: WorkflowRuntime) {
   ${MARKERS.BODY_START}
-  const ctx = new GeneratedExecutionContext(true);
+  const ctx = new GeneratedExecutionContext(true, __runtime__);
   return { onSuccess: true, onFailure: false, result: 42 };
   ${MARKERS.BODY_END}
 }
@@ -123,9 +123,7 @@ describe('stripCommand directory expansion', () => {
 
 describe('stripCommand no files found', () => {
   it('should throw when no files match pattern', async () => {
-    await expect(
-      stripCommand(path.join(TEMP_DIR, 'nonexistent-xyz/**/*.ts'), {})
-    ).rejects.toThrow(/No files found/);
+    await expect(stripCommand(path.join(TEMP_DIR, 'nonexistent-xyz/**/*.ts'), {})).rejects.toThrow(/No files found/);
   });
 });
 

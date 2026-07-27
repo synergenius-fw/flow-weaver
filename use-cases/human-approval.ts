@@ -41,6 +41,7 @@ interface ReviewDecision {
  * Rejects requests with missing fields or amounts outside policy limits.
  *
  * @flowWeaver nodeType
+ * @durablePure
  * @label Validate Request
  * @color green
  * @icon shield
@@ -109,6 +110,7 @@ function validateRequest(
  * Passes request context through to the child on every iteration via scoped ports.
  *
  * @flowWeaver nodeType
+ * @durablePure
  * @label Retry Until Valid
  * @color blue
  * @icon refresh
@@ -152,12 +154,13 @@ async function retryUntilValid(
 }
 
 /**
- * Prompts a human reviewer for a purchase decision via the agent channel.
+ * Yields a durable agent gate for a human purchase decision.
  * Returns onSuccess with the decision if the response contains a valid
  * "approved" boolean. Returns onFailure on empty or malformed input so
  * the parent retry scope re-prompts.
  *
  * @flowWeaver nodeType
+ * @durableGate agent
  * @label Prompt Reviewer
  * @color orange
  * @icon verified
@@ -172,50 +175,16 @@ async function promptReviewer(
   item: string,
   amount: number
 ): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }> {
-  if (!execute) return { onSuccess: false, onFailure: false, result: {} };
-
-  // 1. Check mocks first (--mocks '{"agents": {"human-reviewer": {...}}}')
-  const mocks = (globalThis as unknown as Record<string, unknown>).__fw_mocks__ as
-    | { agents?: Record<string, object> }
-    | undefined;
-  if (mocks?.agents?.['human-reviewer']) {
-    const raw = mocks.agents['human-reviewer'] as Record<string, unknown>;
-    if (typeof raw.approved !== 'boolean') {
-      return { onSuccess: false, onFailure: true, result: {} };
-    }
-    return { onSuccess: true, onFailure: false, result: raw };
-  }
-
-  // 2. Agent channel (interactive terminal or pause/resume)
-  const channel = (globalThis as unknown as Record<string, unknown>).__fw_agent_channel__ as
-    | { request: (req: object) => Promise<object> }
-    | undefined;
-
-  let raw: Record<string, unknown>;
-
-  if (channel) {
-    raw = (await channel.request({
-      agentId: 'human-reviewer',
-      context: { requesterId, item, amount },
-      prompt: `Approve purchase of ${item} ($${amount.toLocaleString()}) requested by ${requesterId}?\nRespond with JSON, e.g. {"approved": true, "reviewer": "your name"}`,
-    })) as Record<string, unknown>;
-  } else {
-    // 3. No mocks, no channel: auto-approve for demo/testing
-    raw = { approved: true, reviewer: 'auto', note: 'Auto-approved (no review channel)' };
-  }
-
-  // Validate: must have an explicit "approved" boolean
-  if (raw == null || typeof raw.approved !== 'boolean') {
-    return { onSuccess: false, onFailure: true, result: {} };
-  }
-
-  return { onSuccess: true, onFailure: false, result: raw };
+  throw new Error(
+    `durable reviewer gate must not execute: ${execute}:${requesterId}:${item}:${amount}`,
+  );
 }
 
 /**
  * Takes the reviewer decision and produces the final outcome summary.
  *
  * @flowWeaver nodeType
+ * @durablePure
  * @label Finalize Decision
  * @color purple
  * @icon checkCircle
