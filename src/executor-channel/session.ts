@@ -1587,6 +1587,47 @@ export async function openCredentialAuthenticatedWss(
   return transport;
 }
 
+/**
+ * Accept one inbound executor WebSocket after the deployment has supplied the
+ * public WSS endpoint and the peer's HTTP Authorization header.
+ *
+ * This is the host-side counterpart to `openCredentialAuthenticatedWss`.
+ * It deliberately does not parse an HTTP request, select a credential, or
+ * decide which executor is allowed to connect. Those are deployment concerns.
+ * It only validates the same bounded credential form, invokes the deployment
+ * verifier, and brands the resulting authenticated transport so a session
+ * machine can publish exactly one connection epoch from real peer evidence.
+ */
+export async function acceptCredentialAuthenticatedWss(
+  endpoint: string,
+  authorizationHeader: string,
+  authenticator: ExecutorWssAuthenticator,
+  signal?: AbortSignal,
+): Promise<AuthenticatedExecutorTransport> {
+  const url = assertCredentialAuthenticatedWssEndpoint(endpoint);
+  const authorization = acceptExecutorAuthorization(authorizationHeader);
+  acceptOptionalSessionSignal(signal);
+  const authenticated = await authenticator.authenticate(
+    new URL(url.href),
+    authorization,
+    signal,
+  );
+  acceptOptionalSessionSignal(signal);
+  if (intrinsicAbortSignalState(signal) === true) {
+    throw new ExecutorSessionError(
+      "authentication-cancelled",
+      "authentication cancelled",
+    );
+  }
+  const peerIdentityDigest = acceptAuthenticatedPeerIdentity(authenticated);
+  const transport = Object.freeze({
+    endpoint: url.href,
+    peerIdentityDigest,
+  });
+  authenticatedTransports.set(transport, { published: false });
+  return transport;
+}
+
 export async function loadExecutorAuthorization(
   provider: ExecutorCredentialProvider,
   signal?: AbortSignal,
@@ -1605,18 +1646,22 @@ export async function loadExecutorAuthorization(
       "authentication cancelled",
     );
   }
+  return acceptExecutorAuthorization(header);
+}
+
+function acceptExecutorAuthorization(input: unknown): string {
   if (
-    typeof header !== "string" ||
-    !/^Bearer [\x21-\x7e]{16,4096}$/.test(header) ||
-    header.includes("\r") ||
-    header.includes("\n")
+    typeof input !== "string" ||
+    !/^Bearer [\x21-\x7e]{16,4096}$/.test(input) ||
+    input.includes("\r") ||
+    input.includes("\n")
   ) {
     throw new ExecutorSessionError(
       "malformed-credential",
-      "credential provider must return one bounded Bearer authorization header",
+      "credential must be one bounded Bearer authorization header",
     );
   }
-  return header;
+  return input;
 }
 
 function acceptAuthenticatedPeerIdentity(input: unknown): `sha256:${string}` {

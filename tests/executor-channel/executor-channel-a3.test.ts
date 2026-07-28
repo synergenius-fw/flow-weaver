@@ -20,6 +20,7 @@ import {
   assertExecutorChannelDirection,
   negotiateExecutorChannelLimits,
   assertCredentialAuthenticatedWssEndpoint,
+  acceptCredentialAuthenticatedWss,
   loadExecutorAuthorization,
   openCredentialAuthenticatedWss,
   verifySealedFlowWeaverBundle,
@@ -711,6 +712,48 @@ describe("A3 executor channel wire contract", () => {
 });
 
 describe("A3 session, generation, connection epoch, and replay contract", () => {
+  it("brands an authenticated inbound WSS peer for one host-published session", async () => {
+    const authenticate = vi.fn(async () => ({
+      peerIdentityDigest: `sha256:${"a".repeat(64)}` as const,
+    }));
+    const transport = await acceptCredentialAuthenticatedWss(
+      "wss://executor.example/channel",
+      "Bearer executor-credential-with-sufficient-entropy",
+      { authenticate },
+    );
+    expect(authenticate).toHaveBeenCalledWith(
+      new URL("wss://executor.example/channel"),
+      "Bearer executor-credential-with-sufficient-entropy",
+      undefined,
+    );
+    const machine = new ExecutorSessionMachine();
+    machine.transition("authenticating");
+    machine.publish(
+      {
+        deploymentId: "deployment:1",
+        consoleId: "console:1",
+        executorId: "executor:1",
+        generation: 1,
+        connectionEpoch: 1,
+        protocolVersion: 1,
+        supportedInterfaceVersions: ["executor.generic:1"],
+        supportedEngineRanges: ["flow-weaver:0.35.0"],
+        transportIdentityDigest: `sha256:${"a".repeat(64)}`,
+        leaseExpiresAt: "2026-07-27T02:00:00.000Z",
+      },
+      transport,
+      Date.parse("2026-07-27T01:59:45.000Z"),
+    );
+    expect(machine.state).toBe("recovering");
+    await expect(
+      acceptCredentialAuthenticatedWss(
+        "wss://executor.example/channel",
+        "Bearer short\r\nforged: header",
+        { authenticate },
+      ),
+    ).rejects.toMatchObject({ code: "malformed-credential" });
+  });
+
   it("publishes only authenticated sessions and fences stale socket frames", async () => {
     const machine = new ExecutorSessionMachine();
     const identity = {
