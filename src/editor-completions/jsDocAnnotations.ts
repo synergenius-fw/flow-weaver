@@ -318,6 +318,17 @@ export const JSDOC_ANNOTATIONS: AnnotationCompletion[] = [
     sortOrder: 40,
     blockTypes: ['nodeType'],
   },
+  {
+    label: '@resilience',
+    detail: 'Declare adapter-owned retry/fallback handling',
+    documentation:
+      'Makes retry or fallback behavior hidden in a shared adapter visible to static agent validation.\nFormat: @resilience retries=3 fallback="backup-provider"',
+    insertText: '@resilience retries=${1:3} fallback="${2:backup-provider}"',
+    insertTextFormat: 'snippet',
+    kind: 'annotation',
+    sortOrder: 41,
+    blockTypes: ['nodeType'],
+  },
 
   // Standard JSDoc (for completeness)
   {

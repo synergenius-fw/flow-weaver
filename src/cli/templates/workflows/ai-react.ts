@@ -3,15 +3,38 @@
  * Implements: Thought → Action → Observation loop with scoped iteration
  */
 import type { WorkflowTemplate, WorkflowTemplateOptions } from '../index';
-import { LLM_SIMPLE_TYPES, LLM_MOCK_PROVIDER } from '../shared/llm-types';
+import { getProviderCode } from '../providers';
+import { LLM_CORE_TYPES } from '../shared/llm-types';
+import { aiConfigSchema } from './ai-agent';
 
 export const aiReactTemplate: WorkflowTemplate = {
   id: 'ai-react',
   name: 'ReAct Agent',
   description: 'Reasoning + Acting agent with explicit thought process',
   category: 'ai',
+  configSchema: aiConfigSchema,
   generate: (opts: WorkflowTemplateOptions): string => {
-    const { workflowName } = opts;
+    const { workflowName, config } = opts;
+    const provider = (config?.provider as string) || 'mock';
+    const model = (config?.model as string) || '';
+    const providerCode =
+      provider === 'mock'
+        ? `
+// Mock provider — replace with a real provider for production.
+const createMockReactProvider = (): LLMProvider => ({
+  async chat(messages) {
+    const lastMessage = messages[messages.length - 1];
+    return {
+      content: \`Thought: Processing the request\\nAction: FINISH\\nAction Input: [Mock answer to: \${lastMessage.content.slice(0, 30)}...]\`,
+      toolCalls: [],
+      finishReason: 'stop',
+    };
+  },
+});
+
+const llmProvider: LLMProvider = createMockReactProvider();
+`
+        : getProviderCode(provider, model);
 
     return `
 // ============================================================
@@ -30,21 +53,9 @@ export const aiReactTemplate: WorkflowTemplate = {
 // LLM TYPES
 // ============================================================
 
-${LLM_SIMPLE_TYPES}
+${LLM_CORE_TYPES}
 
-// Mock provider — replace with real provider
-const createMockReactProvider = (): LLMProvider => ({
-  async chat(messages) {
-    const lastMessage = messages[messages.length - 1];
-    return {
-      content: \`Thought: Processing the request\\nAction: FINISH\\nAction Input: [Mock answer to: \${lastMessage.content.slice(0, 30)}...]\`,
-      toolCalls: [],
-      finishReason: 'stop',
-    };
-  },
-});
-
-const llmProvider: LLMProvider = createMockReactProvider();
+${providerCode}
 const MAX_STEPS = 10;
 
 const REACT_PROMPT = \`You are a ReAct (Reasoning + Acting) agent.

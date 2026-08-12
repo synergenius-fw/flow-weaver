@@ -223,6 +223,7 @@ export function extractNodeTypes(
       ...(durableGate && { durableGate }),
       ...(durableEffect && { durableEffect: true }),
       ...(durablePure && { durablePure: true }),
+      ...(config.resilience && { resilience: config.resilience }),
       executeWhen: (config.executeWhen as TExecuteWhen) || EXECUTION_STRATEGIES.CONJUNCTION,
       defaultConfig,
       scope: config.scope,

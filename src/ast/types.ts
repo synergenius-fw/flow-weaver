@@ -225,6 +225,13 @@ export type TNodeTypeAST = {
   durableEffect?: boolean;
   /** Compiler-reviewed pure or orchestration node for gated workflows. */
   durablePure?: boolean;
+  /** Statically declared retry/fallback behavior implemented inside the node adapter. */
+  resilience?: {
+    /** Number of retries performed after the initial provider attempt. */
+    retries?: number;
+    /** Named fallback provider or strategy used after retry exhaustion. */
+    fallback?: string;
+  };
   /** Default configuration for instances */
   defaultConfig?: TNodeTypeDefaultConfig;
   /** Single scope name (e.g., 'iteration' for forEach) */

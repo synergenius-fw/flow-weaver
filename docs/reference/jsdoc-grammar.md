@@ -36,6 +36,7 @@ nodeTypeBlock  ::= "@flowWeaver nodeType"
                    [ "@scope" IDENTIFIER ]
                    [ "@executeWhen" IDENTIFIER ]
                    [ "@pullExecution" IDENTIFIER ]
+                   [ "@resilience" ( "retries=" INTEGER | "fallback=" STRING ) { ( "retries=" INTEGER | "fallback=" STRING ) } ]
                    [ "@color" TEXT ]
                    [ "@icon" TEXT ]
                    { "@tag" IDENTIFIER [ STRING ] }

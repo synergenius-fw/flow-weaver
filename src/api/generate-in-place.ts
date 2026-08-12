@@ -1306,6 +1306,16 @@ function generateNodeTypeJSDoc(nodeType: TNodeTypeAST): string {
     lines.push(` * @pullExecution ${nodeType.defaultConfig.pullExecution.triggerPort}`);
   }
 
+  if (nodeType.resilience) {
+    const retries = nodeType.resilience.retries
+      ? ` retries=${nodeType.resilience.retries}`
+      : '';
+    const fallback = nodeType.resilience.fallback
+      ? ` fallback="${nodeType.resilience.fallback.replace(/"/g, '\\"')}"`
+      : '';
+    lines.push(` * @resilience${retries}${fallback}`);
+  }
+
   // Add visual annotations
   if (nodeType.visuals) {
     if (nodeType.visuals.color) {

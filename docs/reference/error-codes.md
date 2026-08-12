@@ -611,12 +611,12 @@ These codes apply to AI agent workflows that use LLM, tool-executor, and memory 
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Severity      | Warning                                                                                                                                                       |
 | Meaning       | An LLM node routes failures directly to Exit without any retry or fallback logic. Any LLM error immediately aborts the entire workflow.                       |
-| Common Causes | Wiring `llmNode.onFailure -> Exit.onFailure` without a retry or fallback node in between.                                                                    |
-| Fix           | Add a retry node or fallback LLM provider between the LLM's `onFailure` and Exit to improve resilience against transient failures.                           |
+| Common Causes | Wiring `llmNode.onFailure -> Exit.onFailure` without visible retry/fallback handling, or using a shared resilient adapter without declaring its contract. |
+| Fix           | Add a retry/fallback node, or annotate an adapter that already implements it with `@resilience retries=N` and/or `fallback="provider"`.                  |
 
 > **Beginner explanation:** If the LLM fails and goes straight to Exit, the entire workflow stops. Transient errors (rate limits, timeouts) could be retried.
 >
-> **What to do:** Add a retry node or alternative LLM provider between the failure port and Exit.
+> **What to do:** Add a retry/fallback node. If a shared adapter already owns that logic, declare it with `@resilience`; this annotation documents existing behavior and does not implement retries.
 
 #### AGENT_TOOL_NO_OUTPUT_HANDLING (warning)
 

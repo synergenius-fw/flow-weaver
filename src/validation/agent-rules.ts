@@ -223,8 +223,9 @@ export const missingMemoryInLoopRule: TValidationRule = {
 // ---------------------------------------------------------------------------
 
 /**
- * An LLM node whose onFailure goes directly to Exit.onFailure means
- * any LLM error immediately aborts the workflow. Consider a retry or fallback.
+ * An LLM node whose onFailure goes directly to Exit.onFailure means any LLM
+ * error immediately aborts the workflow, unless the adapter explicitly declares
+ * its internal retry/fallback contract with @resilience.
  */
 export const llmWithoutFallbackRule: TValidationRule = {
   name: 'AGENT_LLM_NO_FALLBACK',
@@ -242,6 +243,13 @@ export const llmWithoutFallbackRule: TValidationRule = {
       // If unconnected, Rule 1 handles it — skip here
       if (failureConnections.length === 0) continue;
 
+      // Static analysis cannot inspect retry behavior hidden behind shared
+      // adapters. Trust only the explicit, parser-validated contract.
+      const hasDeclaredResilience =
+        (nodeType.resilience?.retries ?? 0) > 0 ||
+        Boolean(nodeType.resilience?.fallback?.trim());
+      if (hasDeclaredResilience) continue;
+
       // Check if ALL failure connections go directly to Exit
       const allToExit = failureConnections.every((c) => c.to.node === 'Exit');
 
@@ -249,7 +257,7 @@ export const llmWithoutFallbackRule: TValidationRule = {
         errors.push({
           type: 'warning',
           code: 'AGENT_LLM_NO_FALLBACK',
-          message: `LLM node '${instance.id}' routes failures directly to Exit. Consider adding a retry node or fallback LLM provider for resilience.`,
+          message: `LLM node '${instance.id}' routes failures directly to Exit. Add a retry/fallback node, or declare adapter-owned handling with @resilience retries=N and/or fallback="provider".`,
           node: instance.id,
         });
       }

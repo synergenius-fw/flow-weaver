@@ -397,6 +397,22 @@ describe('agent validation rules', () => {
       expect(errors).toHaveLength(0);
     });
 
+    it('should recognize an explicit retry contract hidden inside the adapter', () => {
+      const resilientLlm = llmNodeType();
+      resilientLlm.resilience = { retries: 3, fallback: 'anthropic-backup' };
+      const ast = makeWorkflow({
+        nodeTypes: [resilientLlm],
+        instances: [makeInstance('llm', 'llmCall')],
+        connections: [
+          conn('Start', 'execute', 'llm', 'execute'),
+          conn('llm', 'onSuccess', 'Exit', 'onSuccess'),
+          conn('llm', 'onFailure', 'Exit', 'onFailure'),
+        ],
+      });
+
+      expect(llmWithoutFallbackRule.validate(ast)).toHaveLength(0);
+    });
+
     it('should not trigger when onFailure is unconnected (Rule 1 handles that)', () => {
       const ast = makeWorkflow({
         nodeTypes: [llmNodeType()],

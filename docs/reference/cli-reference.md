@@ -12,37 +12,50 @@ Complete reference for all `fw` CLI commands.
 
 ## Quick Reference
 
+<!-- AUTO:START cli_quick_reference -->
 | Command | Description |
 |---------|-------------|
 | `compile` | Compile workflow files to TypeScript |
-| `validate` | Validate without compiling |
-| `strip` | Remove generated code from compiled files |
-| `describe` | Output workflow structure (JSON/text/mermaid) |
-| `run` | Execute a workflow directly |
-| `watch` | Recompile on file changes |
-| `dev` | Watch + compile + run in one command |
-| `serve` | HTTP server exposing workflows as endpoints |
-| `diagram` | Generate SVG diagram |
-| `diff` | Semantic diff between two workflows |
-| `doctor` | Check project environment |
-| `init` | Create a new project |
-| `create` | Create workflows/nodes from templates |
+| `strip` | Remove generated code from compiled workflow files |
+| `describe` | Output workflow structure in LLM-friendly formats (JSON, text, mermaid) |
+| `diagram` | Generate SVG or interactive HTML diagram of a workflow |
+| `diff` | Compare two workflow files semantically |
+| `validate` | Validate workflow files without compiling |
+| `doctor` | Check project environment and configuration for flow-weaver compatibility |
+| `init` | Create a new flow-weaver project |
+| `watch` | Watch workflow files and recompile on changes |
+| `dev` | Watch, compile, and run workflow on changes |
+| `mcp-server` | Start MCP server for Claude Code integration |
+| `mcp-setup` | Configure MCP server for AI coding tools (Claude, Cursor, VS Code, Windsurf, Codex, OpenClaw) |
+| `create` | Create workflows or nodes from templates |
+| `modify` | Modify workflow structure |
 | `templates` | List available templates |
-| `pattern` | Work with reusable patterns |
-| `export` | Export as serverless function |
-| `openapi` | Generate OpenAPI specification |
-| `migrate` | Migrate to current syntax |
-| `grammar` | Output annotation grammar |
-| `market` | Marketplace packages |
-| `plugin` | External plugins |
-| `modify` | Add/remove/rename nodes, connections, positions, and labels |
-| `implement` | Replace stub node with function skeleton |
-| `status` | Report implementation progress |
-| `context` | Generate LLM context bundle |
+| `grammar` | Output JSDoc annotation grammar (@input, @output, @connect, @node, @scope) as HTML railroad diagrams or EBNF text |
+| `pattern` | Work with reusable workflow patterns |
+| `run` | Execute a workflow file directly |
+| `serve` | Start HTTP server exposing workflows as endpoints |
+| `export` | Export workflow as serverless function |
+| `openapi` | Generate OpenAPI specification from workflows |
+| `plugin` | Scaffold and manage external plugins |
+| `migrate` | Migrate workflow files to current syntax via parse → regenerate round-trip |
+| `status` | Report implementation progress for stub workflows |
+| `implement` | Replace a stub node with a real function skeleton |
 | `docs` | Browse reference documentation |
-| `ui` | Send commands to the editor |
-| `listen` | Stream editor events |
-| `mcp-server` | Start MCP server |
+| `context` | Generate LLM context bundle from documentation and grammar |
+| `market` | Discover, install, and publish marketplace packages |
+| `login` | Log in to Flow Weaver platform |
+| `logout` | Log out from Flow Weaver platform |
+| `auth` | Show authentication status |
+| `apikey` | Manage platform API keys |
+| `ai` | Manage AI provider credentials |
+| `account` | Show account details and plan usage |
+| `org` | Manage organizations |
+| `deploy` | Deploy a workflow to the platform |
+| `undeploy` | Remove a deployed workflow |
+| `cloud-status` | Show cloud deployments and usage |
+| `connect` | Connect this device to the Flow Weaver platform |
+| `weaver` | AI assistant for Flow Weaver workflows |
+<!-- AUTO:END cli_quick_reference -->
 
 ---
 
@@ -63,7 +76,7 @@ fw compile <input> [options]
 | `-s, --source-map` | Generate source maps | `false` |
 | `--verbose` | Verbose output | `false` |
 | `--dry-run` | Preview without writing | `false` |
-| `-w, --workflow-name <name>` | Specific workflow name | all |
+| `-w, --workflow <name>` | Specific workflow name | all |
 | `-f, --format <format>` | Module format: `esm`, `cjs`, `auto` | `auto` |
 | `--strict` | Type coercion warnings become errors | `false` |
 | `--clean` | Omit redundant @param/@returns | `false` |
@@ -101,7 +114,7 @@ fw validate <input> [options]
 | `--verbose` | Verbose output | `false` |
 | `-q, --quiet` | Suppress warnings | `false` |
 | `--json` | Output as JSON | `false` |
-| `-w, --workflow-name <name>` | Specific workflow name | all |
+| `-w, --workflow <name>` | Specific workflow name | all |
 | `--strict` | Type coercion warnings become errors | `false` |
 
 **Examples:**
@@ -146,10 +159,10 @@ fw describe <input> [options]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-f, --format <format>` | `json`, `text`, `mermaid`, `paths` | `json` |
+| `-f, --format <format>` | `json`, `text`, `mermaid`, `paths`, `ascii`, `ascii-compact` | `json` |
 | `-n, --node <id>` | Focus on a specific node | — |
 | `--compile` | Also update runtime markers | `false` |
-| `-w, --workflow-name <name>` | Specific workflow name | all |
+| `-w, --workflow <name>` | Specific workflow name | all |
 
 **Examples:**
 ```bash
@@ -176,6 +189,7 @@ fw run <input> [options]
 | `--params-file <path>` | Path to JSON file with parameters | — |
 | `-p, --production` | No trace events | `false` |
 | `-t, --trace` | Include execution trace events | `false` |
+| `-s, --stream` | Stream trace events in real time | `false` |
 | `--json` | Output result as JSON | `false` |
 | `--timeout <ms>` | Execution timeout in milliseconds | — |
 | `--mocks <json>` | Mock config for built-in nodes as JSON | — |
@@ -213,7 +227,7 @@ fw watch <input> [options]
 | `-p, --production` | No debug events | `false` |
 | `-s, --source-map` | Generate source maps | `false` |
 | `--verbose` | Verbose output | `false` |
-| `-w, --workflow-name <name>` | Specific workflow name | all |
+| `-w, --workflow <name>` | Specific workflow name | all |
 | `-f, --format <format>` | `esm`, `cjs`, `auto` | `auto` |
 
 **Examples:**
@@ -284,25 +298,11 @@ fw serve --production --precompile --no-watch
 
 ---
 
-### listen
-
-Connect to the editor and stream integration events as JSON lines.
-
-```bash
-fw listen [options]
-```
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-s, --server <url>` | Editor URL | `http://localhost:9000` |
-
----
-
 ## Visualization
 
 ### diagram
 
-Generate SVG diagram of a workflow.
+Generate an SVG, interactive HTML, or terminal diagram of a workflow.
 
 ```bash
 fw diagram <input> [options]
@@ -311,16 +311,19 @@ fw diagram <input> [options]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-t, --theme <theme>` | `dark` or `light` | `dark` |
-| `-w, --width <pixels>` | SVG width in pixels | auto |
+| `--width <pixels>` | SVG width in pixels | auto |
 | `-p, --padding <pixels>` | Canvas padding in pixels | auto |
 | `--no-port-labels` | Hide data type labels on ports | shown |
-| `--workflow-name <name>` | Specific workflow | all |
-| `-o, --output <file>` | Write SVG to file | stdout |
+| `-w, --workflow <name>` | Specific workflow | all |
+| `-f, --format <format>` | `svg`, `html`, `ascii`, `ascii-compact`, `text` | `svg` |
+| `-o, --output <file>` | Write output to file | stdout |
 
 **Examples:**
 ```bash
 fw diagram workflow.ts
 fw diagram workflow.ts --theme light -o diagram.svg
+fw diagram workflow.ts --format html -o diagram.html
+fw diagram workflow.ts --format ascii
 fw diagram workflow.ts --no-port-labels --width 1200
 ```
 
@@ -361,7 +364,7 @@ fw diff <file1> <file2> [options]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-f, --format <format>` | `text`, `json`, `compact` | `text` |
-| `-w, --workflow-name <name>` | Specific workflow | all |
+| `-w, --workflow <name>` | Specific workflow | all |
 | `--exit-zero` | Exit 0 even with differences | `false` |
 
 **Examples:**
@@ -883,12 +886,12 @@ fw docs [list] [options]
 
 ---
 
-### docs read
+### docs topic
 
-Read a documentation topic.
+Read a documentation topic by passing its slug directly.
 
 ```bash
-fw docs read <topic> [options]
+fw docs <topic> [options]
 ```
 
 | Flag | Description | Default |
@@ -913,8 +916,8 @@ fw docs search <query> [options]
 **Examples:**
 ```bash
 fw docs
-fw docs read error-codes
-fw docs read scaffold --compact
+fw docs error-codes
+fw docs scaffold --compact
 fw docs search "missing workflow"
 ```
 
@@ -951,56 +954,6 @@ fw context --list
 
 ---
 
-## Editor Integration
-
-### ui focus-node
-
-Select and center a node in the editor.
-
-```bash
-fw ui focus-node <nodeId> [options]
-```
-
-### ui add-node
-
-Add a node type at viewport center.
-
-```bash
-fw ui add-node <nodeTypeName> [options]
-```
-
-### ui open-workflow
-
-Open a workflow file in the editor.
-
-```bash
-fw ui open-workflow <filePath> [options]
-```
-
-### ui get-state
-
-Return current workflow state from the editor.
-
-```bash
-fw ui get-state [options]
-```
-
-### ui batch
-
-Execute a batch of commands with auto-snapshot rollback.
-
-```bash
-fw ui batch <json> [options]
-```
-
-All UI commands accept:
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-s, --server <url>` | Editor URL | `http://localhost:9000` |
-
----
-
 ## System
 
 ### mcp-server
@@ -1013,8 +966,23 @@ fw mcp-server [options]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-s, --server <url>` | Editor URL | `http://localhost:9000` |
 | `--stdio` | Run in MCP stdio mode | `false` |
+
+---
+
+### mcp-setup
+
+Configure Flow Weaver's MCP server for supported AI coding tools.
+
+```bash
+fw mcp-setup [options]
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--tool <tools...>` | Configure specific tools: Claude, Cursor, VS Code, Windsurf, Codex, or OpenClaw | — |
+| `--all` | Configure all detected tools without prompting | `false` |
+| `--list` | List detected tools without configuring | `false` |
 
 ---
 

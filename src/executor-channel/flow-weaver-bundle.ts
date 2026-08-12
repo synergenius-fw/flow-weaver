@@ -19,8 +19,15 @@ import {
   intrinsicUint8ArrayLength,
 } from "./intrinsics.js";
 
-export interface SealedFlowWeaverBundleDescriptor {
-  readonly formatVersion: 1;
+export interface DeviceCapabilityRequirement {
+  readonly id: string;
+  readonly interfaceVersion: number;
+  readonly applicationPolicyRefs: readonly string[];
+  readonly modes: readonly string[];
+  readonly credentialSlots: readonly string[];
+}
+
+interface SealedFlowWeaverBundleFields {
   readonly bundleDigest: `sha256:${string}`;
   readonly byteLength: number;
   readonly engineVersion: string;
@@ -32,6 +39,18 @@ export interface SealedFlowWeaverBundleDescriptor {
     readonly value: string;
   };
 }
+
+/** Stable public name; the serialized discriminant selects an exact codec. */
+export type SealedFlowWeaverBundleDescriptor = Readonly<
+  SealedFlowWeaverBundleFields &
+    (
+      | { readonly formatVersion: 1 }
+      | {
+          readonly formatVersion: 2;
+          readonly deviceCapabilities: readonly DeviceCapabilityRequirement[];
+        }
+    )
+>;
 
 export interface SealedFlowWeaverBundleVerifier {
   verifyEd25519(
@@ -126,15 +145,30 @@ export function sealedFlowWeaverBundleSignaturePreimage(
 function sealedBundleSignaturePreimage(
   descriptor: Readonly<SealedFlowWeaverBundleDescriptor>,
 ): Uint8Array {
-  const signed = JSON.stringify({
-    formatVersion: descriptor.formatVersion,
-    bundleDigest: descriptor.bundleDigest,
-    byteLength: descriptor.byteLength,
-    engineVersion: descriptor.engineVersion,
-    generatorAbi: descriptor.generatorAbi,
-    entryWorkflowId: descriptor.entryWorkflowId,
-  });
-  return new TextEncoder().encode(`flow-weaver-sealed-bundle-v1\n${signed}`);
+  const signed =
+    descriptor.formatVersion === 1
+      ? JSON.stringify({
+          formatVersion: descriptor.formatVersion,
+          bundleDigest: descriptor.bundleDigest,
+          byteLength: descriptor.byteLength,
+          engineVersion: descriptor.engineVersion,
+          generatorAbi: descriptor.generatorAbi,
+          entryWorkflowId: descriptor.entryWorkflowId,
+        })
+      : JSON.stringify({
+          formatVersion: descriptor.formatVersion,
+          bundleDigest: descriptor.bundleDigest,
+          byteLength: descriptor.byteLength,
+          engineVersion: descriptor.engineVersion,
+          generatorAbi: descriptor.generatorAbi,
+          entryWorkflowId: descriptor.entryWorkflowId,
+          deviceCapabilities: descriptor.deviceCapabilities,
+        });
+  const domain =
+    descriptor.formatVersion === 1
+      ? "flow-weaver-sealed-bundle-v1"
+      : "flow-weaver-sealed-bundle-v2";
+  return new TextEncoder().encode(`${domain}\n${signed}`);
 }
 
 export function assertVerifiedFlowWeaverBundle(
@@ -349,6 +383,17 @@ function acceptSealedDescriptor(
   }
   const descriptors = Object.getOwnPropertyDescriptors(input);
   const fields = Reflect.ownKeys(descriptors);
+  if (
+    Object.values(descriptors).some(
+      (field) => !Object.hasOwn(field, "value") || field.enumerable !== true,
+    )
+  ) {
+    throw new FlowWeaverBundleRefusalError(
+      "malformed-descriptor",
+      "sealed bundle descriptor has missing, unknown, accessor, or hidden fields",
+    );
+  }
+  const formatVersion = descriptors["formatVersion"]?.value;
   const expected = [
     "bundleDigest",
     "byteLength",
@@ -357,13 +402,11 @@ function acceptSealedDescriptor(
     "formatVersion",
     "generatorAbi",
     "signature",
+    ...(formatVersion === 2 ? ["deviceCapabilities"] : []),
   ].sort();
   if (
     fields.some((field) => typeof field !== "string") ||
-    JSON.stringify([...fields].sort()) !== JSON.stringify(expected) ||
-    Object.values(descriptors).some(
-      (field) => !Object.hasOwn(field, "value") || field.enumerable !== true,
-    )
+    JSON.stringify([...fields].sort()) !== JSON.stringify(expected)
   ) {
     throw new FlowWeaverBundleRefusalError(
       "malformed-descriptor",
@@ -374,7 +417,7 @@ function acceptSealedDescriptor(
     Object.entries(descriptors).map(([name, field]) => [name, field.value]),
   ) as SealedFlowWeaverBundleDescriptor;
   if (
-    descriptor.formatVersion !== 1 ||
+    (descriptor.formatVersion !== 1 && descriptor.formatVersion !== 2) ||
     !/^sha256:[0-9a-f]{64}$/.test(descriptor.bundleDigest) ||
     !Number.isSafeInteger(descriptor.byteLength) ||
     descriptor.byteLength <= 0 ||
@@ -394,6 +437,10 @@ function acceptSealedDescriptor(
       "sealed bundle descriptor is malformed or outside bounds",
     );
   }
+  const deviceCapabilities =
+    descriptor.formatVersion === 2
+      ? acceptDeviceCapabilities(descriptor.deviceCapabilities)
+      : undefined;
   if (
     descriptor.signature === null ||
     typeof descriptor.signature !== "object" ||
@@ -430,8 +477,100 @@ function acceptSealedDescriptor(
   }
   return Object.freeze({
     ...descriptor,
+    ...(deviceCapabilities === undefined ? {} : { deviceCapabilities }),
     signature: Object.freeze({ ...descriptor.signature }),
   });
+}
+
+function acceptDeviceCapabilities(
+  input: unknown,
+): readonly DeviceCapabilityRequirement[] {
+  if (!Array.isArray(input) || input.length > 8) {
+    throw malformedDeviceCapabilities();
+  }
+  const accepted = input.map((entry) => {
+    if (
+      entry === null ||
+      typeof entry !== "object" ||
+      (Object.getPrototypeOf(entry) !== Object.prototype &&
+        Object.getPrototypeOf(entry) !== null)
+    ) {
+      throw malformedDeviceCapabilities();
+    }
+    const descriptors = Object.getOwnPropertyDescriptors(entry);
+    const fields = Reflect.ownKeys(descriptors);
+    const expected = [
+      "id",
+      "interfaceVersion",
+      "applicationPolicyRefs",
+      "modes",
+      "credentialSlots",
+    ].sort();
+    if (
+      fields.some((field) => typeof field !== "string") ||
+      JSON.stringify([...fields].sort()) !== JSON.stringify(expected) ||
+      Object.values(descriptors).some(
+        (field) => !Object.hasOwn(field, "value") || field.enumerable !== true,
+      )
+    ) {
+      throw malformedDeviceCapabilities();
+    }
+    const value = Object.fromEntries(
+      Object.entries(descriptors).map(([name, field]) => [name, field.value]),
+    ) as unknown as DeviceCapabilityRequirement;
+    if (
+      !boundedIdentifier(value.id) ||
+      !Number.isSafeInteger(value.interfaceVersion) ||
+      value.interfaceVersion < 1
+    ) {
+      throw malformedDeviceCapabilities();
+    }
+    return Object.freeze({
+      id: value.id,
+      interfaceVersion: value.interfaceVersion,
+      applicationPolicyRefs: acceptSortedIdentifiers(
+        value.applicationPolicyRefs,
+      ),
+      modes: acceptSortedIdentifiers(value.modes),
+      credentialSlots: acceptSortedIdentifiers(value.credentialSlots),
+    });
+  });
+  const keys = accepted.map(
+    (entry) => `${entry.id}\u0000${String(entry.interfaceVersion)}`,
+  );
+  if (!strictlySortedUnique(keys)) throw malformedDeviceCapabilities();
+  return Object.freeze(accepted);
+}
+
+function acceptSortedIdentifiers(input: unknown): readonly string[] {
+  if (
+    !Array.isArray(input) ||
+    input.length > 16 ||
+    input.some((value) => !boundedIdentifier(value)) ||
+    !strictlySortedUnique(input as readonly string[])
+  ) {
+    throw malformedDeviceCapabilities();
+  }
+  return Object.freeze([...(input as readonly string[])]);
+}
+
+function boundedIdentifier(input: unknown): input is string {
+  return (
+    typeof input === "string" &&
+    /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(input) &&
+    new TextEncoder().encode(input).byteLength <= 128
+  );
+}
+
+function strictlySortedUnique(values: readonly string[]): boolean {
+  return values.every((value, index) => index === 0 || values[index - 1]! < value);
+}
+
+function malformedDeviceCapabilities(): FlowWeaverBundleRefusalError {
+  return new FlowWeaverBundleRefusalError(
+    "malformed-descriptor",
+    "sealed bundle device capabilities are malformed or outside bounds",
+  );
 }
 
 function isCanonicalEd25519Signature(value: string): boolean {

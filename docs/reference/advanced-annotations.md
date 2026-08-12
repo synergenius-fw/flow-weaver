@@ -515,6 +515,9 @@ These annotations go on `@flowWeaver nodeType` blocks:
 | `@expression` | Expression mode (simplified signature) | `@expression` |
 | `@executeWhen` | Execution strategy | `@executeWhen DISJUNCTION` |
 | `@pullExecution` | Lazy evaluation | `@pullExecution execute` |
+| `@resilience` | Declare adapter-owned retry/fallback handling for static validation | `@resilience retries=3 fallback="backup-provider"` |
+
+`@resilience` is an explicit static-analysis contract; it does not implement retries itself. Use it only when the node's shared adapter already performs the declared bounded retries or fallback. An unconnected `onFailure` port still remains an error because exhausted attempts must be handled.
 
 ---
 

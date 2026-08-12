@@ -236,6 +236,21 @@ describe('Template code generation', () => {
       expect(code).toContain('ReAct');
       expect(code.length).toBeGreaterThan(200);
     });
+
+    it('should expose the shared AI provider configuration', () => {
+      expect(template.configSchema?.provider).toBeDefined();
+      expect(template.configSchema?.model).toBeDefined();
+    });
+
+    it('should honor Anthropic provider and model selection', () => {
+      const code = template.generate({
+        workflowName: 'reactAgent',
+        config: { provider: 'anthropic', model: 'claude-sonnet-test' },
+      });
+      expect(code).toContain('ANTHROPIC PROVIDER');
+      expect(code).toContain("'claude-sonnet-test'");
+      expect(code).not.toContain('createMockReactProvider');
+    });
   });
 
   describe('ai-rag template', () => {

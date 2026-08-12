@@ -36,18 +36,29 @@ export type ExecutorSessionState =
   | "fenced"
   | "closed";
 
-export interface ExecutorSessionIdentity {
+interface ExecutorSessionIdentityFields {
   readonly deploymentId: string;
   readonly consoleId: string;
   readonly executorId: string;
   readonly generation: number;
   readonly connectionEpoch: number;
-  readonly protocolVersion: 1;
   readonly supportedInterfaceVersions: readonly string[];
   readonly supportedEngineRanges: readonly string[];
   readonly transportIdentityDigest: `sha256:${string}`;
   readonly leaseExpiresAt: string;
 }
+
+/** Stable public name; protocolVersion selects the exact identity codec. */
+export type ExecutorSessionIdentity = Readonly<
+  ExecutorSessionIdentityFields &
+    (
+      | { readonly protocolVersion: 1 }
+      | {
+          readonly protocolVersion: 2;
+          readonly supportedDeviceCapabilities: readonly string[];
+        }
+    )
+>;
 
 const SESSION_TRANSITIONS: Readonly<
   Record<ExecutorSessionState, readonly ExecutorSessionState[]>
@@ -698,6 +709,17 @@ function acceptSessionIdentity(
     );
   }
   const descriptors = Object.getOwnPropertyDescriptors(input);
+  if (
+    Object.values(descriptors).some(
+      (field) => !Object.hasOwn(field, "value") || field.enumerable !== true,
+    )
+  ) {
+    throw new ExecutorSessionError(
+      "malformed-session",
+      "session identity has missing, unknown, accessor, or hidden fields",
+    );
+  }
+  const protocolVersion = descriptors["protocolVersion"]?.value;
   const expected = [
     "deploymentId",
     "consoleId",
@@ -709,14 +731,12 @@ function acceptSessionIdentity(
     "supportedEngineRanges",
     "transportIdentityDigest",
     "leaseExpiresAt",
+    ...(protocolVersion === 2 ? ["supportedDeviceCapabilities"] : []),
   ].sort();
   const fields = Reflect.ownKeys(descriptors);
   if (
     fields.some((field) => typeof field !== "string") ||
-    JSON.stringify([...fields].sort()) !== JSON.stringify(expected) ||
-    Object.values(descriptors).some(
-      (field) => !Object.hasOwn(field, "value") || field.enumerable !== true,
-    )
+    JSON.stringify([...fields].sort()) !== JSON.stringify(expected)
   ) {
     throw new ExecutorSessionError(
       "malformed-session",
@@ -747,7 +767,7 @@ function acceptSessionIdentity(
     identity.generation <= 0 ||
     !Number.isSafeInteger(identity.connectionEpoch) ||
     identity.connectionEpoch <= 0 ||
-    identity.protocolVersion !== 1
+    (identity.protocolVersion !== 1 && identity.protocolVersion !== 2)
   ) {
     throw new ExecutorSessionError(
       "malformed-session",
@@ -778,6 +798,32 @@ function acceptSessionIdentity(
     }
     acceptedCompatibility.set(name, acceptedValues as readonly string[]);
   }
+  let supportedDeviceCapabilities: readonly string[] | undefined;
+  if (identity.protocolVersion === 2) {
+    const acceptedValues = acceptExecutorChannelWireValue(
+      identity.supportedDeviceCapabilities,
+    );
+    if (
+      !Array.isArray(acceptedValues) ||
+      acceptedValues.length > 64 ||
+      acceptedValues.some(
+        (value) =>
+          typeof value !== "string" ||
+          !/^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,127}$/.test(value),
+      ) ||
+      acceptedValues.some(
+        (value, index) => index > 0 && acceptedValues[index - 1]! >= value,
+      )
+    ) {
+      throw new ExecutorSessionError(
+        "malformed-session",
+        "supportedDeviceCapabilities must be a sorted unique bounded compatibility list",
+      );
+    }
+    supportedDeviceCapabilities = Object.freeze([
+      ...(acceptedValues as readonly string[]),
+    ]);
+  }
   if (!/^sha256:[0-9a-f]{64}$/.test(identity.transportIdentityDigest)) {
     throw new ExecutorSessionError(
       "malformed-session",
@@ -800,6 +846,9 @@ function acceptSessionIdentity(
       "supportedInterfaceVersions",
     )!,
     supportedEngineRanges: acceptedCompatibility.get("supportedEngineRanges")!,
+    ...(supportedDeviceCapabilities === undefined
+      ? {}
+      : { supportedDeviceCapabilities }),
   });
 }
 

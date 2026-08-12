@@ -115,6 +115,16 @@ export class AnnotationGenerator {
       lines.push(` * @pullExecution ${nodeType.defaultConfig.pullExecution.triggerPort}`);
     }
 
+    if (nodeType.resilience) {
+      const retries = nodeType.resilience.retries
+        ? ` retries=${nodeType.resilience.retries}`
+        : '';
+      const fallback = nodeType.resilience.fallback
+        ? ` fallback="${nodeType.resilience.fallback.replace(/"/g, '\\"')}"`
+        : '';
+      lines.push(` * @resilience${retries}${fallback}`);
+    }
+
     // Add input ports (with automatic ordering)
     const inputEntries = this.assignPortOrders(Object.entries(nodeType.inputs), 'input');
     inputEntries.forEach(([name, port]) => {

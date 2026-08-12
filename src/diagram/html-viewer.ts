@@ -1587,7 +1587,7 @@ body.port-hovered [data-source].dimmed { opacity: 0.25; }
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  var fwAnnotations = 'flowWeaver,input,output,step,node,connect,param,returns,fwImport,label,scope,position,color,icon,tag,map,path,name,description,expression,executeWhen,pullExecution,strictTypes,autoConnect,port,trigger,cancelOn,retries,timeout,throttle';
+  var fwAnnotations = 'flowWeaver,input,output,step,node,connect,param,returns,fwImport,label,scope,position,color,icon,tag,map,path,name,description,expression,executeWhen,pullExecution,resilience,strictTypes,autoConnect,port,trigger,cancelOn,retries,timeout,throttle';
 
   function highlightJSDoc(block) {
     var annSet = fwAnnotations.split(',');

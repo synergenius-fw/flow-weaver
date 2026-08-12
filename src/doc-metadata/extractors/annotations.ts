@@ -454,6 +454,21 @@ export const METADATA_ANNOTATIONS: TAnnotationDoc[] = [
     contexts: ['nodeType'],
   },
   {
+    name: '@resilience',
+    category: 'metadata',
+    syntax: '@resilience retries=N [fallback="provider"]',
+    description:
+      'Declares retry or fallback behavior implemented inside a shared node adapter so static agent validation can account for it.',
+    insertText: '@resilience retries=${1:3} fallback="${2:provider}"',
+    insertTextFormat: 'snippet',
+    examples: [
+      '@resilience retries=3',
+      '@resilience retries=3 fallback="anthropic-backup"',
+      '@resilience fallback="local-model"',
+    ],
+    contexts: ['nodeType'],
+  },
+  {
     name: '@expression',
     category: 'metadata',
     syntax: '@expression',

@@ -59,6 +59,6 @@ describe("frozen Stitch continuation baseline dependency", () => {
       },
     ).trim();
 
-    expect(sourceTree).toBe("51441d1b4c71647eae972a19fa46e7996fef3179");
+    expect(sourceTree).toBe("26238e5d08f40c34ca9b12bae9c3e4b089c8baf7");
   });
 });

@@ -191,6 +191,8 @@ export interface JSDocNodeTypeConfig {
   executeWhen?: string;
   scope?: string;
   expression?: boolean;
+  /** Retry/fallback behavior implemented inside the node adapter. */
+  resilience?: { retries?: number; fallback?: string };
   defaultConfig?: {
     pullExecution?: { triggerPort: string };
     label?: string;
@@ -439,6 +441,33 @@ export class JSDocParser {
             config.defaultConfig.pullExecution = { triggerPort: pullValue };
           }
           break;
+
+        case 'resilience': {
+          const resilience: { retries?: number; fallback?: string } = {};
+          const attributes = comment.matchAll(/(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g);
+          for (const match of attributes) {
+            const key = match[1];
+            const value = match[2] ?? match[3] ?? match[4];
+            if (key === 'retries') {
+              const retries = Number(value);
+              if (Number.isInteger(retries) && retries > 0) {
+                resilience.retries = retries;
+              } else {
+                warnings.push('@resilience retries must be a positive integer.');
+              }
+            } else if (key === 'fallback') {
+              if (value.trim()) resilience.fallback = value.trim();
+            } else {
+              warnings.push(`Unknown @resilience option "${key}". Supported options: retries, fallback.`);
+            }
+          }
+          if (resilience.retries !== undefined || resilience.fallback !== undefined) {
+            config.resilience = resilience;
+          } else {
+            warnings.push('@resilience requires retries=N and/or fallback="provider".');
+          }
+          break;
+        }
 
         case 'input':
           this.parseInputTag(tag, config, func, warnings);

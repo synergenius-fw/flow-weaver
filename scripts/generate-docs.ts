@@ -97,6 +97,34 @@ function generateDefaultNodeTemplate(): string {
   return '- `--template T` / `-t T` - Use specific template (default: processor)';
 }
 
+/** Build the top-level command index from the same Commander registrations used by the CLI. */
+function generateCliQuickReference(): string {
+  const cliSource = fs.readFileSync(
+    path.resolve(__dirname, '..', 'src', 'cli', 'index.ts'),
+    'utf-8',
+  );
+  const commands: Array<{ name: string; description: string }> = [];
+  const commandPattern =
+    /program\s*\.\s*command\(\s*(['"])(.*?)\1\s*\)\s*\.description\(\s*(['"])(.*?)\3\s*\)/gs;
+
+  for (const match of cliSource.matchAll(commandPattern)) {
+    const name = match[2].trim().split(/\s+/)[0];
+    if (!commands.some((command) => command.name === name)) {
+      commands.push({ name, description: match[4] });
+    }
+  }
+
+  if (commands.length === 0) {
+    throw new Error('Could not extract any top-level CLI commands from src/cli/index.ts');
+  }
+
+  return [
+    '| Command | Description |',
+    '|---------|-------------|',
+    ...commands.map(({ name, description }) => `| \`${name}\` | ${description} |`),
+  ].join('\n');
+}
+
 function generateJsdocGrammarFull(): string {
   const lines: string[] = [];
 
@@ -142,6 +170,7 @@ function generateJsdocGrammarFull(): string {
   lines.push('                   [ "@scope" IDENTIFIER ]');
   lines.push('                   [ "@executeWhen" IDENTIFIER ]');
   lines.push('                   [ "@pullExecution" IDENTIFIER ]');
+  lines.push('                   [ "@resilience" ( "retries=" INTEGER | "fallback=" STRING ) { ( "retries=" INTEGER | "fallback=" STRING ) } ]');
   lines.push('                   [ "@color" TEXT ]');
   lines.push('                   [ "@icon" TEXT ]');
   lines.push('                   { "@tag" IDENTIFIER [ STRING ] }');
@@ -362,6 +391,7 @@ const sectionGenerators: Record<string, SectionGenerator> = {
   workflow_templates_table: generateWorkflowTemplatesTable,
   node_templates_table: generateNodeTemplatesTable,
   default_node_template: generateDefaultNodeTemplate,
+  cli_quick_reference: generateCliQuickReference,
   terminals: generateTerminals,
   jsdoc_grammar_full: generateJsdocGrammarFull,
 };
@@ -434,6 +464,7 @@ const docFiles = [
   path.join(docsDir, 'error-codes.md'),
   path.join(docsDir, 'scaffold.md'),
   path.join(docsDir, 'jsdoc-grammar.md'),
+  path.join(docsDir, 'cli-reference.md'),
 ];
 
 let stale = false;

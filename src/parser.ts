@@ -126,6 +126,8 @@ export type TExternalNodeType = {
   durableEffect?: boolean;
   /** Explicitly safe to restore/skip without an effect receipt. */
   durablePure?: boolean;
+  /** Retry/fallback behavior implemented inside the external adapter. */
+  resilience?: { retries?: number; fallback?: string };
 };
 
 /**
@@ -194,6 +196,7 @@ function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
     ...(ext.durableGate && { durableGate: ext.durableGate }),
     ...(ext.durableEffect === true && { durableEffect: true }),
     ...(ext.durablePure === true && { durablePure: true }),
+    ...(ext.resilience && { resilience: ext.resilience }),
   };
 }
 
