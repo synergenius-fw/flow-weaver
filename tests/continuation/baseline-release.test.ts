@@ -39,7 +39,7 @@ describe("frozen Stitch continuation baseline dependency", () => {
     });
   });
 
-  it("pins the exact A3 candidate engine source tree", () => {
+  it("pins the exact neutral-capability engine source tree", () => {
     expect(() =>
       execFileSync("git", ["diff", "--quiet", "--", "src"], {
         cwd: repositoryRoot,
@@ -59,6 +59,6 @@ describe("frozen Stitch continuation baseline dependency", () => {
       },
     ).trim();
 
-    expect(sourceTree).toBe("26238e5d08f40c34ca9b12bae9c3e4b089c8baf7");
+    expect(sourceTree).toBe("9887c53427f97c49be6ff906f34d92b1fbe116d9");
   });
 });

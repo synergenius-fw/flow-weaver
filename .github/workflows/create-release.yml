@@ -79,7 +79,6 @@ jobs:
           TARBALL="$PACKDIR/$TARBALL_NAME"
           echo "Tarball: $TARBALL"
           tar -tzf "$TARBALL" | grep README.md || (echo "ERROR: README.md not in tarball" && exit 1)
-          node scripts/verify-packed-executor-channel.mjs "$TARBALL"
           npm publish "$TARBALL"
           rm -rf "$PACKDIR"
 

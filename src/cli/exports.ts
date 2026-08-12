@@ -53,3 +53,10 @@ export { logger } from './utils/logger.js';
 
 // Error utilities
 export { getErrorMessage, wrapError } from '../utils/error-utils.js';
+
+// Pack CLI bridge
+export type {
+  TManifestCliArgument,
+  TPackCliCommandContext,
+  TPackCliOptionValue,
+} from '../marketplace/types.js';

@@ -161,4 +161,55 @@ describe('registerPackCommands', () => {
     expect(runCmd).toBeDefined();
     expect(runCmd.options).toHaveLength(2);
   });
+
+  it('passes multiple arguments and parsed options through the v2 command context', async () => {
+    const packPath = path.resolve('tests/fixtures/pack-cli-v2');
+    mockList.mockResolvedValue([{
+      name: '@synergenius/flow-weaver-pack-desktop',
+      version: '1.0.0',
+      manifest: {
+        manifestVersion: 2,
+        name: '@synergenius/flow-weaver-pack-desktop',
+        version: '1.0.0',
+        nodeTypes: [],
+        workflows: [],
+        patterns: [],
+        cliEntrypoint: 'bridge.mjs',
+        cliCommands: [{
+          name: 'plan',
+          description: 'Plan a recording',
+          arguments: [
+            { syntax: '<recording>', description: 'Recording file' },
+            { syntax: '<application-map>', description: 'Application map file' },
+          ],
+          options: [
+            { flags: '--json', description: 'Machine-readable output' },
+            { flags: '--out <file>', description: 'Output file' },
+          ],
+        }],
+      },
+      path: packPath,
+    }]);
+
+    await registerPackCommands(program);
+    await program.parseAsync([
+      'node', 'flow-weaver', 'desktop', 'plan', 'recording.json', 'map.json',
+      '--json', '--out', 'plan.json',
+    ]);
+
+    const captured = (globalThis as typeof globalThis & {
+      __FW_PACK_CLI_V2_CAPTURE__?: unknown;
+    }).__FW_PACK_CLI_V2_CAPTURE__;
+    expect(captured).toEqual({
+      name: 'plan',
+      context: {
+        args: ['recording.json', 'map.json'],
+        options: { json: true, out: 'plan.json' },
+        cwd: process.cwd(),
+      },
+    });
+    delete (globalThis as typeof globalThis & {
+      __FW_PACK_CLI_V2_CAPTURE__?: unknown;
+    }).__FW_PACK_CLI_V2_CAPTURE__;
+  });
 });

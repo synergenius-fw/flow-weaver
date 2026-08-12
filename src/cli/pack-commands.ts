@@ -14,6 +14,11 @@ import { pathToFileURL } from 'node:url';
 import type { Command } from 'commander';
 import { listInstalledPackages } from '../marketplace/registry.js';
 import type { TInstalledPackage } from '../marketplace/types.js';
+import type {
+  TManifestCliArgument,
+  TPackCliCommandContext,
+  TPackCliOptionValue,
+} from '../marketplace/types.js';
 import { VERSION } from '../generated-version.js';
 
 function compareVersions(a: string, b: string): number {
@@ -103,8 +108,9 @@ export async function registerPackCommands(program: Command): Promise<void> {
         .command(cmd.name)
         .description(cmd.description);
 
-      if (cmd.usage) {
-        sub.argument(cmd.usage);
+      const commandArguments = cmd.arguments ?? legacyArguments(cmd.usage);
+      for (const argument of commandArguments) {
+        sub.argument(argument.syntax, argument.description, argument.default);
       }
 
       if (cmd.options) {
@@ -119,12 +125,23 @@ export async function registerPackCommands(program: Command): Promise<void> {
 
       // Lazy handler: only import the pack's bridge when invoked
       sub.allowUnknownOption(true);
-      sub.action(async (...actionArgs: unknown[]) => {
+      sub.action(async (..._actionArgs: unknown[]) => {
         try {
           const bridge = await import(pathToFileURL(entrypointPath).href);
-          // Collect raw args from the sub command
-          const rawArgs = sub.args ?? [];
-          await bridge.handleCommand(cmd.name, rawArgs);
+          const context: TPackCliCommandContext = Object.freeze({
+            args: Object.freeze([...(sub.args ?? [])]),
+            options: freezeOptions(sub.opts()),
+            cwd: process.cwd(),
+          });
+          if (typeof bridge.handleCommandV2 === 'function') {
+            await bridge.handleCommandV2(cmd.name, context);
+          } else if (typeof bridge.handleCommand === 'function') {
+            // Backward compatibility for v1 packs. New packs use the parsed
+            // context so they never reach into process.argv.
+            await bridge.handleCommand(cmd.name, context.args);
+          } else {
+            throw new TypeError('pack CLI entrypoint exports neither handleCommandV2 nor handleCommand');
+          }
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(`Error running ${namespace} ${cmd.name}: ${msg}`);
@@ -133,4 +150,27 @@ export async function registerPackCommands(program: Command): Promise<void> {
       });
     }
   }
+}
+
+function legacyArguments(usage: string | undefined): TManifestCliArgument[] {
+  if (usage === undefined || usage.trim() === '') return [];
+  return usage.trim().split(/\s+/u).map((syntax) => ({ syntax }));
+}
+
+function freezeOptions(input: Record<string, unknown>): Readonly<Record<string, TPackCliOptionValue>> {
+  const output: Record<string, TPackCliOptionValue> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      output[key] = value;
+      continue;
+    }
+    if (Array.isArray(value) && value.every((entry) => typeof entry === 'string')) {
+      output[key] = Object.freeze([...value]) as readonly string[];
+      continue;
+    }
+    if (value !== undefined) {
+      throw new TypeError(`pack CLI option ${key} produced a non-serializable value`);
+    }
+  }
+  return Object.freeze(output);
 }

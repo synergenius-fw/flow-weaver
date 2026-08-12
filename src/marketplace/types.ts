@@ -277,8 +277,14 @@ export type TManifestCliCommand = {
   name: string;
   /** Human-readable description */
   description: string;
-  /** Usage string for positional args (e.g., "<file>", "[id]") */
+  /**
+   * Legacy whitespace-separated Commander argument syntax.
+   * Prefer `arguments`, which preserves descriptions and does not collapse
+   * multiple positional arguments into one token.
+   */
   usage?: string;
+  /** Ordered positional arguments contributed by this command. */
+  arguments?: TManifestCliArgument[];
   /** Command options */
   options?: Array<{
     flags: string;
@@ -286,6 +292,30 @@ export type TManifestCliCommand = {
     default?: string | number | boolean;
   }>;
 };
+
+export type TManifestCliArgument = {
+  /** Commander argument syntax, for example `<recording>` or `[files...]`. */
+  syntax: string;
+  /** Human-readable help for this argument. */
+  description?: string;
+  /** Default used for an optional argument. */
+  default?: string;
+};
+
+/** JSON-safe values Commander may produce for a declared pack option. */
+export type TPackCliOptionValue = string | number | boolean | readonly string[];
+
+/**
+ * Stable command context passed to a pack's `handleCommandV2` export.
+ *
+ * Flow Weaver owns parsing. Packs must not recover their options from
+ * `process.argv`, which is ambiguous under embedding and tests.
+ */
+export type TPackCliCommandContext = Readonly<{
+  args: readonly string[];
+  options: Readonly<Record<string, TPackCliOptionValue>>;
+  cwd: string;
+}>;
 
 // ── MCP extension ────────────────────────────────────────────────────────────
 

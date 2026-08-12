@@ -7,6 +7,7 @@ export {
   DurableExecution,
   DurableGateYield,
   AmbiguousEffectError,
+  acceptGateResolution,
 } from "./durable-execution";
 export type {
   WorkflowRuntime,
@@ -17,6 +18,7 @@ export type {
   EffectRecovery,
 } from "./durable-execution";
 export * from "./continuation";
+export * from "./strict-json";
 export * from "./events";
 export * from "./function-registry";
 export * from "./parameter-resolver";

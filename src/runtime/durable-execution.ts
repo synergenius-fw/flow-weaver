@@ -50,6 +50,12 @@ export type EffectRecovery =
 
 export interface EffectAdapter {
   recover(operationKey: string, address: ExecutionAddress): Promise<EffectRecovery>;
+  /** Persist the exact successful effect result before it enters a continuation. */
+  commit?(
+    operationKey: string,
+    address: ExecutionAddress,
+    execution: EffectExecution<WireValue>,
+  ): Promise<void>;
 }
 
 export interface WorkflowRuntimeServices {
@@ -409,6 +415,33 @@ export class DurableExecution {
         throw new AmbiguousEffectError(key, address);
       }
       throw error;
+    }
+    if (runtime.services.effectAdapter?.commit !== undefined) {
+      try {
+        await runtime.services.effectAdapter.commit(key, address, executed);
+      } catch {
+        let committed: EffectRecovery;
+        try {
+          committed = requireEffectRecovery(
+            await runtime.services.effectAdapter.recover(key, address),
+            key,
+            address,
+          );
+        } catch {
+          throw new AmbiguousEffectError(key, address);
+        }
+        if (
+          committed.kind !== 'committed' ||
+          canonicalWireValue(committed.receipt) !== canonicalWireValue(executed.receipt) ||
+          canonicalWireValue(committed.result) !== canonicalWireValue(executed.result)
+        ) throw new AmbiguousEffectError(key, address);
+        this.receipts.set(addressKey(address), {
+          address: cloneAddress(address),
+          operationKey: key,
+          receipt: committed.receipt,
+        });
+        return committed.result as T;
+      }
     }
     this.receipts.set(addressKey(address), {
       address: cloneAddress(address),

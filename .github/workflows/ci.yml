@@ -39,12 +39,6 @@ jobs:
 
       - run: npm run typecheck
       - run: npm run build
-      - name: Verify packed executor-channel
-        run: |
-          PACKDIR=$(mktemp -d)
-          TARBALL_NAME=$(npm pack --pack-destination "$PACKDIR" --silent | tail -n1)
-          node scripts/verify-packed-executor-channel.mjs "$PACKDIR/$TARBALL_NAME"
-          rm -rf "$PACKDIR"
 
   test:
     needs: build

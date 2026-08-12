@@ -421,6 +421,53 @@ describe('A2 durable runtime state machine', () => {
     ).resolves.toEqual({ onSuccess: true, value: 11 });
   });
 
+  it('lets an effect adapter durably commit the exact result used for later re-attestation', async () => {
+    const committed = new Map<string, { receipt: unknown; result: unknown }>();
+    const recover = vi.fn(async (key: string) => {
+      const value = committed.get(key);
+      return value === undefined ? { kind: 'not-committed' as const } : { kind: 'committed' as const, ...value };
+    });
+    const commit = vi.fn(async (key: string, _address: unknown, execution: { receipt: unknown; result: unknown }) => {
+      committed.set(key, structuredClone(execution));
+    });
+    const runtime = createWorkflowRuntime({ runId: 'commit-hook-run', workflowId: 'effects', services: { effectAdapter: { recover, commit } } });
+    await expect(runtime.durable.executeEffect(
+      runtime,
+      { nodeId: 'charge', nodeType: 'chargeCard', executionIndex: 0 },
+      async () => ({ result: { charged: true }, receipt: { id: 'receipt-1' } }),
+    )).resolves.toEqual({ charged: true });
+    expect(commit).toHaveBeenCalledOnce();
+    expect(committed.size).toBe(1);
+  });
+
+  it('fails ambiguous when commit fails and recovery cannot prove the exact effect', async () => {
+    const recover = vi.fn().mockResolvedValueOnce({ kind: 'not-committed' as const }).mockResolvedValueOnce({ kind: 'repeatable' as const });
+    const runtime = createWorkflowRuntime({
+      runId: 'failed-commit-run', workflowId: 'effects',
+      services: { effectAdapter: { recover, commit: async () => { throw new Error('store unavailable'); } } },
+    });
+    await expect(runtime.durable.executeEffect(
+      runtime,
+      { nodeId: 'charge', nodeType: 'chargeCard', executionIndex: 0 },
+      async () => ({ result: { charged: true }, receipt: { id: 'receipt-1' } }),
+    )).rejects.toBeInstanceOf(AmbiguousEffectError);
+  });
+
+  it('fails ambiguous when recovery after a commit error proves a different effect', async () => {
+    const recover = vi.fn()
+      .mockResolvedValueOnce({ kind: 'not-committed' as const })
+      .mockResolvedValueOnce({ kind: 'committed' as const, result: { charged: false }, receipt: { id: 'another-receipt' } });
+    const runtime = createWorkflowRuntime({
+      runId: 'mismatched-commit-run', workflowId: 'effects',
+      services: { effectAdapter: { recover, commit: async () => { throw new Error('acknowledgement lost'); } } },
+    });
+    await expect(runtime.durable.executeEffect(
+      runtime,
+      { nodeId: 'charge', nodeType: 'chargeCard', executionIndex: 0 },
+      async () => ({ result: { charged: true }, receipt: { id: 'receipt-1' } }),
+    )).rejects.toBeInstanceOf(AmbiguousEffectError);
+  });
+
   it('treats unknown or malformed effect recovery states as ambiguous', async () => {
     const execute = vi.fn(async () => ({
       result: { charged: true },
