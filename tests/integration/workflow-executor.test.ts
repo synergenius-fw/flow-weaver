@@ -6,9 +6,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { pathToFileURL } from 'url';
 import { compileExecutableWorkflowArtifact, executeWorkflow } from '../../src/mcp/workflow-executor';
-import { createWorkflowRuntime } from '../../src/runtime/durable-execution';
+import { executePrecompiledWorkflow } from '../../src/runtime/precompiled-executor';
 
 describe('Workflow Executor Integration', () => {
   const outputDir = path.join(os.tmpdir(), `fw-executor-test-${process.pid}`);
@@ -177,36 +176,70 @@ export function outerPipeline(execute: boolean, params: { value: number }): { re
     expect(artifact).toMatchObject({ formatVersion: 1, workflowName: 'simpleWorkflow' });
     expect(artifact.code).toContain('simpleWorkflow');
     expect(artifact.code).toContain('@flow-weaver-body-start');
+    expect(artifact.code).toContain('export const __flowWeaverExecutableArtifact');
 
-    const modulePath = path.join(outputDir, 'simple-workflow.mjs');
-    fs.writeFileSync(modulePath, artifact.code);
-    const emitted = await import(pathToFileURL(modulePath).href);
-    const outcome = await emitted.simpleWorkflow(
-      true,
-      { value: 5 },
-      createWorkflowRuntime({
-        runId: 'compiled-artifact',
-        workflowId: 'simpleWorkflow',
-        services: {},
-      }),
-    );
-    expect(outcome).toMatchObject({ result: 10, onSuccess: true, onFailure: false });
-
-    // The deployed executor receives exactly these bytes. It may parse the
-    // preserved graph annotations to validate durable state, but must not
-    // regenerate the already emitted workflow body.
-    const executed = await executeWorkflow({
-      runId: 'compiled-artifact-executor',
-      filePath: modulePath,
+    const artifactFile = path.join(outputDir, 'precompiled-simple.mjs');
+    fs.writeFileSync(artifactFile, artifact.code);
+    const result = await executePrecompiledWorkflow({
+      runId: 'test:precompiled-executor',
+      bundleDigest: `sha256:${'0'.repeat(64)}`,
+      filePath: artifactFile,
       workflowName: 'simpleWorkflow',
-      params: { value: 5 },
+      params: { value: 6 },
       includeTrace: true,
-      precompiled: true,
     });
-    expect(executed).toMatchObject({ kind: 'completed', functionName: 'simpleWorkflow' });
-    expect(executed.result).toMatchObject({ result: 10, onSuccess: true, onFailure: false });
-    expect(executed.trace).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: 'STATUS_CHANGED' }),
-    ]));
+
+    expect(result.kind).toBe('completed');
+    expect(result.kind === 'completed' ? result.result : undefined).toMatchObject({
+      result: 12,
+      onSuccess: true,
+      onFailure: false,
+    });
+    expect(result.trace?.length).toBeGreaterThan(0);
+  });
+
+  it('resumes a durable gate using only sealed module metadata', async () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'tests/continuation/fixtures/durable-approval.ts'),
+      'utf8',
+    );
+    const artifact = await compileExecutableWorkflowArtifact({
+      source,
+      workflowName: 'durableApproval',
+    });
+    const artifactFile = path.join(outputDir, 'precompiled-durable-approval.mjs');
+    fs.writeFileSync(artifactFile, artifact.code);
+    const bundleDigest = `sha256:${'1'.repeat(64)}`;
+    const yielded = await executePrecompiledWorkflow({
+      runId: 'test:precompiled-durable',
+      bundleDigest,
+      filePath: artifactFile,
+      workflowName: 'durableApproval',
+      params: { value: 4 },
+      includeTrace: true,
+    });
+    expect(yielded.kind).toBe('yielded');
+    if (yielded.kind !== 'yielded') throw new Error('expected durable gate yield');
+
+    const resumed = await executePrecompiledWorkflow({
+      runId: 'test:precompiled-durable',
+      bundleDigest,
+      filePath: artifactFile,
+      workflowName: 'durableApproval',
+      params: { value: 999 },
+      continuation: yielded.continuation,
+      resolution: {
+        gateId: yielded.gate.id,
+        value: { onSuccess: true, onFailure: false, value: 8 },
+      },
+      includeTrace: true,
+    });
+    expect(resumed).toMatchObject({
+      kind: 'completed',
+      result: { onSuccess: true, onFailure: false, result: 9 },
+    });
+    expect(resumed.trace?.some((event) =>
+      event.type === 'STATUS_CHANGED' && ['Start', 'prepared'].includes(String(event.data?.id)) &&
+      event.data?.status === 'SUCCEEDED')).toBe(false);
   });
 });

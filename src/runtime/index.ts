@@ -23,3 +23,4 @@ export * from "./events";
 export * from "./function-registry";
 export * from "./parameter-resolver";
 export * from "./builtin-functions";
+export * from "./executable-module-contract";

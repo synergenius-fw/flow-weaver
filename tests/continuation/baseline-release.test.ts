@@ -59,8 +59,8 @@ describe("frozen Stitch continuation baseline dependency", () => {
       },
     ).trim();
 
-    // Deliberately advanced with the sealed executable-artifact executor.
+    // Deliberately advanced with the sealed runtime-only executable-artifact executor.
     // This remains a reviewed release boundary, not an auto-updated value.
-    expect(sourceTree).toBe("e1cb8d71b382c96cf915287c2bb2f64abb475bd4");
+    expect(sourceTree).toBe("a96aa8c3340fae7cd5231ed10eb77bd821e3a5d1");
   });
 });

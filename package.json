@@ -1,6 +1,6 @@
 {
   "name": "@synergenius/flow-weaver",
-  "version": "0.36.3",
+  "version": "0.36.4",
   "description": "Flow Weaver: deterministic TypeScript workflow compiler. Define workflows with JSDoc annotations, compile to standalone functions with zero runtime dependencies.",
   "private": false,
   "type": "module",
@@ -14,6 +14,10 @@
     "./runtime": {
       "types": "./dist/runtime/index.d.ts",
       "default": "./dist/runtime/index.js"
+    },
+    "./precompiled-executor": {
+      "types": "./dist/runtime/precompiled-executor.d.ts",
+      "default": "./dist/runtime/precompiled-executor.js"
     },
     "./built-in-nodes": {
       "types": "./dist/built-in-nodes/index.d.ts",
