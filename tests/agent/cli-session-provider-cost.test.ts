@@ -6,7 +6,6 @@
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { execSync } from 'node:child_process';
 import { CliSession, getOrCreateCliSession } from '../../src/agent/cli-session.js';
 import { createMcpBridge } from '../../src/agent/mcp-bridge.js';
 import { getCliSessionConfig } from '../../src/agent/cli-spawn-config.js';
@@ -14,8 +13,12 @@ import { runAgentLoop } from '../../src/agent/agent-loop.js';
 import type { AgentProvider, AgentMessage, ToolDefinition, StreamEvent, StreamOptions, McpBridge, ToolEvent } from '../../src/agent/types.js';
 import { joinSplitPrompt } from '../../src/agent/types.js';
 
-// Skip in CI — requires a real `claude` CLI binary with valid credentials
-const hasClaude = (() => { try { execSync('which claude', { stdio: 'ignore' }); return true; } catch { return false; } })();
+// This is a live credentialed compatibility probe, not a deterministic unit
+// test. Presence of a `claude` binary is not a capability contract: it may be
+// unauthenticated, a different CLI generation, or point at a user account.
+// Requiring an explicit opt-in keeps normal CI and developer test runs from
+// hanging/retrying against ambient credentials.
+const runLiveClaudeProbe = process.env['FLOW_WEAVER_RUN_CLI_COST_TEST'] === '1';
 
 // Minimal CliSessionProvider replica — same logic as pack-weaver's
 const TOOL_USE_EVENT_TYPES = new Set(['tool_use_start', 'tool_use_delta', 'tool_use_end']);
@@ -68,7 +71,7 @@ afterEach(() => {
   bridge = null;
 });
 
-describe.skipIf(!hasClaude)('CliSessionProvider + bridge + runAgentLoop → costUsd', () => {
+describe.skipIf(!runLiveClaudeProbe)('CliSessionProvider + bridge + runAgentLoop → costUsd', () => {
   it('result.usage.costUsd > 0 through full provider chain', async () => {
     const tools: ToolDefinition[] = [
       { name: 'done', description: 'Done', inputSchema: { type: 'object', properties: { summary: { type: 'string' } }, required: ['summary'] } },

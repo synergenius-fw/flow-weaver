@@ -25,6 +25,9 @@ export interface ExecutableWorkflowArtifact {
   readonly code: string;
 }
 
+/** The signed module export holding the closed source graph for resume checks. */
+export const EXECUTABLE_WORKFLOW_ARTIFACT_SOURCE_EXPORT = '__flowWeaverArtifactSource';
+
 /**
  * Compile every workflow in a closed source module, then transpile the
  * generated TypeScript to an ESM module ready for a trusted executor. The
@@ -68,7 +71,12 @@ export async function compileExecutableWorkflowArtifact(
         esModuleInterop: true,
       },
     }).outputText;
-    return Object.freeze({ formatVersion: 1, workflowName: request.workflowName, code: transpiled });
+    // TypeScript removes node-type JSDoc from emitted JavaScript. Persist the
+    // closed source graph as an ESM export inside the same signed byte stream:
+    // executors use it only to validate durable identity/continuations, while
+    // they invoke the already generated body above.
+    const code = `${transpiled}\nexport const ${EXECUTABLE_WORKFLOW_ARTIFACT_SOURCE_EXPORT} = ${JSON.stringify(request.source)};\n`;
+    return Object.freeze({ formatVersion: 1, workflowName: request.workflowName, code });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

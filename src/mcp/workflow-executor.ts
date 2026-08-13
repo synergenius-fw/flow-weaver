@@ -39,6 +39,7 @@ import {
   type GateResolution,
   type WorkflowRuntimeServices,
 } from '../runtime/durable-execution.js';
+import { EXECUTABLE_WORKFLOW_ARTIFACT_SOURCE_EXPORT } from './executable-artifact.js';
 
 export { compileExecutableWorkflowArtifact } from './executable-artifact.js';
 export type {
@@ -91,6 +92,15 @@ export interface WorkflowExecutionRequest {
    */
   bundleDigest?: string;
   filePath: string;
+  /**
+   * The file is a Flow Weaver executable artifact emitted at build time.
+   *
+   * Artifact source retains the graph annotations needed to verify durable
+   * continuations, but its workflow bodies are already generated. The
+   * executor therefore parses the signed artifact for identity and graph
+   * validation while deliberately skipping code generation on every run.
+   */
+  precompiled?: boolean;
   params?: Record<string, unknown>;
   workflowName?: string;
   production?: boolean;
@@ -168,6 +178,7 @@ export async function executeWorkflow(
     runId,
     bundleDigest,
     filePath,
+    precompiled = false,
     params,
     workflowName,
     production: requestedProduction,
@@ -208,10 +219,17 @@ export async function executeWorkflow(
   const tmpFile = `${tmpBase}.mjs`;
 
   try {
-    fs.copyFileSync(resolvedPath, tmpTsFile);
+    const precompiledModule = precompiled
+      ? await import(pathToFileURL(resolvedPath).href) as Record<string, unknown>
+      : undefined;
+    const source = precompiled
+      ? precompiledArtifactSource(precompiledModule)
+      : fs.readFileSync(resolvedPath, 'utf8');
+    // The parser intentionally sees the source graph, not emitted JavaScript:
+    // generated code no longer carries node-type durable classifications.
+    fs.writeFileSync(tmpTsFile, source, 'utf8');
 
-    // Discover all workflows in the file
-    const source = fs.readFileSync(resolvedPath, 'utf8');
+    // Discover all workflows in the source graph.
     const allWorkflows = getAvailableWorkflows(source);
     const selectedWorkflow =
       allWorkflows.find((workflow) => workflow.functionName === workflowName) ??
@@ -220,7 +238,11 @@ export async function executeWorkflow(
       throw new Error('No workflow definition found in file');
     }
     const effectiveWorkflowId = selectedWorkflow.functionName;
-    const parsed = await parseWorkflow(resolvedPath, {
+    // Source workflows retain their on-disk identity for durable graph
+    // fingerprints. Only an executable artifact needs the materialized source
+    // graph because its module path is JavaScript rather than source.
+    const graphPath = precompiled ? tmpTsFile : resolvedPath;
+    const parsed = await parseWorkflow(graphPath, {
       workflowName: effectiveWorkflowId,
       projectDir: path.dirname(resolvedPath),
       externalNodeTypes,
@@ -458,44 +480,47 @@ export async function executeWorkflow(
     // Compile each workflow in-place so all function bodies are generated.
     // Debug controller requires dev mode (production: false) so that
     // __ctrl__.beforeNode/afterNode hooks are emitted in generated code.
-    const production = debugController
-      ? false
-      : (requestedProduction ?? !includeTrace);
-    for (const wf of allWorkflows) {
-      await compileWorkflow(tmpTsFile, {
-        write: true,
-        inPlace: true,
-        // Forward caller-supplied foreign nodeType definitions so a
-        // workflow that references a node from another package (an
-        // `@node <id> <foreignType>` the file doesn't declare, e.g.
-        // pack-core's `waitForApproval`) resolves its real ports during
-        // the executor's own compile. Without this the internal parse
-        // can't see those nodeTypes and falls back to a stub, failing
-        // validation. Callers that resolve foreign defs from a wire
-        // manifest (no node_modules to read a .d.ts) pass them here.
-        parse: { workflowName: wf.functionName, externalNodeTypes },
-        generate: { production },
-      });
+    //
+    // A sealed executable artifact already contains those generated bodies.
+    // We still parse it above for durable graph/fingerprint verification, but
+    // running the compiler again would make the desktop startup latency scale
+    // with workflow complexity and silently turn a build artifact into a
+    // cache. This branch is intentionally explicit rather than inferred from
+    // the extension: production callers must attest that the bytes were
+    // emitted by the build-time artifact compiler before they can skip it.
+    if (!precompiled) {
+      const production = debugController
+        ? false
+        : (requestedProduction ?? !includeTrace);
+      for (const wf of allWorkflows) {
+        await compileWorkflow(tmpTsFile, {
+          write: true,
+          inPlace: true,
+          // Forward caller-supplied foreign nodeType definitions so a
+          // workflow that references a node from another package (an
+          // `@node <id> <foreignType>` the file doesn't declare, e.g.
+          // pack-core's `waitForApproval`) resolves its real ports during
+          // the executor's own compile. Without this the internal parse
+          // can't see those nodeTypes and falls back to a stub, failing
+          // validation. Callers that resolve foreign defs from a wire
+          // manifest (no node_modules to read a .d.ts) pass them here.
+          parse: { workflowName: wf.functionName, externalNodeTypes },
+          generate: { production },
+        });
+      }
     }
 
-    let compiledCode = fs.readFileSync(tmpTsFile, 'utf8');
-
-    // Transpile TypeScript to JavaScript so Node.js can import it directly
-    const jsOutput = ts.transpileModule(compiledCode, {
-      compilerOptions: {
-        module: ts.ModuleKind.ESNext,
-        target: ts.ScriptTarget.ESNext,
-        esModuleInterop: true,
-      },
-    });
-
-    // When source lives under src/, rewrite relative imports to point to
-    // dist/ equivalents so Node.js ESM resolver finds the compiled JS files.
-    // This happens with marketplace packs that ship TS source for parsing
-    // but only have compiled JS in dist/.
-    let transpiledOutput = jsOutput.outputText;
-    const srcDir = path.dirname(tmpTsFile);
-    if (srcDir.includes(`${path.sep}src${path.sep}`)) {
+    let mod: Record<string, unknown>;
+    if (precompiled) {
+      mod = precompiledModule!;
+    } else {
+      const compiledCode = fs.readFileSync(tmpTsFile, 'utf8');
+      const jsOutput = ts.transpileModule(compiledCode, {
+        compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext, esModuleInterop: true },
+      });
+      let transpiledOutput = jsOutput.outputText;
+      const srcDir = path.dirname(tmpTsFile);
+      if (srcDir.includes(`${path.sep}src${path.sep}`)) {
       const distDir = srcDir.replace(`${path.sep}src${path.sep}`, `${path.sep}dist${path.sep}`);
       transpiledOutput = transpiledOutput.replace(
         /from\s+['"](\.[^'"]+)['"]/g,
@@ -517,9 +542,10 @@ export async function executeWorkflow(
           return _match;
         },
       );
+      }
+      fs.writeFileSync(tmpFile, transpiledOutput, 'utf8');
+      mod = await import(pathToFileURL(tmpFile).href) as Record<string, unknown>;
     }
-
-    fs.writeFileSync(tmpFile, transpiledOutput, 'utf8');
 
     // Create debugger to capture trace events
     const trace: ExecutionTraceEvent[] = [];
@@ -540,8 +566,6 @@ export async function executeWorkflow(
 
     // Dynamic import using file:// URL for cross-platform compatibility
     // (Windows paths like C:\... break with bare import() — "Received protocol 'c:'")
-    const mod = await import(pathToFileURL(tmpFile).href);
-
     // Register exported functions for local invokeWorkflow resolution
     const workflowRegistry: Record<string, (...args: unknown[]) => unknown> = {};
     for (const workflow of parsed.allWorkflows) {
@@ -693,6 +717,16 @@ export function computeTraceSummary(trace: ExecutionTraceEvent[]): TraceSummary 
     nodeTimings,
     totalDurationMs,
   };
+}
+
+function precompiledArtifactSource(mod: Record<string, unknown> | undefined): string {
+  const source = mod?.[EXECUTABLE_WORKFLOW_ARTIFACT_SOURCE_EXPORT];
+  if (typeof source !== 'string' || source.trim().length === 0) {
+    throw new Error(
+      'precompiled workflow artifact is missing its sealed source graph metadata',
+    );
+  }
+  return source;
 }
 
 function findExportedFunction(

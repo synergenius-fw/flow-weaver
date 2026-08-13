@@ -59,6 +59,8 @@ describe("frozen Stitch continuation baseline dependency", () => {
       },
     ).trim();
 
-    expect(sourceTree).toBe("b5f7bd9e416fc3662d7796930d33d53abbe426a1");
+    // Deliberately advanced with the sealed executable-artifact executor.
+    // This remains a reviewed release boundary, not an auto-updated value.
+    expect(sourceTree).toBe("e1cb8d71b382c96cf915287c2bb2f64abb475bd4");
   });
 });

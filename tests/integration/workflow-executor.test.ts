@@ -191,5 +191,22 @@ export function outerPipeline(execute: boolean, params: { value: number }): { re
       }),
     );
     expect(outcome).toMatchObject({ result: 10, onSuccess: true, onFailure: false });
+
+    // The deployed executor receives exactly these bytes. It may parse the
+    // preserved graph annotations to validate durable state, but must not
+    // regenerate the already emitted workflow body.
+    const executed = await executeWorkflow({
+      runId: 'compiled-artifact-executor',
+      filePath: modulePath,
+      workflowName: 'simpleWorkflow',
+      params: { value: 5 },
+      includeTrace: true,
+      precompiled: true,
+    });
+    expect(executed).toMatchObject({ kind: 'completed', functionName: 'simpleWorkflow' });
+    expect(executed.result).toMatchObject({ result: 10, onSuccess: true, onFailure: false });
+    expect(executed.trace).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'STATUS_CHANGED' }),
+    ]));
   });
 });
