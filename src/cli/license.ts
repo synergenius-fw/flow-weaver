@@ -2,12 +2,12 @@
  * Offline license gate for an EXPORTED, LICENSABLE flow-weaver CLI build.
  *
  * IMPORTANT: this gates the `flow-weaver` / `fw` CLI ONLY, and is OFF by
- * default. flow-weaver is also a library (the `@synergenius/flow-weaver`
- * exports: /executor, /api, /runtime, ...) consumed by fwstack, the Stitch
- * control plane, and packs. None of those import this module, and the gate
- * never activates for the normal published package, so embedding consumers are
- * unaffected. The gate only turns on for an artifact WE deliberately export as
- * licensable (the licensed-copy builder drops a `license-mode` marker).
+ * default. Flow Weaver is also a library whose compiler, API, and runtime
+ * exports are consumed by other applications. None of those imports this
+ * module, and the gate never activates for the normal published package, so
+ * embedding consumers are unaffected. The gate only turns on for an artifact
+ * WE deliberately export as licensable (the licensed-copy builder drops a
+ * `license-mode` marker).
  *
  * The license is a detached Ed25519 signature over a canonical JSON claim,
  * verified against the Synergenius platform-root PUBLIC key pinned below. The
@@ -46,7 +46,7 @@ export class LicenseError extends Error {
 
 /**
  * Is this a LICENSED BUILD? OFF by default: the normal package (published to
- * our registry, used internally + in dev, embedded by fwstack/Stitch) is never
+ * our registry, used internally and embedded by other applications) is never
  * gated. The gate activates only for an exported licensable artifact, which the
  * licensed-copy builder marks with a `license-mode` file next to the bundle
  * (or an operator sets FW_LICENSE_MODE=1). Producer-controlled and opt-in.

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+import { PACKAGE_EXPORTS } from '../../src/doc-metadata/extractors/core-metadata.js';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -256,6 +257,19 @@ describe('A2 clean-cutover removal inventory', () => {
     expect(packageJson.exports).not.toHaveProperty('./executor');
     expect(packageJson.exports).not.toHaveProperty('./precompiled-executor');
     expect(packageJson.exports).not.toHaveProperty('./sealed-bundle');
+  });
+
+  it('advertises exactly the public package exports and no removed compatibility alias', () => {
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8'),
+    ) as { exports?: Record<string, unknown> };
+    const publicExports = Object.keys(packageJson.exports ?? {});
+    const advertisedExports = PACKAGE_EXPORTS.map(({ subpath }) => subpath);
+
+    expect(advertisedExports).toEqual(publicExports);
+    expect(advertisedExports).not.toContain('./executor');
+    expect(advertisedExports).not.toContain('./precompiled-executor');
+    expect(advertisedExports).not.toContain('./sealed-bundle');
   });
 
   it('requires an explicit runtime at every dynamically generated first-party caller', () => {

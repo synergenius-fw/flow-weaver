@@ -79,6 +79,7 @@ export type { WorkflowTemplate, NodeTemplate };
 export const PACKAGE_EXPORTS = [
   { subpath: '.', description: 'Core library (parser, validator, compiler)' },
   { subpath: './runtime', description: 'Workflow runtime executor' },
+  { subpath: './compiler', description: 'Build-only executable artifact compiler' },
   { subpath: './built-in-nodes', description: 'Standard node type library' },
   { subpath: './diagram', description: 'Diagram rendering (SVG/Mermaid)' },
   { subpath: './describe', description: 'Workflow description formatter' },
@@ -97,6 +98,7 @@ export const PACKAGE_EXPORTS = [
   { subpath: './generator', description: 'Code generation' },
   { subpath: './constants', description: 'Constants and reserved names' },
   { subpath: './cli', description: 'CLI command definitions' },
-  { subpath: './executor', description: 'MCP workflow executor' },
+  { subpath: './version', description: 'Package version metadata' },
   { subpath: './context', description: 'LLM context generation' },
+  { subpath: './agent', description: 'Provider-agnostic agent tooling' },
 ] as const;
