@@ -6,7 +6,9 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { executeWorkflow } from '../../src/mcp/workflow-executor';
+import { pathToFileURL } from 'url';
+import { compileExecutableWorkflowArtifact, executeWorkflow } from '../../src/mcp/workflow-executor';
+import { createWorkflowRuntime } from '../../src/runtime/durable-execution';
 
 describe('Workflow Executor Integration', () => {
   const outputDir = path.join(os.tmpdir(), `fw-executor-test-${process.pid}`);
@@ -164,5 +166,30 @@ export function outerPipeline(execute: boolean, params: { value: number }): { re
 
     // When trace is disabled, it should not be in the result
     expect(execResult.trace).toBeUndefined();
+  });
+
+  it('compiles a closed workflow module before deployment rather than at execution time', async () => {
+    const artifact = await compileExecutableWorkflowArtifact({
+      source: createSimpleWorkflow(),
+      workflowName: 'simpleWorkflow',
+    });
+
+    expect(artifact).toMatchObject({ formatVersion: 1, workflowName: 'simpleWorkflow' });
+    expect(artifact.code).toContain('simpleWorkflow');
+    expect(artifact.code).toContain('@flow-weaver-body-start');
+
+    const modulePath = path.join(outputDir, 'simple-workflow.mjs');
+    fs.writeFileSync(modulePath, artifact.code);
+    const emitted = await import(pathToFileURL(modulePath).href);
+    const outcome = await emitted.simpleWorkflow(
+      true,
+      { value: 5 },
+      createWorkflowRuntime({
+        runId: 'compiled-artifact',
+        workflowId: 'simpleWorkflow',
+        services: {},
+      }),
+    );
+    expect(outcome).toMatchObject({ result: 10, onSuccess: true, onFailure: false });
   });
 });
