@@ -225,11 +225,11 @@ export interface CliSessionOptions {
   /** Disable specific built-in tools (e.g. ['Read', 'Edit', 'Write', 'Bash'] to force MCP tools). */
   disallowedTools?: string[];
   /**
-   * Restrict built-in tools via --tools. Empty string "" disables all. Comma-separated PascalCase names.
-   * Case-sensitive — use exact names: "Read", "Bash", "Edit" (not "read", "bash").
-   * MCP tools are unaffected by this flag.
+   * Built-in tools permitted through the Claude CLI's --allowed-tools option.
+   * An empty array disables every built-in tool. MCP tools remain governed by
+   * the explicit --mcp-config and --strict-mcp-config boundary.
    */
-  tools?: string;
+  allowedTools?: string[];
   /** System prompt passed to the CLI via --system-prompt. Overrides the default Claude Code prompt. */
   systemPrompt?: string;
   /**

@@ -40,12 +40,6 @@ import {
   type WorkflowRuntimeServices,
 } from '../runtime/durable-execution.js';
 
-export { compileExecutableWorkflowArtifact } from './executable-artifact.js';
-export type {
-  ExecutableWorkflowArtifact,
-  ExecutableWorkflowArtifactRequest,
-} from './executable-artifact.js';
-
 /** A single trace event captured during workflow execution. */
 export interface ExecutionTraceEvent {
   /** The event type (e.g. "NODE_STARTED", "NODE_COMPLETED"). */

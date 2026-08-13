@@ -1,5 +1,5 @@
 /**
- * Build-time executable artifact emission for sealed workflow deployments.
+ * Build-time executable artifact emission for workflow deployments.
  *
  * The interactive executor still accepts source for development tooling. A
  * deployed Stitch workflow, however, must never make an accountant wait for

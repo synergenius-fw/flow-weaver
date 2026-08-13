@@ -30,6 +30,20 @@ const legacyPattern = new RegExp(
   legacySignals.map((signal) => signal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
 );
 
+const productionBoundaryPattern = new RegExp(
+  [
+    '@stitch/',
+    'stitch\\.executor',
+    'STITCH_(?:EXECUTOR|HOST|RUNNER)',
+    'sealed[-_ ]bundle',
+    'precompiled[-_ ]executor',
+    'ExecutorProtocol',
+    'ExecutorSession',
+    'protocolVersion\\s*[:=]\\s*[12](?:\\D|$)',
+  ].join('|'),
+  'i',
+);
+
 function trackedTextFiles(): readonly string[] {
   return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
     cwd: repositoryRoot,
@@ -213,9 +227,35 @@ describe('A2 clean-cutover removal inventory', () => {
       'src/mcp/agent-channel.ts',
       'src/mcp/run-registry.ts',
       'src/cli/templates/approvals/index.ts',
+      'src/runtime/precompiled-executor.ts',
+      'src/sealed-bundle/index.ts',
     ]) {
       expect(fs.existsSync(path.join(repositoryRoot, file)), file).toBe(false);
     }
+  });
+
+  it('keeps Stitch transport, session, signing, and production execution outside Flow Weaver', () => {
+    const shippedRoots = ['src/', 'fixtures/', 'use-cases/'];
+    const offenders = trackedTextFiles()
+      .filter((file) => shippedRoots.some((root) => file.startsWith(root)))
+      .filter((file) => productionBoundaryPattern.test(
+        fs.readFileSync(path.join(repositoryRoot, file), 'utf8'),
+      ));
+    expect(offenders).toEqual([]);
+  });
+
+  it('publishes artifact compilation without any public execution compatibility surface', () => {
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8'),
+    ) as { exports?: Record<string, unknown> };
+
+    expect(packageJson.exports?.['./compiler']).toEqual({
+      types: './dist/compiler/index.d.ts',
+      default: './dist/compiler/index.js',
+    });
+    expect(packageJson.exports).not.toHaveProperty('./executor');
+    expect(packageJson.exports).not.toHaveProperty('./precompiled-executor');
+    expect(packageJson.exports).not.toHaveProperty('./sealed-bundle');
   });
 
   it('requires an explicit runtime at every dynamically generated first-party caller', () => {

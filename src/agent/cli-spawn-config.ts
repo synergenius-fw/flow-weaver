@@ -4,7 +4,7 @@
  *
  * RULE: Every automated CLI spawn MUST use getCliBaseArgs() or getCliSessionConfig().
  * Never construct CLI args manually. This ensures:
- * - --tools "" (disable all built-in tools)
+ * - --allowed-tools "" (disable all built-in tools)
  * - --strict-mcp-config (prevent user MCP server leakage)
  * - --dangerously-skip-permissions (no permission prompts in automation)
  *
@@ -30,7 +30,7 @@ export function getCliBaseArgs(options?: {
     '-p',
     '--dangerously-skip-permissions',
     // Disable ALL built-in tools — only pack/MCP tools visible to model
-    '--tools', '',
+    '--allowed-tools', '',
     // Prevent user/project MCP servers from leaking into sessions
     '--strict-mcp-config',
   ];
@@ -76,7 +76,7 @@ export function getCliSessionConfig(options: {
     mcpConfigPath: options.mcpConfigPath,
     disallowedTools: options.disallowedTools,
     // Mandatory lockdown — cannot be overridden by callers
-    tools: '',
+    allowedTools: [],
     strictMcpConfig: true,
     appendSystemPrompt: options.appendSystemPrompt,
     systemPrompt: options.systemPrompt,

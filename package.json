@@ -1,6 +1,6 @@
 {
   "name": "@synergenius/flow-weaver",
-  "version": "0.36.4",
+  "version": "0.37.0",
   "description": "Flow Weaver: deterministic TypeScript workflow compiler. Define workflows with JSDoc annotations, compile to standalone functions with zero runtime dependencies.",
   "private": false,
   "type": "module",
@@ -15,9 +15,9 @@
       "types": "./dist/runtime/index.d.ts",
       "default": "./dist/runtime/index.js"
     },
-    "./precompiled-executor": {
-      "types": "./dist/runtime/precompiled-executor.d.ts",
-      "default": "./dist/runtime/precompiled-executor.js"
+    "./compiler": {
+      "types": "./dist/compiler/index.d.ts",
+      "default": "./dist/compiler/index.js"
     },
     "./built-in-nodes": {
       "types": "./dist/built-in-nodes/index.d.ts",
@@ -91,17 +91,9 @@
       "types": "./dist/cli/exports.d.ts",
       "default": "./dist/cli/exports.js"
     },
-    "./executor": {
-      "types": "./dist/mcp/workflow-executor.d.ts",
-      "default": "./dist/mcp/workflow-executor.js"
-    },
     "./version": {
       "types": "./dist/generated-version.d.ts",
       "default": "./dist/generated-version.js"
-    },
-    "./sealed-bundle": {
-      "types": "./dist/sealed-bundle/index.d.ts",
-      "default": "./dist/sealed-bundle/index.js"
     },
     "./context": {
       "types": "./dist/context/index.d.ts",
@@ -198,7 +190,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@synergenius/flow-weaver-baseline": "npm:@synergenius/flow-weaver@0.34.10",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",

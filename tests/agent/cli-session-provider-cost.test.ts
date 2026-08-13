@@ -1,24 +1,18 @@
 /**
- * Full path test: CliSession → CliSessionProvider (with bridge) → runAgentLoop
- * Verifies costUsd flows through the entire chain.
- *
- * This is the EXACT path the orchestrator uses in the bench.
+ * Full deterministic path: CliSession → CliSessionProvider (with bridge) →
+ * runAgentLoop. Verifies costUsd flows through the exact orchestrator chain
+ * without making credentials or network availability part of the test suite.
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
-import { CliSession, getOrCreateCliSession } from '../../src/agent/cli-session.js';
+import { EventEmitter } from 'node:events';
+import type { ChildProcess } from 'node:child_process';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { CliSession } from '../../src/agent/cli-session.js';
 import { createMcpBridge } from '../../src/agent/mcp-bridge.js';
 import { getCliSessionConfig } from '../../src/agent/cli-spawn-config.js';
 import { runAgentLoop } from '../../src/agent/agent-loop.js';
 import type { AgentProvider, AgentMessage, ToolDefinition, StreamEvent, StreamOptions, McpBridge, ToolEvent } from '../../src/agent/types.js';
 import { joinSplitPrompt } from '../../src/agent/types.js';
-
-// This is a live credentialed compatibility probe, not a deterministic unit
-// test. Presence of a `claude` binary is not a capability contract: it may be
-// unauthenticated, a different CLI generation, or point at a user account.
-// Requiring an explicit opt-in keeps normal CI and developer test runs from
-// hanging/retrying against ambient credentials.
-const runLiveClaudeProbe = process.env['FLOW_WEAVER_RUN_CLI_COST_TEST'] === '1';
 
 // Minimal CliSessionProvider replica — same logic as pack-weaver's
 const TOOL_USE_EVENT_TYPES = new Set(['tool_use_start', 'tool_use_delta', 'tool_use_end']);
@@ -71,7 +65,7 @@ afterEach(() => {
   bridge = null;
 });
 
-describe.skipIf(!runLiveClaudeProbe)('CliSessionProvider + bridge + runAgentLoop → costUsd', () => {
+describe('CliSessionProvider + bridge + runAgentLoop → costUsd', () => {
   it('result.usage.costUsd > 0 through full provider chain', async () => {
     const tools: ToolDefinition[] = [
       { name: 'done', description: 'Done', inputSchema: { type: 'object', properties: { summary: { type: 'string' } }, required: ['summary'] } },
@@ -79,13 +73,47 @@ describe.skipIf(!runLiveClaudeProbe)('CliSessionProvider + bridge + runAgentLoop
 
     const executor = async (_name: string, _args: Record<string, unknown>) => ({ result: 'ok', isError: false });
 
+    const stdout = new EventEmitter();
+    const stderr = new EventEmitter();
+    const childEvents = new EventEmitter();
+    const stdinWrite = vi.fn((_data: string, callback?: (error?: Error | null) => void) => {
+      callback?.(null);
+      queueMicrotask(() => {
+        stdout.emit('data', Buffer.from(`${JSON.stringify({
+          type: 'result',
+          is_error: false,
+          result: 'completed',
+          total_cost_usd: 0.0065,
+          usage: {
+            input_tokens: 34,
+            output_tokens: 13,
+            cache_read_input_tokens: 5,
+            cache_creation_input_tokens: 2,
+          },
+        })}\n`));
+      });
+      return true;
+    });
+    const child = Object.assign(childEvents, {
+      stdin: { write: stdinWrite, end: vi.fn(), on: vi.fn() },
+      stdout,
+      stderr,
+      kill: vi.fn(() => true),
+      pid: 12346,
+      killed: false,
+    }) as unknown as ChildProcess;
+    const spawnFn = vi.fn(() => child);
+
     bridge = await createMcpBridge(tools, executor);
-    session = new CliSession(getCliSessionConfig({
-      cwd: process.cwd(),
-      model: 'claude-sonnet-4-6',
-      mcpConfigPath: bridge.configPath,
-      appendSystemPrompt: 'Call done immediately with summary "test".',
-    }));
+    session = new CliSession({
+      ...getCliSessionConfig({
+        cwd: process.cwd(),
+        model: 'claude-sonnet-4-6',
+        mcpConfigPath: bridge.configPath,
+        appendSystemPrompt: 'Call done immediately with summary "test".',
+      }),
+      spawnFn,
+    });
     await session.spawn();
 
     const provider = new TestCliSessionProvider(session, bridge);
@@ -104,9 +132,9 @@ describe.skipIf(!runLiveClaudeProbe)('CliSessionProvider + bridge + runAgentLoop
     );
 
     expect(result.success).toBe(true);
-    expect(result.usage.costUsd).toBeGreaterThan(0);
+    expect(result.usage.costUsd).toBe(0.0065);
     expect(typeof result.usage.costUsd).toBe('number');
-    expect(result.usage.cacheReadTokens).toBeTypeOf('number');
-    expect(result.usage.cacheCreationTokens).toBeTypeOf('number');
+    expect(result.usage.cacheReadTokens).toBe(5);
+    expect(result.usage.cacheCreationTokens).toBe(2);
   }, 60_000);
 });

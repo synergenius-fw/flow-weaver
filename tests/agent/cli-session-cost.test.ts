@@ -1,68 +1,102 @@
 /**
- * Verifies that CliSession.send() yields usage events with costUsd
- * from the CLI's result event. Uses a real CLI process.
+ * Verifies the persistent session's exact Claude CLI boundary and that the
+ * terminal result event is not lost behind an intermediate message_stop.
  *
- * This test catches:
- * - Intermediate message_stop not suppressed (costUsd never reached)
- * - StreamJsonParser not extracting total_cost_usd
- * - CliSession not yielding the result event's usage
+ * This is deliberately deterministic. Ambient CLI credentials and network
+ * availability are not a test contract; the opt-in live provider probe covers
+ * those separately. Here we exercise the production spawn adapter, stdin
+ * framing, stdout parser, turn boundary, and cost projection as one unit.
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
-import { execSync } from 'node:child_process';
+import { EventEmitter } from 'node:events';
+import type { ChildProcess } from 'node:child_process';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CliSession } from '../../src/agent/cli-session.js';
-import { createMcpBridge } from '../../src/agent/mcp-bridge.js';
 import { getCliSessionConfig } from '../../src/agent/cli-spawn-config.js';
-import type { StreamEvent, McpBridge } from '../../src/agent/types.js';
+import type { StreamEvent } from '../../src/agent/types.js';
 
-// Skip in CI — requires a real `claude` CLI binary with valid credentials
-const hasClaude = (() => { try { execSync('which claude', { stdio: 'ignore' }); return true; } catch { return false; } })();
-
-let bridge: McpBridge | null = null;
 let session: CliSession | null = null;
 
 afterEach(() => {
   session?.kill();
-  bridge?.cleanup();
   session = null;
-  bridge = null;
 });
 
-describe.skipIf(!hasClaude)('CliSession cost from CLI result event', () => {
-  it('yields usage event with costUsd > 0 from result event', async () => {
-    const tools = [
-      { name: 'done', description: 'Done', inputSchema: { type: 'object' as const, properties: { summary: { type: 'string' } }, required: ['summary'] as const } },
-    ];
-
-    bridge = await createMcpBridge(tools as any, async () => ({ result: 'ok', isError: false }));
-
-    const opts = getCliSessionConfig({
-      cwd: process.cwd(),
-      model: 'claude-sonnet-4-6',
-      mcpConfigPath: bridge.configPath,
-      appendSystemPrompt: 'Call done immediately with summary "test".',
+describe('CliSession current CLI contract and result cost', () => {
+  it('uses --allowed-tools only and yields terminal cost after an intermediate stop', async () => {
+    const stdout = new EventEmitter();
+    const stderr = new EventEmitter();
+    const childEvents = new EventEmitter();
+    const stdinWrite = vi.fn((_data: string, callback?: (error?: Error | null) => void) => {
+      callback?.(null);
+      queueMicrotask(() => {
+        stdout.emit('data', Buffer.from(`${JSON.stringify({
+          type: 'stream_event',
+          event: { type: 'message_stop' },
+        })}\n`));
+        stdout.emit('data', Buffer.from(`${JSON.stringify({
+          type: 'result',
+          is_error: false,
+          result: 'done',
+          total_cost_usd: 0.0042,
+          usage: {
+            input_tokens: 21,
+            output_tokens: 8,
+            cache_read_input_tokens: 3,
+            cache_creation_input_tokens: 2,
+          },
+        })}\n`));
+      });
+      return true;
     });
 
-    session = new CliSession(opts);
+    const child = Object.assign(childEvents, {
+      stdin: { write: stdinWrite, end: vi.fn(), on: vi.fn() },
+      stdout,
+      stderr,
+      kill: vi.fn(() => true),
+      pid: 12345,
+      killed: false,
+    }) as unknown as ChildProcess;
+    const spawnFn = vi.fn(() => child);
+
+    session = new CliSession({
+      ...getCliSessionConfig({
+        cwd: process.cwd(),
+        model: 'claude-sonnet-4-6',
+        mcpConfigPath: '/tmp/flow-weaver-test-mcp.json',
+        appendSystemPrompt: 'Call done immediately.',
+      }),
+      spawnFn,
+    });
     await session.spawn();
 
-    const usageEvents: StreamEvent[] = [];
-    let messageStopCount = 0;
+    const args = spawnFn.mock.calls[0]?.[1] as string[];
+    const allowedToolsIndex = args.indexOf('--allowed-tools');
+    expect(allowedToolsIndex).toBeGreaterThan(-1);
+    expect(args[allowedToolsIndex + 1]).toBe('');
+    expect(args).not.toContain('--tools');
+    expect(args).toContain('--strict-mcp-config');
 
-    for await (const event of session.send('Call done.')) {
-      if (event.type === 'usage') usageEvents.push(event);
-      if (event.type === 'message_stop') messageStopCount++;
-    }
+    const events: StreamEvent[] = [];
+    for await (const event of session.send('Call done.')) events.push(event);
 
-    // Only ONE message_stop (intermediate ones suppressed)
-    expect(messageStopCount).toBe(1);
+    expect(stdinWrite).toHaveBeenCalledOnce();
+    expect(JSON.parse(stdinWrite.mock.calls[0]?.[0] as string)).toMatchObject({
+      type: 'user',
+      message: { role: 'user', content: 'Call done.' },
+      parent_tool_use_id: null,
+    });
 
-    // At least one usage event should have costUsd
-    const withCost = usageEvents.filter(e => (e as any).costUsd != null && (e as any).costUsd > 0);
-    expect(withCost.length).toBeGreaterThan(0);
-
-    const lastCost = withCost[withCost.length - 1] as any;
-    expect(lastCost.costUsd).toBeGreaterThan(0);
-    expect(typeof lastCost.costUsd).toBe('number');
-  }, 60_000);
+    const stops = events.filter((event) => event.type === 'message_stop');
+    expect(stops).toEqual([{ type: 'message_stop', finishReason: 'stop' }]);
+    expect(events).toContainEqual({
+      type: 'usage',
+      promptTokens: 21,
+      completionTokens: 8,
+      cacheReadTokens: 3,
+      cacheCreationTokens: 2,
+      costUsd: 0.0042,
+    });
+  });
 });

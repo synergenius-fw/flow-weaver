@@ -7,11 +7,12 @@ import { describe, it, expect } from 'vitest';
 import { getCliBaseArgs, getCliSessionConfig } from '../../src/agent/cli-spawn-config.js';
 
 describe('getCliBaseArgs', () => {
-  it('always includes --tools "" to disable all built-in tools', () => {
+  it('always includes only the current --allowed-tools "" contract', () => {
     const args = getCliBaseArgs();
-    const idx = args.indexOf('--tools');
+    const idx = args.indexOf('--allowed-tools');
     expect(idx).toBeGreaterThan(-1);
     expect(args[idx + 1]).toBe('');
+    expect(args).not.toContain('--tools');
   });
 
   it('always includes --strict-mcp-config', () => {
@@ -52,9 +53,10 @@ describe('getCliBaseArgs', () => {
 });
 
 describe('getCliSessionConfig', () => {
-  it('always sets tools to empty string', () => {
+  it('always sets allowedTools to an empty list', () => {
     const config = getCliSessionConfig({ cwd: '/tmp', model: 'test' });
-    expect(config.tools).toBe('');
+    expect(config.allowedTools).toEqual([]);
+    expect(config).not.toHaveProperty('tools');
   });
 
   it('always sets strictMcpConfig to true', () => {

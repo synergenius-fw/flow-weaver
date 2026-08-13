@@ -3,7 +3,7 @@
  *
  * Covers:
  * - PR #312: disallowedTools + systemPrompt flag passing
- * - Phase 1.1: --tools flag (whitelist / disable all built-ins)
+ * - Current CLI --allowed-tools contract (whitelist / disable all built-ins)
  * - Phase 1.2: --append-system-prompt flag
  * - Phase 1.3: Concurrent send() guard
  * - Phase 1.4: Session cache option fingerprint validation
@@ -109,28 +109,30 @@ describe('CliSession --system-prompt', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 1.1: --tools flag
+// Current CLI --allowed-tools contract
 // ---------------------------------------------------------------------------
 
-describe('CliSession --tools flag', () => {
-  it('spawn() passes --tools "" to disable all built-in tools', async () => {
-    const args = await spawnAndGetArgs(baseOptions({ tools: '' }));
+describe('CliSession --allowed-tools flag', () => {
+  it('spawn() passes --allowed-tools "" to disable all built-in tools', async () => {
+    const args = await spawnAndGetArgs(baseOptions({ allowedTools: [] }));
 
-    const idx = args.indexOf('--tools');
+    const idx = args.indexOf('--allowed-tools');
     expect(idx).toBeGreaterThan(-1);
     expect(args[idx + 1]).toBe('');
+    expect(args).not.toContain('--tools');
   });
 
-  it('spawn() passes --tools with whitelist', async () => {
-    const args = await spawnAndGetArgs(baseOptions({ tools: 'Read,Edit' }));
+  it('spawn() passes --allowed-tools with a whitelist', async () => {
+    const args = await spawnAndGetArgs(baseOptions({ allowedTools: ['Read', 'Edit'] }));
 
-    const idx = args.indexOf('--tools');
+    const idx = args.indexOf('--allowed-tools');
     expect(idx).toBeGreaterThan(-1);
     expect(args[idx + 1]).toBe('Read,Edit');
   });
 
-  it('spawn() does NOT include --tools when not set', async () => {
+  it('spawn() does NOT include --allowed-tools when not set', async () => {
     const args = await spawnAndGetArgs(baseOptions());
+    expect(args).not.toContain('--allowed-tools');
     expect(args).not.toContain('--tools');
   });
 });
@@ -309,7 +311,7 @@ describe('CliSession concurrent send() guard', () => {
 
 describe('CliSession matchesOptions()', () => {
   it('returns true when CLI-relevant options match', () => {
-    const opts = baseOptions({ model: 'claude-sonnet-4-6', tools: '' });
+    const opts = baseOptions({ model: 'claude-sonnet-4-6', allowedTools: [] });
     const session = new CliSession(opts);
     expect(session.matchesOptions(opts)).toBe(true);
   });
@@ -320,10 +322,10 @@ describe('CliSession matchesOptions()', () => {
     expect(session.matchesOptions({ ...opts, model: 'claude-opus-4-6' })).toBe(false);
   });
 
-  it('returns false when tools differs', () => {
-    const opts = baseOptions({ tools: '' });
+  it('returns false when allowedTools differs', () => {
+    const opts = baseOptions({ allowedTools: [] });
     const session = new CliSession(opts);
-    expect(session.matchesOptions({ ...opts, tools: 'Read,Edit' })).toBe(false);
+    expect(session.matchesOptions({ ...opts, allowedTools: ['Read', 'Edit'] })).toBe(false);
   });
 
   it('returns false when disallowedTools differs', () => {
@@ -367,13 +369,13 @@ describe('getOrCreateCliSession cache with option validation', () => {
     expect(s2.sessionId).not.toBe(s1Id);
   });
 
-  it('kills and recreates session when tools change', async () => {
-    const opts = baseOptions({ tools: '' });
+  it('kills and recreates session when allowedTools change', async () => {
+    const opts = baseOptions({ allowedTools: [] });
     const s1 = getOrCreateCliSession('key4', opts);
     await s1.spawn();
     const s1Id = s1.sessionId;
 
-    const s2 = getOrCreateCliSession('key4', { ...opts, tools: 'Read' });
+    const s2 = getOrCreateCliSession('key4', { ...opts, allowedTools: ['Read'] });
     expect(s2.sessionId).not.toBe(s1Id);
   });
 });

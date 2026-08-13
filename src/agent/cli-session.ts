@@ -138,14 +138,15 @@ export class CliSession {
       args.push('--strict-mcp-config');
     }
 
-    const { disallowedTools, tools, systemPrompt, appendSystemPrompt } = this.opts;
+    const { disallowedTools, allowedTools, systemPrompt, appendSystemPrompt } = this.opts;
     if (disallowedTools && disallowedTools.length > 0) {
       args.push('--disallowed-tools', disallowedTools.join(','));
     }
 
-    // Phase 1.1: --tools flag (whitelist / disable all)
-    if (tools !== undefined) {
-      args.push('--tools', tools);
+    // The current CLI contract uses --allowed-tools. Passing an empty value
+    // disables all built-in tools while the strict MCP config remains usable.
+    if (allowedTools !== undefined) {
+      args.push('--allowed-tools', allowedTools.join(','));
     }
 
     if (systemPrompt) {
@@ -380,7 +381,7 @@ export class CliSession {
       // mcpConfigPath deliberately excluded — see comment above
       strictMcpConfig: options.strictMcpConfig,
       disallowedTools: options.disallowedTools,
-      tools: options.tools,
+      allowedTools: options.allowedTools,
       systemPrompt: options.systemPrompt,
       appendSystemPrompt: options.appendSystemPrompt,
     });

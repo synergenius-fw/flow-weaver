@@ -18,7 +18,7 @@ function makeOpts(overrides: Partial<CliSessionOptions> = {}): CliSessionOptions
     binPath: 'claude',
     cwd: '/tmp/test',
     model: 'claude-sonnet-4-6',
-    tools: '',
+    allowedTools: [],
     strictMcpConfig: true,
     appendSystemPrompt: 'test',
     ...overrides,
