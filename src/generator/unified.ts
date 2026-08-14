@@ -1,4 +1,4 @@
-import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST } from '../ast/types';
+import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST, TPortDefinition } from '../ast/types';
 import { extractStartPorts } from '../ast/workflow-utils';
 import { mapToTypeScript } from '../type-mappings';
 import { buildDurableGatePayload, buildNodeArgumentsWithContext, toValidIdentifier } from './code-utils';
@@ -21,6 +21,13 @@ import {
   isSuccessPort,
   isFailurePort,
 } from '../constants';
+
+/** A Start value is materialized once before it enters durable state. */
+function startPortValue(portName: string, port: TPortDefinition): string {
+  const supplied = `params.${portName}`;
+  if (port.default === undefined) return supplied;
+  return `${supplied} === undefined ? ${JSON.stringify(port.default)} : ${supplied}`;
+}
 
 /**
  * Helper: Determine if an instance has pull execution enabled
@@ -147,10 +154,10 @@ export function generateControlFlowWithExecutionContext(
   lines.push(`  const startIdx = ctx.addExecution('${RESERVED_NODE_NAMES.START}');`);
   lines.push(`  if (ctx.shouldExecute('${RESERVED_NODE_NAMES.START}', '${RESERVED_NODE_NAMES.START}', startIdx)) {`);
   const awaitPrefixTop = isAsync ? 'await ' : '';
-  Object.keys(extractStartPorts(workflow)).forEach((portName) => {
+  Object.entries(extractStartPorts(workflow)).forEach(([portName, port]) => {
     const setCall = isAsync ? `await ctx.setVariable` : `ctx.setVariable`;
     // STEP Port Architecture: execute comes from workflow parameter, data from params object
-    const valueSource = isExecutePort(portName) ? 'execute' : `params.${portName}`;
+    const valueSource = isExecutePort(portName) ? 'execute' : startPortValue(portName, port);
     lines.push(
       `    ${setCall}({ id: '${RESERVED_NODE_NAMES.START}', portName: '${portName}', executionIndex: startIdx, nodeTypeName: '${RESERVED_NODE_NAMES.START}' }, ${valueSource});`,
     );
@@ -406,8 +413,11 @@ export function generateControlFlowWithExecutionContext(
 
   const generatedNodes = new Set<string>();
   const availableVars = new Map<string, string>();
-  Object.keys(extractStartPorts(workflow)).forEach((portName) => {
-    availableVars.set(`${RESERVED_NODE_NAMES.START}.${portName}`, `params.${portName}`);
+  Object.entries(extractStartPorts(workflow)).forEach(([portName, port]) => {
+    availableVars.set(
+      `${RESERVED_NODE_NAMES.START}.${portName}`,
+      isExecutePort(portName) ? 'execute' : startPortValue(portName, port),
+    );
   });
   executionOrder.forEach((instanceId) => {
     if (isStartNode(instanceId) || isExitNode(instanceId) || generatedNodes.has(instanceId)) {

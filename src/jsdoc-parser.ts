@@ -6,7 +6,13 @@
 
 import type { JSDocTag, Type, Symbol as TsMorphSymbol } from 'ts-morph';
 import type { FunctionLike } from './function-like';
-import type { TDataType, TPortConfig, TMergeStrategy, TNodeTagAST } from './ast/types';
+import type {
+  TDataType,
+  TPortConfig,
+  TMergeStrategy,
+  TNodeTagAST,
+  TSerializableValue,
+} from './ast/types';
 import {
   isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort,
   KNOWN_NODETYPE_TAGS, KNOWN_WORKFLOW_TAGS, KNOWN_PATTERN_TAGS, STANDARD_JSDOC_TAGS,
@@ -269,7 +275,13 @@ export interface JSDocWorkflowConfig {
   layout?: Record<string, { x: number; y: number }>;
   startPorts?: Record<
     string,
-    { dataType?: TDataType; label?: string; metadata?: { order?: number } }
+    {
+      dataType?: TDataType;
+      label?: string;
+      optional?: boolean;
+      default?: TSerializableValue;
+      metadata?: { order?: number };
+    }
   >;
   returnPorts?: Record<
     string,
@@ -331,6 +343,21 @@ export interface JSDocPatternConfig {
   connections?: Array<{ from: { node: string; port: string }; to: { node: string; port: string } }>;
   ports?: Array<{ direction: 'IN' | 'OUT'; name: string; description?: string }>;
   positions?: Record<string, { x: number; y: number }>;
+}
+
+/**
+ * Recover the default expression TypeScript deliberately omits from a
+ * JSDocParameterTag's public name/comment fields.
+ *
+ * For `@param {string} [month=""]`, ts-morph reports the name (`month`) and
+ * that it was bracketed, but the `=""` portion is only present in the tag's
+ * source text. Flow Weaver needs that expression because it is part of the
+ * workflow's public input contract, not merely documentation.
+ */
+function workflowParameterDefault(tagText: string, name: string): string | undefined {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const match = tagText.match(new RegExp(`\\[\\s*${escaped}\\s*=\\s*([^\\]\\r\\n]*)\\]`, 'u'));
+  return match?.[1]?.trim();
 }
 
 export class JSDocParser {
@@ -955,7 +982,7 @@ export class JSDocParser {
 
     config.inputs![name] = {
       type,
-      defaultValue: defaultValue ? this.parseDefaultValue(defaultValue) : undefined,
+      defaultValue: defaultValue === undefined ? undefined : this.parseDefaultValue(defaultValue),
       ...(isOptional && { optional: true }),
       label,
       ...(expression && { expression }),
@@ -1169,6 +1196,7 @@ export class JSDocParser {
     // The tag's compilerNode may have a name property that we need to extract
     interface JSDocParamTagNode {
       name?: { getText?: () => string };
+      isBracketed?: boolean;
     }
     interface JSDocTagWithGetName {
       getName?: () => string;
@@ -1189,6 +1217,8 @@ export class JSDocParser {
 
     const order = result?.order;
     const description = result?.description;
+    const optional = compilerNode.isBracketed === true;
+    const defaultSource = workflowParameterDefault(tag.getText(), name);
 
     // Infer type from function parameter signature
     let type: TDataType = 'ANY';
@@ -1229,6 +1259,8 @@ export class JSDocParser {
     config.startPorts[name] = {
       dataType: type,
       label: description?.trim(),
+      ...(optional && { optional: true }),
+      ...(defaultSource === undefined ? {} : { default: this.parseDefaultValue(defaultSource) }),
       ...(order !== undefined && { metadata: { order } }),
     };
   }
@@ -1647,10 +1679,10 @@ export class JSDocParser {
   /**
    * Parse default value from string
    */
-  private parseDefaultValue(value: string): unknown {
+  private parseDefaultValue(value: string): TSerializableValue {
     // Try to parse as JSON
     try {
-      return JSON.parse(value) as unknown;
+      return JSON.parse(value) as TSerializableValue;
     } catch {
       // Return as string if not valid JSON
       return value;

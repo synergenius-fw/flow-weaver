@@ -429,7 +429,7 @@ class PortVisitor extends BaseVisitor {
       type: 'input',
       name,
       ...(isOptional && { isOptional }),
-      ...(defaultValue && { defaultValue }),
+      ...(defaultValue === undefined ? {} : { defaultValue }),
       ...(scope && { scope }),
       ...(order !== undefined && { order }),
       ...(placement && { placement }),

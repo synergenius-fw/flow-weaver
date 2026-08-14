@@ -281,7 +281,7 @@ export function parsePortsFromFunctionText(functionText: string): {
         dataType,
         ...(tsType && { tsType }),
         ...(portOptional && { optional: true }),
-        ...(defaultValue && { default: parseDefaultValue(defaultValue) }),
+        ...(defaultValue === undefined ? {} : { default: parseDefaultValue(defaultValue) }),
         ...(validatedScope && { scope: validatedScope }),
         ...(description && { label: description }),
         ...(Object.keys(metadata).length > 0 && { metadata }),

@@ -84,6 +84,10 @@ export function parseStartPorts(
           ports[propName] = {
             dataType: portType,
             label: startPortConfig?.label || capitalize(propName),
+            ...(startPortConfig?.optional === true && { optional: true }),
+            ...(startPortConfig !== undefined && Object.hasOwn(startPortConfig, 'default')
+              ? { default: startPortConfig.default }
+              : {}),
             ...(startPortConfig?.metadata && { metadata: startPortConfig.metadata }),
             ...(propTypeText && { tsType: propTypeText }),
             ...(tsSchema && Object.keys(tsSchema).length > 0 && { tsSchema }),
@@ -105,6 +109,10 @@ export function parseStartPorts(
           ports[paramName] = {
             dataType: portType,
             label: startPortConfig?.label || capitalize(paramName),
+            ...(startPortConfig?.optional === true && { optional: true }),
+            ...(startPortConfig !== undefined && Object.hasOwn(startPortConfig, 'default')
+              ? { default: startPortConfig.default }
+              : {}),
             ...(startPortConfig?.metadata && { metadata: startPortConfig.metadata }),
             ...(paramTypeText && { tsType: paramTypeText }),
             ...(tsSchema && Object.keys(tsSchema).length > 0 && { tsSchema }),

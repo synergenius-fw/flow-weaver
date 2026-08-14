@@ -97,7 +97,7 @@ export function syncSignatureToJSDoc(functionText: string): string {
       mergedInputs[param.name] = {
         dataType: signatureType,
         ...(param.optional && { optional: true }),
-        ...(param.defaultValue && { default: parseDefaultValue(param.defaultValue) }),
+        ...(param.defaultValue === undefined ? {} : { default: parseDefaultValue(param.defaultValue) }),
       };
     } else if (signatureType !== "ANY" && mergedInputs[param.name].dataType !== signatureType) {
       const existingType = mergedInputs[param.name].dataType;
