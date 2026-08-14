@@ -52,4 +52,23 @@ describe('authored durable effect contracts', () => {
     expect(compiled.code).toContain('assembleAccountingBatch(assemble_month, __operationKey__)');
     expect(compiled.code).toContain('__operationKey__');
   });
+
+  it('resolves named durable wire types imported from the authored source graph', async () => {
+    const filePath = fixture('durable-effect-contract-imported.ts');
+    const parsed = await parseWorkflow(filePath, {
+      workflowName: 'importedAccountingEffect',
+    });
+    const effect = parsed.ast.nodeTypes.find(
+      (nodeType) => nodeType.functionName === 'assembleImportedAccountingBatch',
+    );
+
+    expect(effect?.durableEffectContract).toEqual({ valid: true, diagnostics: [] });
+    await expect(
+      compileWorkflow(filePath, {
+        inPlace: false,
+        write: false,
+        parse: { workflowName: 'importedAccountingEffect' },
+      }),
+    ).resolves.toEqual(expect.objectContaining({ code: expect.any(String) }));
+  });
 });

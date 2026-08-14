@@ -43,11 +43,19 @@ function nonUndefinedUnionMembers(type: Type): Type[] {
   return members.filter((member) => !member.isUndefined());
 }
 
-function isWireValueType(type: Type, seen = new Set<unknown>()): boolean {
+function wireTypeFailure(
+  type: Type,
+  path = '$',
+  seen = new Set<unknown>(),
+): string | undefined {
   const members = nonUndefinedUnionMembers(type);
-  if (members.length === 0) return false;
+  if (members.length === 0) return `${path} has no defined member`;
   if (members.length > 1 || type.isUnion()) {
-    return members.every((member) => isWireValueType(member, new Set(seen)));
+    for (const member of members) {
+      const failure = wireTypeFailure(member, path, new Set(seen));
+      if (failure !== undefined) return failure;
+    }
+    return undefined;
   }
 
   const candidate = members[0];
@@ -59,7 +67,7 @@ function isWireValueType(type: Type, seen = new Set<unknown>()): boolean {
     candidate.isBigInt() ||
     candidate.isBigIntLiteral()
   ) {
-    return false;
+    return `${path} is ${candidate.getText()}`;
   }
   if (
     candidate.isNull() ||
@@ -71,43 +79,52 @@ function isWireValueType(type: Type, seen = new Set<unknown>()): boolean {
     candidate.isBooleanLiteral() ||
     candidate.isTemplateLiteral()
   ) {
-    return true;
+    return undefined;
   }
   if (candidate.isTuple()) {
-    return candidate
-      .getTupleElements()
-      .every((element) => isWireValueType(element, new Set(seen)));
+    for (const [index, element] of candidate.getTupleElements().entries()) {
+      const failure = wireTypeFailure(element, `${path}[${index}]`, new Set(seen));
+      if (failure !== undefined) return failure;
+    }
+    return undefined;
   }
   if (candidate.isArray() || candidate.isReadonlyArray()) {
     const element = candidate.getArrayElementType();
-    return element !== undefined && isWireValueType(element, new Set(seen));
+    return element === undefined
+      ? `${path} has no array element type`
+      : wireTypeFailure(element, `${path}[]`, new Set(seen));
   }
-  if (!candidate.isObject() || candidate.isClass()) return false;
+  if (!candidate.isObject() || candidate.isClass()) return `${path} is not a plain object`;
   if (
     candidate.getCallSignatures().length > 0 ||
     candidate.getConstructSignatures().length > 0
   ) {
-    return false;
+    return `${path} is callable or constructable`;
   }
 
   const identity = candidate.compilerType;
-  if (seen.has(identity)) return true;
+  if (seen.has(identity)) return undefined;
   seen.add(identity);
 
   const indexTypes = [
     candidate.getStringIndexType(),
     candidate.getNumberIndexType(),
   ].filter((indexType): indexType is Type => indexType !== undefined);
-  if (!indexTypes.every((indexType) => isWireValueType(indexType, new Set(seen)))) {
-    return false;
+  for (const indexType of indexTypes) {
+    const failure = wireTypeFailure(indexType, `${path}[key]`, new Set(seen));
+    if (failure !== undefined) return failure;
   }
-  return candidate.getProperties().every((property) => {
+  for (const property of candidate.getProperties()) {
     const location = property.getValueDeclaration() ?? property.getDeclarations()[0];
-    return (
-      location !== undefined &&
-      isWireValueType(property.getTypeAtLocation(location), new Set(seen))
+    if (location === undefined) return `${path}.${property.getName()} has no declaration`;
+    const failure = wireTypeFailure(
+      property.getTypeAtLocation(location),
+      `${path}.${property.getName()}`,
+      new Set(seen),
     );
-  });
+    if (failure !== undefined) return failure;
+  }
+  return undefined;
 }
 
 function matchesPortType(type: Type, dataType: TDataType): boolean {
@@ -166,9 +183,10 @@ function validateEnvelopeMember(
   const location = fn.getTypeResolutionNode();
   if (receiptProperty) {
     const receiptType = receiptProperty.getTypeAtLocation(location);
-    if (!isWireValueType(receiptType)) {
+    const failure = wireTypeFailure(receiptType);
+    if (failure !== undefined) {
       diagnostics.push(
-        `receipt must be a durable wire value, got ${describeType(receiptType, fn)}`,
+        `receipt must be a durable wire value, got ${describeType(receiptType, fn)} (${failure})`,
       );
     }
   }
@@ -199,9 +217,10 @@ function validateEnvelopeMember(
     );
     return diagnostics;
   }
-  if (!isWireValueType(resultType)) {
+  const resultFailure = wireTypeFailure(resultType);
+  if (resultFailure !== undefined) {
     diagnostics.push(
-      `result must be a durable wire value, got ${describeType(resultType, fn)}`,
+      `result must be a durable wire value, got ${describeType(resultType, fn)} (${resultFailure})`,
     );
   }
 

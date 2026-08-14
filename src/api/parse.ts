@@ -1,5 +1,13 @@
 import type { TParseOptions as ASTParseOptions, TWorkflowAST } from '../ast/types';
-import { parser, type TExternalNodeType } from '../parser';
+import { Project } from 'ts-morph';
+import ts from 'typescript';
+import {
+  AnnotationParser,
+  parser,
+  type SourceImportResolver,
+  type SourceOverrideLoader,
+  type TExternalNodeType,
+} from '../parser';
 import { getErrorMessage } from '../utils/error-utils';
 
 export interface ParseOptions extends Partial<ASTParseOptions> {
@@ -28,6 +36,10 @@ export interface ParseOptions extends Partial<ASTParseOptions> {
    * every nodeType it uses.
    */
   externalNodeTypes?: TExternalNodeType[];
+  /** @internal Resolver for a virtual pre-bundle TypeScript module graph. */
+  sourceImportResolver?: SourceImportResolver;
+  /** @internal Source overlays for a virtual pre-bundle TypeScript graph. */
+  sourceOverrideLoader?: SourceOverrideLoader;
 }
 
 export interface ParseResult {
@@ -179,4 +191,53 @@ export async function parseWorkflow(
       allWorkflows: [],
     };
   }
+}
+
+/** @internal Parse a source override without erasing its real import base. */
+export async function parseWorkflowSourceAtPath(
+  filePath: string,
+  source: string,
+  options?: ParseOptions,
+): Promise<ParseResult> {
+  const sourceParser = options?.sourceOverrideLoader === undefined
+    ? parser
+    : new AnnotationParser(new Project({
+        skipFileDependencyResolution: false,
+        compilerOptions: {
+          target: ts.ScriptTarget.ESNext,
+          module: ts.ModuleKind.NodeNext,
+          moduleResolution: ts.ModuleResolutionKind.NodeNext,
+          allowImportingTsExtensions: true,
+          allowJs: true,
+          skipLibCheck: true,
+          types: [],
+        },
+      }));
+  const parsed = sourceParser.parseSourceAtPath(
+    filePath,
+    source,
+    options?.externalNodeTypes,
+    options?.sourceImportResolver,
+    options?.sourceOverrideLoader,
+  );
+  const errors = [...parsed.errors];
+  const warnings = [...parsed.warnings];
+  const availableWorkflows = parsed.workflows.map((workflow) => workflow.functionName);
+  const workflowName = options?.workflowName;
+  const ast = workflowName === undefined
+    ? parsed.workflows.length === 1 ? parsed.workflows[0] : undefined
+    : parsed.workflows.find((workflow) => workflow.functionName === workflowName);
+  if (ast === undefined) {
+    errors.push(workflowName === undefined
+      ? 'A source override must contain exactly one workflow or name it explicitly'
+      : `Workflow '${workflowName}' not found`);
+    throw new Error(errors.join('\n'));
+  }
+  return {
+    ast,
+    errors,
+    warnings,
+    availableWorkflows,
+    allWorkflows: parsed.workflows,
+  };
 }

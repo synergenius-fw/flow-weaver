@@ -11,7 +11,12 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import ts from 'typescript';
-import { compileWorkflow, getAvailableWorkflows, parseWorkflow } from '../api/index.js';
+import {
+  compileWorkflow,
+  getAvailableWorkflows,
+  parseWorkflow,
+  parseWorkflowSourceAtPath,
+} from '../api/index.js';
 import { durableBranchPaths, validateDurableClosure } from '../api/durable-validation.js';
 import { getTopologicalOrder } from '../api/query.js';
 import type { TExternalNodeType } from '../parser.js';
@@ -26,6 +31,10 @@ import {
   type ExecutableWorkflowModuleMetadata,
 } from '../runtime/executable-module-contract.js';
 import { GENERATOR_ABI } from '../runtime/continuation.js';
+import {
+  applyDurableSourceProof,
+  DurableSourceProof,
+} from './durable-source-proof.js';
 
 export {
   EXECUTABLE_WORKFLOW_METADATA_EXPORT,
@@ -37,6 +46,16 @@ export interface ExecutableWorkflowArtifactRequest {
   readonly source: string;
   readonly workflowName: string;
   readonly externalNodeTypes?: readonly TExternalNodeType[];
+  /**
+   * Typed, pre-erasure workflow source at its real import base. Required when
+   * `source` was flattened by a transform that removes type declarations.
+   */
+  readonly durableValidationSource?: Readonly<{
+    source: string;
+    sourcePath: string;
+    resolveImport?: (specifier: string, importer: string) => string | undefined;
+    loadSource?: (filePath: string) => string | undefined;
+  }>;
 }
 
 export interface ExecutableWorkflowArtifact {
@@ -63,11 +82,34 @@ export async function compileExecutableWorkflowArtifact(
   const directory = await mkdtemp(join(tmpdir(), 'flow-weaver-artifact-'));
   const filePath = join(directory, 'workflow.ts');
   try {
+    const durableSourceProof = request.durableValidationSource === undefined
+      ? undefined
+      : DurableSourceProof.create(
+          await parseWorkflowSourceAtPath(
+            request.durableValidationSource.sourcePath,
+            request.durableValidationSource.source,
+            {
+              workflowName: request.workflowName,
+              ...(request.externalNodeTypes === undefined
+                ? {}
+                : { externalNodeTypes: [...request.externalNodeTypes] }),
+              ...(request.durableValidationSource.resolveImport === undefined
+                ? {}
+                : { sourceImportResolver: request.durableValidationSource.resolveImport }),
+              ...(request.durableValidationSource.loadSource === undefined
+                ? {}
+                : { sourceOverrideLoader: request.durableValidationSource.loadSource }),
+            },
+          ),
+          request.durableValidationSource.source,
+        );
     await writeFile(filePath, request.source, { encoding: 'utf8', mode: 0o600 });
     const metadata = await createExecutableWorkflowMetadata(
       filePath,
       request.workflowName,
       request.externalNodeTypes,
+      durableSourceProof,
+      request.source,
     );
     for (const workflow of workflows) {
       // Sequential compilation is intentional: every generated body remains
@@ -83,6 +125,10 @@ export async function compileExecutableWorkflowArtifact(
         // The deployed artifact keeps step instrumentation. A runtime may
         // choose not to subscribe, but it must be able to report steps.
         generate: { production: false },
+        ...(durableSourceProof === undefined ? {} : {
+          durableSourceProof,
+          durableFlattenedSource: request.source,
+        }),
       });
     }
     const generated = await readFile(filePath, 'utf8');
@@ -108,6 +154,8 @@ async function createExecutableWorkflowMetadata(
   filePath: string,
   workflowName: string,
   externalNodeTypes: readonly TExternalNodeType[] | undefined,
+  durableSourceProof: DurableSourceProof | undefined,
+  flattenedSource: string,
 ): Promise<ExecutableWorkflowModuleMetadata> {
   const parsed = await parseWorkflow(filePath, {
     workflowName,
@@ -116,6 +164,9 @@ async function createExecutableWorkflowMetadata(
   });
   if (parsed.errors.length > 0) {
     throw new Error(`Cannot emit executable artifact metadata: ${parsed.errors.join('; ')}`);
+  }
+  if (durableSourceProof !== undefined) {
+    applyDurableSourceProof(durableSourceProof, parsed, flattenedSource);
   }
   const workflowsByName = new Map(
     parsed.allWorkflows.map((workflow) => [workflow.functionName, workflow]),

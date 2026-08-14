@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import { Project, type JSDoc, type SourceFile, type Type, type Symbol as TsSymbol } from 'ts-morph';
+import ts from 'typescript';
 import { type FunctionLike, extractFunctionLikes } from './function-like';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
@@ -130,6 +131,12 @@ export type TExternalNodeType = {
   resilience?: { retries?: number; fallback?: string };
 };
 
+export type SourceImportResolver = (
+  specifier: string,
+  importer: string,
+) => string | undefined;
+export type SourceOverrideLoader = (filePath: string) => string | undefined;
+
 /**
  * Convert a TExternalNodeType to a TNodeTypeAST with sensible defaults.
  * Used to merge runtime-loaded node types into the parser's available types.
@@ -242,8 +249,8 @@ export class AnnotationParser {
   /** Tracks which projectDirs have already had their pack handlers loaded. */
   private loadedPackDirs = new Set<string>();
 
-  constructor() {
-    this.project = getSharedProject();
+  constructor(project: Project = getSharedProject()) {
+    this.project = project;
   }
 
   /**
@@ -419,12 +426,39 @@ export class AnnotationParser {
     return this.fullParse(filePath, content, hash, stats.mtimeMs, externalNodeTypes);
   }
 
+  /**
+   * Parse an in-memory source override at its real filesystem path. Relative
+   * imports resolve exactly as they do for parse(), but the override is never
+   * written to disk or stored in the parse cache.
+   */
+  parseSourceAtPath(
+    filePath: string,
+    content: string,
+    externalNodeTypes?: TExternalNodeType[],
+    importResolver?: SourceImportResolver,
+    sourceLoader?: SourceOverrideLoader,
+  ): ParseResult {
+    return this.fullParse(
+      filePath,
+      content,
+      this.computeHash(content),
+      0,
+      externalNodeTypes,
+      false,
+      importResolver,
+      sourceLoader,
+    );
+  }
+
   private fullParse(
     filePath: string,
     content: string,
     hash: string,
     mtimeMs: number,
-    externalNodeTypes?: TExternalNodeType[]
+    externalNodeTypes?: TExternalNodeType[],
+    cacheResult = true,
+    importResolver?: SourceImportResolver,
+    sourceLoader?: SourceOverrideLoader,
   ): ParseResult {
     // Reset import tracking for new parse
     this.importStack.clear();
@@ -432,13 +466,35 @@ export class AnnotationParser {
     const errors: string[] = [];
     const warnings: string[] = [];
 
+    if (sourceLoader !== undefined) {
+      this.preloadSourceOverrides(
+        filePath,
+        content,
+        importResolver,
+        sourceLoader,
+        new Set([filePath]),
+      );
+    }
     const sourceFile = this.project.createSourceFile(filePath, content, { overwrite: true });
 
     // Add current file to import stack BEFORE processing imports
     this.importStack.add(filePath);
 
+    // A virtual typed graph must be loaded before local function types are
+    // inspected; otherwise TypeScript sees its not-yet-materialized aliases as
+    // `any`. Normal filesystem parsing keeps the historical order.
+    const importedNodeTypes = sourceLoader === undefined
+      ? []
+      : this.extractImportedNodeTypes(sourceFile, filePath, importResolver, sourceLoader);
     const localNodeTypes = extractNodeTypes(sourceFile, warnings, this.tagRegistry);
-    const importedNodeTypes = this.extractImportedNodeTypes(sourceFile, filePath);
+    if (sourceLoader === undefined) {
+      importedNodeTypes.push(...this.extractImportedNodeTypes(
+        sourceFile,
+        filePath,
+        importResolver,
+        sourceLoader,
+      ));
+    }
 
     // First pass: extract workflow signatures to enable same-file workflow invocation
     const workflowSignatures = this.extractWorkflowSignatures(sourceFile, filePath, warnings);
@@ -496,7 +552,7 @@ export class AnnotationParser {
     this.project.removeSourceFile(sourceFile);
 
     // Only cache when no external types were used (cache should reflect file-only state)
-    if (!externalNodeTypes?.length) {
+    if (cacheResult && !externalNodeTypes?.length) {
       this.parseCache.set(filePath, {
         mtime: mtimeMs,
         contentHash: hash,
@@ -505,6 +561,31 @@ export class AnnotationParser {
     }
 
     return result;
+  }
+
+  private preloadSourceOverrides(
+    importer: string,
+    source: string,
+    importResolver: SourceImportResolver | undefined,
+    sourceLoader: SourceOverrideLoader,
+    seen: Set<string>,
+  ): void {
+    const parsed = ts.createSourceFile(importer, source, ts.ScriptTarget.Latest, true);
+    for (const statement of parsed.statements) {
+      if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
+        continue;
+      }
+      const specifier = statement.moduleSpecifier.text;
+      if (!specifier.startsWith('.')) continue;
+      const resolved = importResolver?.(specifier, importer)
+        ?? this.resolveModulePath(specifier, path.dirname(importer));
+      if (resolved === undefined || resolved === null || seen.has(resolved)) continue;
+      const override = sourceLoader(resolved);
+      if (override === undefined) continue;
+      seen.add(resolved);
+      this.preloadSourceOverrides(resolved, override, importResolver, sourceLoader, seen);
+      this.project.createSourceFile(resolved, override, { overwrite: true });
+    }
   }
 
   /**
@@ -640,7 +721,9 @@ export class AnnotationParser {
 
   private extractImportedNodeTypes(
     sourceFile: ReturnType<Project['addSourceFileAtPath']>,
-    currentFilePath: string
+    currentFilePath: string,
+    importResolver?: SourceImportResolver,
+    sourceLoader?: SourceOverrideLoader,
   ): TNodeTypeAST[] {
     const importedNodeTypes: TNodeTypeAST[] = [];
     const imports = sourceFile.getImportDeclarations();
@@ -665,7 +748,8 @@ export class AnnotationParser {
       }
 
       const currentDir = path.dirname(currentFilePath);
-      const importedFilePath = this.resolveModulePath(moduleSpecifier, currentDir);
+      const importedFilePath = importResolver?.(moduleSpecifier, currentFilePath)
+        ?? this.resolveModulePath(moduleSpecifier, currentDir);
 
       // Validate import path exists
       if (!importedFilePath) {
@@ -685,8 +769,13 @@ export class AnnotationParser {
       try {
         // Check cache first — validate mtime to detect file changes
         let nodeTypes: TNodeTypeAST[];
-        const importStats = fs.statSync(importedFilePath);
-        const cached = this.importCache.get(importedFilePath);
+        const overriddenSource = sourceLoader?.(importedFilePath);
+        const importStats = overriddenSource === undefined
+          ? fs.statSync(importedFilePath)
+          : { mtimeMs: 0 };
+        const cached = overriddenSource === undefined
+          ? this.importCache.get(importedFilePath)
+          : undefined;
         if (cached && cached.mtime === importStats.mtimeMs) {
           nodeTypes = cached.nodeTypes;
         } else {
@@ -694,7 +783,8 @@ export class AnnotationParser {
           this.importStack.add(importedFilePath);
 
           try {
-            const importedRaw = fs.readFileSync(importedFilePath, 'utf-8');
+            const importedRaw = overriddenSource
+              ?? fs.readFileSync(importedFilePath, 'utf-8');
             const importedContent = hasInPlaceMarkers(importedRaw)
               ? stripGeneratedSections(importedRaw)
               : importedRaw;
@@ -704,7 +794,12 @@ export class AnnotationParser {
             const importWarnings: string[] = [];
             const localNodeTypes = extractNodeTypes(importedFile, importWarnings, this.tagRegistry);
             // Recursively process imports (enables circular dependency detection)
-            const importedFromFile = this.extractImportedNodeTypes(importedFile, importedFilePath);
+            const importedFromFile = this.extractImportedNodeTypes(
+              importedFile,
+              importedFilePath,
+              importResolver,
+              sourceLoader,
+            );
             // Also extract workflows and convert them to node types
             const workflows = this.extractWorkflows(
               importedFile,
@@ -721,7 +816,9 @@ export class AnnotationParser {
             nodeTypes.push(...inferredFromImport);
 
             // Clean up imported source file to prevent Project bloat
-            this.project.removeSourceFile(importedFile);
+            if (overriddenSource === undefined) {
+              this.project.removeSourceFile(importedFile);
+            }
 
             // Cache the parsed node types with mtime for invalidation
             this.importCache.set(importedFilePath, { mtime: importStats.mtimeMs, nodeTypes });

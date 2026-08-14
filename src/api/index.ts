@@ -78,7 +78,11 @@ export {
   stripGeneratedSections,
   MARKERS,
 } from './generate-in-place';
-export { type ParseResult, parseWorkflow } from './parse';
+export {
+  type ParseResult,
+  parseWorkflow,
+  parseWorkflowSourceAtPath,
+} from './parse';
 export { transformWorkflow } from './transform';
 export { type ValidationResult, validateWorkflow } from './validate';
 export { validationRuleRegistry } from './validation-registry';

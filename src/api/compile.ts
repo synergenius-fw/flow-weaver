@@ -7,6 +7,10 @@ import { type GenerateOptions, generateCode } from './generate';
 import { type InPlaceGenerateOptions, generateInPlace } from './generate-in-place';
 import { type ParseOptions, parseWorkflow } from './parse';
 import { validateDurableClosure } from './durable-validation';
+import {
+  applyDurableSourceProof,
+  type DurableSourceProof,
+} from '../compiler/durable-source-proof.js';
 
 /**
  * Options for compiling a workflow file
@@ -29,6 +33,10 @@ export interface CompileOptions {
   saveAST?: boolean;
   /** Validation mode: 'draft' suppresses STUB_NODE errors */
   validationMode?: 'strict' | 'draft';
+  /** @internal Compiler-issued typed-source proof for a flattened artifact. */
+  durableSourceProof?: DurableSourceProof;
+  /** @internal Flattened source bound by durableSourceProof. */
+  durableFlattenedSource?: string;
 }
 
 /**
@@ -71,6 +79,16 @@ export async function compileWorkflow(
   const parseResult = await parseWorkflow(filePath, options.parse);
   if (parseResult.errors.length > 0) {
     throw new Error(`Parse errors:\n${parseResult.errors.join('\n')}`);
+  }
+  if (options.durableSourceProof !== undefined) {
+    if (options.durableFlattenedSource === undefined) {
+      throw new Error('durableFlattenedSource is required with durableSourceProof');
+    }
+    applyDurableSourceProof(
+      options.durableSourceProof,
+      parseResult,
+      options.durableFlattenedSource,
+    );
   }
   validateDurableClosure(parseResult.ast, parseResult.allWorkflows);
 
