@@ -126,8 +126,12 @@ async function createExecutableWorkflowMetadata(
     .sort((left, right) => left.functionName.localeCompare(right.functionName));
   const graphManifest = JSON.parse(JSON.stringify(reachableClosure.map((workflow) => ({
     functionName: workflow.functionName,
-    instances: workflow.instances,
-    connections: workflow.connections,
+    // Source locations are diagnostics, not executable graph identity. The
+    // artifact compiler parses the closed source through a fresh private temp
+    // directory on every invocation, so hashing sourceLocation.file would make
+    // identical source produce a different fingerprint on every build.
+    instances: workflow.instances.map(({ sourceLocation: _sourceLocation, ...instance }) => instance),
+    connections: workflow.connections.map(({ sourceLocation: _sourceLocation, ...connection }) => connection),
     scopes: workflow.scopes,
     startPorts: workflow.startPorts,
     exitPorts: workflow.exitPorts,
