@@ -162,6 +162,10 @@ function isCanonicalPrefix(candidate: readonly unknown[], current: readonly unkn
   );
 }
 
+function isCanonicalEqual(left: readonly unknown[], right: readonly unknown[]): boolean {
+  return left.length === right.length && canonicalWireValue(left) === canonicalWireValue(right);
+}
+
 export function requireEffectRecovery(value: unknown, key: string, address: ExecutionAddress): EffectRecovery {
   try {
     validateWireValue(value);
@@ -319,7 +323,28 @@ export class DurableExecution {
     if (candidates.length > 1 && specificity(candidates[0]) === specificity(candidates[1])) {
       throw new Error(`Ambiguous durable variable address for ${address.nodeId}.${portName}`);
     }
-    return candidates[0]?.value;
+    if (candidates[0] !== undefined) return candidates[0].value;
+
+    // Generated workflows leave a selected control-flow branch before
+    // projecting its outputs through Exit. A fresh continuation resume has no
+    // process-local variable cache, so that projection must recover the one
+    // value committed by the branch that actually ran. This is deliberately
+    // narrower than ancestor lookup: it cannot cross workflow frames or
+    // scopes, and more than one compatible descendant fails closed.
+    const converged = [...this.variables.values()].filter(
+      (variable) =>
+        variable.portName === portName &&
+        variable.address.nodeId === address.nodeId &&
+        variable.address.nodeType === address.nodeType &&
+        variable.address.executionIndex === address.executionIndex &&
+        isCanonicalEqual(variable.address.frames, address.frames) &&
+        isCanonicalEqual(variable.address.scopes, address.scopes) &&
+        isCanonicalPrefix(address.branches, variable.address.branches),
+    );
+    if (converged.length > 1) {
+      throw new Error(`Ambiguous durable variable address for ${address.nodeId}.${portName}`);
+    }
+    return converged[0]?.value;
   }
 
   resolveGate(runtime: WorkflowRuntime, boundary: GateBoundary): WireValue {

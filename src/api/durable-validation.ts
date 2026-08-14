@@ -209,8 +209,40 @@ export function validateDurableClosure(
       (instance) => nodeTypeFor(workflow, instance.nodeType)?.durableEffect === true,
     ),
   );
-  if (!hasDurableGate) return { hasDurableGate, hasDurableEffect, reachable };
   if (options.enforce === false) {
+    return { hasDurableGate, hasDurableEffect, reachable };
+  }
+  // Only source-parsed implementations carry contract analysis. External wire
+  // descriptors intentionally do not pretend that their unavailable callable
+  // was type-checked here.
+  const invalidEffectContracts = [
+    ...new Set(
+      reachable.flatMap((workflow) =>
+        workflow.nodeTypes.flatMap((nodeType) => {
+          if (
+            nodeType.durableEffect !== true ||
+            nodeType.durableEffectContract === undefined ||
+            nodeType.durableEffectContract.valid
+          ) {
+            return [];
+          }
+          const location =
+            nodeType.sourceLocation === undefined
+              ? ''
+              : ` (${nodeType.sourceLocation.file}:${nodeType.sourceLocation.line})`;
+          return nodeType.durableEffectContract.diagnostics.map(
+            (diagnostic) => `${nodeType.functionName}${location}: ${diagnostic}`,
+          );
+        }),
+      ),
+    ),
+  ].sort();
+  if (!hasDurableGate) {
+    if (invalidEffectContracts.length > 0) {
+      throw new Error(
+        `Durable effect contract errors:\n${invalidEffectContracts.join('\n')}`,
+      );
+    }
     return { hasDurableGate, hasDurableEffect, reachable };
   }
 
@@ -302,6 +334,11 @@ export function validateDurableClosure(
   if (invalidClassifications.length > 0) {
     throw new Error(
       `Durable classification errors:\nEvery reachable node in a workflow with a durable gate must have exactly one compiler classification: @durablePure, @durableGate, or @durableEffect. Invalid: ${invalidClassifications.sort().join(', ')}`,
+    );
+  }
+  if (invalidEffectContracts.length > 0) {
+    throw new Error(
+      `Durable effect contract errors:\n${invalidEffectContracts.join('\n')}`,
     );
   }
   if (lazyNodes.length > 0) {

@@ -223,6 +223,17 @@ export type TNodeTypeAST = {
   durableGate?: 'approval' | 'input' | 'agent';
   /** Explicit effect adapter contract; never inferred from a function name. */
   durableEffect?: boolean;
+  /**
+   * Compiler analysis of an authored durable-effect callable. Runtime-provided
+   * external node descriptors omit this because their implementation is not
+   * available to the TypeScript compiler.
+   */
+  durableEffectContract?: {
+    /** Whether the callable satisfies the operation-key, envelope, and output contract. */
+    valid: boolean;
+    /** Stable author-facing diagnostics collected from TypeScript type metadata. */
+    diagnostics: string[];
+  };
   /** Compiler-reviewed pure or orchestration node for gated workflows. */
   durablePure?: boolean;
   /** Statically declared retry/fallback behavior implemented inside the node adapter. */

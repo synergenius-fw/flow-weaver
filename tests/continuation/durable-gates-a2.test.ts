@@ -28,6 +28,11 @@ const branchConvergenceFixture = path.join(
   'fixtures',
   'durable-branch-convergence.ts',
 );
+const outputAfterGateFixture = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'fixtures',
+  'durable-output-after-gate.ts',
+);
 
 function graphForEnvelope(envelope: ContinuationEnvelope) {
   const addresses = [envelope.location, ...envelope.state.completed];
@@ -361,6 +366,47 @@ describe('A2 durable gate continuation', () => {
           event.data?.status === 'SUCCEEDED',
       ),
     ).toBe(false);
+  });
+
+  it('projects the unique selected-branch output after a resumed gate', async () => {
+    const runId = 'a2-output-after-gate';
+    const yielded = await executeWorkflow({
+      runId,
+      bundleDigest,
+      filePath: outputAfterGateFixture,
+      workflowName: 'durableOutputAfterGate',
+      params: { value: 17 },
+      production: false,
+    });
+    if (yielded.kind !== 'yielded') throw new Error('expected a durable yield');
+
+    expect(yielded.gate.address.branches.map(({ nodeId, arm }) => ({ nodeId, arm }))).toEqual([
+      { nodeId: 'resolve', arm: 'success' },
+      { nodeId: 'assemble', arm: 'success' },
+      { nodeId: 'build', arm: 'success' },
+    ]);
+
+    await expect(
+      executeWorkflow({
+        runId,
+        bundleDigest,
+        filePath: outputAfterGateFixture,
+        workflowName: 'durableOutputAfterGate',
+        params: { value: 999 },
+        continuation: yielded.continuation,
+        resolution: {
+          gateId: yielded.gate.id,
+          value: { onSuccess: false, onFailure: true, approved: false },
+        },
+        production: false,
+      }),
+    ).resolves.toMatchObject({
+      kind: 'completed',
+      result: {
+        report: 'report:17',
+        approved: false,
+      },
+    });
   });
 
   it('resumes one gate and produces a fresh continuation at the next gate', async () => {

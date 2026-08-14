@@ -27,6 +27,11 @@ import { inferDataTypeFromTS, stripOptionalUndefined } from '../type-mappings';
 import { BUILT_IN_NODE_TYPES } from '../built-in-nodes/generated-registry';
 import type { TagHandlerRegistry } from './tag-registry';
 import { capitalize } from './port-inference';
+import {
+  analyzeDurableEffectContract,
+  durableGateKind,
+  hasJsDocTag,
+} from './durable-effect-contract';
 
 export function extractNodeTypes(
   sourceFile: SourceFile,
@@ -50,6 +55,9 @@ export function extractNodeTypes(
 
     const functionName = fn.getName() || 'anonymous';
     const nodeTypeName = config.name || functionName;
+    const durableGate = durableGateKind(fn);
+    const durableEffect = hasJsDocTag(fn, 'durableEffect');
+    const durablePure = hasJsDocTag(fn, 'durablePure');
 
     const inputs: Record<string, TPortDefinition> = {};
     if (config.inputs) {
@@ -151,11 +159,9 @@ export function extractNodeTypes(
     const jsDocs = fn.getJsDocs();
     const jsDocText = jsDocs.map((doc: JSDoc) => doc.getText()).join('\n');
     const functionText = isStub ? undefined : (jsDocText ? `${jsDocText}\n${fn.getText()}` : fn.getText());
-    const durableGate = functionText?.match(
-      /@durableGate\s+(approval|input|agent)\b/,
-    )?.[1] as 'approval' | 'input' | 'agent' | undefined;
-    const durableEffect = functionText?.includes('@durableEffect') === true;
-    const durablePure = functionText?.includes('@durablePure') === true;
+    const durableEffectContract = durableEffect
+      ? analyzeDurableEffectContract(fn, inputs, outputs)
+      : undefined;
 
     // Detect async keyword on function declaration
     const isAsync = fn.isAsync();
@@ -222,6 +228,7 @@ export function extractNodeTypes(
       functionText,
       ...(durableGate && { durableGate }),
       ...(durableEffect && { durableEffect: true }),
+      ...(durableEffectContract && { durableEffectContract }),
       ...(durablePure && { durablePure: true }),
       ...(config.resilience && { resilience: config.resilience }),
       executeWhen: (config.executeWhen as TExecuteWhen) || EXECUTION_STRATEGIES.CONJUNCTION,
@@ -260,11 +267,16 @@ export function inferNodeTypeFromFunction(
   name: string,
   filePath: string
 ): TNodeTypeAST {
+  const durableGate = durableGateKind(fn);
+  const durableEffect = hasJsDocTag(fn, 'durableEffect');
+  const durablePure = hasJsDocTag(fn, 'durablePure');
+
   // Infer inputs from parameters
   const inputs: Record<string, TPortDefinition> = {};
   const params = fn.getParameters();
   const firstParamIsExecute = params.length > 0 && params[0].getName() === 'execute';
-  for (const param of params) {
+  const authoredInputParams = durableEffect ? params.slice(0, -1) : params;
+  for (const param of authoredInputParams) {
     const paramName = param.getName();
     const optional = param.isOptional() || param.hasInitializer();
     const rawTsType = param.getType().getText(param);
@@ -288,6 +300,13 @@ export function inferNodeTypeFromFunction(
     const typeArgs = returnType.getTypeArguments();
     if (typeArgs && typeArgs.length > 0) {
       returnType = typeArgs[0];
+    }
+  }
+
+  if (durableEffect) {
+    const effectResult = returnType.getProperty('result');
+    if (effectResult) {
+      returnType = effectResult.getTypeAtLocation(fn.getTypeResolutionNode());
     }
   }
 
@@ -343,11 +362,9 @@ export function inferNodeTypeFromFunction(
   const jsDocs = fn.getJsDocs();
   const jsDocText = jsDocs.map((doc: JSDoc) => doc.getText()).join('\n');
   const functionText = jsDocText ? `${jsDocText}\n${fn.getText()}` : fn.getText();
-  const durableGate = functionText.match(
-    /@durableGate\s+(approval|input|agent)\b/,
-  )?.[1] as 'approval' | 'input' | 'agent' | undefined;
-  const durableEffect = functionText.includes('@durableEffect');
-  const durablePure = functionText.includes('@durablePure');
+  const durableEffectContract = durableEffect
+    ? analyzeDurableEffectContract(fn, inputs, outputs)
+    : undefined;
 
   return {
     type: 'NodeType',
@@ -365,6 +382,7 @@ export function inferNodeTypeFromFunction(
     functionText,
     ...(durableGate && { durableGate }),
     ...(durableEffect && { durableEffect: true }),
+    ...(durableEffectContract && { durableEffectContract }),
     ...(durablePure && { durablePure: true }),
     ...(fn.getDeclarationKind?.() && {
       declarationKind: fn.getDeclarationKind!(),

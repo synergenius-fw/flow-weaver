@@ -222,6 +222,39 @@ describe('A2 durable runtime state machine', () => {
     expect(root.getRuntime().branches).toEqual([]);
   });
 
+  it('refuses ambiguous branch-descendant variables at convergence', () => {
+    const runtime = createWorkflowRuntime({
+      runId: 'ambiguous-branch-convergence',
+      workflowId: 'branchConvergence',
+    });
+    const rootAddress: ExecutionAddress = {
+      frames: runtime.frames,
+      scopes: [],
+      branches: [],
+      nodeId: 'assemble',
+      nodeType: 'assembleReport',
+      executionIndex: 0,
+    };
+    const inBranch = (arm: string): ExecutionAddress => ({
+      ...rootAddress,
+      branches: [
+        {
+          workflowId: 'branchConvergence',
+          frameDepth: 0,
+          nodeId: 'decision',
+          executionIndex: 0,
+          arm,
+        },
+      ],
+    });
+    runtime.durable.setVariable(inBranch('success'), 'report', 'success report');
+    runtime.durable.setVariable(inBranch('failure'), 'report', 'failure report');
+
+    expect(() => runtime.durable.getVariable(rootAddress, 'report')).toThrow(
+      /Ambiguous durable variable address for assemble\.report/,
+    );
+  });
+
   it('propagates and bounds dynamic workflow recursion depth', async () => {
     const invoked = vi.fn(async () => ({ value: 7 }));
     const runtime = createWorkflowRuntime({
