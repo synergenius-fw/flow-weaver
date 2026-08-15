@@ -48,6 +48,14 @@ function wireTypeFailure(
   path = '$',
   seen = new Set<unknown>(),
 ): string | undefined {
+  // Recursive JSON aliases revisit the union itself before reaching an object
+  // member. Fence the exact compiler type before decomposing unions/arrays so
+  // a valid recursive wire type terminates, while the first visit still checks
+  // every reachable member for unsafe values.
+  const identity = type.compilerType;
+  if (seen.has(identity)) return undefined;
+  seen.add(identity);
+
   const members = nonUndefinedUnionMembers(type);
   if (members.length === 0) return `${path} has no defined member`;
   if (members.length > 1 || type.isUnion()) {
@@ -101,10 +109,6 @@ function wireTypeFailure(
   ) {
     return `${path} is callable or constructable`;
   }
-
-  const identity = candidate.compilerType;
-  if (seen.has(identity)) return undefined;
-  seen.add(identity);
 
   const indexTypes = [
     candidate.getStringIndexType(),

@@ -71,4 +71,23 @@ describe('authored durable effect contracts', () => {
       }),
     ).resolves.toEqual(expect.objectContaining({ code: expect.any(String) }));
   });
+
+  it('accepts recursive JSON wire values without overflowing the contract checker', async () => {
+    const filePath = fixture('durable-effect-contract-recursive-json.ts');
+    const parsed = await parseWorkflow(filePath, {
+      workflowName: 'recursiveJsonEffect',
+    });
+    const effect = parsed.ast.nodeTypes.find(
+      (nodeType) => nodeType.functionName === 'retainRecursiveJson',
+    );
+
+    expect(effect?.durableEffectContract).toEqual({ valid: true, diagnostics: [] });
+    await expect(
+      compileWorkflow(filePath, {
+        inPlace: false,
+        write: false,
+        parse: { workflowName: 'recursiveJsonEffect' },
+      }),
+    ).resolves.toEqual(expect.objectContaining({ code: expect.any(String) }));
+  });
 });

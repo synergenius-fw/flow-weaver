@@ -1124,17 +1124,9 @@ export function decodeContinuation(
       ) {
         return true;
       }
-      if (
-        value.location.branches.length === 0 ||
-        address.branches.length === 0
-      ) {
-        return false;
-      }
-      return !isCanonicalAddressPrefix(
-        address.branches,
-        value.location.branches,
-      );
-    })
+      return false;
+    }) ||
+    hasConflictingBranchHistory([...value.state.completed, value.location])
   ) {
     return refusal(
       "wrong-graph",
@@ -1249,15 +1241,17 @@ export function decodeContinuation(
   };
 }
 
-function isCanonicalAddressPrefix(
-  candidate: readonly BranchAddress[],
-  current: readonly BranchAddress[],
-): boolean {
-  return (
-    candidate.length <= current.length &&
-    canonicalWireValue(candidate) ===
-      canonicalWireValue(current.slice(0, candidate.length))
-  );
+function hasConflictingBranchHistory(addresses: readonly ExecutionAddress[]): boolean {
+  const selected = new Map<string, string>();
+  for (const address of addresses) {
+    for (const branch of address.branches) {
+      const key = `${branch.frameDepth}\0${branch.workflowId}\0${branch.nodeId}\0${branch.executionIndex}`;
+      const prior = selected.get(key);
+      if (prior !== undefined && prior !== branch.arm) return true;
+      selected.set(key, branch.arm);
+    }
+  }
+  return false;
 }
 
 export function operationKey(runId: string, address: ExecutionAddress): string {

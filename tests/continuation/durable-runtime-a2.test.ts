@@ -682,6 +682,37 @@ describe('A2 durable runtime state machine', () => {
     ).toThrowError(expect.objectContaining({ name: 'StaleGateError' }));
   });
 
+  it('accepts a prior completed gate after its branch has converged before a later gate', () => {
+    const frame = [{ workflowId: 'convergedGates', invocation: 0 }] as const;
+    const address = (
+      nodeId: string,
+      nodeType: string,
+      branches: ExecutionAddress['branches'] = [],
+    ): ExecutionAddress => ({ frames: [...frame], scopes: [], branches, nodeId, nodeType, executionIndex: 0 });
+    const resolve = address('resolve', 'resolve');
+    const first = address('firstGate', 'approval', [{ frameDepth: 0, workflowId: 'convergedGates', nodeId: 'resolve', arm: 'success', executionIndex: 0 }]);
+    const selected = address('selected', 'selected');
+    const second = address('secondGate', 'approval', [{ frameDepth: 0, workflowId: 'convergedGates', nodeId: 'selected', arm: 'success', executionIndex: 0 }]);
+    const runId = 'converged-two-gate-run';
+    const gateId = durableGateId(runId, 'approval', second);
+    const graph = { nodes: [
+      { workflowId: 'convergedGates', nodeId: 'resolve', nodeType: 'resolve', executionOrder: 0, inputPorts: [], outputPorts: [], scopeNames: [], invokedWorkflows: [], branchArms: ['success', 'failure'], branchPath: [], predecessors: [] },
+      { workflowId: 'convergedGates', nodeId: 'firstGate', nodeType: 'approval', executionOrder: 1, inputPorts: [], outputPorts: [], scopeNames: [], invokedWorkflows: [], branchArms: [], branchPath: [{ nodeId: 'resolve', arm: 'success' }], predecessors: [], durableGate: 'approval' as const },
+      { workflowId: 'convergedGates', nodeId: 'selected', nodeType: 'selected', executionOrder: 2, inputPorts: [], outputPorts: [], scopeNames: [], invokedWorkflows: [], branchArms: ['success', 'failure'], branchPath: [], predecessors: [{ nodeId: 'resolve', branchPath: [] }] },
+      { workflowId: 'convergedGates', nodeId: 'secondGate', nodeType: 'approval', executionOrder: 3, inputPorts: [], outputPorts: [], scopeNames: [], invokedWorkflows: [], branchArms: [], branchPath: [{ nodeId: 'selected', arm: 'success' }], predecessors: [{ nodeId: 'selected', branchPath: [] }], durableGate: 'approval' as const },
+    ] };
+    const raw = createContinuationEnvelope({
+      runId, gateId, gateKind: 'approval', workflowId: 'convergedGates',
+      bundleDigest: `sha256:${'a'.repeat(64)}`, graphFingerprint: 'b'.repeat(64), location: second,
+      state: { completed: [resolve, first, selected], variables: [], nextBoundary: second }, receipts: [],
+    });
+
+    expect(decodeContinuation(raw, {
+      runId, workflowId: 'convergedGates', bundleDigest: `sha256:${'a'.repeat(64)}`,
+      graphFingerprint: 'b'.repeat(64), gateId, graph,
+    })).toMatchObject({ accepted: true });
+  });
+
   it('uses canonical address identity across property-reordered JSON roundtrips', () => {
     const address: ExecutionAddress = {
       frames: [{ workflowId: 'reordered', invocation: 0 }],
