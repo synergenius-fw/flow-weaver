@@ -18,8 +18,15 @@
  *
  * `checkPlan` sits between the two gates on purpose. An agent reply is
  * unchecked, non-deterministic JSON; validating it there is what lets every
- * node after it -- including the human gate -- work with values it can trust,
- * and routes a malformed reply to `onFailure` instead of throwing.
+ * node after it -- including the human gate -- work with values it can trust.
+ *
+ * Port design (see the export-interface topic): the invariant context --
+ * `incidentId` and `service`, which never change -- rides in one `ticket`
+ * object port that flows through the chain unchanged, instead of being
+ * re-declared and re-wired on every node. The values a node actually produces
+ * (`rootCause`, `planText`, `risk`) stay as typed scalar ports. Because every
+ * port name matches along the chain, `@path` wires all the data; the only
+ * `@connect` needed is the one genuine rename, `plan.agentResult -> check`.
  *
  * Drive it from an assistant over MCP:
  *   fw_run    { filePath: ".../incident-triage.ts",
@@ -31,12 +38,17 @@
  * `fw run` on the CLI refuses a gated workflow; see the durable-gates topic.
  */
 
+interface Ticket {
+  incidentId: string;
+  service: string;
+}
+
 // -- Nodes --
 
 /**
- * Turns the incident into the task the agent is given. Named under the gate's
- * own port names (`agentId`, `context`, `prompt`) so `@path` wires them
- * without an explicit `@connect`.
+ * Turns the incident into the task the agent is given, under the gate's own
+ * port names (`agentId`, `context`, `prompt`) so `@path` wires them. The
+ * invariant context is bundled into `ticket` and passed on whole.
  *
  * `@expression` counts as pure automatically -- the engine may re-run it
  * freely on resume, which is exactly right: same incident in, same task out.
@@ -53,15 +65,14 @@
  * @output agentId - Names the task the agent is being asked to do
  * @output context - What the agent should look at
  * @output prompt - What to do with it
- * @output incidentId - Echoed through for the report
- * @output service - Echoed through for the report
+ * @output ticket - Invariant context, carried through unchanged
  */
 export function frameIncident(
   incidentId: string,
   service: string,
   severity: string,
   symptom: string,
-): { agentId: string; context: object; prompt: string; incidentId: string; service: string } {
+): { agentId: string; context: object; prompt: string; ticket: Ticket } {
   return {
     agentId: 'incident-triage',
     // The context rides inside the gate payload, which is serialized into the
@@ -70,53 +81,38 @@ export function frameIncident(
     prompt:
       `Triage ${incidentId} on ${service} (${severity}): ${symptom}\n` +
       'Reply with { rootCause: string, steps: string[], risk: "low" | "medium" | "high" }.',
-    incidentId,
-    service,
+    ticket: { incidentId, service },
   };
 }
 
 /**
- * Validates the agent's reply before anything downstream trusts it.
+ * Validates the agent's reply before anything downstream trusts it, and
+ * forwards `ticket` on so the approval gate reads it from here -- its
+ * immediate predecessor -- rather than reaching back to `frame`, which would
+ * put `signoff` in two branch regions.
  *
  * `@expression`, so a malformed reply throws and aborts the run. That is the
- * right shape here: the node sits between two gates, and a normal-mode node
- * would put `signoff` inside two branch regions at once -- `plan`'s and this
- * node's -- which the durable validator rejects, because a node in more than
- * one region is stripped from all of them and so retains no branch path.
- *
- * Throwing keeps `plan` as the only branching node, and it is also the safer
- * behaviour: routing a bad reply onward would ask a human to approve an empty
- * plan.
+ * right shape here: routing a bad reply onward would ask a human to approve an
+ * empty plan.
  *
  * `agentResult` is whatever JSON the resolver chose, so it is read defensively.
  *
  * @flowWeaver nodeType
- * @durablePure
+ * @expression
  * @label Check Plan
  * @color green
  * @icon shield
  * @input agentResult - The unchecked reply from the agent gate
- * @input incidentId - Ticket, carried through so the gate needs no outside data
- * @output incidentId - Ticket, passed on to the approval gate
+ * @input ticket - Invariant context, forwarded
+ * @output ticket - Passed on to the approval gate
  * @output rootCause - Validated root cause
  * @output planText - The plan rendered for a human to read
  * @output risk - Validated risk level
  */
 export function checkPlan(
-  execute: boolean,
   agentResult: Record<string, unknown>,
-  incidentId: string,
-): {
-  onSuccess: boolean;
-  onFailure: boolean;
-  incidentId: string;
-  rootCause: string;
-  planText: string;
-  risk: string;
-} {
-  if (!execute)
-    return { onSuccess: false, onFailure: false, incidentId: '', rootCause: '', planText: '', risk: '' };
-
+  ticket: Ticket,
+): { ticket: Ticket; rootCause: string; planText: string; risk: string } {
   const rootCause = agentResult?.rootCause;
   const steps = agentResult?.steps;
   const risk = agentResult?.risk;
@@ -132,9 +128,7 @@ export function checkPlan(
   }
 
   return {
-    onSuccess: true,
-    onFailure: false,
-    incidentId,
+    ticket,
     rootCause,
     planText: (steps as string[]).map((s, i) => `${i + 1}. ${s}`).join('\n'),
     risk,
@@ -147,14 +141,15 @@ export function checkPlan(
  * The body is never called -- reaching it means the gate boundary was not
  * applied, which is why it throws rather than returning something plausible.
  * Normal mode is required: the resolution supplies `onSuccess`/`onFailure`
- * alongside the outputs.
+ * alongside the outputs. It forwards `ticket` so the record node reads it
+ * from here.
  *
  * @flowWeaver nodeType
  * @durableGate approval
  * @label Sign Off
  * @color orange
  * @icon verified
- * @input incidentId - Ticket being signed off
+ * @input ticket - Invariant context (shown to the approver)
  * @input rootCause - What the agent concluded
  * @input planText - The remediation steps, for the approver to read
  * @input risk - How risky the agent thinks the plan is
@@ -164,7 +159,7 @@ export function checkPlan(
  */
 export async function signOff(
   execute: boolean,
-  incidentId: string,
+  ticket: Ticket,
   rootCause: string,
   planText: string,
   risk: string,
@@ -176,7 +171,7 @@ export async function signOff(
   note: string;
 }> {
   throw new Error(
-    `durable approval gate must not execute: ${execute}:${incidentId}:${rootCause}:${planText}:${risk}`,
+    `durable approval gate must not execute: ${execute}:${ticket.incidentId}:${rootCause}:${planText}:${risk}`,
   );
 }
 
@@ -189,8 +184,7 @@ export async function signOff(
  * @durablePure
  * @label Record Outcome
  * @icon checkCircle
- * @input incidentId - Ticket this run was about
- * @input service - Service that was misbehaving
+ * @input ticket - The incident this run was about
  * @input rootCause - What the agent concluded
  * @input planText - The remediation steps
  * @input risk - Risk level of the plan
@@ -201,8 +195,7 @@ export async function signOff(
  * @output status - "remediating" when approved, "held" when refused
  */
 export function recordOutcome(
-  incidentId: string,
-  service: string,
+  ticket: Ticket,
   rootCause: string,
   planText: string,
   risk: string,
@@ -214,7 +207,7 @@ export function recordOutcome(
   return {
     status,
     outcome: [
-      `${incidentId} (${service}) -> ${status}`,
+      `${ticket.incidentId} (${ticket.service}) -> ${status}`,
       `root cause: ${rootCause}`,
       `risk: ${risk}`,
       'plan:',
@@ -227,27 +220,14 @@ export function recordOutcome(
 // -- Workflow --
 
 /**
- * Wiring notes, learned the hard way -- the two constraints that shape this graph:
- *
- * 1. A gate must sit in exactly ONE branch region. `durableBranchPaths`
- *    (src/api/durable-validation.ts) drops any node found in more than one
- *    region, and a node with no retained branch path plus any earlier
- *    branching node is reported as "after branch convergence". A node counts
- *    as branching merely by having an outgoing onSuccess/onFailure edge, so
- *    `frame.onSuccess -> plan.execute` is enough to create a region.
- *
- * 2. A gate must take no data from OUTSIDE its region. An incoming data edge
- *    from a node outside the region "promotes" the gate out of every region,
- *    with the same result. That is why `incidentId` is threaded through
- *    `check` rather than wired straight from `frame` to `signoff`.
- *
- * Hence: no control edge into `plan`, and `signoff` is driven by
- * `check.onSuccess` alone. Driving `check` and `signoff` from the same
- * `plan.onSuccess` makes them siblings rather than a sequence and fails at
- * resume with "$.executionIndex is not a plain wire value".
- *
- * The gate failure arms are left unwired on purpose: routing them to Exit
- * makes each gate a second region and reintroduces constraint 1.
+ * `@path` wires the name-matched chain up to `signoff`. `record` is wired
+ * explicitly instead of via `@path`, because it must run on BOTH gate arms:
+ * a rejection should still be recorded as "held". Driving it from
+ * `signoff.onSuccess` (what `@path` would do) would skip it on reject. So it
+ * takes the decision from `signoff` and the plan fields from `check` (which
+ * `record`, not being a gate itself, may read across the gate), and feeds
+ * Exit directly. `plan.onFailure` is left unwired on purpose: routing it to
+ * Exit would make `plan` a second branch region.
  *
  * @flowWeaver workflow
  * @param incidentId - Ticket to triage
@@ -261,30 +241,15 @@ export function recordOutcome(
  * @node check checkPlan [position: 130 0]
  * @node signoff signOff [suppress: "DESIGN_ASYNC_NO_ERROR_PATH"] [position: 320 0]
  * @node record recordOutcome [position: 520 0]
- * @connect Start.execute -> frame.execute
- * @connect Start.incidentId -> frame.incidentId
- * @connect Start.service -> frame.service
- * @connect Start.severity -> frame.severity
- * @connect Start.symptom -> frame.symptom
- * @connect frame.agentId -> plan.agentId
- * @connect frame.context -> plan.context
- * @connect frame.prompt -> plan.prompt
- * @connect plan.onSuccess -> check.execute
+ * @path Start -> frame -> plan -> check -> signoff -> Exit
  * @connect plan.agentResult -> check.agentResult
- * @connect check.onSuccess -> signoff.execute
- * @connect check.rootCause -> signoff.rootCause
- * @connect check.planText -> signoff.planText
- * @connect check.risk -> signoff.risk
- * @connect frame.incidentId -> check.incidentId
- * @connect check.incidentId -> signoff.incidentId
- * @connect frame.incidentId -> record.incidentId
- * @connect frame.service -> record.service
- * @connect check.rootCause -> record.rootCause
- * @connect check.planText -> record.planText
- * @connect check.risk -> record.risk
  * @connect signoff.approved -> record.approved
  * @connect signoff.approver -> record.approver
  * @connect signoff.note -> record.note
+ * @connect check.ticket -> record.ticket
+ * @connect check.rootCause -> record.rootCause
+ * @connect check.planText -> record.planText
+ * @connect check.risk -> record.risk
  * @connect record.outcome -> Exit.outcome
  * @connect record.status -> Exit.status
  * @position Start -450 0
@@ -293,6 +258,6 @@ export function recordOutcome(
 export async function incidentTriage(
   execute: boolean,
   params: { incidentId: string; service: string; severity: string; symptom: string },
-): Promise<{ onSuccess: boolean; onFailure: boolean; outcome: string; status: string; }> {
+): Promise<{ onSuccess: boolean; onFailure: boolean; outcome: string; status: string }> {
   throw new Error('generated body was not installed');
 }

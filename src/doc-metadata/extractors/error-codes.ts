@@ -496,6 +496,13 @@ export const VALIDATION_CODES: TValidationCodeDoc[] = [
     category: 'structural',
   },
   {
+    code: 'DURABLE_CLOSURE_INVALID',
+    severity: 'error',
+    title: 'Invalid Durable Closure',
+    description: 'A workflow with a durable gate breaks a durability rule (a gate/effect in more than one branch region or taking data from outside it, pull/lazy execution, an unclassified node, or a bad effect contract). Surfaced at author time; the coordinator would otherwise reject it only at run time.',
+    category: 'graph',
+  },
+  {
     code: 'SUPPRESS_UNKNOWN_CODE',
     severity: 'warning',
     title: 'Unknown Suppress Code',

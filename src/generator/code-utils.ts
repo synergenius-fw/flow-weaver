@@ -125,6 +125,24 @@ export function toValidIdentifier(nodeId: string): string {
 }
 
 /**
+ * Name the local that holds a node's call result.
+ *
+ * Normally `<nodeId>Result`, but that collides when a node's id plus "Result"
+ * happens to equal the node type it calls -- e.g. `@node rec recResult` emits
+ * `const recResult = recResult(...)`, whose `const` puts the function in the
+ * temporal dead zone and throws "Cannot access 'recResult' before
+ * initialization" at run time. Suffix the local in that case so it can never
+ * shadow the callee.
+ *
+ * @param safeNodeName - The node id, already a valid identifier
+ * @param functionName - The node type function this local's initializer calls
+ */
+export function nodeResultVar(safeNodeName: string, functionName: string): string {
+  const candidate = `${safeNodeName}Result`;
+  return candidate === functionName ? `${candidate}_` : candidate;
+}
+
+/**
  * Build a JavaScript expression that merges multiple source values based on strategy.
  *
  * @param sources - Array of source variable names
@@ -655,7 +673,7 @@ export function generateNodeWithExecutionContext(
     getCall,
     isAsync,
   });
-  const resultVar = `${safeNodeName}Result`;
+  const resultVar = nodeResultVar(safeNodeName, node.functionName);
   lines.push(`${indent}  const ${resultVar} = ${awaitPrefix}${node.functionName}(${args.join(', ')});`);
   Object.keys(node.outputs).forEach((portName) => {
     if (isSuccessPort(portName) || isFailurePort(portName)) return;

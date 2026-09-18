@@ -735,6 +735,7 @@ These rules detect common workflow design problems that compile fine but indicat
 | CROSS_SCOPE_CONNECTION | A connection links nodes that live in different scopes; nodes in different scopes cannot connect directly |
 | SCOPE_INCONSISTENT | An instance is listed in more than one scope; a node can belong to only one scope |
 | COERCE_ON_FUNCTION_PORT | An `as` coercion is applied to a FUNCTION port; function values cannot be meaningfully coerced |
+| DURABLE_CLOSURE_INVALID | A workflow with a durable gate breaks a durability rule (a gate/effect in more than one branch region or taking data from outside it, pull/lazy execution, an unclassified node, or a bad effect contract). Surfaced at author time; the coordinator would otherwise reject it only at run time. |
 <!-- AUTO:END error_summary_table -->
 
 ### Warnings (should review)

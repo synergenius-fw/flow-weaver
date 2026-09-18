@@ -1,7 +1,7 @@
 import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST, TPortDefinition } from '../ast/types';
 import { extractStartPorts } from '../ast/workflow-utils';
 import { mapToTypeScript } from '../type-mappings';
-import { buildDurableGatePayload, buildNodeArgumentsWithContext, toValidIdentifier } from './code-utils';
+import { buildDurableGatePayload, buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
 import {
   buildControlFlowGraph,
   computeParallelLevels,
@@ -1394,6 +1394,8 @@ function emitBranchNodeCallAndOutputs(params: {
     ctxVar,
     lines,
   } = params;
+  // Never let the result local shadow the function it calls (see nodeResultVar).
+  const resultVar = nodeResultVar(safeId, functionName);
 
   if (branchNode.durableGate) {
     const trailingRuntimeArgs = (branchNode.receivesAbortSignal ? 1 : 0) + (branchNode.receivesRuntime ? 1 : 0);
@@ -1402,29 +1404,29 @@ function emitBranchNodeCallAndOutputs(params: {
       trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
     );
     lines.push(
-      `${indent}  const ${safeId}Result = ${ctxVar}.resolveGate('${branchNode.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as WireValue) as any;`,
+      `${indent}  const ${resultVar} = ${ctxVar}.resolveGate('${branchNode.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as WireValue) as any;`,
     );
     Object.keys(branchNode.outputs).forEach((portName) => {
       const portConfig = branchNode.outputs[portName];
       if (portConfig.scope) return;
       lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${safeId}Result.${portName});`,
+        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
       );
     });
   } else if (branchNode.durableEffect) {
     lines.push(
-      `${indent}  const ${safeId}Result = await ${ctxVar}.executeEffect('${instanceId}', '${functionName}', ${safeId}Idx, async (__operationKey__) => ${functionName}(${[...argNames, '__operationKey__'].join(', ')}));`,
+      `${indent}  const ${resultVar} = await ${ctxVar}.executeEffect('${instanceId}', '${functionName}', ${safeId}Idx, async (__operationKey__) => ${functionName}(${[...argNames, '__operationKey__'].join(', ')}));`,
     );
     Object.keys(branchNode.outputs).forEach((portName) => {
       const portConfig = branchNode.outputs[portName];
       if (portConfig.scope) return;
       lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${safeId}Result.${portName});`,
+        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
       );
     });
   } else if (branchNode.expression) {
     // Expression branching node: call without execute, auto-set onSuccess/onFailure
-    lines.push(`${indent}  const ${safeId}Result = ${awaitKeyword}${functionName}(${argNames.join(', ')});`);
+    lines.push(`${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${argNames.join(', ')});`);
 
     // Determine data output ports (exclude control flow and scoped ports)
     const dataOutputPorts = Object.keys(branchNode.outputs).filter((portName) => {
@@ -1440,8 +1442,8 @@ function emitBranchNodeCallAndOutputs(params: {
       // Extract to unknown-typed variable to prevent TypeScript from narrowing
       // specific return types (e.g. boolean) to `never` in the typeof check
       const portName = dataOutputPorts[0];
-      const rawVar = `${safeId}Result_raw`;
-      lines.push(`${indent}  const ${rawVar}: unknown = ${safeId}Result;`);
+      const rawVar = `${resultVar}_raw`;
+      lines.push(`${indent}  const ${rawVar}: unknown = ${resultVar};`);
       lines.push(
         `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, typeof ${rawVar} === 'object' && ${rawVar} !== null && '${portName}' in ${rawVar} ? ${rawVar}.${portName} : ${rawVar});`,
       );
@@ -1449,7 +1451,7 @@ function emitBranchNodeCallAndOutputs(params: {
       // Multiple data outputs: destructure from object return
       dataOutputPorts.forEach((portName) => {
         lines.push(
-          `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${safeId}Result.${portName});`,
+          `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
         );
       });
     }
@@ -1467,15 +1469,15 @@ function emitBranchNodeCallAndOutputs(params: {
     const executeArg = argNames[0];
     const itemsArg = argNames[1];
     const scopeFnArg = argNames[2];
-    lines.push(`${indent}  let ${safeId}Result: { onSuccess: boolean; onFailure: boolean; results: unknown[] };`);
+    lines.push(`${indent}  let ${resultVar}: { onSuccess: boolean; onFailure: boolean; results: unknown[] };`);
     lines.push(`${indent}  if (!${executeArg}) {`);
-    lines.push(`${indent}    ${safeId}Result = { onSuccess: false, onFailure: false, results: [] };`);
+    lines.push(`${indent}    ${resultVar} = { onSuccess: false, onFailure: false, results: [] };`);
     lines.push(`${indent}  } else {`);
     lines.push(`${indent}    const __results: unknown[] = [];`);
     lines.push(`${indent}    for (const __item of ${itemsArg}) {`);
     lines.push(`${indent}      __results.push((${isAsync ? 'await ' : ''}${scopeFnArg}(true, __item)).processed);`);
     lines.push(`${indent}    }`);
-    lines.push(`${indent}    ${safeId}Result = { onSuccess: true, onFailure: false, results: __results };`);
+    lines.push(`${indent}    ${resultVar} = { onSuccess: true, onFailure: false, results: __results };`);
     lines.push(`${indent}  }`);
 
     // Set output ports from result
@@ -1483,7 +1485,7 @@ function emitBranchNodeCallAndOutputs(params: {
       const portConfig = branchNode.outputs[portName];
       if (portConfig.scope) return;
       lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${safeId}Result.${portName});`,
+        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
       );
     });
   } else if (branchNode.variant === 'IMPORTED_WORKFLOW' || branchNode.variant === 'WORKFLOW') {
@@ -1504,7 +1506,7 @@ function emitBranchNodeCallAndOutputs(params: {
 
     lines.push(`${indent}  const ${paramsVar} = ${paramsObj};`);
     lines.push(
-      `${indent}  const ${safeId}Result = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar}, ${ctxVar}.createNestedRuntime('${functionName}', '${instanceId}', ${safeId}Idx));`,
+      `${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar}, ${ctxVar}.createNestedRuntime('${functionName}', '${instanceId}', ${safeId}Idx));`,
     );
 
     // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
@@ -1513,13 +1515,13 @@ function emitBranchNodeCallAndOutputs(params: {
       const portConfig = branchNode.outputs[portName];
       if (portConfig.scope) return;
       lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${safeId}Result.${portName});`,
+        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
       );
     });
   } else if (branchNode.scope || (branchNode.scopes && branchNode.scopes.length > 0)) {
     // Scoped node call with positional arguments (uses _impl signature)
     // Scoped nodes have callback parameters that can't be passed via params object
-    lines.push(`${indent}  const ${safeId}Result = ${awaitKeyword}${functionName}(${argNames.join(', ')});`);
+    lines.push(`${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${argNames.join(', ')});`);
 
     // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
     // Skip scoped OUTPUT ports - they're parameters to scope functions, not return values
@@ -1527,13 +1529,13 @@ function emitBranchNodeCallAndOutputs(params: {
       const portConfig = branchNode.outputs[portName];
       if (portConfig.scope) return;
       lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${safeId}Result.${portName});`,
+        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
       );
     });
   } else {
     // Regular node call - always use positional args
     // In bundle mode we import _impl which takes (execute, ...positional_args)
-    lines.push(`${indent}  const ${safeId}Result = ${awaitKeyword}${functionName}(${argNames.join(', ')});`);
+    lines.push(`${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${argNames.join(', ')});`);
 
     // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
     // Skip scoped OUTPUT ports - they're parameters to scope functions, not return values
@@ -1541,7 +1543,7 @@ function emitBranchNodeCallAndOutputs(params: {
       const portConfig = branchNode.outputs[portName];
       if (portConfig.scope) return;
       lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${safeId}Result.${portName});`,
+        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
       );
     });
   }
@@ -1569,6 +1571,8 @@ function generateBranchingNodeCode(
   const instanceId = instance.id;
   const safeId = toValidIdentifier(instanceId);
   const functionName = branchNode.functionName;
+  // Must match the local emitted for this node (see nodeResultVar).
+  const resultVar = nodeResultVar(safeId, functionName);
 
   // Live debugging is separate from durable boundary restoration.
   const emitDebugHooks = !production;
@@ -1666,7 +1670,7 @@ function generateBranchingNodeCode(
   // Use onSuccess from result to determine control flow
   // For expression nodes, onSuccess is always true here (catch handles failure)
   if (trackSuccess) {
-    lines.push(`${indent}  ${safeId}_success = ${branchNode.expression ? 'true' : `${safeId}Result.onSuccess`};`);
+    lines.push(`${indent}  ${safeId}_success = ${branchNode.expression ? 'true' : `${resultVar}.onSuccess`};`);
   }
   lines.push(`${indent}} catch (error: unknown) {`);
   lines.push(`${indent}  if ((error as { code?: unknown })?.code === 'FLOW_WEAVER_DURABLE_GATE_YIELD') throw error;`);
@@ -1752,7 +1756,7 @@ function generateBranchingNodeCode(
     }
     const successVars = new Map(availableVars);
     Object.keys(branchNode.outputs).forEach((portName) => {
-      successVars.set(`${instanceId}.${portName}`, `${safeId}Result.${portName}`);
+      successVars.set(`${instanceId}.${portName}`, `${resultVar}.${portName}`);
     });
     // Sort success branch nodes topologically to ensure correct execution order
     const successInstanceIds = sortBranchNodesTopologically(region.successNodes, workflow);
@@ -1845,7 +1849,7 @@ function generateBranchingNodeCode(
       }
       const failureVars = new Map(availableVars);
       Object.keys(branchNode.outputs).forEach((portName) => {
-        failureVars.set(`${instanceId}.${portName}`, `${safeId}Result.${portName}`);
+        failureVars.set(`${instanceId}.${portName}`, `${resultVar}.${portName}`);
       });
       // Sort failure branch nodes topologically to ensure correct execution order
       const failureInstanceIds = sortBranchNodesTopologically(region.failureNodes, workflow);
@@ -2006,7 +2010,7 @@ function generatePullNodeWithContext(
     runtimeContextExpression: ctxVar,
   });
 
-  const resultVar = `${safeId}Result`;
+  const resultVar = nodeResultVar(safeId, functionName);
 
   // Check if this is a workflow call (IMPORTED_WORKFLOW or WORKFLOW variant)
   // Workflows use (execute, params) signature where params is an object
@@ -2313,7 +2317,7 @@ function generateNodeCallWithContext(
     production,
     abortSignalExpression: `${ctxVar}.getAbortSignal()`,
   });
-  const resultVar = `${safeId}Result`;
+  const resultVar = nodeResultVar(safeId, functionName);
   const awaitKeyword = nodeType.isAsync ? 'await ' : '';
 
   if (nodeType.durableGate) {

@@ -649,6 +649,15 @@ const errorMappers: Record<string, ErrorMapper> = {
     };
   },
 
+  DURABLE_CLOSURE_INVALID(error) {
+    return {
+      title: 'Invalid Durable Closure',
+      explanation: error.message,
+      fix: 'Keep each gate/effect in one branch region reading only from its immediate predecessor; thread shared values through the chain rather than wiring them around a gate. See the durable-gates topic.',
+      code: error.code,
+    };
+  },
+
   STUB_NODE(error) {
     const nodeName = error.node || 'unknown';
     const typeMatch = error.message.match(/stub type "([^"]+)"/);

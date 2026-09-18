@@ -1,6 +1,6 @@
 import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST } from '../ast';
 import { isSuccessPort, isFailurePort, isExecutePort } from '../constants';
-import { buildDurableGatePayload, buildNodeArgumentsWithContext, toValidIdentifier } from './code-utils';
+import { buildDurableGatePayload, buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
 import { performKahnsTopologicalSort, buildControlFlowGraph } from './control-flow';
 import { mapToTypeScript } from '../type-mappings';
 
@@ -217,6 +217,8 @@ export function generateScopeFunctionClosure(
       }
 
       const safeChildId = toValidIdentifier(child.id);
+      // Never let the result local shadow the node type it calls.
+      const childResultVar = nodeResultVar(safeChildId, child.nodeType);
       const awaitPrefix = isAsync ? 'await ' : '';
       const emitDebugHooks = !production;
       // Indentation increases when debug hooks wrap the child block
@@ -309,18 +311,18 @@ export function generateScopeFunctionClosure(
           trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
         );
         lines.push(
-          `${tryIndent}const ${safeChildId}Result = scopedCtx.resolveGate('${childNodeType.durableGate}', '${child.id}', '${child.nodeType}', ${safeChildId}Idx, ${buildDurableGatePayload(gateArgs)} as WireValue) as any;`,
+          `${tryIndent}const ${childResultVar} = scopedCtx.resolveGate('${childNodeType.durableGate}', '${child.id}', '${child.nodeType}', ${safeChildId}Idx, ${buildDurableGatePayload(gateArgs)} as WireValue) as any;`,
         );
       } else if (childNodeType.durableEffect) {
         lines.push(
-          `${tryIndent}const ${safeChildId}Result = await scopedCtx.executeEffect('${child.id}', '${child.nodeType}', ${safeChildId}Idx, async (__operationKey__) => ${child.nodeType}(${[...args, '__operationKey__'].join(', ')}));`,
+          `${tryIndent}const ${childResultVar} = await scopedCtx.executeEffect('${child.id}', '${child.nodeType}', ${safeChildId}Idx, async (__operationKey__) => ${child.nodeType}(${[...args, '__operationKey__'].join(', ')}));`,
         );
       } else if (childNodeType.expression) {
         // Expression nodes use original signature (positional args, no execute)
-        lines.push(`${tryIndent}const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`);
+        lines.push(`${tryIndent}const ${childResultVar} = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`);
       } else {
         // Regular node call with positional arguments
-        lines.push(`${tryIndent}const ${safeChildId}Result = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`);
+        lines.push(`${tryIndent}const ${childResultVar} = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`);
       }
 
       // Store outputs (including onSuccess/onFailure for debugging)
@@ -341,14 +343,14 @@ export function generateScopeFunctionClosure(
           } else {
             // Data outputs read from result object
             lines.push(
-              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`,
+              `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${childResultVar}.${outPort});`,
             );
           }
         });
       } else {
         Object.keys(childNodeType.outputs || {}).forEach((outPort) => {
           lines.push(
-            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${safeChildId}Result.${outPort});`,
+            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${outPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${childResultVar}.${outPort});`,
           );
         });
       }

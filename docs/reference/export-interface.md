@@ -73,6 +73,16 @@ With one `@output`, the whole return value is that port. With several, return an
 
 Only a normal-mode node (see Mandatory Ports) adds `execute: boolean` in front: `function processNode(execute: boolean, value: any, count: number)`.
 
+## Designing ports to avoid connection sprawl
+
+The rule: **scalar ports for what a node reads or transforms; one object port for context that flows through unchanged.** Getting this backwards is the main cause of over-wired workflows.
+
+- **Never create a relay port pair.** An `@input x` plus `@output x` that only passes a value through is a smell. If several nodes need the same unchanging values, carry them in one object port (`@output brief`) instead of re-declaring each scalar on every node. One shared `brief` object replaced eight `surface` re-wirings in one workflow.
+- **Keep port names identical along a chain** so `@path` wires the data with no `@connect`; reserve `@connect` for genuine renames.
+- **Gates read the fields they need with `[expr:]`** (`context="upstream.state.field"`) rather than through relay ports — but only from their **immediate predecessor**. Reaching past a gate to an earlier node puts the gate in two branch regions and is rejected (`DURABLE_CLOSURE_INVALID`). Thread the shared object through each gate so each reads from the one before it.
+
+The cost of an object port: type-checking is per-object, not per-field, and a consumer that declares a narrower shape than the producer emits gets an `OBJECT_TYPE_MISMATCH` warning (it still runs — structural subtyping). Keep the one or two values a node actually transforms as typed scalars so the checker still guards them.
+
 # Mandatory Ports
 
 Every node and workflow has these STEP ports, and `@path` wires them for every step:
