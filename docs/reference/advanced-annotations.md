@@ -421,6 +421,8 @@ An expression may read values the workflow already has: `Start.<param>` for a wo
 
 This replaces the node that would otherwise exist only to shape those three values, and it replaces a `@connect` whose only purpose is a rename (`[expr: draft="reviewer.agentResult"]`).
 
+**Keep expressions short.** A reference or a small reshape (`shape.top`, `{ path: Start.path }`, `Start.count + 1`) reads well inline. A multi-line string, a template literal with its own quotes, or anything you would want to format across lines belongs in a node function body, not in a `[expr:]` string, where JSDoc forces it onto one line with escaped quotes. If the value is a prompt or a paragraph, write a one-line `@expression` node that builds it — the template literal lives in real code — and let `@path` wire it. The expression form is for wiring and reshaping, not for authoring prose.
+
 Each reference is a real data dependency. The parser records it as a connection marked as derived from the expression, so execution order, cycle detection, `fw_query` (`data-deps`, `execution-order`), the diagram and the durable continuation all see the edge. A derived connection is not written as `@connect` (the expression implies it), is exempt from the one-source-per-input rule (one expression may read several ports) and from type checks (the expression transforms the value), and cannot be removed on its own; edit the expression.
 
 What is recognised, exactly:

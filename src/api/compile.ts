@@ -6,7 +6,7 @@ import { VERSION as COMPILER_VERSION } from '../generated-version';
 import { type GenerateOptions, generateCode } from './generate';
 import { type InPlaceGenerateOptions, generateInPlace } from './generate-in-place';
 import { type ParseOptions, parseWorkflow } from './parse';
-import { validateDurableClosure } from './durable-validation';
+import { validateDurableClosure, durableClassificationCount } from './durable-validation';
 import {
   applyDurableSourceProof,
   type DurableSourceProof,
@@ -189,11 +189,7 @@ export async function compileWorkflow(
               candidate.name === instance.nodeType ||
               candidate.functionName === instance.nodeType,
           );
-          const classifications = [
-            nodeType?.durableGate !== undefined,
-            nodeType?.durableEffect === true,
-            nodeType?.durablePure === true,
-          ].filter(Boolean).length;
+          const classifications = durableClassificationCount(nodeType);
           return classifications === 1
             ? undefined
             : `${workflow.functionName}.${instance.id} (${instance.nodeType}): ${classifications === 0 ? 'unclassified' : 'conflicting classifications'}`;

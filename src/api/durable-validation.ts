@@ -1,4 +1,4 @@
-import type { TWorkflowAST } from '../ast/types.js';
+import type { TWorkflowAST, TNodeTypeAST } from '../ast/types.js';
 import {
   RESERVED_PORT_NAMES,
   isExecutePort,
@@ -162,6 +162,29 @@ export function durableBranchPaths(
   return resolved;
 }
 
+/**
+ * The one durable classification a node type carries, for the closure rule.
+ *
+ * Exactly one of gate / effect / pure must hold. An `@expression` node is a
+ * pure input-to-output function by construction (no execute param, no
+ * onSuccess/onFailure, no way to signal a side effect), so it counts as pure
+ * without the `@durablePure` tag, matching how the code generator already
+ * treats any non-gate, non-effect node. An explicit tag still applies, and a
+ * node carrying two classifications is still a conflict.
+ *
+ * Both the closure validator and the compile-time check call this, so the
+ * rule cannot drift between them.
+ */
+export function durableClassificationCount(
+  nodeType: Pick<TNodeTypeAST, 'durableGate' | 'durableEffect' | 'durablePure' | 'expression'> | undefined,
+): number {
+  const isGate = nodeType?.durableGate !== undefined;
+  const isEffect = nodeType?.durableEffect === true;
+  const impliedPure = nodeType?.expression === true && !isGate && !isEffect;
+  const isPure = nodeType?.durablePure === true || impliedPure;
+  return [isGate, isEffect, isPure].filter(Boolean).length;
+}
+
 export function validateDurableClosure(
   root: TWorkflowAST,
   allWorkflows: readonly TWorkflowAST[] = [],
@@ -296,11 +319,7 @@ export function validateDurableClosure(
         );
       }
       if (!workflowsByName.has(instance.nodeType)) {
-        const classifications = [
-          nodeType?.durableGate !== undefined,
-          nodeType?.durableEffect === true,
-          nodeType?.durablePure === true,
-        ].filter(Boolean).length;
+        const classifications = durableClassificationCount(nodeType);
         if (classifications !== 1) {
           invalidClassifications.push(
             `${workflow.functionName}.${instance.id} (${instance.nodeType}): ${classifications === 0 ? 'unclassified' : 'conflicting classifications'}`,

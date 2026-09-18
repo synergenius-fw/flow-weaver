@@ -349,19 +349,34 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
       // Instance-level expression takes priority
       let expr = String(instancePortConfig!.expression);
 
-      // Upstream references (`Start.x`, `node.port`) inside the expression:
-      // the parser recorded each as a derived connection into this port.
-      // Fetch each referenced value the same way a connection is fetched,
-      // then substitute the local into the expression text.
-      const derived = connections.filter((conn) => conn.derived?.kind === 'expression');
-      if (derived.length > 0) {
-        const roots = new Set(derived.map((conn) => conn.from.node));
-        const refs = findExpressionReferences(expr, roots);
+      // Upstream references (`Start.x`, `node.port`) inside the expression are
+      // data dependencies of this port. The parser has already validated them
+      // and, unless a same-name @path edge covered the pair, flagged them
+      // `derived`. Either way the reference names a node whose value lives in
+      // the context, not a JavaScript variable in scope, so it must be fetched
+      // and substituted. Keying the substitution off the expression text (what
+      // is actually referenced) rather than off the `derived` flag is what
+      // makes a same-name reference like factor="cfg.factor" work: @path
+      // creates that connection as a plain edge, so it is never flagged
+      // derived, but the identifier still has to be fetched.
+      const referenceableRoots = new Set<string>(['Start', ...workflow.instances.map((inst) => inst.id)]);
+      const isRealPort = (root: string, port: string): boolean => {
+        if (isExecutePort(port) || isSuccessPort(port) || isFailurePort(port)) return false;
+        if (isStartNode(root)) return port in (workflow.startPorts ?? {});
+        const sourceInstance = workflow.instances.find((inst) => inst.id === root);
+        const sourceType = sourceInstance
+          ? workflow.nodeTypes.find((nt) => nt.name === sourceInstance.nodeType || nt.functionName === sourceInstance.nodeType)
+          : undefined;
+        return !!sourceType && port in sourceType.outputs;
+      };
+      const refs = findExpressionReferences(expr, referenceableRoots).filter(
+        (ref) => ref.root !== id && isRealPort(ref.root, ref.port),
+      );
+      if (refs.length > 0) {
         const fetched = new Map<string, string>();
         for (const ref of refs) {
           const key = `${ref.root}.${ref.port}`;
           if (fetched.has(key)) continue;
-          if (!derived.some((conn) => conn.from.node === ref.root && conn.from.port === ref.port)) continue;
           const refVar = `${safeId}_${portName}_ref_${toValidIdentifier(ref.root)}_${toValidIdentifier(ref.port)}`;
           const sourceIdx = isStartNode(ref.root) ? 'startIdx' : `${toValidIdentifier(ref.root)}Idx`;
           const isConstSource = isStartNode(ref.root) || ref.root === instanceParent;
@@ -373,9 +388,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
           );
           fetched.set(key, refVar);
         }
-        expr = rewriteExpressionReferences(expr, refs.filter((ref) => fetched.has(`${ref.root}.${ref.port}`)), (ref) =>
-          fetched.get(`${ref.root}.${ref.port}`)!,
-        );
+        expr = rewriteExpressionReferences(expr, refs, (ref) => fetched.get(`${ref.root}.${ref.port}`)!);
       }
 
       // Check if expression is a function (arrow or regular)

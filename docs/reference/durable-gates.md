@@ -10,7 +10,7 @@ A gate is a node where the workflow stops and hands control to something outside
 
 - Three gate kinds: `approval`, `input`, `agent`
 - A gate is compiler metadata, declared with `@durableGate`; it is never inferred
-- Every node in a workflow that contains a gate must carry exactly one classification: `@durablePure`, `@durableGate`, or `@durableEffect`
+- Every node in a workflow that contains a gate has exactly one classification: `@durableGate`, `@durableEffect`, or pure. An `@expression` node is pure automatically; a normal-mode pure node needs `@durablePure`
 - The engine keeps nothing after a yield — no Promise, timer, or process
 - Resume needs the exact run, bundle, graph, engine version, gate, and one resolution; anything else is refused
 - From an AI assistant, use `fw_run` / `fw_resume` (MCP); `fw run` on the CLI refuses gated workflows
@@ -28,13 +28,15 @@ The kind changes nothing mechanically. All three yield the same way and resume t
 
 ## Classifying every node
 
-Once a workflow's reachable closure contains a gate — including scoped children and workflows it invokes — the compiler requires each node to state what the engine may do with it on resume:
+Once a workflow's reachable closure contains a gate — including scoped children and workflows it invokes — every node must state what the engine may do with it on resume:
 
 | Tag | Meaning | On resume the engine will |
 |-----|---------|---------------------------|
 | `@durablePure` | No side effects; same inputs give same outputs | Re-run it freely |
 | `@durableGate kind` | The pause point | Substitute the supplied resolution; never call the body |
 | `@durableEffect` | Touches the outside world | Ask the effect adapter first; replay the receipt instead of running twice |
+
+An **`@expression` node needs no tag**: it is a pure input-to-output function by construction — no `execute` parameter, no `onSuccess`/`onFailure`, no way to signal a side effect — so it counts as `@durablePure`. Write `@durablePure` explicitly only on a normal-mode node that is pure. A node that touches the outside world must be `@durableEffect`, and the gate itself `@durableGate`, whatever its mode.
 
 Built-ins are pre-classified: `delay` and `invokeWorkflow` are `@durablePure`; `waitForEvent` is an `input` gate; `waitForAgent` is an `agent` gate.
 
@@ -49,13 +51,14 @@ Invalid: reviewFile.read (readTarget): unclassified
 
 ### A gated workflow
 
-Pure nodes are ordinary expression nodes with a `@durablePure` tag. The gate is the one node written in normal mode: its body is never called, the compiler substitutes the resolution for its return value, and it needs the `onSuccess`/`onFailure` shape that a resolution carries. With the ports named consistently, `@path` wires everything, the gate included.
+Pure nodes are ordinary `@expression` functions and need no durable tag. The gate is the one node written in normal mode: its body is never called, the compiler substitutes the resolution for its return value, and it needs the `onSuccess`/`onFailure` shape that a resolution carries. With the ports named consistently, `@path` wires everything, the gate included.
 
 ```typescript
 /**
+ * An @expression node counts as pure automatically; no @durablePure needed.
+ *
  * @flowWeaver nodeType
  * @expression
- * @durablePure
  * @input value - Value to prepare
  * @output value - Prepared value
  */
@@ -79,7 +82,6 @@ async function waitForApproval(execute: boolean, value: number): Promise<{ onSuc
 /**
  * @flowWeaver nodeType
  * @expression
- * @durablePure
  * @input value - Approved value
  * @output result - Final value
  */

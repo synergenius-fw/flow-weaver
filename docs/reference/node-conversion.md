@@ -32,39 +32,55 @@ Does it need to return error data alongside the failure signal?
 
 Expression nodes are pure functions. The runtime auto-manages `execute`, `onSuccess`, and `onFailure`. The function signature and body are NOT modified -- only a JSDoc block is added.
 
-## Rules
+## The minimal form
 
-- Add a JSDoc block directly above the function
-- First line: `@flowWeaver nodeType`
-- Second line: `@expression`
-- Add `@input <name>` for each function parameter
-- Add `@output` based on the return type:
-  - **Primitive or array return** -> single `@output result`
-  - **Object return** `{ a: T, b: U }` -> one `@output` per property (`@output a`, `@output b`)
-  - **void return** -> no `@output` tags (only onSuccess/onFailure, which are automatic)
-- Add `@label` with a human-readable name (PascalCase -> spaced words)
-- Do NOT add `execute` parameter to the function
-- Do NOT change the return type
-- Do NOT modify the function body
-
-## Example -- single output (primitive return)
+**Ports are inferred from the signature.** For a fully-typed function, `@flowWeaver nodeType @expression` is the whole annotation. Each parameter becomes an input port; each returned object property becomes an output port (a primitive or array return is one port, `result`). You do not restate them.
 
 ```typescript
-// BEFORE
+/** @flowWeaver nodeType @expression */
+function add(a: number, b: number): number {
+  return a + b;
+}
+```
+
+That is a complete node type: two inputs `a` and `b`, one output `result`. Write this first. Reach for the tags below only when you want something inference cannot give you.
+
+## When to add tags
+
+`@input`, `@output` and `@label` are **optional overrides**, not a transcription step. Add one only for a specific reason:
+
+- `@input name - Description` / `@output name - Description` — to document a port. The description is the only thing here inference cannot produce.
+- `@input [name]` / `@input [name=default]` — to mark an input optional or give it a default.
+- `@input name [order:N]` / `@output name [order:N]` — to fix the visual order of ports in the editor.
+- `@label Display Name` — to set the node's display name in diagrams (defaults to the function name).
+- `@color`, `@icon`, `@tag` — visual customization.
+
+Rules for the function itself, always:
+
+- Do NOT add an `execute` parameter.
+- Do NOT change the return type.
+- Do NOT modify the body.
+
+A function used as a node with **no** `@flowWeaver nodeType` annotation at all still works (ports are inferred) but raises `INFERRED_NODE_TYPE`, because the parser cannot tell it was meant to be a node. Adding the one-line annotation silences that; adding port tags is not what it asks for.
+
+## Example -- ports inferred, description added
+
+```typescript
+// Minimal: ports inferred
+/** @flowWeaver nodeType @expression */
 function add(a: number, b: number): number {
   return a + b;
 }
 
-// AFTER
+// With descriptions, when they earn their place
 /**
  * @flowWeaver nodeType
  * @expression
- * @label Add
- * @input a
- * @input b
- * @output result
+ * @input a - First addend
+ * @input b - Second addend
+ * @output result - The sum
  */
-function add(a: number, b: number): number {
+function addDocumented(a: number, b: number): number {
   return a + b;
 }
 ```
@@ -82,10 +98,6 @@ function splitName(fullName: string): { first: string; last: string } {
 /**
  * @flowWeaver nodeType
  * @expression
- * @label Split Name
- * @input fullName
- * @output first
- * @output last
  */
 function splitName(fullName: string): { first: string; last: string } {
   const [first, ...rest] = fullName.split(' ');
@@ -93,44 +105,28 @@ function splitName(fullName: string): { first: string; last: string } {
 }
 ```
 
+Inputs: `fullName`. Outputs: `first`, `last`, one per returned property.
+
 ## Example -- async expression (returns a value)
 
-```typescript
-// BEFORE
-async function fetchData(url: string): Promise<Data> {
-  const res = await fetch(url);
-  return await res.json();
-}
+An `async` function is an expression node like any other; its resolved value maps to the outputs.
 
-// AFTER
-/**
- * @flowWeaver nodeType
- * @expression
- * @label Fetch Data
- * @input url
- * @output result
- */
+```typescript
+/** @flowWeaver nodeType @expression */
 async function fetchData(url: string): Promise<Data> {
   const res = await fetch(url);
   return await res.json();
 }
 ```
 
+Input: `url`. Output: `result` (the single non-object return).
+
 ## Example -- void return (side-effect expression)
 
-```typescript
-// BEFORE
-function logMessage(message: string): void {
-  console.log(message);
-}
+A void return has no data outputs, only the automatic `onSuccess`/`onFailure`.
 
-// AFTER
-/**
- * @flowWeaver nodeType
- * @expression
- * @label Log Message
- * @input message
- */
+```typescript
+/** @flowWeaver nodeType @expression */
 function logMessage(message: string): void {
   console.log(message);
 }
@@ -285,11 +281,13 @@ The compiler fully supports async expression nodes -- `await`, async detection, 
 
 # Output Mapping Rules
 
+This is what the compiler infers from the return type; you do not write these `@output` tags unless you are overriding.
+
 ## Expression mode
 
-- Primitive/array return -> single `@output result`
-- Object return `{ a, b }` -> one `@output` per property
-- void -> no `@output` tags
+- Primitive/array return -> single output `result`
+- Object return `{ a, b }` -> one output per property
+- void -> no data outputs
 
 ## Normal mode
 
