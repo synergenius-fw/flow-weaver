@@ -355,7 +355,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_context',
     description:
-      'Generate a self-contained LLM context bundle with Flow Weaver documentation, grammar, and conventions. Use preset="core" for basics, "authoring" for writing workflows, "full" for everything, "ops" for CLI/deployment reference.',
+      'Flow Weaver orientation as markdown: the model, the tool loop, which topic answers which task, and every other topic with its size. preset="core" (default) is that map; "authoring", "ops" and "full" bundle whole references.',
     category: 'query',
     params: [
       {
@@ -387,7 +387,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'includeGrammar',
         type: 'boolean',
-        description: 'Include EBNF annotation grammar section',
+        description: 'Append the generated EBNF grammar (~3 KB); off by default',
         required: false,
       },
     ],

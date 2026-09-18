@@ -303,7 +303,7 @@ export function searchDocs(query: string): SearchResult[] {
         const matchingLines: string[] = [];
         for (const line of lines) {
           if (queryTerms.some((term) => line.toLowerCase().includes(term))) {
-            matchingLines.push(line.trim());
+            matchingLines.push(collapseTableRow(line).trim());
             if (matchingLines.length >= 3) break;
           }
         }
@@ -378,6 +378,29 @@ export function getPackDocTopics(): typeof packDocTopics {
 // Compact mode builder
 // ---------------------------------------------------------------------------
 
+/**
+ * Removes the padding that aligns a markdown table for human readers: runs of
+ * spaces inside a row, and the long dash runs of a separator row. Rendering
+ * is unchanged and nothing is lost; in the error-codes topic that padding was
+ * 42% of the file.
+ */
+export function collapseTableRow(line: string): string {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('|')) return line;
+  if (/^[|\s:-]+$/.test(trimmed)) return trimmed.replace(/-{4,}/g, '---').replace(/ {2,}/g, ' ');
+  return trimmed.replace(/ {2,}/g, ' ');
+}
+
+const LIST_ITEM_RE = /^\s*(?:[-*]\s|\d+\.\s|>\s?)/;
+
+/**
+ * Compact mode keeps the parts of a topic an assistant can use as reference
+ * — headings, tables, lists, blockquotes, code — and drops explanatory prose.
+ * A list item that wraps onto indented continuation lines is kept whole;
+ * cutting it at the first line used to leave half sentences. A heading whose
+ * section was entirely prose is dropped rather than left dangling, because
+ * an empty heading tells the reader nothing and costs a line.
+ */
 function buildCompactContent(frontmatter: Frontmatter, body: string): string {
   const lines = body.split('\n');
   const output: string[] = [];
@@ -388,12 +411,13 @@ function buildCompactContent(frontmatter: Frontmatter, body: string): string {
   output.push('');
 
   let inCodeBlock = false;
-  let inTable = false;
+  let inListItem = false;
 
   for (const line of lines) {
     // Track code blocks - always include them
     if (line.trimStart().startsWith('```')) {
       inCodeBlock = !inCodeBlock;
+      inListItem = false;
       output.push(line);
       continue;
     }
@@ -402,30 +426,72 @@ function buildCompactContent(frontmatter: Frontmatter, body: string): string {
       continue;
     }
 
+    if (line.trim() === '') {
+      inListItem = false;
+      continue;
+    }
+
     // Include headings
     if (line.match(/^#{1,6}\s/)) {
+      inListItem = false;
       output.push('');
       output.push(line);
       continue;
     }
 
-    // Include table content
+    // Include table content, without its alignment padding
     if (line.trim().startsWith('|')) {
-      inTable = true;
-      output.push(line);
+      inListItem = false;
+      output.push(collapseTableRow(line));
       continue;
-    }
-    if (inTable && !line.trim().startsWith('|')) {
-      inTable = false;
     }
 
-    // Skip prose paragraphs (non-empty lines that aren't headings, code, or tables)
-    // But keep list items and blockquotes
-    if (line.trim().startsWith('- ') || line.trim().startsWith('* ') || line.trim().startsWith('> ')) {
+    // Keep list items and blockquotes, with the indented lines a wrapped
+    // item continues on.
+    if (LIST_ITEM_RE.test(line)) {
+      inListItem = true;
       output.push(line);
       continue;
     }
+    if (inListItem && /^\s{2,}\S/.test(line)) {
+      output.push(line);
+      continue;
+    }
+
+    // Anything else is a prose paragraph: skipped.
+    inListItem = false;
   }
 
-  return output.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return dropEmptyHeadings(output).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
+ * Drops a heading that has nothing under it: the next non-blank line is a
+ * heading of the same or a higher level, or there is no next line. Runs
+ * bottom-up so a parent whose only children were dropped goes too. Headings
+ * inside code blocks are not headings.
+ */
+function dropEmptyHeadings(lines: string[]): string[] {
+  const headingLevel: Array<number | null> = [];
+  let inCode = false;
+  for (const line of lines) {
+    if (line.trimStart().startsWith('```')) {
+      inCode = !inCode;
+      headingLevel.push(null);
+      continue;
+    }
+    const m = !inCode ? line.match(/^(#{1,6})\s/) : null;
+    headingLevel.push(m ? m[1].length : null);
+  }
+
+  const keep = lines.map(() => true);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const level = headingLevel[i];
+    if (level === null) continue;
+    let j = i + 1;
+    while (j < lines.length && (!keep[j] || lines[j].trim() === '')) j++;
+    const next = j < lines.length ? headingLevel[j] : null;
+    if (j >= lines.length || (next !== null && next <= level)) keep[i] = false;
+  }
+  return lines.filter((_, i) => keep[i]);
 }

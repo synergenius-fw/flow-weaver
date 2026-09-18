@@ -9,7 +9,7 @@ keywords: [mcp, tools, fw_run, fw_resume, fw_runs, fw_docs, fw_validate, fw_desc
 `fw mcp-server --stdio` exposes 35 tools and one prompt. Every tool definition is sent to the assistant on every turn — about 27 KB, or roughly 6,700 tokens, before any work happens — so this page also says which tools to reach for and which results are large.
 
 - Register with an editor: `fw mcp-setup` (Claude Code, Cursor, VS Code, Windsurf, Codex, OpenClaw)
-- Every result is JSON: `{ success: true, data }` or `{ success: false, error: { code, message } }`
+- Every result is JSON: `{ success: true, data }` or `{ success: false, error: { code, message } }`. The one exception is `fw_context`, whose result is the bundle itself as markdown
 - Paths are resolved from the server's working directory; pass absolute paths when in doubt
 - Sizes below are measured on a 3-node workflow; they scale with the workflow
 
@@ -20,7 +20,7 @@ keywords: [mcp, tools, fw_run, fw_resume, fw_runs, fw_docs, fw_validate, fw_desc
 | Is this file valid? | `fw_validate` (~100 B) | `fw_describe` |
 | What nodes and connections are there? | `fw_query` with one query type (~300 B) | `fw_describe` (~2.3 KB) |
 | Show the graph in chat | `fw_diagram` with `format: "ascii-compact"` (~240 B) | The default `svg` (markup, not readable) |
-| Look something up | `fw_docs` with `action: "search"`, then `read` with `compact: true` | `fw_context` (48–67 KB) |
+| Look something up | `fw_docs` with `action: "search"`, then `read` with `compact: true` | The `authoring`, `ops` and `full` presets of `fw_context` (75–195 KB) |
 | Run a workflow | `fw_run`, then `fw_resume` if it pauses | `fw_workflow_run` (returns the raw continuation) |
 | Change structure | `fw_modify_batch` for several edits, `fw_modify` for one | Rewriting the annotations by hand |
 | Create a workflow | Write the file (node type functions + workflow stub), then `fw_validate` | A generator; there is none |
@@ -91,7 +91,7 @@ See [Debugging](debugging).
 | Tool | Arguments | Returns | Notes |
 |------|-----------|---------|-------|
 | `fw_docs` | `action` (`list` / `read` / `search`), `topic?`, `query?`, `compact?` | Topics, one topic, or matching sections | `list` returns slug, name and description (~4 KB for 20 topics). `search` returns sections with excerpts; `read` with `compact: true` drops prose and keeps headings, tables, lists, and code. Topics declared by installed packs are included |
-| `fw_context` | `preset?`, `profile?`, `topics?`, `addTopics?`, `includeGrammar?` | The orientation bundle, ending with every other topic and its size | `core` (default) is the `orientation` topic plus the EBNF grammar and the on-demand topic list, ~10 KB — the intended session start. `authoring` ≈ 75 KB, `ops` ≈ 130 KB, `full` ≈ 220 KB bundle whole references; prefer reading single topics with `fw_docs` |
+| `fw_context` | `preset?`, `profile?`, `topics?`, `addTopics?`, `includeGrammar?` | The orientation bundle as markdown, ending with every other topic and its size | `core` (default) is the `orientation` topic plus the on-demand topic list, ~6 KB — the intended session start. `authoring` ≈ 75 KB, `ops` ≈ 100 KB, `full` ≈ 195 KB bundle whole references; prefer reading single topics with `fw_docs`. `includeGrammar` appends the generated EBNF (~3 KB), which `jsdoc-grammar` already covers |
 | `fw_list_resources` | `type?` | Icons, colors, tags (~3.7 KB) | Same content as the Available Colors / Icons sections of [Advanced Annotations](advanced-annotations) |
 | `fw_doctor` | `directory?` | Environment checks | Node version, config, dependencies |
 | `fw_market_search` | `query`, `limit?`, `registryUrl?` | npm packages tagged as Flow Weaver packs | |

@@ -116,25 +116,15 @@ ports. Workflows instantiate nodes and connect their ports. Start and Exit are
 implicit boundary nodes. The compiler handles execution ordering, type checking,
 and code generation.`;
 
-// Short on purpose: this text is in every bundle, on every session start.
-// The tool loop and the topic map live in the orientation topic; this only
-// says how to use the bundle.
-function buildAssistantPreamble(): string {
-  return `# Flow Weaver Context
+// Three lines on purpose: this text is in every bundle, on every session
+// start. The tool loop, the topic map, and the loading instructions all live
+// in the orientation topic and the closing topic list; repeating them here
+// only costs tokens.
+const ASSISTANT_PREAMBLE = `# Flow Weaver Context
 
-You have Flow Weaver MCP tools (fw_ prefix). Write the workflow file
-yourself (node type functions plus a @flowWeaver workflow stub), then work
-through the tools: fw_validate after every change, fw_modify to restructure,
-fw_query or fw_describe to inspect, fw_diagram (ascii-compact) to show,
-fw_run and fw_resume to execute.
-
-This bundle is a starting point, not the whole reference. When a task needs
-more, search first — fw_docs(action="search", query="...") — then read one
-topic: fw_docs(action="read", topic="<slug>", compact=true). The list at the
-end names every topic not included here, with its size.
-
-File conventions: .ts files; node ids and workflow function names in camelCase.`;
-}
+You have the Flow Weaver MCP tools (fw_ prefix). This bundle is the map, not
+the reference; the list at the end names every topic it leaves out, with its
+size and how to load one.`;
 
 // ---------------------------------------------------------------------------
 // Topic resolution
@@ -175,6 +165,76 @@ function buildGrammarSection(): string {
 }
 
 // ---------------------------------------------------------------------------
+// Topic body preparation
+// ---------------------------------------------------------------------------
+
+/**
+ * Sections that only point at other topics. A topic read on its own needs
+ * them; a bundle does not, because it ends with its own list of every topic
+ * and the orientation map says when to read each. In `full` they added a
+ * fourth copy of the topic list.
+ */
+const NAVIGATION_HEADINGS = /^(related topics|next steps|see also)$/i;
+
+const HEADING_RE = /^(#{1,6})\s+(.*?)\s*$/;
+
+/**
+ * Turns a compact topic into a section body that nests under the bundle's
+ * own `## <name>` heading: the compact header and the doc's own H1 go (they
+ * would repeat the section heading), trailing navigation sections go, and
+ * every remaining heading moves one level down. Code blocks are untouched.
+ */
+function prepareTopicBody(content: string): string {
+  let lines = content.split('\n');
+
+  // Compact mode prepends "# Name\ndescription\n"; drop that header.
+  if (lines[0]?.startsWith('# ')) {
+    let startLine = 1;
+    if (lines.length > 1 && lines[1].trim() && !lines[1].startsWith('#')) {
+      startLine = 2;
+    }
+    lines = lines.slice(startLine);
+  }
+  while (lines.length > 0 && lines[0].trim() === '') lines.shift();
+
+  // Most docs open with their own H1, which would become a second heading
+  // with the same text directly under ours.
+  if (lines[0]?.match(/^#\s/)) {
+    lines.shift();
+    while (lines.length > 0 && lines[0].trim() === '') lines.shift();
+  }
+
+  const out: string[] = [];
+  let inCode = false;
+  let skipUntilLevel = 0; // >0 while inside a navigation section being dropped
+  for (const line of lines) {
+    if (line.trimStart().startsWith('```')) {
+      inCode = !inCode;
+      if (skipUntilLevel === 0) out.push(line);
+      continue;
+    }
+    if (inCode) {
+      if (skipUntilLevel === 0) out.push(line);
+      continue;
+    }
+    const heading = line.match(HEADING_RE);
+    if (heading) {
+      const level = heading[1].length;
+      if (skipUntilLevel > 0 && level <= skipUntilLevel) skipUntilLevel = 0;
+      if (skipUntilLevel === 0 && NAVIGATION_HEADINGS.test(heading[2])) {
+        skipUntilLevel = level;
+        continue;
+      }
+      if (skipUntilLevel === 0) out.push('#' + line);
+      continue;
+    }
+    if (skipUntilLevel === 0) out.push(line);
+  }
+
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// ---------------------------------------------------------------------------
 // Main builder
 // ---------------------------------------------------------------------------
 
@@ -188,11 +248,7 @@ export function buildContext(options: ContextOptions = {}): ContextResult {
   const sections: string[] = [];
 
   // Preamble
-  if (profile === 'standalone') {
-    sections.push(STANDALONE_PREAMBLE);
-  } else {
-    sections.push(buildAssistantPreamble());
-  }
+  sections.push(profile === 'standalone' ? STANDALONE_PREAMBLE : ASSISTANT_PREAMBLE);
 
   // Grammar
   if (includeGrammar) {
@@ -206,37 +262,8 @@ export function buildContext(options: ContextOptions = {}): ContextResult {
   for (const slug of topicSlugs) {
     const doc = readTopic(slug, true);
     if (!doc) continue;
-
-    // Compact mode prepends "# Name\ndescription\n" which duplicates our heading.
-    // Strip the leading heading block so we can use our own consistent ## heading.
-    // Then bump all remaining headings down one level so they nest under our ##.
-    let body = doc.content;
-    if (body.startsWith('# ')) {
-      const lines = body.split('\n');
-      // Skip the "# Name" line and the description line that follows it
-      let startLine = 1;
-      if (lines.length > 1 && lines[1].trim() && !lines[1].startsWith('#')) {
-        startLine = 2;
-      }
-      body = lines.slice(startLine).join('\n').replace(/^\n+/, '');
-    }
-    // Bump all headings down one level (# -> ##, ## -> ###, etc.)
-    // so they nest under our ## topic heading. Only transform outside code blocks.
-    const bodyLines = body.split('\n');
-    let inCode = false;
-    for (let i = 0; i < bodyLines.length; i++) {
-      if (bodyLines[i].trimStart().startsWith('```')) {
-        inCode = !inCode;
-        continue;
-      }
-      if (!inCode && bodyLines[i].match(/^#{1,5}\s/)) {
-        bodyLines[i] = '##' + bodyLines[i];
-      }
-    }
-    body = bodyLines.join('\n');
-
     const heading = doc.name || slug;
-    sections.push(`## ${heading}\n\n${body}`);
+    sections.push(`## ${heading}\n\n${prepareTopicBody(doc.content)}`);
     topicCount++;
     includedSlugs.push(slug);
   }
@@ -256,13 +283,22 @@ export function buildContext(options: ContextOptions = {}): ContextResult {
     .sort((a, b) => a.slug.localeCompare(b.slug));
 
   if (availableTopics.length > 0) {
-    const rows = availableTopics.map(
-      (t) => `- \`${t.slug}\` — ${t.description} (${Math.max(1, Math.round(t.compactBytes / 1024))} KB)`,
-    );
+    // A topic the bundle already points at by slug (the orientation map does
+    // this for nearly all of them) needs only its size here; repeating its
+    // description was a second copy of the map. A topic nothing mentions —
+    // a pack topic, or one the map skips — keeps its description.
+    const bundleText = sections.join('\n');
+    const rows = availableTopics.map((t) => {
+      const size = `${Math.max(1, Math.round(t.compactBytes / 1024))} KB`;
+      const mentioned = bundleText.includes(`\`${t.slug}\``);
+      return mentioned || !t.description
+        ? `- \`${t.slug}\` (${size})`
+        : `- \`${t.slug}\` — ${t.description} (${size})`;
+    });
     const how =
       profile === 'assistant'
-        ? 'Load one with fw_docs(action="read", topic="<slug>", compact=true); search first with fw_docs(action="search", query="...").'
-        : 'Load one with `fw docs <slug> --compact`, or fw_docs(action="read", topic="<slug>", compact=true) once MCP tools are connected.';
+        ? 'Read one with fw_docs(action="read", topic="<slug>", compact=true); search first with fw_docs(action="search", query="...").'
+        : 'Read one with `fw docs <slug> --compact`, or fw_docs(action="read", topic="<slug>", compact=true) once MCP tools are connected.';
     sections.push(`## Other topics, load on demand\n\n${how}\n\n${rows.join('\n')}`);
   }
 

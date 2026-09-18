@@ -45,6 +45,7 @@ Flow Weaver compiles workflows you describe with JSDoc annotations into plain Ty
 | Compile to something other than TypeScript | `compilation` |
 | Export, serve over HTTP, or generate OpenAPI | `deployment` |
 | Install, write, or extend a pack | `marketplace` |
+| Decide which values are scalar ports and which travel as one object | `export-interface` |
 | Loop over items with scoped ports | `export-interface` |
 | Turn an existing function into a node | `node-conversion` |
 | Reuse a fragment across workflows | `patterns` |

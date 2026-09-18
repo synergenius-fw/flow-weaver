@@ -210,7 +210,7 @@ const myNode = (execute: boolean, input: string) => { ... };
 | Field         | Value                                                                                                                                    |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Severity      | Error                                                                                                                                    |
-| Meaning       | A node instance in the `@instance` annotation uses a reserved ID (`Start` or `Exit`).                                                    |
+| Meaning       | A `@node` declaration uses a reserved instance ID (`Start` or `Exit`).                                                                   |
 | Common Causes | Explicitly naming an instance `Start` or `Exit` in the workflow annotations.                                                             |
 | Fix           | Choose a different instance ID. The names `Start` and `Exit` are reserved for the implicit entry and exit nodes that every workflow has. |
 
@@ -222,12 +222,18 @@ const myNode = (execute: boolean, input: string) => { ... };
 
 ```typescript
 // BAD: Using reserved names
-/** @instance Start: MyNodeType */ // RESERVED_INSTANCE_ID
-/** @instance Exit: MyNodeType */ // RESERVED_INSTANCE_ID
+/**
+ * @flowWeaver workflow
+ * @node Start myNodeType   // RESERVED_INSTANCE_ID
+ * @node Exit myNodeType    // RESERVED_INSTANCE_ID
+ */
 
 // GOOD: Non-reserved names
-/** @instance startHandler: MyNodeType */
-/** @instance exitHandler: MyNodeType */
+/**
+ * @flowWeaver workflow
+ * @node startHandler myNodeType
+ * @node exitHandler myNodeType
+ */
 ```
 
 ---
@@ -329,7 +335,7 @@ const myNode = (execute: boolean, input: string) => { ... };
 | Severity      | Error                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Meaning       | A non-STEP input port has more than one incoming connection. Only one value can be received per data input.                                                                                                                                                                                                                                                                                                    |
 | Common Causes | Two different nodes both send data to the same input port. Accidentally duplicating a `@connect` line with a different source.                                                                                                                                                                                                                                                                                 |
-| Fix           | Remove one of the connections. If you need to merge multiple values, either: (1) use a merge node that combines the values and outputs a single result, (2) add a `@mergeStrategy` tag to the port (FIRST, LAST, COLLECT, MERGE, CONCAT), or (3) use separate input ports on the target node. Note: STEP ports (like `execute`) can have multiple connections because control flow supports multiple triggers. |
+| Fix           | Remove one of the connections. If you need to merge multiple values, either: (1) use a merge node that combines the values and outputs a single result, (2) declare a merge strategy on the input port, `@input items [mergeStrategy:COLLECT]` (FIRST, LAST, COLLECT, MERGE, CONCAT), or (3) use separate input ports on the target node. Note: STEP ports (like `execute`) can have multiple connections because control flow supports multiple triggers. |
 
 > **Beginner explanation:** Two different nodes are sending data to the same input port. Each data input can only receive from one source.
 >
@@ -359,7 +365,7 @@ const myNode = (execute: boolean, input: string) => { ... };
 | Severity      | Warning                                                                                                                                                                                          |
 | Meaning       | Both ports are OBJECT type but their TypeScript structural types (`tsType`) differ.                                                                                                              |
 | Common Causes | Connecting a port that outputs `{ name: string }` to a port that expects `{ id: number, name: string }`. Different interfaces that happen to share the OBJECT data type.                         |
-| Fix           | Verify that the source object shape is compatible with what the target expects. If the structures are intentionally different, ensure the target handles missing or extra properties gracefully. |
+| Fix           | Verify that the source object shape is compatible with what the target expects. If the structures are intentionally different, ensure the target handles missing or extra properties gracefully. Expected when a shared context object is threaded through a chain and a consumer declares only the fields it reads: the run is unaffected (structural subtyping), so widen the consumer's type to match the producer, or accept the warning. See the port-design rule in `export-interface`. |
 
 #### LOSSY_TYPE_COERCION (warning)
 
@@ -419,8 +425,8 @@ const myNode = (execute: boolean, input: string) => { ... };
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Severity      | Error                                                                                                                                                                               |
 | Meaning       | An instance references a node type function name that does not exist in the workflow.                                                                                               |
-| Common Causes | Typo in the `@instance` annotation. The node type function was renamed or removed. The node type is defined in a different file that is not imported.                               |
-| Fix           | Correct the node type name in the `@instance` annotation. The validator suggests the closest match. Ensure the node type function is defined in the same file or properly imported. |
+| Common Causes | Typo in the `@node` line. The node type function was renamed or removed. The node type is defined in a different file that is not imported.                                        |
+| Fix           | Correct the node type name in the `@node` line. The validator suggests the closest match. Ensure the node type function is defined in the same file or properly imported.          |
 
 > **Beginner explanation:** Did you forget to add `@flowWeaver nodeType` above the function? The `@node` annotation references a function name that the compiler cannot find. Either the function does not exist, is misspelled, or is missing its `@flowWeaver nodeType` annotation.
 >
@@ -432,8 +438,8 @@ const myNode = (execute: boolean, input: string) => { ... };
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Severity      | Error                                                                                                                                                       |
 | Meaning       | A connection references a node name that appears in the graph but has no corresponding instance definition.                                                 |
-| Common Causes | A `@connect` annotation references a node that was never declared with `@instance`. The instance annotation was removed but connections still reference it. |
-| Fix           | Either add the missing `@instance` annotation or remove/update the connections that reference the undefined node.                                           |
+| Common Causes | A `@connect` or `@path` line references a node that was never declared with `@node`. The `@node` line was removed but connections still reference it.       |
+| Fix           | Either add the missing `@node <id> <nodeType>` line or remove/update the connections that reference the undefined node.                                     |
 
 #### MISSING_REQUIRED_INPUT
 
@@ -442,30 +448,37 @@ const myNode = (execute: boolean, input: string) => { ... };
 | Severity      | Error                                                                                                                                                                                                                                                                   |
 | Meaning       | A required input port on a node instance has no connection, no default value, no expression, and is not optional. This will cause a runtime error.                                                                                                                      |
 | Common Causes | Adding a new required input to a node type without connecting it in the workflow. Removing a connection without adding a default or marking the port optional.                                                                                                          |
-| Fix           | Either: (1) connect a source to the missing input port, (2) add a `@default` value to the port in the node type definition, (3) add an `@expression` to compute the value, (4) mark the port as `@optional`, or (5) add an instance-level expression via `@portConfig`. |
+| Fix           | Either: (1) connect a source to the missing input port, or put the node on a `@path` after a step that outputs the same name, (2) give the port a default in the node type, `@input [apiKey="default-key"]`, (3) mark it optional, `@input [apiKey]`, or (4) bind it on the instance with an expression, `@node fetcher fetchData [expr: apiKey="process.env.API_KEY"]`. |
 
 **Example:**
 
 ```typescript
 // BAD: "apiKey" has no connection or default
-/** @flowWeaver nodeType */
-const fetchData = (execute: boolean, url: string, apiKey: string) => { ... };
+/**
+ * @flowWeaver nodeType
+ * @input url - URL to fetch
+ * @input apiKey - Bearer token
+ */
+function fetchData(execute: boolean, url: string, apiKey: string) { ... }
 
-/** @instance fetcher: fetchData */
-/** @connect Start.url -> fetcher.url */
+/**
+ * @flowWeaver workflow
+ * @node fetcher fetchData
+ * @connect Start.url -> fetcher.url
+ */
 // Missing: nothing connects to fetcher.apiKey -> MISSING_REQUIRED_INPUT
 
-// Fix option 1: Add connection
-/** @connect Start.apiKey -> fetcher.apiKey */
+// Fix option 1: connect it (or name the Start param apiKey and put fetcher on a @path)
+// @connect Start.apiKey -> fetcher.apiKey
 
-// Fix option 2: Add default in node type
-// @default apiKey "default-key"
+// Fix option 2: default in the node type
+// @input [apiKey="default-key"] - Bearer token
 
-// Fix option 3: Add expression in node type
-// @expression apiKey process.env.API_KEY
+// Fix option 3: optional in the node type
+// @input [apiKey] - Bearer token
 
-// Fix option 4: Make optional
-// @optional apiKey
+// Fix option 4: expression on the instance
+// @node fetcher fetchData [expr: apiKey="process.env.API_KEY"]
 ```
 
 ---
@@ -504,7 +517,7 @@ const fetchData = (execute: boolean, url: string, apiKey: string) => { ... };
 | Severity      | Warning                                                                                                         |
 | Meaning       | A node instance is defined but has no connections (not referenced by any `@connect`).                           |
 | Common Causes | Dead code from a previous iteration. Forgetting to wire up a newly added node.                                  |
-| Fix           | Either connect the node into the workflow graph or remove the `@instance` annotation if it is no longer needed. |
+| Fix           | Either connect the node into the workflow graph or remove its `@node` line if it is no longer needed.           |
 
 #### NO_START_CONNECTIONS (warning)
 
@@ -633,7 +646,7 @@ These codes apply to AI agent workflows that use LLM, tool-executor, and memory 
 
 ### Design Quality Rules
 
-These rules detect common workflow design problems that compile fine but indicate poor structure. All are warnings or info-level, suppressible with `@suppress`.
+These rules detect common workflow design problems that compile fine but indicate poor structure. All are warnings or info-level, suppressible per instance with `[suppress: "CODE"]` on the `@node` line.
 
 #### DESIGN_ASYNC_NO_ERROR_PATH (warning)
 

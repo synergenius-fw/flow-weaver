@@ -40,9 +40,37 @@ describe('buildContext', () => {
     const result = buildContext({ profile: 'assistant' });
     expect(result.profile).toBe('assistant');
     expect(result.content).toContain('# Flow Weaver Context');
-    expect(result.content).toContain('fw_docs');
-    expect(result.content).toContain('Write the workflow file');
+    expect(result.content).toContain('fw_docs(action="read"');
     expect(result.content).not.toContain('fw_create_model');
+  });
+
+  it('says how to load a topic once, in the closing list', () => {
+    const result = buildContext({ profile: 'assistant', includeGrammar: false });
+    const occurrences = result.content.split('fw_docs(action="read"').length - 1;
+    expect(occurrences).toBe(1);
+  });
+
+  it('does not repeat a topic heading as the first heading of its body', () => {
+    const result = buildContext({ topics: ['orientation', 'concepts'], includeGrammar: false });
+    expect(result.content).toContain('## Orientation\n\n### The model');
+    expect(result.content).not.toContain('### Orientation');
+    expect(result.content).not.toMatch(/## Flow Weaver Concepts\n+### Flow Weaver Concepts/);
+  });
+
+  it('drops navigation sections from bundled topics', () => {
+    const result = buildContext({ topics: ['tutorial', 'concepts'], includeGrammar: false });
+    expect(result.content).not.toMatch(/^#+ Related Topics$/m);
+    expect(result.content).not.toMatch(/^#+ Next Steps$/m);
+    // The rest of the topic is intact
+    expect(result.content).toContain('Complete Example');
+  });
+
+  it('lists a topic the bundle already points at by size only', () => {
+    const result = buildContext({ profile: 'assistant', includeGrammar: false });
+    // The orientation map names jsdoc-grammar, so the closing list does not describe it again
+    expect(result.content).toMatch(/^- `jsdoc-grammar` \(\d+ KB\)$/m);
+    // visual-reference is named nowhere in the bundle, so it keeps its description
+    expect(result.content).toMatch(/^- `visual-reference` — .+ \(\d+ KB\)$/m);
   });
 
   it('includes EBNF grammar by default', () => {

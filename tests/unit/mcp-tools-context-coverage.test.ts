@@ -19,18 +19,20 @@ type ToolHandler = (args: Record<string, unknown>) => Promise<{
 }>;
 
 let toolHandler: ToolHandler;
+let toolSchema: Record<string, { parse: (v: unknown) => unknown }>;
 
 function createMockMcp(): McpServer {
   return {
     tool: vi.fn().mockImplementation(
-      (_name: string, _desc: string, _schema: unknown, handler: ToolHandler) => {
+      (_name: string, _desc: string, schema: Record<string, { parse: (v: unknown) => unknown }>, handler: ToolHandler) => {
+        toolSchema = schema;
         toolHandler = handler;
       }
     ),
   } as unknown as McpServer;
 }
 
-function parseResult(result: { content: Array<{ type: string; text: string }> }) {
+function parseError(result: { content: Array<{ type: string; text: string }> }) {
   return JSON.parse(result.content[0].text);
 }
 
@@ -52,23 +54,27 @@ describe('fw_context tool', () => {
     );
   });
 
-  it('calls buildContext with default args and returns success', async () => {
+  it('returns the bundle as plain markdown, not a JSON envelope', async () => {
     const result = await toolHandler({
       preset: 'core',
       profile: 'assistant',
-      includeGrammar: true,
+      includeGrammar: false,
     });
-    const parsed = parseResult(result);
-    expect(parsed.success).toBe(true);
-    expect(parsed.data.topicCount).toBe(3);
-    expect(parsed.data.content).toBe('# Context bundle');
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toBe('# Context bundle');
     expect(buildContext).toHaveBeenCalledWith({
       preset: 'core',
       profile: 'assistant',
       topics: undefined,
       addTopics: undefined,
-      includeGrammar: true,
+      includeGrammar: false,
     });
+  });
+
+  it('defaults to core, assistant, and no grammar', () => {
+    expect(toolSchema.preset.parse(undefined)).toBe('core');
+    expect(toolSchema.profile.parse(undefined)).toBe('assistant');
+    expect(toolSchema.includeGrammar.parse(undefined)).toBe(false);
   });
 
   it('splits comma-separated topics string', async () => {
@@ -95,6 +101,7 @@ describe('fw_context tool', () => {
     expect(buildContext).toHaveBeenCalledWith(
       expect.objectContaining({
         addTopics: ['cli', 'agents'],
+        includeGrammar: true,
       })
     );
   });
@@ -108,7 +115,8 @@ describe('fw_context tool', () => {
       profile: 'assistant',
       includeGrammar: true,
     });
-    const parsed = parseResult(result);
+    const parsed = parseError(result);
+    expect(result.isError).toBe(true);
     expect(parsed.success).toBe(false);
     expect(parsed.error.code).toBe('CONTEXT_ERROR');
     expect(parsed.error.message).toContain('bad preset');
@@ -123,7 +131,7 @@ describe('fw_context tool', () => {
       profile: 'assistant',
       includeGrammar: true,
     });
-    const parsed = parseResult(result);
+    const parsed = parseError(result);
     expect(parsed.success).toBe(false);
     expect(parsed.error.message).toContain('string error');
   });

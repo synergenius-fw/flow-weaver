@@ -124,16 +124,19 @@ scopeClause    ::= "scope:" IDENTIFIER
 metadataBracket ::= "[" metadataAttr { "," metadataAttr } "]"
 
 metadataAttr   ::= orderAttr | placementAttr | typeAttr | mergeStrategyAttr
+                 | hiddenAttr | customAttr
 
 orderAttr      ::= "order:" INTEGER
 placementAttr  ::= "placement:" ( "TOP" | "BOTTOM" )
 typeAttr       ::= "type:" IDENTIFIER
 mergeStrategyAttr ::= "mergeStrategy:" IDENTIFIER
+hiddenAttr     ::= "hidden"
+customAttr     ::= IDENTIFIER ":" ( STRING | INTEGER | IDENTIFIER | "true" | "false" )
 
 descriptionClause ::= "-" TEXT
 ```
 
-Metadata brackets can be repeated: `@input name [order:1] [placement:TOP]`
+Metadata brackets can be repeated: `@input name [order:1] [placement:TOP]`. `hidden` keeps the port out of diagrams (`@output onFailure [hidden]`). Any other `key:value` pair is custom metadata, kept on the port for packs and tag handlers to read.
 
 ---
 
@@ -271,13 +274,15 @@ Multiple attribute brackets are allowed (zero or more). Attributes can be split 
 ## @connect
 
 ```
-connectTag     ::= "@connect" portRef "->" portRef
+connectTag     ::= "@connect" portRef "->" portRef [ "as" coerceType ]
 
 portRef        ::= IDENTIFIER "." IDENTIFIER [ ":" IDENTIFIER ]
                  | IDENTIFIER ":" IDENTIFIER
+
+coerceType     ::= "string" | "number" | "boolean" | "json" | "object"
 ```
 
-The first form is the standard `node.port` reference with optional `:scope` suffix. The second form is a pseudo-node reference: `secret:NAME` resolves to `{ nodeId: "secret:NAME", portName: "value" }`.
+The first form is the standard `node.port` reference with optional `:scope` suffix. The second form is a pseudo-node reference: `secret:NAME` resolves to `{ nodeId: "secret:NAME", portName: "value" }`. The optional `as` clause converts the value on that connection: `string`, `number` and `boolean` apply the JavaScript constructor, `json` serialises with `JSON.stringify`, `object` parses with `JSON.parse`. Without it the compiler coerces only anything→STRING and BOOLEAN→NUMBER on its own. `COERCE_TYPE_MISMATCH` reports an `as` type the target port cannot take.
 
 **Examples:**
 

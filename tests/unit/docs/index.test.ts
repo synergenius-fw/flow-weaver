@@ -524,6 +524,104 @@ Regular paragraph to be stripped.
     expect(result.content).not.toContain('Regular paragraph to be stripped.');
   });
 
+  it('removes table alignment padding without changing cell text', () => {
+    const doc = `---
+name: Padded
+description: Padded table
+keywords: [padded]
+---
+# Padded
+
+| Field         | Value                                   |
+| ------------- | --------------------------------------- |
+| Severity      | Error                                   |
+| Fix           | Use \`@input [name]\` to make it optional |
+`;
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue(doc);
+
+    const result = readTopic('padded', true)!;
+    expect(result.content).toContain('| Field | Value |');
+    expect(result.content).toContain('| --- | --- |');
+    expect(result.content).toContain('| Fix | Use `@input [name]` to make it optional |');
+    expect(result.content).not.toMatch(/ {2,}/);
+  });
+
+  it('keeps the continuation lines of a wrapped list item', () => {
+    const doc = `---
+name: Wrapped
+description: Wrapped list
+keywords: [wrapped]
+---
+# Wrapped
+
+- Drive the second gate from one predecessor, and leave the
+  first gate without an incoming control edge
+- Short item
+
+Prose that follows the list is still dropped.
+`;
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue(doc);
+
+    const result = readTopic('wrapped', true)!;
+    expect(result.content).toContain('leave the\n  first gate without an incoming control edge\n- Short item');
+    expect(result.content).not.toContain('Prose that follows');
+  });
+
+  it('keeps numbered list items', () => {
+    const doc = `---
+name: Steps
+description: Numbered
+keywords: [steps]
+---
+# Steps
+
+1. Parse the annotations
+2. Validate the graph
+`;
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue(doc);
+
+    const result = readTopic('steps', true)!;
+    expect(result.content).toContain('1. Parse the annotations\n2. Validate the graph');
+  });
+
+  it('drops a heading whose section was only prose, and its emptied parent', () => {
+    const doc = `---
+name: Sparse
+description: Sparse headings
+keywords: [sparse]
+---
+# Sparse
+
+## Kept
+
+- an item
+
+## Parent of empty
+
+### Only prose
+
+Explanation that compact mode drops.
+
+## Also kept
+
+\`\`\`
+# not a heading
+\`\`\`
+`;
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.readFileSync).mockReturnValue(doc);
+
+    const result = readTopic('sparse', true)!;
+    expect(result.content).toContain('## Kept');
+    expect(result.content).toContain('## Also kept');
+    expect(result.content).toContain('# not a heading');
+    expect(result.content).not.toContain('### Only prose');
+    expect(result.content).not.toContain('## Parent of empty');
+  });
+
   it('collapses multiple blank lines', () => {
     const docWithBlanks = `---
 name: Sparse

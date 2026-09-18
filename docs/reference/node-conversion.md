@@ -107,6 +107,33 @@ function splitName(fullName: string): { first: string; last: string } {
 
 Inputs: `fullName`. Outputs: `first`, `last`, one per returned property.
 
+## Choosing scalar ports or one object port
+
+Every returned property becomes its own port, so the shape you give the return type is the shape of the graph.
+
+- **The rule: scalar ports for what the node reads or transforms; one object port for context that flows through unchanged.** Getting this backwards is the main cause of over-wired workflows.
+- `splitName` above is right to return two scalars, because both are values it computes. The mistake is carrying values through a node that never touches them:
+
+```typescript
+// SPRAWL -- surface, tenant and locale are re-declared on every node
+// in the chain purely to reach the one at the end that needs them.
+/** @flowWeaver nodeType @expression */
+function score(record: Record, surface: string, tenant: string, locale: string) {
+  return { score: rate(record), surface, tenant, locale };
+}
+
+// BETTER -- the unchanging context travels as one object port
+/** @flowWeaver nodeType @expression */
+function score(record: Record, brief: Brief) {
+  return { score: rate(record), brief };
+}
+```
+
+- **An `@input x` plus `@output x` that only passes a value through is a relay pair**, and a sign the value belongs in the shared object instead.
+- **Keep the port name identical along the chain** (`brief` in and `brief` out at every step) so `@path` wires it with no `@connect`.
+- **The cost: type-checking is per-object, not per-field.** A consumer declaring a narrower shape than the producer emits gets an `OBJECT_TYPE_MISMATCH` warning and still runs. Keep the one or two values the node actually transforms as typed scalars so the checker still guards them.
+- Full treatment, including how durable gates read fields off the object with `[expr:]`, is in `export-interface`.
+
 ## Example -- async expression (returns a value)
 
 An `async` function is an expression node like any other; its resolved value maps to the outputs.
