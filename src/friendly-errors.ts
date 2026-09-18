@@ -649,6 +649,47 @@ const errorMappers: Record<string, ErrorMapper> = {
     };
   },
 
+  STUB_NODE(error) {
+    const nodeName = error.node || 'unknown';
+    const typeMatch = error.message.match(/stub type "([^"]+)"/);
+    const typeName = typeMatch?.[1] || 'unknown';
+    return {
+      title: 'Stub Node',
+      explanation: `Node '${nodeName}' uses node type '${typeName}', which has no implementation yet. The workflow cannot run until it is implemented.`,
+      fix: `Implement '${typeName}' as a @flowWeaver nodeType function, or validate with draft mode (fw_validate draft: true) to check structure while it is still a stub.`,
+      code: error.code,
+    };
+  },
+
+  CROSS_SCOPE_CONNECTION(error) {
+    const ends = error.message.match(/from "([^"]+)" \(in ([^)]+)\) to "([^"]+)" \(in ([^)]+)\)/);
+    const from = ends?.[1] || 'unknown';
+    const fromCtx = ends?.[2] || 'one scope';
+    const to = ends?.[3] || 'unknown';
+    const toCtx = ends?.[4] || 'another scope';
+    return {
+      title: 'Cross-Scope Connection',
+      explanation: `Connection '${from}' → '${to}' links a node in ${fromCtx} to a node in ${toCtx}. Nodes in different scopes cannot connect directly; data crosses a scope boundary only through the scope owner's scoped ports.`,
+      fix: `Route the value through the scope owner: connect '${from}' to one of the owner's scoped output ports, and read it inside the scope from there. Or move both nodes into the same scope.`,
+      code: error.code,
+    };
+  },
+
+  SUPPRESS_UNKNOWN_CODE(error) {
+    const nodeName = error.node || 'unknown';
+    const codeMatch = error.message.match(/suppresses '([^']+)'/);
+    const bad = codeMatch?.[1] || 'unknown';
+    const corrected = bad.includes(',')
+      ? `[suppress: ${bad.split(',').map((c) => `"${c.trim()}"`).join(', ')}]`
+      : `[suppress: "<CODE>"]`;
+    return {
+      title: 'Unknown Suppress Code',
+      explanation: `Node '${nodeName}' lists '${bad}' in [suppress: ...], but that cannot be a validation code, so nothing is suppressed. Codes are separate string literals, not one comma-joined string.`,
+      fix: `Write each code as its own string: ${corrected}.`,
+      code: error.code,
+    };
+  },
+
   COERCE_TYPE_MISMATCH(error) {
     const coerceMatch = error.message.match(/`as (\w+)`/);
     const coerceType = coerceMatch?.[1] || 'unknown';

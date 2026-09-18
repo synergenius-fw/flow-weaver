@@ -19,7 +19,7 @@ import type {
   TNodeTypeAST,
   TNodeInstanceAST,
 } from '../ast/types';
-import { detectNodeRole, findNodesByRole } from './agent-detection';
+import { detectNodeRole, detectNodeRoleSignal, findNodesByRole } from './agent-detection';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -108,8 +108,12 @@ export const missingErrorHandlerRule: TValidationRule = {
 
       const failureConnections = getOutgoing(ast, instance.id, 'onFailure');
       if (failureConnections.length === 0) {
+        // A role that rests only on @color is a cosmetic guess, not evidence
+        // that the node calls a model. Colour is documented as a weak,
+        // tie-breaking signal, so it must not block the build on its own.
+        const colourOnly = detectNodeRoleSignal(nodeType)?.signal === 'color';
         errors.push({
-          type: 'error',
+          type: colourOnly ? 'warning' : 'error',
           code: 'AGENT_LLM_MISSING_ERROR_HANDLER',
           message: `LLM node '${instance.id}' has no error handler — its onFailure port is unconnected. LLM calls can fail due to rate limits, timeouts, or model errors.`,
           node: instance.id,

@@ -113,8 +113,52 @@ The compiler refuses these rather than guessing:
 - Parallel lanes — a gated closure is generated sequentially, so a yield never has a sibling still running
 - Scope callbacks (`@scope` node types) — the scope owner might call back concurrently
 - Pull or lazy nodes — an optional predecessor cannot form a complete prefix
-- A gate **or an effect** after branch convergence — the selected arm is no longer in the address, so the boundary cannot be replayed. Put the boundary inside each arm instead, as two instances if both arms need it
+- A gate **or an effect** that does not sit in exactly one branch region — the selected arm is no longer in the address, so the boundary cannot be replayed
 - A gate or effect inside an active branch is fine; the branch path is retained
+
+#### Exactly one branch region
+
+This is the restriction authors hit most, and it bites in graphs that contain no
+visible "convergence" at all, so it is worth stating mechanically.
+
+A node **branches** as soon as it has an outgoing `onSuccess` or `onFailure`
+connection — including the ordinary `a.onSuccess -> b.execute` used to sequence
+two steps. Each branching node owns a **region**: the nodes reachable along its
+arms. A boundary is refused when it ends up with no retained branch path, which
+happens two ways:
+
+1. **It sits in more than one region.** A node found in several regions is
+   dropped from all of them. A linear chain `frame -> plan(gate) -> check ->
+   signoff(gate)` is enough: if both `frame` and `plan` branch, `signoff` is in
+   two regions and is refused.
+2. **It takes data from outside its region.** Any incoming *data* connection
+   from a node outside the region promotes the boundary out of every region.
+   `Start` and `execute` ports are exempt. A gate reading a value wired straight
+   from a pre-gate node is refused for this reason, even though the graph is a
+   straight line.
+
+Both produce the same message:
+
+```
+Durable boundaries after branch convergence are not supported because the
+continuation must retain an independently active branch path. Invalid: wf.signoff
+```
+
+To satisfy it:
+
+- Drive the second gate from **one** predecessor's `onSuccess`, and leave the
+  first gate without an incoming control edge if that would add a second region
+- Thread values the gate needs **through** the nodes in its own region instead
+  of wiring them around, so it has no external data dependency
+- Leave gate failure arms unwired unless you need them; wiring `gate.onFailure
+  -> Exit.onFailure` makes that gate a second region
+
+Sequencing matters too: driving two nodes from the same `gate.onSuccess` makes
+them siblings rather than a sequence, which fails at resume with
+`$.executionIndex is not a plain wire value`.
+
+A worked example with both rules applied is in
+`use-cases/resume-yield-demo/incident-triage.ts`.
 
 ## What happens at a gate
 

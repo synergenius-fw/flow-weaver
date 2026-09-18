@@ -63,8 +63,36 @@ export function validateWorkflow(
     }
   }
   if (suppressMap.size > 0) {
+    // Report suppress entries that cannot be a code at all, before filtering.
+    // The grammar is `suppress: "CODE", "CODE2"` -- comma-separated string
+    // literals -- so the common mistake `suppress: "CODE,CODE2"` is one string
+    // naming nothing and silently suppresses neither code. Only structurally
+    // impossible entries are reported: the documented catalogue is not a
+    // complete list of every code the validator emits, so matching against it
+    // would flag legitimate codes.
+    for (const [nodeId, codes] of suppressMap) {
+      for (const code of codes) {
+        if (/^[A-Z][A-Z0-9_]*$/.test(code)) continue;
+        const hint = code.includes(',')
+          ? ` Codes are separate strings: [suppress: ${code
+              .split(',')
+              .map((c) => `"${c.trim()}"`)
+              .join(', ')}].`
+          : '';
+        result.warnings.push({
+          type: 'warning',
+          code: 'SUPPRESS_UNKNOWN_CODE',
+          message: `Node '${nodeId}' suppresses '${code}', which cannot be a validation code, so it suppresses nothing.${hint}`,
+          node: nodeId,
+        });
+      }
+    }
+
     result.warnings = result.warnings.filter((w) => {
       if (!w.node) return true;
+      // A SUPPRESS_UNKNOWN_CODE warning must not be silenced by the very list
+      // it is reporting on.
+      if (w.code === 'SUPPRESS_UNKNOWN_CODE') return true;
       const codes = suppressMap.get(w.node);
       return !codes || !codes.has(w.code);
     });

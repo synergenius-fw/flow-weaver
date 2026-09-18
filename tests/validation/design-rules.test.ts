@@ -644,6 +644,43 @@ describe('DESIGN_PULL_CANDIDATE', () => {
     expect(errors[0].node).toBe('cfg');
   });
 
+  it('should not trigger in a workflow containing a durable gate', () => {
+    // A gated workflow cannot use pullExecution at all -- the durable validator
+    // rejects it with "Durable gate workflows do not support pull or lazy
+    // execution". Suggesting it here hands the author advice that is illegal.
+    const gateType = makeNodeType({
+      name: 'approvalGate',
+      durableGate: 'approval',
+      isAsync: true,
+      hasSuccessPort: true,
+      hasFailurePort: true,
+      inputs: { execute: { dataType: 'STEP' }, value: { dataType: 'NUMBER' } },
+      outputs: {
+        onSuccess: { dataType: 'STEP' },
+        onFailure: { dataType: 'STEP' },
+        value: { dataType: 'NUMBER' },
+      },
+    });
+    const sinkType = makeNodeType({
+      name: 'sink',
+      inputs: { execute: { dataType: 'STEP' }, value: { dataType: 'NUMBER' } },
+      outputs: { onSuccess: { dataType: 'STEP' } },
+    });
+
+    const ast = makeWorkflow({
+      nodeTypes: [gateType, sinkType],
+      instances: [makeInstance('gate', 'approvalGate'), makeInstance('sink', 'sink')],
+      connections: [
+        conn('Start', 'execute', 'sink', 'execute'),
+        // gate has no incoming step connection, but its data output is consumed
+        conn('gate', 'value', 'sink', 'value'),
+      ],
+    });
+
+    const errors = pullCandidateRule.validate(ast);
+    expect(errors).toHaveLength(0);
+  });
+
   it('should not trigger when node already has pullExecution', () => {
     const configType = makeNodeType({
       name: 'loadConfig',

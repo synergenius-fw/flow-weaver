@@ -354,6 +354,16 @@ export const pullCandidateRule: TValidationRule = {
   validate(ast: TWorkflowAST): TValidationError[] {
     const errors: TValidationError[] = [];
 
+    // A workflow containing a durable boundary cannot use pullExecution at all:
+    // the durable validator refuses it because a yielded continuation requires a
+    // complete compiled predecessor prefix. Recommending it here would hand the
+    // author advice that fails at run time, so the rule does not apply.
+    const hasDurableBoundary = ast.instances.some((instance) => {
+      const nt = resolveNodeType(ast, instance);
+      return nt?.durableGate !== undefined || nt?.durableEffect === true;
+    });
+    if (hasDurableBoundary) return errors;
+
     for (const instance of ast.instances) {
       const nt = resolveNodeType(ast, instance);
       if (!nt) continue;

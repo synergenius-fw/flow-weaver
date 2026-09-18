@@ -182,6 +182,39 @@ describe('agent validation rules', () => {
       expect(errors[0].node).toBe('llm');
     });
 
+    it('should not hard-error when the llm role came only from @color', () => {
+      // A node whose only "llm" signal is a cosmetic @color purple is not
+      // known to call a model. Colour is documented as a weak, tie-breaking
+      // signal, so it must not escalate to a blocking error -- at most a
+      // warning. Otherwise colouring a pure formatting node purple fails the
+      // build.
+      const colourOnly = makeNodeType({
+        name: 'recordOutcome',
+        visuals: { color: 'purple' },
+        hasSuccessPort: true,
+        hasFailurePort: true,
+        inputs: { execute: { dataType: 'STEP' } },
+        outputs: {
+          onSuccess: { dataType: 'STEP' },
+          onFailure: { dataType: 'STEP' },
+          outcome: { dataType: 'STRING' },
+        },
+      });
+
+      const ast = makeWorkflow({
+        nodeTypes: [colourOnly],
+        instances: [makeInstance('rec', 'recordOutcome')],
+        connections: [
+          conn('Start', 'execute', 'rec', 'execute'),
+          conn('rec', 'onSuccess', 'Exit', 'onSuccess'),
+          // NO onFailure connection
+        ],
+      });
+
+      const errors = missingErrorHandlerRule.validate(ast);
+      expect(errors.filter((e) => e.type === 'error')).toHaveLength(0);
+    });
+
     it('should pass when LLM onFailure is connected', () => {
       const ast = makeWorkflow({
         nodeTypes: [llmNodeType()],

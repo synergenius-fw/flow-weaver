@@ -98,30 +98,45 @@ const NAME_PATTERNS: Array<{ role: AgentNodeRole; pattern: RegExp }> = [
  * @returns The detected role, or null if the node is not an agent node
  */
 export function detectNodeRole(nodeType: TNodeTypeAST): AgentNodeRole | null {
+  return detectNodeRoleSignal(nodeType)?.role ?? null;
+}
+
+/** Which signal produced a detected role, strongest first. */
+export type AgentRoleSignal = 'port' | 'icon' | 'color' | 'name';
+
+/**
+ * Like detectNodeRole, but also reports which signal decided it, so a rule
+ * can weigh its response. A role that rests only on `@color` or a name
+ * pattern is a guess about a cosmetic choice, not evidence that the node
+ * calls a model; rules that would block on it should downgrade to a warning.
+ */
+export function detectNodeRoleSignal(
+  nodeType: TNodeTypeAST,
+): { role: AgentNodeRole; signal: AgentRoleSignal } | null {
   // 1. Port signatures (highest confidence)
   for (const sig of PORT_SIGNATURES) {
     if (sig.match(nodeType)) {
-      return sig.role;
+      return { role: sig.role, signal: 'port' };
     }
   }
 
   // 2. Icon annotation
   const icon = nodeType.visuals?.icon;
   if (icon && icon in ICON_MAP) {
-    return ICON_MAP[icon];
+    return { role: ICON_MAP[icon], signal: 'icon' };
   }
 
   // 3. Color annotation (only if it maps unambiguously)
   const color = nodeType.visuals?.color;
   if (color && color in COLOR_MAP) {
-    return COLOR_MAP[color];
+    return { role: COLOR_MAP[color], signal: 'color' };
   }
 
   // 4. Function name heuristics
   const name = nodeType.functionName || nodeType.name;
   for (const { role, pattern } of NAME_PATTERNS) {
     if (pattern.test(name)) {
-      return role;
+      return { role, signal: 'name' };
     }
   }
 
