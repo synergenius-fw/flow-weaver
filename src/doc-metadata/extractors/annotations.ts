@@ -153,6 +153,7 @@ tagEntry       ::= STRING [ STRING ]`,
       '@node myAdd Add [label: "My Adder"]',
       '@node myAdd Add parent.loopScope',
       '@node myAdd Add [expr: a="x + 1", b="y * 2"]',
+      '@node myAdd Add [expr: a="Start.value + 1", b="scale.factor * 2"]',
       '@node myAdd Add [portOrder: a=1, b=2]',
       '@node myAdd Add [minimized, label: "Compact"]',
       '@node myAdd Add [pullExecution: trigger]',
@@ -216,7 +217,7 @@ QUOTED_STRING  ::= STRING | "'" { any character except "'" } "'"`,
     category: 'workflow',
     syntax: '@path Start -> nodeA -> nodeB:fail -> Exit',
     description:
-      'Declare a complete execution route with scope walking. Steps separated by ->. Suffix :ok (default) or :fail to select onSuccess/onFailure. Data ports auto-resolve by walking backward to the nearest ancestor with a same-name output.',
+      'Declare a complete execution route with scope walking. Steps separated by ->. Suffix :ok (default) or :fail to select onSuccess/onFailure. Data ports, Exit @returns ports included, auto-resolve by walking backward to the nearest ancestor with a same-name output; an explicit @connect wins, and a Start param never passes straight through to Exit.',
     insertText: '@path Start -> ${1:node1} -> ${2:node2} -> Exit',
     insertTextFormat: 'snippet',
     ebnf: `pathTag        ::= "@path" pathStep ( "->" pathStep )+
@@ -664,7 +665,8 @@ export const NODE_MODIFIERS: TAnnotationModifierDoc[] = [
   {
     name: 'expr',
     syntax: '[expr:port="value"]',
-    description: 'Set an expression value for a port.',
+    description:
+      'Set a port from a JavaScript expression. The expression may reference upstream ports: Start.<param> or <node>.<port>, with any further property access after the port. Each reference becomes a data dependency the graph sees; the expression is the value.',
   },
   {
     name: 'minimized',

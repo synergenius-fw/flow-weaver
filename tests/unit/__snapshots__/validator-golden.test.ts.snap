@@ -295,43 +295,13 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
       "draft": {
         "errors": [],
         "valid": true,
-        "warnings": [
-          {
-            "code": "UNUSED_OUTPUT_PORT",
-            "docUrl": null,
-            "message": "Output port "result" of node "outputter" is never connected. Data will be discarded.",
-            "node": "outputter",
-            "type": "warning",
-          },
-          {
-            "code": "UNREACHABLE_EXIT_PORT",
-            "docUrl": null,
-            "message": "Exit port "result" has no incoming connection. Return value will be undefined.",
-            "node": null,
-            "type": "warning",
-          },
-        ],
+        "warnings": [],
       },
       "parseErrors": [],
       "strict": {
         "errors": [],
         "valid": true,
-        "warnings": [
-          {
-            "code": "UNUSED_OUTPUT_PORT",
-            "docUrl": null,
-            "message": "Output port "result" of node "outputter" is never connected. Data will be discarded.",
-            "node": "outputter",
-            "type": "warning",
-          },
-          {
-            "code": "UNREACHABLE_EXIT_PORT",
-            "docUrl": null,
-            "message": "Exit port "result" has no incoming connection. Return value will be undefined.",
-            "node": null,
-            "type": "warning",
-          },
-        ],
+        "warnings": [],
       },
       "workflow": "dataPipeline",
     },

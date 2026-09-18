@@ -10,9 +10,9 @@ Flow Weaver compiles workflows you describe with JSDoc annotations into plain Ty
 
 ## The model
 
-- A **node type** is a function annotated `@flowWeaver nodeType`. Its first parameter is `execute: boolean`; each further parameter is an input port, declared with `@input`; each field of the returned object is an output port, declared with `@output`. Every node type returns `onSuccess` and `onFailure` alongside its data.
+- A **node type** is a plain function annotated `@flowWeaver nodeType` and `@expression`. Each parameter is an input port, declared with `@input`; each field of the returned object is an output port, declared with `@output` (a primitive return is one port, `result`). Throwing marks the node failed and propagates the error out of the workflow call. Normal mode, with an `execute: boolean` first parameter and `onSuccess`/`onFailure` in the return, exists for the cases that need it: routing a failure to another node or to `Exit.onFailure`, returning data alongside a failure, a boolean branch, a scope owner, a durable gate or effect.
 - A **workflow** is an exported function annotated `@flowWeaver workflow` with the signature `(execute, params)`. `@param` declares the `Start` ports, `@returns` the `Exit` ports.
-- Inside a workflow, `@node <id> <nodeType>` declares an instance, `@connect a.port -> b.port` wires one port to another, and `@path Start -> a -> b -> Exit` wires control flow in one line.
+- Inside a workflow, `@node <id> <nodeType>` declares an instance and `@path Start -> a -> b -> Exit` wires the route: control flow between the steps, and every data port to the nearest earlier step with an output of the same name, `Exit` included. `@connect a.port -> b.port` wires one port explicitly, for the cases where names differ; an explicit connection always wins.
 - The workflow's function body is a stub. The compiler generates it from the annotations and only ever rewrites the marker sections, so hand-written code around them survives.
 - Built-in node types need no import: `delay`, `invokeWorkflow`, `waitForEvent`, `waitForAgent`. The last two are **durable gates** — the run pauses, hands back a continuation, and resumes later. A workflow with a gate must classify every node as `@durablePure`, `@durableGate` or `@durableEffect`.
 - The compiled output has no runtime dependency on Flow Weaver.

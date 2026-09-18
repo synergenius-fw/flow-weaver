@@ -18,6 +18,7 @@ export function buildDurableGatePayload(arguments_: readonly string[]): string {
 }
 import { generateScopeFunctionClosure } from './scope-function-generator';
 import { mapToTypeScript } from '../type-mappings';
+import { findExpressionReferences, rewriteExpressionReferences } from '../parser/expression-references';
 
 /** Map coercion target type to inline JS expression */
 const COERCION_EXPRESSIONS: Record<TCoerceTargetType, string> = {
@@ -346,7 +347,37 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
 
     if (hasInstanceExpression) {
       // Instance-level expression takes priority
-      const expr = String(instancePortConfig!.expression);
+      let expr = String(instancePortConfig!.expression);
+
+      // Upstream references (`Start.x`, `node.port`) inside the expression:
+      // the parser recorded each as a derived connection into this port.
+      // Fetch each referenced value the same way a connection is fetched,
+      // then substitute the local into the expression text.
+      const derived = connections.filter((conn) => conn.derived?.kind === 'expression');
+      if (derived.length > 0) {
+        const roots = new Set(derived.map((conn) => conn.from.node));
+        const refs = findExpressionReferences(expr, roots);
+        const fetched = new Map<string, string>();
+        for (const ref of refs) {
+          const key = `${ref.root}.${ref.port}`;
+          if (fetched.has(key)) continue;
+          if (!derived.some((conn) => conn.from.node === ref.root && conn.from.port === ref.port)) continue;
+          const refVar = `${safeId}_${portName}_ref_${toValidIdentifier(ref.root)}_${toValidIdentifier(ref.port)}`;
+          const sourceIdx = isStartNode(ref.root) ? 'startIdx' : `${toValidIdentifier(ref.root)}Idx`;
+          const isConstSource = isStartNode(ref.root) || ref.root === instanceParent;
+          const sourceExecutionIndex = isPullExecutionSource(workflow, ref.root)
+            ? `${sourceIdx} ?? 0`
+            : `${sourceIdx}${isConstSource ? '' : '!'}`;
+          lines.push(
+            `${indent}const ${refVar} = ${getCall}({ id: '${ref.root}', portName: '${ref.port}', executionIndex: ${sourceExecutionIndex}, nodeTypeName: '${getSourceNodeTypeName(ref.root)}' }) as any;`,
+          );
+          fetched.set(key, refVar);
+        }
+        expr = rewriteExpressionReferences(expr, refs.filter((ref) => fetched.has(`${ref.root}.${ref.port}`)), (ref) =>
+          fetched.get(`${ref.root}.${ref.port}`)!,
+        );
+      }
+
       // Check if expression is a function (arrow or regular)
       const isFunction = expr.includes('=>') || expr.trim().startsWith('function');
       if (isFunction) {

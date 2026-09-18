@@ -19,7 +19,8 @@ export const foreachTemplate: WorkflowTemplate = {
 
     return `
 /**
- * Iterates over items and processes each one
+ * Iterates over items and processes each one.
+ * Normal mode on purpose: a scope owner drives its child through scoped STEP ports.
  *
  * @flowWeaver nodeType
  * @label For Each Item
@@ -53,54 +54,33 @@ function forEachItem(
 }
 
 /**
- * Processes a single item
+ * Processes a single item. A throw here aborts the whole batch with that
+ * error; to record a per-item failure instead, return it as part of the result.
  *
  * @flowWeaver nodeType
+ * @expression
  * @label Process Item
- * @input item [order:1] - Item to process
- * @input execute [order:0] - Execute
- * @output result [order:2] - Processed result
- * @output onSuccess [order:0] - On Success
- * @output onFailure [order:1] - On Failure
+ * @input item - Item to process
+ * @output result - Processed result
  */
-function processItem(
-  execute: boolean,
-  item: any
-): { onSuccess: boolean; onFailure: boolean; result: any } {
-  if (!execute) {
-    return { onSuccess: false, onFailure: false, result: null };
-  }
-
+function processItem(item: any): { result: any } {
   // TODO: Add your processing logic here
-  const result = { ...item, processed: true };
-
-  return { onSuccess: true, onFailure: false, result };
+  return { result: { ...item, processed: true } };
 }
 
 /**
  * Aggregates results from iteration
  *
  * @flowWeaver nodeType
+ * @expression
  * @label Aggregate Results
- * @input results [order:1] - Array of processed results
- * @input execute [order:0] - Execute
- * @output successCount [order:2] - Number of successes
- * @output failedCount [order:3] - Number of failures
- * @output onSuccess [order:0] - On Success
- * @output onFailure [order:1] - On Failure
+ * @input results - Array of processed results
+ * @output successCount - Number of successes
+ * @output failedCount - Number of failures
  */
-function aggregateResults(
-  execute: boolean,
-  results: any[]
-): { onSuccess: boolean; onFailure: boolean; successCount: number; failedCount: number } {
-  if (!execute) {
-    return { onSuccess: false, onFailure: false, successCount: 0, failedCount: 0 };
-  }
-
+function aggregateResults(results: any[]): { successCount: number; failedCount: number } {
   const successCount = results.filter(r => r?.processed).length;
-  const failedCount = results.length - successCount;
-
-  return { onSuccess: true, onFailure: false, successCount, failedCount };
+  return { successCount, failedCount: results.length - successCount };
 }
 
 /**
@@ -110,20 +90,12 @@ function aggregateResults(
  * @node aggregator aggregateResults [position: 270 0] [color: "teal"] [icon: "inventory"]
  * @position Start -450 0
  * @position Exit 450 0
- * @connect Start.execute -> iterator.execute
- * @connect Start.items -> iterator.items
+ * @path Start -> iterator -> aggregator -> Exit
  * @connect iterator.start:processItem -> processor.execute
  * @connect iterator.item:processItem -> processor.item
  * @connect processor.result -> iterator.result:processItem
  * @connect processor.onSuccess -> iterator.success:processItem
  * @connect processor.onFailure -> iterator.failure:processItem
- * @connect iterator.results -> Exit.results
- * @connect iterator.results -> aggregator.results
- * @connect iterator.onSuccess -> aggregator.execute
- * @connect aggregator.successCount -> Exit.successCount
- * @connect aggregator.failedCount -> Exit.failedCount
- * @connect aggregator.onSuccess -> Exit.onSuccess
- * @connect aggregator.onFailure -> Exit.onFailure
  * @param execute [order:0] - Execute
  * @param items [order:1] - Array of items to process
  * @returns onSuccess [order:0] - On Success

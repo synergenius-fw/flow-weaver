@@ -21908,6 +21908,17 @@ function formatOutput(execute: boolean, result: string): {
           },
           "type": "Connection",
         },
+        {
+          "from": {
+            "node": "outputter",
+            "port": "result",
+          },
+          "to": {
+            "node": "Exit",
+            "port": "result",
+          },
+          "type": "Connection",
+        },
       ],
       "description": undefined,
       "exitPorts": {

@@ -487,6 +487,16 @@ export type TConnectionAST = {
   typeCompatibility?: TTypeCompatibility;
   /** Explicit type coercion for this connection (e.g., 'number' wraps value with Number()) */
   coerce?: TCoerceTargetType;
+  /**
+   * Set when the connection was not written as `@connect` but derived from an
+   * `[expr: port="..."]` binding on the target instance that references
+   * `from.node`'s port. The expression is the value source; the connection
+   * records the data dependency so ordering, cycle detection, queries and
+   * the editor see it. Derived connections are never emitted as `@connect`,
+   * are exempt from the one-source and type-compatibility rules (the
+   * expression transforms the value), and cannot be removed on their own.
+   */
+  derived?: { kind: 'expression'; expression: string };
 };
 
 /**

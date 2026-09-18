@@ -402,17 +402,22 @@ describe('@path parser expansion', () => {
     expect(valToClass).toHaveLength(1);
   });
 
-  it('should NOT generate data connections to Exit', () => {
+  it('should resolve Exit data ports by name from the nearest ancestor in the path', () => {
     const result = parser.parseFromString(simplePathSource());
     expect(result.errors).toHaveLength(0);
     const workflow = result.workflows[0];
 
-    // No data connections to Exit (only control flow)
+    // Exit's @returns ports resolve like any other step's inputs; a port with
+    // no same-name ancestor output stays unconnected.
     const dataToExit = workflow.connections.filter(c =>
       c.to.node === 'Exit' &&
       c.to.port !== 'onSuccess' && c.to.port !== 'onFailure'
     );
-    expect(dataToExit).toHaveLength(0);
+    for (const conn of dataToExit) {
+      expect(conn.from.port).toBe(conn.to.port);
+      expect(conn.from.node).not.toBe('Start');
+      expect(Object.keys(workflow.exitPorts ?? {})).toContain(conn.to.port);
+    }
   });
 
   it('should error on unknown node in path', () => {

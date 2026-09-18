@@ -250,6 +250,7 @@ Multiple attribute brackets are allowed (zero or more). Attributes can be split 
 @node myAdd Add [label: "My Adder"]
 @node myAdd Add parent.loopScope
 @node myAdd Add [expr: a="x + 1", b="y * 2"]
+@node myAdd Add [expr: a="Start.value + 1", b="scale.factor * 2"]   (upstream references, see advanced-annotations)
 @node myAdd Add [portOrder: a=1, b=2]
 @node myAdd Add [minimized, label: "Compact"]
 @node myAdd Add [pullExecution: trigger]
@@ -309,7 +310,9 @@ Comma-separated (equivalent to two `@path` tags):
 
 - `:ok` follows `onSuccess` (default when no suffix)
 - `:fail` follows `onFailure`
-- Data ports auto-resolve by walking backward through the path to the nearest ancestor with a same-name output port (scope walking)
+- Data ports auto-resolve by walking backward through the path to the nearest ancestor with a same-name output port (scope walking). `Exit` is a step like any other: each `@returns` port resolves to the nearest ancestor output of the same name
+- A `Start` param never resolves straight to an `Exit` port. A pass-through would hide a missing producer, so write it as an explicit `@connect Start.x -> Exit.x`
+- A port that already has an explicit `@connect` is left alone; the explicit connection wins
 - Multiple `@path` lines can coexist; overlapping prefixes are deduplicated
 - Comma-separated paths within a single `@path` are expanded to separate paths
 - Manual `@connect` lines can supplement for cross-named ports

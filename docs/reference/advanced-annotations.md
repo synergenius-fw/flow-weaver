@@ -270,16 +270,18 @@ Type compatibility levels:
 
 ## Path Sugar (`@path`)
 
-Syntactic sugar for declaring multi-step execution routes. A `@path` annotation expands to a chain of STEP connections (execute → onSuccess).
+Syntactic sugar for declaring multi-step execution routes. A `@path` annotation expands to a chain of STEP connections (execute → onSuccess) and wires the data ports along the way by name.
 
 ### Basic Syntax
 
 ```typescript
 /**
  * @flowWeaver workflow
- * @node v validate
- * @node e enrich
- * @node s score
+ * @param record - Raw record
+ * @returns score - Final score
+ * @node v validate     // @input record  @output record
+ * @node e enrich       // @input record  @output record
+ * @node s score        // @input record  @output score
  * @path Start -> v -> e -> s -> Exit
  */
 ```
@@ -287,10 +289,25 @@ Syntactic sugar for declaring multi-step execution routes. A `@path` annotation 
 This expands to:
 ```
 @connect Start.execute -> v.execute
+@connect Start.record -> v.record
 @connect v.onSuccess -> e.execute
+@connect v.record -> e.record
 @connect e.onSuccess -> s.execute
-@connect s.onSuccess -> Exit.execute
+@connect e.record -> s.record
+@connect s.onSuccess -> Exit.onSuccess
+@connect s.score -> Exit.score
 ```
+
+### Data Resolution
+
+For every step after the first, each data input resolves to the nearest earlier step in the path that has an output of the same name. `Start` params count as outputs, and `Exit` `@returns` ports count as inputs, so a linear pipeline with consistently named ports needs no `@connect` at all.
+
+Two rules keep this predictable:
+
+- **An explicit `@connect` wins.** If a port already has a connection, `@path` leaves it alone. Use this to take a value from an earlier step than the nearest one.
+- **A `Start` param never passes straight through to `Exit`.** Echoing an input as an output would hide a missing producer, so `Start.x -> Exit.x` is only ever an explicit `@connect`.
+
+A port with no same-name ancestor stays unconnected and is reported by validation as usual (`MISSING_REQUIRED_INPUT` for a node, `UNREACHABLE_EXIT_PORT` for Exit).
 
 ### Branching with `:ok` and `:fail`
 
@@ -382,6 +399,39 @@ Set port values via JavaScript expressions instead of connections:
 ```
 
 Each assignment is `portName="expression"`. Multiple assignments are comma-separated. (`waitForEvent` and `waitForAgent` accept expressions the same way, but using either makes the workflow a gated one — see [Durable Gates](durable-gates).)
+
+#### Referencing upstream ports
+
+An expression may read values the workflow already has: `Start.<param>` for a workflow input, `<node>.<port>` for an output of an earlier node. Any property access after the port is ordinary JavaScript, so `Start.expense.id` reads the `id` field of the `expense` param.
+
+```typescript
+/**
+ * @flowWeaver workflow
+ * @param expense - The expense
+ * @returns decision
+ * @node route route
+ * @node reviewer waitForAgent [expr:
+ *   agentId="'review'",
+ *   context="{ id: Start.expense.id, amount: Start.expense.amount, risk: route.risk }",
+ *   prompt="`Draft an approve/reject decision for expense ${Start.expense.id}`"]
+ * @node approval waitForApproval [expr: draft="reviewer.agentResult"]
+ * @path Start -> route -> reviewer -> approval -> Exit
+ */
+```
+
+This replaces the node that would otherwise exist only to shape those three values, and it replaces a `@connect` whose only purpose is a rename (`[expr: draft="reviewer.agentResult"]`).
+
+Each reference is a real data dependency. The parser records it as a connection marked as derived from the expression, so execution order, cycle detection, `fw_query` (`data-deps`, `execution-order`), the diagram and the durable continuation all see the edge. A derived connection is not written as `@connect` (the expression implies it), is exempt from the one-source-per-input rule (one expression may read several ports) and from type checks (the expression transforms the value), and cannot be removed on its own; edit the expression.
+
+What is recognised, exactly:
+
+- A property access on a bare identifier that is `Start` or a node id, where the property is a declared data port. The expression is parsed as TypeScript, so a name inside a string literal (`'Start.path'`) is text, a name inside a template substitution (`` `${Start.path}` ``) is a reference, and `Start["path"]`, `f().port` or `x[0].port` are never references.
+- A node id that is also a top-level binding of the file (an import, a `const`, a class) is ambiguous when the property is a port and plain JavaScript when it is not. Node type functions do not count: `@node route route` with `route.risk` reads the node.
+- References are between top-level nodes. A scoped child, or a reference to one, is refused; scoped ports keep their explicit `@connect node.port:scope` form.
+
+Errors are reported at parse time, prefixed with the instance and port, for example `[expr] reviewer.context: "route.rsk" is not an output of "route". Available: risk.`, and for a control port, a self-reference, a scope boundary or an ambiguous name. A reference cycle between two expressions is `CYCLE_DETECTED` like any other cycle.
+
+The decision record is [ADR 0002](../adr/0002-expression-port-references.md).
 
 ### Port Order (`[portOrder: ...]`)
 

@@ -15,8 +15,8 @@ Start -> validator -> enricher -> scorer -> Exit
 **What you will learn:**
 
 - Scaffolding a workflow from a template
-- Writing node type functions with `@flowWeaver nodeType` annotations
-- Wiring nodes together with `@flowWeaver workflow`, `@node`, and `@connect`
+- Writing node type functions with `@flowWeaver nodeType` and `@expression` annotations
+- Wiring nodes together with `@flowWeaver workflow`, `@node`, and `@path`
 - Validating, compiling, and running the generated code
 - Debugging when things go wrong
 
@@ -38,38 +38,31 @@ Open the generated file. It contains a placeholder workflow function with a sing
 
 # Step 2: Define Node Types
 
-Node types are plain TypeScript functions annotated with `@flowWeaver nodeType`. Each input is declared with `@input` and each output with `@output` in the JSDoc block. Inputs become **direct parameters** (not wrapped in an object).
+Node types are plain TypeScript functions annotated with `@flowWeaver nodeType` and `@expression`. Each input is declared with `@input` and each output with `@output` in the JSDoc block. Inputs become **direct parameters** (not wrapped in an object). The return value is the output: a single `@output` receives the whole return value, and with several `@output` tags each one receives the property of the same name from the returned object. To signal failure, throw; the error marks the node failed and propagates out of the workflow call (Step 6 shows what that looks like).
 
-Add the following three node type functions to `my-workflow.ts`:
+Add the following three node type functions to `my-workflow.ts`. Notice the port names: each node calls its input `record`, and the validator and enricher both call their output `record`. Step 3 relies on that.
 
 ## 2a. Validator
 
-Checks that the incoming record has the required fields and that values are within acceptable ranges. Returns the validated record on success, or signals failure.
+Checks that the incoming record has the required fields and that values are within acceptable ranges. Returns the validated record, or throws to signal failure.
 
 ```typescript
 /**
  * @flowWeaver nodeType
+ * @expression
  * @label Validate Record
  * @input record - Raw record to validate
- * @output validated - The validated record
+ * @output record - The validated record
  */
-function validateRecord(
-  execute: boolean,
-  record: { name: string; age: number; email: string }
-): {
-  onSuccess: boolean;
-  onFailure: boolean;
-  validated: { name: string; age: number; email: string } | null;
+function validateRecord(record: { name: string; age: number; email: string }): {
+  name: string;
+  age: number;
+  email: string;
 } {
-  if (!execute) return { onSuccess: false, onFailure: false, validated: null };
-  try {
-    if (!record.name || !record.email || record.age < 0 || record.age > 150) {
-      return { onSuccess: false, onFailure: true, validated: null };
-    }
-    return { onSuccess: true, onFailure: false, validated: record };
-  } catch {
-    return { onSuccess: false, onFailure: true, validated: null };
+  if (!record.name || !record.email || record.age < 0 || record.age > 150) {
+    throw new Error('Invalid record: missing fields or age out of range');
   }
+  return record;
 }
 ```
 
@@ -80,69 +73,50 @@ Adds computed fields to the validated record: a normalized name and an age brack
 ```typescript
 /**
  * @flowWeaver nodeType
+ * @expression
  * @label Enrich Record
  * @input record - Validated record to enrich
- * @output enriched - Record with added fields
+ * @output record - Record with added fields
  */
-function enrichRecord(
-  execute: boolean,
-  record: { name: string; age: number; email: string }
-): {
-  onSuccess: boolean;
-  onFailure: boolean;
-  enriched: {
-    name: string;
-    age: number;
-    email: string;
-    normalizedName: string;
-    ageBracket: string;
-  } | null;
+function enrichRecord(record: { name: string; age: number; email: string }): {
+  name: string;
+  age: number;
+  email: string;
+  normalizedName: string;
+  ageBracket: string;
 } {
-  if (!execute) return { onSuccess: false, onFailure: false, enriched: null };
   const normalizedName = record.name.trim().toLowerCase();
   const ageBracket = record.age < 18 ? 'minor' : record.age < 65 ? 'adult' : 'senior';
-  return {
-    onSuccess: true,
-    onFailure: false,
-    enriched: { ...record, normalizedName, ageBracket },
-  };
+  return { ...record, normalizedName, ageBracket };
 }
 ```
 
 ## 2c. Scorer
 
-Assigns a simple numeric score based on the enriched record.
+Assigns a simple numeric score based on the enriched record. Two `@output` tags, so the function returns an object with a `score` and a `summary` property.
 
 ```typescript
 /**
  * @flowWeaver nodeType
+ * @expression
  * @label Score Record
  * @input record - Enriched record to score
  * @output score - Computed score
  * @output summary - Human-readable summary
  */
-function scoreRecord(
-  execute: boolean,
-  record: {
-    name: string;
-    age: number;
-    email: string;
-    normalizedName: string;
-    ageBracket: string;
-  }
-): {
-  onSuccess: boolean;
-  onFailure: boolean;
-  score: number;
-  summary: string;
-} {
-  if (!execute) return { onSuccess: false, onFailure: false, score: 0, summary: '' };
+function scoreRecord(record: {
+  name: string;
+  age: number;
+  email: string;
+  normalizedName: string;
+  ageBracket: string;
+}): { score: number; summary: string } {
   let score = 50;
   if (record.email.endsWith('.edu')) score += 20;
   if (record.ageBracket === 'adult') score += 10;
   if (record.normalizedName.length > 3) score += 5;
   const summary = `${record.name}: score ${score} (${record.ageBracket})`;
-  return { onSuccess: true, onFailure: false, score, summary };
+  return { score, summary };
 }
 ```
 
@@ -176,7 +150,7 @@ fw validate my-workflow.ts
 
 # Step 3: Wire the Workflow
 
-Below the node type functions, add the workflow export. The `@flowWeaver workflow` JSDoc block declares node instances with `@node` (including optional `[position: x y]` bracket attributes), and connects ports with `@connect`.
+Below the node type functions, add the workflow export. The `@flowWeaver workflow` JSDoc block declares node instances with `@node` (including optional `[position: x y]` bracket attributes), and declares the route with `@path`.
 
 ```typescript
 /**
@@ -188,28 +162,22 @@ Below the node type functions, add the workflow export. The `@flowWeaver workflo
  * @node validator validateRecord [position: -180 0]
  * @node enricher enrichRecord [position: 0 0]
  * @node scorer scoreRecord [position: 180 0]
- * @connect Start.record -> validator.record
- * @connect validator.onSuccess -> enricher.execute
- * @connect validator.validated -> enricher.record
- * @connect enricher.onSuccess -> scorer.execute
- * @connect enricher.enriched -> scorer.record
- * @connect scorer.score -> Exit.score
- * @connect scorer.summary -> Exit.summary
- * @connect scorer.onSuccess -> Exit.onSuccess
- * @connect scorer.onFailure -> Exit.onFailure
+ * @path Start -> validator -> enricher -> scorer -> Exit
  */
 export function processRecord(
   execute: boolean,
   params: { record: { name: string; age: number; email: string } }
 ): { onSuccess: boolean; onFailure: boolean; score: number; summary: string } {
-  throw new Error('Not implemented');
+  throw new Error('generated body was not installed');
 }
 ```
 
 Key points:
 
 - `@node validator validateRecord [position: -180 0]` creates an instance named `validator` of node type `validateRecord`, positioned at (-180, 0).
-- `@connect validator.onSuccess -> enricher.execute` chains the success STEP port of the validator to the execute STEP port of the enricher, so the enricher only runs when validation passes.
+- `@path Start -> validator -> enricher -> scorer -> Exit` declares the control flow: each step runs when the previous one succeeds, and the last step's success reaches `Exit`. The compiler writes the STEP connections (`execute`, `onSuccess`, `onFailure`) for you.
+- `@path` also wires the data ports by name. Every input of a step resolves to the nearest earlier step that has an output of the same name: `validator.record` comes from `Start.record`, `enricher.record` from `validator.record`, `scorer.record` from `enricher.record`, and `Exit.score` / `Exit.summary` from the scorer. That is why the node types in Step 2 share the port name `record`.
+- `@connect from.port -> to.port` is still available for ports whose names differ, and an explicit `@connect` always wins over the name resolution. A linear pipeline with consistent names needs none.
 - `Start` and `Exit` are reserved pseudo-nodes. `Start` ports come from `@param` tags, `Exit` ports come from `@returns` tags.
 - The function body is a placeholder -- the compiler generates the real execution code.
 
@@ -224,8 +192,8 @@ fw validate my-workflow.ts
 If everything is correct you will see a success message. If there are issues, the output describes each problem. Common things to check:
 
 - Every `@input` has a corresponding function parameter
-- Every `@output` appears in the return type
-- Port names in `@connect` match the declared `@input` / `@output` names exactly (case-sensitive)
+- A single `@output` is the return value; with several `@output` tags, each is a property of the returned object
+- Port names match exactly (case-sensitive). `@path` resolves data by name, so a misspelled input simply stays unconnected and is reported as `MISSING_REQUIRED_INPUT`; a misspelled `@returns` port is reported as `UNREACHABLE_EXIT_PORT`
 - STEP ports (`execute`, `onSuccess`, `onFailure`) only connect to other STEP ports
 
 For machine-readable output (useful in CI):
@@ -281,12 +249,16 @@ The first argument (`execute: boolean`) controls whether the workflow actually r
 Test edge cases:
 
 ```typescript
-// Invalid record -- validator will fail, enricher and scorer won't run
-const bad = processRecord(true, {
-  record: { name: '', age: -5, email: '' },
-});
-console.log(bad.onSuccess); // false
+// Invalid record -- the validator throws, so the enricher and scorer never run
+// and the error propagates out of processRecord
+try {
+  processRecord(true, { record: { name: '', age: -5, email: '' } });
+} catch (err) {
+  console.log((err as Error).message); // "Invalid record: missing fields or age out of range"
+}
 ```
+
+An expression node signals failure by throwing. The runtime marks the node's `onFailure` port and lets the error propagate to the caller, so a failed record surfaces as an exception rather than as a result object.
 
 # Step 7: Debug
 
@@ -325,12 +297,12 @@ Debug events (`STATUS_CHANGED`, `VARIABLE_SET`, `WORKFLOW_COMPLETED`) are sent o
 
 ## Common issues
 
-| Symptom                       | Likely cause                                      |
-| ----------------------------- | ------------------------------------------------- |
-| Output is `null` or `0`       | Exit port not connected, or upstream node failed  |
-| Node never executes           | Missing `@connect` to its `execute` STEP port     |
-| Validation error on port name | Typo in `@connect` -- names are case-sensitive    |
-| `onSuccess` is always `false` | Check the `if (!execute)` guard and failure paths |
+| Symptom                       | Likely cause                                                                                   |
+| ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| Output is `null` or `0`       | The `@returns` port has no same-name output on the path and no `@connect`                       |
+| Node never executes           | Node is not on any `@path` and has no `@connect` to its `execute` STEP port                     |
+| Validation error on port name | Typo in `@input`, `@output`, `@returns`, or `@connect` -- names are case-sensitive              |
+| Workflow call throws          | An expression node threw; the error propagates out of the workflow with the node's message      |
 
 # Complete Example
 
@@ -343,88 +315,62 @@ Here is the full `my-workflow.ts` with all pieces together:
 
 /**
  * @flowWeaver nodeType
+ * @expression
  * @label Validate Record
  * @input record - Raw record to validate
- * @output validated - The validated record
+ * @output record - The validated record
  */
-function validateRecord(
-  execute: boolean,
-  record: { name: string; age: number; email: string }
-): {
-  onSuccess: boolean;
-  onFailure: boolean;
-  validated: { name: string; age: number; email: string } | null;
+function validateRecord(record: { name: string; age: number; email: string }): {
+  name: string;
+  age: number;
+  email: string;
 } {
-  if (!execute) return { onSuccess: false, onFailure: false, validated: null };
-  try {
-    if (!record.name || !record.email || record.age < 0 || record.age > 150) {
-      return { onSuccess: false, onFailure: true, validated: null };
-    }
-    return { onSuccess: true, onFailure: false, validated: record };
-  } catch {
-    return { onSuccess: false, onFailure: true, validated: null };
+  if (!record.name || !record.email || record.age < 0 || record.age > 150) {
+    throw new Error('Invalid record: missing fields or age out of range');
   }
+  return record;
 }
 
 /**
  * @flowWeaver nodeType
+ * @expression
  * @label Enrich Record
  * @input record - Validated record to enrich
- * @output enriched - Record with added fields
+ * @output record - Record with added fields
  */
-function enrichRecord(
-  execute: boolean,
-  record: { name: string; age: number; email: string }
-): {
-  onSuccess: boolean;
-  onFailure: boolean;
-  enriched: {
-    name: string;
-    age: number;
-    email: string;
-    normalizedName: string;
-    ageBracket: string;
-  } | null;
+function enrichRecord(record: { name: string; age: number; email: string }): {
+  name: string;
+  age: number;
+  email: string;
+  normalizedName: string;
+  ageBracket: string;
 } {
-  if (!execute) return { onSuccess: false, onFailure: false, enriched: null };
   const normalizedName = record.name.trim().toLowerCase();
   const ageBracket = record.age < 18 ? 'minor' : record.age < 65 ? 'adult' : 'senior';
-  return {
-    onSuccess: true,
-    onFailure: false,
-    enriched: { ...record, normalizedName, ageBracket },
-  };
+  return { ...record, normalizedName, ageBracket };
 }
 
 /**
  * @flowWeaver nodeType
+ * @expression
  * @label Score Record
  * @input record - Enriched record to score
  * @output score - Computed score
  * @output summary - Human-readable summary
  */
-function scoreRecord(
-  execute: boolean,
-  record: {
-    name: string;
-    age: number;
-    email: string;
-    normalizedName: string;
-    ageBracket: string;
-  }
-): {
-  onSuccess: boolean;
-  onFailure: boolean;
-  score: number;
-  summary: string;
-} {
-  if (!execute) return { onSuccess: false, onFailure: false, score: 0, summary: '' };
+function scoreRecord(record: {
+  name: string;
+  age: number;
+  email: string;
+  normalizedName: string;
+  ageBracket: string;
+}): { score: number; summary: string } {
   let score = 50;
   if (record.email.endsWith('.edu')) score += 20;
   if (record.ageBracket === 'adult') score += 10;
   if (record.normalizedName.length > 3) score += 5;
   const summary = `${record.name}: score ${score} (${record.ageBracket})`;
-  return { onSuccess: true, onFailure: false, score, summary };
+  return { score, summary };
 }
 
 // =============================================================================
@@ -440,21 +386,13 @@ function scoreRecord(
  * @node validator validateRecord [position: -180 0]
  * @node enricher enrichRecord [position: 0 0]
  * @node scorer scoreRecord [position: 180 0]
- * @connect Start.record -> validator.record
- * @connect validator.onSuccess -> enricher.execute
- * @connect validator.validated -> enricher.record
- * @connect enricher.onSuccess -> scorer.execute
- * @connect enricher.enriched -> scorer.record
- * @connect scorer.score -> Exit.score
- * @connect scorer.summary -> Exit.summary
- * @connect scorer.onSuccess -> Exit.onSuccess
- * @connect scorer.onFailure -> Exit.onFailure
+ * @path Start -> validator -> enricher -> scorer -> Exit
  */
 export function processRecord(
   execute: boolean,
   params: { record: { name: string; age: number; email: string } }
 ): { onSuccess: boolean; onFailure: boolean; score: number; summary: string } {
-  throw new Error('Not implemented');
+  throw new Error('generated body was not installed');
 }
 ```
 
@@ -509,7 +447,7 @@ Now that you have a working workflow, explore these topics to go further:
 - **Marketplace** (`fw docs marketplace`) -- Install and publish reusable node type packages
 - **Patterns** (`fw docs patterns`) -- Extract reusable workflow fragments and apply them across projects
 - **Scoped ports and forEach** (`fw docs export-interface`) -- Iterate over arrays using scoped ports and callback parameters
-- **Expression nodes** (`fw docs node-conversion`) -- Write pure functions without `execute`/`onSuccess`/`onFailure` boilerplate
+- **Node conversion** (`fw docs node-conversion`) -- Turn existing functions into expression nodes, and when to fall back to normal mode
 - **Scaffolding templates** (`fw docs scaffold`) -- Generate workflows from templates like `sequential`, `foreach`, `conditional`, and more
 - **Debugging** (`fw docs debugging`) -- WebSocket debugger, validation diagnostics, and error resolution
 - **JSDoc grammar** (`fw docs jsdoc-grammar`) -- Full annotation syntax reference including metadata brackets, scope clauses, and positioning

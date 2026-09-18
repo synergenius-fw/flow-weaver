@@ -49,19 +49,23 @@ Invalid: reviewFile.read (readTarget): unclassified
 
 ### A gated workflow
 
+Pure nodes are ordinary expression nodes with a `@durablePure` tag. The gate is the one node written in normal mode: its body is never called, the compiler substitutes the resolution for its return value, and it needs the `onSuccess`/`onFailure` shape that a resolution carries. With the ports named consistently, `@path` wires everything, the gate included.
+
 ```typescript
 /**
  * @flowWeaver nodeType
+ * @expression
  * @durablePure
  * @input value - Value to prepare
- * @output prepared - Prepared value
+ * @output value - Prepared value
  */
-function prepare(execute: boolean, value: number) {
-  return { onSuccess: execute, onFailure: false, prepared: value * 2 };
+function prepare(value: number): { value: number } {
+  return { value: value * 2 };
 }
 
 /**
  * The body is never called. Reaching it means the gate boundary was not applied.
+ * Normal mode on purpose: a resolution supplies onSuccess/onFailure and the outputs.
  *
  * @flowWeaver nodeType
  * @durableGate approval
@@ -74,12 +78,13 @@ async function waitForApproval(execute: boolean, value: number): Promise<{ onSuc
 
 /**
  * @flowWeaver nodeType
+ * @expression
  * @durablePure
  * @input value - Approved value
  * @output result - Final value
  */
-function finish(execute: boolean, value: number) {
-  return { onSuccess: execute, onFailure: false, result: value + 1 };
+function finish(value: number): { result: number } {
+  return { result: value + 1 };
 }
 
 /**
@@ -89,17 +94,15 @@ function finish(execute: boolean, value: number) {
  * @node prepared prepare
  * @node approval waitForApproval
  * @node finished finish
- * @connect Start.value -> prepared.value
- * @connect prepared.onSuccess -> approval.execute
- * @connect prepared.prepared -> approval.value
- * @connect approval.onSuccess -> finished.execute
- * @connect approval.value -> finished.value
- * @connect finished.result -> Exit.result
+ * @path Start -> prepared -> approval -> finished -> Exit
+ * @path Start -> prepared -> approval:fail -> Exit
  */
 export async function durableApproval(execute: boolean, params: { value: number }): Promise<{ onSuccess: boolean; onFailure: boolean; result: number }> {
   throw new Error('generated body was not installed');
 }
 ```
+
+The first `@path` expands to the control flow between the four steps plus `Start.value -> prepared.value`, `prepared.value -> approval.value`, `approval.value -> finished.value` and `finished.result -> Exit.result`. The second routes a rejected approval to `Exit.onFailure`.
 
 ### Restrictions inside a gated closure
 
@@ -108,8 +111,8 @@ The compiler refuses these rather than guessing:
 - Parallel lanes — a gated closure is generated sequentially, so a yield never has a sibling still running
 - Scope callbacks (`@scope` node types) — the scope owner might call back concurrently
 - Pull or lazy nodes — an optional predecessor cannot form a complete prefix
-- A gate after branch convergence — the selected arm is no longer in the address
-- A gate inside an active branch is fine; the branch path is retained
+- A gate **or an effect** after branch convergence — the selected arm is no longer in the address, so the boundary cannot be replayed. Put the boundary inside each arm instead, as two instances if both arms need it
+- A gate or effect inside an active branch is fine; the branch path is retained
 
 ## What happens at a gate
 

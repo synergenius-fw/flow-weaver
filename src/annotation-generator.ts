@@ -3,6 +3,7 @@ import { mapToTypeScript } from "./type-mappings";
 import { isExecutePort, isSuccessPort, isFailurePort, isControlFlowPort } from "./constants";
 import { shouldUseStepTag } from "./utils/port-tag-utils";
 import { detectSugarPatterns, filterStaleMacros } from "./sugar-optimizer";
+import { isPathImpliedDataEdge } from "./parser/path-data-resolution";
 import { serializePackDeployAnnotations } from "./parser/serialize-deploy-annotations";
 
 export interface GenerateAnnotationsOptions {
@@ -305,10 +306,15 @@ export class AnnotationGenerator {
       }
     });
 
+    // Connections derived from [expr:] references are implied by the
+    // expression on the @node line; they are never written as @connect and
+    // take no part in @path detection.
+    const authoredConnections = workflow.connections.filter((conn) => !conn.derived);
+
     // Filter stale macros (e.g. paths whose connections were deleted)
     const existingMacros = filterStaleMacros(
       workflow.macros || [],
-      workflow.connections,
+      authoredConnections,
       workflow.instances,
       workflow.nodeTypes,
       workflow.startPorts,
@@ -327,7 +333,7 @@ export class AnnotationGenerator {
 
     // Auto-detect @path sugar patterns from connections
     const detected = detectSugarPatterns(
-      workflow.connections,
+      authoredConnections,
       workflow.instances,
       existingMacros,
       workflow.nodeTypes,
@@ -385,7 +391,7 @@ export class AnnotationGenerator {
 
     // Add connections — skip connections covered by macros and dropped coerce connections
     if (!workflow.options?.autoConnect) {
-      workflow.connections.forEach((conn) => {
+      authoredConnections.forEach((conn) => {
         if (allMacros.length > 0 && isConnectionCoveredByMacroStatic(conn, allMacros)) return;
         if (droppedCoerceIds.has(conn.from.node) || droppedCoerceIds.has(conn.to.node)) return;
         const fromScope = conn.from.scope ? `:${conn.from.scope}` : '';
@@ -601,13 +607,8 @@ function isConnectionCoveredByMacroStatic(conn: TConnectionAST, macros: TWorkflo
         if (route === 'fail' && conn.from.port === 'onFailure' && conn.to.port === 'execute') return true;
         if (route === 'ok' && conn.from.port === 'onSuccess' && conn.to.port === 'execute') return true;
       }
-      // Data: same-name non-control-flow, from before to, to is not Exit
-      if (
-        conn.to.node !== 'Exit' &&
-        !isControlFlowPort(conn.from.port) &&
-        !isControlFlowPort(conn.to.port) &&
-        conn.from.port === conn.to.port
-      ) {
+      // Data: the shape a path implies between two of its steps (Exit included)
+      if (isPathImpliedDataEdge(conn.from.node, conn.from.port, conn.to.node, conn.to.port)) {
         return true;
       }
     } else if (macro.type === 'fanOut') {

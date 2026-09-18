@@ -15,7 +15,7 @@ Does it need to return error data alongside the failure signal?
   NO  -> expression mode (@expression)
 ```
 
-**Default to expression mode.** Expression nodes handle success/failure branching via throw. Only use normal mode when you need to return data on the failure path, or for void side-effects.
+**Default to expression mode.** A throw in an expression node marks it failed and propagates the error out of the workflow call. Use normal mode when a failure must be routed to another node or to `Exit.onFailure`, must carry data, or the function returns void.
 
 ---
 
@@ -277,7 +277,7 @@ When no `--mode` is specified:
 - **Expression** (default): function returns a value (non-void), whether sync or async
 - **Normal**: void return, or user explicitly requests normal mode
 
-**Default to expression mode.** Expression nodes support failure branching via throw. Only switch to normal mode for error-with-data patterns or void side-effects.
+**Default to expression mode.** A throw in an expression node marks it failed and propagates the error out of the workflow call. Switch to normal mode when a failure must be routed to another node or to `Exit.onFailure`, must carry data, or the function returns void.
 
 The compiler fully supports async expression nodes -- `await`, async detection, try/catch wrapping, and onSuccess/onFailure are all handled automatically.
 

@@ -294,6 +294,12 @@ export function validateTypeCompatibility(
     const toPort = conn.to.port;
     const connLocation = getConnectionLocationHelper(conn);
 
+    // A connection derived from an expression carries a transformed value;
+    // the source port's type says nothing about what reaches the target.
+    if (conn.derived) {
+      return;
+    }
+
     // Skip Start and Exit nodes (they handle types dynamically)
     if (isStartNode(fromNode) || isExitNode(toNode)) {
       return;
@@ -883,6 +889,10 @@ export function validateMultipleInputConnections(
 
     // Skip Exit node (handled separately in validateDataFlow)
     if (isExitNode(conn.to.node)) continue;
+
+    // One expression may read several upstream ports; each is a derived
+    // connection into the same target, and the expression is the single value
+    if (conn.derived) continue;
 
     // Get target port type to check if it's STEP or has mergeStrategy
     const targetNodeType = instanceMap.get(conn.to.node);

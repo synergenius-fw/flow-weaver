@@ -403,10 +403,17 @@ describe('sugar-optimizer', () => {
       expect(isConnectionCoveredBySugar(c, sugar)).toBe(false);
     });
 
-    it('should not cover data connections to Exit', () => {
+    it('should cover same-name data connections to Exit', () => {
       const sugar = { paths: [pathMacro([{ node: 'Start' }, { node: 'a' }, { node: 'Exit' }])] };
-      // data connection to Exit - not covered by scope walking
+      // Exit ports resolve by name like any other step
       const c = conn('a', 'result', 'Exit', 'result');
+      expect(isConnectionCoveredBySugar(c, sugar)).toBe(true);
+    });
+
+    it('should not cover a Start param passed straight through to Exit', () => {
+      const sugar = { paths: [pathMacro([{ node: 'Start' }, { node: 'a' }, { node: 'Exit' }])] };
+      // A pass-through is never implied; it must be an explicit @connect
+      const c = conn('Start', 'result', 'Exit', 'result');
       expect(isConnectionCoveredBySugar(c, sugar)).toBe(false);
     });
 

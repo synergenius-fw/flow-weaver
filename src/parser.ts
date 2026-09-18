@@ -37,6 +37,7 @@ import {
   expandCoerceMacros,
   generateAutoConnections,
 } from './parser/macro-expansion';
+import { expandExpressionReferences, collectModuleBindings } from './parser/expression-references';
 import {
   parseStartPorts,
   parseExitPorts,
@@ -1500,6 +1501,25 @@ export class AnnotationParser {
       // Expand @coerce macros into synthetic coercion nodes + connections
       if (config.coercions && config.coercions.length > 0) {
         expandCoerceMacros(config.coercions, instances, connections, startPorts, exitPorts, macros, errors);
+      }
+
+      // Upstream references inside [expr: ...] bindings become derived data
+      // connections. Runs after every macro expansion so synthetic instances
+      // are referenceable, and before validation so ordering, cycle detection
+      // and the durable graph all see the edges.
+      if (instances.some((inst) => inst.config?.portConfigs?.some((pc) => pc.expression !== undefined))) {
+        expandExpressionReferences({
+          instances,
+          connections,
+          findNodeType: (name) =>
+            allAvailableNodeTypes.find((nt) => nt.name === name || nt.functionName === name),
+          startPorts,
+          moduleBindings: collectModuleBindings(
+            sourceFile,
+            new Set(allAvailableNodeTypes.map((nt) => nt.functionName)),
+          ),
+          errors,
+        });
       }
 
       // Include ALL available nodeTypes in the workflow AST, plus imported npm types.

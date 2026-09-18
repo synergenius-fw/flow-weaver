@@ -114,32 +114,40 @@ async function waitForAgent(execute: boolean, agentId: string, context: object, 
 
 ### Usage in Workflow
 
+The node before the gate produces the gate's inputs under the gate's own port names, so `@path` wires them by name and nothing else is needed:
+
 ```typescript
 /**
  * @flowWeaver nodeType
+ * @expression
  * @durablePure
  * @input path - Name of the thing under review
  * @input text - The material itself
- * @output contents - What the agent should look at
- * @output name - The name, echoed back
  * @output agentId - Names the task
+ * @output context - What the agent should look at
+ * @output prompt - What to do with it
  */
-export async function readTarget(execute: boolean, path: string, text: string) {
-  return { onSuccess: true, onFailure: false, contents: text.slice(0, 4000), name: path, agentId: 'review' };
+export function readTarget(path: string, text: string): { agentId: string; context: object; prompt: string } {
+  return {
+    agentId: 'review',
+    context: { path, excerpt: text.slice(0, 4000) },
+    prompt: `Review ${path} and reply with { verdict: "ship" | "hold", reason }.`,
+  };
 }
 
 /**
  * @flowWeaver workflow
+ * @param path - Name of the thing under review
+ * @param text - The material itself
+ * @returns agentResult - What the agent replied
  * @node read readTarget
  * @node agent waitForAgent
- * @connect Start.path -> read.path
- * @connect Start.text -> read.text
- * @connect read.onSuccess -> agent.execute
- * @connect read.agentId -> agent.agentId
- * @connect read.contents -> agent.context
- * @connect agent.onSuccess -> Exit.onSuccess
- * @connect agent.agentResult -> Exit.verdict
+ * @path Start -> read -> agent -> Exit
+ * @path Start -> read -> agent:fail -> Exit
  */
+export async function reviewFile(execute: boolean, params: { path: string; text: string }): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }> {
+  throw new Error('generated body was not installed');
+}
 ```
 
 The complete, runnable version is `use-cases/agent-gate-demo/review-file.ts`.

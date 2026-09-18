@@ -99,6 +99,13 @@ export function removeConnection(
     );
   }
 
+  const derived = ast.connections[connIndex].derived;
+  if (derived) {
+    throw new Error(
+      `Connection ${fromRef.node}.${fromRef.port} → ${toRef.node}.${toRef.port} is derived from the expression on ${toRef.node}.${toRef.port} (${JSON.stringify(derived.expression)}). Edit that expression instead.`,
+    );
+  }
+
   return withoutValidation(
     ast,
     (draft) => {

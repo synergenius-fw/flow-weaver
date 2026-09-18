@@ -27,6 +27,7 @@ import {
 } from '../annotation-generator';
 import { shouldWorkflowBeAsync } from '../generator/async-detection';
 import { detectSugarPatterns, filterStaleMacros } from '../sugar-optimizer';
+import { isPathImpliedDataEdge } from '../parser/path-data-resolution';
 import { serializePackDeployAnnotations } from '../parser/serialize-deploy-annotations';
 import { validateDurableClosure } from './durable-validation';
 import * as ts from 'typescript';
@@ -1564,13 +1565,8 @@ function isConnectionCoveredByMacro(conn: TConnectionAST, macros: TWorkflowMacro
         if (route === 'fail' && conn.from.port === 'onFailure' && conn.to.port === 'execute') return true;
         if (route === 'ok' && conn.from.port === 'onSuccess' && conn.to.port === 'execute') return true;
       }
-      // Data: same-name non-control-flow, from before to, to is not Exit
-      if (
-        conn.to.node !== 'Exit' &&
-        !isControlFlowPort(conn.from.port) &&
-        !isControlFlowPort(conn.to.port) &&
-        conn.from.port === conn.to.port
-      ) {
+      // Data: the shape a path implies between two of its steps (Exit included)
+      if (isPathImpliedDataEdge(conn.from.node, conn.from.port, conn.to.node, conn.to.port)) {
         return true;
       }
     } else if (macro.type === 'fanOut') {
@@ -1734,10 +1730,14 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
     }
   }
 
+  // Connections derived from [expr:] references are implied by the expression
+  // on the @node line: never written as @connect, no part in @path detection.
+  const authoredConnections = ast.connections.filter((conn) => !conn.derived);
+
   // Filter stale macros (e.g. paths whose connections were deleted)
   const existingMacros = filterStaleMacros(
     ast.macros || [],
-    ast.connections,
+    authoredConnections,
     ast.instances,
     ast.nodeTypes,
     ast.startPorts,
@@ -1756,7 +1756,7 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
 
   // Auto-detect @path sugar patterns from connections
   const detected = detectSugarPatterns(
-    ast.connections,
+    authoredConnections,
     ast.instances,
     existingMacros,
     ast.nodeTypes,
@@ -1812,7 +1812,7 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
   // Add connections (with scope suffix when present)
   // Skip connections covered by macros, autoConnect-generated connections, and dropped coerce connections
   if (!ast.options?.autoConnect) {
-    for (const conn of ast.connections) {
+    for (const conn of authoredConnections) {
       if (allMacros.length > 0 && isConnectionCoveredByMacro(conn, allMacros)) continue;
       if (droppedCoerceIds.has(conn.from.node) || droppedCoerceIds.has(conn.to.node)) continue;
       const fromScope = conn.from.scope ? `:${conn.from.scope}` : '';

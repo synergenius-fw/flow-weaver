@@ -17,6 +17,7 @@ import type {
 } from '../ast/types';
 import { isControlFlowPort } from '../constants';
 import { COERCE_TYPE_MAP } from '../built-in-nodes/coercion-types';
+import { impliedPathDataEdgesInto } from './path-data-resolution';
 
 export function expandMapMacro(
   mapConfig: {
@@ -320,28 +321,16 @@ export function expandPathMacros(
         }
       }
 
-      // Data port scope walking (skip Exit — no data inputs to wire)
-      if (nextId === 'Exit') continue;
 
-      const nextInputs = getInputPorts(nextId);
-      for (const [inputName] of Object.entries(nextInputs)) {
-        if (isControlFlowPort(inputName)) continue;
-
-        // Skip auto-wiring if a manual @connect already targets this input port
+      // Data ports of this step resolve by name to the nearest ancestor in the
+      // path (Exit included; see path-data-resolution.ts for the rule). A port
+      // the author already connected with @connect is left alone.
+      for (const edge of impliedPathDataEdgesInto(steps, i + 1, { inputs: getInputPorts, outputs: getOutputPorts })) {
         const alreadyConnected = connections.some(
-          c => c.to.node === nextId && c.to.port === inputName
+          c => c.to.node === edge.to.node && c.to.port === edge.to.port
         );
         if (alreadyConnected) continue;
-
-        // Walk backward through path steps to find nearest ancestor with same-name output
-        for (let j = i; j >= 0; j--) {
-          const ancestorId = steps[j].node;
-          const ancestorOutputs = getOutputPorts(ancestorId);
-          if (inputName in ancestorOutputs && !isControlFlowPort(inputName)) {
-            addConnection(ancestorId, inputName, nextId, inputName);
-            break;
-          }
-        }
+        addConnection(edge.from.node, edge.from.port, edge.to.node, edge.to.port);
       }
     }
 

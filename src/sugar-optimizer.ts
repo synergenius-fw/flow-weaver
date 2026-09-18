@@ -15,6 +15,7 @@ import type {
   TPortDefinition,
 } from './ast/types';
 import { isControlFlowPort } from './constants';
+import { isPathImpliedDataEdge, pathDataEdgesSatisfied } from './parser/path-data-resolution';
 
 export interface DetectedSugar {
   paths: TPathMacro[];
@@ -121,28 +122,11 @@ export function validatePathMacro(
       return nt?.inputs || {};
     };
 
-    const { steps } = path;
-    for (let i = 0; i < steps.length - 1; i++) {
-      const nextId = steps[i + 1].node;
-      if (nextId === 'Exit') continue;
-
-      const nextInputs = getInputPorts(nextId);
-      for (const [inputName] of Object.entries(nextInputs)) {
-        if (isControlFlowPort(inputName)) continue;
-
-        // Walk backward through path steps to find nearest ancestor with same-name output
-        for (let j = i; j >= 0; j--) {
-          const ancestorId = steps[j].node;
-          const ancestorOutputs = getOutputPorts(ancestorId);
-          if (inputName in ancestorOutputs && !isControlFlowPort(inputName)) {
-            const key = `${ancestorId}.${inputName}->${nextId}.${inputName}`;
-            if (!connKeys.has(key)) {
-              return false;
-            }
-            break;
-          }
-        }
-      }
+    // Every data edge the path implies (Exit included) must still be present,
+    // or explicitly overridden, in the connection set.
+    const unscoped = connections.filter((c) => !c.from.scope && !c.to.scope);
+    if (!pathDataEdgesSatisfied(path.steps, { inputs: getInputPorts, outputs: getOutputPorts }, unscoped)) {
+      return false;
     }
   }
 
@@ -363,42 +347,14 @@ export function detectSugarPatterns(
   }
 
   // ---- Step 3: Validate data connections for each candidate ----
-  // Simulate scope walking and verify expected data connections exist
-  const connKeySet = new Set<string>();
-  for (const conn of unscopedConns) {
-    connKeySet.add(`${conn.from.node}.${conn.from.port}->${conn.to.node}.${conn.to.port}`);
-  }
-
   const validRoutes = candidateRoutes.filter(route => {
     // Path needs at least 2 steps
     if (route.length < 2) return false;
 
-    // Simulate scope walking for data ports
-    for (let i = 0; i < route.length - 1; i++) {
-      const nextId = route[i + 1].node;
-      if (nextId === 'Exit') continue;
-
-      const nextInputs = getInputPorts(nextId);
-      for (const [inputName] of Object.entries(nextInputs)) {
-        if (isControlFlowPort(inputName)) continue;
-
-        // Walk backward through route steps to find nearest ancestor with same-name output
-        for (let j = i; j >= 0; j--) {
-          const ancestorId = route[j].node;
-          const ancestorOutputs = getOutputPorts(ancestorId);
-          if (inputName in ancestorOutputs && !isControlFlowPort(inputName)) {
-            // Scope walking would create this connection — verify it exists
-            const key = `${ancestorId}.${inputName}->${nextId}.${inputName}`;
-            if (!connKeySet.has(key)) {
-              return false; // Path would create a connection that doesn't exist
-            }
-            break;
-          }
-        }
-      }
-    }
-
-    return true;
+    // A candidate is only a valid @path if every data edge it would imply
+    // (Exit included) already exists or was explicitly overridden; otherwise
+    // emitting it would create connections the author never wrote.
+    return pathDataEdgesSatisfied(route, { inputs: getInputPorts, outputs: getOutputPorts }, unscopedConns);
   });
 
   // ---- Step 4: Greedy route selection (cover all control-flow edges) ----
@@ -520,13 +476,8 @@ export function isConnectionCoveredBySugar(
       if (route === 'ok' && conn.from.port === 'onSuccess' && conn.to.port === 'execute') return true;
     }
 
-    // Data: same-name non-control-flow, from before to, to is not Exit
-    if (
-      conn.to.node !== 'Exit' &&
-      !isControlFlowPort(conn.from.port) &&
-      !isControlFlowPort(conn.to.port) &&
-      conn.from.port === conn.to.port
-    ) {
+    // Data: the shape a path implies between two of its steps (Exit included)
+    if (isPathImpliedDataEdge(conn.from.node, conn.from.port, conn.to.node, conn.to.port)) {
       return true;
     }
   }

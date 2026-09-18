@@ -101,9 +101,7 @@ function outputResult(data: any): { result: any } {
  * @position Start -600 0
  * @position Exit 600 0
  * @path Start -> validator -> transformer -> outputter -> Exit
- * @connect outputter.result -> Exit.result
- * @connect validator.onFailure -> Exit.onFailure
- * @connect validator.error -> Exit.error
+ * @path Start -> validator:fail -> Exit
  * @param execute [order:0] - Execute
  * @param data [order:1] - Input data
  * @returns onSuccess [order:0] - On Success
@@ -164,11 +162,12 @@ function ${name}(${inputPortName}: any): { ${outputPortName}: any } {
     ` * @position Exit ${startX + (nodeNames.length + 1) * spacing} 0`,
   ].join('\n');
 
-  // Build connections using @path sugar
+  // Build connections using @path sugar: the main route, and the first
+  // step's failure straight to Exit
   const pathNodes = ['Start', ...nodeNames.map((_, i) => `step${i}`), 'Exit'];
   const connections: string[] = [];
   connections.push(` * @path ${pathNodes.join(' -> ')}`);
-  connections.push(` * @connect step0.onFailure -> Exit.onFailure`);
+  connections.push(` * @path Start -> step0:fail -> Exit`);
 
   return `${nodeTypeDefs.join('\n\n')}
 
@@ -182,7 +181,6 @@ ${connections.join('\n')}
  * @returns onSuccess [order:0] - On Success
  * @returns onFailure [order:1] - On Failure
  * @returns ${outputPort} [order:2] - Processed result
- * @returns error [order:3] - Error message if failed
  */
 export ${asyncKeyword}function ${workflowName}(
   execute: boolean,
@@ -201,9 +199,12 @@ export const sequentialTemplate: WorkflowTemplate = {
   generate: (opts: WorkflowTemplateOptions): string => {
     const { workflowName, async: isAsync, config } = opts;
     const asyncKeyword = isAsync ? 'async ' : '';
-    const returnType = isAsync
-      ? 'Promise<{ onSuccess: boolean; onFailure: boolean; result: any; error?: string }>'
-      : '{ onSuccess: boolean; onFailure: boolean; result: any; error?: string }';
+    // The stub's return type declares Exit ports too, so it must match the
+    // @returns lines exactly: only the default template produces `error`.
+    const returnTypeFor = (outputPort: string, withError: boolean): string => {
+      const body = `onSuccess: boolean; onFailure: boolean; ${outputPort}: any${withError ? '; error: string | null' : ''}`;
+      return isAsync ? `Promise<{ ${body} }>` : `{ ${body} }`;
+    };
 
     // If custom nodes are provided, generate custom template
     const customNodes = config?.nodes as string[] | undefined;
@@ -214,7 +215,7 @@ export const sequentialTemplate: WorkflowTemplate = {
       return generateCustomTemplate(
         workflowName,
         asyncKeyword,
-        returnType,
+        returnTypeFor(outputPort, false),
         customNodes,
         inputPort,
         outputPort
@@ -226,13 +227,13 @@ export const sequentialTemplate: WorkflowTemplate = {
       return generateCustomTemplate(
         workflowName,
         asyncKeyword,
-        returnType,
+        returnTypeFor(outputPort, false),
         ['validateData', 'transformData', 'outputResult'],
         inputPort,
         outputPort
       );
     }
 
-    return generateDefaultTemplate(workflowName, asyncKeyword, returnType);
+    return generateDefaultTemplate(workflowName, asyncKeyword, returnTypeFor('result', true));
   },
 };
