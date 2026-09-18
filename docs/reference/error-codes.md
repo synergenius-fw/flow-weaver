@@ -640,9 +640,9 @@ These rules detect common workflow design problems that compile fine but indicat
 | Field         | Value                                                                                                                                                         |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Severity      | Warning                                                                                                                                                       |
-| Meaning       | An async node has no onFailure connection. Async operations (network calls, file I/O, AI calls) can fail, and errors will be silently lost.                  |
-| Common Causes | Adding an async node and connecting onSuccess but forgetting to wire onFailure.                                                                              |
-| Fix           | Connect the node's `onFailure` port to an error handler, retry node, or `Exit.onFailure`.                                                                   |
+| Meaning       | An async node has no `onFailure` connection. Async operations (network calls, file I/O, AI calls) can fail. For a normal-mode node the failure is silently lost. For an `@expression` node a throw aborts the run with the error, whether or not `onFailure` is wired. |
+| Common Causes | Adding an async node and connecting `onSuccess` but forgetting to decide what a failure should do.                                                          |
+| Fix           | Normal mode: connect the node's `onFailure` port to an error handler, retry node, or `Exit.onFailure`. Expression mode: wiring `onFailure` does nothing about a throw; to route the failure inside the graph, write the node in normal mode and return `onFailure: true`. If aborting the run is the intended behaviour, add `[suppress: "DESIGN_ASYNC_NO_ERROR_PATH"]` to the `@node` line. |
 
 #### DESIGN_SCOPE_NO_FAILURE_EXIT (warning)
 

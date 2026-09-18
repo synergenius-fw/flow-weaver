@@ -75,7 +75,7 @@ export const ERROR_HINTS: Record<string, string> = {
 
   // Design quality rules
   DESIGN_ASYNC_NO_ERROR_PATH:
-    'Use fw_modify(operation="addConnection", params={from:"<nodeId>.onFailure", to:"Exit.onFailure"}) or add a retry/error handler',
+    'Normal-mode node: fw_modify(operation="addConnection", params={from:"<nodeId>.onFailure", to:"Exit.onFailure"}) or add a retry/error handler. @expression node: a throw aborts the run and wiring onFailure changes nothing; rewrite the node in normal mode returning onFailure to route the failure, or add [suppress: "DESIGN_ASYNC_NO_ERROR_PATH"] if aborting is intended',
   DESIGN_SCOPE_NO_FAILURE_EXIT:
     'Use fw_modify(operation="addConnection", params={from:"<nodeId>.onFailure", to:"Exit.onFailure"}) to surface scope failures',
   DESIGN_UNBOUNDED_RETRY:

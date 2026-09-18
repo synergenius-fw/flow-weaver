@@ -68,7 +68,14 @@ function isStepPort(portName: string, portDef?: { dataType?: string }): boolean 
 
 /**
  * Async nodes (network, disk, AI) can fail. If onFailure is unconnected,
- * failures may be silently swallowed or crash the workflow.
+ * a normal-mode node's failure is silently swallowed.
+ *
+ * The message says what actually happens for each mode. A normal-mode node
+ * returns `onFailure: true`, which is routed, so wiring `onFailure` handles
+ * it. An expression node fails by throwing, and the generated code marks
+ * the node failed and rethrows: the error aborts the run whether or not
+ * `onFailure` is wired. Telling an author to wire `onFailure` on an
+ * expression node would send them to a change that does nothing.
  */
 export const asyncNoErrorPathRule: TValidationRule = {
   name: 'DESIGN_ASYNC_NO_ERROR_PATH',
@@ -86,7 +93,9 @@ export const asyncNoErrorPathRule: TValidationRule = {
         errors.push({
           type: 'warning',
           code: 'DESIGN_ASYNC_NO_ERROR_PATH',
-          message: `Async node '${instance.id}' has no onFailure connection. Async operations (network, disk, AI) can fail, and errors will be silently lost.`,
+          message: nt.expression
+            ? `Async expression node '${instance.id}' has no failure handling. Async operations (network, disk, AI) can fail; a throw here aborts the run with the error. If that is intended, suppress this warning; to route the failure inside the graph, write the node in normal mode and return onFailure.`
+            : `Async node '${instance.id}' has no onFailure connection. Async operations (network, disk, AI) can fail, and errors will be silently lost.`,
           node: instance.id,
         });
       }

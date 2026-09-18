@@ -582,8 +582,8 @@ const errorMappers: Record<string, ErrorMapper> = {
     const nodeName = error.node || 'unknown';
     return {
       title: 'Async Node Missing Error Path',
-      explanation: `Async node '${nodeName}' has no onFailure connection. Async operations (network calls, file I/O, AI calls) can fail, and errors will be silently lost.`,
-      fix: `Connect ${nodeName}.onFailure to an error handler, retry node, or Exit.onFailure.`,
+      explanation: `Async node '${nodeName}' has no failure handling. Async operations (network calls, file I/O, AI calls) can fail. A normal-mode node's onFailure is silently lost; an @expression node's throw aborts the run with the error.`,
+      fix: `For a normal-mode node, connect ${nodeName}.onFailure to an error handler, retry node, or Exit.onFailure. For an @expression node, wiring onFailure does nothing about a throw: to route the failure, write the node in normal mode and return onFailure, or suppress this warning if aborting is intended.`,
       code: error.code,
     };
   },

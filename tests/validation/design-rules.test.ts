@@ -105,6 +105,34 @@ describe('DESIGN_ASYNC_NO_ERROR_PATH', () => {
     expect(errors[0].node).toBe('fetch');
   });
 
+  it('tells a normal-mode node to wire onFailure, and an expression node that a throw aborts the run', () => {
+    const outputs = {
+      onSuccess: { dataType: 'STEP' as const },
+      onFailure: { dataType: 'STEP' as const },
+      data: { dataType: 'OBJECT' as const },
+    };
+    const normal = makeNodeType({ name: 'fetchNormal', isAsync: true, hasFailurePort: true, hasSuccessPort: true, inputs: { execute: { dataType: 'STEP' } }, outputs });
+    const expression = makeNodeType({ name: 'fetchExpr', isAsync: true, hasFailurePort: true, hasSuccessPort: true, expression: true, inputs: { execute: { dataType: 'STEP' } }, outputs });
+
+    const ast = makeWorkflow({
+      nodeTypes: [normal, expression],
+      instances: [makeInstance('a', 'fetchNormal'), makeInstance('b', 'fetchExpr')],
+      connections: [
+        conn('Start', 'execute', 'a', 'execute'),
+        conn('a', 'onSuccess', 'b', 'execute'),
+        conn('b', 'onSuccess', 'Exit', 'onSuccess'),
+      ],
+    });
+
+    const errors = asyncNoErrorPathRule.validate(ast);
+    expect(errors.map((e) => e.node)).toEqual(['a', 'b']);
+    expect(errors[0].message).toContain("Async node 'a' has no onFailure connection");
+    expect(errors[0].message).toContain('silently lost');
+    expect(errors[1].message).toContain("Async expression node 'b' has no failure handling");
+    expect(errors[1].message).toContain('a throw here aborts the run with the error');
+    expect(errors[1].message).toContain('write the node in normal mode and return onFailure');
+  });
+
   it('should pass when async node has onFailure connected', () => {
     const asyncType = makeNodeType({
       name: 'fetchData',
