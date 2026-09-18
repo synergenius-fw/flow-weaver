@@ -1,7 +1,7 @@
 ---
 name: Marketplace
 description: Create, publish, install, and manage Flow Weaver marketplace packages and external plugins
-keywords: [marketplace, market, package, publish, install, search, npm, flow-weaver-pack, plugin, init, manifest, node types, patterns, workflows, component, area, sandbox]
+keywords: [marketplace, market, package, pack, publish, install, search, npm, flow-weaver-pack, plugin, init, manifest, manifestVersion, node types, patterns, workflows, cliEntrypoint, cliCommands, mcpEntrypoint, mcpTools, exportTargets, tagHandlers, validationRuleSets, docs, engineVersion, component, area, sandbox]
 ---
 
 # Marketplace
@@ -10,35 +10,24 @@ The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node 
 
 ## Overview
 
-| What | Purpose |
-|------|---------|
-| **Node types** | Reusable `@flowWeaver nodeType` functions |
-| **Workflows** | Complete `@flowWeaver workflow` exports |
-| **Patterns** | Reusable `@flowWeaver pattern` fragments |
-| **Export targets** | Deployment targets for `fw export` |
+| What | Purpose | Declared |
+|------|---------|----------|
+| **Node types** | Reusable `@flowWeaver nodeType` functions | Generated from source |
+| **Workflows** | Complete `@flowWeaver workflow` exports | Generated from source |
+| **Patterns** | Reusable `@flowWeaver pattern` fragments | Generated from source |
+| **Export targets** | Deployment targets for `fw export` | `exportTargets` in the manifest |
+| **Tag handlers** | Custom JSDoc annotations | `tagHandlers` |
+| **CLI commands** | `fw <pack> <command>` | `cliEntrypoint` + `cliCommands` |
+| **MCP tools** | Tools added to `fw mcp-server` | `mcpEntrypoint` + `mcpTools` |
+| **Validation rules, docs, init templates, device handlers** | See [Pack Contributions](#pack-contributions) | `validationRuleSets`, `docs`, `initContributions`, `deviceHandlers` |
 
 A single package can contain any combination of these.
 
-## Official Export Target Packs
+## Export Target Packs
 
-Flow Weaver provides 6 official export target packs:
+Flow Weaver core ships no export target. Every target comes from a pack's `exportTargets` manifest field, resolved from `node_modules` each time `fw export`, `fw compile --target` or `fw_export` runs. Find target packs with `fw market search`, install one, and its target name becomes valid for `--target`. What a target generates, and any annotations it reads, is documented by the pack itself — once installed, its topics appear in `fw docs`.
 
-| Package | Target name | Description |
-|---------|-------------|-------------|
-| `@synergenius/flow-weaver-pack-lambda` | `lambda` | AWS Lambda + API Gateway |
-| `@synergenius/flow-weaver-pack-vercel` | `vercel` | Vercel serverless functions |
-| `@synergenius/flow-weaver-pack-cloudflare` | `cloudflare` | Cloudflare Workers |
-| `@synergenius/flow-weaver-pack-inngest` | `inngest` | Inngest durable functions |
-| `@synergenius/flow-weaver-pack-github-actions` | `github-actions` | GitHub Actions CI/CD pipelines |
-| `@synergenius/flow-weaver-pack-gitlab-ci` | `gitlab-ci` | GitLab CI/CD pipelines |
-
-Install with:
-
-```bash
-npm install @synergenius/flow-weaver-pack-lambda
-```
-
-See [Deployment](deployment) for target-specific usage details.
+Without a target pack installed, `fw export` and `fw_export` return `INVALID_TARGET` for every name, and `fw compile --target <name>` reports `Unknown compile target: <name>. No custom targets registered.`
 
 ---
 
@@ -133,6 +122,8 @@ This:
 2. Validates against 12 marketplace-specific rules
 3. Generates `flowweaver.manifest.json` with metadata about all exports
 
+Only `nodeTypes`, `workflows` and `patterns` are derived from source. Every other manifest field is hand-written and carried over unchanged from the existing `flowweaver.manifest.json` each time `market pack` runs; `name`, `version` and `description` come from `package.json`, and `engineVersion` and `categories` from its `flowWeaver` block.
+
 ### Publish
 
 Publish to npm:
@@ -159,11 +150,124 @@ The `market pack` command validates packages against additional rules beyond sta
 
 ---
 
+## Pack Contributions
+
+Beyond node types, a pack extends Flow Weaver through hand-written fields in `flowweaver.manifest.json` (`manifestVersion: 2`). Installed packs are found by scanning `node_modules` for a `flowweaver.manifest.json`; each field below is read by a specific loader at a specific moment.
+
+| Field | Loaded by | When |
+|-------|-----------|------|
+| `tagHandlers` | The parser | Every parse with a `projectDir`; see [Custom Tag Handlers](#custom-tag-handlers) |
+| `validationRuleSets` | The parser | Every parse with a `projectDir`; each set's `detect` decides whether its rules apply |
+| `exportTargets` | `fw export` / `fw_export` | Per call; an unknown target name lists the installed ones |
+| `cliEntrypoint` + `cliCommands` | The CLI | At startup; commands appear as `fw <namespace> <command>` |
+| `mcpEntrypoint` + `mcpTools` | `fw mcp-server` | At server start, after the core tools |
+| `initContributions` | `fw init` | Use cases and templates offered during project setup |
+| `deviceHandlers` | `fw connect` | Device connection handlers |
+| `docs` | `fw docs`, `fw_docs`, `fw context`, `fw_context` | At command or server start; topics list, read and search like core topics |
+| `engineVersion` | CLI and MCP loaders | A pack requiring a newer Flow Weaver still loads, with a warning on stderr |
+
+### CLI commands
+
+Both fields are required; a pack with `cliEntrypoint` but an empty `cliCommands` is skipped.
+
+```json
+{
+  "cliEntrypoint": "dist/cli.js",
+  "cliCommands": [
+    {
+      "name": "replay",
+      "description": "Replay a recording",
+      "arguments": [{ "syntax": "<recording>", "description": "Recording file" }],
+      "options": [{ "flags": "--speed <n>", "description": "Playback speed", "default": 1 }]
+    }
+  ]
+}
+```
+
+- The namespace is the npm name without its scope and the `flow-weaver-pack-` prefix: `@acme/flow-weaver-pack-audio` → `fw audio replay`
+- The entrypoint is imported lazily, only when one of its commands runs
+- It exports `handleCommandV2(name, context)` where `context` is `{ args, options, cwd }` — Flow Weaver owns the parsing, so a pack never reads `process.argv`. The older `handleCommand(name, args)` is still accepted; `printHelp()` is optional
+
+### MCP tools
+
+Both fields are required; `mcpTools` is the list the server uses to decide whether to import the entrypoint at all, so declare every tool the entrypoint registers.
+
+```json
+{
+  "mcpEntrypoint": "dist/mcp.js",
+  "mcpTools": [{ "name": "fw_audio_replay", "description": "Replay a recording" }]
+}
+```
+
+```typescript
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+export async function registerMcpTools(mcp: McpServer): Promise<void> {
+  mcp.tool('fw_audio_replay', 'Replay a recording', { recording: z.string() }, async (args) => {
+    // …
+  });
+}
+```
+
+- Pack tools are registered after the core tools, so a name collision with a core tool is the pack's to avoid; prefix with the pack namespace
+- Every tool definition is sent to the assistant on every turn — keep descriptions short (see [MCP Tools](mcp-tools))
+- A failing import is reported on stderr and the server keeps running without that pack
+
+### Export targets
+
+```json
+{
+  "exportTargets": [{ "name": "audio-cloud", "description": "Deploy to Audio Cloud", "file": "dist/target.js", "exportName": "AudioCloudTarget" }]
+}
+```
+
+Targets are resolved per call from the current working directory's `node_modules`, so `fw_export` with no target packs installed returns `INVALID_TARGET` for every name. `file` is the compiled module; `exportName` names the class export (the default export when omitted). The class is instantiated lazily with no constructor arguments. What each target generates is described in [Deployment](deployment).
+
+#### Writing an export target
+
+A target is a class implementing `ExportTarget` from `@synergenius/flow-weaver/deployment`. Extending `BaseExportTarget` from the same module gives you `createFile`, `generatePackageJson`, `generateTsConfig`, the OpenAPI builders and `generateReadme`.
+
+| Member | Required | Called by |
+|--------|----------|-----------|
+| `name`, `description` | yes | Always |
+| `generate(options)` | yes | `fw export` for a single workflow; `fw_export` when the target has no `generateBundle` — targets that read the workflow AST rather than compiled code, such as CI/CD pipelines |
+| `generateBundle(workflows, nodeTypes, options)` | no | `fw export --multi`; `fw_export` whenever the target defines it. Receives the selected workflows and node types, each with an `expose` flag saying whether it gets an HTTP endpoint |
+| `getDeployInstructions(artifacts)` | yes | After generation; returns `{ title, steps, prerequisites, localTestSteps?, links? }` |
+| `deploySchema`, `nodeTypeDeploySchema` | no | Declare the `@deploy` keys the target accepts, for validation and Studio autocomplete |
+| `generateMultiWorkflow`, `generateNodeTypeService` | no | Declared on the interface; neither `fw export` nor `fw_export` calls them |
+
+`options` is an `ExportOptions`: `sourceFile`, `workflowName`, `displayName`, `outputDir`, and optionally `description`, `production`, `includeDocs`, `multi`, `workflows`, and `targetOptions` — `{ durableSteps: true }` when requested; `fw_export` also passes the workflow's `@deploy` block as `deploy`.
+
+Both generators return artifacts of the shape `{ files, target, workflowName, entryPoint, warnings? }`, where each file is `{ relativePath, absolutePath, content, type }` and `type` is one of `handler`, `config`, `workflow`, `nodeType`, `package`, `other`. The caller writes the files unless `--dry-run` (CLI) or `preview` (MCP) was requested, then prints the deploy instructions.
+
+### Documentation topics
+
+```json
+{
+  "docs": [
+    {
+      "slug": "audio-recording",
+      "name": "Audio Recording",
+      "description": "Recording, trimming and replaying audio in a workflow",
+      "keywords": ["audio", "record", "replay"],
+      "presets": ["authoring"],
+      "file": "docs/recording.md"
+    }
+  ]
+}
+```
+
+- `file` is relative to the package root and is plain Markdown; frontmatter is optional — when the file has none, `name`, `description` and `keywords` come from the manifest
+- The topic appears in `fw docs`, `fw_docs list`/`read`/`search` and, for each preset named in `presets`, in `fw context` and `fw_context`
+- A slug that collides with a core topic is ignored; a `file` that does not exist is skipped with a note on stderr
+
+---
+
 ## Custom Tag Handlers
 
 Tag handlers let packs extend the parser with custom JSDoc annotations. When the parser encounters a tag it doesn't recognize natively, it delegates to registered pack handlers before emitting "Unknown annotation" warnings.
 
-The CI/CD pack (`flow-weaver-pack-cicd`) is the primary example: it registers handlers for `@secret`, `@runner`, `@cache`, `@artifact`, and other CI/CD tags.
+A pack that introduces platform- or pipeline-specific annotations registers a handler for each tag it owns; the parsed data lands in the pack's deploy namespace, where the pack's export target reads it.
 
 ### Writing a handler
 
@@ -201,11 +305,11 @@ Add a `tagHandlers` entry to your `flowweaver.manifest.json`:
   "manifestVersion": 2,
   "tagHandlers": [
     {
-      "tags": ["secret", "runner", "cache"],
-      "namespace": "cicd",
+      "tags": ["region", "memory"],
+      "namespace": "audio",
       "scope": "both",
       "file": "dist/tag-handler.js",
-      "exportName": "cicdTagHandler"
+      "exportName": "audioTagHandler"
     }
   ]
 }

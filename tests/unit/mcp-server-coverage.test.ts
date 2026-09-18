@@ -27,11 +27,11 @@ vi.mock('../../src/mcp/tools-export', () => ({ registerExportTools: vi.fn() }));
 vi.mock('../../src/mcp/tools-marketplace', () => ({ registerMarketplaceTools: vi.fn() }));
 vi.mock('../../src/mcp/tools-diagram', () => ({ registerDiagramTools: vi.fn() }));
 vi.mock('../../src/mcp/tools-docs', () => ({ registerDocsTools: vi.fn() }));
-vi.mock('../../src/mcp/tools-model', () => ({ registerModelTools: vi.fn() }));
 vi.mock('../../src/mcp/tools-debug', () => ({ registerDebugTools: vi.fn() }));
 vi.mock('../../src/mcp/tools-context', () => ({ registerContextTools: vi.fn() }));
 vi.mock('../../src/mcp/prompts', () => ({ registerPrompts: vi.fn() }));
 vi.mock('../../src/mcp/pack-tools', () => ({ registerPackMcpTools: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('../../src/docs/pack-topics', () => ({ loadPackDocTopics: vi.fn().mockResolvedValue(0) }));
 
 import { startMcpServer, mcpServerCommand } from '../../src/mcp/server';
 import { registerQueryTools } from '../../src/mcp/tools-query';
@@ -41,11 +41,11 @@ import { registerExportTools } from '../../src/mcp/tools-export';
 import { registerMarketplaceTools } from '../../src/mcp/tools-marketplace';
 import { registerDiagramTools } from '../../src/mcp/tools-diagram';
 import { registerDocsTools } from '../../src/mcp/tools-docs';
-import { registerModelTools } from '../../src/mcp/tools-model';
 import { registerDebugTools } from '../../src/mcp/tools-debug';
 import { registerContextTools } from '../../src/mcp/tools-context';
 import { registerPrompts } from '../../src/mcp/prompts';
 import { registerPackMcpTools } from '../../src/mcp/pack-tools';
+import { loadPackDocTopics } from '../../src/docs/pack-topics';
 
 describe('startMcpServer', () => {
   beforeEach(() => {
@@ -67,11 +67,11 @@ describe('startMcpServer', () => {
     expect(registerMarketplaceTools).toHaveBeenCalled();
     expect(registerDiagramTools).toHaveBeenCalled();
     expect(registerDocsTools).toHaveBeenCalled();
-    expect(registerModelTools).toHaveBeenCalled();
     expect(registerDebugTools).toHaveBeenCalled();
     expect(registerContextTools).toHaveBeenCalled();
     expect(registerPrompts).toHaveBeenCalled();
     expect(registerPackMcpTools).toHaveBeenCalled();
+    expect(loadPackDocTopics).toHaveBeenCalled();
   });
 
   it('connects stdio transport when stdio option is true', async () => {

@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseWorkflow } from '../../api/index.js';
-import { generateInPlace } from '../../api/generate-in-place.js';
+import { generateInPlace, hasInPlaceMarkers } from '../../api/generate-in-place.js';
 import { applyModifyOperation, validateModifyParams } from '../../api/modify-operation.js';
 import { logger } from '../utils/logger.js';
 import { safeWriteFile } from '../utils/safe-write.js';
@@ -22,7 +22,11 @@ async function readParseModifyWrite(
     throw new Error(`Parse errors:\n${parseResult.errors.join('\n')}`);
   }
   const { ast: modifiedAST, warnings } = applyModifyOperation(parseResult.ast, operation, params);
-  const result = generateInPlace(source, modifiedAST);
+  // A structural edit rewrites annotations. Only a file that is already
+  // compiled in place has its generated sections regenerated as well.
+  const result = generateInPlace(source, modifiedAST, {
+    annotationsOnly: !hasInPlaceMarkers(source),
+  });
   safeWriteFile(filePath, result.code);
   for (const w of warnings) {
     logger.warn(w);

@@ -11,13 +11,14 @@ import { registerExportTools } from './tools-export.js';
 import { registerMarketplaceTools } from './tools-marketplace.js';
 import { registerDiagramTools } from './tools-diagram.js';
 import { registerDocsTools } from './tools-docs.js';
-import { registerModelTools } from './tools-model.js';
 import { registerDebugTools } from './tools-debug.js';
 import { registerWorkflowRunTools } from './tools-workflow-run.js';
+import { registerRunTools } from './tools-run.js';
 import { registerContextTools } from './tools-context.js';
 import { registerResourceTools } from './tools-resources.js';
 import { registerPrompts } from './prompts.js';
 import { registerPackMcpTools } from './pack-tools.js';
+import { loadPackDocTopics } from '../docs/pack-topics.js';
 
 export async function startMcpServer(options: McpServerOptions): Promise<void> {
   // Create MCP server
@@ -25,6 +26,10 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
     name: 'flow-weaver',
     version: '1.0.0',
   });
+
+  // Pack doc topics feed fw_docs and fw_context; load them before any tool
+  // can be called, from the same working directory pack tools are read from.
+  await loadPackDocTopics();
 
   // Register all tools
   registerQueryTools(mcp);
@@ -34,9 +39,9 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   registerMarketplaceTools(mcp);
   registerDiagramTools(mcp);
   registerDocsTools(mcp);
-  registerModelTools(mcp);
   registerDebugTools(mcp);
   registerWorkflowRunTools(mcp);
+  registerRunTools(mcp);
   registerContextTools(mcp);
   registerResourceTools(mcp);
   registerPrompts(mcp);

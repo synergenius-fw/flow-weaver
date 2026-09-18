@@ -520,6 +520,43 @@ export const METADATA_ANNOTATIONS: TAnnotationDoc[] = [
     insertTextFormat: 'snippet',
     contexts: ['nodeType'],
   },
+  // Durable classification. Once a workflow's reachable closure contains a
+  // gate, every node in it must carry exactly one of these three; the
+  // compiler refuses an unclassified or doubly classified node.
+  {
+    name: '@durablePure',
+    category: 'metadata',
+    syntax: '@durablePure',
+    description:
+      'Declares a node with no side effects, safe for the engine to re-run after a durable resume. Required on every non-gate, non-effect node in a workflow that contains a gate.',
+    insertText: '@durablePure',
+    insertTextFormat: 'plain',
+    examples: ['@durablePure'],
+    contexts: ['nodeType'],
+  },
+  {
+    name: '@durableGate',
+    category: 'metadata',
+    syntax: '@durableGate approval | input | agent',
+    description:
+      'Declares a durable gate: the workflow yields here with a continuation and resumes later with a supplied resolution. The body is never executed. The kind labels who resolves it.',
+    insertText: '@durableGate ${1|approval,input,agent|}',
+    insertTextFormat: 'snippet',
+    ebnf: `durableGateTag ::= "@durableGate" ( "approval" | "input" | "agent" )`,
+    examples: ['@durableGate approval', '@durableGate agent'],
+    contexts: ['nodeType'],
+  },
+  {
+    name: '@durableEffect',
+    category: 'metadata',
+    syntax: '@durableEffect',
+    description:
+      'Declares a node that touches the outside world. It receives a trailing operationKey parameter, returns { result, receipt }, and runs only through the effect adapter so a resume never repeats it.',
+    insertText: '@durableEffect',
+    insertTextFormat: 'plain',
+    examples: ['@durableEffect'],
+    contexts: ['nodeType'],
+  },
 ];
 
 /**

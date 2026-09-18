@@ -171,6 +171,7 @@ function generateJsdocGrammarFull(): string {
   lines.push('                   [ "@executeWhen" IDENTIFIER ]');
   lines.push('                   [ "@pullExecution" IDENTIFIER ]');
   lines.push('                   [ "@resilience" ( "retries=" INTEGER | "fallback=" STRING ) { ( "retries=" INTEGER | "fallback=" STRING ) } ]');
+  lines.push('                   [ "@durablePure" | "@durableGate" ( "approval" | "input" | "agent" ) | "@durableEffect" ]');
   lines.push('                   [ "@color" TEXT ]');
   lines.push('                   [ "@icon" TEXT ]');
   lines.push('                   { "@tag" IDENTIFIER [ STRING ] }');

@@ -80,12 +80,12 @@ fw compile <input> [options]
 | `-f, --format <format>` | Module format: `esm`, `cjs`, `auto` | `auto` |
 | `--strict` | Type coercion warnings become errors | `false` |
 | `--clean` | Omit redundant @param/@returns | `false` |
-| `--target <target>` | `typescript` or `inngest` | `typescript` |
-| `--cron <schedule>` | Cron schedule (Inngest only) | — |
+| `--target <target>` | `typescript`, or a target registered by an installed pack | `typescript` |
+| `--cron <schedule>` | Cron schedule; overrides `@trigger cron=` for a pack target | — |
 | `--serve` | Generate serve() handler | `false` |
 | `--framework <name>` | `next`, `express`, `hono`, `fastify`, `remix` | — |
 | `--typed-events` | Generate Zod event schemas | `false` |
-| `--retries <n>` | Retries per function (Inngest only) | — |
+| `--retries <n>` | Retries per function; overrides `@retries` for a pack target | — |
 | `--timeout <duration>` | Function timeout (e.g. `"30m"`) | — |
 
 **Examples:**
@@ -93,11 +93,13 @@ fw compile <input> [options]
 fw compile my-workflow.ts
 fw compile '**/*.ts' -o .output
 fw compile my-workflow.ts --format cjs
-fw compile workflow.ts --target inngest --serve --framework next
+fw compile workflow.ts --target <pack-target> --serve --framework next
 fw compile workflow.ts --production --clean
 ```
 
-> See also: [Compilation](compilation) for details on targets and Inngest integration.
+> See also: [Compilation](compilation) for details on targets and target options.
+
+`--target` other than `typescript` needs a pack that provides it; core ships none, and an unknown name reports `Unknown compile target: <name>. No custom targets registered.` The `--cron`, `--serve`, `--framework`, `--typed-events`, `--retries` and `--timeout` flags are handed to the pack target; the default `typescript` target does not use them.
 
 ---
 
@@ -209,6 +211,15 @@ fw run workflow.ts --debug --breakpoint processData --breakpoint validate
 
 > See also: [Built-in Nodes](built-in-nodes) for mock configuration details and [Debugging](debugging) for live debug REPL commands.
 
+**Gated workflows are refused.** A workflow containing `waitForEvent`, `waitForAgent`, or any `@durableGate` node yields a continuation instead of finishing, and `fw run` is not a coordinator that can persist one:
+
+```
+✗ Workflow execution failed: a workflow graph with durable gates requires
+  coordinator-verified whole-bundle identity before execution
+```
+
+Drive such a workflow with the `fw_run` / `fw_resume` MCP tools (see [mcp-server](#mcp-server)) or from code via `executeWorkflow`. `--mocks` does not resolve a gate. See [Durable Gates](durable-gates).
+
 ---
 
 ## Development Commands
@@ -256,15 +267,15 @@ fw dev <input> [options]
 | `--clean` | Omit redundant annotations | `false` |
 | `--once` | Run once then exit | `false` |
 | `--json` | Output result as JSON | `false` |
-| `--target <target>` | `typescript` or `inngest` | `typescript` |
-| `--framework <framework>` | Framework for serve handler (Inngest only) | `express` |
-| `--port <port>` | Port for dev server (Inngest only) | `3000` |
+| `--target <target>` | `typescript`, or a target registered by an installed pack | `typescript` |
+| `--framework <framework>` | Framework for the serve handler (pack targets) | `express` |
+| `--port <port>` | Port for the dev server (pack targets) | `3000` |
 
 **Examples:**
 ```bash
 fw dev workflow.ts --params '{"input": "hello"}'
 fw dev workflow.ts --once --json
-fw dev workflow.ts --target inngest --port 8080
+fw dev workflow.ts --target <pack-target> --port 8080
 ```
 
 ---
@@ -677,7 +688,7 @@ fw export <input> [options]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-t, --target <target>` | Target from installed packs (e.g. `lambda`, `vercel`, `cloudflare`, `inngest`, `github-actions`, `gitlab-ci`) **(required)** | — |
+| `-t, --target <target>` | Target name registered by an installed pack **(required)** | — |
 | `-o, --output <path>` | Output directory **(required)** | — |
 | `-w, --workflow <name>` | Specific workflow | — |
 | `-p, --production` | Production mode | `true` |
@@ -685,14 +696,14 @@ fw export <input> [options]
 | `--multi` | Export all workflows as single service | `false` |
 | `--workflows <names>` | Comma-separated workflow subset (with `--multi`) | all |
 | `--docs` | Include API documentation routes | `false` |
-| `--durable-steps` | Per-node Inngest steps (Inngest only) | `false` |
+| `--durable-steps` | Per-node durable steps; handed to the target as an option | `false` |
 
 **Examples:**
 ```bash
-fw export workflow.ts --target vercel --output api/
-fw export workflows.ts --target lambda --output dist/ --multi --docs
-fw export workflow.ts --target inngest --output dist/ --durable-steps
-fw export workflow.ts --target cloudflare --output worker/
+fw export workflow.ts --target <name> --output dist/
+fw export workflows.ts --target <name> --output api/ --multi --docs
+fw export workflow.ts --target <name> --output dist/ --durable-steps
+fw export workflow.ts --target <name> --output dist/ --dry-run
 ```
 
 > Available targets depend on installed `flow-weaver-pack-*` packages (the package names stay as-is). See [Deployment](deployment) for installation instructions and target-specific details.
@@ -968,6 +979,20 @@ fw mcp-server [options]
 |------|-------------|---------|
 | `--stdio` | Run in MCP stdio mode | `false` |
 
+**Running workflows over MCP.** Two tool families execute workflows; pick by who is calling.
+
+| Tool | For | Notes |
+|------|-----|-------|
+| `fw_run` | AI assistants | Runs to completion or pauses at a gate, returning `{ runId, gate }` with inputs named by port |
+| `fw_resume` | AI assistants | Continues a paused run with `answer` or `reject`; control ports are filled in |
+| `fw_runs` | AI assistants | Lists runs, or inspects one |
+| `fw_workflow_run` | Coordinators | Stateless; returns the raw continuation envelope |
+| `fw_workflow_resume` | Coordinators | Stateless; requires the envelope, `gateId`, full resolution, and `bundleDigest` |
+
+The `fw_run` family stores runs under `~/.fw/runs/<runId>/` (`FW_RUNS_DIR` overrides). Results carry no trace events or continuation. See [Durable Gates](durable-gates).
+
+The full list of 35 tools, with which to prefer and how large their results are, is in [MCP Tools](mcp-tools).
+
 ---
 
 ### mcp-setup
@@ -997,7 +1022,7 @@ fw mcp-setup [options]
 ## Related Topics
 
 - [Concepts](concepts) — Fundamental workflow concepts
-- [Compilation](compilation) — Compilation targets and Inngest integration
+- [Compilation](compilation) — Compile targets and target options
 - [Deployment](deployment) — Export, serve, and OpenAPI
 - [Built-in Nodes](built-in-nodes) — delay, waitForEvent, invokeWorkflow, and mocks
 - [Scaffold](scaffold) — Template details

@@ -125,6 +125,17 @@ export class AnnotationGenerator {
       lines.push(` * @resilience${retries}${fallback}`);
     }
 
+    // Durable classification round-trips like any other authored tag
+    if (nodeType.durableGate) {
+      lines.push(` * @durableGate ${nodeType.durableGate}`);
+    }
+    if (nodeType.durableEffect) {
+      lines.push(' * @durableEffect');
+    }
+    if (nodeType.durablePure) {
+      lines.push(' * @durablePure');
+    }
+
     // Add input ports (with automatic ordering)
     const inputEntries = this.assignPortOrders(Object.entries(nodeType.inputs), 'input');
     inputEntries.forEach(([name, port]) => {

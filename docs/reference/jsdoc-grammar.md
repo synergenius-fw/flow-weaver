@@ -1,7 +1,7 @@
 ---
 name: Flow Weaver JSDoc Grammar
 description: Formal syntax grammar for @flowWeaver JSDoc annotations parsed by Chevrotain
-keywords: [grammar, syntax, JSDoc, annotations, input, output, connect, node, Chevrotain, EBNF, scope, position]
+keywords: [grammar, syntax, JSDoc, annotations, input, output, connect, node, Chevrotain, EBNF, scope, position, durablePure, durableGate, durableEffect]
 ---
 
 # JSDoc Block Structure
@@ -37,6 +37,7 @@ nodeTypeBlock  ::= "@flowWeaver nodeType"
                    [ "@executeWhen" IDENTIFIER ]
                    [ "@pullExecution" IDENTIFIER ]
                    [ "@resilience" ( "retries=" INTEGER | "fallback=" STRING ) { ( "retries=" INTEGER | "fallback=" STRING ) } ]
+                   [ "@durablePure" | "@durableGate" ( "approval" | "input" | "agent" ) | "@durableEffect" ]
                    [ "@color" TEXT ]
                    [ "@icon" TEXT ]
                    { "@tag" IDENTIFIER [ STRING ] }
@@ -44,6 +45,10 @@ nodeTypeBlock  ::= "@flowWeaver nodeType"
                    { outputTag }
                    { stepTag }
 ```
+
+The durable classification is optional for an ordinary node type and required for every node reachable from a workflow that contains a `@durableGate`. See [Durable Gates](durable-gates).
+
+`@flowWeaver node` is accepted as shorthand for `@flowWeaver nodeType` with `@expression`: the function takes no `execute` parameter and returns its data directly, and the parser infers the ports from the signature. Prefer the explicit form in files you write.
 
 ---
 
@@ -194,14 +199,14 @@ Import npm package functions or local module exports as node types. The imported
 @fwImport npm/lodash/map map from "lodash"
 @fwImport npm/date-fns/format format from "date-fns"
 @fwImport local/utils/helper helper from './utils'
-@fwImport waitForApproval waitForApproval from "@synergenius/flow-weaver-pack-core"
+@fwImport waitForApproval waitForApproval from "flow-weaver-pack-example"
 ```
 
 - First identifier: node type name (used in `@node` tags, convention: `npm/pkg/fn` or `local/path/fn`, or just the function name for a marketplace pack node)
 - Second identifier: exported function name to import
 - String: package name or relative path
 - Port types are inferred from the imported function's TypeScript `.d.ts`
-- Inference follows re-export barrels: packages whose entry `.d.ts` is a barrel (`export * from './sub'` / `export { fn } from './sub'`) resolve correctly. This is the common shape for marketplace packs (e.g. `@synergenius/flow-weaver-pack-core` re-exports its node types)
+- Inference follows re-export barrels: packages whose entry `.d.ts` is a barrel (`export * from './sub'` / `export { fn } from './sub'`) resolve correctly. This is the common shape for marketplace packs, whose entry point re-exports their node types
 - A function annotated with `@flowWeaver nodeType` in the `.d.ts` keeps its full port set (inputs, outputs, `onSuccess`/`onFailure`); a plain function maps to an expression node. With no `.d.ts`, the import falls back to a stub with a single `ANY` `result` port
 - The compiler emits a real `import { fn } from "<pkg>"` in the generated output, so the function is callable at run time. The package must be resolvable from where the compiled workflow runs (installed in `node_modules`, or otherwise on the module resolution path)
 
@@ -267,7 +272,7 @@ portRef        ::= IDENTIFIER "." IDENTIFIER [ ":" IDENTIFIER ]
                  | IDENTIFIER ":" IDENTIFIER
 ```
 
-The first form is the standard `node.port` reference with optional `:scope` suffix. The second form is a pseudo-node reference for CI/CD secrets: `secret:NAME` resolves to `{ nodeId: "secret:NAME", portName: "value" }`.
+The first form is the standard `node.port` reference with optional `:scope` suffix. The second form is a pseudo-node reference: `secret:NAME` resolves to `{ nodeId: "secret:NAME", portName: "value" }`.
 
 **Examples:**
 
@@ -369,13 +374,13 @@ returnsTag     ::= IDENTIFIER [ scopeClause ] { metadataBracket } [ descriptionC
 
 These follow the same clause syntax as port tags. `@return` is accepted as an alias for `@returns`.
 
-## @trigger (workflow-level, Inngest)
+## @trigger (workflow-level)
 
 ```
 triggerTag     ::= "@trigger" ( "event=" STRING | "cron=" STRING )*
 ```
 
-Declares an event or cron trigger for Inngest deployment. Can specify event, cron, or both.
+Declares an event or cron trigger for a deployment target. Can specify event, cron, or both.
 
 **Examples:**
 
@@ -385,13 +390,13 @@ Declares an event or cron trigger for Inngest deployment. Can specify event, cro
 @trigger event="agent/request" cron="0 9 * * *"
 ```
 
-## @cancelOn (workflow-level, Inngest)
+## @cancelOn (workflow-level)
 
 ```
 cancelOnTag    ::= "@cancelOn" "event=" STRING [ "match=" STRING ] [ "timeout=" STRING ]
 ```
 
-Cancels a running Inngest function when a specified event is received.
+Cancels a running workflow when a specified event is received; used by deployment targets that support cancellation.
 
 **Examples:**
 
@@ -401,13 +406,13 @@ Cancels a running Inngest function when a specified event is received.
 @cancelOn event="x" match="data.id" timeout="1h"
 ```
 
-## @retries (workflow-level, Inngest)
+## @retries (workflow-level)
 
 ```
 retriesTag     ::= "@retries" INTEGER
 ```
 
-Sets the retry count for an Inngest function (overrides default of 3).
+Sets the retry count a deployment target should apply.
 
 **Examples:**
 
@@ -416,13 +421,13 @@ Sets the retry count for an Inngest function (overrides default of 3).
 @retries 0
 ```
 
-## @timeout (workflow-level, Inngest)
+## @timeout (workflow-level)
 
 ```
 timeoutTag     ::= "@timeout" STRING
 ```
 
-Sets the maximum execution time for an Inngest function.
+Sets the maximum execution time a deployment target should apply.
 
 **Examples:**
 
@@ -431,256 +436,19 @@ Sets the maximum execution time for an Inngest function.
 @timeout "2h"
 ```
 
-## @throttle (workflow-level, Inngest)
+## @throttle (workflow-level)
 
 ```
 throttleTag    ::= "@throttle" "limit=" INTEGER [ "period=" STRING ]
 ```
 
-Limits concurrent executions of an Inngest function.
+Limits concurrent executions; applied by deployment targets that support throttling.
 
 **Examples:**
 
 ```
 @throttle limit=3 period="1m"
 @throttle limit=10
-```
-
----
-
-# CI/CD Workflow Annotations
-
-These tags configure CI/CD pipeline behavior when exporting to GitHub Actions or GitLab CI. They are placed inside `@flowWeaver workflow` blocks alongside standard workflow tags.
-
-## @trigger (CI/CD mode)
-
-When the trigger value is one of `push`, `pull_request`, `dispatch`, `tag`, or `schedule`, the parser treats it as a CI/CD trigger rather than an Inngest event trigger.
-
-```
-cicdTriggerTag ::= "@trigger" ( "push" | "pull_request" | "dispatch" | "tag" | "schedule" )
-                   { IDENTIFIER "=" STRING }
-```
-
-Recognized attributes: `branches`, `paths`, `paths-ignore`, `types`, `pattern`, `cron`.
-
-**Examples:**
-
-```
-@trigger push branches="main,develop"
-@trigger pull_request branches="main" types="opened,synchronize"
-@trigger tag pattern="v*"
-@trigger dispatch
-@trigger schedule cron="0 9 * * 1"
-```
-
-## @secret
-
-```
-secretTag      ::= "@secret" IDENTIFIER { IDENTIFIER "=" STRING } [ "-" TEXT ]
-```
-
-**Examples:**
-
-```
-@secret NPM_TOKEN - NPM authentication token
-@secret DEPLOY_KEY scope="deploy" platform="github" - SSH deploy key
-```
-
-## @runner
-
-```
-runnerTag      ::= "@runner" TEXT
-```
-
-**Examples:**
-
-```
-@runner ubuntu-latest
-@runner self-hosted
-```
-
-## @cache
-
-```
-cacheTag       ::= "@cache" IDENTIFIER { IDENTIFIER "=" STRING }
-```
-
-**Examples:**
-
-```
-@cache npm key="package-lock.json"
-@cache npm key="package-lock.json" path="~/.npm"
-```
-
-## @artifact
-
-```
-artifactTag    ::= "@artifact" IDENTIFIER { IDENTIFIER "=" ( STRING | INTEGER ) }
-```
-
-**Examples:**
-
-```
-@artifact dist path="dist/" retention=5
-@artifact coverage path="coverage/"
-```
-
-## @environment
-
-```
-environmentTag ::= "@environment" IDENTIFIER { IDENTIFIER "=" ( STRING | INTEGER ) }
-```
-
-**Examples:**
-
-```
-@environment production url="https://app.example.com" reviewers=2
-@environment staging
-```
-
-## @matrix
-
-```
-matrixTag      ::= "@matrix" [ "include" | "exclude" ] { IDENTIFIER "=" STRING }
-```
-
-Without a prefix, each key-value pair declares a dimension with comma-separated values. With `include` or `exclude`, it adds or removes a specific combination.
-
-**Examples:**
-
-```
-@matrix node="18,20,22" os="ubuntu-latest,macos-latest"
-@matrix include node="22" os="windows-latest"
-@matrix exclude node="18" os="macos-latest"
-```
-
-## @service
-
-```
-serviceTag     ::= "@service" IDENTIFIER { IDENTIFIER "=" STRING }
-```
-
-**Examples:**
-
-```
-@service postgres image="postgres:16" env="POSTGRES_PASSWORD=test" ports="5432:5432"
-@service redis image="redis:7" ports="6379:6379"
-```
-
-## @concurrency
-
-```
-concurrencyTag ::= "@concurrency" IDENTIFIER [ "cancel-in-progress=" ( "true" | "false" ) ]
-```
-
-**Examples:**
-
-```
-@concurrency deploy cancel-in-progress=true
-@concurrency ci-main
-```
-
-## @job
-
-Configures per-job settings. The name must match a `[job: "name"]` attribute used on `@node` declarations.
-
-```
-jobTag         ::= "@job" IDENTIFIER { IDENTIFIER "=" ( STRING | IDENTIFIER | INTEGER ) }
-```
-
-Recognized keys: `retry` (number), `allow_failure` (boolean), `timeout` (string), `runner` (string), `tags` (comma-list), `coverage` (string), `reports` (comma-list of type=path), `rules` (string), `when` (rule modifier), `changes` (rule modifier, comma-list), `extends` (string), `before_script` (comma-list), `variables` (comma-list of KEY=VALUE).
-
-The `when` and `changes` keys are rule modifiers: they apply to the most recently declared `rules` entry for that job. If no `rules` entry exists yet, one is created automatically.
-
-**Examples:**
-
-```
-@job build retry=2 timeout="10m"
-@job test-unit coverage='/Coverage: (\d+)%/' reports="junit=test-results.xml"
-@job deploy allow_failure=true rules="$CI_COMMIT_BRANCH == main"
-@job deploy rules="$CI_COMMIT_BRANCH == main" when=manual
-@job deploy rules="$CI_COMMIT_TAG" changes="src/**,lib/**"
-@job lint tags="docker,linux" extends=".base-lint"
-```
-
-## @stage
-
-Declares a pipeline stage for GitLab CI grouping. Multiple `@stage` annotations define stage ordering.
-
-```
-stageTag       ::= "@stage" IDENTIFIER
-```
-
-**Examples:**
-
-```
-@stage test
-@stage build
-@stage deploy
-```
-
-## @variables
-
-Sets workflow-level environment variables. Applied as defaults to all jobs.
-
-```
-variablesTag   ::= "@variables" { IDENTIFIER "=" ( STRING | IDENTIFIER ) }
-```
-
-**Examples:**
-
-```
-@variables NODE_ENV="production" CI="true"
-```
-
-## @before_script
-
-Sets workflow-level setup commands. Applied as defaults to all jobs.
-
-```
-beforeScriptTag ::= "@before_script" ( STRING | TEXT )
-```
-
-**Examples:**
-
-```
-@before_script "npm ci"
-@before_script npm ci
-```
-
-## @tags
-
-Sets workflow-level runner tags. Applied as defaults to all jobs.
-
-```
-tagsTag        ::= "@tags" { IDENTIFIER }
-```
-
-Tags can be space-separated or comma-separated.
-
-**Examples:**
-
-```
-@tags docker linux
-@tags docker,linux,arm64
-```
-
-## @includes
-
-Declares external configuration files to include (GitLab CI). Ignored for GitHub Actions.
-
-```
-includesTag    ::= "@includes" ( "local" | "template" | "remote" | "project" ) "=" STRING
-                   [ "file=" STRING ] [ "ref=" STRING ]
-```
-
-**Examples:**
-
-```
-@includes local="ci/shared-templates.yml"
-@includes template="Auto-DevOps.gitlab-ci.yml"
-@includes remote="https://example.com/ci.yml"
-@includes project="other-group/other-project" file="ci/shared.yml" ref="main"
 ```
 
 ---
@@ -731,7 +499,6 @@ IDENTIFIER supports `/` and `-` to accommodate npm package naming conventions (e
 # Related Topics
 
 - `advanced-annotations` — Conceptual explanations and examples for pull execution, execution strategies, merge strategies, auto-connect, strict types, path/map sugar, and node attributes
-- `cicd` — CI/CD pipeline export with annotation examples and validation rules
-- `compilation` — How annotations affect code generation, Inngest target details for @trigger/@cancelOn/@retries/@timeout/@throttle
+- `compilation` — How annotations affect code generation and pack targets for @trigger/@cancelOn/@retries/@timeout/@throttle
 - `concepts` — Core workflow fundamentals and quick reference
 - `error-codes` — Validation errors and warnings for annotation issues

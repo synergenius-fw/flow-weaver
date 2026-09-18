@@ -1,4 +1,5 @@
 import { listTopics, readTopic, readTopicStructured, searchDocs } from '../../docs/index.js';
+import { loadPackDocTopics } from '../../docs/pack-topics.js';
 import { logger } from '../utils/logger.js';
 
 export interface DocsCommandOptions {
@@ -11,6 +12,7 @@ export interface DocsSearchOptions {
 }
 
 export async function docsListCommand(options: DocsCommandOptions): Promise<void> {
+  await loadPackDocTopics();
   const topics = listTopics();
 
   if (topics.length === 0) {
@@ -38,6 +40,7 @@ export async function docsReadCommand(
   topic: string,
   options: DocsCommandOptions
 ): Promise<void> {
+  await loadPackDocTopics();
   if (options.json) {
     const structured = readTopicStructured(topic);
     if (!structured) {
@@ -59,6 +62,7 @@ export async function docsSearchCommand(
   query: string,
   options: DocsSearchOptions
 ): Promise<void> {
+  await loadPackDocTopics();
   const results = searchDocs(query);
 
   if (options.json) {

@@ -1,7 +1,7 @@
 ---
 name: Compilation
-description: How compilation works, TypeScript and Inngest targets, compile options, and serve handler generation
-keywords: [compile, compilation, target, typescript, inngest, production, source-map, format, strict, clean, serve, framework, step.run, durable, trigger, cancelOn, retries, timeout, throttle, cron, markers]
+description: How compilation works, the TypeScript target, pack targets and target options, compile options
+keywords: [compile, compilation, target, typescript, production, source-map, format, strict, clean, trigger, cancelOn, retries, timeout, throttle, cron, markers, pack target]
 ---
 
 # Compilation
@@ -74,57 +74,21 @@ export function myWorkflow(params: { data: string }) {
 
 ---
 
-## Inngest Target
+## Compile Targets
 
-The `inngest` target generates **durable functions** using [Inngest](https://www.inngest.com/). Each workflow node becomes a `step.run()` call, providing automatic retries, event-driven triggers, and crash recovery.
+`fw compile` and `fw_compile` default to the `typescript` target described above. Any other `--target` name must be registered by an installed pack; core ships none, and an unknown name fails before parsing:
 
-```bash
-fw compile workflow.ts --target inngest
+```
+✗ Unknown compile target: <name>. No custom targets registered.
 ```
 
-### Per-Node Durability
-
-Each node in the workflow becomes an individually durable step:
-
-```typescript
-const validate_result = await step.run('validate', async () => {
-  return validateRecord(true, params.data);
-});
-
-const enrich_result = await step.run('enrich', async () => {
-  return enrichRecord(true, validate_result.data);
-});
-```
-
-If the process crashes after `validate` completes, Inngest replays the function and skips already-completed steps.
-
-### Parallel Execution
-
-Independent nodes execute in parallel using `Promise.all`:
-
-```typescript
-const [branch_a, branch_b] = await Promise.all([
-  step.run('branchA', async () => processA(true, data)),
-  step.run('branchB', async () => processB(true, data)),
-]);
-```
-
-### Iteration
-
-ForEach patterns use indexed `step.run()` for per-element durability:
-
-```typescript
-const results = [];
-for (let i = 0; i < items.length; i++) {
-  results.push(await step.run(`process-${i}`, async () => processItem(true, items[i])));
-}
-```
+A pack target receives the parsed workflow and its node types and returns the code to write, so what it generates is documented by the pack. Find target packs with `fw market search`; see [Marketplace](marketplace).
 
 ---
 
-## Inngest Annotations
+## Deployment Annotations
 
-These annotations configure Inngest-specific behavior. They go inside `@flowWeaver workflow` blocks.
+These workflow-level annotations are parsed by core into the workflow's options. The default `typescript` target ignores them; a pack target reads the ones it supports. They go inside `@flowWeaver workflow` blocks.
 
 ### `@trigger`
 
@@ -218,7 +182,7 @@ Rate limiting:
  *
  * @node v validateExpense
  * @node pay processPayment
- * @node wait waitForEvent [expr: eventName="'app/expense.approved'", match="'data.expenseId'", timeout="'48h'"]
+ * @node wait delay [expr: duration="'48h'"]
  * @path Start -> v -> wait -> pay -> Exit
  */
 export async function expenseWorkflow(
@@ -290,46 +254,22 @@ fw compile workflow.ts --dry-run
 
 ---
 
-## Serve Handler Generation
+## Target Options
 
-Generate a complete HTTP handler for receiving Inngest events:
+These `fw compile` flags exist for pack targets. They are handed to the target unchanged; the default `typescript` target does not use them.
 
-```bash
-fw compile workflow.ts --target inngest --serve --framework next
-```
-
-### Supported Frameworks
-
-| Framework | Handler |
-|-----------|---------|
-| `next` | Next.js App Router route handler |
-| `express` | Express middleware |
-| `hono` | Hono route handler |
-| `fastify` | Fastify plugin |
-| `remix` | Remix action |
-
-### Typed Events (`--typed-events`)
-
-Generate Zod schemas for event validation from `@param` annotations:
+| Flag | Meaning for a target that supports it |
+|------|---------------------------------------|
+| `--serve` | Also generate an HTTP serve handler |
+| `--framework <name>` | Framework for that handler: `next`, `express`, `hono`, `fastify`, `remix` |
+| `--typed-events` | Generate Zod event schemas from the workflow's `@param` annotations |
+| `--cron <schedule>` | Override `@trigger cron=` |
+| `--retries <n>` | Override `@retries` |
+| `--timeout <duration>` | Override `@timeout` |
 
 ```bash
-fw compile workflow.ts --target inngest --typed-events
-```
-
----
-
-## CLI Overrides
-
-Several Inngest annotations can be overridden from the CLI without modifying the source file:
-
-| CLI Flag | Overrides |
-|----------|-----------|
-| `--cron <schedule>` | `@trigger cron=` |
-| `--retries <n>` | `@retries` |
-| `--timeout <duration>` | `@timeout` |
-
-```bash
-fw compile workflow.ts --target inngest --retries 5 --timeout "1h"
+fw compile workflow.ts --target <pack-target> --serve --framework next
+fw compile workflow.ts --target <pack-target> --retries 5 --timeout "1h"
 ```
 
 ---
@@ -337,7 +277,8 @@ fw compile workflow.ts --target inngest --retries 5 --timeout "1h"
 ## Related Topics
 
 - [CLI Reference](cli-reference) — Full compile command flags
-- [Deployment](deployment) — Export to serverless platforms
+- [Deployment](deployment) — Export targets, HTTP serve mode, OpenAPI
 - [Advanced Annotations](advanced-annotations) — Annotations that affect compilation
 - [Debugging](debugging) — Debug instrumentation and WebSocket events
-- [Built-in Nodes](built-in-nodes) — delay, waitForEvent, invokeWorkflow
+- [Built-in Nodes](built-in-nodes) — delay, waitForEvent, invokeWorkflow, waitForAgent
+- [Durable Gates](durable-gates) — Workflows that pause and resume across processes

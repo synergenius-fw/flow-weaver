@@ -18,9 +18,9 @@ describe('resolveTopics', () => {
   });
 
   it('deduplicates topics', () => {
-    const topics = resolveTopics('core', undefined, ['concepts']);
-    // 'concepts' is already in core
-    expect(topics.filter((t) => t === 'concepts').length).toBe(1);
+    const topics = resolveTopics('core', undefined, ['orientation']);
+    // 'orientation' is already in core
+    expect(topics.filter((t) => t === 'orientation').length).toBe(1);
   });
 
   it('preserves order with addTopics at the end', () => {
@@ -41,7 +41,8 @@ describe('buildContext', () => {
     expect(result.profile).toBe('assistant');
     expect(result.content).toContain('# Flow Weaver Context');
     expect(result.content).toContain('fw_docs');
-    expect(result.content).toContain('fw_create_model');
+    expect(result.content).toContain('Write the workflow file');
+    expect(result.content).not.toContain('fw_create_model');
   });
 
   it('includes EBNF grammar by default', () => {
@@ -57,13 +58,13 @@ describe('buildContext', () => {
 
   it('includes core preset topics by default', () => {
     const result = buildContext();
-    expect(result.topicCount).toBe(3);
+    expect(result.topicCount).toBe(1);
     expect(result.topicSlugs).toEqual(PRESETS.core);
   });
 
   it('includes all topics for full preset', () => {
     const result = buildContext({ preset: 'full' });
-    expect(result.topicCount).toBe(16);
+    expect(result.topicCount).toBe(20);
   });
 
   it('respects explicit topics', () => {
@@ -121,8 +122,8 @@ describe('PRESETS', () => {
     expect(PRESET_NAMES).toContain('full');
   });
 
-  it('full preset includes all 16 topics', () => {
-    expect(PRESETS.full.length).toBe(16);
+  it('full preset includes all 20 topics', () => {
+    expect(PRESETS.full.length).toBe(20);
   });
 
   it('core preset is a subset of full', () => {

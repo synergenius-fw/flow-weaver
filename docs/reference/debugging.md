@@ -250,20 +250,21 @@ Scoped ports use direction inversion: scoped OUTPUTS = data parent sends to chil
 
 ## Mock System for Built-in Nodes
 
-When testing workflows that use `delay`, `waitForEvent`, `invokeWorkflow`, or `waitForAgent`, use mocks to avoid real side effects:
+When testing workflows that use `delay` or `invokeWorkflow`, use mocks to avoid real sleeps and external invocations:
 
 ```bash
-fw run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
+fw run workflow.ts --mocks '{"fast": true, "invocations": {"my-service/x": {"ok": true}}}'
 fw run workflow.ts --mocks-file mocks.json
 ```
 
 Mock config structure:
 - `fast: true` — Skip real sleep in `delay` nodes (1ms instead)
-- `events: { "event-name": data }` — Mock event data for `waitForEvent`
 - `invocations: { "function-id": result }` — Mock results for `invokeWorkflow`
-- `agents: { "agent-id": result }` — Mock results for `waitForAgent`
+- `events` and `agents` — Accepted and validated, but they do not resolve a gate; `waitForEvent` and `waitForAgent` yield regardless
 
-Use `--timeout <ms>` as a safeguard when running workflows that may block on unresolved `waitForAgent` or `waitForEvent` nodes. In non-interactive environments (piped stdin), `waitForAgent` will fail fast with an error if no mock is provided.
+A workflow containing `waitForEvent`, `waitForAgent`, or any `@durableGate` node cannot be run by `fw run` at all — it is refused before execution. Drive it with the `fw_run` / `fw_resume` MCP tools, or call `executeWorkflow` with a resolution. See [Durable Gates](durable-gates).
+
+`--timeout <ms>` bounds a run whose nodes take too long; it has no role in gates, which never wait.
 
 See `built-in-nodes` for full documentation on mock configuration and testing patterns.
 
@@ -364,12 +365,15 @@ Example MCP sequence:
 Live step-through debugging retains an execution Promise and therefore ends
 when that Node.js process ends. It is not a crash-recovery facility.
 
-Production approval, input, and agent waits compile to terminal durable yields.
-The executor returns a strict continuation envelope, and an external
-coordinator atomically persists that envelope with the gate. A later compatible
-Node.js executor resumes only with the exact run, workflow, verified executable
-bundle digest, graph fingerprint, gate, and resolution. See
-`docs/adr/0001-durable-gate-continuation.md`.
+Production approval, input, and agent gates compile to terminal durable yields.
+The executor returns a strict continuation envelope, and a coordinator persists
+that envelope with the gate. A later compatible Node.js executor resumes only
+with the exact run, workflow, verified executable bundle digest, graph
+fingerprint, gate, and resolution.
+
+- To step through a gated workflow's nodes, resolve its gates with `fw_run` / `fw_resume` and inspect each segment's result
+- The debugger rejects continuation and gate fields; a run that yields inside `--debug` ends there
+- Details: [Durable Gates](durable-gates) and `docs/adr/0001-durable-gate-continuation.md`
 
 ---
 
@@ -388,7 +392,9 @@ This recompiles and re-runs automatically on every file save.
 ## Related Topics
 
 - `error-codes` -- Error code reference with fixes
-- `built-in-nodes` -- Mock system for delay, waitForEvent, invokeWorkflow
+- `built-in-nodes` -- Mock system for delay and invokeWorkflow
+- `durable-gates` -- Running and resuming workflows that pause at a gate
+- `mcp-tools` -- The debug session tools alongside every other MCP tool
 - `cli-reference` -- All CLI commands and flags
 - `advanced-annotations` -- Pull execution, merge strategies, and other advanced features
 

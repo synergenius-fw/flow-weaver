@@ -186,6 +186,26 @@ export function applyModifyOperation(
         }
       }
 
+      // Idempotent: a connection that is already present (explicitly or via
+      // autoConnect) is reported and skipped, so one duplicate does not fail a
+      // whole batch of otherwise valid edits.
+      const alreadyConnected = (modifiedAST.connections as Array<{
+        from: { node: string; port: string; scope?: string };
+        to: { node: string; port: string; scope?: string };
+      }>).some(
+        (c) =>
+          c.from.node === fromNode &&
+          c.from.port === fromPort &&
+          !c.from.scope &&
+          c.to.node === toNode &&
+          c.to.port === toPort &&
+          !c.to.scope
+      );
+      if (alreadyConnected) {
+        warnings.push(`Connection ${from} -> ${to} already exists; skipped`);
+        break;
+      }
+
       modifiedAST = manipAddConnection(modifiedAST, from, to);
       if (modifiedAST.options?.autoConnect) {
         modifiedAST = { ...modifiedAST, options: { ...modifiedAST.options, autoConnect: undefined } };

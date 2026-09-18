@@ -67,6 +67,14 @@ export interface InPlaceGenerateOptions {
    * so these annotations are redundant for non-visual-editor users.
    */
   skipParamReturns?: boolean;
+  /**
+   * When true, only the JSDoc annotations (node types and the workflow) are
+   * rewritten. No runtime section, generated body, inlined built-ins, or
+   * signature edits are produced. Structural edits (`fw modify`, `fw_modify`)
+   * use this on a file that has never been compiled in place, so an
+   * uncompiled source stays an uncompiled source.
+   */
+  annotationsOnly?: boolean;
 }
 
 export interface InPlaceGenerateResult {
@@ -93,6 +101,7 @@ export function generateInPlace(
     moduleFormat = 'esm',
     sourceFile,
     skipParamReturns = false,
+    annotationsOnly = false,
   } = options;
   const durableSequential = validateDurableClosure(
     ast,
@@ -137,11 +146,15 @@ export function generateInPlace(
     }
   }
 
-  // Step 1.2: Insert built-in node functions that are auto-injected (no source in the file)
+  // Step 1.2: Insert built-in node functions that are auto-injected (no source in the file).
+  // Skipped in annotations-only mode: the parser injects built-ins on every parse, and
+  // inlining them is only needed to make a compiled file self-contained.
   const usedNodeTypes = new Set(ast.instances.map((i) => i.nodeType));
-  const builtInNodes = ast.nodeTypes.filter(
-    (nt) => !nt.sourceLocation && nt.functionText && nt.helperText != null && usedNodeTypes.has(nt.name)
-  );
+  const builtInNodes = annotationsOnly
+    ? []
+    : ast.nodeTypes.filter(
+        (nt) => !nt.sourceLocation && nt.functionText && nt.helperText != null && usedNodeTypes.has(nt.name)
+      );
   if (builtInNodes.length > 0) {
     // Find insertion point: just before the workflow function's JSDoc
     const workflowFnPattern = new RegExp(
@@ -166,10 +179,15 @@ export function generateInPlace(
       for (const node of builtInNodes) {
         const funcText = (production && node.functionTextProduction != null) ? node.functionTextProduction : node.functionText;
         if (funcText) {
-          // Add JSDoc annotation so the function is recognized on re-parse
+          // Add JSDoc annotation so the function is recognized on re-parse.
+          // The durable classification must travel with it: without it a
+          // re-parse sees waitForAgent/waitForEvent as ordinary node types,
+          // the gate boundary is not applied, and the inlined fallback body
+          // throws at run time.
           const portAnnotations: string[] = [];
           portAnnotations.push('/**');
           portAnnotations.push(` * @flowWeaver nodeType`);
+          portAnnotations.push(...durableClassificationLines(node));
           for (const [name, port] of Object.entries(node.inputs)) {
             if (name === 'execute') continue;
             const optPrefix = port.optional ? '[' : '';
@@ -206,6 +224,12 @@ export function generateInPlace(
   if (jsdocResult.changed) {
     result = jsdocResult.code;
     hasChanges = true;
+  }
+
+  // Annotations-only: stop here. Nothing below touches annotations; it all
+  // produces generated code (imports, runtime, signature, body).
+  if (annotationsOnly) {
+    return { code: result, hasChanges: hasChanges && result !== sourceCode };
   }
 
   // Step 2.5: Emit executable `import { fn } from "pkg"` statements for
@@ -1316,6 +1340,9 @@ function generateNodeTypeJSDoc(nodeType: TNodeTypeAST): string {
     lines.push(` * @resilience${retries}${fallback}`);
   }
 
+  // Durable classification round-trips like any other authored tag.
+  lines.push(...durableClassificationLines(nodeType));
+
   // Add visual annotations
   if (nodeType.visuals) {
     if (nodeType.visuals.color) {
@@ -1398,6 +1425,28 @@ function generateNodeTypeJSDoc(nodeType: TNodeTypeAST): string {
   lines.push(' */');
 
   return lines.join('\n');
+}
+
+/**
+ * JSDoc lines for a node type's durable classification (`@durableGate <kind>`,
+ * `@durableEffect`, `@durablePure`). Each flag is emitted independently so the
+ * authored state round-trips exactly; a doubled classification is a validation
+ * error, not something the generator silently repairs.
+ */
+function durableClassificationLines(
+  nodeType: Pick<TNodeTypeAST, 'durableGate' | 'durableEffect' | 'durablePure'>
+): string[] {
+  const lines: string[] = [];
+  if (nodeType.durableGate) {
+    lines.push(` * @durableGate ${nodeType.durableGate}`);
+  }
+  if (nodeType.durableEffect) {
+    lines.push(' * @durableEffect');
+  }
+  if (nodeType.durablePure) {
+    lines.push(' * @durablePure');
+  }
+  return lines;
 }
 
 // Note: generateJSDocPortTag and assignPortOrders are now imported from annotation-generator

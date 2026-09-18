@@ -6,7 +6,7 @@ import { globSync } from 'glob';
 import type { TWorkflowAST } from '../ast/types.js';
 import { parseWorkflow, validateWorkflow } from '../api/index.js';
 import { listPatterns, applyPattern, findWorkflows, extractPattern } from '../api/patterns.js';
-import { generateInPlace } from '../api/generate-in-place.js';
+import { generateInPlace, hasInPlaceMarkers } from '../api/generate-in-place.js';
 import { applyMigrations, getRegisteredMigrations } from '../migration/registry.js';
 import { describeWorkflow, formatDescribeOutput } from '../cli/commands/describe.js';
 import { applyModifyOperation, validateModifyParams } from '../api/modify-operation.js';
@@ -154,7 +154,7 @@ export function registerPatternTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_modify',
-    'Modify a workflow file: add/remove/rename nodes, add/remove connections, set positions/labels. Parses the file, applies the mutation, and regenerates annotations in-place. Returns auto-validation results and a text description of the updated workflow. For addNode: if x/y are omitted, the node is placed to the right of the rightmost existing node.',
+    'Modify a workflow file: add/remove/rename nodes, add/remove connections, set positions/labels. Parses the file, applies the mutation, and rewrites only the JSDoc annotations. A file that was already compiled in place is recompiled so its generated body stays consistent; an uncompiled file stays uncompiled. Returns auto-validation results and a text description of the updated workflow. For addNode: if x/y are omitted, the node is placed to the right of the rightmost existing node.',
     {
       filePath: z.string().describe('Path to the workflow file'),
       workflowName: z.string().optional().describe('Specific workflow if file has multiple'),
@@ -353,6 +353,24 @@ export function registerPatternTools(mcp: McpServer): void {
               }
             }
 
+            // Idempotent: an existing connection is reported, not an error
+            const alreadyConnected = (modifiedAST.connections as Array<{
+              from: { node: string; port: string; scope?: string };
+              to: { node: string; port: string; scope?: string };
+            }>).some(
+              (c) =>
+                c.from.node === fromNode &&
+                c.from.port === fromPort &&
+                !c.from.scope &&
+                c.to.node === toNode &&
+                c.to.port === toPort &&
+                !c.to.scope
+            );
+            if (alreadyConnected) {
+              warnings.push(`Connection ${from} -> ${to} already exists; skipped`);
+              break;
+            }
+
             modifiedAST = manipAddConnection(modifiedAST, from, to);
             break;
           }
@@ -402,8 +420,11 @@ export function registerPatternTools(mcp: McpServer): void {
             return makeErrorResult('UNKNOWN_OPERATION', `Unknown operation: ${args.operation}`);
         }
 
-        // Regenerate the file in-place
-        const genResult = generateInPlace(sourceCode, modifiedAST);
+        // Rewrite the annotations. Only a file that is already compiled in
+        // place gets its generated sections regenerated too.
+        const genResult = generateInPlace(sourceCode, modifiedAST, {
+          annotationsOnly: !hasInPlaceMarkers(sourceCode),
+        });
 
         if (args.preview) {
           return makeToolResult({
@@ -500,7 +521,7 @@ export function registerPatternTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_modify_batch',
-    'Apply multiple modify operations in a single parse/write/validate cycle. More efficient than calling fw_modify multiple times.',
+    'Apply multiple modify operations in a single parse/write/validate cycle. More efficient than calling fw_modify multiple times. Like fw_modify, it rewrites only the annotations unless the file was already compiled in place. An addConnection whose connection already exists is skipped with a warning rather than failing the batch.',
     {
       filePath: z.string().describe('Path to the workflow file'),
       workflowName: z.string().optional().describe('Specific workflow if file has multiple'),
@@ -570,8 +591,10 @@ export function registerPatternTools(mcp: McpServer): void {
           }
         }
 
-        // Generate once
-        const genResult = generateInPlace(sourceCode, currentAST);
+        // Generate once; annotations only unless the file is compiled in place
+        const genResult = generateInPlace(sourceCode, currentAST, {
+          annotationsOnly: !hasInPlaceMarkers(sourceCode),
+        });
 
         if (args.preview) {
           return makeToolResult({

@@ -17,13 +17,17 @@ export function registerDocsTools(mcp: McpServer): void {
       try {
         switch (args.action) {
           case 'list': {
+            // Keywords exist to drive `search`; listing them for every topic
+            // multiplied this result by roughly five without helping a caller
+            // choose, so the list carries only what identifies a topic — plus
+            // the compact size, which is what lets a caller budget a read.
             const topics = listTopics();
             return makeToolResult({
               topics: topics.map((t) => ({
                 slug: t.slug,
                 name: t.name,
                 description: t.description,
-                keywords: t.keywords,
+                compactBytes: readTopic(t.slug, true)?.content.length ?? 0,
               })),
             });
           }

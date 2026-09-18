@@ -45,7 +45,9 @@ describe('registerPrompts', () => {
   it('system prompt covers key topics', () => {
     const text = capturedHandler().messages[0].content.text;
     expect(text).toContain('workflow developer');
-    expect(text).toContain('fw_create_model');
+    expect(text).toContain('Write the workflow file yourself');
+    expect(text).not.toContain('fw_create_model');
+    expect(text).not.toContain('fw_implement_node');
     expect(text).toContain('fw_validate');
     expect(text).toContain('fw_diagram');
     expect(text).toContain('.ts extension');

@@ -521,19 +521,19 @@ describe('generateAgentPrompt', () => {
     expect(prompt).toContain('profile="assistant"');
   });
 
-  it('vibecoder prompt should include fw_context with authoring preset', () => {
+  it('vibecoder prompt should include fw_context with core preset', () => {
     const prompt = generateAgentPrompt('test', 'vibecoder', 'sequential');
-    expect(prompt).toContain('fw_context(preset="authoring"');
+    expect(prompt).toContain('fw_context(preset="core"');
   });
 
-  it('lowcode prompt should include fw_context with authoring preset', () => {
+  it('lowcode prompt should include fw_context with core preset', () => {
     const prompt = generateAgentPrompt('test', 'lowcode', 'sequential');
-    expect(prompt).toContain('fw_context(preset="authoring"');
+    expect(prompt).toContain('fw_context(preset="core"');
   });
 
-  it('expert prompt should include fw_context with authoring preset', () => {
+  it('expert prompt should include fw_context with core preset', () => {
     const prompt = generateAgentPrompt('test', 'expert', 'sequential');
-    expect(prompt).toContain('fw_context(preset="authoring"');
+    expect(prompt).toContain('fw_context(preset="core"');
   });
 
   it('all prompts should start with fw_context bootstrap', () => {
@@ -586,9 +586,9 @@ describe('generateEditorPrompt', () => {
     expect(prompt).toContain('preset="core"');
   });
 
-  it('expert editor prompt should use authoring preset', () => {
+  it('expert editor prompt should use core preset', () => {
     const prompt = generateEditorPrompt('test', 'expert', 'sequential');
-    expect(prompt).toContain('preset="authoring"');
+    expect(prompt).toContain('preset="core"');
   });
 
   it('should include useCaseDescription when provided', () => {
@@ -659,10 +659,10 @@ describe('AGENT_CONTEXT_PRESETS', () => {
     expect(AGENT_CONTEXT_PRESETS.nocode).toBe('core');
   });
 
-  it('vibecoder, lowcode, expert should use authoring preset', () => {
-    expect(AGENT_CONTEXT_PRESETS.vibecoder).toBe('authoring');
-    expect(AGENT_CONTEXT_PRESETS.lowcode).toBe('authoring');
-    expect(AGENT_CONTEXT_PRESETS.expert).toBe('authoring');
+  it('every persona starts from the core map and loads topics on demand', () => {
+    expect(AGENT_CONTEXT_PRESETS.vibecoder).toBe('core');
+    expect(AGENT_CONTEXT_PRESETS.lowcode).toBe('core');
+    expect(AGENT_CONTEXT_PRESETS.expert).toBe('core');
   });
 });
 

@@ -52,7 +52,7 @@ export async function resumeWorkflow(
 export function registerWorkflowRunTools(mcp: McpServer): void {
   mcp.tool(
     'fw_workflow_run',
-    'Run a workflow until completion or a durable approval, input, or agent gate.',
+    'Run a workflow until completion or a durable approval, input, or agent gate. For coordinators: returns the raw continuation. Assistants should use fw_run.',
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       params: z.record(z.string(), z.unknown()).optional(),
@@ -88,7 +88,7 @@ export function registerWorkflowRunTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_workflow_resume',
-    'Resume one exact durable gate continuation. The prior executor is not retained.',
+    'Resume one exact durable gate continuation. The prior executor is not retained. For coordinators; assistants should use fw_resume.',
     {
       runId: z.string(),
       filePath: z.string(),

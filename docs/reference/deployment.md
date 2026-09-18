@@ -1,127 +1,29 @@
 ---
 name: Deployment
-description: Export workflows to serverless platforms, HTTP serve mode, OpenAPI generation, and multi-workflow services
-keywords: [deploy, export, lambda, vercel, cloudflare, inngest, github-actions, gitlab-ci, serve, openapi, swagger, serverless, multi-workflow, durable-steps, webhook, http, cors, packs, marketplace]
+description: Export workflows through target packs, serve them over HTTP, generate OpenAPI specs, and export multi-workflow services
+keywords: [deploy, export, target, serve, openapi, swagger, serverless, multi-workflow, durable-steps, webhook, http, cors, packs, marketplace, dry-run]
 ---
 
 # Deployment
 
-Flow Weaver workflows can be deployed as serverless functions, HTTP endpoints, durable event-driven functions, or CI/CD pipelines. This guide covers all deployment options.
-
-## Installing Export Target Packs
-
-Export targets are provided by marketplace packs. Install the ones you need:
-
-```bash
-# Serverless targets
-npm install @synergenius/flow-weaver-pack-lambda
-npm install @synergenius/flow-weaver-pack-vercel
-npm install @synergenius/flow-weaver-pack-cloudflare
-npm install @synergenius/flow-weaver-pack-inngest
-
-# CI/CD targets
-npm install @synergenius/flow-weaver-pack-github-actions
-npm install @synergenius/flow-weaver-pack-gitlab-ci
-```
-
-The `export` command automatically discovers installed packs — no configuration needed.
-
----
+The compiled output is plain TypeScript with no runtime dependency on Flow Weaver, so it runs wherever TypeScript runs. Beyond that, three paths exist: export platform-specific boilerplate through a target pack, serve workflows over HTTP with `fw serve`, or generate an OpenAPI spec for whatever hosts them.
 
 ## Export Targets
 
-The `export` command generates platform-specific handler code, configuration files, and deploy instructions.
+Flow Weaver core ships no export target. A target is provided by a pack — its `exportTargets` manifest entry names the target and the class that generates files — and is discovered from the current project's `node_modules` each time `fw export` runs.
 
 ```bash
-fw export <input> --target <target> --output <dir>
+fw market search <what you need>      # find a target pack
+npm install <pack>                     # or: fw market install <pack>
+fw export workflow.ts --target <name> --output dist/
 ```
 
-### AWS Lambda
+- `--dry-run` lists the files that would be written and previews the handler without touching disk
+- `--durable-steps` is handed to the target as a target option; a target that supports per-node durability uses it
+- `--production` compiles without trace instrumentation
+- An unknown target name returns `INVALID_TARGET` naming the installed targets; with no target pack installed that list is empty
 
-```bash
-fw export workflow.ts --target lambda --output dist/
-```
-
-Generates:
-- `handler.ts` — Lambda handler with API Gateway event parsing
-- `package.json` — Dependencies
-- Deploy instructions for AWS CLI or SAM
-
-### Vercel
-
-```bash
-fw export workflow.ts --target vercel --output api/
-```
-
-Generates:
-- `api/workflow.ts` — Vercel serverless function
-- `vercel.json` — Route configuration
-
-### Cloudflare Workers
-
-```bash
-fw export workflow.ts --target cloudflare --output worker/
-```
-
-Generates:
-- `worker.ts` — Cloudflare Worker handler
-- `wrangler.toml` — Wrangler configuration
-
-### Inngest
-
-```bash
-fw export workflow.ts --target inngest --output dist/
-```
-
-Generates:
-- Inngest function with event triggers
-- Serve handler for your framework
-
-Add `--durable-steps` for per-node `step.run()` durability:
-
-```bash
-fw export workflow.ts --target inngest --output dist/ --durable-steps
-```
-
-### GitHub Actions
-
-```bash
-fw export workflow.ts --target github-actions --output .github/workflows/
-```
-
-Generates:
-- GitHub Actions workflow YAML with jobs mapped from workflow nodes
-- Proper step ordering and dependency configuration
-
-### GitLab CI
-
-```bash
-fw export workflow.ts --target gitlab-ci --output .
-```
-
-Generates:
-- `.gitlab-ci.yml` with stages and jobs mapped from workflow nodes
-- Pipeline configuration with proper stage ordering
-
----
-
-## CI/CD Pipeline Export
-
-CI/CD export works differently from serverless export. Instead of generating a handler that runs your workflow at request time, it reads the workflow graph and produces native pipeline YAML. The generated file has no runtime dependency on Flow Weaver.
-
-Use CI/CD-specific annotations (`@secret`, `@runner`, `@cache`, `@artifact`, `@environment`, `@matrix`, `@service`, `@concurrency`) alongside `@node` and `@connect` to define pipeline structure. The `[job: "name"]` attribute on `@node` groups nodes into jobs. Triggers use `@trigger push`, `@trigger pull_request`, etc.
-
-Secrets are wired as pseudo-node connections: `@connect secret:TOKEN -> node.port`. The export target renders these as platform-native secret references (`${{ secrets.TOKEN }}` for GitHub, `$NPM_TOKEN` for GitLab).
-
-```bash
-# GitHub Actions
-fw export pipeline.ts --target github-actions --output .github/workflows/
-
-# GitLab CI
-fw export pipeline.ts --target gitlab-ci --output .
-```
-
-See the [CI/CD Pipelines](cicd) topic for the complete annotation reference, validation rules, and full examples.
+What a target generates, the deploy instructions it prints, and any annotations it reads (`@deploy` keys, platform-specific tags) are documented by the pack. Once installed, the pack's topics appear in `fw docs`. Writing a target is covered in [Marketplace](marketplace).
 
 ---
 
@@ -130,7 +32,7 @@ See the [CI/CD Pipelines](cicd) topic for the complete annotation reference, val
 Export all workflows in a file as a **unified service** with routing, function registry, and optional API documentation:
 
 ```bash
-fw export workflows.ts --target lambda --output dist/ --multi
+fw export workflows.ts --target <name> --output dist/ --multi
 ```
 
 ### Features
@@ -140,7 +42,7 @@ fw export workflows.ts --target lambda --output dist/ --multi
 - **API docs** — Add `--docs` to include Swagger UI at `/docs` and OpenAPI spec at `/openapi.json`
 
 ```bash
-fw export workflows.ts --target vercel --output api/ --multi --docs
+fw export workflows.ts --target <name> --output api/ --multi --docs
 ```
 
 ### Selecting Workflows
@@ -148,7 +50,7 @@ fw export workflows.ts --target vercel --output api/ --multi --docs
 Export a subset of workflows from a multi-workflow file:
 
 ```bash
-fw export workflows.ts --target lambda --output dist/ --multi --workflows validatePipeline,enrichPipeline
+fw export workflows.ts --target <name> --output dist/ --multi --workflows validatePipeline,enrichPipeline
 ```
 
 ---
@@ -234,35 +136,19 @@ Each workflow becomes an endpoint with:
 
 ---
 
-## Dev Mode with Inngest
-
-For Inngest development, `fw dev` starts a local dev server with the Inngest Dev Server:
-
-```bash
-fw dev workflow.ts --target inngest --port 8080 --framework express
-```
-
-This:
-1. Compiles the workflow with Inngest target
-2. Starts a local HTTP server with the serve handler
-3. Watches for file changes and recompiles automatically
-
----
-
 ## Deployment Checklist
 
 1. **Validate** — Run `fw validate workflow.ts --strict` before deploying
 2. **Production compile** — Use `--production` to strip debug instrumentation
 3. **Test locally** — Use `fw serve` or `fw run` with mocks
-4. **Export** — Generate platform-specific code with `fw export`
-5. **Deploy** — Follow platform-specific instructions in the generated output
+4. **Export** — Generate platform-specific code with `fw export --target <name>`
+5. **Deploy** — Follow the instructions the target prints with the generated output
 
 ---
 
 ## Related Topics
 
-- [CI/CD Pipelines](cicd) — CI/CD annotation reference, secret wiring, job grouping, validation rules
+- [Marketplace](marketplace) — Finding target packs and writing an export target
 - [CLI Reference](cli-reference) — Full command flags for export, serve, openapi
-- [Compilation](compilation) — Inngest target details and serve handlers
+- [Compilation](compilation) — Compile targets and target options
 - [Built-in Nodes](built-in-nodes) — Mock system for local testing
-- [Concepts](concepts) — Core workflow fundamentals

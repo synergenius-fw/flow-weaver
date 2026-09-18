@@ -169,6 +169,26 @@ function isSubtypeViaBaseTypes(sourceType: Type, targetType: Type): boolean {
   return false;
 }
 
+const OPAQUE_OBJECT_TYPES = new Set([
+  "object",
+  "{}",
+  "Record<string,unknown>",
+  "Record<string,any>",
+  "{[key:string]:unknown}",
+  "{[key:string]:any}",
+  "{[k:string]:unknown}",
+  "{[k:string]:any}",
+]);
+
+/**
+ * True for a type text that names "some object" without describing its shape.
+ * Whitespace is ignored so `Record<string, unknown>` and `Record<string,unknown>`
+ * are the same type.
+ */
+export function isOpaqueObjectType(typeText: string): boolean {
+  return OPAQUE_OBJECT_TYPES.has(typeText.replace(/\s+/g, ""));
+}
+
 /**
  * Check type compatibility using string representations.
  * Fallback for JSON-loaded workflows without ts-morph Type objects.
@@ -193,6 +213,22 @@ export function checkTypeCompatibilityFromStrings(
 
   // any is compatible with everything
   if (sourceText === "any" || targetText === "any") {
+    return {
+      isCompatible: true,
+      reason: "assignable",
+      sourceType: sourceText,
+      targetType: targetText,
+    };
+  }
+
+  // An opaque object type on either side (`object`, `Record<string, unknown>`,
+  // `{}`, ...) says nothing about shape, so a structural mismatch cannot be
+  // claimed. `unknown` accepts anything as a target.
+  if (
+    isOpaqueObjectType(sourceText) ||
+    isOpaqueObjectType(targetText) ||
+    targetText.trim() === "unknown"
+  ) {
     return {
       isCompatible: true,
       reason: "assignable",

@@ -1,8 +1,11 @@
 /**
  * Extractor for MCP tool documentation
  *
- * This defines all MCP tools with their descriptions and parameters.
- * The data is extracted from the tool registration files (tools-query.ts, tools-template.ts, tools-pattern.ts, tools-export.ts).
+ * One entry per tool the MCP server registers, mirroring the zod schema in
+ * its src/mcp/tools-*.ts registration: same names, descriptions, parameter
+ * types, enums and required flags. The platform's documentation plugin
+ * renders this array, so a tool missing here is missing from the product
+ * docs. When a tool schema changes, change the entry with it.
  */
 
 import type { TMcpToolDoc } from '../types.js';
@@ -11,7 +14,6 @@ import type { TMcpToolDoc } from '../types.js';
  * MCP tool definitions - single source of truth for tool documentation
  */
 export const MCP_TOOLS: TMcpToolDoc[] = [
-  // Query tools (tools-query.ts)
   {
     name: 'fw_describe',
     description:
@@ -27,9 +29,9 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'format',
         type: 'string',
-        description: 'Output format (default: json)',
+        description: 'Output format (default: json). ascii/ascii-compact produce terminal-readable diagrams.',
         required: false,
-        enum: ['json', 'text', 'mermaid', 'paths'],
+        enum: ['json', 'text', 'mermaid', 'paths', 'ascii', 'ascii-compact'],
       },
       {
         name: 'node',
@@ -47,7 +49,8 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   },
   {
     name: 'fw_validate',
-    description: 'Validate a workflow file and return errors/warnings.',
+    description:
+      'Validate a workflow file and return errors/warnings.',
     category: 'query',
     params: [
       {
@@ -62,11 +65,18 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         description: 'Specific workflow name',
         required: false,
       },
+      {
+        name: 'draft',
+        type: 'boolean',
+        description: 'Draft mode - suppresses STUB_NODE errors for unimplemented nodes (default: false)',
+        required: false,
+      },
     ],
   },
   {
     name: 'fw_compile',
-    description: 'Compile a workflow to executable code.',
+    description:
+      'Compile a workflow to executable code. Only regenerates code inside @flow-weaver-runtime and @flow-weaver-body marker sections — user code outside markers is preserved. Set production: true to strip debug instrumentation. Custom targets are available via registered extensions.',
     category: 'query',
     params: [
       {
@@ -91,6 +101,55 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         name: 'workflowName',
         type: 'string',
         description: 'Specific workflow name',
+        required: false,
+      },
+      {
+        name: 'target',
+        type: 'string',
+        description: 'Compilation target: typescript (default) or a registered extension target',
+        required: false,
+      },
+      {
+        name: 'cron',
+        type: 'string',
+        description: 'Cron schedule expression (e.g. "0 9 * * *"). Overrides @trigger annotation.',
+        required: false,
+      },
+      {
+        name: 'serve',
+        type: 'boolean',
+        description: 'Generate serve() handler for HTTP framework integration',
+        required: false,
+      },
+      {
+        name: 'framework',
+        type: 'string',
+        description: 'Framework adapter for serve handler (requires serve=true)',
+        required: false,
+        enum: ['next', 'express', 'hono', 'fastify', 'remix'],
+      },
+      {
+        name: 'typedEvents',
+        type: 'boolean',
+        description: 'Generate Zod event schemas from workflow @param annotations',
+        required: false,
+      },
+      {
+        name: 'retries',
+        type: 'number',
+        description: 'Number of retries per function. Overrides @retries annotation.',
+        required: false,
+      },
+      {
+        name: 'timeout',
+        type: 'string',
+        description: 'Function timeout (e.g. "30m", "1h"). Overrides @timeout annotation.',
+        required: false,
+      },
+      {
+        name: 'draft',
+        type: 'boolean',
+        description: 'Draft mode - suppresses STUB_NODE validation errors so partially implemented workflows can compile (default: false)',
         required: false,
       },
     ],
@@ -131,7 +190,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_query',
     description:
-      'Query workflow structure: nodes, connections, deps, dependents, data-deps, execution-order, isolated, dead-ends, disconnected-outputs, node-types.',
+      'Query workflow structure.  Query types: - nodes: All node instances [{id, nodeType, parent}] - connections: All connections [{from, to}] in "node.port" format. Optional: nodeId to filter. - deps: Direct upstream dependencies [nodeId[]]. Requires: nodeId - dependents: Direct downstream dependents [nodeId[]]. Requires: nodeId - data-deps: Data-only upstream dependencies (excludes control flow). Requires: nodeId - execution-order: Topological sort of main-flow nodes. Scoped nodes are listed separately. - isolated: Nodes with no connections [nodeId[]] - dead-ends: Nodes that don\'t reach Exit [nodeId[]] - disconnected-outputs: Output ports not connected to anything [{nodeId, ports[]}] - node-types: All node type definitions [{name, functionName, inputs[], outputs[]}]',
     category: 'query',
     params: [
       {
@@ -145,18 +204,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         type: 'string',
         description: 'Query type',
         required: true,
-        enum: [
-          'nodes',
-          'connections',
-          'deps',
-          'dependents',
-          'data-deps',
-          'execution-order',
-          'isolated',
-          'dead-ends',
-          'disconnected-outputs',
-          'node-types',
-        ],
+        enum: ['nodes', 'connections', 'deps', 'dependents', 'data-deps', 'execution-order', 'isolated', 'dead-ends', 'disconnected-outputs', 'node-types'],
       },
       {
         name: 'nodeId',
@@ -172,7 +220,6 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       },
     ],
   },
-
   {
     name: 'fw_doctor',
     description:
@@ -187,11 +234,288 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       },
     ],
   },
-
-  // Template tools (tools-template.ts)
+  {
+    name: 'fw_market_search',
+    description:
+      'Search npm for Flow Weaver marketplace packages (node types, workflows, patterns). Returns package name, version, and description.',
+    category: 'query',
+    params: [
+      {
+        name: 'query',
+        type: 'string',
+        description: 'Search query text (optional — omit to browse all)',
+        required: false,
+      },
+      {
+        name: 'limit',
+        type: 'number',
+        description: 'Maximum number of results (default: 20)',
+        required: false,
+      },
+      {
+        name: 'registryUrl',
+        type: 'string',
+        description: 'Custom registry search URL for private registries (default: public npm)',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_market_list',
+    description:
+      'List installed Flow Weaver marketplace packages in the current project. Shows available node types, workflows, and patterns from each package.',
+    category: 'query',
+    params: [],
+  },
+  {
+    name: 'fw_diagram',
+    description:
+      'Generate a diagram of a workflow. Formats: svg/html produce visual markup, ascii/ascii-compact/text produce plain text readable in terminal. Provide either filePath (workflow .ts file) or source (inline code).',
+    category: 'query',
+    params: [
+      {
+        name: 'filePath',
+        type: 'string',
+        description: 'Path to the workflow .ts file (required if source is not provided)',
+        required: false,
+      },
+      {
+        name: 'source',
+        type: 'string',
+        description: 'Inline workflow source code (required if filePath is not provided)',
+        required: false,
+      },
+      {
+        name: 'outputPath',
+        type: 'string',
+        description: 'Output file path. If omitted, returns content as text.',
+        required: false,
+      },
+      {
+        name: 'workflowName',
+        type: 'string',
+        description: 'Specific workflow name if file has multiple',
+        required: false,
+      },
+      {
+        name: 'theme',
+        type: 'string',
+        description: 'Color theme (default: dark)',
+        required: false,
+        enum: ['dark', 'light'],
+      },
+      {
+        name: 'showPortLabels',
+        type: 'boolean',
+        description: 'Show port labels on diagram (default: true)',
+        required: false,
+      },
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Output format: svg (default), html (interactive viewer), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)',
+        required: false,
+        enum: ['svg', 'html', 'ascii', 'ascii-compact', 'text'],
+      },
+    ],
+  },
+  {
+    name: 'fw_docs',
+    description:
+      'Browse Flow Weaver documentation and reference guides. Use action="list" to see topics, action="read" to read a topic, action="search" to search across all docs.',
+    category: 'query',
+    params: [
+      {
+        name: 'action',
+        type: 'string',
+        description: 'What to do: list topics, read a topic, or search',
+        required: true,
+        enum: ['list', 'read', 'search'],
+      },
+      {
+        name: 'topic',
+        type: 'string',
+        description: 'Topic slug to read (for action="read")',
+        required: false,
+      },
+      {
+        name: 'query',
+        type: 'string',
+        description: 'Search query (for action="search")',
+        required: false,
+      },
+      {
+        name: 'compact',
+        type: 'boolean',
+        description: 'Return compact LLM-friendly version (default: false)',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_context',
+    description:
+      'Generate a self-contained LLM context bundle with Flow Weaver documentation, grammar, and conventions. Use preset="core" for basics, "authoring" for writing workflows, "full" for everything, "ops" for CLI/deployment reference.',
+    category: 'query',
+    params: [
+      {
+        name: 'preset',
+        type: 'string',
+        description: 'Topic preset',
+        required: false,
+        enum: ['core', 'authoring', 'full', 'ops'],
+      },
+      {
+        name: 'profile',
+        type: 'string',
+        description: 'standalone = full self-contained dump, assistant = assumes MCP tools available',
+        required: false,
+        enum: ['standalone', 'assistant'],
+      },
+      {
+        name: 'topics',
+        type: 'string',
+        description: 'Comma-separated topic slugs (overrides preset)',
+        required: false,
+      },
+      {
+        name: 'addTopics',
+        type: 'string',
+        description: 'Comma-separated slugs to add to preset',
+        required: false,
+      },
+      {
+        name: 'includeGrammar',
+        type: 'boolean',
+        description: 'Include EBNF annotation grammar section',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_list_resources',
+    description:
+      'List available icons, colors, and annotation tags for use in workflow definitions.',
+    category: 'query',
+    params: [
+      {
+        name: 'type',
+        type: 'string',
+        description: 'Resource type to list (default: all)',
+        required: false,
+        enum: ['icons', 'colors', 'tags', 'all'],
+      },
+    ],
+  },
+  {
+    name: 'fw_modify',
+    description:
+      'Modify a workflow file: add/remove/rename nodes, add/remove connections, set positions/labels. Parses the file, applies the mutation, and regenerates annotations in-place. Returns auto-validation results and a text description of the updated workflow. For addNode: if x/y are omitted, the node is placed to the right of the rightmost existing node.',
+    category: 'modify',
+    params: [
+      {
+        name: 'filePath',
+        type: 'string',
+        description: 'Path to the workflow file',
+        required: true,
+      },
+      {
+        name: 'workflowName',
+        type: 'string',
+        description: 'Specific workflow if file has multiple',
+        required: false,
+      },
+      {
+        name: 'operation',
+        type: 'string',
+        description: 'The mutation to perform',
+        required: true,
+        enum: ['addNode', 'removeNode', 'renameNode', 'addConnection', 'removeConnection', 'setNodePosition', 'setNodeLabel'],
+      },
+      {
+        name: 'params',
+        type: 'object',
+        description: 'Operation-specific parameters. addNode: {nodeId, nodeType, x?, y?}. removeNode: {nodeId}. renameNode: {oldId, newId}. addConnection: {from, to} ("node.port" format). removeConnection: {from, to} ("node.port" format). setNodePosition: {nodeId, x, y}. setNodeLabel: {nodeId, label}.',
+        required: true,
+      },
+      {
+        name: 'preview',
+        type: 'boolean',
+        description: 'Preview without writing (default: false)',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_modify_batch',
+    description:
+      'Apply multiple modify operations in a single parse/write/validate cycle. More efficient than calling fw_modify multiple times.',
+    category: 'modify',
+    params: [
+      {
+        name: 'filePath',
+        type: 'string',
+        description: 'Path to the workflow file',
+        required: true,
+      },
+      {
+        name: 'workflowName',
+        type: 'string',
+        description: 'Specific workflow if file has multiple',
+        required: false,
+      },
+      {
+        name: 'operations',
+        type: 'array',
+        description: 'Array of operations to apply sequentially',
+        required: true,
+      },
+      {
+        name: 'preview',
+        type: 'boolean',
+        description: 'Preview without writing (default: false)',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_migrate',
+    description:
+      'Migrate workflow files to current syntax via parse → regenerate round-trip. The parser adds defaults for missing fields, edge-case migrations transform the AST, and generateInPlace writes current syntax back.',
+    category: 'modify',
+    params: [
+      {
+        name: 'glob',
+        type: 'string',
+        description: 'Glob pattern for workflow files to migrate (e.g., "src/**/*.ts")',
+        required: true,
+      },
+      {
+        name: 'dryRun',
+        type: 'boolean',
+        description: 'Preview changes without writing files (default: false)',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_market_install',
+    description:
+      'Install a Flow Weaver marketplace package via npm. After installation, the package\'s node types, workflows, and patterns become available for use.',
+    category: 'modify',
+    params: [
+      {
+        name: 'package',
+        type: 'string',
+        description: 'Package name or specifier (e.g., "flow-weaver-pack-openai" or "flow-weaver-pack-openai@1.0.0")',
+        required: true,
+      },
+    ],
+  },
   {
     name: 'fw_list_templates',
-    description: 'List available scaffold templates for workflows and nodes.',
+    description:
+      'List available scaffold templates for workflows and nodes.',
     category: 'template',
     params: [
       {
@@ -205,13 +529,14 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   },
   {
     name: 'fw_scaffold',
-    description: 'Create a workflow or node from a template.',
+    description:
+      'Create a workflow or node from a template.',
     category: 'template',
     params: [
       {
         name: 'template',
         type: 'string',
-        description: 'Template name (e.g. "sequential", "validator")',
+        description: 'Template name (e.g. "sequential", "validator", "ai-agent")',
         required: true,
       },
       {
@@ -235,17 +560,15 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'config',
         type: 'object',
-        description:
-          'Template configuration (e.g. { nodes: ["fetch", "parse"], input: "rawData" })',
+        description: 'Template configuration (e.g. { nodes: ["fetch", "parse"], input: "rawData" })',
         required: false,
       },
     ],
   },
-
-  // Pattern tools (tools-pattern.ts)
   {
     name: 'fw_list_patterns',
-    description: 'List reusable patterns defined in a file.',
+    description:
+      'List reusable patterns defined in a file.',
     category: 'pattern',
     params: [
       {
@@ -258,7 +581,8 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   },
   {
     name: 'fw_apply_pattern',
-    description: 'Apply a reusable pattern to a workflow file.',
+    description:
+      'Apply a reusable pattern to a workflow file.',
     category: 'pattern',
     params: [
       {
@@ -288,7 +612,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'preview',
         type: 'boolean',
-        description: "Preview only, don't write (default: false)",
+        description: 'Preview only, don\'t write (default: false)',
         required: false,
       },
     ],
@@ -345,153 +669,238 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       },
     ],
   },
-
-  // Modify tools (tools-pattern.ts - fw_modify, fw_modify_batch)
-  {
-    name: 'fw_modify',
-    description:
-      'Modify a workflow file: add/remove/rename nodes, add/remove connections, set positions/labels. Parses the file, applies the mutation, and regenerates annotations in-place. Returns auto-validation results and a text description of the updated workflow.',
-    category: 'modify',
-    params: [
-      {
-        name: 'filePath',
-        type: 'string',
-        description: 'Path to the workflow file',
-        required: true,
-      },
-      {
-        name: 'operation',
-        type: 'string',
-        description: 'The mutation to perform',
-        required: true,
-        enum: [
-          'addNode',
-          'removeNode',
-          'renameNode',
-          'addConnection',
-          'removeConnection',
-          'setNodePosition',
-          'setNodeLabel',
-        ],
-      },
-      {
-        name: 'params',
-        type: 'object',
-        description:
-          'Operation-specific parameters. addNode: {nodeId, nodeType, x?, y?}. removeNode: {nodeId}. renameNode: {oldId, newId}. addConnection/removeConnection: {from, to} ("node.port" format). setNodePosition: {nodeId, x, y}. setNodeLabel: {nodeId, label}.',
-        required: true,
-      },
-      {
-        name: 'workflowName',
-        type: 'string',
-        description: 'Specific workflow if file has multiple',
-        required: false,
-      },
-      {
-        name: 'preview',
-        type: 'boolean',
-        description: 'Preview without writing (default: false)',
-        required: false,
-      },
-    ],
-  },
-  {
-    name: 'fw_modify_batch',
-    description:
-      'Apply multiple modify operations in a single parse/write/validate cycle. More efficient than calling fw_modify multiple times.',
-    category: 'modify',
-    params: [
-      {
-        name: 'filePath',
-        type: 'string',
-        description: 'Path to the workflow file',
-        required: true,
-      },
-      {
-        name: 'operations',
-        type: 'array',
-        description:
-          'Array of operations to apply sequentially. Each operation has { operation, params }.',
-        required: true,
-      },
-      {
-        name: 'workflowName',
-        type: 'string',
-        description: 'Specific workflow if file has multiple',
-        required: false,
-      },
-      {
-        name: 'preview',
-        type: 'boolean',
-        description: 'Preview without writing (default: false)',
-        required: false,
-      },
-    ],
-  },
-
-  // Export tools (tools-export.ts)
   {
     name: 'fw_export',
     description:
-      'Export workflows as serverless deployments. Generates handler code, platform config, and deploy instructions.',
+      'Export workflows as serverless deployments. Generates platform-native config files and deploy instructions. Available targets depend on installed packs.',
     category: 'execution',
     params: [
       {
         name: 'filePath',
         type: 'string',
-        description: 'Path to the workflow file',
+        description: 'Path to the workflow .ts file',
         required: true,
       },
       {
         name: 'target',
         type: 'string',
-        description: 'Target deployment platform (provided by installed packs)',
+        description: 'Deployment target name. Targets come from installed packs; an unknown name returns INVALID_TARGET listing the installed ones.',
         required: true,
       },
       {
         name: 'outputDir',
         type: 'string',
-        description: 'Output directory for generated files',
-        required: true,
+        description: 'Output directory for generated files (default: ./dist relative to workflow)',
+        required: false,
       },
       {
         name: 'serviceName',
         type: 'string',
-        description: 'Service name for the deployment',
+        description: 'Service name (default: derived from filename)',
         required: false,
       },
       {
         name: 'workflows',
         type: 'array',
-        description: 'Specific workflows to export',
+        description: 'Specific workflow function names to include (default: all)',
         required: false,
       },
       {
         name: 'nodeTypes',
         type: 'array',
-        description: 'Node types to include',
+        description: 'Specific node type names to include',
         required: false,
       },
       {
         name: 'includeDocs',
         type: 'boolean',
-        description: 'Include API documentation routes',
+        description: 'Include OpenAPI/Swagger routes (default: true)',
         required: false,
       },
       {
         name: 'preview',
         type: 'boolean',
-        description: 'Preview without writing files (default: false)',
+        description: 'Preview without writing files to disk (default: false)',
+        required: false,
+      },
+      {
+        name: 'durableSteps',
+        type: 'boolean',
+        description: 'Use deep generator with per-node durable steps',
         required: false,
       },
     ],
   },
-
-  // Debug tools (tools-debug.ts)
+  {
+    name: 'fw_workflow_run',
+    description:
+      'Run a workflow until completion or a durable approval, input, or agent gate. For coordinators: returns the raw continuation. Assistants should use fw_run.',
+    category: 'execution',
+    params: [
+      {
+        name: 'filePath',
+        type: 'string',
+        description: 'Path to the workflow .ts file',
+        required: true,
+      },
+      {
+        name: 'params',
+        type: 'object',
+        description: 'Workflow input parameters',
+        required: false,
+      },
+      {
+        name: 'workflowName',
+        type: 'string',
+        description: 'Export name if the file has several workflows',
+        required: false,
+      },
+      {
+        name: 'runId',
+        type: 'string',
+        description: 'Stable run identity; generated when omitted',
+        required: false,
+      },
+      {
+        name: 'bundleDigest',
+        type: 'string',
+        description: 'Verified sha256 identity of the executable bundle',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_workflow_resume',
+    description:
+      'Resume one exact durable gate continuation. The prior executor is not retained. For coordinators; assistants should use fw_resume.',
+    category: 'execution',
+    params: [
+      {
+        name: 'runId',
+        type: 'string',
+        description: 'Run identity the continuation was produced under',
+        required: true,
+      },
+      {
+        name: 'filePath',
+        type: 'string',
+        description: 'Path to the same workflow .ts file',
+        required: true,
+      },
+      {
+        name: 'continuation',
+        type: 'object',
+        description: 'The continuation envelope returned by the yielded outcome, verbatim (any JSON value)',
+        required: true,
+      },
+      {
+        name: 'gateId',
+        type: 'string',
+        description: 'The gate id from the yielded outcome',
+        required: true,
+      },
+      {
+        name: 'resolution',
+        type: 'object',
+        description: 'The gate node\'s full output envelope, control ports included',
+        required: true,
+      },
+      {
+        name: 'params',
+        type: 'object',
+        description: 'Workflow input parameters, as on the first segment',
+        required: false,
+      },
+      {
+        name: 'workflowName',
+        type: 'string',
+        description: 'Export name if the file has several workflows',
+        required: false,
+      },
+      {
+        name: 'bundleDigest',
+        type: 'string',
+        description: 'sha256:<64 hex> identity of the executable bundle',
+        required: true,
+      },
+    ],
+  },
+  {
+    name: 'fw_run',
+    description:
+      'Run a workflow. Returns the result, or pauses at the first gate and returns {runId, gate}. Continue with fw_resume.',
+    category: 'execution',
+    params: [
+      {
+        name: 'filePath',
+        type: 'string',
+        description: 'Workflow .ts file',
+        required: true,
+      },
+      {
+        name: 'workflowName',
+        type: 'string',
+        description: 'Export name if the file has several',
+        required: false,
+      },
+      {
+        name: 'params',
+        type: 'object',
+        description: 'Workflow input parameters',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_resume',
+    description:
+      'Continue a paused run. Give exactly one of answer (the gate\'s result) or reject (a reason).',
+    category: 'execution',
+    params: [
+      {
+        name: 'runId',
+        type: 'string',
+        description: 'Run id returned by fw_run',
+        required: true,
+      },
+      {
+        name: 'answer',
+        type: 'object',
+        description: 'For a single-output gate, the value; for multi-output, an object with every output (any JSON value)',
+        required: false,
+      },
+      {
+        name: 'reject',
+        type: 'string',
+        description: 'Fail the gate with this reason',
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'fw_runs',
+    description:
+      'List runs, or inspect one. With runId returns the full gate so you can re-read a pause without resuming.',
+    category: 'execution',
+    params: [
+      {
+        name: 'runId',
+        type: 'string',
+        description: 'Inspect one run in full',
+        required: false,
+      },
+      {
+        name: 'filePath',
+        type: 'string',
+        description: 'Only runs of this workflow file',
+        required: false,
+      },
+    ],
+  },
   {
     name: 'fw_debug_workflow',
     description:
-      'Start a step-through debug session for a workflow. Compiles and executes the workflow, pausing before the first node.',
+      'Start a step-through debug session for a workflow. Compiles and executes the workflow, pausing before the first node. Returns a debugId and the initial pause state.',
     category: 'debug',
     params: [
       {
@@ -569,7 +978,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'nodeId',
         type: 'string',
-        description: "Filter to show only this node's variables",
+        description: 'Filter to show only this node\'s variables',
         required: false,
       },
     ],
@@ -601,7 +1010,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'value',
         type: 'object',
-        description: 'The new value to set (any JSON-compatible value)',
+        description: 'The new value to set (any JSON value)',
         required: true,
       },
       {
@@ -615,7 +1024,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_debug_breakpoint',
     description:
-      'Add, remove, or list breakpoints in a debug session.',
+      'Add, remove, or list breakpoints in a debug session. Breakpoints cause execution to pause when running with fw_debug_continue(toBreakpoint: true).',
     category: 'debug',
     params: [
       {
@@ -634,63 +1043,22 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'nodeId',
         type: 'string',
-        description: 'Node ID for add/remove',
+        description: 'Node ID for add/remove (not needed for list)',
         required: false,
       },
     ],
   },
   {
     name: 'fw_list_debug_sessions',
-    description: 'List all active debug sessions.',
+    description:
+      'List all active debug sessions.',
     category: 'debug',
     params: [],
-  },
-
-  // Context tools (tools-context.ts)
-  {
-    name: 'fw_context',
-    description:
-      'Generate a self-contained LLM context bundle with Flow Weaver documentation, grammar, and conventions.',
-    category: 'query',
-    params: [
-      {
-        name: 'preset',
-        type: 'string',
-        description: 'Topic preset: core, authoring, full, or ops',
-        required: false,
-        enum: ['core', 'authoring', 'full', 'ops'],
-      },
-      {
-        name: 'profile',
-        type: 'string',
-        description: 'Output profile: standalone (full dump) or assistant (assumes MCP tools)',
-        required: false,
-        enum: ['standalone', 'assistant'],
-      },
-      {
-        name: 'topics',
-        type: 'string',
-        description: 'Comma-separated topic slugs (overrides preset)',
-        required: false,
-      },
-      {
-        name: 'addTopics',
-        type: 'string',
-        description: 'Comma-separated slugs to add to preset',
-        required: false,
-      },
-      {
-        name: 'includeGrammar',
-        type: 'boolean',
-        description: 'Include EBNF annotation grammar section (default: true)',
-        required: false,
-      },
-    ],
   },
 ];
 
 /**
- * Extract MCP tool documentation
+ * Extract MCP tool documentation.
  */
 export function extractMcpTools(): TMcpToolDoc[] {
   return MCP_TOOLS;

@@ -12,13 +12,10 @@ concurrency:
 
 jobs:
   build:
-    # A stalled runner must not indefinitely block the shared desktop-release
-    # pool. Normal builds complete in well under two minutes.
+    # Normal builds complete in well under five minutes on a hosted runner.
     timeout-minutes: 10
-    # Keep compiler/test workloads on the maintained heavy pool. The
-    # `fw-fast` runner is a lightweight interactive lane and has repeatedly
-    # stalled dependency setup under matrix load.
-    runs-on: [self-hosted, linux, fw-heavy]
+    # GitHub-hosted. The self-hosted pool (fw-heavy / fw-fast) is gone.
+    runs-on: ubuntu-latest
     outputs:
       is_release: ${{ steps.detect.outputs.is_release }}
     steps:
@@ -50,9 +47,9 @@ jobs:
     needs: build
     if: needs.build.outputs.is_release == 'false'
     # Test shards normally finish in a few minutes. Bound a wedged worker so
-    # one bad shard cannot monopolise a self-hosted runner indefinitely.
-    timeout-minutes: 15
-    runs-on: [self-hosted, linux, fw-heavy]
+    # one bad shard cannot run indefinitely.
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -73,20 +70,18 @@ jobs:
       - name: Run tests (shard ${{ matrix.shard }}/3)
         run: npx vitest run --shard=${{ matrix.shard }}/3 --reporter=default
         # Per-worker heap ceilings live in vitest.config.ts (execArgv, sized to
-        # the 8 GB runner). NODE_OPTIONS here only bounds the parent vitest
+        # a 7-8 GB runner). NODE_OPTIONS here only bounds the parent vitest
         # process, which orchestrates and doesn't hold the ts-morph working set.
         env:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   coverage:
-    # Wait for the test matrix before kicking off so the heavy --coverage
-    # run doesn't share runners with the 3 test shards. With 3 self-hosted
-    # runners, parallel test+coverage saturates RAM/swap; sequencing keeps
-    # each phase under the box's working set.
+    # Runs after the test matrix so a red shard fails fast before the long
+    # --coverage pass starts.
     needs: [build, test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    timeout-minutes: 25
-    runs-on: [self-hosted, linux, fw-heavy]
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
@@ -134,7 +129,7 @@ jobs:
     if: always()
     needs: [build, test, coverage]
     timeout-minutes: 5
-    runs-on: [self-hosted, linux, fw-heavy]
+    runs-on: ubuntu-latest
     steps:
       - name: Evaluate results
         run: |

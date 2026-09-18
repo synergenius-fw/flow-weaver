@@ -4,6 +4,7 @@
 
 import * as fs from 'fs';
 import { buildContext, PRESETS, PRESET_NAMES, type ContextPreset } from '../../context/index.js';
+import { loadPackDocTopics } from '../../docs/pack-topics.js';
 import { logger } from '../utils/logger.js';
 import { safeWriteFile } from '../utils/safe-write.js';
 
@@ -48,6 +49,9 @@ export async function contextCommand(
   if (profile !== 'standalone' && profile !== 'assistant') {
     throw new Error(`Unknown profile "${profile}". Use "standalone" or "assistant".`);
   }
+
+  // Pack topics that name this preset in their manifest join the bundle.
+  await loadPackDocTopics();
 
   const result = buildContext({
     preset: PRESET_NAMES.includes(presetName) ? presetName : 'core',

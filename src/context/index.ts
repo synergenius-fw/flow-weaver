@@ -32,25 +32,41 @@ export interface ContextResult {
   lineCount: number;
   topicSlugs: string[];
   profile: ContextProfile;
+  /**
+   * Every topic the bundle did not include, with its compact size, so a
+   * caller can decide what to load next without listing first. Pack topics
+   * are included once loaded.
+   */
+  availableTopics: Array<{ slug: string; description: string; compactBytes: number }>;
 }
 
 // ---------------------------------------------------------------------------
 // Presets
 // ---------------------------------------------------------------------------
 
+// `core` is deliberately one short topic. It is what every persona loads at
+// the start of a session, so it has to be the map — the model, the tool loop,
+// and which topic answers which task — not the reference itself. The bundle
+// appends every other topic's name and size, and the assistant reads those
+// on demand with fw_docs. The larger presets exist for callers that really
+// want a self-contained dump; they begin with the same map.
 export const PRESETS: Record<ContextPreset, string[]> = {
-  core: ['concepts', 'jsdoc-grammar', 'tutorial'],
+  core: ['orientation'],
   authoring: [
+    'orientation',
     'concepts',
     'jsdoc-grammar',
     'advanced-annotations',
     'built-in-nodes',
+    'durable-gates',
     'scaffold',
     'node-conversion',
     'patterns',
   ],
   ops: [
+    'orientation',
     'cli-reference',
+    'mcp-tools',
     'compilation',
     'deployment',
     'export-interface',
@@ -58,12 +74,16 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'error-codes',
   ],
   full: [
+    'orientation',
     'concepts',
     'tutorial',
     'jsdoc-grammar',
     'advanced-annotations',
     'built-in-nodes',
+    'durable-gates',
+    'cancellation',
     'cli-reference',
+    'mcp-tools',
     'compilation',
     'debugging',
     'deployment',
@@ -96,34 +116,24 @@ ports. Workflows instantiate nodes and connect their ports. Start and Exit are
 implicit boundary nodes. The compiler handles execution ordering, type checking,
 and code generation.`;
 
+// Short on purpose: this text is in every bundle, on every session start.
+// The tool loop and the topic map live in the orientation topic; this only
+// says how to use the bundle.
 function buildAssistantPreamble(): string {
-  const allSlugs = listTopics().map((t) => t.slug);
   return `# Flow Weaver Context
 
-You have Flow Weaver MCP tools available (fw_ prefix). Use them to create,
-modify, validate, compile, and inspect workflows without manual file editing.
+You have Flow Weaver MCP tools (fw_ prefix). Write the workflow file
+yourself (node type functions plus a @flowWeaver workflow stub), then work
+through the tools: fw_validate after every change, fw_modify to restructure,
+fw_query or fw_describe to inspect, fw_diagram (ascii-compact) to show,
+fw_run and fw_resume to execute.
 
-For documentation not included below, call fw_docs(action="read", topic="<slug>").
-Available topic slugs: ${allSlugs.join(', ')}.
+This bundle is a starting point, not the whole reference. When a task needs
+more, search first — fw_docs(action="search", query="...") — then read one
+topic: fw_docs(action="read", topic="<slug>", compact=true). The list at the
+end names every topic not included here, with its size.
 
-Tool quick reference:
-- fw_create_model: Build workflow from structured description (steps + flow path)
-- fw_implement_node: Replace a declare stub with a real function body
-- fw_modify / fw_modify_batch: Add/remove nodes, connections, rename, reposition
-- fw_validate: Check for errors after any change
-- fw_describe: Inspect structure. Use format "text" for readable, "json" for data
-- fw_diagram: Visualize. Prefer format "ascii-compact" in chat contexts
-- fw_compile: Generate executable TypeScript from annotations
-- fw_docs: Look up reference docs by topic slug
-- fw_scaffold: Create from templates (sequential, foreach, ai-agent, cicd-test-deploy, cicd-docker, etc.)
-- fw_export: Deploy to cloud or generate CI/CD pipelines (targets depend on installed packs)
-
-Flow Weaver can also generate CI/CD pipelines. Use @secret, @runner, @trigger,
-@cache, @matrix, and [job: "name"] annotations to define pipeline structure,
-then export to GitHub Actions YAML or GitLab CI YAML with fw_export.
-For details: fw_docs(action="read", topic="cicd")
-
-File conventions: .ts extension, camelCase node names, PascalCase workflow names.`;
+File conventions: .ts files; node ids and workflow function names in camelCase.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -231,6 +241,31 @@ export function buildContext(options: ContextOptions = {}): ContextResult {
     includedSlugs.push(slug);
   }
 
+  // The map of what was left out. Sizes are measured now rather than written
+  // into a topic, so they stay true as the documentation changes and cover
+  // pack topics too. This is what makes loading progressive: the reader sees
+  // the cost of each next step before taking it.
+  const included = new Set(includedSlugs);
+  const availableTopics = listTopics()
+    .filter((t) => !included.has(t.slug))
+    .map((t) => ({
+      slug: t.slug,
+      description: t.description,
+      compactBytes: readTopic(t.slug, true)?.content.length ?? 0,
+    }))
+    .sort((a, b) => a.slug.localeCompare(b.slug));
+
+  if (availableTopics.length > 0) {
+    const rows = availableTopics.map(
+      (t) => `- \`${t.slug}\` — ${t.description} (${Math.max(1, Math.round(t.compactBytes / 1024))} KB)`,
+    );
+    const how =
+      profile === 'assistant'
+        ? 'Load one with fw_docs(action="read", topic="<slug>", compact=true); search first with fw_docs(action="search", query="...").'
+        : 'Load one with `fw docs <slug> --compact`, or fw_docs(action="read", topic="<slug>", compact=true) once MCP tools are connected.';
+    sections.push(`## Other topics, load on demand\n\n${how}\n\n${rows.join('\n')}`);
+  }
+
   const content = sections.join('\n\n---\n\n');
   const lineCount = content.split('\n').length;
 
@@ -240,5 +275,6 @@ export function buildContext(options: ContextOptions = {}): ContextResult {
     lineCount,
     topicSlugs: includedSlugs,
     profile,
+    availableTopics,
   };
 }

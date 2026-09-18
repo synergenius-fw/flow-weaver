@@ -378,10 +378,10 @@ Node instances in workflows support attribute brackets `[...]` for configuration
 Set port values via JavaScript expressions instead of connections:
 
 ```typescript
-@node wait waitForEvent [expr: eventName="'app/expense.approved'", match="'data.expenseId'", timeout="'48h'"]
+@node wait delay [expr: duration="'30s'"]
 ```
 
-Each assignment is `portName="expression"`. Multiple assignments are comma-separated.
+Each assignment is `portName="expression"`. Multiple assignments are comma-separated. (`waitForEvent` and `waitForAgent` accept expressions the same way, but using either makes the workflow a gated one — see [Durable Gates](durable-gates).)
 
 ### Port Order (`[portOrder: ...]`)
 
@@ -455,7 +455,7 @@ The suppression is scoped to the annotated instance only. Other instances of the
 Multiple attribute brackets can appear on the same `@node`:
 
 ```typescript
-@node wait waitForEvent [expr: eventName="'approval'", timeout="'24h'"] [minimized] [color: "#3b82f6"]
+@node wait delay [expr: duration="'24h'"] [minimized] [color: "#3b82f6"]
 ```
 
 ---
@@ -516,8 +516,13 @@ These annotations go on `@flowWeaver nodeType` blocks:
 | `@executeWhen` | Execution strategy | `@executeWhen DISJUNCTION` |
 | `@pullExecution` | Lazy evaluation | `@pullExecution execute` |
 | `@resilience` | Declare adapter-owned retry/fallback handling for static validation | `@resilience retries=3 fallback="backup-provider"` |
+| `@durablePure` | No side effects; safe to re-run after a resume | `@durablePure` |
+| `@durableGate` | Pause point: `approval`, `input`, or `agent` | `@durableGate approval` |
+| `@durableEffect` | Touches the outside world; runs through the effect adapter | `@durableEffect` |
 
 `@resilience` is an explicit static-analysis contract; it does not implement retries itself. Use it only when the node's shared adapter already performs the declared bounded retries or fallback. An unconnected `onFailure` port still remains an error because exhausted attempts must be handled.
+
+The three `@durable…` tags are a closed classification: once a workflow's reachable closure contains a gate, every node in it must carry exactly one of them, or compilation fails. An effect node also changes its signature — a trailing `operationKey: string` parameter and a `{ result, receipt }` return. See [Durable Gates](durable-gates).
 
 ---
 
@@ -560,6 +565,7 @@ Icons render inside the node body in SVG diagrams. Names correspond to Material 
 ## Related Topics
 
 - [Concepts](concepts) — Core workflow fundamentals
+- [Durable Gates](durable-gates) — The `@durablePure` / `@durableGate` / `@durableEffect` classification
 - [JSDoc Grammar](jsdoc-grammar) — Formal EBNF syntax for all annotations
 - [Compilation](compilation) — How annotations affect code generation
 - [Error Codes](error-codes) — Validation errors for annotation issues

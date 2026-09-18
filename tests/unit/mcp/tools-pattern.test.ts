@@ -30,6 +30,8 @@ const mockGenerateInPlace = vi.fn();
 
 vi.mock('../../../src/api/generate-in-place.js', () => ({
   generateInPlace: (...args: unknown[]) => mockGenerateInPlace(...args),
+  hasInPlaceMarkers: (source: string) =>
+    source.includes('// @flow-weaver-body-start') && source.includes('// @flow-weaver-runtime-start'),
 }));
 
 // ── Mock migration registry ─────────────────────────────────────────────────

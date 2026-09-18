@@ -163,7 +163,7 @@ This is useful when:
 
 - The function already exists and does what you need
 - You want to use popular libraries (lodash, date-fns, etc.) directly
-- You want a node type from a marketplace pack (e.g. `waitForApproval` from `@synergenius/flow-weaver-pack-core`)
+- You want a node type from an installed marketplace pack
 - You don't want to write wrapper boilerplate
 
 Port types are inferred from TypeScript definitions, including packages that re-export their node types through a barrel `index.d.ts`. See `fw docs jsdoc-grammar` for full syntax.
@@ -502,9 +502,10 @@ Now that you have a working workflow, explore these topics to go further:
 
 - **CLI Reference** (`fw docs cli-reference`) -- Complete reference for all CLI commands and flags
 - **Advanced Annotations** (`fw docs advanced-annotations`) -- Pull execution, merge strategies, auto-connect, path/map sugar
-- **Compilation** (`fw docs compilation`) -- TypeScript and Inngest compilation targets, production mode, serve handlers
-- **Deployment** (`fw docs deployment`) -- Export to Lambda, Vercel, Cloudflare, Inngest; HTTP serve mode
-- **Built-in Nodes** (`fw docs built-in-nodes`) -- delay, waitForEvent, invokeWorkflow nodes and the mock system for testing
+- **Compilation** (`fw docs compilation`) -- The TypeScript target, pack targets, production mode, target options
+- **Deployment** (`fw docs deployment`) -- Export through target packs, HTTP serve mode, OpenAPI
+- **Built-in Nodes** (`fw docs built-in-nodes`) -- delay, waitForEvent, invokeWorkflow, waitForAgent and the mock system for testing
+- **Durable Gates** (`fw docs durable-gates`) -- pausing a workflow for approval, input, or an AI agent and resuming it later
 - **Marketplace** (`fw docs marketplace`) -- Install and publish reusable node type packages
 - **Patterns** (`fw docs patterns`) -- Extract reusable workflow fragments and apply them across projects
 - **Scoped ports and forEach** (`fw docs export-interface`) -- Iterate over arrays using scoped ports and callback parameters

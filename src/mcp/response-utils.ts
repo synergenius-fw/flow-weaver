@@ -91,11 +91,17 @@ export const ERROR_HINTS: Record<string, string> = {
 };
 
 /**
- * Enriches validation items with actionable hints from {@link ERROR_HINTS} and optional
- * friendly error explanations. Replaces `<nodeId>` placeholders in hints with actual node IDs.
+ * Enriches validation items with one actionable next step. Replaces `<nodeId>`
+ * placeholders in hints with actual node IDs.
+ *
+ * Each item carries at most one of `hint` (a tool-oriented next step from
+ * {@link ERROR_HINTS}) or `fix` (the friendly-error fix text). The friendly
+ * title and explanation are deliberately not included: they restate `message`
+ * and only add tokens to every validation result.
+ *
  * @param items - Array of validation errors/warnings, each with a message, severity, and optional code.
- * @param friendlyErrorFn - Optional function that produces user-friendly error explanations.
- * @returns A new array with `hint` and `friendly` fields added where applicable.
+ * @param friendlyErrorFn - Optional function that produces the friendly fix text.
+ * @returns A new array with `hint` or `fix` added where applicable.
  */
 export function addHintsToItems(
   items: Array<{ message: string; severity: string; nodeId?: string; code?: string }>,
@@ -106,12 +112,12 @@ export function addHintsToItems(
   nodeId?: string;
   code?: string;
   hint?: string;
-  friendly?: { title: string; explanation: string; fix: string };
+  fix?: string;
 }> {
   return items.map((item) => {
     if (!item.code) return item;
 
-    const result: typeof item & { hint?: string; friendly?: { title: string; explanation: string; fix: string } } = { ...item };
+    const result: typeof item & { hint?: string; fix?: string } = { ...item };
 
     // Add MCP tool hint
     let hint = ERROR_HINTS[item.code];
@@ -120,13 +126,14 @@ export function addHintsToItems(
         hint = hint.replace(/<nodeId>/g, item.nodeId);
       }
       result.hint = hint;
+      return result;
     }
 
-    // Add friendly error explanation
+    // No tool hint: fall back to the friendly fix text, if there is one
     if (friendlyErrorFn) {
       const friendly = friendlyErrorFn({ code: item.code, message: item.message, node: item.nodeId });
-      if (friendly) {
-        result.friendly = { title: friendly.title, explanation: friendly.explanation, fix: friendly.fix };
+      if (friendly?.fix) {
+        result.fix = friendly.fix;
       }
     }
 

@@ -76,10 +76,13 @@ That is it. Two expression-mode functions, one workflow annotation, zero boilerp
 | Check annotation syntax          | `jsdoc-grammar`              | concepts            |
 | Look up CLI commands/flags       | `cli-reference`              | —                   |
 | Pull execution, merge strategies | `advanced-annotations`       | jsdoc-grammar       |
-| Compile to Inngest               | `compilation`                | cli-reference       |
+| Compile to a pack target         | `compilation`                | cli-reference       |
 | Deploy to cloud                  | `deployment`                 | compilation         |
 | Build a CI/CD pipeline           | `cicd`                       | deployment, scaffold |
-| Use delay/waitForEvent/mocks     | `built-in-nodes`             | debugging           |
+| Get the one-page map first       | `orientation`                | concepts            |
+| Use delay/invokeWorkflow/mocks   | `built-in-nodes`             | debugging           |
+| Pause for approval/input/agent   | `durable-gates`              | built-in-nodes      |
+| Drive Flow Weaver from an editor | `mcp-tools`                  | cli-reference       |
 | Publish marketplace packages     | `marketplace`                | —                   |
 
 Use `fw docs <topic>` to read any topic.
@@ -259,30 +262,25 @@ export function myWorkflow(execute: boolean, params: { inputA: Type }): {...}
 
 ## Node Registration
 
-Every node used in a workflow must be explicitly declared with `@node`. The compiler builds a static directed graph from annotations at compile time, so it needs to know about every node before code generation begins. This is different from normal function calls where you just invoke a function directly.
+Every node used in a workflow must be declared with `@node`. The compiler builds a static directed graph from annotations at compile time, so it needs to know about every node before code generation begins. This is different from normal function calls where you just invoke a function directly.
 
-Built-in nodes (`delay`, `waitForEvent`, `invokeWorkflow`, `waitForAgent`) are exported from the library but still need explicit declaration in your workflow file. The compiler validates all `@node` references against the set of available node types — functions annotated with `@flowWeaver nodeType` in the same file or imported via `@fwImport`.
+A `@node` reference must resolve to a node type the compiler knows: a function annotated `@flowWeaver nodeType` in the same file, one imported via `@fwImport`, or a built-in.
 
-To use a built-in node, define or import the function and annotate it:
+Built-in nodes (`delay`, `waitForEvent`, `invokeWorkflow`, `waitForAgent`) need no import and no declaration — the parser injects them and the compiler inlines their bodies:
 
 ```typescript
-import { waitForEvent } from '@synergenius/flow-weaver/built-in-nodes';
-
-/**
- * @flowWeaver nodeType
- * @input eventName - Event to wait for
- * @output eventData - Received event payload
- */
-// (function body provided by the library)
-
 /**
  * @flowWeaver workflow
- * @node wait waitForEvent
- * @connect Start.eventName -> wait.eventName
- * @connect wait.eventData -> Exit.data
+ * @node wait delay [expr: duration="'30s'"]
+ * @path Start -> wait -> Exit
  */
-export function myWorkflow(execute: boolean, params: { eventName: string }) { ... }
+export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean; onFailure: boolean }> {
+  throw new Error('Not implemented');
+}
 ```
+
+- `waitForEvent` and `waitForAgent` are durable gates: using either makes the workflow pause and yield, and every other node must then be classified `@durablePure`, `@durableGate`, or `@durableEffect`. See [Durable Gates](durable-gates)
+- The full signatures are in [Built-in Nodes](built-in-nodes)
 
 ## Port Types
 
@@ -433,9 +431,11 @@ See `advanced-annotations` for full documentation.
 
 - `cli-reference` - Complete CLI command reference
 - `advanced-annotations` - Pull execution, merge strategies, auto-connect, and more
-- `compilation` - Compilation targets (TypeScript, Inngest) and options
+- `compilation` - Compilation targets (TypeScript and pack targets) and options
 - `deployment` - Export to cloud, serve mode, OpenAPI
-- `built-in-nodes` - delay, waitForEvent, invokeWorkflow, and mock system
+- `built-in-nodes` - delay, waitForEvent, invokeWorkflow, waitForAgent, and mock system
+- `durable-gates` - Pausing at a gate, resuming, and driving a run from an AI assistant
+- `mcp-tools` - Every MCP tool, which to prefer, and result sizes
 - `marketplace` - Package ecosystem and plugins
 - `export-interface` - Interface ports and scoped iteration
 - `iterative-development` - Step-by-step building

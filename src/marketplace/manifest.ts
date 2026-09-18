@@ -189,8 +189,12 @@ export async function generateManifest(
   }
 
   // Preserve v2 extension fields from the existing manifest so that
-  // re-running pack:manifest doesn't wipe manually declared tagHandlers,
-  // validationRuleSets, docs, exportTargets, initContributions, etc.
+  // re-running pack:manifest doesn't wipe manually declared contributions.
+  // Only nodeTypes, workflows and patterns are derived from source; every
+  // field below is hand-written and would otherwise vanish on regeneration,
+  // which for cliCommands/mcpTools means the pack's commands and tools stop
+  // loading (pack-commands.ts:72, pack-tools.ts:52 require both the
+  // entrypoint and a non-empty list).
   const existing = readManifest(directory);
   const v2Fields: Partial<TMarketplaceManifest> = {};
   if (existing) {
@@ -199,6 +203,11 @@ export async function generateManifest(
     if (existing.exportTargets) v2Fields.exportTargets = existing.exportTargets;
     if (existing.docs) v2Fields.docs = existing.docs;
     if (existing.initContributions) v2Fields.initContributions = existing.initContributions;
+    if (existing.cliEntrypoint) v2Fields.cliEntrypoint = existing.cliEntrypoint;
+    if (existing.cliCommands) v2Fields.cliCommands = existing.cliCommands;
+    if (existing.mcpEntrypoint) v2Fields.mcpEntrypoint = existing.mcpEntrypoint;
+    if (existing.mcpTools) v2Fields.mcpTools = existing.mcpTools;
+    if (existing.deviceHandlers) v2Fields.deviceHandlers = existing.deviceHandlers;
   }
 
   const manifest: TMarketplaceManifest = {

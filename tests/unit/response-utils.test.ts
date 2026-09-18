@@ -152,7 +152,22 @@ describe('addHintsToItems', () => {
     expect(result[0].hint).not.toContain('<nodeId>');
   });
 
-  it('includes friendly error when friendlyErrorFn is provided', () => {
+  it('adds only the friendly fix, and only when there is no tool hint', () => {
+    const items = [{ message: 'bad', severity: 'error', code: 'SOME_CODE_WITHOUT_HINT' }];
+    const friendlyFn = () => ({
+      title: 'Cycle Found',
+      explanation: 'Your graph has a loop',
+      fix: 'Remove the cycle',
+      code: 'SOME_CODE_WITHOUT_HINT',
+    });
+    const result = addHintsToItems(items, friendlyFn);
+    expect(result[0].fix).toBe('Remove the cycle');
+    expect(result[0]).not.toHaveProperty('hint');
+    // title and explanation restate the message; they are not emitted
+    expect(result[0]).not.toHaveProperty('friendly');
+  });
+
+  it('prefers the tool hint over the friendly fix', () => {
     const items = [{ message: 'bad', severity: 'error', code: 'CYCLE_DETECTED' }];
     const friendlyFn = () => ({
       title: 'Cycle Found',
@@ -161,17 +176,15 @@ describe('addHintsToItems', () => {
       code: 'CYCLE_DETECTED',
     });
     const result = addHintsToItems(items, friendlyFn);
-    expect(result[0].friendly).toBeDefined();
-    expect(result[0].friendly!.title).toBe('Cycle Found');
-    expect(result[0].friendly!.explanation).toBe('Your graph has a loop');
-    expect(result[0].friendly!.fix).toBe('Remove the cycle');
+    expect(result[0].hint).toBeDefined();
+    expect(result[0]).not.toHaveProperty('fix');
   });
 
-  it('does not add friendly when friendlyErrorFn returns null', () => {
+  it('does not add fix when friendlyErrorFn returns null', () => {
     const items = [{ message: 'bad', severity: 'error', code: 'UNKNOWN_NODE_TYPE' }];
     const friendlyFn = () => null;
     const result = addHintsToItems(items, friendlyFn);
-    expect(result[0]).not.toHaveProperty('friendly');
+    expect(result[0]).not.toHaveProperty('fix');
     // hint should still be present
     expect(result[0].hint).toBeDefined();
   });

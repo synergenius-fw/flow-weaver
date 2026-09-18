@@ -51,11 +51,11 @@ Breaking changes may still occur between minor versions during beta. Pin your ve
 
 **Structural validation:** Type checking across port connections, graph topology analysis, agent safety rules, and breaking change detection. Runs in CI, on every save, or on demand. Errors include source locations, fix suggestions, and documentation links.
 
-**Step-through debugging:** Set breakpoints on nodes, step through execution node by node, inspect variables mid-run, and resume from checkpoints. Variable injection available through MCP tools.
+**Step-through debugging:** Set breakpoints on nodes, step through execution node by node, and inspect variables mid-run. Variable injection available through MCP tools.
 
 **Semantic diffing:** Compare workflow versions at the graph level instead of text diffs. Impact analysis categorizes every change as critical, breaking, minor, or cosmetic. Know exactly what changed and whether it matters.
 
-**Deploy anywhere:** Export to Inngest, AWS Lambda, Vercel, Cloudflare Workers, GitHub Actions, or GitLab CI. Or serve workflows over HTTP with built-in framework adapters for Next.js, Express, Hono, Fastify, and Remix.
+**Deploy anywhere:** The compiled output is plain TypeScript with no runtime dependency, so it runs wherever TypeScript runs. Serve workflows over HTTP with `fw serve`, or install a target pack and `fw export` platform-specific boilerplate.
 
 **Extensible pack system:** Node types, deploy targets, CLI commands, and MCP tools are contributed by npm packages. Install community packs or build and publish your own.
 
@@ -74,11 +74,11 @@ The CLI scaffolds a project, compiles annotations into a runnable workflow, and 
 
 ## See It in Action
 
-The conversation below shows [Weaver](https://github.com/synergenius-fw/flow-weaver-pack-weaver), an optional AI bot that drives Flow Weaver through natural language. It handles scaffolding, modification, validation, compilation, execution, and deployment. Install it with `fw market install @synergenius/flow-weaver-pack-weaver`, or use the MCP tools directly from your editor without Weaver.
+The conversation below shows an AI assistant driving Flow Weaver through its MCP tools from an editor: scaffolding, modification, validation, compilation, execution, and deployment, all in natural language.
 
 > **You:** Build a support agent that classifies messages and either auto-replies or escalates.
 
-> **Weaver:** Created `support-agent.ts`. Four nodes, one workflow.
+> **Assistant:** Created `support-agent.ts`. Four nodes, one workflow.
 >
 > ```
 > Workflow: supportAgent
@@ -96,7 +96,7 @@ The conversation below shows [Weaver](https://github.com/synergenius-fw/flow-wea
 
 > **You:** Show me the graph.
 
-> **Weaver:**
+> **Assistant:**
 >
 > ```
 >  ┌───────┐    ┌─────────────────┐    ┌──────────────┐    ┌───────────┐    ┌──────┐
@@ -108,11 +108,11 @@ The conversation below shows [Weaver](https://github.com/synergenius-fw/flow-wea
 
 > **You:** Compile it.
 
-> **Weaver:** Done. Zero runtime deps. The output is a standalone TypeScript function you own.
+> **Assistant:** Done. Zero runtime deps. The output is a standalone TypeScript function you own.
 
 > **You:** Validate.
 
-> **Weaver:**
+> **Assistant:**
 >
 > ```
 > ✓ 1 valid, 2 warnings in 312ms
@@ -122,7 +122,7 @@ The conversation below shows [Weaver](https://github.com/synergenius-fw/flow-wea
 
 > **You:** Run it with "I need an urgent refund".
 
-> **Weaver:**
+> **Assistant:**
 >
 > ```
 > classify: → SUCCEEDED (0ms)
@@ -136,11 +136,11 @@ The conversation below shows [Weaver](https://github.com/synergenius-fw/flow-wea
 
 > **You:** Commit it.
 
-> **Weaver:** Committed to `main`. It's a `.ts` file in your repo. Version-controlled like everything else.
+> **Assistant:** Committed to `main`. It's a `.ts` file in your repo. Version-controlled like everything else.
 
 > **You:** Now add sentiment analysis before routing.
 
-> **Weaver:** Done. Here's what changed:
+> **Assistant:** Done. Here's what changed:
 >
 > ```
 > [BREAKING] +1 types, ~1 types, +1 nodes, +5 conns, -2 conns
@@ -154,13 +154,10 @@ The conversation below shows [Weaver](https://github.com/synergenius-fw/flow-wea
 
 > **You:** Where does this deploy?
 
-> **Weaver:** Anywhere TypeScript runs. Or generate boilerplate:
+> **Assistant:** Anywhere TypeScript runs. With a target pack installed, `fw export` generates the platform boilerplate:
 >
 > ```
-> fw export support-agent.ts --target vercel
-> fw export support-agent.ts --target lambda
-> fw export support-agent.ts --target cloudflare
-> fw export support-agent.ts --target inngest
+> fw export support-agent.ts --target <target>
 > ```
 
 ## How Workflows Are Defined
@@ -230,7 +227,7 @@ export async function supportAgent(
 | `fw describe` | Output workflow structure as JSON, text, Mermaid, ASCII, or paths |
 | `fw diagram` | Generate SVG, HTML, or ASCII diagrams |
 | `fw diff` | Semantic diff between two workflow versions |
-| `fw export` | Export to a deploy target (Inngest, Lambda, Vercel, Cloudflare, etc.) |
+| `fw export` | Export to a deploy target provided by an installed pack |
 | `fw serve` | Start an HTTP server exposing workflows as endpoints |
 | `fw modify` | Programmatic graph mutations (addNode, removeNode, connect, etc.) |
 | `fw mcp-server` | Start the MCP server for AI editor integration |
@@ -246,23 +243,6 @@ A browser-based visual IDE for building workflows. Canvas editor, integrated ter
 Studio is in beta. Core editing is live. The visual debugger, AI chat assistant, version history, and deployment dashboard are being actively developed and will ship incrementally. The cloud platform is not yet production-ready, and paid plans are not available yet. Use it to explore and experiment, but expect rough edges.
 
 [Open Studio](https://flowweaver.ai/studio) · [Learn more](https://flowweaver.ai/features)
-
-## Weaver (Experimental)
-
-Weaver is an optional AI bot that automates the full workflow lifecycle. Give it a task in natural language and it plans, scaffolds, compiles, validates, and fixes issues in a loop until the workflow is correct. It connects to Anthropic, Claude CLI, or GitHub Copilot CLI.
-
-- `weaver bot "create a greeting workflow"` handles a task end-to-end with plan approval
-- `weaver run workflow.ts` executes a workflow with an AI agent channel attached
-- `weaver session` polls a task queue continuously for automated pipelines
-- `weaver swarm start` runs multiple bot instances in parallel, with an orchestrator dispatching tasks across them
-
-Weaver is itself built as a set of Flow Weaver workflows. Run `weaver eject` to get a local copy you can customize.
-
-```bash
-fw market install @synergenius/flow-weaver-pack-weaver
-```
-
-> **Weaver is experimental.** The bot, session, and swarm modes work and are being used internally, but the APIs and behavior may change between releases. Weaver is not required to use Flow Weaver. The compiler, CLI, and MCP tools are the stable foundation and work independently.
 
 ## Documentation
 

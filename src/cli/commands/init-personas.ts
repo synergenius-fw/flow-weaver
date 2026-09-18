@@ -490,16 +490,26 @@ function pad(displayName: string, width: number): string {
 
 // ── Agent handoff ─────────────────────────────────────────────────────────────
 
-/** Maps each persona to the fw_context preset used for agent knowledge bootstrap. */
+/**
+ * Maps each persona to the fw_context preset used for agent knowledge bootstrap.
+ *
+ * Every persona starts from `core`. It is a short map — the model, the tool
+ * loop, and which topic answers which task — and the assistant loads further
+ * topics with fw_docs as the work calls for them. The `authoring` preset the
+ * coding personas used to load is ~70 KB, most of it never needed in a given
+ * session.
+ */
 export const AGENT_CONTEXT_PRESETS: Record<PersonaId, string> = {
   nocode: 'core',
-  vibecoder: 'authoring',
-  lowcode: 'authoring',
-  expert: 'authoring',
+  vibecoder: 'core',
+  lowcode: 'core',
+  expert: 'core',
 };
 
+const BOOTSTRAP = 'Before doing anything else, call fw_context(preset="core", profile="assistant"). It is a short map of Flow Weaver; when a task needs more, load the topic it points to with fw_docs rather than reading everything up front.';
+
 const AGENT_PROMPTS: Record<PersonaId, string> = {
-  nocode: `Before doing anything else, call fw_context(preset="core", profile="assistant") to learn Flow Weaver's annotation syntax and workflow conventions.
+  nocode: `${BOOTSTRAP}
 
 I just created a new Flow Weaver project called "{name}" using the {template} template.
 Help me set it up step by step:
@@ -509,13 +519,13 @@ Help me set it up step by step:
 3. Ask me what I want this workflow to do
 4. Based on my answer:
    - Customize the workflow (add/remove/rename steps with fw_modify)
-   - Implement each step with real working code (fw_implement_node)
+   - Implement each step with real working code in its node function
    - Set up supporting files if needed (.env template, basic tests)
 5. Show the final result as a step list and diagram
 
 Keep everything in plain language. Don't show code unless I ask.`,
 
-  vibecoder: `Before doing anything else, call fw_context(preset="authoring", profile="assistant") to load Flow Weaver reference.
+  vibecoder: `${BOOTSTRAP}
 
 I just created a new Flow Weaver project called "{name}" using the {template} template.
 Let's set it up together:
@@ -526,7 +536,7 @@ Let's set it up together:
 4. Show code when it's relevant, I'm comfortable reading and tweaking it
 5. Show the final diagram when we're done`,
 
-  lowcode: `Before doing anything else, call fw_context(preset="authoring", profile="assistant") to load Flow Weaver reference.
+  lowcode: `${BOOTSTRAP}
 
 I just created a new Flow Weaver project called "{name}" using the {template} template.
 Help me customize it:
@@ -539,10 +549,10 @@ Help me customize it:
 
 I prefer working from templates and making targeted changes.`,
 
-  expert: `Before doing anything else, call fw_context(preset="authoring", profile="assistant") to load Flow Weaver reference.
+  expert: `${BOOTSTRAP}
 
 New Flow Weaver project "{name}" (template: {template}).
-Show the workflow diagram and current implementation status (fw_workflow_status).
+Show the workflow diagram (fw_diagram, ascii-compact) and validate it (fw_validate).
 Then ask what I'd like to build.`,
 };
 
@@ -570,7 +580,7 @@ export function generateAgentPrompt(projectName: string, persona: PersonaId, tem
  */
 export function generateEditorPrompt(projectName: string, persona: PersonaId, template: string, useCaseDescription?: string): string {
   const preset = AGENT_CONTEXT_PRESETS[persona];
-  const bootstrap = `Start by calling fw_context(preset="${preset}", profile="assistant") to learn Flow Weaver.`;
+  const bootstrap = `Start by calling fw_context(preset="${preset}", profile="assistant") for a short map of Flow Weaver; read further topics with fw_docs as the task needs them.`;
   const desc = useCaseDescription ? ` I want to build: ${useCaseDescription}.` : '';
   if (persona === 'nocode') {
     return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template.${desc} Show me the workflow diagram, walk me through what each step does in plain language, then ask me what I want to build. Keep it simple, no code.`;
@@ -632,13 +642,14 @@ export function generateSetupPromptFile(
     '',
     '### Available Flow Weaver MCP tools',
     '',
-    'Your AI editor has access to 48 Flow Weaver tools including:',
-    '- `fw_diagram` - Generate workflow diagrams',
+    'Your AI editor has access to the Flow Weaver MCP tools, including:',
+    '- `fw_diagram` - Generate workflow diagrams (use format "ascii-compact" in chat)',
     '- `fw_modify` / `fw_modify_batch` - Add/remove/rename nodes and connections',
-    '- `fw_implement_node` - Write function bodies for stub nodes',
     '- `fw_validate` - Check for errors',
     '- `fw_compile` - Generate executable code',
     '- `fw_describe` - Inspect workflow structure',
+    '- `fw_run` / `fw_resume` - Run a workflow and answer any gate it pauses at',
+    '- `fw_docs` - Look up any topic; `fw_docs read mcp-tools` lists every tool',
     '',
     '*Delete this file after your initial setup is complete.*',
     '',

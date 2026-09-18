@@ -1,12 +1,21 @@
 ---
 name: Built-in Nodes
-description: Built-in runtime nodes (delay, waitForEvent, invokeWorkflow) and the mock system for testing
-keywords: [delay, waitForEvent, invokeWorkflow, built-in, runtime, mock, mocks, FwMockConfig, testing, fast, events, invocations, sleep, duration, timeout]
+description: Built-in runtime nodes (delay, waitForEvent, invokeWorkflow, waitForAgent), which ones are durable gates, and the mock system for testing
+keywords: [delay, waitForEvent, invokeWorkflow, waitForAgent, built-in, runtime, gate, agent, mock, mocks, FwMockConfig, testing, fast, events, invocations, agents, sleep, duration, timeout]
 ---
 
 # Built-in Nodes
 
-Flow Weaver provides three built-in node types for common runtime operations. All three support a **mock system** for local testing without real side effects.
+Flow Weaver provides four built-in node types. They need no import and no `@flowWeaver nodeType` declaration — write `@node <id> <name>` and the parser injects them.
+
+| Node | Classification | Mockable in a compiled workflow |
+|------|----------------|--------------------------------|
+| `delay` | `@durablePure` | Yes — `fast: true` |
+| `invokeWorkflow` | `@durablePure` | Yes — `invocations` |
+| `waitForEvent` | `@durableGate input` | No — it yields; see [Durable Gates](durable-gates) |
+| `waitForAgent` | `@durableGate agent` | No — it yields; see [Durable Gates](durable-gates) |
+
+Using either gate node makes the whole workflow a gated workflow: every other node must then carry `@durablePure`, `@durableGate`, or `@durableEffect`, and `fw run` will refuse it. The other two are ordinary nodes.
 
 ## delay
 
@@ -51,11 +60,12 @@ When `fast: true` is set in mock config, `delay` sleeps for 1ms instead of the r
 
 ## waitForEvent
 
-Pauses execution until a named event is received. Designed for human-in-the-loop patterns and inter-workflow communication.
+An `input` gate. The workflow yields here and resumes when a coordinator supplies the event data. The inputs describe what is being waited for; they are handed to whoever resolves the gate.
 
 ```typescript
 /**
  * @flowWeaver nodeType
+ * @durableGate input
  * @input eventName - Event name to wait for (e.g. "app/approval.received")
  * @input [match] - Field to match between trigger and waited event (e.g. "data.requestId")
  * @input [timeout] - Max wait time (e.g. "24h", "7d"). Empty = no timeout
@@ -74,21 +84,86 @@ async function waitForEvent(execute: boolean, eventName: string, match?: string,
  */
 ```
 
+### Resolving it
+
+- Through MCP: `fw_run` returns `{ status: "waiting", gate: { kind: "input", inputs: { eventName, match, timeout } } }`; answer with `fw_resume { runId, answer: <eventData> }`
+- Programmatically: resolution `{ gateId, value: { onSuccess: true, onFailure: false, eventData } }`
+- `timeout` is information for the coordinator; the engine does not run a timer
+
 ### Mock Behavior
 
-- If `events[eventName]` is set in mock config → returns that data via `onSuccess`
-- If no mock data for the event name → simulates timeout via `onFailure`
+None in a compiled workflow. An `events` section in mock config is validated by `fw run` but a compiled `waitForEvent` yields regardless. Test the paths after the gate by resuming it with the data you want.
+
+---
+
+## waitForAgent
+
+An `agent` gate. The workflow yields here with a task for an AI assistant and resumes with whatever the assistant returns.
+
+```typescript
+/**
+ * @flowWeaver nodeType
+ * @durableGate agent
+ * @input agentId - Agent/task identifier
+ * @input context - Context data to send to the agent
+ * @input [prompt] - Message to display when requesting input
+ * @output agentResult - Result returned by the agent
+ */
+async function waitForAgent(execute: boolean, agentId: string, context: object, prompt?: string)
+```
+
+### Usage in Workflow
+
+```typescript
+/**
+ * @flowWeaver nodeType
+ * @durablePure
+ * @input path - Name of the thing under review
+ * @input text - The material itself
+ * @output contents - What the agent should look at
+ * @output name - The name, echoed back
+ * @output agentId - Names the task
+ */
+export async function readTarget(execute: boolean, path: string, text: string) {
+  return { onSuccess: true, onFailure: false, contents: text.slice(0, 4000), name: path, agentId: 'review' };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node read readTarget
+ * @node agent waitForAgent
+ * @connect Start.path -> read.path
+ * @connect Start.text -> read.text
+ * @connect read.onSuccess -> agent.execute
+ * @connect read.agentId -> agent.agentId
+ * @connect read.contents -> agent.context
+ * @connect agent.onSuccess -> Exit.onSuccess
+ * @connect agent.agentResult -> Exit.verdict
+ */
+```
+
+The complete, runnable version is `use-cases/agent-gate-demo/review-file.ts`.
+
+### Resolving it
+
+- Through MCP: `fw_run` returns `{ status: "waiting", gate: { kind: "agent", inputs: { agentId, context, prompt } } }`; the assistant does the task, then `fw_resume { runId, answer: <agentResult> }`
+- `agentResult` is whatever JSON the assistant chooses; nothing validates its shape, so read it defensively downstream
+- Keep `context` small — a path the assistant can open, not a file body. The gate's inputs travel inside the continuation, which is capped at 1 MiB
+
+### Mock Behavior
+
+None in a compiled workflow. An `agents` section in mock config is validated by `fw run` but a compiled `waitForAgent` yields regardless.
 
 ---
 
 ## invokeWorkflow
 
-Invokes another workflow (Inngest function) and waits for its result. Enables workflow composition.
+Invokes another workflow by function id and waits for its result. Enables workflow composition.
 
 ```typescript
 /**
  * @flowWeaver nodeType
- * @input functionId - Inngest function ID (e.g. "my-service/sub-workflow")
+ * @input functionId - Function ID of the workflow to invoke (e.g. "my-service/sub-workflow")
  * @input payload - Data to pass as event.data to the invoked function
  * @input [timeout] - Max wait time (e.g. "1h")
  * @output result - Return value from the invoked function
@@ -117,117 +192,60 @@ async function invokeWorkflow(execute: boolean, functionId: string, payload: obj
 
 ## Mock System
 
-The mock system lets you test workflows with built-in nodes locally without real delays, event systems, or external workflow invocations.
+Mocks let a workflow run locally without real delays or external invocations. They apply to `delay` and `invokeWorkflow`. They do not resolve gates.
 
 ### FwMockConfig
 
 ```typescript
 interface FwMockConfig {
-  /** Mock event data keyed by event name. Used by waitForEvent. */
-  events?: Record<string, object>;
-  /** Mock invocation results keyed by functionId. Used by invokeWorkflow. */
-  invocations?: Record<string, object>;
-  /** Mock agent results keyed by agentId. Used by waitForAgent. */
-  agents?: Record<string, object>;
   /** When true, delay nodes skip the real sleep (1ms instead of full duration). */
   fast?: boolean;
+  /** Mock invocation results keyed by functionId. Used by invokeWorkflow. */
+  invocations?: Record<string, object>;
+  /** Accepted and validated, but a compiled waitForEvent yields instead of reading this. */
+  events?: Record<string, object>;
+  /** Accepted and validated, but a compiled waitForAgent yields instead of reading this. */
+  agents?: Record<string, object>;
 }
 ```
+
+Keys may be instance-qualified — `"sub:my-service/x"` targets only the node with id `sub`.
 
 ### CLI Usage
 
-Pass mock config directly:
-
 ```bash
-fw run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
-```
-
-Or from a file:
-
-```bash
+fw run workflow.ts --mocks '{"fast": true, "invocations": {"my-service/x": {"ok": true}}}'
 fw run workflow.ts --mocks-file mocks.json
 ```
 
-**mocks.json:**
-```json
-{
-  "fast": true,
-  "events": {
-    "app/expense.approved": { "status": "approved", "approvedBy": "manager@co.com" },
-    "app/expense.withdrawn": { "status": "withdrawn" }
-  },
-  "invocations": {
-    "my-service/payment-processor": { "transactionId": "tx-123", "success": true }
-  },
-  "agents": {
-    "human-reviewer": { "approved": true, "note": "Looks good" }
-  }
-}
-```
+`fw run` warns when a section names a node type the workflow does not contain, e.g. `has "events" entries but workflow has no waitForEvent nodes`.
 
 ### Programmatic Usage
 
-Set mocks on `globalThis` before running the workflow:
+Mocks are a CLI feature. There is no `globalThis` hook — the `__fw_mocks__` global was removed — and the public command runner does not take them:
 
 ```typescript
-(globalThis as any).__fw_mocks__ = {
-  fast: true,
-  events: {
-    'app/expense.approved': { status: 'approved' }
-  },
-  invocations: {
-    'my-service/sub-workflow': { result: 'success' }
-  },
-  agents: {
-    'human-reviewer': { approved: true }
-  }
-};
+import { runCommand } from '@synergenius/flow-weaver/api';
 
-// Run your compiled workflow
-const result = await expenseWorkflow({ expenseId: 'exp-1', amount: 500 });
+// Accepts file, params, workflow. No mocks option; a gated workflow throws here.
+const { data } = await runCommand('run', { file: 'workflow.ts', params: { amount: 500 } });
 ```
 
-### Testing Patterns
+To run with mocks from code, spawn the CLI (`fw run … --mocks-file mocks.json --json`) and parse its output.
 
-**Unit test with mocks:**
+### Testing a gated workflow
 
-```typescript
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+Drive the gate instead of mocking it — through the MCP tools, or inside this repository's test suite via `executeWorkflow`. See [Durable Gates](durable-gates) for the resolution shape.
 
-describe('expense workflow', () => {
-  beforeEach(() => {
-    (globalThis as any).__fw_mocks__ = {
-      fast: true,
-      events: {
-        'app/expense.approved': { status: 'approved' }
-      }
-    };
-  });
-
-  afterEach(() => {
-    delete (globalThis as any).__fw_mocks__;
-  });
-
-  it('should process approved expense', async () => {
-    const result = await expenseWorkflow({ expenseId: 'e1', amount: 100 });
-    expect(result.onSuccess).toBe(true);
-  });
-});
-```
-
-**Testing timeout paths:**
-
-```typescript
-// Don't provide mock data for the event to simulate timeout
-(globalThis as any).__fw_mocks__ = { fast: true };
-// waitForEvent will follow onFailure path
-```
+- Success path: `fw_resume { runId, answer: { status: 'approved' } }`
+- Failure path: `fw_resume { runId, reject: 'declined' }` — the run continues along `onFailure` and reports `completed`
 
 ---
 
 ## Related Topics
 
+- [Durable Gates](durable-gates) — What a gate is, classification rules, resuming, and the MCP tools
 - [CLI Reference](cli-reference) — `run` command with `--mocks` flags
-- [Compilation](compilation) — Inngest target for durable built-in node execution
+- [Compilation](compilation) — Compile targets
 - [Debugging](debugging) — Tracing and troubleshooting
 - [Advanced Annotations](advanced-annotations) — Expression bindings for node inputs
