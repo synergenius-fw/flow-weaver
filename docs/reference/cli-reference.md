@@ -126,6 +126,59 @@ fw validate '**/*.ts' --verbose
 fw validate workflow.ts --json --strict
 ```
 
+#### JSON output contract
+
+With `--json`, the command prints a single JSON object to stdout and sets a
+non-zero exit code when any file has errors. This is the stable machine-readable
+contract for editor integrations and other tooling.
+
+```jsonc
+{
+  "valid": false,           // true when totalErrors === 0
+  "totalFiles": 1,
+  "validFiles": 0,
+  "totalErrors": 2,
+  "totalWarnings": 1,
+  "results": [
+    {
+      "file": "/abs/path/to/workflow.ts",  // absolute path
+      "valid": false,
+      "errors": [
+        {
+          "message": "Node \"Add\" has unconnected required input port \"x\".",
+          "severity": "error",
+          "code": "MISSING_REQUIRED_INPUT",   // optional, stable rule id
+          "nodeId": "Add",                     // optional, offending node
+          "location": {                        // optional, see below
+            "file": "/abs/path/to/workflow.ts",
+            "line": 33,                        // 1-based
+            "column": 0                        // 0-based
+          },
+          "docUrl": "https://..."              // optional, when available
+        }
+      ],
+      "warnings": [ /* same item shape, severity: "warning" */ ]
+    }
+  ]
+}
+```
+
+Notes for consumers:
+
+- **`location` is optional.** It is present when the validator can resolve the
+  offending annotation to a source position, and **omitted entirely** (never
+  `null`) otherwise. Test for it with an `in` check or a truthiness guard, e.g.
+  `if (finding.location) { ... }`.
+- **`line` is 1-based, `column` is 0-based.** Editors expecting 0-based lines
+  (such as the Language Server Protocol) must subtract one from `line`.
+- **Paths are absolute.** Both the top-level `results[].file` and
+  `location.file` are absolute; resolve against the workspace root as needed.
+- **`code` is a stable rule identifier** (e.g. `MISSING_REQUIRED_INPUT`) suitable
+  for filtering or suppression. `message` is human-facing and may change wording.
+
+Parse-level failures (malformed source that never reaches AST construction)
+appear as findings without `location` or `code`.
+
 ---
 
 ### strip

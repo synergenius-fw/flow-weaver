@@ -13,7 +13,6 @@ body:
         - Validator
         - MCP Server
         - Studio
-        - VSCode Extension
         - Deployment
         - Other
     validations:

@@ -21,11 +21,26 @@ export interface ValidateOptions {
   strict?: boolean;
 }
 
+/**
+ * A single validation finding in machine-readable form.
+ *
+ * This is the stable JSON contract consumed by editor integrations and other
+ * tooling. `location` carries the 1-based line and 0-based column of the
+ * offending annotation when the validator can resolve it, so a finding can be
+ * placed directly on a source line. It is omitted (never null) when no location
+ * is available (e.g. parse-level errors that predate AST construction).
+ */
 interface JsonValidationItem {
   message: string;
   severity: string;
   nodeId?: string;
   code?: string;
+  location?: {
+    file: string;
+    line: number;
+    column: number;
+  };
+  docUrl?: string;
 }
 
 interface JsonValidationResult {
@@ -162,6 +177,8 @@ export async function validateCommand(input: string, options: ValidateOptions = 
               severity: e.type || 'error',
               ...(e.node && { nodeId: e.node }),
               ...(e.code && { code: e.code }),
+              ...(e.location && { location: e.location }),
+              ...(e.docUrl && { docUrl: e.docUrl }),
             })),
             warnings: [
               ...parseResult.warnings.map((w) =>
@@ -172,6 +189,8 @@ export async function validateCommand(input: string, options: ValidateOptions = 
                 severity: w.type || 'warning',
                 ...(w.node && { nodeId: w.node }),
                 ...(w.code && { code: w.code }),
+                ...(w.location && { location: w.location }),
+                ...(w.docUrl && { docUrl: w.docUrl }),
               })),
             ],
           });

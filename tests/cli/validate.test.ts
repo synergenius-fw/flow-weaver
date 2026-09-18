@@ -203,6 +203,79 @@ export function broken(execute: boolean, params: { value: number }): { onSuccess
     expect(firstError).toHaveProperty('message');
     expect(firstError).toHaveProperty('severity');
   });
+
+  it('should include source location on findings the validator can place', async () => {
+    // `d.x` is a required input left unconnected (the incoming connection
+    // references a non-existent `ghost` node), which the validator reports
+    // with the node's source location. This locks the location pass-through
+    // contract: editor integrations rely on line/column to place diagnostics.
+    const code = `
+/**
+ * @flowWeaver nodeType
+ * @expression
+ * @input x
+ * @output result
+ */
+function double(x: number): number { return x * 2; }
+
+/**
+ * @flowWeaver workflow
+ * @node d double
+ * @connect Start.execute -> d.execute
+ * @connect ghost.output -> d.x
+ * @param value
+ * @returns result
+ */
+export function broken(execute: boolean, params: { value: number }): { onSuccess: boolean; onFailure: boolean; result: number } {
+  throw new Error("Compile with: fw compile <file>");
+}`;
+    const testFile = path.join(VALIDATE_TEMP_DIR, 'located-validate.ts');
+    fs.writeFileSync(testFile, code);
+
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    const originalExit = process.exit;
+    process.exit = vi.fn() as never;
+    const originalError = console.error;
+    console.error = vi.fn() as typeof console.error;
+
+    try {
+      await validateCommand(testFile, { json: true });
+    } catch {
+      /* may throw */
+    } finally {
+      console.log = originalLog;
+      process.exit = originalExit;
+      console.error = originalError;
+    }
+
+    const output = JSON.parse(logs.join(''));
+    const result = output.results[0];
+    const findings = [...result.errors, ...result.warnings];
+
+    // At least one finding must carry a location, and every location present
+    // must be well-formed: a file path plus numeric line and column.
+    const located = findings.filter(
+      (f: { location?: { file: string; line: number; column: number } }) => f.location
+    );
+    expect(located.length).toBeGreaterThan(0);
+    for (const finding of located) {
+      expect(typeof finding.location.file).toBe('string');
+      expect(finding.location.file.length).toBeGreaterThan(0);
+      expect(typeof finding.location.line).toBe('number');
+      expect(finding.location.line).toBeGreaterThan(0);
+      expect(typeof finding.location.column).toBe('number');
+      expect(finding.location.column).toBeGreaterThanOrEqual(0);
+    }
+
+    // Findings without a resolvable location must omit the field entirely
+    // (never emit an explicit null), so consumers can rely on `in` checks.
+    for (const finding of findings) {
+      if (!('location' in finding)) continue;
+      expect(finding.location).not.toBeNull();
+    }
+  });
 });
 
 // ── validateCommand additional coverage ──────────────────────────────────────
