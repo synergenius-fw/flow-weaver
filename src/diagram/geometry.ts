@@ -170,6 +170,11 @@ function buildInstanceNode(
   instConfig: { label?: string; color?: string; icon?: string } | undefined,
   nodeTypeMap: Map<string, TNodeTypeAST>,
   theme: 'dark' | 'light' = 'dark',
+  // Step ports (execute/onSuccess/onFailure) this instance actually wires. When
+  // an expression node uses none of them, it is running pull-style and its
+  // synthesized step ports are noise, so they are hidden rather than drawn as
+  // dangling. undefined = draw them all (callers without connection context).
+  connectedStepPorts?: Set<string>,
 ): DiagramNode {
   const nt = nodeTypeMap.get(instNodeType);
 
@@ -180,13 +185,23 @@ function buildInstanceNode(
     ? filterHiddenPorts(filterNonScopedPorts(nt.outputs))
     : {};
 
+  // An expression node with no wired step port is pull-style: drop its
+  // vestigial execute/onSuccess/onFailure so the graph shows only real edges.
+  const pullStyle =
+    !!nt?.expression && connectedStepPorts !== undefined && connectedStepPorts.size === 0;
+  if (pullStyle) {
+    delete allInputs.execute;
+    delete allOutputs.onSuccess;
+    delete allOutputs.onFailure;
+  }
+
   if (nt && !nt.expression) {
     if (!allInputs.execute && !nt.inputs.execute?.hidden) allInputs.execute = { dataType: 'STEP' };
   }
-  if (nt && nt.hasSuccessPort && !allOutputs.onSuccess && !nt.outputs.onSuccess?.hidden) {
+  if (!pullStyle && nt && nt.hasSuccessPort && !allOutputs.onSuccess && !nt.outputs.onSuccess?.hidden) {
     allOutputs.onSuccess = { dataType: 'STEP', isControlFlow: true };
   }
-  if (nt && nt.hasFailurePort && !allOutputs.onFailure && !nt.outputs.onFailure?.hidden) {
+  if (!pullStyle && nt && nt.hasFailurePort && !allOutputs.onFailure && !nt.outputs.onFailure?.hidden) {
     allOutputs.onFailure = { dataType: 'STEP', isControlFlow: true, failure: true };
   }
 
@@ -850,10 +865,27 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     height: NODE_MIN_HEIGHT,
   });
 
+  // Which STEP ports (execute/onSuccess/onFailure) each instance actually wires.
+  // Used to hide the synthesized step ports on pull-style expression nodes.
+  const stepPortsUsed = new Map<string, Set<string>>();
+  const noteStep = (nodeId: string, port: string) => {
+    if (!isExecutePort(port) && !isSuccessPort(port) && !isFailurePort(port)) return;
+    let s = stepPortsUsed.get(nodeId);
+    if (!s) stepPortsUsed.set(nodeId, (s = new Set()));
+    s.add(port);
+  };
+  for (const conn of ast.connections) {
+    noteStep(conn.from.node, conn.from.port);
+    noteStep(conn.to.node, conn.to.port);
+  }
+
   // Instance nodes (skip scoped children — they are built inside their parent)
   for (const inst of ast.instances) {
     if (scopedChildren.has(inst.id)) continue;
-    const node = buildInstanceNode(inst.id, inst.nodeType, inst.config, nodeTypeMap, themeName);
+    const node = buildInstanceNode(
+      inst.id, inst.nodeType, inst.config, nodeTypeMap, themeName,
+      stepPortsUsed.get(inst.id) ?? new Set(),
+    );
     diagramNodes.set(inst.id, node);
   }
 

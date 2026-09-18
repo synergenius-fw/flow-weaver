@@ -71,6 +71,8 @@ function processNode(value: any, count: number): any { ... }
 
 With one `@output`, the whole return value is that port. With several, return an object with one property per `@output`. A throw marks the node failed and propagates the error out of the workflow call.
 
+**The text after the dash is the port's display label, not a description.** It renders inside the port badge in the diagram, so keep it to **1–2 words** — `@output task - Agent task`, not `@output task - The agent task (agentId, context, prompt), as one value`. There is no separate description field for a port; a long sentence just overflows the badge. Omit the dash entirely when the name already says it (`@output task`).
+
 Only a normal-mode node (see Mandatory Ports) adds `execute: boolean` in front: `function processNode(execute: boolean, value: any, count: number)`.
 
 ## Designing ports to avoid connection sprawl

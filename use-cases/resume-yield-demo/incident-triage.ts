@@ -20,13 +20,13 @@
  * unchecked, non-deterministic JSON; validating it there is what lets every
  * node after it -- including the human gate -- work with values it can trust.
  *
- * Port design (see the export-interface topic): the invariant context --
- * `incidentId` and `service`, which never change -- rides in one `ticket`
- * object port that flows through the chain unchanged, instead of being
- * re-declared and re-wired on every node. The values a node actually produces
- * (`rootCause`, `planText`, `risk`) stay as typed scalar ports. Because every
- * port name matches along the chain, `@path` wires all the data; the only
- * `@connect` needed is the one genuine rename, `plan.agentResult -> check`.
+ * Port design (see the export-interface topic): values that travel together
+ * ride in one object port instead of loose scalars. `Start` passes a single
+ * `incident`; the invariant slice flows on as `ticket`; the validated plan is
+ * one `plan` object; the human's answer is one `decision`. That keeps the
+ * graph edges few and legible -- each arrow carries a whole thing, not a
+ * field. Because port names match along the chain, `@path` wires the spine;
+ * the handful of `@connect` lines are the cross-gate reads into `record`.
  *
  * Drive it from an assistant over MCP:
  *   fw_run    { filePath: ".../incident-triage.ts",
@@ -38,17 +38,48 @@
  * `fw run` on the CLI refuses a gated workflow; see the durable-gates topic.
  */
 
+/** What the caller reports. One object, not four loose params. */
+interface Incident {
+  incidentId: string;
+  service: string;
+  severity: string;
+  symptom: string;
+}
+
+/** The invariant slice of an incident that flows through the whole run. */
 interface Ticket {
   incidentId: string;
   service: string;
 }
 
+/** The agent task, as one value; its fields feed the gate's three inputs. */
+interface AgentTask {
+  agentId: string;
+  context: object;
+  prompt: string;
+}
+
+/** The validated remediation plan, produced once and read by several nodes. */
+interface Plan {
+  rootCause: string;
+  planText: string;
+  risk: string;
+}
+
+/** What the human decided at the approval gate. */
+interface Decision {
+  approved: boolean;
+  approver: string;
+  note: string;
+}
+
 // -- Nodes --
 
 /**
- * Turns the incident into the task the agent is given, under the gate's own
- * port names (`agentId`, `context`, `prompt`) so `@path` wires them. The
- * invariant context is bundled into `ticket` and passed on whole.
+ * Turns the incident into the agent task. Emits one `task` object; the gate
+ * reads its three fields via `[expr:]`, so `frame` exposes a single data
+ * output rather than three loose ports. The invariant context rides on as
+ * `ticket`.
  *
  * `@expression` counts as pure automatically -- the engine may re-run it
  * freely on resume, which is exactly right: same incident in, same task out.
@@ -58,29 +89,24 @@ interface Ticket {
  * @label Frame Incident
  * @color blue
  * @icon search
- * @input incidentId - Ticket this run is about
- * @input service - Service that is misbehaving
- * @input severity - How bad it is (sev1 | sev2 | sev3)
- * @input symptom - What was actually observed
- * @output agentId - Names the task the agent is being asked to do
- * @output context - What the agent should look at
- * @output prompt - What to do with it
- * @output ticket - Invariant context, carried through unchanged
+ * @input incident - Incident
+ * @output task - Agent task
+ * @output ticket - Ticket
  */
 export function frameIncident(
-  incidentId: string,
-  service: string,
-  severity: string,
-  symptom: string,
-): { agentId: string; context: object; prompt: string; ticket: Ticket } {
+  incident: Incident,
+): { task: AgentTask; ticket: Ticket } {
+  const { incidentId, service, severity, symptom } = incident;
   return {
-    agentId: 'incident-triage',
-    // The context rides inside the gate payload, which is serialized into the
-    // continuation the driver has to carry -- so keep it small.
-    context: { incidentId, service, severity, symptom: symptom.slice(0, 2000) },
-    prompt:
-      `Triage ${incidentId} on ${service} (${severity}): ${symptom}\n` +
-      'Reply with { rootCause: string, steps: string[], risk: "low" | "medium" | "high" }.',
+    task: {
+      agentId: 'incident-triage',
+      // The context rides inside the gate payload, which is serialized into
+      // the continuation the driver has to carry -- so keep it small.
+      context: { incidentId, service, severity, symptom: symptom.slice(0, 2000) },
+      prompt:
+        `Triage ${incidentId} on ${service} (${severity}): ${symptom}\n` +
+        'Reply with { rootCause: string, steps: string[], risk: "low" | "medium" | "high" }.',
+    },
     ticket: { incidentId, service },
   };
 }
@@ -102,17 +128,15 @@ export function frameIncident(
  * @label Check Plan
  * @color green
  * @icon shield
- * @input agentResult - The unchecked reply from the agent gate
- * @input ticket - Invariant context, forwarded
- * @output ticket - Passed on to the approval gate
- * @output rootCause - Validated root cause
- * @output planText - The plan rendered for a human to read
- * @output risk - Validated risk level
+ * @input agentResult - Agent reply
+ * @input ticket - Ticket
+ * @output ticket - Ticket
+ * @output plan - Plan
  */
 export function checkPlan(
   agentResult: Record<string, unknown>,
   ticket: Ticket,
-): { ticket: Ticket; rootCause: string; planText: string; risk: string } {
+): { ticket: Ticket; plan: Plan } {
   const rootCause = agentResult?.rootCause;
   const steps = agentResult?.steps;
   const risk = agentResult?.risk;
@@ -129,9 +153,11 @@ export function checkPlan(
 
   return {
     ticket,
-    rootCause,
-    planText: (steps as string[]).map((s, i) => `${i + 1}. ${s}`).join('\n'),
-    risk,
+    plan: {
+      rootCause,
+      planText: (steps as string[]).map((s, i) => `${i + 1}. ${s}`).join('\n'),
+      risk,
+    },
   };
 }
 
@@ -142,36 +168,25 @@ export function checkPlan(
  * applied, which is why it throws rather than returning something plausible.
  * Normal mode is required: the resolution supplies `onSuccess`/`onFailure`
  * alongside the outputs. It forwards `ticket` so the record node reads it
- * from here.
+ * from here. Its one data output is `decision`; on a rejection that output is
+ * nulled, so `recordOutcome` guards for a null decision.
  *
  * @flowWeaver nodeType
  * @durableGate approval
  * @label Sign Off
  * @color orange
  * @icon verified
- * @input ticket - Invariant context (shown to the approver)
- * @input rootCause - What the agent concluded
- * @input planText - The remediation steps, for the approver to read
- * @input risk - How risky the agent thinks the plan is
- * @output approved - Whether the approver accepted the plan
- * @output approver - Who decided
- * @output note - Anything they wanted to add
+ * @input ticket - Ticket
+ * @input plan - Plan
+ * @output decision - Decision
  */
 export async function signOff(
   execute: boolean,
   ticket: Ticket,
-  rootCause: string,
-  planText: string,
-  risk: string,
-): Promise<{
-  onSuccess: boolean;
-  onFailure: boolean;
-  approved: boolean;
-  approver: string;
-  note: string;
-}> {
+  plan: Plan,
+): Promise<{ onSuccess: boolean; onFailure: boolean; decision: Decision }> {
   throw new Error(
-    `durable approval gate must not execute: ${execute}:${ticket.incidentId}:${rootCause}:${planText}:${risk}`,
+    `durable approval gate must not execute: ${execute}:${ticket.incidentId}:${plan.risk}`,
   );
 }
 
@@ -184,34 +199,29 @@ export async function signOff(
  * @durablePure
  * @label Record Outcome
  * @icon checkCircle
- * @input ticket - The incident this run was about
- * @input rootCause - What the agent concluded
- * @input planText - The remediation steps
- * @input risk - Risk level of the plan
- * @input approved - Whether the approver accepted it
- * @input approver - Who decided
- * @input note - Anything they added
- * @output outcome - Human-readable record of the whole triage
- * @output status - "remediating" when approved, "held" when refused
+ * @input ticket - Ticket
+ * @input plan - Plan
+ * @input decision - Decision
+ * @output outcome - Outcome
+ * @output status - Status
  */
 export function recordOutcome(
   ticket: Ticket,
-  rootCause: string,
-  planText: string,
-  risk: string,
-  approved: boolean,
-  approver: string,
-  note: string,
+  plan: Plan,
+  decision: Decision | null,
 ): { outcome: string; status: string } {
+  // A rejected gate nulls its `decision` output, so treat a missing decision
+  // as a refusal rather than destructuring null.
+  const { approved, approver, note } = decision ?? { approved: false, approver: '', note: '' };
   const status = approved ? 'remediating' : 'held';
   return {
     status,
     outcome: [
       `${ticket.incidentId} (${ticket.service}) -> ${status}`,
-      `root cause: ${rootCause}`,
-      `risk: ${risk}`,
+      `root cause: ${plan.rootCause}`,
+      `risk: ${plan.risk}`,
       'plan:',
-      planText,
+      plan.planText,
       `${approved ? 'approved' : 'refused'} by ${approver || 'unknown'}${note ? ` -- "${note}"` : ''}`,
     ].join('\n'),
   };
@@ -230,26 +240,19 @@ export function recordOutcome(
  * Exit would make `plan` a second branch region.
  *
  * @flowWeaver workflow
- * @param incidentId - Ticket to triage
- * @param service - Service that is misbehaving
- * @param severity - sev1 | sev2 | sev3
- * @param symptom - What was observed
- * @returns outcome - Human-readable record of the whole triage
- * @returns status - "remediating" or "held"
+ * @param incident - Incident
+ * @returns outcome - Outcome
+ * @returns status - Status
  * @node frame frameIncident [position: -250 0]
- * @node plan waitForAgent [suppress: "DESIGN_ASYNC_NO_ERROR_PATH"] [position: -60 0]
+ * @node plan waitForAgent [expr: agentId="frame.task.agentId", context="frame.task.context", prompt="frame.task.prompt"] [suppress: "DESIGN_ASYNC_NO_ERROR_PATH"] [position: -60 0]
  * @node check checkPlan [position: 130 0]
  * @node signoff signOff [suppress: "DESIGN_ASYNC_NO_ERROR_PATH"] [position: 320 0]
  * @node record recordOutcome [position: 520 0]
  * @path Start -> frame -> plan -> check -> signoff -> Exit
  * @connect plan.agentResult -> check.agentResult
- * @connect signoff.approved -> record.approved
- * @connect signoff.approver -> record.approver
- * @connect signoff.note -> record.note
  * @connect check.ticket -> record.ticket
- * @connect check.rootCause -> record.rootCause
- * @connect check.planText -> record.planText
- * @connect check.risk -> record.risk
+ * @connect check.plan -> record.plan
+ * @connect signoff.decision -> record.decision
  * @connect record.outcome -> Exit.outcome
  * @connect record.status -> Exit.status
  * @position Start -450 0
@@ -257,7 +260,7 @@ export function recordOutcome(
  */
 export async function incidentTriage(
   execute: boolean,
-  params: { incidentId: string; service: string; severity: string; symptom: string },
+  params: { incident: Incident },
 ): Promise<{ onSuccess: boolean; onFailure: boolean; outcome: string; status: string }> {
   throw new Error('generated body was not installed');
 }

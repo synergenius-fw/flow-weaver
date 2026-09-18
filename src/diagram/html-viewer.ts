@@ -84,8 +84,8 @@ body {
 [data-source] { transition: opacity 0.2s ease, stroke-width 0.15s ease; }
 [data-source]:hover { stroke-width: 4; cursor: pointer; }
 body.node-active [data-source].dimmed,
-body.port-active [data-source].dimmed { opacity: 0.1; }
-body.port-hovered [data-source].dimmed { opacity: 0.25; }
+body.port-active [data-source].dimmed { opacity: 0.28; }
+body.port-hovered [data-source].dimmed { opacity: 0.35; }
 
 /* Port indicators are interactive — expands to circle on hover (matches platform) */
 [data-port-id] { cursor: pointer; }
@@ -1745,6 +1745,11 @@ body.port-hovered [data-source].dimmed { opacity: 0.25; }
   });
 
   // ---- Init ----
+  // Route every connection with the same orthogonal pass a drag would use, so
+  // the first paint matches the post-drag layout. Without this, the initial
+  // view showed the raw server-rendered stub layout and only corrected once a
+  // node was moved.
+  recalcAllPaths();
   requestAnimationFrame(fitToView);
   window.addEventListener('resize', fitToView);
 })();

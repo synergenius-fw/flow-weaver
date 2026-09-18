@@ -78,8 +78,12 @@ defaultValue   ::= IDENTIFIER | INTEGER | STRING
 @input [name="hello"]             optional with default (string)
 @input name scope:myScope         scoped input
 @input name [order:2]             with ordering metadata
-@input name - Description text    with description
+@input name - Short Label         dash text is the port LABEL (1-2 words), shown in the diagram badge
 ```
+
+The text after the dash is the port's display **label**, not a description.
+It is drawn inside the port badge, so keep it to one or two words. There is no
+separate port description; a long sentence just overflows the badge.
 
 ## @output
 
