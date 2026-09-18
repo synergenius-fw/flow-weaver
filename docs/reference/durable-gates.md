@@ -140,6 +140,85 @@ Resume is refused, before any node runs, when anything does not match exactly:
 | `checksum-mismatch` / `malformed` / `oversized` | Continuation was altered, truncated, or exceeds limits |
 | `ambiguous-effect` | An effect may have run but its receipt was not recorded; needs an operator |
 
+## Validate the answer
+
+Resume verifies the run, the bundle, the graph and the engine version. It does **not** verify the answer's content: `agentResult` is whatever JSON the resolver chose, and the engine wraps it and moves on. The gate is a coordination boundary, not a trust boundary. Nothing forces the answer to be well-formed, or true.
+
+So the deterministic part of the workflow should check the answer before it acts on it. The node right after an agent gate is the natural place: a normal-mode node that returns the checked value on `onSuccess` and routes a bad answer to `onFailure`. This keeps the judgement (the gate) and the guarantee (the check) separate, and a malformed reply becomes a routable outcome instead of a value that propagates.
+
+```typescript
+/**
+ * Turns the params into the agent task.
+ *
+ * @flowWeaver nodeType @expression
+ */
+function prepare(path: string) {
+  return {
+    agentId: 'review',
+    context: { path },
+    prompt: `Review ${path}. Reply with { verdict: "ship" | "hold", reason: string }.`,
+  };
+}
+
+/**
+ * Validates the agent's reply. Normal mode on purpose: a malformed reply is a
+ * routable outcome, not an exception. `agentResult` is whatever JSON the
+ * resolver chose, so it is read defensively.
+ *
+ * @flowWeaver nodeType
+ * @durablePure
+ * @input agentResult - The unchecked reply from the gate
+ * @output verdict - The validated verdict (on success)
+ * @output reason - The validated reason (on success)
+ * @output rejection - Why the reply was rejected (on failure)
+ */
+function checkReview(
+  execute: boolean,
+  agentResult: Record<string, unknown>,
+): { onSuccess: boolean; onFailure: boolean; verdict: string; reason: string; rejection: string } {
+  if (!execute) return { onSuccess: false, onFailure: false, verdict: '', reason: '', rejection: '' };
+  const verdict = agentResult?.verdict;
+  const reason = agentResult?.reason;
+  if ((verdict !== 'ship' && verdict !== 'hold') || typeof reason !== 'string' || reason.length === 0) {
+    return {
+      onSuccess: false,
+      onFailure: true,
+      verdict: '',
+      reason: '',
+      rejection: 'malformed review: expected { verdict: "ship"|"hold", reason: non-empty string }',
+    };
+  }
+  return { onSuccess: true, onFailure: false, verdict, reason, rejection: '' };
+}
+
+/** @flowWeaver nodeType @expression */
+function record(verdict: string, reason: string) {
+  return { outcome: `${verdict}: ${reason}` };
+}
+
+/**
+ * @flowWeaver workflow
+ * @param path - File to review
+ * @returns outcome - The recorded decision
+ * @returns rejected - Why the reply was rejected, if it was
+ * @node prep prepare
+ * @node review waitForAgent [expr: agentId="prep.agentId", context="prep.context", prompt="prep.prompt"]
+ * @node check checkReview [expr: agentResult="review.agentResult"]
+ * @node done record
+ * @path Start -> prep -> review -> check -> done -> Exit
+ * @path Start -> prep -> review -> check:fail -> Exit
+ * @connect check.rejection -> Exit.rejected
+ */
+export async function reviewFile(
+  execute: boolean,
+  params: { path: string },
+): Promise<{ onSuccess: boolean; onFailure: boolean; outcome: string; rejected: string }> {
+  throw new Error('generated body was not installed');
+}
+```
+
+A well-formed answer (`{ verdict: "ship", reason: "…" }`) completes with `onSuccess: true` and the recorded `outcome`. A malformed one (`{ verdict: "maybe", reason: "" }`) is caught by `checkReview`, follows `check:fail`, and completes with `onFailure: true` and `rejected` set — the bad value never reaches `record`. The check node is `@durablePure`: it is normal-mode (so it needs the tag, unlike an `@expression` node) but has no side effects, so the engine may re-run it freely on resume.
+
 ## The effect contract
 
 An effect node is a normal node with two additions. It receives a trailing `operationKey: string` after its declared inputs, and it returns a `{ result, receipt }` envelope instead of bare outputs:
