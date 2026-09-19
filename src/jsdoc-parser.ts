@@ -572,6 +572,16 @@ export class JSDocParser {
       positions: {},
     };
 
+    // The free text above the tags is the workflow's description, exactly as
+    // it is for a node type. It has to be captured here because in-place
+    // compilation regenerates this JSDoc block from the AST: whatever is not
+    // in the AST is deleted on the next compile. An explicit @description tag
+    // below still overrides it.
+    const descriptionText = jsdoc.getDescription();
+    if (descriptionText && descriptionText.trim()) {
+      config.description = descriptionText.trim();
+    }
+
     // Parse tags
     tags.forEach((tag) => {
       const tagName = tag.getTagName();

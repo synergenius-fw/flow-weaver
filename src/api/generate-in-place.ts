@@ -24,6 +24,7 @@ import {
   generateJSDocPortTag,
   assignPortOrders,
   generateNodeInstanceTag,
+  formatJSDocDescription,
 } from '../annotation-generator';
 import { shouldWorkflowBeAsync } from '../generator/async-detection';
 import { detectSugarPatterns, filterStaleMacros } from '../sugar-optimizer';
@@ -1299,7 +1300,7 @@ function generateNodeTypeJSDoc(nodeType: TNodeTypeAST): string {
 
   // Add description
   if (nodeType.description) {
-    lines.push(` * ${nodeType.description}`);
+    lines.push(...formatJSDocDescription(nodeType.description));
     lines.push(` *`);
   }
 
@@ -1621,7 +1622,7 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
 
   // Add description
   if (ast.description) {
-    lines.push(` * ${ast.description}`);
+    lines.push(...formatJSDocDescription(ast.description));
     lines.push(` *`);
   }
 

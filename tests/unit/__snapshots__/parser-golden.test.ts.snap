@@ -260,7 +260,8 @@ export function add(execute: boolean, a: number, b: number) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Workflow that uses imported utility nodes
+Demonstrates: Importing and composing reusable nodes",
       "executeWhen": "CONJUNCTION",
       "functionName": "composedWorkflow",
       "hasFailurePort": true,
@@ -465,7 +466,8 @@ export function add(execute: boolean, a: number, b: number) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Workflow that uses imported utility nodes
+Demonstrates: Importing and composing reusable nodes",
       "exitPorts": {
         "onFailure": {
           "dataType": "STEP",
@@ -823,7 +825,8 @@ export function add(execute: boolean, a: number, b: number) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Workflow that uses imported utility nodes
+Demonstrates: Importing and composing reusable nodes",
           "executeWhen": "CONJUNCTION",
           "functionName": "composedWorkflow",
           "hasFailurePort": true,
@@ -11336,7 +11339,9 @@ function fetchB(execute: boolean, url: string) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Workflow that demonstrates both features:
+1. Expression-based timeout configuration
+2. Parallel paths with different merge strategies",
       "executeWhen": "CONJUNCTION",
       "functionName": "portConfigWorkflow",
       "hasFailurePort": true,
@@ -11657,7 +11662,9 @@ function fetchB(execute: boolean, url: string) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Workflow that demonstrates both features:
+1. Expression-based timeout configuration
+2. Parallel paths with different merge strategies",
       "exitPorts": {
         "bothComplete": {
           "dataType": "STRING",
@@ -12348,7 +12355,9 @@ function fetchB(execute: boolean, url: string) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Workflow that demonstrates both features:
+1. Expression-based timeout configuration
+2. Parallel paths with different merge strategies",
           "executeWhen": "CONJUNCTION",
           "functionName": "portConfigWorkflow",
           "hasFailurePort": true,
@@ -12753,7 +12762,9 @@ function add(execute: boolean, a: number, b: number) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Workflow with pull execution
+- double executes immediately (push)
+- triple and add only execute when needed (pull/lazy)",
       "executeWhen": "CONJUNCTION",
       "functionName": "pullExecutionWorkflow",
       "hasFailurePort": true,
@@ -12906,7 +12917,9 @@ function add(execute: boolean, a: number, b: number) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Workflow with pull execution
+- double executes immediately (push)
+- triple and add only execute when needed (pull/lazy)",
       "exitPorts": {
         "onFailure": {
           "dataType": "STEP",
@@ -13246,7 +13259,9 @@ function add(execute: boolean, a: number, b: number) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Workflow with pull execution
+- double executes immediately (push)
+- triple and add only execute when needed (pull/lazy)",
           "executeWhen": "CONJUNCTION",
           "functionName": "pullExecutionWorkflow",
           "hasFailurePort": true,
@@ -13579,7 +13594,14 @@ function multiplyTwo(execute: boolean, value: number) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Scoped workflow: container holds addTen and multiplyTwo in sequence
+
+Execution flow:
+1. Start passes value 5 to container
+2. Container passes value through to scope children
+3. addTen(5) -> 15
+4. multiplyTwo(15) -> 30
+5. Result 30 goes to Exit",
       "executeWhen": "CONJUNCTION",
       "functionName": "scopedWorkflow",
       "hasFailurePort": true,
@@ -13738,7 +13760,14 @@ function multiplyTwo(execute: boolean, value: number) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Scoped workflow: container holds addTen and multiplyTwo in sequence
+
+Execution flow:
+1. Start passes value 5 to container
+2. Container passes value through to scope children
+3. addTen(5) -> 15
+4. multiplyTwo(15) -> 30
+5. Result 30 goes to Exit",
       "exitPorts": {
         "onFailure": {
           "dataType": "STEP",
@@ -14069,7 +14098,14 @@ function multiplyTwo(execute: boolean, value: number) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Scoped workflow: container holds addTen and multiplyTwo in sequence
+
+Execution flow:
+1. Start passes value 5 to container
+2. Container passes value through to scope children
+3. addTen(5) -> 15
+4. multiplyTwo(15) -> 30
+5. Result 30 goes to Exit",
           "executeWhen": "CONJUNCTION",
           "functionName": "scopedWorkflow",
           "hasFailurePort": true,
@@ -14406,7 +14442,16 @@ function processItem(execute: boolean, item: any) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Workflow with scoped port execution
+forEach receives a scope function for the 'iteration' scope
+
+Execution flow:
+1. Start passes items [1, 2, 3] to forEach
+2. forEach calls processItem scope function for each item:
+   - Iteration 1: processItem(1) -> 2
+   - Iteration 2: processItem(2) -> 4
+   - Iteration 3: processItem(3) -> 6
+3. forEach collects results [2, 4, 6] and returns to Exit",
       "executeWhen": "CONJUNCTION",
       "functionName": "scopedPortsWorkflow",
       "hasFailurePort": true,
@@ -14644,7 +14689,16 @@ function processItem(execute: boolean, item: any) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Workflow with scoped port execution
+forEach receives a scope function for the 'iteration' scope
+
+Execution flow:
+1. Start passes items [1, 2, 3] to forEach
+2. forEach calls processItem scope function for each item:
+   - Iteration 1: processItem(1) -> 2
+   - Iteration 2: processItem(2) -> 4
+   - Iteration 3: processItem(3) -> 6
+3. forEach collects results [2, 4, 6] and returns to Exit",
       "exitPorts": {
         "onFailure": {
           "dataType": "STEP",
@@ -14944,7 +14998,16 @@ function processItem(execute: boolean, item: any) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Workflow with scoped port execution
+forEach receives a scope function for the 'iteration' scope
+
+Execution flow:
+1. Start passes items [1, 2, 3] to forEach
+2. forEach calls processItem scope function for each item:
+   - Iteration 1: processItem(1) -> 2
+   - Iteration 2: processItem(2) -> 4
+   - Iteration 3: processItem(3) -> 6
+3. forEach collects results [2, 4, 6] and returns to Exit",
           "executeWhen": "CONJUNCTION",
           "functionName": "scopedPortsWorkflow",
           "hasFailurePort": true,
@@ -15226,7 +15289,8 @@ function syncAdd(execute: boolean, a: number, b: number) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Sync workflow with pull execution nodes
+All nodes are sync, workflow is sync",
       "executeWhen": "CONJUNCTION",
       "functionName": "syncPullWorkflow",
       "hasFailurePort": false,
@@ -15378,7 +15442,8 @@ function syncAdd(execute: boolean, a: number, b: number) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Sync workflow with pull execution nodes
+All nodes are sync, workflow is sync",
       "exitPorts": {
         "result": {
           "dataType": "NUMBER",
@@ -15624,7 +15689,8 @@ function syncAdd(execute: boolean, a: number, b: number) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Sync workflow with pull execution nodes
+All nodes are sync, workflow is sync",
           "executeWhen": "CONJUNCTION",
           "functionName": "syncPullWorkflow",
           "hasFailurePort": false,
@@ -18404,7 +18470,8 @@ function double(execute: boolean, value: number) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Validates and doubles a number
+Will fail if input is < 0 or > 100",
       "executeWhen": "CONJUNCTION",
       "functionName": "validateAndDouble",
       "hasFailurePort": true,
@@ -18557,7 +18624,8 @@ function double(execute: boolean, value: number) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Validates and doubles a number
+Will fail if input is < 0 or > 100",
       "exitPorts": {
         "onFailure": {
           "dataType": "STEP",
@@ -18798,7 +18866,8 @@ function double(execute: boolean, value: number) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Validates and doubles a number
+Will fail if input is < 0 or > 100",
           "executeWhen": "CONJUNCTION",
           "functionName": "validateAndDouble",
           "hasFailurePort": true,
@@ -19127,7 +19196,9 @@ function handleError(execute: boolean) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Validates and processes a number with error handling
+- Valid input (0-100): Returns doubled value
+- Invalid input: Returns error message gracefully",
       "executeWhen": "CONJUNCTION",
       "functionName": "validateWithErrorHandling",
       "hasFailurePort": true,
@@ -19338,7 +19409,9 @@ function handleError(execute: boolean) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Validates and processes a number with error handling
+- Valid input (0-100): Returns doubled value
+- Invalid input: Returns error message gracefully",
       "exitPorts": {
         "error": {
           "dataType": "STRING",
@@ -19687,7 +19760,9 @@ function handleError(execute: boolean) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Validates and processes a number with error handling
+- Valid input (0-100): Returns doubled value
+- Invalid input: Returns error message gracefully",
           "executeWhen": "CONJUNCTION",
           "functionName": "validateWithErrorHandling",
           "hasFailurePort": true,
@@ -20966,7 +21041,9 @@ function format(execute: boolean, value: number, label?: string) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Workflow demonstrating expressions
+- calculate uses default values for multiplier and offset
+- format uses optional label (not connected, so undefined)",
       "executeWhen": "CONJUNCTION",
       "functionName": "expressionsWorkflow",
       "hasFailurePort": true,
@@ -21119,7 +21196,9 @@ function format(execute: boolean, value: number, label?: string) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Workflow demonstrating expressions
+- calculate uses default values for multiplier and offset
+- format uses optional label (not connected, so undefined)",
       "exitPorts": {
         "onFailure": {
           "dataType": "STEP",
@@ -21393,7 +21472,9 @@ function format(execute: boolean, value: number, label?: string) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Workflow demonstrating expressions
+- calculate uses default values for multiplier and offset
+- format uses optional label (not connected, so undefined)",
           "executeWhen": "CONJUNCTION",
           "functionName": "expressionsWorkflow",
           "hasFailurePort": true,
@@ -23239,7 +23320,7 @@ function unused(execute: boolean, value: number) {
       "visuals": undefined,
     },
     {
-      "description": undefined,
+      "description": "Workflow with intentional validation errors",
       "executeWhen": "CONJUNCTION",
       "functionName": "invalidWorkflow",
       "hasFailurePort": true,
@@ -23360,7 +23441,7 @@ function unused(execute: boolean, value: number) {
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "Workflow with intentional validation errors",
       "exitPorts": {
         "onFailure": {
           "dataType": "STEP",
@@ -23644,7 +23725,7 @@ function unused(execute: boolean, value: number) {
           "visuals": undefined,
         },
         {
-          "description": undefined,
+          "description": "Workflow with intentional validation errors",
           "executeWhen": "CONJUNCTION",
           "functionName": "invalidWorkflow",
           "hasFailurePort": true,
@@ -26229,7 +26310,8 @@ function finalizeDecision(
       },
     },
     {
-      "description": undefined,
+      "description": "A purchase approval workflow: validates the request, retries the human
+prompt until the reviewer provides valid input, then finalizes the outcome.",
       "executeWhen": "CONJUNCTION",
       "functionName": "purchaseApproval",
       "hasFailurePort": true,
@@ -26780,7 +26862,8 @@ function finalizeDecision(
           "type": "Connection",
         },
       ],
-      "description": undefined,
+      "description": "A purchase approval workflow: validates the request, retries the human
+prompt until the reviewer provides valid input, then finalizes the outcome.",
       "exitPorts": {
         "onFailure": {
           "dataType": "STEP",
@@ -27610,7 +27693,8 @@ function finalizeDecision(
           },
         },
         {
-          "description": undefined,
+          "description": "A purchase approval workflow: validates the request, retries the human
+prompt until the reviewer provides valid input, then finalizes the outcome.",
           "executeWhen": "CONJUNCTION",
           "functionName": "purchaseApproval",
           "hasFailurePort": true,

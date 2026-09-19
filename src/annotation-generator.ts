@@ -13,6 +13,18 @@ export interface GenerateAnnotationsOptions {
   skipParamReturns?: boolean;
 }
 
+/**
+ * Lay a description out as JSDoc lines: every line gets its ` * ` prefix and a
+ * blank line inside the text becomes a bare ` *`. Emitting the whole text as
+ * one line leaves every line after the first without a prefix, which is a
+ * malformed block and reads as broken output to whoever wrote the text.
+ */
+export function formatJSDocDescription(description: string): string[] {
+  return description
+    .split('\n')
+    .map((line) => (line.trim().length === 0 ? ' *' : ` * ${line}`));
+}
+
 export class AnnotationGenerator {
   generate(
     workflow: TWorkflowAST,
@@ -82,9 +94,7 @@ export class AnnotationGenerator {
 
     // Add description if present (handle multi-line descriptions)
     if (includeComments && nodeType.description) {
-      for (const descLine of nodeType.description.split('\n')) {
-        lines.push(` * ${descLine}`);
-      }
+      lines.push(...formatJSDocDescription(nodeType.description));
       lines.push(` *`);
     }
 
@@ -228,9 +238,10 @@ export class AnnotationGenerator {
     // Generate JSDoc comment block
     lines.push("/**");
 
-    // Add description if present
+    // The description is emitted once, as free text above the tags -- the
+    // form the parser reads it back from. It is not repeated as @description.
     if (includeComments && workflow.description) {
-      lines.push(` * ${workflow.description}`);
+      lines.push(...formatJSDocDescription(workflow.description));
       lines.push(` *`);
     }
 
@@ -287,11 +298,6 @@ export class AnnotationGenerator {
     // Add name if different from export name
     if (workflow.name && workflow.name !== workflow.functionName) {
       lines.push(` * @name ${workflow.name}`);
-    }
-
-    // Add description tag
-    if (workflow.description && includeComments) {
-      lines.push(` * @description ${workflow.description}`);
     }
 
     // Add node instances — skip synthetic MAP_ITERATOR/COERCION instances, strip parent from macro children

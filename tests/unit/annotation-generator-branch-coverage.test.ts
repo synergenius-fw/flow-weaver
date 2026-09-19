@@ -312,15 +312,26 @@ describe('generateWorkflowAnnotation branches', () => {
     expect(result).toContain('@name Display Name');
   });
 
-  it('should include workflow @description when includeComments', () => {
+  it('emits the workflow description once, as free text above the tags', () => {
     const wf = makeWorkflow({ description: 'My workflow description' });
     const result = gen.generate(wf, { includeComments: true });
-    expect(result).toContain('@description My workflow description');
+    // The parser reads the description back from the free text, so it is not
+    // repeated as an @description tag -- that would duplicate it on every
+    // round trip.
+    expect(result).toContain(' * My workflow description\n *\n * @flowWeaver workflow');
+    expect(result).not.toContain('@description');
   });
 
-  it('should omit workflow @description when includeComments=false', () => {
+  it('lays a multi-paragraph workflow description out with a prefix on every line', () => {
+    const wf = makeWorkflow({ description: 'First paragraph.\n\nSecond paragraph.' });
+    const result = gen.generate(wf, { includeComments: true });
+    expect(result).toContain(' * First paragraph.\n *\n * Second paragraph.\n *\n * @flowWeaver workflow');
+  });
+
+  it('omits the workflow description when includeComments=false', () => {
     const wf = makeWorkflow({ description: 'My description' });
     const result = gen.generate(wf, { includeComments: false });
+    expect(result).not.toContain('My description');
     expect(result).not.toContain('@description');
   });
 
