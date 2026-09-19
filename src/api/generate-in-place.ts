@@ -25,6 +25,7 @@ import {
   assignPortOrders,
   generateNodeInstanceTag,
   formatJSDocDescription,
+  planPortTags,
 } from '../annotation-generator';
 import { shouldWorkflowBeAsync } from '../generator/async-detection';
 import { detectSugarPatterns, filterStaleMacros } from '../sugar-optimizer';
@@ -1369,20 +1370,11 @@ function generateNodeTypeJSDoc(nodeType: TNodeTypeAST): string {
   let outputEntries: [string, TPortDefinition][] = [];
 
   if (nodeType.inputs && Object.keys(nodeType.inputs).length > 0) {
-    // Use native inputs/outputs format
-    // For expression nodes, skip auto-generated control flow ports (execute, onSuccess, onFailure)
-    const filterControlFlow = nodeType.expression
-      ? ([name]: [string, unknown]) =>
-          !isExecutePort(name) && !isSuccessPort(name) && !isFailurePort(name)
-      : () => true;
-    inputEntries = assignPortOrders(
-      Object.entries(nodeType.inputs).filter(filterControlFlow),
-      'input'
-    );
-    outputEntries = assignPortOrders(
-      Object.entries(nodeType.outputs || {}).filter(filterControlFlow),
-      'output'
-    );
+    // Use native inputs/outputs format. Mandatory control-flow ports at their
+    // defaults and implicit orders are left to planPortTags below: the parser
+    // adds them back on re-parse, so writing them only lengthens the file.
+    inputEntries = assignPortOrders(Object.entries(nodeType.inputs), 'input');
+    outputEntries = assignPortOrders(Object.entries(nodeType.outputs || {}), 'output');
   } else if (nodeType.ports && nodeType.ports.length > 0) {
     // Convert from ports array format (UI format)
     const inputs: [string, TPortDefinition][] = [];
@@ -1412,16 +1404,14 @@ function generateNodeTypeJSDoc(nodeType: TNodeTypeAST): string {
     outputEntries = assignPortOrders(outputs, 'output');
   }
 
-  // Add input ports
-  for (const [name, port] of inputEntries) {
-    const portTag = generateJSDocPortTag(name, port, 'input');
-    lines.push(` * ${portTag}`);
+  // Add input ports: only what a re-parse would not infer on its own
+  for (const { name, port, writeOrder } of planPortTags(inputEntries)) {
+    lines.push(` * ${generateJSDocPortTag(name, port, 'input', undefined, { writeOrder })}`);
   }
 
   // Add output ports
-  for (const [name, port] of outputEntries) {
-    const portTag = generateJSDocPortTag(name, port, 'output');
-    lines.push(` * ${portTag}`);
+  for (const { name, port, writeOrder } of planPortTags(outputEntries)) {
+    lines.push(` * ${generateJSDocPortTag(name, port, 'output', undefined, { writeOrder })}`);
   }
 
   lines.push(' */');
@@ -1826,22 +1816,20 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
 
   // Add @param annotations for start ports (workflow inputs)
   if (!options.skipParamReturns && ast.startPorts && Object.keys(ast.startPorts).length > 0) {
-    const startPortEntries = assignPortOrders(Object.entries(ast.startPorts), 'input');
-    startPortEntries.forEach(([name, port], index) => {
-      const paramTag = generateJSDocPortTag(name, port, 'input', index);
+    for (const { name, port, writeOrder } of planPortTags(Object.entries(ast.startPorts))) {
+      const paramTag = generateJSDocPortTag(name, port, 'input', undefined, { writeOrder });
       // Replace @input with @param for workflow-level JSDoc
       lines.push(` * ${paramTag.replace('@input', '@param')}`);
-    });
+    }
   }
 
   // Add @returns annotations for exit ports (workflow outputs)
   if (!options.skipParamReturns && ast.exitPorts && Object.keys(ast.exitPorts).length > 0) {
-    const exitPortEntries = assignPortOrders(Object.entries(ast.exitPorts), 'output');
-    exitPortEntries.forEach(([name, port], index) => {
-      const returnTag = generateJSDocPortTag(name, port, 'output', index);
+    for (const { name, port, writeOrder } of planPortTags(Object.entries(ast.exitPorts))) {
+      const returnTag = generateJSDocPortTag(name, port, 'output', undefined, { writeOrder });
       // Replace @output with @returns for workflow-level JSDoc
       lines.push(` * ${returnTag.replace('@output', '@returns')}`);
-    });
+    }
   }
 
   // Add scopes — skip scopes covered by @map macros

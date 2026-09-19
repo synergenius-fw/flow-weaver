@@ -5,6 +5,7 @@ import { shouldUseStepTag } from "./utils/port-tag-utils";
 import { detectSugarPatterns, filterStaleMacros } from "./sugar-optimizer";
 import { isPathImpliedDataEdge } from "./parser/path-data-resolution";
 import { serializePackDeployAnnotations } from "./parser/serialize-deploy-annotations";
+import { assignImplicitPortOrders } from "./utils/port-ordering";
 
 export interface GenerateAnnotationsOptions {
   includeComments?: boolean;
@@ -23,6 +24,64 @@ export function formatJSDocDescription(description: string): string[] {
   return description
     .split('\n')
     .map((line) => (line.trim().length === 0 ? ' *' : ` * ${line}`));
+}
+
+/** Labels the parser gives the mandatory STEP ports when the author gave none. */
+const DEFAULT_MANDATORY_LABELS: Record<string, string> = {
+  execute: 'Execute',
+  onSuccess: 'On Success',
+  onFailure: 'On Failure',
+};
+
+/**
+ * A mandatory STEP port that carries nothing the parser would not add back
+ * on its own: default label, no scope, not hidden or optional, no default,
+ * expression or metadata beyond the implicit order. Writing it out only
+ * lengthens the file.
+ */
+function isDefaultMandatoryPort(name: string, port: TPortDefinition): boolean {
+  const defaultLabel = DEFAULT_MANDATORY_LABELS[name];
+  if (defaultLabel === undefined || port.scope) return false;
+  if (port.label !== undefined && port.label !== defaultLabel && port.label !== name) return false;
+  if (port.hidden || port.optional || port.default !== undefined || port.expression) return false;
+  const metadataKeys = Object.keys(port.metadata ?? {}).filter((key) => key !== 'order');
+  return metadataKeys.length === 0;
+}
+
+/**
+ * Decide which ports an emitter writes and which of them need an `[order:N]`.
+ *
+ * The parser stores an order on every port -- the author's when there is
+ * one, otherwise one it infers from declaration position -- and it cannot be
+ * told apart afterwards. An emitter that writes every stored order therefore
+ * grows the file on each compile with values a re-parse would infer anyway.
+ * So the orders are recomputed here for the sequence that will be written,
+ * exactly as the parser will recompute them, and only the ones that differ
+ * are written. Mandatory ports at their defaults are left out for the same
+ * reason: the parser adds them back. Round-trip fidelity holds by
+ * construction; nothing that changes a re-parse is dropped.
+ */
+export function planPortTags(
+  entries: [string, TPortDefinition][],
+): Array<{ name: string; port: TPortDefinition; writeOrder: boolean }> {
+  // What the parser will infer for this sequence: same ports, orders cleared,
+  // in emission order. The dropped mandatory ports still take part, because
+  // the parser re-adds them before it assigns the implicit slots.
+  const inferred: Record<string, TPortDefinition> = {};
+  for (const [name, port] of entries) {
+    const { order: _order, ...rest } = port.metadata ?? {};
+    inferred[name] = { ...port, metadata: Object.keys(rest).length > 0 ? rest : undefined };
+  }
+  assignImplicitPortOrders(inferred);
+
+  return entries
+    .filter(([name, port]) => !isDefaultMandatoryPort(name, port))
+    .map(([name, port]) => ({
+      name,
+      port,
+      writeOrder:
+        port.metadata?.order !== undefined && port.metadata.order !== inferred[name]?.metadata?.order,
+    }));
 }
 
 export class AnnotationGenerator {
@@ -147,19 +206,15 @@ export class AnnotationGenerator {
       lines.push(' * @durablePure');
     }
 
-    // Add input ports (with automatic ordering)
-    const inputEntries = this.assignPortOrders(Object.entries(nodeType.inputs), 'input');
-    inputEntries.forEach(([name, port]) => {
-      const portTag = this.generateJSDocPortTag(name, port, 'input');
-      lines.push(` * ${portTag}`);
-    });
+    // Add input ports: only what a re-parse would not infer on its own
+    for (const { name, port, writeOrder } of planPortTags(Object.entries(nodeType.inputs))) {
+      lines.push(` * ${generateJSDocPortTag(name, port, 'input', undefined, { writeOrder })}`);
+    }
 
-    // Add output ports (with automatic ordering)
-    const outputEntries = this.assignPortOrders(Object.entries(nodeType.outputs), 'output');
-    outputEntries.forEach(([name, port]) => {
-      const portTag = this.generateJSDocPortTag(name, port, 'output');
-      lines.push(` * ${portTag}`);
-    });
+    // Add output ports
+    for (const { name, port, writeOrder } of planPortTags(Object.entries(nodeType.outputs))) {
+      lines.push(` * ${generateJSDocPortTag(name, port, 'output', undefined, { writeOrder })}`);
+    }
 
     lines.push(" */");
 
@@ -408,22 +463,20 @@ export class AnnotationGenerator {
 
     // Add @param annotations for start ports (workflow inputs)
     if (!skipParamReturns && workflow.startPorts && Object.keys(workflow.startPorts).length > 0) {
-      const startPortEntries = this.assignPortOrders(Object.entries(workflow.startPorts), 'input');
-      startPortEntries.forEach(([name, port], index) => {
-        const paramTag = this.generateJSDocPortTag(name, port, 'input', index);
+      for (const { name, port, writeOrder } of planPortTags(Object.entries(workflow.startPorts))) {
+        const paramTag = generateJSDocPortTag(name, port, 'input', undefined, { writeOrder });
         // Replace @input with @param for workflow-level JSDoc
         lines.push(` * ${paramTag.replace('@input', '@param')}`);
-      });
+      }
     }
 
     // Add @returns annotations for exit ports (workflow outputs)
     if (!skipParamReturns && workflow.exitPorts && Object.keys(workflow.exitPorts).length > 0) {
-      const exitPortEntries = this.assignPortOrders(Object.entries(workflow.exitPorts), 'output');
-      exitPortEntries.forEach(([name, port], index) => {
-        const returnTag = this.generateJSDocPortTag(name, port, 'output', index);
+      for (const { name, port, writeOrder } of planPortTags(Object.entries(workflow.exitPorts))) {
+        const returnTag = generateJSDocPortTag(name, port, 'output', undefined, { writeOrder });
         // Replace @output with @returns for workflow-level JSDoc
         lines.push(` * ${returnTag.replace('@output', '@returns')}`);
-      });
+      }
     }
 
     // Add scopes — skip scopes covered by @map macros
@@ -506,7 +559,8 @@ export function generateJSDocPortTag(
   rawName: string,
   port: TPortDefinition,
   direction: 'input' | 'output',
-  _implicitOrder?: number
+  _implicitOrder?: number,
+  options: { writeOrder?: boolean } = {},
 ): string {
   // Support scoped key format: use _realName if present (for multi-scope mandatory ports)
   const name = (port as Record<string, unknown>)._realName as string ?? rawName;
@@ -542,9 +596,9 @@ export function generateJSDocPortTag(
     portStr += ` scope:${port.scope}`;
   }
 
-  // Add order metadata whenever it's explicitly set to preserve round-trip fidelity
-  // Even if order matches position, we must write it to avoid losing metadata on re-parse
-  if (port.metadata?.order !== undefined) {
+  // Write the order unless the caller has established (via planPortTags) that
+  // a re-parse would infer the same value from position anyway.
+  if (options.writeOrder !== false && port.metadata?.order !== undefined) {
     portStr += ` [order:${port.metadata.order}]`;
   }
 
