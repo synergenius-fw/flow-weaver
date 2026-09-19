@@ -594,7 +594,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'brAsync' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'brAsync' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'brAsync' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
         const okResult = okSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -1290,7 +1290,7 @@ export async function testWorkflow(
       try {
         const mh_execute = mbIdx !== undefined ? await ctx.getVariable({ id: 'mb', portName: 'onSuccess', executionIndex: mbIdx, nodeTypeName: 'asyncMapBranch' }) as boolean : false;
         await ctx.setVariable({ id: 'mh', portName: 'execute', executionIndex: mhIdx, nodeTypeName: 'asyncMapSink', durable: false }, mh_execute);
-        const mh_value = await ctx.getVariable({ id: 'mb', portName: 'results', executionIndex: mbIdx!, nodeTypeName: 'asyncMapBranch' }) as number;
+        const mh_value = mbIdx !== undefined ? await ctx.getVariable({ id: 'mb', portName: 'results', executionIndex: mbIdx, nodeTypeName: 'asyncMapBranch' }) as number : undefined;
         await ctx.setVariable({ id: 'mh', portName: 'value', executionIndex: mhIdx, nodeTypeName: 'asyncMapSink', durable: false }, mh_value);
         const mhResult = asyncMapSink(mh_execute, mh_value);
         await ctx.setVariable({ id: 'mh', portName: 'onSuccess', executionIndex: mhIdx, nodeTypeName: 'asyncMapSink' }, mhResult.onSuccess);
@@ -1956,7 +1956,7 @@ export async function testWorkflow(
       try {
         const bb_execute = aIdx !== undefined ? await ctx.getVariable({ id: 'a', portName: 'onSuccess', executionIndex: aIdx, nodeTypeName: 'brA' }) as boolean : false;
         await ctx.setVariable({ id: 'bb', portName: 'execute', executionIndex: bbIdx, nodeTypeName: 'brB', durable: false }, bb_execute);
-        const bb_value = await ctx.getVariable({ id: 'a', portName: 'result', executionIndex: aIdx!, nodeTypeName: 'brA' }) as number;
+        const bb_value = aIdx !== undefined ? await ctx.getVariable({ id: 'a', portName: 'result', executionIndex: aIdx, nodeTypeName: 'brA' }) as number : undefined;
         await ctx.setVariable({ id: 'bb', portName: 'value', executionIndex: bbIdx, nodeTypeName: 'brB', durable: false }, bb_value);
         const bbResult = brB(bb_execute, bb_value);
         await ctx.setVariable({ id: 'bb', portName: 'onSuccess', executionIndex: bbIdx, nodeTypeName: 'brB' }, bbResult.onSuccess);
@@ -2022,7 +2022,7 @@ export async function testWorkflow(
         try {
           const ok_execute = bbIdx !== undefined ? await ctx.getVariable({ id: 'bb', portName: 'onSuccess', executionIndex: bbIdx, nodeTypeName: 'brB' }) as boolean : false;
           await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-          const ok_value = await ctx.getVariable({ id: 'bb', portName: 'result', executionIndex: bbIdx!, nodeTypeName: 'brB' }) as number;
+          const ok_value = bbIdx !== undefined ? await ctx.getVariable({ id: 'bb', portName: 'result', executionIndex: bbIdx, nodeTypeName: 'brB' }) as number : undefined;
           await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
           const okResult = okSink(ok_execute, ok_value);
           await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -3397,7 +3397,7 @@ export async function testWorkflow(
       try {
         const h_execute = exIdx !== undefined ? await ctx.getVariable({ id: 'ex', portName: 'onSuccess', executionIndex: exIdx, nodeTypeName: 'exprExtra' }) as boolean : false;
         await ctx.setVariable({ id: 'h', portName: 'execute', executionIndex: hIdx, nodeTypeName: 'exprExtraSink', durable: false }, h_execute);
-        const h_value = await ctx.getVariable({ id: 'ex', portName: 'low', executionIndex: exIdx!, nodeTypeName: 'exprExtra' }) as number;
+        const h_value = exIdx !== undefined ? await ctx.getVariable({ id: 'ex', portName: 'low', executionIndex: exIdx, nodeTypeName: 'exprExtra' }) as number : undefined;
         await ctx.setVariable({ id: 'h', portName: 'value', executionIndex: hIdx, nodeTypeName: 'exprExtraSink', durable: false }, h_value);
         const hResult = exprExtraSink(h_execute, h_value);
         await ctx.setVariable({ id: 'h', portName: 'onSuccess', executionIndex: hIdx, nodeTypeName: 'exprExtraSink' }, hResult.onSuccess);
@@ -4065,7 +4065,7 @@ export async function testWorkflow(
       try {
         const ok_execute = aIdx !== undefined ? await ctx.getVariable({ id: 'a', portName: 'onSuccess', executionIndex: aIdx, nodeTypeName: 'brA' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'a', portName: 'result', executionIndex: aIdx!, nodeTypeName: 'brA' }) as number;
+        const ok_value = aIdx !== undefined ? await ctx.getVariable({ id: 'a', portName: 'result', executionIndex: aIdx, nodeTypeName: 'brA' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
         const okResult = okSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -4809,7 +4809,7 @@ export async function testWorkflow(
       try {
         const mh_execute = mbIdx !== undefined ? await ctx.getVariable({ id: 'mb', portName: 'onSuccess', executionIndex: mbIdx, nodeTypeName: 'mapBranch' }) as boolean : false;
         await ctx.setVariable({ id: 'mh', portName: 'execute', executionIndex: mhIdx, nodeTypeName: 'mapSink', durable: false }, mh_execute);
-        const mh_value = await ctx.getVariable({ id: 'mb', portName: 'results', executionIndex: mbIdx!, nodeTypeName: 'mapBranch' }) as number;
+        const mh_value = mbIdx !== undefined ? await ctx.getVariable({ id: 'mb', portName: 'results', executionIndex: mbIdx, nodeTypeName: 'mapBranch' }) as number : undefined;
         await ctx.setVariable({ id: 'mh', portName: 'value', executionIndex: mhIdx, nodeTypeName: 'mapSink', durable: false }, mh_value);
         const mhResult = mapSink(mh_execute, mh_value);
         await ctx.setVariable({ id: 'mh', portName: 'onSuccess', executionIndex: mhIdx, nodeTypeName: 'mapSink' }, mhResult.onSuccess);
@@ -6075,7 +6075,7 @@ export async function testWorkflow(
       try {
         const sk_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'scopedFn' }) as boolean : false;
         await ctx.setVariable({ id: 'sk', portName: 'execute', executionIndex: skIdx, nodeTypeName: 'nodeScopedSink', durable: false }, sk_execute);
-        const sk_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'scopedFn' }) as number;
+        const sk_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'scopedFn' }) as number : undefined;
         await ctx.setVariable({ id: 'sk', portName: 'value', executionIndex: skIdx, nodeTypeName: 'nodeScopedSink', durable: false }, sk_value);
         const skResult = nodeScopedSink(sk_execute, sk_value);
         await ctx.setVariable({ id: 'sk', portName: 'onSuccess', executionIndex: skIdx, nodeTypeName: 'nodeScopedSink' }, skResult.onSuccess);
@@ -6755,7 +6755,7 @@ export async function testWorkflow(
       try {
         const fail_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onFailure', executionIndex: bIdx, nodeTypeName: 'br' }) as boolean : false;
         await ctx.setVariable({ id: 'fail', portName: 'execute', executionIndex: failIdx, nodeTypeName: 'failSink', durable: false }, fail_execute);
-        const fail_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'br' }) as number;
+        const fail_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'br' }) as number : undefined;
         await ctx.setVariable({ id: 'fail', portName: 'value', executionIndex: failIdx, nodeTypeName: 'failSink', durable: false }, fail_value);
         const failResult = failSink(fail_execute, fail_value);
         await ctx.setVariable({ id: 'fail', portName: 'onSuccess', executionIndex: failIdx, nodeTypeName: 'failSink' }, failResult.onSuccess);
@@ -7411,7 +7411,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'br' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'br' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'br' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
         const okResult = okSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -8098,7 +8098,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'regScoped' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'regScopedSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'regScoped' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'regScoped' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'regScopedSink', durable: false }, ok_value);
         const okResult = regScopedSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'regScopedSink' }, okResult.onSuccess);
@@ -8766,7 +8766,7 @@ export async function testWorkflow(
       try {
         const sk_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'multiScopeFn' }) as boolean : false;
         await ctx.setVariable({ id: 'sk', portName: 'execute', executionIndex: skIdx, nodeTypeName: 'multiScopeSink', durable: false }, sk_execute);
-        const sk_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'multiScopeFn' }) as number;
+        const sk_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'multiScopeFn' }) as number : undefined;
         await ctx.setVariable({ id: 'sk', portName: 'value', executionIndex: skIdx, nodeTypeName: 'multiScopeSink', durable: false }, sk_value);
         const skResult = multiScopeSink(sk_execute, sk_value);
         await ctx.setVariable({ id: 'sk', portName: 'onSuccess', executionIndex: skIdx, nodeTypeName: 'multiScopeSink' }, skResult.onSuccess);
@@ -9453,7 +9453,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'br' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'br' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'br' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
         const okResult = okSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -9513,7 +9513,7 @@ export async function testWorkflow(
       try {
         const fail_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onFailure', executionIndex: bIdx, nodeTypeName: 'br' }) as boolean : false;
         await ctx.setVariable({ id: 'fail', portName: 'execute', executionIndex: failIdx, nodeTypeName: 'failSink', durable: false }, fail_execute);
-        const fail_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'br' }) as number;
+        const fail_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'br' }) as number : undefined;
         await ctx.setVariable({ id: 'fail', portName: 'value', executionIndex: failIdx, nodeTypeName: 'failSink', durable: false }, fail_value);
         const failResult = failSink(fail_execute, fail_value);
         await ctx.setVariable({ id: 'fail', portName: 'onSuccess', executionIndex: failIdx, nodeTypeName: 'failSink' }, failResult.onSuccess);
@@ -10189,7 +10189,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'subWf' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'subWfSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'subWf' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'subWf' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'subWfSink', durable: false }, ok_value);
         const okResult = subWfSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'subWfSink' }, okResult.onSuccess);
@@ -10720,7 +10720,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'brAsync' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'brAsync' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'brAsync' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
         const okResult = okSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -11275,7 +11275,7 @@ export async function testWorkflow(
       try {
         const mh_execute = mbIdx !== undefined ? await ctx.getVariable({ id: 'mb', portName: 'onSuccess', executionIndex: mbIdx, nodeTypeName: 'asyncMapBranch' }) as boolean : false;
         await ctx.setVariable({ id: 'mh', portName: 'execute', executionIndex: mhIdx, nodeTypeName: 'asyncMapSink', durable: false }, mh_execute);
-        const mh_value = await ctx.getVariable({ id: 'mb', portName: 'results', executionIndex: mbIdx!, nodeTypeName: 'asyncMapBranch' }) as number;
+        const mh_value = mbIdx !== undefined ? await ctx.getVariable({ id: 'mb', portName: 'results', executionIndex: mbIdx, nodeTypeName: 'asyncMapBranch' }) as number : undefined;
         await ctx.setVariable({ id: 'mh', portName: 'value', executionIndex: mhIdx, nodeTypeName: 'asyncMapSink', durable: false }, mh_value);
         const mhResult = asyncMapSink(mh_execute, mh_value);
         await ctx.setVariable({ id: 'mh', portName: 'onSuccess', executionIndex: mhIdx, nodeTypeName: 'asyncMapSink' }, mhResult.onSuccess);
@@ -11798,7 +11798,7 @@ export async function testWorkflow(
       try {
         const bb_execute = aIdx !== undefined ? await ctx.getVariable({ id: 'a', portName: 'onSuccess', executionIndex: aIdx, nodeTypeName: 'brA' }) as boolean : false;
         await ctx.setVariable({ id: 'bb', portName: 'execute', executionIndex: bbIdx, nodeTypeName: 'brB', durable: false }, bb_execute);
-        const bb_value = await ctx.getVariable({ id: 'a', portName: 'result', executionIndex: aIdx!, nodeTypeName: 'brA' }) as number;
+        const bb_value = aIdx !== undefined ? await ctx.getVariable({ id: 'a', portName: 'result', executionIndex: aIdx, nodeTypeName: 'brA' }) as number : undefined;
         await ctx.setVariable({ id: 'bb', portName: 'value', executionIndex: bbIdx, nodeTypeName: 'brB', durable: false }, bb_value);
         const bbResult = brB(bb_execute, bb_value);
         await ctx.setVariable({ id: 'bb', portName: 'onSuccess', executionIndex: bbIdx, nodeTypeName: 'brB' }, bbResult.onSuccess);
@@ -11862,7 +11862,7 @@ export async function testWorkflow(
         try {
           const ok_execute = bbIdx !== undefined ? await ctx.getVariable({ id: 'bb', portName: 'onSuccess', executionIndex: bbIdx, nodeTypeName: 'brB' }) as boolean : false;
           await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-          const ok_value = await ctx.getVariable({ id: 'bb', portName: 'result', executionIndex: bbIdx!, nodeTypeName: 'brB' }) as number;
+          const ok_value = bbIdx !== undefined ? await ctx.getVariable({ id: 'bb', portName: 'result', executionIndex: bbIdx, nodeTypeName: 'brB' }) as number : undefined;
           await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
           const okResult = okSink(ok_execute, ok_value);
           await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -12955,7 +12955,7 @@ export async function testWorkflow(
       try {
         const h_execute = exIdx !== undefined ? await ctx.getVariable({ id: 'ex', portName: 'onSuccess', executionIndex: exIdx, nodeTypeName: 'exprExtra' }) as boolean : false;
         await ctx.setVariable({ id: 'h', portName: 'execute', executionIndex: hIdx, nodeTypeName: 'exprExtraSink', durable: false }, h_execute);
-        const h_value = await ctx.getVariable({ id: 'ex', portName: 'low', executionIndex: exIdx!, nodeTypeName: 'exprExtra' }) as number;
+        const h_value = exIdx !== undefined ? await ctx.getVariable({ id: 'ex', portName: 'low', executionIndex: exIdx, nodeTypeName: 'exprExtra' }) as number : undefined;
         await ctx.setVariable({ id: 'h', portName: 'value', executionIndex: hIdx, nodeTypeName: 'exprExtraSink', durable: false }, h_value);
         const hResult = exprExtraSink(h_execute, h_value);
         await ctx.setVariable({ id: 'h', portName: 'onSuccess', executionIndex: hIdx, nodeTypeName: 'exprExtraSink' }, hResult.onSuccess);
@@ -13482,7 +13482,7 @@ export async function testWorkflow(
       try {
         const ok_execute = aIdx !== undefined ? await ctx.getVariable({ id: 'a', portName: 'onSuccess', executionIndex: aIdx, nodeTypeName: 'brA' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'a', portName: 'result', executionIndex: aIdx!, nodeTypeName: 'brA' }) as number;
+        const ok_value = aIdx !== undefined ? await ctx.getVariable({ id: 'a', portName: 'result', executionIndex: aIdx, nodeTypeName: 'brA' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
         const okResult = okSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -14083,7 +14083,7 @@ export async function testWorkflow(
       try {
         const mh_execute = mbIdx !== undefined ? await ctx.getVariable({ id: 'mb', portName: 'onSuccess', executionIndex: mbIdx, nodeTypeName: 'mapBranch' }) as boolean : false;
         await ctx.setVariable({ id: 'mh', portName: 'execute', executionIndex: mhIdx, nodeTypeName: 'mapSink', durable: false }, mh_execute);
-        const mh_value = await ctx.getVariable({ id: 'mb', portName: 'results', executionIndex: mbIdx!, nodeTypeName: 'mapBranch' }) as number;
+        const mh_value = mbIdx !== undefined ? await ctx.getVariable({ id: 'mb', portName: 'results', executionIndex: mbIdx, nodeTypeName: 'mapBranch' }) as number : undefined;
         await ctx.setVariable({ id: 'mh', portName: 'value', executionIndex: mhIdx, nodeTypeName: 'mapSink', durable: false }, mh_value);
         const mhResult = mapSink(mh_execute, mh_value);
         await ctx.setVariable({ id: 'mh', portName: 'onSuccess', executionIndex: mhIdx, nodeTypeName: 'mapSink' }, mhResult.onSuccess);
@@ -15071,7 +15071,7 @@ export async function testWorkflow(
       try {
         const sk_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'scopedFn' }) as boolean : false;
         await ctx.setVariable({ id: 'sk', portName: 'execute', executionIndex: skIdx, nodeTypeName: 'nodeScopedSink', durable: false }, sk_execute);
-        const sk_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'scopedFn' }) as number;
+        const sk_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'scopedFn' }) as number : undefined;
         await ctx.setVariable({ id: 'sk', portName: 'value', executionIndex: skIdx, nodeTypeName: 'nodeScopedSink', durable: false }, sk_value);
         const skResult = nodeScopedSink(sk_execute, sk_value);
         await ctx.setVariable({ id: 'sk', portName: 'onSuccess', executionIndex: skIdx, nodeTypeName: 'nodeScopedSink' }, skResult.onSuccess);
@@ -15610,7 +15610,7 @@ export async function testWorkflow(
       try {
         const fail_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onFailure', executionIndex: bIdx, nodeTypeName: 'br' }) as boolean : false;
         await ctx.setVariable({ id: 'fail', portName: 'execute', executionIndex: failIdx, nodeTypeName: 'failSink', durable: false }, fail_execute);
-        const fail_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'br' }) as number;
+        const fail_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'br' }) as number : undefined;
         await ctx.setVariable({ id: 'fail', portName: 'value', executionIndex: failIdx, nodeTypeName: 'failSink', durable: false }, fail_value);
         const failResult = failSink(fail_execute, fail_value);
         await ctx.setVariable({ id: 'fail', portName: 'onSuccess', executionIndex: failIdx, nodeTypeName: 'failSink' }, failResult.onSuccess);
@@ -16125,7 +16125,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'br' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'br' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'br' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
         const okResult = okSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -16671,7 +16671,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'regScoped' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'regScopedSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'regScoped' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'regScoped' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'regScopedSink', durable: false }, ok_value);
         const okResult = regScopedSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'regScopedSink' }, okResult.onSuccess);
@@ -17198,7 +17198,7 @@ export async function testWorkflow(
       try {
         const sk_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'multiScopeFn' }) as boolean : false;
         await ctx.setVariable({ id: 'sk', portName: 'execute', executionIndex: skIdx, nodeTypeName: 'multiScopeSink', durable: false }, sk_execute);
-        const sk_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'multiScopeFn' }) as number;
+        const sk_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'multiScopeFn' }) as number : undefined;
         await ctx.setVariable({ id: 'sk', portName: 'value', executionIndex: skIdx, nodeTypeName: 'multiScopeSink', durable: false }, sk_value);
         const skResult = multiScopeSink(sk_execute, sk_value);
         await ctx.setVariable({ id: 'sk', portName: 'onSuccess', executionIndex: skIdx, nodeTypeName: 'multiScopeSink' }, skResult.onSuccess);
@@ -17744,7 +17744,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'br' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'br' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'br' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'okSink', durable: false }, ok_value);
         const okResult = okSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'okSink' }, okResult.onSuccess);
@@ -17802,7 +17802,7 @@ export async function testWorkflow(
       try {
         const fail_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onFailure', executionIndex: bIdx, nodeTypeName: 'br' }) as boolean : false;
         await ctx.setVariable({ id: 'fail', portName: 'execute', executionIndex: failIdx, nodeTypeName: 'failSink', durable: false }, fail_execute);
-        const fail_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'br' }) as number;
+        const fail_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'br' }) as number : undefined;
         await ctx.setVariable({ id: 'fail', portName: 'value', executionIndex: failIdx, nodeTypeName: 'failSink', durable: false }, fail_value);
         const failResult = failSink(fail_execute, fail_value);
         await ctx.setVariable({ id: 'fail', portName: 'onSuccess', executionIndex: failIdx, nodeTypeName: 'failSink' }, failResult.onSuccess);
@@ -18337,7 +18337,7 @@ export async function testWorkflow(
       try {
         const ok_execute = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'onSuccess', executionIndex: bIdx, nodeTypeName: 'subWf' }) as boolean : false;
         await ctx.setVariable({ id: 'ok', portName: 'execute', executionIndex: okIdx, nodeTypeName: 'subWfSink', durable: false }, ok_execute);
-        const ok_value = await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx!, nodeTypeName: 'subWf' }) as number;
+        const ok_value = bIdx !== undefined ? await ctx.getVariable({ id: 'b', portName: 'result', executionIndex: bIdx, nodeTypeName: 'subWf' }) as number : undefined;
         await ctx.setVariable({ id: 'ok', portName: 'value', executionIndex: okIdx, nodeTypeName: 'subWfSink', durable: false }, ok_value);
         const okResult = subWfSink(ok_execute, ok_value);
         await ctx.setVariable({ id: 'ok', portName: 'onSuccess', executionIndex: okIdx, nodeTypeName: 'subWfSink' }, okResult.onSuccess);

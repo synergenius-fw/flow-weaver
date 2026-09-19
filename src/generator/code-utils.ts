@@ -7,6 +7,7 @@ import {
   isSuccessPort,
   isFailurePort,
 } from '../constants';
+import { findAllBranchingNodes, findNodesInBranch } from './control-flow';
 
 /**
  * Encode positional durable-gate inputs without admitting JavaScript
@@ -65,6 +66,48 @@ function isPullExecutionSource(workflow: TWorkflowAST, sourceNodeId: string): bo
   if (!instance) return false;
   const nodeType = workflow.nodeTypes.find((candidate) => candidate.name === instance.nodeType);
   return Boolean(instance.config?.pullExecution ?? nodeType?.defaultConfig?.pullExecution);
+}
+
+/**
+ * Whether a source node may not have run by the time a reader reads it.
+ *
+ * A node inside a branch region runs only on the arm that was taken, so a
+ * reader reachable from more than one arm -- a convergence node -- can be
+ * asked for a port belonging to a node that never ran. Its execution index is
+ * then `undefined`, and addressing it at that index is not a wire value: the
+ * continuation validator refuses the whole run over a read the reader was
+ * prepared to find empty.
+ *
+ * This mirrors the condition the Exit path already applies to the same
+ * question. It is deliberately about the SOURCE's reachability rather than the
+ * reading port's optionality: a required port can be fed by a node that did
+ * not run, which is exactly the case that used to slip through.
+ */
+function sourceMayNotHaveExecuted(
+  workflow: TWorkflowAST,
+  nodeTypes: TNodeTypeAST[],
+  sourceNodeId: string,
+): boolean {
+  if (isStartNode(sourceNodeId) || isExitNode(sourceNodeId)) return false;
+
+  const branchingNodes = findAllBranchingNodes(workflow, nodeTypes);
+  if (branchingNodes.has(sourceNodeId)) return true;
+
+  const allInstanceIds = new Set(workflow.instances.map((instance) => instance.id));
+  for (const branchInstanceId of branchingNodes) {
+    for (const port of [RESERVED_PORT_NAMES.ON_SUCCESS, RESERVED_PORT_NAMES.ON_FAILURE]) {
+      const inBranch = findNodesInBranch(
+        branchInstanceId,
+        port,
+        workflow,
+        allInstanceIds,
+        branchingNodes,
+        nodeTypes,
+      );
+      if (inBranch.has(sourceNodeId)) return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -446,9 +489,16 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
         const paramIndex = args.length; // Current position in the function's parameter list
         const portType = isPrimitive ? rawPortType : `Parameters<typeof ${node.functionName}>[${paramIndex}]`;
 
-        // For optional ports on non-const sources, guard against undefined execution index.
-        // This is critical for DISJUNCTION nodes where the source may not have executed.
-        const needsGuard = portConfig.optional && !isConstSource;
+        // Guard against an undefined execution index whenever the source may
+        // not have run: an optional port on a non-const source (DISJUNCTION
+        // nodes), or any source inside a branch region, whose index is unset
+        // on the arm that was not taken. The second case applies even to a
+        // required port -- a convergence node reachable from several arms has
+        // to read ports from all of them, and the ones belonging to arms that
+        // did not run are legitimately absent.
+        const needsGuard =
+          !isConstSource &&
+          (portConfig.optional || sourceMayNotHaveExecuted(workflow, workflow.nodeTypes, sourceNode));
 
         // For FUNCTION type ports, add resolution step to handle registry IDs
         if (portConfig.dataType === 'FUNCTION') {

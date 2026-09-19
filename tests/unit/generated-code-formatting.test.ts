@@ -157,9 +157,13 @@ export function branchingWorkflow(
       expect(generatedCode).toMatch(/doublerIdx !== undefined \?/);
     });
 
-    it('should use non-null assertion only for let variables', () => {
-      // validatorIdx is let, so needs ! when reading
-      expect(generatedCode).toMatch(/executionIndex: validatorIdx!/);
+    it('guards a read from a branching node instead of asserting its index', () => {
+      // validator is a branching node, so a downstream reader cannot assume it
+      // ran: its index is read behind an undefined check, never with `!`.
+      // (A bare `validatorIdx!` used to address the node at `undefined` on the
+      // arm where it never executed.)
+      expect(generatedCode).toMatch(/validatorIdx !== undefined \? [^\n]*executionIndex: validatorIdx,/);
+      expect(generatedCode).not.toMatch(/validatorIdx!/);
     });
   });
 
