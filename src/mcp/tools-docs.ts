@@ -3,6 +3,14 @@ import { z } from 'zod';
 import { listTopics, readTopic, searchDocs } from '../docs/index.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
 
+const SEARCH_LIMIT_DEFAULT = 8;
+const SEARCH_LIMIT_MAX = 20;
+const EXCERPT_MAX_CHARS = 300;
+
+function trimExcerpt(excerpt: string): string {
+  return excerpt.length > EXCERPT_MAX_CHARS ? `${excerpt.slice(0, EXCERPT_MAX_CHARS)}…` : excerpt;
+}
+
 export function registerDocsTools(mcp: McpServer): void {
   mcp.tool(
     'fw_docs',
@@ -12,8 +20,21 @@ export function registerDocsTools(mcp: McpServer): void {
       topic: z.string().optional().describe('Topic slug to read (for action="read")'),
       query: z.string().optional().describe('Search query (for action="search")'),
       compact: z.boolean().optional().describe('Return compact LLM-friendly version (default: false)'),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(SEARCH_LIMIT_MAX)
+        .optional()
+        .describe(`Number of search hits to return (default: ${SEARCH_LIMIT_DEFAULT}, max: ${SEARCH_LIMIT_MAX})`),
     },
-    async (args: { action: 'list' | 'read' | 'search'; topic?: string; query?: string; compact?: boolean }) => {
+    async (args: {
+      action: 'list' | 'read' | 'search';
+      topic?: string;
+      query?: string;
+      compact?: boolean;
+      limit?: number;
+    }) => {
       try {
         switch (args.action) {
           case 'list': {
@@ -56,13 +77,18 @@ export function registerDocsTools(mcp: McpServer): void {
               return makeErrorResult('MISSING_PARAM', 'The "query" parameter is required for action="search"');
             }
             const results = searchDocs(args.query);
+            // Every hit is paid for in the assistant's context, and the top
+            // few carry the answer: return a short list by default, say how
+            // many matched, and keep each excerpt to a glance.
+            const limit = Math.min(Math.max(args.limit ?? SEARCH_LIMIT_DEFAULT, 1), SEARCH_LIMIT_MAX);
             return makeToolResult({
               query: args.query,
-              results: results.slice(0, 20).map((r) => ({
+              total: results.length,
+              results: results.slice(0, limit).map((r) => ({
                 topic: r.topic,
                 slug: r.slug,
                 heading: r.heading,
-                excerpt: r.excerpt,
+                excerpt: trimExcerpt(r.excerpt),
                 relevance: r.relevance,
               })),
             });

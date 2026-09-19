@@ -46,7 +46,7 @@ export const ERROR_HINTS: Record<string, string> = {
   STEP_PORT_TYPE_MISMATCH:
     'STEP ports (execute, onSuccess, onFailure) can only connect to other STEP ports',
   MULTIPLE_CONNECTIONS_TO_INPUT:
-    'Data inputs accept only one connection. Use a merge node or separate ports',
+    'A data input takes one connection unless the port declares how to combine several: `@input name [mergeStrategy:FIRST|LAST|COLLECT|MERGE|CONCAT]` on the node type. Otherwise use separate ports',
   UNUSED_NODE: 'Connect this node or remove it with fw_modify(operation="removeNode")',
   NO_START_CONNECTIONS:
     'Add @connect Start.portName -> node.port, or use fw_modify(operation="addConnection") to wire it.',

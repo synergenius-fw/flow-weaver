@@ -150,19 +150,46 @@ describe('tools-docs (fw_docs)', () => {
       expect(data.results).toHaveLength(1);
     });
 
-    it('truncates results to 20', async () => {
-      const manyResults = Array.from({ length: 30 }, (_, i) => ({
-        topic: `Topic ${i}`,
-        slug: `topic-${i}`,
-        heading: `Heading ${i}`,
-        excerpt: `Content ${i}`,
-        relevance: 30 - i,
-      }));
+    // Every hit costs tokens on the assistant's side, and the top few carry
+    // the answer: the default is small, `limit` opens it up to a hard cap.
+    const manyResults = Array.from({ length: 30 }, (_, i) => ({
+      topic: `Topic ${i}`,
+      slug: `topic-${i}`,
+      heading: `Heading ${i}`,
+      excerpt: `Content ${i}`,
+      relevance: 30 - i,
+    }));
+
+    it('returns the eight best hits by default', async () => {
       mockSearchDocs.mockReturnValue(manyResults);
 
       const result = parseResult(await callDocs({ action: 'search', query: 'test' }));
       expect(result.success).toBe(true);
-      expect((result.data as { results: unknown[] }).results).toHaveLength(20);
+      const data = result.data as { results: Array<{ slug: string }>; total: number };
+      expect(data.results).toHaveLength(8);
+      expect(data.results[0].slug).toBe('topic-0');
+      expect(data.total).toBe(30);
+    });
+
+    it('honours limit, capped at 20', async () => {
+      mockSearchDocs.mockReturnValue(manyResults);
+
+      const twelve = parseResult(await callDocs({ action: 'search', query: 'test', limit: 12 }));
+      expect((twelve.data as { results: unknown[] }).results).toHaveLength(12);
+
+      const capped = parseResult(await callDocs({ action: 'search', query: 'test', limit: 50 }));
+      expect((capped.data as { results: unknown[] }).results).toHaveLength(20);
+    });
+
+    it('trims a long excerpt to its first 300 characters', async () => {
+      mockSearchDocs.mockReturnValue([
+        { topic: 'T', slug: 't', heading: 'H', excerpt: 'x'.repeat(1000), relevance: 1 },
+      ]);
+
+      const result = parseResult(await callDocs({ action: 'search', query: 'test' }));
+      const [hit] = (result.data as { results: Array<{ excerpt: string }> }).results;
+      expect(hit.excerpt).toHaveLength(301);
+      expect(hit.excerpt.endsWith('…')).toBe(true);
     });
 
     it('returns error when query param is missing', async () => {

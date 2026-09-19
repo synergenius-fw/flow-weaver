@@ -73,6 +73,16 @@ describe('ERROR_HINTS', () => {
     expect(ERROR_HINTS['AGENT_UNGUARDED_TOOL_EXECUTOR']).toBeDefined();
     expect(ERROR_HINTS['AGENT_MISSING_MEMORY_IN_LOOP']).toBeDefined();
   });
+
+  it('points a fan-in error at the port-level mergeStrategy, not only at rewiring', () => {
+    // The docs say to declare `[mergeStrategy:X]` on the port; a hint that
+    // only offers "a merge node or separate ports" sends the author away from
+    // the one-line fix the compiler supports.
+    const hint = ERROR_HINTS['MULTIPLE_CONNECTIONS_TO_INPUT'];
+    expect(hint).toContain('mergeStrategy');
+    expect(hint).toMatch(/FIRST|COLLECT/);
+    expect(hint).toContain('separate ports');
+  });
 });
 
 describe('addHintsToItems', () => {
