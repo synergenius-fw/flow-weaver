@@ -322,6 +322,59 @@ describe('agent validation rules', () => {
       const errors = unguardedToolExecutorRule.validate(ast);
       expect(errors).toHaveLength(0);
     });
+
+    it('stays silent when the tool-executor role rests only on @color', () => {
+      // A pure read of a design file, coloured cyan because the palette says
+      // cyan is for network/cloud. Nothing about its ports, icon or name says
+      // "tool executor"; a colour is not evidence that it performs an action.
+      const reader = makeNodeType({
+        name: 'extractDesign',
+        functionName: 'extractDesign',
+        inputs: { execute: { dataType: 'STEP' as any }, ref: { dataType: 'OBJECT' as any } },
+        outputs: {
+          onSuccess: { dataType: 'STEP' as any },
+          onFailure: { dataType: 'STEP' as any },
+          extract: { dataType: 'OBJECT' as any },
+        },
+        hasSuccessPort: true,
+        hasFailurePort: true,
+        visuals: { color: 'cyan' },
+      });
+      const ast = makeWorkflow({
+        nodeTypes: [reader],
+        instances: [makeInstance('extract', 'extractDesign')],
+        connections: [
+          conn('Start', 'execute', 'extract', 'execute'),
+          conn('extract', 'onSuccess', 'Exit', 'onSuccess'),
+        ],
+      });
+
+      expect(unguardedToolExecutorRule.validate(ast)).toHaveLength(0);
+    });
+
+    it('still warns when the role comes from an explicit @icon', () => {
+      const tool = makeNodeType({
+        name: 'runIt',
+        functionName: 'runIt',
+        inputs: { execute: { dataType: 'STEP' as any }, ref: { dataType: 'OBJECT' as any } },
+        outputs: { onSuccess: { dataType: 'STEP' as any }, onFailure: { dataType: 'STEP' as any } },
+        hasSuccessPort: true,
+        hasFailurePort: true,
+        visuals: { color: 'cyan', icon: 'build' },
+      });
+      const ast = makeWorkflow({
+        nodeTypes: [tool],
+        instances: [makeInstance('run', 'runIt')],
+        connections: [
+          conn('Start', 'execute', 'run', 'execute'),
+          conn('run', 'onSuccess', 'Exit', 'onSuccess'),
+        ],
+      });
+
+      const errors = unguardedToolExecutorRule.validate(ast);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].node).toBe('run');
+    });
   });
 
   describe('AGENT_MISSING_MEMORY_IN_LOOP', () => {
@@ -462,6 +515,29 @@ describe('agent validation rules', () => {
   });
 
   describe('AGENT_TOOL_NO_OUTPUT_HANDLING', () => {
+    it('stays silent when the tool-executor role rests only on @color', () => {
+      const reader = makeNodeType({
+        name: 'extractDesign',
+        functionName: 'extractDesign',
+        inputs: { execute: { dataType: 'STEP' as any } },
+        outputs: {
+          onSuccess: { dataType: 'STEP' as any },
+          onFailure: { dataType: 'STEP' as any },
+          extract: { dataType: 'OBJECT' as any },
+        },
+        hasSuccessPort: true,
+        hasFailurePort: true,
+        visuals: { color: 'cyan' },
+      });
+      const ast = makeWorkflow({
+        nodeTypes: [reader],
+        instances: [makeInstance('extract', 'extractDesign')],
+        connections: [conn('Start', 'execute', 'extract', 'execute')],
+      });
+
+      expect(toolNoOutputHandlingRule.validate(ast)).toHaveLength(0);
+    });
+
     it('should warn when tool data outputs are all unconnected', () => {
       const ast = makeWorkflow({
         nodeTypes: [toolNodeType()],

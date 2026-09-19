@@ -62,6 +62,24 @@ function getInstancesByRole(
 }
 
 /**
+ * Tool executors whose role is backed by something other than colour alone.
+ *
+ * A role that rests only on `@color` is a guess about a palette choice: cyan
+ * is documented for network and cloud nodes, so a node that merely reads a
+ * remote file wears it. Rule 1 already treats a colour-only role as too weak
+ * to block on; the tool-executor rules go further and skip it, because a
+ * warning about approving "destructive actions" on a node that performs none
+ * is exactly the kind of noise that teaches authors to suppress warnings
+ * without reading them. Ports, an explicit `@icon`, or a name that says
+ * "execute" remain enough to warn.
+ */
+function getToolExecutors(ast: TWorkflowAST) {
+  return getInstancesByRole(ast, 'tool-executor').filter(
+    ({ nodeType }) => detectNodeRoleSignal(nodeType)?.signal !== 'color',
+  );
+}
+
+/**
  * Get all transitive upstream node IDs for a given node.
  * Walks backwards through connections (BFS).
  */
@@ -137,7 +155,7 @@ export const unguardedToolExecutorRule: TValidationRule = {
   name: 'AGENT_UNGUARDED_TOOL_EXECUTOR',
   validate(ast: TWorkflowAST): TValidationError[] {
     const errors: TValidationError[] = [];
-    const toolInstances = getInstancesByRole(ast, 'tool-executor');
+    const toolInstances = getToolExecutors(ast);
     const approvalInstances = getInstancesByRole(ast, 'human-approval');
 
     // If no tool executors, nothing to check
@@ -283,7 +301,7 @@ export const toolNoOutputHandlingRule: TValidationRule = {
   name: 'AGENT_TOOL_NO_OUTPUT_HANDLING',
   validate(ast: TWorkflowAST): TValidationError[] {
     const errors: TValidationError[] = [];
-    const toolInstances = getInstancesByRole(ast, 'tool-executor');
+    const toolInstances = getToolExecutors(ast);
 
     const stepPorts = new Set(['onSuccess', 'onFailure', 'execute']);
 
