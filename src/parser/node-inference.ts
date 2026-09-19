@@ -72,6 +72,10 @@ export function extractNodeTypes(
           ...(portDef.hidden && { hidden: portDef.hidden }),
           ...(portDef.metadata && { metadata: portDef.metadata }),
           ...(portDef.tsType && { tsType: portDef.tsType }),
+          // The fan-in strategy is what lets the validator accept several
+          // connections into this port and tells the generator how to combine
+          // them; dropping it here silently turned every strategy into FIRST.
+          ...(portDef.mergeStrategy && { mergeStrategy: portDef.mergeStrategy }),
         };
       }
     }

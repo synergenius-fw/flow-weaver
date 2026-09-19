@@ -572,7 +572,23 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
             attempts.push(`(${sourceIdx} !== undefined ? ${getExpr} : undefined)`);
           }
         });
-        const ternary = attempts.join(' ?? ');
+        // Combine the sources as the port's mergeStrategy asks. Each attempt is
+        // already a guarded read that yields undefined when its source did not
+        // run (a fan-in usually joins arms of a branch), so the strategies
+        // that keep several values first drop the arms that never arrived.
+        // Without a strategy the first value wins, as it always has.
+        const strategy = portConfig.mergeStrategy;
+        const arrived = `[${attempts.join(', ')}].filter((v) => v !== undefined)`;
+        const ternary =
+          strategy === 'LAST'
+            ? `${arrived}.pop()`
+            : strategy === 'COLLECT'
+              ? arrived
+              : strategy === 'CONCAT'
+                ? `${arrived}.flat()`
+                : strategy === 'MERGE'
+                  ? `Object.assign({}, ...${arrived})`
+                  : attempts.join(' ?? ');
         const rawPortType2 = mapToTypeScript(portConfig.dataType, portConfig.tsType);
         const isPrimitive2 = /^(string|number|boolean|void|unknown|any|never|null|undefined)(\[\])?$/.test(
           rawPortType2,
