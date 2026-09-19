@@ -63,3 +63,5 @@ Flow Weaver compiles workflows you describe with JSDoc annotations into plain Ty
 - Node ids and workflow function names are camelCase
 - After `fw_modify` or a hand edit, run `fw_validate` before anything else
 - `fw_modify` never compiles a file that was not already compiled in place; `fw_compile` and `fw_run` do that
+- Hand a gate only what its resolver needs; a later node reads larger values across the gate from the node that produced them (see `durable-gates`)
+- In a worktree or a second checkout, `fw_doctor` says which install the MCP server runs from; rebuilding anywhere else changes nothing it does

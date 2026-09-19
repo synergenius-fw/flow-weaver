@@ -157,8 +157,28 @@ Sequencing matters too: driving two nodes from the same `gate.onSuccess` makes
 them siblings rather than a sequence, which fails at resume with
 `$.executionIndex is not a plain wire value`.
 
-A worked example with both rules applied is in
-`use-cases/resume-yield-demo/incident-triage.ts`.
+Two further rules keep a gated workflow cheap to resolve and honest on its
+failure arms:
+
+- **Hand a gate only what its resolver needs.** A gate's inputs are serialized
+  into the continuation and shown to whoever resolves it -- an assistant, a
+  person -- on every yield. A value that a *later* node needs does not travel
+  through the gate: the later node reads it across the gate from the node that
+  produced it, which is allowed because that reader is not itself a boundary.
+  Threading a large object through an approval gate "so the next node can have
+  it" puts the whole object in front of an approver who only needed the plan.
+- **Converge refusal arms on one reporting node, wired explicitly.** A node that
+  must run on `check:fail`, on `plan:fail` and after the last step is not
+  reached by `@path Start -> ... -> Exit` alone; write each arm:
+  `@path check:fail -> report`, `@path plan:fail -> report`, `@path last ->
+  report -> Exit`. Give each refusal its own input port (or declare a
+  `mergeStrategy` on a shared one): on any given arm the other producers did
+  not run, and their ports arrive as `undefined`. The reporter decides the
+  outcome from what actually arrived, not from which arm called it.
+
+Worked examples: `use-cases/resume-yield-demo/incident-triage.ts` (two gates,
+both region rules) and `use-cases/figma-to-page/figma-to-page.ts` (four gates,
+a value read across the approval gate, three arms converging on a report node).
 
 ## What happens at a gate
 
