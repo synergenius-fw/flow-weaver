@@ -24,6 +24,7 @@ import {
   VALID_NODE_COLORS,
   EXECUTION_STRATEGIES,
 } from '../constants';
+import * as ts from 'typescript';
 import { findClosestMatches } from '../utils/string-distance.js';
 import { parseFunctionSignature } from '../jsdoc-port-sync/signature-parser.js';
 import { checkTypeCompatibilityFromStrings } from '../type-checker.js';
@@ -1527,6 +1528,65 @@ export function validatePortConfigReferences(
           location: instance.sourceLocation,
         });
       }
+    }
+  }
+}
+
+// ── M2: expression syntax ────────────────────────────────────────────
+
+/**
+ * Why an expression will not parse as JavaScript, or null when it does.
+ *
+ * An `[expr:]` binding is JavaScript that the generator pastes into the body
+ * verbatim. One that does not parse -- `timeout="24h"` where the author meant
+ * the string `'24h'` -- used to survive parse, validate and compile, and only
+ * failed when the generated file was transpiled, on a line the author never
+ * wrote. Checking it here puts the error on the annotation, with the fix.
+ */
+function expressionSyntaxProblem(expression: string): string | null {
+  const text = expression.trim();
+  if (text.length === 0) return null;
+  const { diagnostics } = ts.transpileModule(`(${text});`, {
+    reportDiagnostics: true,
+    compilerOptions: { target: ts.ScriptTarget.Latest, module: ts.ModuleKind.ESNext },
+  });
+  if (!diagnostics || diagnostics.length === 0) return null;
+  const reason = ts.flattenDiagnosticMessageText(diagnostics[0].messageText, ' ');
+  // A bare word or a value-with-unit is almost always meant as text: say so,
+  // with the exact attribute to write.
+  const looksLikeText = /^[A-Za-z0-9][\w\s.,:%/-]*$/.test(text) && !/^[A-Za-z_$][\w$]*(\.[\w$]+)*$/.test(text);
+  const hint = looksLikeText
+    ? ` If you meant the text ${JSON.stringify(text)}, quote it inside the attribute: ="'${text}'".`
+    : '';
+  return `${reason}.${hint}`;
+}
+
+export function validateExpressionSyntax(ctx: ValidationContext, workflow: TWorkflowAST): void {
+  for (const instance of workflow.instances) {
+    for (const pc of instance.config?.portConfigs ?? []) {
+      if (pc.expression === undefined) continue;
+      const problem = expressionSyntaxProblem(pc.expression);
+      if (!problem) continue;
+      ctx.errors.push({
+        type: 'error',
+        code: 'EXPRESSION_SYNTAX',
+        message: `The [expr:] binding for "${pc.portName}" on "${instance.id}" is not a JavaScript expression: ${pc.expression}. ${problem}`,
+        node: instance.id,
+        location: instance.sourceLocation,
+      });
+    }
+  }
+  for (const nodeType of workflow.nodeTypes) {
+    for (const [portName, port] of Object.entries(nodeType.inputs)) {
+      if (port.expression === undefined) continue;
+      const problem = expressionSyntaxProblem(port.expression);
+      if (!problem) continue;
+      ctx.errors.push({
+        type: 'error',
+        code: 'EXPRESSION_SYNTAX',
+        message: `The Expression: default of input "${portName}" on node type "${nodeType.functionName}" is not a JavaScript expression: ${port.expression}. ${problem}`,
+        location: nodeType.sourceLocation,
+      });
     }
   }
 }

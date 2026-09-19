@@ -48,6 +48,8 @@ export const ERROR_HINTS: Record<string, string> = {
   MULTIPLE_CONNECTIONS_TO_INPUT:
     'A data input takes one connection unless the port declares how to combine several: `@input name [mergeStrategy:FIRST|LAST|COLLECT|MERGE|CONCAT]` on the node type. Otherwise use separate ports',
   UNUSED_NODE: 'Connect this node or remove it with fw_modify(operation="removeNode")',
+  EXPRESSION_SYNTAX:
+    'An [expr:] value is JavaScript. Text needs quotes inside the attribute (timeout="\'24h\'"); an upstream port is read as node.port (agentId="prep.agentId"); see advanced-annotations',
   NO_START_CONNECTIONS:
     'Add @connect Start.portName -> node.port, or use fw_modify(operation="addConnection") to wire it.',
   NO_EXIT_CONNECTIONS:

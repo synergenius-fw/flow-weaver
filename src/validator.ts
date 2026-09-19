@@ -25,6 +25,7 @@ import {
   validateVisualAnnotations,
   validatePortTypes,
   validatePortConfigReferences,
+  validateExpressionSyntax,
   validateExecuteWhen,
   validateScopeTopology,
 } from './validation/core-rules.js';
@@ -201,6 +202,7 @@ export class WorkflowValidator {
       { name: 'visualAnnotations', run: () => validateVisualAnnotations(ctx, workflow, instanceMap) },
       { name: 'portTypes', run: () => validatePortTypes(ctx, workflow) },
       { name: 'portConfigReferences', run: () => validatePortConfigReferences(ctx, workflow, instanceMap) },
+      { name: 'expressionSyntax', run: () => validateExpressionSyntax(ctx, workflow) },
       { name: 'executeWhen', run: () => validateExecuteWhen(ctx, workflow) },
       { name: 'scopeTopology', run: () => validateScopeTopology(ctx, workflow, instanceMap) },
     ];

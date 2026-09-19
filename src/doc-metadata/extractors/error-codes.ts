@@ -496,6 +496,13 @@ export const VALIDATION_CODES: TValidationCodeDoc[] = [
     category: 'structural',
   },
   {
+    code: 'EXPRESSION_SYNTAX',
+    severity: 'error',
+    title: 'Expression Is Not JavaScript',
+    description: 'An [expr:] binding or an Expression: default does not parse as a JavaScript expression (text needs quotes inside the attribute: timeout="\'24h\'"); it would otherwise fail only when the generated file is transpiled',
+    category: 'structural',
+  },
+  {
     code: 'DURABLE_CLOSURE_INVALID',
     severity: 'error',
     title: 'Invalid Durable Closure',
