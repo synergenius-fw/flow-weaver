@@ -350,7 +350,7 @@ export const VALIDATION_CODES: TValidationCodeDoc[] = [
     code: 'DESIGN_ASYNC_NO_ERROR_PATH',
     severity: 'warning',
     title: 'Async Node Missing Error Path',
-    description: 'Async node has no onFailure connection',
+    description: 'Async node has no onFailure connection (durable gates are exempt: their body never runs and their failure arm is the resolver\'s rejection)',
     category: 'design',
   },
   {

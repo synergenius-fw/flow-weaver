@@ -198,6 +198,41 @@ describe('DESIGN_ASYNC_NO_ERROR_PATH', () => {
     const errors = asyncNoErrorPathRule.validate(ast);
     expect(errors).toHaveLength(0);
   });
+
+  it('does not trigger for a durable gate, whose body never runs', () => {
+    // A gate is async and normal-mode by contract, and its onFailure is the
+    // resolver's rejection, not an operation that can fail. The durable-gates
+    // topic tells authors to leave that arm unwired unless they route it --
+    // wiring it can make the gate a second branch region. Warning here asks
+    // for the opposite of the documented rule, on every gate, every time.
+    const gate = (durableGate?: 'approval') =>
+      makeNodeType({
+        name: 'signOff',
+        isAsync: true,
+        hasSuccessPort: true,
+        hasFailurePort: true,
+        inputs: { execute: { dataType: 'STEP' }, plan: { dataType: 'OBJECT' } },
+        outputs: {
+          onSuccess: { dataType: 'STEP' },
+          onFailure: { dataType: 'STEP' },
+          decision: { dataType: 'OBJECT' },
+        },
+        ...(durableGate && { durableGate }),
+      });
+    const workflowWith = (nt: TNodeTypeAST) =>
+      makeWorkflow({
+        nodeTypes: [nt],
+        instances: [makeInstance('gate', 'signOff')],
+        connections: [
+          conn('Start', 'execute', 'gate', 'execute'),
+          conn('gate', 'onSuccess', 'Exit', 'onSuccess'),
+        ],
+      });
+
+    expect(asyncNoErrorPathRule.validate(workflowWith(gate('approval')))).toHaveLength(0);
+    // The same node without the gate contract is an ordinary async call.
+    expect(asyncNoErrorPathRule.validate(workflowWith(gate()))).toHaveLength(1);
+  });
 });
 
 // ---------------------------------------------------------------------------

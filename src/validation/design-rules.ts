@@ -87,6 +87,13 @@ export const asyncNoErrorPathRule: TValidationRule = {
       if (!nt) continue;
       if (!nt.isAsync) continue;
       if (!nt.hasFailurePort) continue;
+      // A durable gate is async and normal-mode by contract, but its body
+      // never runs: onFailure is the resolver's rejection, not an operation
+      // that can fail. The durable-gates topic tells authors to leave that
+      // arm unwired unless they route it (wiring it can make the gate a
+      // second branch region), so warning here would ask for the opposite of
+      // the documented rule on every gate, every time.
+      if (nt.durableGate !== undefined) continue;
 
       const failureConns = getOutgoing(ast, instance.id, 'onFailure');
       if (failureConns.length === 0) {

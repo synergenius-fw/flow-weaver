@@ -244,9 +244,9 @@ export function recordOutcome(
  * @returns outcome - Outcome
  * @returns status - Status
  * @node frame frameIncident [position: -250 0]
- * @node plan waitForAgent [expr: agentId="frame.task.agentId", context="frame.task.context", prompt="frame.task.prompt"] [suppress: "DESIGN_ASYNC_NO_ERROR_PATH"] [position: -60 0]
+ * @node plan waitForAgent [expr: agentId="frame.task.agentId", context="frame.task.context", prompt="frame.task.prompt"] [position: -60 0]
  * @node check checkPlan [position: 130 0]
- * @node signoff signOff [suppress: "DESIGN_ASYNC_NO_ERROR_PATH"] [position: 320 0]
+ * @node signoff signOff [position: 320 0]
  * @node record recordOutcome [position: 520 0]
  * @path Start -> frame -> plan -> check -> signoff -> Exit
  * @connect plan.agentResult -> check.agentResult

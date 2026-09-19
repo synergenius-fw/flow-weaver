@@ -777,7 +777,7 @@ These rules detect common workflow design problems that compile fine but indicat
 | AGENT_MISSING_MEMORY_IN_LOOP | Loop has LLM but no conversation memory node |
 | AGENT_LLM_NO_FALLBACK | LLM onFailure routes directly to Exit |
 | AGENT_TOOL_NO_OUTPUT_HANDLING | Tool executor data outputs all unconnected |
-| DESIGN_ASYNC_NO_ERROR_PATH | Async node has no onFailure connection |
+| DESIGN_ASYNC_NO_ERROR_PATH | Async node has no onFailure connection (durable gates are exempt: their body never runs and their failure arm is the resolver's rejection) |
 | DESIGN_SCOPE_NO_FAILURE_EXIT | Scope node has no failure path out |
 | DESIGN_UNBOUNDED_RETRY | Retry scope has no visible attempt limit |
 | DESIGN_FANOUT_NO_FANIN | Fan-out to multiple step targets with no merge back |
