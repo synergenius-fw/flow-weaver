@@ -101,36 +101,64 @@ export function extractNodeTypes(
       config.expression = true;
     }
 
-    // Auto-infer ports for @expression nodes when @input/@output are missing.
-    // If the function has @expression but no explicit port annotations, infer
-    // data ports from the TypeScript function signature (same logic as unannotated functions).
+    // For @expression nodes the signature is the interface and annotations
+    // refine it. Infer the data ports from the signature, then decide per
+    // direction how the explicit ports relate to them:
+    //   - none explicit           -> the inferred ports
+    //   - explicit ⊂ inferred     -> a partial annotation: the inferred ports,
+    //                                with each explicit one overlaid (label,
+    //                                order, strategy, optional, default; a
+    //                                specific dataType wins over an inferred
+    //                                one, ANY does not)
+    //   - explicit covers every inferred port, or names one the signature
+    //     lacks              -> the author is stating the interface (a full
+    //                                list, a rename, a virtual port), and the
+    //                                explicit list stands as written
+    // Treating one annotated port as "the author listed the ports" used to
+    // drop every other parameter and return field, and the first symptom was
+    // a workflow-level UNKNOWN_TARGET_PORT on a port the function plainly has.
     if (config.expression) {
-      const hasExplicitDataInputs = Object.keys(inputs).some((k) => k !== 'execute');
-      const hasExplicitDataOutputs = Object.keys(outputs).some(
-        (k) => k !== 'onSuccess' && k !== 'onFailure'
+      const inferred = inferNodeTypeFromFunction(
+        fn,
+        nodeTypeName,
+        fn.getSourceFile().getFilePath()
       );
-
-      if (!hasExplicitDataInputs || !hasExplicitDataOutputs) {
-        const inferred = inferNodeTypeFromFunction(
-          fn,
-          nodeTypeName,
-          fn.getSourceFile().getFilePath()
+      const reconcile = (
+        explicit: Record<string, TPortDefinition>,
+        inferredPorts: Record<string, TPortDefinition>,
+        isControl: (name: string) => boolean,
+      ): Record<string, TPortDefinition> => {
+        const explicitData = Object.entries(explicit).filter(([name]) => !isControl(name));
+        const inferredData = Object.entries(inferredPorts).filter(([name]) => !isControl(name));
+        if (explicitData.length === 0) return Object.fromEntries(inferredData);
+        const inferredNames = new Set(inferredData.map(([name]) => name));
+        const isPartial =
+          explicitData.length < inferredData.length &&
+          explicitData.every(([name]) => inferredNames.has(name));
+        // A copy: the caller clears and refills the original record.
+        if (!isPartial) return Object.fromEntries(explicitData);
+        const explicitByName = new Map(explicitData);
+        return Object.fromEntries(
+          inferredData.map(([name, port]) => {
+            const override = explicitByName.get(name);
+            if (!override) return [name, port];
+            const refined: TPortDefinition = { ...port };
+            for (const [key, value] of Object.entries(override) as Array<[keyof TPortDefinition, unknown]>) {
+              if (value === undefined) continue;
+              if (key === 'dataType' && value === 'ANY') continue;
+              if (key === 'label' && typeof value === 'string' && value.length === 0) continue;
+              (refined as Record<string, unknown>)[key] = value;
+            }
+            return [name, refined];
+          }),
         );
-        if (!hasExplicitDataInputs) {
-          // Copy inferred data inputs (skip control flow ports)
-          for (const [portName, portDef] of Object.entries(inferred.inputs)) {
-            if (portName === 'execute') continue;
-            inputs[portName] = portDef;
-          }
-        }
-        if (!hasExplicitDataOutputs) {
-          // Copy inferred data outputs (skip control flow ports)
-          for (const [portName, portDef] of Object.entries(inferred.outputs)) {
-            if (portName === 'onSuccess' || portName === 'onFailure') continue;
-            outputs[portName] = portDef;
-          }
-        }
-      }
+      };
+      const reconciledInputs = reconcile(inputs, inferred.inputs, (n) => n === 'execute');
+      const reconciledOutputs = reconcile(outputs, inferred.outputs, (n) => n === 'onSuccess' || n === 'onFailure');
+      for (const key of Object.keys(inputs)) if (key !== 'execute') delete inputs[key];
+      for (const key of Object.keys(outputs)) if (key !== 'onSuccess' && key !== 'onFailure') delete outputs[key];
+      Object.assign(inputs, reconciledInputs);
+      Object.assign(outputs, reconciledOutputs);
     }
 
     // ALL nodes must have execute input and onSuccess/onFailure outputs
