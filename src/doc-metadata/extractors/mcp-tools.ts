@@ -270,7 +270,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_diagram',
     description:
-      'Generate a diagram of a workflow. Formats: svg/html produce visual markup, ascii/ascii-compact/text produce plain text readable in terminal. Provide either filePath (workflow .ts file) or source (inline code).',
+      'Generate a diagram of a workflow. Formats: svg/html produce visual markup, process produces an interactive page of the workflow as a process (steps in execution order, pauses at gates, failure arms, playable), ascii/ascii-compact/text produce plain text readable in terminal. Provide either filePath (workflow .ts file) or source (inline code).',
     category: 'query',
     params: [
       {
@@ -313,9 +313,9 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'format',
         type: 'string',
-        description: 'Output format: svg (default), html (interactive viewer), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)',
+        description: 'Output format: svg (default), html (interactive graph viewer), process (interactive page: steps in execution order, pauses at gates, failure arms, playable), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)',
         required: false,
-        enum: ['svg', 'html', 'ascii', 'ascii-compact', 'text'],
+        enum: ['svg', 'html', 'process', 'ascii', 'ascii-compact', 'text'],
       },
     ],
   },

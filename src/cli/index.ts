@@ -142,7 +142,7 @@ program
   .option('-p, --padding <pixels>', 'Canvas padding in pixels')
   .option('--no-port-labels', 'Hide data type labels on ports')
   .option('-w, --workflow <name>', 'Specific workflow to render')
-  .addOption(new Option('-f, --format <format>', 'Output format').choices(['svg', 'html', 'ascii', 'ascii-compact', 'text']).default('svg'))
+  .addOption(new Option('-f, --format <format>', 'Output format').choices(['svg', 'html', 'process', 'ascii', 'ascii-compact', 'text']).default('svg'))
   .option('-o, --output <file>', 'Write output to file instead of stdout')
   .action(wrapAction(async (input: string, options) => {
       if (options.width) options.width = Number(options.width);

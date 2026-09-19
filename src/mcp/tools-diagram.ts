@@ -9,7 +9,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileToSVG, fileToHTML, fileToASCII, sourceToSVG, sourceToHTML, sourceToASCII } from '../diagram/index.js';
+import { fileToSVG, fileToHTML, fileToASCII, fileToProcessHTML, sourceToSVG, sourceToHTML, sourceToASCII, sourceToProcessHTML } from '../diagram/index.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
 
 const ASCII_FORMATS = new Set(['ascii', 'ascii-compact', 'text']);
@@ -17,7 +17,7 @@ const ASCII_FORMATS = new Set(['ascii', 'ascii-compact', 'text']);
 export function registerDiagramTools(mcp: McpServer): void {
   mcp.tool(
     'fw_diagram',
-    'Generate a diagram of a workflow. Formats: svg/html produce visual markup, ascii/ascii-compact/text produce plain text readable in terminal. ' +
+    'Generate a diagram of a workflow. Formats: svg/html produce visual markup, process produces an interactive page of the workflow as a process (steps in execution order, pauses at gates, failure arms, playable), ascii/ascii-compact/text produce plain text readable in terminal. ' +
       'Provide either filePath (workflow .ts file) or source (inline code).',
     {
       filePath: z
@@ -45,9 +45,9 @@ export function registerDiagramTools(mcp: McpServer): void {
         .optional()
         .describe('Show port labels on diagram (default: true)'),
       format: z
-        .enum(['svg', 'html', 'ascii', 'ascii-compact', 'text'])
+        .enum(['svg', 'html', 'process', 'ascii', 'ascii-compact', 'text'])
         .optional()
-        .describe('Output format: svg (default), html (interactive viewer), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)'),
+        .describe('Output format: svg (default), html (interactive graph viewer), process (interactive page: steps in execution order, pauses at gates, failure arms, playable), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)'),
     },
     async (args: {
       filePath?: string;
@@ -56,7 +56,7 @@ export function registerDiagramTools(mcp: McpServer): void {
       workflowName?: string;
       theme?: 'dark' | 'light';
       showPortLabels?: boolean;
-      format?: 'svg' | 'html' | 'ascii' | 'ascii-compact' | 'text';
+      format?: 'svg' | 'html' | 'process' | 'ascii' | 'ascii-compact' | 'text';
     }) => {
       try {
         if (!args.filePath && !args.source) {
@@ -79,6 +79,8 @@ export function registerDiagramTools(mcp: McpServer): void {
             result = sourceToASCII(args.source, diagramOptions);
           } else if (format === 'html') {
             result = sourceToHTML(args.source, diagramOptions);
+          } else if (format === 'process') {
+            result = sourceToProcessHTML(args.source, diagramOptions);
           } else {
             result = sourceToSVG(args.source, diagramOptions);
           }
@@ -93,6 +95,8 @@ export function registerDiagramTools(mcp: McpServer): void {
             result = fileToASCII(resolvedPath, diagramOptions);
           } else if (format === 'html') {
             result = fileToHTML(resolvedPath, diagramOptions);
+          } else if (format === 'process') {
+            result = fileToProcessHTML(resolvedPath, diagramOptions);
           } else {
             result = fileToSVG(resolvedPath, diagramOptions);
           }

@@ -5,7 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileToSVG, fileToHTML, fileToASCII } from '../../diagram/index.js';
+import { fileToSVG, fileToHTML, fileToASCII, fileToProcessHTML } from '../../diagram/index.js';
 import { parser } from '../../parser.js';
 import { logger } from '../utils/logger.js';
 import { safeWriteFile } from '../utils/safe-write.js';
@@ -19,7 +19,7 @@ export interface DiagramCommandOptions {
   showPortLabels?: boolean;
   workflowName?: string;
   output?: string;
-  format?: 'svg' | 'html' | 'ascii' | 'ascii-compact' | 'text';
+  format?: 'svg' | 'html' | 'process' | 'ascii' | 'ascii-compact' | 'text';
 }
 
 export async function diagramCommand(input: string, options: DiagramCommandOptions = {}): Promise<void> {
@@ -38,6 +38,8 @@ export async function diagramCommand(input: string, options: DiagramCommandOptio
     result = fileToASCII(filePath, { ...diagramOptions, format });
   } else if (format === 'html') {
     result = fileToHTML(filePath, { ...diagramOptions, format });
+  } else if (format === 'process') {
+    result = fileToProcessHTML(filePath, { ...diagramOptions, format });
   } else {
     result = fileToSVG(filePath, diagramOptions);
   }

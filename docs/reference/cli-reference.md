@@ -379,7 +379,7 @@ fw diagram <input> [options]
 | `-p, --padding <pixels>` | Canvas padding in pixels | auto |
 | `--no-port-labels` | Hide data type labels on ports | shown |
 | `-w, --workflow <name>` | Specific workflow | all |
-| `-f, --format <format>` | `svg`, `html`, `ascii`, `ascii-compact`, `text` | `svg` |
+| `-f, --format <format>` | `svg`, `html`, `process` (the workflow as a process: steps in run order, pauses, failure arms, playable), `ascii`, `ascii-compact`, `text` | `svg` |
 | `-o, --output <file>` | Write output to file | stdout |
 
 **Examples:**

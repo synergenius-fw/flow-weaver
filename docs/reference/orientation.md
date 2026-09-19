@@ -26,6 +26,7 @@ Flow Weaver compiles workflows you describe with JSDoc annotations into plain Ty
 | Answer one question about structure | `fw_query` with one `query` type | ~300 B |
 | See everything about a file | `fw_describe` | Larger; prefer `fw_query` |
 | Show the graph in chat | `fw_diagram` with `format: "ascii-compact"` | The default `svg` is not readable |
+| Show a person the process | `fw_diagram` with `format: "process"` and an `outputPath` | Steps in run order, pauses, failure arms; playable in a browser |
 | Create a workflow | Write the file: one `@flowWeaver nodeType` function per step, then the `@flowWeaver workflow` stub | `tutorial` walks through it; `fw_scaffold` starts from a template |
 | Change structure | `fw_modify_batch` (several edits) or `fw_modify` (one) | Rewrites annotations only; re-validate afterwards |
 | Run a workflow | `fw_run`, then `fw_resume` if it pauses at a gate | `fw run` on the CLI refuses gated workflows |

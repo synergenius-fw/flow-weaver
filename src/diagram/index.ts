@@ -4,10 +4,33 @@ import { buildDiagramGraph } from './geometry';
 import { renderSVG } from './renderer';
 import { wrapSVGInHTML } from './html-viewer';
 import { renderASCII, renderASCIICompact, renderText } from './ascii-renderer';
+import { renderProcessHTML } from './process-view';
 import type { DiagramOptions } from './types';
 
 export type { DiagramOptions } from './types';
 export { renderASCII, renderASCIICompact, renderText } from './ascii-renderer';
+export { buildProcessModel, renderProcessHTML, renderProcessPage } from './process-view';
+export type { ProcessModel, ProcessStep, ProcessKind, ProcessViewOptions } from './process-view';
+
+/**
+ * Render a workflow AST as a process page: steps in execution order, pauses
+ * at gates, failure arms beside the spine, parallel steps as lanes.
+ */
+export function workflowToProcessHTML(ast: TWorkflowAST, options: DiagramOptions = {}): string {
+  return renderProcessHTML(ast, { title: options.workflowName ?? ast.name, theme: options.theme });
+}
+
+/** Parse source and render the first (or named) workflow as a process page. */
+export function sourceToProcessHTML(code: string, options: DiagramOptions = {}): string {
+  const result = parser.parseFromString(code);
+  return workflowToProcessHTML(pickWorkflow(result.workflows, options), options);
+}
+
+/** Parse a workflow file and render the first (or named) workflow as a process page. */
+export function fileToProcessHTML(filePath: string, options: DiagramOptions = {}): string {
+  const result = parser.parse(filePath);
+  return workflowToProcessHTML(pickWorkflow(result.workflows, options), options);
+}
 
 /**
  * Render a workflow AST to an SVG string.
