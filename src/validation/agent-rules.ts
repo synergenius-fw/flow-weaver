@@ -19,7 +19,7 @@ import type {
   TNodeTypeAST,
   TNodeInstanceAST,
 } from '../ast/types';
-import { detectNodeRole, detectNodeRoleSignal, findNodesByRole } from './agent-detection';
+import { detectNodeRole, detectNodeRoleSignal } from './agent-detection';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -44,6 +44,25 @@ function getOutgoing(ast: TWorkflowAST, nodeId: string, portName?: string) {
   });
 }
 
+/**
+ * The agent role a node type is known to have -- or null when the only signal
+ * is its colour.
+ *
+ * Detection ranks its evidence: ports, then `@icon`, then `@color`, then the
+ * function name, and documents colour as a weak tie-breaker. For these rules
+ * colour alone is not evidence at all: purple is the palette colour for
+ * deployment and cyan for network work, so a URL parser or a file reader
+ * wears them without calling a model or running a tool. A diagnostic that
+ * says "LLM node has no error handler" about a URL parser is wrong, not
+ * merely loud, and it teaches authors to suppress without reading. Ports, an
+ * explicit `@icon`, or a name that says what the node does remain enough.
+ */
+function evidencedRole(nodeType: TNodeTypeAST): ReturnType<typeof detectNodeRole> {
+  const detected = detectNodeRoleSignal(nodeType);
+  if (detected === null || detected.signal === 'color') return null;
+  return detected.role;
+}
+
 /** Get all instances whose node type has a given agent role */
 function getInstancesByRole(
   ast: TWorkflowAST,
@@ -53,30 +72,12 @@ function getInstancesByRole(
 
   for (const instance of ast.instances) {
     const nt = resolveNodeType(ast, instance);
-    if (nt && detectNodeRole(nt) === role) {
+    if (nt && evidencedRole(nt) === role) {
       results.push({ instance, nodeType: nt });
     }
   }
 
   return results;
-}
-
-/**
- * Tool executors whose role is backed by something other than colour alone.
- *
- * A role that rests only on `@color` is a guess about a palette choice: cyan
- * is documented for network and cloud nodes, so a node that merely reads a
- * remote file wears it. Rule 1 already treats a colour-only role as too weak
- * to block on; the tool-executor rules go further and skip it, because a
- * warning about approving "destructive actions" on a node that performs none
- * is exactly the kind of noise that teaches authors to suppress warnings
- * without reading them. Ports, an explicit `@icon`, or a name that says
- * "execute" remain enough to warn.
- */
-function getToolExecutors(ast: TWorkflowAST) {
-  return getInstancesByRole(ast, 'tool-executor').filter(
-    ({ nodeType }) => detectNodeRoleSignal(nodeType)?.signal !== 'color',
-  );
 }
 
 /**
@@ -126,12 +127,8 @@ export const missingErrorHandlerRule: TValidationRule = {
 
       const failureConnections = getOutgoing(ast, instance.id, 'onFailure');
       if (failureConnections.length === 0) {
-        // A role that rests only on @color is a cosmetic guess, not evidence
-        // that the node calls a model. Colour is documented as a weak,
-        // tie-breaking signal, so it must not block the build on its own.
-        const colourOnly = detectNodeRoleSignal(nodeType)?.signal === 'color';
         errors.push({
-          type: colourOnly ? 'warning' : 'error',
+          type: 'error',
           code: 'AGENT_LLM_MISSING_ERROR_HANDLER',
           message: `LLM node '${instance.id}' has no error handler — its onFailure port is unconnected. LLM calls can fail due to rate limits, timeouts, or model errors.`,
           node: instance.id,
@@ -155,7 +152,7 @@ export const unguardedToolExecutorRule: TValidationRule = {
   name: 'AGENT_UNGUARDED_TOOL_EXECUTOR',
   validate(ast: TWorkflowAST): TValidationError[] {
     const errors: TValidationError[] = [];
-    const toolInstances = getToolExecutors(ast);
+    const toolInstances = getInstancesByRole(ast, 'tool-executor');
     const approvalInstances = getInstancesByRole(ast, 'human-approval');
 
     // If no tool executors, nothing to check
@@ -222,7 +219,7 @@ export const missingMemoryInLoopRule: TValidationRule = {
         const nt = resolveNodeType(ast, instance);
         if (!nt) continue;
 
-        const role = detectNodeRole(nt);
+        const role = evidencedRole(nt);
         if (role === 'llm') hasLlm = true;
         if (role === 'memory') hasMemory = true;
       }
@@ -301,7 +298,7 @@ export const toolNoOutputHandlingRule: TValidationRule = {
   name: 'AGENT_TOOL_NO_OUTPUT_HANDLING',
   validate(ast: TWorkflowAST): TValidationError[] {
     const errors: TValidationError[] = [];
-    const toolInstances = getToolExecutors(ast);
+    const toolInstances = getInstancesByRole(ast, 'tool-executor');
 
     const stepPorts = new Set(['onSuccess', 'onFailure', 'execute']);
 

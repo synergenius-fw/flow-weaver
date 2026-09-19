@@ -182,12 +182,12 @@ describe('agent validation rules', () => {
       expect(errors[0].node).toBe('llm');
     });
 
-    it('should not hard-error when the llm role came only from @color', () => {
+    it('stays silent when the llm role came only from @color', () => {
       // A node whose only "llm" signal is a cosmetic @color purple is not
       // known to call a model. Colour is documented as a weak, tie-breaking
-      // signal, so it must not escalate to a blocking error -- at most a
-      // warning. Otherwise colouring a pure formatting node purple fails the
-      // build.
+      // signal; a diagnostic that says "LLM node has no error handler" about
+      // a URL parser is wrong, not merely loud, and teaches authors to
+      // suppress without reading. No agent rule fires on colour alone.
       const colourOnly = makeNodeType({
         name: 'recordOutcome',
         visuals: { color: 'purple' },
@@ -212,7 +212,7 @@ describe('agent validation rules', () => {
       });
 
       const errors = missingErrorHandlerRule.validate(ast);
-      expect(errors.filter((e) => e.type === 'error')).toHaveLength(0);
+      expect(errors).toHaveLength(0);
     });
 
     it('should pass when LLM onFailure is connected', () => {
@@ -391,6 +391,24 @@ describe('agent validation rules', () => {
       expect(errors[0].code).toBe('AGENT_MISSING_MEMORY_IN_LOOP');
       expect(errors[0].type).toBe('warning');
       expect(errors[0].message).toContain('agent.iteration');
+    });
+
+    it('stays silent when the only "LLM" in the loop is a purple-coloured node', () => {
+      const purple = makeNodeType({
+        name: 'formatItem',
+        visuals: { color: 'purple' },
+        inputs: { execute: { dataType: 'STEP' as any }, item: { dataType: 'OBJECT' as any } },
+        outputs: { onSuccess: { dataType: 'STEP' as any }, text: { dataType: 'STRING' as any } },
+        hasSuccessPort: true,
+      });
+      const ast = makeWorkflow({
+        nodeTypes: [purple],
+        instances: [makeInstance('fmt', 'formatItem')],
+        connections: [],
+        scopes: { 'each.iteration': ['fmt'] },
+      });
+
+      expect(missingMemoryInLoopRule.validate(ast)).toHaveLength(0);
     });
 
     it('should pass when loop has both LLM and memory', () => {
