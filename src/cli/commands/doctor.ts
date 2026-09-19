@@ -5,10 +5,12 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import * as YAML from 'js-yaml';
 import { logger } from '../utils/logger.js';
 import type { TModuleFormat } from '../../ast/types.js';
+import { VERSION } from '../../generated-version.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,11 +37,18 @@ export interface CheckResult {
   details?: string;
 }
 
+/** The Flow Weaver that is actually answering: its version and where it runs from. */
+export interface ServerInstallInfo {
+  version: string;
+  installPath: string;
+}
+
 export interface DoctorReport {
   ok: boolean;
   checks: CheckResult[];
   summary: { pass: number; warn: number; fail: number };
   moduleFormat: ModuleFormatDetection;
+  server: ServerInstallInfo;
 }
 
 // ── Utility ──────────────────────────────────────────────────────────────────
@@ -138,6 +147,82 @@ export function detectProjectModuleFormat(cwd: string): ModuleFormatDetection {
 
   // Default to ESM for new projects
   return { format: 'esm', source: 'default', details: 'defaulting to ESM' };
+}
+
+// ── Running install ──────────────────────────────────────────────────────────
+
+const PACKAGE_NAME = '@synergenius/flow-weaver';
+
+function realpathOr(p: string): string {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return p;
+  }
+}
+
+/** Is `dir` the root of a Flow Weaver checkout or install (its own package.json)? */
+function isFlowWeaverPackageRoot(dir: string): boolean {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+    return pkg.name === PACKAGE_NAME;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Where this very module runs from, resolved to the package root.
+ *
+ * The MCP server is started with an absolute path to one install and keeps
+ * serving that install whatever directory the tools are pointed at. Reporting
+ * the path makes that visible: in a git worktree, a rebuild of `dist/` in the
+ * worktree changes nothing the server does, and the only symptom is that a
+ * fix "did not work". `import.meta.url` is the ESM case (the `dist/*.mjs`
+ * bundle, tsx, vitest); `__dirname` covers a CJS bundle.
+ */
+export function serverInstallInfo(): ServerInstallInfo {
+  let here: string;
+  try {
+    here = path.dirname(fileURLToPath(import.meta.url));
+  } catch {
+    here = __dirname;
+  }
+  let dir = here;
+  for (let depth = 0; depth < 8; depth++) {
+    if (isFlowWeaverPackageRoot(dir)) {
+      return { version: VERSION, installPath: realpathOr(dir) };
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return { version: VERSION, installPath: realpathOr(here) };
+}
+
+/**
+ * Says which install is answering, and warns when the directory under check
+ * is a *different* Flow Weaver checkout -- the worktree case, where edits and
+ * rebuilds in the checked directory do not reach the running server.
+ */
+export function checkServerInstall(cwd: string): CheckResult {
+  const { version, installPath } = serverInstallInfo();
+  const checked = realpathOr(path.resolve(cwd));
+
+  if (isFlowWeaverPackageRoot(checked) && checked !== installPath) {
+    return {
+      name: 'Running install',
+      status: 'warn',
+      message: `This is a Flow Weaver checkout, but the running server is ${PACKAGE_NAME} ${version} from ${installPath}`,
+      fix: `Edits and rebuilds here do not reach the running server. Restart the MCP server from ${path.join(checked, 'dist', 'cli', 'flow-weaver.mjs')}, or rebuild the install it runs from.`,
+    };
+  }
+
+  return {
+    name: 'Running install',
+    status: 'pass',
+    message: `${PACKAGE_NAME} ${version} running from ${installPath}`,
+  };
 }
 
 // ── Check functions ──────────────────────────────────────────────────────────
@@ -726,8 +811,10 @@ export function checkDeploymentProfiles(cwd: string): CheckResult {
 
 export function runDoctorChecks(cwd: string): DoctorReport {
   const moduleFormat = detectProjectModuleFormat(cwd);
+  const server = serverInstallInfo();
 
   const checks: CheckResult[] = [
+    checkServerInstall(cwd),
     checkNodeVersion(),
     checkTypeScriptVersion(cwd),
     checkPackageJsonType(cwd),
@@ -752,6 +839,7 @@ export function runDoctorChecks(cwd: string): DoctorReport {
     checks,
     summary,
     moduleFormat,
+    server,
   };
 }
 
@@ -786,6 +874,7 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
     }
 
     logger.newline();
+    logger.log(`  Running: ${PACKAGE_NAME} ${report.server.version} ${logger.dim(`(${report.server.installPath})`)}`);
     logger.log(`  Module format: ${report.moduleFormat.format.toUpperCase()} ${logger.dim(`(${report.moduleFormat.details})`)}`);
 
     const parts: string[] = [];

@@ -93,7 +93,7 @@ See [Debugging](debugging).
 | `fw_docs` | `action` (`list` / `read` / `search`), `topic?`, `query?`, `compact?`, `limit?` | Topics, one topic, or matching sections | `list` returns slug, name and description (~4 KB for 20 topics). `search` returns the 8 best sections by default (`limit` up to 20, `total` says how many matched), each with an excerpt of at most 300 characters; `read` with `compact: true` drops prose and keeps headings, tables, lists, and code. Topics declared by installed packs are included |
 | `fw_context` | `preset?`, `profile?`, `topics?`, `addTopics?`, `includeGrammar?` | The orientation bundle as markdown, ending with every other topic and its size | `core` (default) is the `orientation` topic plus the on-demand topic list, ~6 KB — the intended session start. `authoring` ≈ 75 KB, `ops` ≈ 100 KB, `full` ≈ 195 KB bundle whole references; prefer reading single topics with `fw_docs`. `includeGrammar` appends the generated EBNF (~3 KB), which `jsdoc-grammar` already covers |
 | `fw_list_resources` | `type?` | Icons, colors, tags (~3.7 KB) | Same content as the Available Colors / Icons sections of [Advanced Annotations](advanced-annotations) |
-| `fw_doctor` | `directory?` | Environment checks | Node version, config, dependencies |
+| `fw_doctor` | `directory?` | Environment checks | Which install is running (version and path), Node version, config, dependencies; warns when the directory is a different Flow Weaver checkout than the running server |
 | `fw_market_search` | `query`, `limit?`, `registryUrl?` | npm packages tagged as Flow Weaver packs | |
 | `fw_market_install` | `package` | Installs via npm | Pack tools register on the next server start |
 | `fw_market_list` | — | Installed packs and what they contribute | |
