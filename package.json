@@ -105,8 +105,7 @@
     },
     "./console": {
       "types": "./dist/console/index.d.ts",
-      "import": "./dist/console/index.js",
-      "require": "./dist/console/index.cjs"
+      "default": "./dist/console/index.js"
     },
     "./coordinator": {
       "types": "./dist/coordinator/index.d.ts",
