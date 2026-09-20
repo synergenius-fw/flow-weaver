@@ -23,7 +23,7 @@ jobs:
           issue_message: |
             Thanks for opening your first issue! We'll take a look shortly.
 
-            In the meantime, check out the [docs](https://flowweaver.ai/docs/) — your answer might already be there.
+            In the meantime, check out the [docs](https://github.com/synergenius-fw/flow-weaver#readme) (or run `fw docs`) — your answer might already be there.
           pr_message: |
             Thanks for your first pull request! We appreciate the contribution.
 

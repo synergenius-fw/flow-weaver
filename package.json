@@ -124,7 +124,6 @@
     "dist",
     "!dist/**/*.map",
     "docs/reference",
-    "scripts/postinstall.cjs",
     "README.md",
     "LICENSE"
   ],
@@ -151,7 +150,6 @@
     "prepare": "npm run build && husky || true",
     "cli": "tsx src/cli/index.ts",
     "diagram": "tsx scripts/generate-diagram.ts",
-    "postinstall": "node scripts/postinstall.cjs",
     "build:console": "npx tsx scripts/build-console.ts",
     "typecheck:console": "tsc --noEmit -p console-ui/tsconfig.json"
   },
@@ -174,8 +172,8 @@
     "serverless"
   ],
   "author": "Ricardo José Horta Morais",
-  "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://flowweaver.ai",
+  "license": "BUSL-1.1",
+  "homepage": "https://github.com/synergenius-fw/flow-weaver#readme",
   "bugs": "https://github.com/synergenius-fw/flow-weaver/issues",
   "repository": {
     "type": "git",
@@ -223,6 +221,9 @@
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"
+  },
+  "overrides": {
+    "vite": "^7.0.0"
   },
   "publishConfig": {
     "access": "public"

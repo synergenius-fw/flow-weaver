@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/synergenius-fw/flow-weaver/discussions
     about: Ask questions and share ideas in GitHub Discussions
   - name: Documentation
-    url: https://flowweaver.ai/docs/
-    about: Check the docs before filing — your answer might already be there
+    url: https://github.com/synergenius-fw/flow-weaver#readme
+    about: Check the docs before filing — your answer might already be there (or run `fw docs`)

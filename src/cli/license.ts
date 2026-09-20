@@ -84,8 +84,17 @@ function readLicenseKey(): string | null {
 /**
  * Decode + cryptographically verify a license key against the pinned root key.
  * Throws LicenseError on any failure. `now` injectable for tests.
+ *
+ * `rootPublicKeyB64` is a test seam: the pinned key's private half never
+ * ships, so the success path can only be exercised by signing with an
+ * ephemeral keypair and verifying against its public half. Production callers
+ * never pass it; the default is the pinned Synergenius root key.
  */
-export function verifyLicenseKey(licenseKey: string, now: Date = new Date()): LicenseClaim {
+export function verifyLicenseKey(
+  licenseKey: string,
+  now: Date = new Date(),
+  rootPublicKeyB64: string = PLATFORM_ROOT_PUBKEY_B64,
+): LicenseClaim {
   if (!licenseKey) throw new LicenseError('license is empty.');
 
   let envelope: { claim?: unknown; sig?: unknown };
@@ -98,7 +107,7 @@ export function verifyLicenseKey(licenseKey: string, now: Date = new Date()): Li
     throw new LicenseError('license envelope must carry { claim: string, sig: string }.');
   }
 
-  const rawPub = Buffer.from(PLATFORM_ROOT_PUBKEY_B64, 'base64');
+  const rawPub = Buffer.from(rootPublicKeyB64, 'base64');
   if (rawPub.length !== 32) throw new LicenseError('pinned platform-root key is malformed.');
   const spkiPrefix = Buffer.from('302a300506032b6570032100', 'hex');
   const pubKey = {
@@ -148,7 +157,10 @@ export function verifyLicenseKey(licenseKey: string, now: Date = new Date()): Li
  * finds + verifies the license or throws (fail closed). Returns the verified
  * claim (licensed build) or null (normal build).
  */
-export function enforceLicense(now: Date = new Date()): LicenseClaim | null {
+export function enforceLicense(
+  now: Date = new Date(),
+  rootPublicKeyB64: string = PLATFORM_ROOT_PUBKEY_B64,
+): LicenseClaim | null {
   if (!licenseModeEnabled()) return null;
   const key = readLicenseKey();
   if (!key) {
@@ -159,5 +171,5 @@ export function enforceLicense(now: Date = new Date()): LicenseClaim | null {
         'Contact Synergenius if you need a license.',
     );
   }
-  return verifyLicenseKey(key, now);
+  return verifyLicenseKey(key, now, rootPublicKeyB64);
 }

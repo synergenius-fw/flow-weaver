@@ -13,7 +13,7 @@ export interface GeneratedBranding {
   markdown: string;
 }
 
-const WEBSITE_URL = 'https://flowweaver.ai';
+const WEBSITE_URL = 'https://github.com/synergenius-fw/flow-weaver';
 
 const DEFAULT: GeneratedBranding = {
   header: (cmd) =>
