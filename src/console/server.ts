@@ -413,7 +413,11 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
   const agentEvents = new Map<string, TraceEntry[]>();
   const subs = new Map<string, Set<http.ServerResponse>>();
   const globalSubs = new Set<http.ServerResponse>();
-  const runsDir = defaultRunsDir();
+  // The store follows the project the console is opened on, not the directory
+  // the console process was launched from. An MCP server started elsewhere but
+  // pointed at a file in this project resolves the same <projectRoot>/.fw/runs,
+  // so a run it starts shows up here. FW_RUNS_DIR still overrides both.
+  const runsDir = defaultRunsDir(projectDir);
   const coordinator = createLocalCoordinator(options.store ? { store: options.store } : { rootDir: runsDir });
   // A process that died while a profile was answering must not keep the
   // gate locked against a person.

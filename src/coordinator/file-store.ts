@@ -23,6 +23,22 @@ import { randomUUID } from 'node:crypto';
 import type { RunRecord } from './run-store.js';
 import { checkDocName, EFFECT_DOC_PREFIX, type RunStore } from './store.js';
 
+/**
+ * Compare two resolved file paths for the SAME file. Windows filesystems are
+ * case-insensitive and its paths mix separators, so two processes can resolve
+ * one workflow file to strings that differ only in case or slash direction
+ * (`C:\proj\wf.ts` vs `c:/proj/wf.ts`). A raw string compare would then drop a
+ * run from a `filePath`-filtered list even though it is the same file. On
+ * POSIX, paths are case-sensitive, so this stays an exact compare there.
+ */
+function samePath(a: string, b: string): boolean {
+  const norm = (p: string) => {
+    const resolved = path.resolve(p).split(path.sep).join('/');
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  };
+  return norm(a) === norm(b);
+}
+
 interface Claim { owner: string; pid: number; host: string; expiresAt: string }
 
 export function createFileRunStore(rootDir: string): RunStore {
@@ -71,7 +87,7 @@ export function createFileRunStore(rootDir: string): RunStore {
       for (const entry of fs.readdirSync(rootDir)) {
         const record = readJson<RunRecord>(recordFile(entry));
         if (!record) continue;
-        if (wanted && record.filePath !== wanted) continue;
+        if (wanted && !samePath(record.filePath, wanted)) continue;
         records.push(record);
       }
       return records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

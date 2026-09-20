@@ -3,6 +3,7 @@ export {
   createFileEffectAdapter,
   createStoreEffectAdapter,
   defaultRunsDir,
+  resolveProjectRoot,
   ParseError,
   AmbiguousWorkflowError,
   RunNotFoundError,

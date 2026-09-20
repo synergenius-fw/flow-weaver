@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
   createLocalCoordinator,
+  defaultRunsDir,
   type LocalCoordinator,
   type ResolveInput,
 } from '../coordinator/index.js';
@@ -23,8 +24,46 @@ import { makeErrorResult, makeToolResult } from './response-utils.js';
  */
 export function registerRunTools(
   mcp: McpServer,
-  coordinator: LocalCoordinator = createLocalCoordinator(),
+  injectedCoordinator?: LocalCoordinator,
 ): void {
+  // The store follows the workflow FILE, not this process's working directory.
+  // A run started by this MCP server must land in <projectRoot>/.fw/runs so the
+  // console — opened on the same project, possibly from a different directory —
+  // sees it. We resolve one coordinator per runs-dir and reuse it.
+  //
+  // A test (or an embedder) can inject a single coordinator, which then backs
+  // every tool regardless of file — preserving the old single-store behaviour.
+  const byDir = new Map<string, LocalCoordinator>();
+  function coordinatorForFile(filePath: string): LocalCoordinator {
+    if (injectedCoordinator) return injectedCoordinator;
+    const dir = defaultRunsDir(filePath);
+    let coord = byDir.get(dir);
+    if (!coord) {
+      coord = createLocalCoordinator({ rootDir: dir });
+      byDir.set(dir, coord);
+    }
+    return coord;
+  }
+
+  /**
+   * Every coordinator this session might hold a run in: the injected one, or
+   * each project store touched so far. `fw_resume` and an unfiltered `fw_runs`
+   * only have a runId, so they search across these.
+   */
+  function allCoordinators(): LocalCoordinator[] {
+    if (injectedCoordinator) return [injectedCoordinator];
+    return [...byDir.values()];
+  }
+
+  /** Find the coordinator whose store holds `runId`, if any. */
+  async function coordinatorForRun(runId: string): Promise<LocalCoordinator | undefined> {
+    for (const coord of allCoordinators()) {
+      const view = await coord.get(runId).catch(() => undefined);
+      if (view) return coord;
+    }
+    return undefined;
+  }
+
   mcp.tool(
     'fw_run',
     'Run a workflow. Returns the result, or pauses at the first gate and returns {runId, gate}. Continue with fw_resume.',
@@ -35,6 +74,7 @@ export function registerRunTools(
     },
     async (args: { filePath: string; workflowName?: string; params?: Record<string, unknown> }) => {
       try {
+        const coordinator = coordinatorForFile(args.filePath);
         return makeToolResult(await coordinator.start({ ...args, origin: 'mcp' }));
       } catch (error) {
         return toErrorResult(error, 'EXECUTION_ERROR');
@@ -61,6 +101,8 @@ export function registerRunTools(
       }
       const input: ResolveInput = hasReject ? { reject: args.reject as string } : { answer: args.answer };
       try {
+        const coordinator = (await coordinatorForRun(args.runId)) ?? allCoordinators()[0];
+        if (!coordinator) return makeErrorResult('RUN_NOT_FOUND', `no run with id ${args.runId}`);
         return makeToolResult(await coordinator.resume({ runId: args.runId, input }));
       } catch (error) {
         return toErrorResult(error, 'RESUME_ERROR');
@@ -78,17 +120,36 @@ export function registerRunTools(
       limit: z.number().int().min(1).max(200).optional().describe('How many, newest first. Default 20'),
     },
     async (args: { runId?: string; filePath?: string; status?: 'waiting' | 'completed' | 'failed' | 'cancelled'; limit?: number }) => {
+      // Which stores to look in: the one for a named file, the one holding a
+      // named run, or — with neither — every project store touched this session.
+      const coordinators = args.filePath
+        ? [coordinatorForFile(args.filePath)]
+        : args.runId
+          ? await coordinatorForRun(args.runId).then((c) => (c ? [c] : allCoordinators()))
+          : allCoordinators();
+
       // The MCP server has no clock of its own running. A look at the runs
       // is the moment to let time act, so a sleep that is over is not shown
       // as waiting.
-      await coordinator.tick().catch(() => undefined);
+      await Promise.all(coordinators.map((c) => c.tick().catch(() => undefined)));
+
       if (args.runId) {
-        const view = await coordinator.get(args.runId);
-        return view ? makeToolResult(view) : makeErrorResult('RUN_NOT_FOUND', `no run with id ${args.runId}`);
+        for (const c of coordinators) {
+          const view = await c.get(args.runId).catch(() => undefined);
+          if (view) return makeToolResult(view);
+        }
+        return makeErrorResult('RUN_NOT_FOUND', `no run with id ${args.runId}`);
       }
-      // The store holds every run ever made on this machine; an assistant
-      // asking "what is there" wants the recent ones, not a history dump.
-      const all = (await coordinator.list({ filePath: args.filePath })).filter((r) => !args.status || r.status === args.status);
+
+      // Runs across the touched project stores; an assistant asking "what is
+      // there" wants the recent ones, not a history dump.
+      const lists = await Promise.all(
+        coordinators.map((c) => c.list({ filePath: args.filePath }).catch(() => []))
+      );
+      const all = lists
+        .flat()
+        .filter((r) => !args.status || r.status === args.status)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
       const limit = args.limit ?? 20;
       const runs = all.slice(0, limit);
       return makeToolResult(all.length > limit ? { runs, total: all.length, note: `${all.length - limit} older run(s) not shown. Pass limit, status or filePath to narrow` } : runs);
