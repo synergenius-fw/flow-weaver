@@ -540,12 +540,12 @@ export const METADATA_ANNOTATIONS: TAnnotationDoc[] = [
   {
     name: '@durableGate',
     category: 'metadata',
-    syntax: '@durableGate approval | input | agent',
+    syntax: '@durableGate approval | input | agent | timer',
     description:
       'Declares a durable gate: the workflow yields here with a continuation and resumes later with a supplied resolution. The body is never executed. The kind labels who resolves it.',
-    insertText: '@durableGate ${1|approval,input,agent|}',
+    insertText: '@durableGate ${1|approval,input,agent,timer|}',
     insertTextFormat: 'snippet',
-    ebnf: `durableGateTag ::= "@durableGate" ( "approval" | "input" | "agent" )`,
+    ebnf: `durableGateTag ::= "@durableGate" ( "approval" | "input" | "agent" | "timer" )`,
     examples: ['@durableGate approval', '@durableGate agent'],
     contexts: ['nodeType'],
   },

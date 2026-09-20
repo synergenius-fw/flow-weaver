@@ -37,7 +37,7 @@ nodeTypeBlock  ::= "@flowWeaver nodeType"
                    [ "@executeWhen" IDENTIFIER ]
                    [ "@pullExecution" IDENTIFIER ]
                    [ "@resilience" ( "retries=" INTEGER | "fallback=" STRING ) { ( "retries=" INTEGER | "fallback=" STRING ) } ]
-                   [ "@durablePure" | "@durableGate" ( "approval" | "input" | "agent" ) | "@durableEffect" ]
+                   [ "@durablePure" | "@durableGate" ( "approval" | "input" | "agent" | "timer" ) | "@durableEffect" ]
                    [ "@color" TEXT ]
                    [ "@icon" TEXT ]
                    { "@tag" IDENTIFIER [ STRING ] }

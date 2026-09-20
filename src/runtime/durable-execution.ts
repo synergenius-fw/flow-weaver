@@ -186,6 +186,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
   }
+  // `fast` skips waits: a sleeping run wakes at once, as `delay` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
+  }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
   validateWireValue(value);

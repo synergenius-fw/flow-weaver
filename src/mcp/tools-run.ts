@@ -70,7 +70,7 @@ export function registerRunTools(
 
   mcp.tool(
     'fw_runs',
-    'List runs (newest first, 20 by default), or inspect one. With runId returns the full gate so you can re-read a pause without resuming.',
+    'List runs (newest first, 20 by default), or inspect one. With runId returns the full gate so you can re-read a pause without resuming. A run whose sleep or timeout has passed is moved on first.',
     {
       runId: z.string().optional(),
       filePath: z.string().optional().describe('Only runs of this workflow file'),
@@ -78,6 +78,10 @@ export function registerRunTools(
       limit: z.number().int().min(1).max(200).optional().describe('How many, newest first. Default 20'),
     },
     async (args: { runId?: string; filePath?: string; status?: 'waiting' | 'completed' | 'failed' | 'cancelled'; limit?: number }) => {
+      // The MCP server has no clock of its own running; a look at the runs
+      // is the moment to let time act, so a sleep that is over is not shown
+      // as waiting.
+      await coordinator.tick().catch(() => undefined);
       if (args.runId) {
         const view = await coordinator.get(args.runId);
         return view ? makeToolResult(view) : makeErrorResult('RUN_NOT_FOUND', `no run with id ${args.runId}`);

@@ -376,12 +376,13 @@ export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean
     expect(result.workflows[0].nodeTypes.find((nt) => nt.functionName === 'delay')).toBeDefined();
   });
 
-  // ── 16. Registry exports exactly 4 built-in node types ──────────────
-  it('should export exactly 4 built-in node types from registry', async () => {
+  // ── 16. Registry exports exactly 5 built-in node types ──────────────
+  it('should export exactly 5 built-in node types from registry', async () => {
     const { BUILT_IN_NODE_TYPES } = await import('../../src/built-in-nodes/generated-registry');
-    expect(BUILT_IN_NODE_TYPES).toHaveLength(4);
+    expect(BUILT_IN_NODE_TYPES).toHaveLength(5);
     const names = BUILT_IN_NODE_TYPES.map((nt) => nt.name).sort();
-    expect(names).toEqual(['delay', 'invokeWorkflow', 'waitForAgent', 'waitForEvent']);
+    expect(names).toEqual(['delay', 'invokeWorkflow', 'sleep', 'waitForAgent', 'waitForEvent']);
+    expect(BUILT_IN_NODE_TYPES.find((nt) => nt.name === 'sleep')).toMatchObject({ durableGate: 'timer', receivesRuntime: true });
   });
 
   // ── 17. Source delay function matches compiled auto-injected delay ──

@@ -173,11 +173,15 @@ export function generateInPlace(
     if (match && match.index !== undefined) {
       const insertionLines: string[] = [];
 
-      // Emit shared helpers once (deduplicated)
+      // Emit shared helpers once: not twice for two built-ins of this
+      // workflow, and not again when an earlier pass over another workflow
+      // in the same file already put them there (a file with a `sleep` in
+      // one workflow and a `waitForEvent` in another is compiled workflow
+      // by workflow, and both need `__fw_getMockConfig`).
       const emittedHelpers = new Set<string>();
       for (const node of builtInNodes) {
         const helperText = production ? (node.helperTextProduction ?? null) : (node.helperText ?? null);
-        if (helperText && !emittedHelpers.has(helperText)) {
+        if (helperText && !emittedHelpers.has(helperText) && !result.includes(helperText)) {
           emittedHelpers.add(helperText);
           insertionLines.push(helperText);
           insertionLines.push('');

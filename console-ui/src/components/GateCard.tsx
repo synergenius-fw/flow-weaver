@@ -1,13 +1,26 @@
 import { useState, useMemo } from 'preact/hooks';
-import { wf, resolveGate, type Gate, type FieldSchema } from '../state';
+import { wf, resolveGate, type Gate, type Due, type FieldSchema } from '../state';
 import { store } from '../api';
 import { Value } from './Value';
 import { SchemaForm, validateFields, blank, type Errors } from './SchemaForm';
 
-const WHO: Record<Gate['kind'], string> = { approval: 'Decide', input: 'Provide input', agent: 'Answer as the agent' };
+const WHO: Record<Gate['kind'], string> = { approval: 'Decide', input: 'Provide input', agent: 'Answer as the agent', timer: 'Sleeping' };
+
+const when = (ms: number) => {
+  const d = new Date(ms);
+  const today = new Date().toDateString() === d.toDateString();
+  return today ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+};
+
+/** One line on what the clock will do to a waiting run, and when. */
+function DueLine({ due, kind }: { due: Due; kind: Gate['kind'] }) {
+  const past = due.at <= Date.now();
+  const verb = kind === 'timer' ? (past ? 'wakes as soon as a clock sees it' : `wakes at ${when(due.at)}`) : (past ? 'timed out; takes the failure path as soon as a clock sees it' : `times out at ${when(due.at)}, then takes the failure path`);
+  return <div class="hint" style="margin-bottom:8px">{verb}. The server and this console tick every few seconds.</div>;
+}
 
 /** The form under a waiting gate: what the gate handed over, and the answer it needs. */
-export function GateCard({ gate }: { gate: Gate }) {
+export function GateCard({ gate, due }: { gate: Gate; due?: Due }) {
   const w = wf.value!;
   const key = `answer:${w.file}:${gate.node}`;
   // One field per declared data output, in declared order; the schema only
@@ -35,6 +48,24 @@ export function GateCard({ gate }: { gate: Gate }) {
     void submit({ answer: gate.outputs.length === 1 ? value[gate.outputs[0]] : gate.outputs.length ? value : null });
   };
   const inputs = Object.entries(gate.inputs);
+  if (gate.kind === 'timer') {
+    // Nothing to answer: the clock does. A person can cut the sleep short.
+    return (
+      <div class="gatecard">
+        <div class="gh"><b>{WHO.timer}</b><span>{gate.node} · {gate.kind}</span></div>
+        <section><div class="kv">
+          {inputs.map(([k, v]) => <><span class="k">{k}</span><Value value={v} open={false} /></>)}
+        </div></section>
+        <section>
+          {due && <DueLine due={due} kind="timer" />}
+          <div class="formfoot">
+            <button class="btn primary sm" disabled={busy} onClick={() => void submit({ answer: gate.outputs.length ? new Date().toISOString() : null })}>Wake now</button>
+            <span class="err">{failure}</span>
+          </div>
+        </section>
+      </div>
+    );
+  }
   return (
     <div class="gatecard">
       <div class="gh"><b>{WHO[gate.kind] ?? 'Answer'}</b><span>{gate.node} · {gate.kind}</span></div>
@@ -44,6 +75,7 @@ export function GateCard({ gate }: { gate: Gate }) {
         </div></section>
       )}
       <section>
+        {due && <DueLine due={due} kind={gate.kind} />}
         {gate.outputs.length
           ? <SchemaForm fields={fields} value={value} errors={errors} onChange={setValue} />
           : <div class="hint" style="margin-bottom:8px">nothing to return</div>}

@@ -728,7 +728,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_workflow_run',
     description:
-      'Run a workflow until completion or a durable approval, input, or agent gate. For coordinators: returns the raw continuation. Assistants should use fw_run.',
+      'Run a workflow until completion or a durable approval, input, agent, or timer gate. For coordinators: returns the raw continuation. Assistants should use fw_run.',
     category: 'execution',
     params: [
       {

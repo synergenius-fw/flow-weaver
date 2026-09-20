@@ -18,7 +18,9 @@ export {
   type RunView,
   type RunSummary,
   type AgentNote,
+  type TickResult,
 } from './run-store.js';
+export { parseDuration, dueFor, type RunDue } from './time.js';
 export {
   answerAgentGate,
   autoAnswerAgentGates,

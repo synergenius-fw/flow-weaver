@@ -458,7 +458,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -473,7 +473,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -1074,7 +1079,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -1320,6 +1325,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -2539,7 +2548,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -2554,7 +2563,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -3155,7 +3169,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -3401,6 +3415,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -4648,7 +4666,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -4663,7 +4681,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -5264,7 +5287,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -5510,6 +5533,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -6813,7 +6840,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -6828,7 +6855,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -7429,7 +7461,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -7675,6 +7707,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -8894,7 +8930,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -8909,7 +8945,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -9510,7 +9551,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -9756,6 +9797,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -10994,7 +11039,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -11009,7 +11054,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -11610,7 +11660,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -11856,6 +11906,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -13123,7 +13177,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -13138,7 +13192,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -13739,7 +13798,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -13985,6 +14044,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -15232,7 +15295,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -15247,7 +15310,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -15848,7 +15916,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -16094,6 +16162,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -17224,7 +17296,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -17239,7 +17311,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -17840,7 +17917,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -18086,6 +18163,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -19324,7 +19405,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -19339,7 +19420,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -19940,7 +20026,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -20186,6 +20272,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -21405,7 +21495,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -21420,7 +21510,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -22021,7 +22116,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -22267,6 +22362,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -23486,7 +23585,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -23501,7 +23600,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -24102,7 +24206,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -24348,6 +24452,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -25586,7 +25694,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -25601,7 +25709,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -26202,7 +26315,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -26448,6 +26561,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -27667,7 +27784,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -27682,7 +27799,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -28283,7 +28405,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -28529,6 +28651,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -29815,7 +29941,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
@@ -29830,7 +29956,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -30431,7 +30562,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -30677,6 +30808,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -31786,7 +31921,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -31800,7 +31935,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -32401,7 +32541,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -32647,6 +32787,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -33725,7 +33869,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -33739,7 +33883,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -34340,7 +34489,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -34586,6 +34735,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -35692,7 +35845,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -35706,7 +35859,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -36307,7 +36465,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -36553,6 +36711,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -37711,7 +37873,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -37725,7 +37887,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -38326,7 +38493,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -38572,6 +38739,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -39650,7 +39821,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -39664,7 +39835,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -40265,7 +40441,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -40511,6 +40687,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -41608,7 +41788,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -41622,7 +41802,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -42223,7 +42408,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -42469,6 +42654,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -43593,7 +43782,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -43607,7 +43796,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -44208,7 +44402,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -44454,6 +44648,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -45560,7 +45758,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -45574,7 +45772,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -46175,7 +46378,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -46421,6 +46624,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -47414,7 +47621,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -47428,7 +47635,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -48029,7 +48241,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -48275,6 +48487,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -49372,7 +49588,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -49386,7 +49602,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -49987,7 +50208,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -50233,6 +50454,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -51311,7 +51536,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -51325,7 +51550,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -51926,7 +52156,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -52172,6 +52402,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -53250,7 +53484,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -53264,7 +53498,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -53865,7 +54104,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -54111,6 +54350,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -55208,7 +55451,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -55222,7 +55465,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -55823,7 +56071,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -56069,6 +56317,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -57147,7 +57399,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -57161,7 +57413,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -57762,7 +58019,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -58008,6 +58265,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
@@ -59151,7 +59412,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.37.6";
+const VERSION = "0.38.0";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -59165,7 +59426,12 @@ const MAX_CONTINUATION_DEPTH = 32;
 const MAX_CONTINUATION_ENTRIES = 10_000;
 const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-type DurableGateKind = "approval" | "input" | "agent";
+/*
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (\`timer\`: a \`sleep\` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 type WireValue =
   | null
@@ -59766,7 +60032,7 @@ function structurallyValidEnvelope(value: unknown): value is ContinuationEnvelop
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||
@@ -60012,6 +60278,10 @@ function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundar
   if (data === undefined && nodeType === 'waitForEvent') {
     const v = pick(mocks.events, firstInput());
     if (v !== undefined) data = { eventData: v };
+  }
+  // \`fast\` skips waits: a sleeping run wakes at once, as \`delay\` returns at once.
+  if (data === undefined && nodeType === 'sleep' && mocks.fast === true) {
+    data = { wokeAt: new Date().toISOString() };
   }
   if (data === undefined || typeof data !== 'object') return undefined;
   const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };

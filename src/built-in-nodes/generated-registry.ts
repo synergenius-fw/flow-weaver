@@ -143,6 +143,70 @@ function __fw_parseDuration(duration) {
   },
   {
     type: 'NodeType',
+    name: 'sleep',
+    functionName: 'sleep',
+    isAsync: true,
+    receivesAbortSignal: false,
+    receivesRuntime: true,
+    durableGate: 'timer',
+    hasSuccessPort: true,
+    hasFailurePort: true,
+    executeWhen: 'CONJUNCTION',
+    variant: 'FUNCTION',
+    inputs: {
+      execute: { dataType: 'STEP', label: 'Execute' },
+      duration: { dataType: 'STRING', label: 'How long the run sleeps before it goes on (e.g. "30s", "2h", "3d")', tsType: 'string' },
+    },
+    outputs: {
+      onSuccess: { dataType: 'STEP', label: 'On Success', isControlFlow: true },
+      onFailure: { dataType: 'STEP', label: 'On Failure', isControlFlow: true, failure: true },
+      wokeAt: { dataType: 'STRING', label: 'When the run went on, as an ISO 8601 time', tsType: 'string' },
+    },
+    helperText: `
+function __fw_getMockConfig(runtime) {
+    return runtime?.runtime.services.mocks;
+}
+
+function __fw_lookupMock(section, key, runtime) {
+    if (!section)
+        return undefined;
+    const nodeId = runtime?.nodeId;
+    if (nodeId) {
+        const qualified = section[\`\${nodeId}:\${key}\`];
+        if (qualified !== undefined)
+            return qualified;
+        const any = section[\`\${nodeId}:*\`];
+        if (any !== undefined)
+            return any;
+    }
+    return section[key];
+}
+`.trim(),
+    helperTextProduction: undefined,
+    functionText: `
+async function sleep(execute, duration, runtime) {
+    if (!execute)
+        return { onSuccess: false, onFailure: false, wokeAt: '' };
+    const mocks = __fw_getMockConfig(runtime);
+    if (mocks) {
+        if (mocks.fast)
+            return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
+    }
+    void duration;
+    return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
+}
+`.trim(),
+    functionTextProduction: `
+async function sleep(execute, duration, runtime) {
+    if (!execute)
+        return { onSuccess: false, onFailure: false, wokeAt: '' };
+    void duration;
+    return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
+}
+`.trim(),
+  },
+  {
+    type: 'NodeType',
     name: 'waitForEvent',
     functionName: 'waitForEvent',
     isAsync: true,

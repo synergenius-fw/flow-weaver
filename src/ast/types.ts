@@ -218,7 +218,7 @@ export type TNodeTypeAST = {
   /** Engine appends the execution-scoped node runtime after declared inputs. */
   receivesRuntime?: boolean;
   /** Explicit compiler-known durable gate boundary. */
-  durableGate?: 'approval' | 'input' | 'agent';
+  durableGate?: 'approval' | 'input' | 'agent' | 'timer';
   /** Explicit effect adapter contract; never inferred from a function name. */
   durableEffect?: boolean;
   /**

@@ -13,7 +13,16 @@ interface Report {
   registries: Array<{ url: string; scopes: string[]; authenticated: boolean; ok: boolean; status?: number; ms?: number; error?: string; user?: string }>;
   at: string;
 }
-interface RunRow { id: string; file: string; name: string; status: string; startedAt: number; updatedAt: number; gate?: { node: string; kind: string }; error?: string; origin?: string }
+interface RunRow { id: string; file: string; name: string; status: string; startedAt: number; updatedAt: number; gate?: { node: string; kind: string }; due?: { at: number; action: 'wake' | 'timeout' }; error?: string; origin?: string }
+
+/** A waiting row's one-line reason: who or what it waits for, and until when if the clock is involved. */
+function waitingFor(r: RunRow): string {
+  const node = r.gate?.node ?? 'a gate';
+  if (!r.due) return `at ${node}`;
+  const at = new Date(r.due.at);
+  const when = at.toDateString() === new Date().toDateString() ? at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : at.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  return r.due.action === 'wake' ? `sleeping at ${node} until ${when}` : `at ${node}, times out ${when}`;
+}
 
 const host = (u: string) => u.replace(/^https?:\/\//, '').replace(/\/$/, '');
 const since = (iso: string) => ago(Date.parse(iso));
@@ -281,7 +290,7 @@ export function ProjectSide() {
           <h3>Waiting at a gate<span class="hint">{waiting.length}</span></h3>
           <div class="in runlist">
             {rows === null && <div class="hint" style="padding:4px 9px">reading</div>}
-            {waiting.map((r) => <Row key={r.id} r={r} what={`at ${r.gate?.node ?? 'a gate'}`} />)}
+            {waiting.map((r) => <Row key={r.id} r={r} what={waitingFor(r)} />)}
             {rows && !waiting.length && <div class="hint" style="padding:4px 9px">nothing is waiting for a person</div>}
           </div>
         </div>

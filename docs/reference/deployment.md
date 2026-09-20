@@ -103,6 +103,8 @@ A request waits at most 60 s for its run (`maxWaitMs`); a `Prefer: wait=<seconds
 
 At most 32 segments started by requests run at once (`maxInFlight`); past that a start or a resolve is `503 BUSY` with `Retry-After`. Agent answers and callbacks are not counted.
 
+The API also keeps the clock. Its sweep, every few seconds (`callbacks.sweepMs`), first wakes every run whose `sleep` is over and times out every gate whose `timeout` has passed — then delivers callbacks, so a run the clock finished still posts its result. A waiting run's JSON carries `due: { at, action }` when the clock will act on it. Embedding the API, `api.tick()` is the same pass on demand. See [Time](durable-gates#time).
+
 **Retries.** An `Idempotency-Key` header makes the same request the same run: a retry after a timeout returns whatever that run has reached, with `Idempotent-Replayed: true`, instead of starting another. The key is scoped to the route.
 
 **Callbacks.** On a route marked `callback`, the caller may add `"callbackUrl": "https://…"` to the body (or `?callbackUrl=` on a `GET`). When the run ends — however it ends, and whoever ends it: the API, an agent profile, a person in the console — the API POSTs `{ runId, workflow, status, result?, failed?, error? }` there, with `X-Flow-Weaver-Run`, `X-Flow-Weaver-Status`, `X-Flow-Weaver-Attempt` and, when the server has a token, `X-Flow-Weaver-Signature: sha256=<HMAC-SHA256 of the body, keyed with the token>`. The callback is kept beside the run, so a restart does not lose it; a failed delivery is retried after 2 s, 10 s, 1 min, 5 min and 15 min, then given up and the reason recorded. Redirects are not followed. Answer `2xx` to acknowledge.

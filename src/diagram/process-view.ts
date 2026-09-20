@@ -31,7 +31,7 @@ export interface ProcessStep {
   label: string;
   type: string;
   kind: ProcessKind;
-  gate: 'approval' | 'input' | 'agent' | null;
+  gate: 'approval' | 'input' | 'agent' | 'timer' | null;
   scope: string | null;
   pure: boolean;
   expression: boolean;

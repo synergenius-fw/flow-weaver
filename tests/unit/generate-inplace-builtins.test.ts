@@ -276,6 +276,77 @@ export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean
   });
 });
 
+describe('built-in helpers across the workflows of one file', () => {
+  const tmpDir = path.join(os.tmpdir(), `fw-builtin-helpers-${process.pid}`);
+  afterAll(() => { fs.rmSync(tmpDir, { recursive: true, force: true }); });
+
+  it('are emitted once when two workflows use different built-ins and are compiled one after the other', async () => {
+    const { compileWorkflow } = await import('../../src/api/compile');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const file = path.join(tmpDir, 'two.ts');
+    fs.writeFileSync(file, `
+/**
+ * @flowWeaver nodeType
+ * @expression
+ * @input wokeAt - When
+ * @output note - A line
+ */
+function report(wokeAt: string): string { return wokeAt; }
+
+/**
+ * @flowWeaver workflow
+ * @param label - A label
+ * @returns note - A line
+ * @node nap sleep [expr: duration="'1m'"]
+ * @node say report
+ * @path Start -> nap -> say -> Exit
+ * @connect nap.wokeAt -> say.wokeAt
+ */
+export async function sleeper(execute: boolean, params: { label: string }): Promise<{ onSuccess: boolean; onFailure: boolean; note: string }> {
+  throw new Error('generated body was not installed');
+}
+
+/**
+ * @flowWeaver nodeType
+ * @expression
+ * @input eventData - What arrived
+ * @output got - A line
+ */
+function arrived(eventData: object): string { return JSON.stringify(eventData); }
+
+/**
+ * @flowWeaver workflow
+ * @param label - A label
+ * @returns got - A line
+ * @node wait waitForEvent [expr: eventName="'app/thing'"]
+ * @node ok arrived
+ * @path Start -> wait -> ok -> Exit
+ */
+export async function waiter(execute: boolean, params: { label: string }): Promise<{ onSuccess: boolean; onFailure: boolean; got: string }> {
+  throw new Error('generated body was not installed');
+}
+`);
+    // The executor compiles a file workflow by workflow; so does fw compile on a multi-workflow file.
+    for (const workflowName of ['sleeper', 'waiter']) {
+      await compileWorkflow(file, { write: true, inPlace: true, parse: { workflowName } });
+    }
+    const code = fs.readFileSync(file, 'utf8');
+    expect(code.match(/function __fw_getMockConfig\(/g)).toHaveLength(1);
+    expect(code.match(/function __fw_lookupMock/g)).toHaveLength(1);
+    expect(code).toContain('async function sleep(');
+    expect(code).toContain('async function waitForEvent(');
+    // Compiling again adds nothing, and the graph identity each gated body
+    // declares is the same number whether its built-ins came from the
+    // registry or from the file's own inlined copies.
+    for (const workflowName of ['sleeper', 'waiter']) {
+      await compileWorkflow(file, { write: true, inPlace: true, parse: { workflowName } });
+    }
+    const again = fs.readFileSync(file, 'utf8');
+    expect(again.match(/function __fw_getMockConfig\(/g)).toHaveLength(1);
+    expect(again.match(/ctx\.bindWorkflow\([^)]*\)/g)).toEqual(code.match(/ctx\.bindWorkflow\([^)]*\)/g));
+  });
+});
+
 describe('parseWorkflow forwards parser errors', () => {
   const tmpDir = path.join(os.tmpdir(), `fw-parse-errors-${process.pid}`);
 

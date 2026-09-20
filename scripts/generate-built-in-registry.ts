@@ -28,10 +28,11 @@ const BUILT_IN_FILES: Array<{
   functionName: string;
   receivesAbortSignal?: boolean;
   receivesRuntime?: boolean;
-  durableGate?: 'approval' | 'input' | 'agent';
+  durableGate?: 'approval' | 'input' | 'agent' | 'timer';
   durablePure?: boolean;
 }> = [
   { file: 'delay.ts', functionName: 'delay', receivesAbortSignal: true, receivesRuntime: true, durablePure: true },
+  { file: 'sleep.ts', functionName: 'sleep', receivesRuntime: true, durableGate: 'timer' as const },
   { file: 'wait-for-event.ts', functionName: 'waitForEvent', receivesRuntime: true, durableGate: 'input' as const },
   { file: 'invoke-workflow.ts', functionName: 'invokeWorkflow', receivesAbortSignal: true, receivesRuntime: true, durablePure: true },
   { file: 'wait-for-agent.ts', functionName: 'waitForAgent', receivesAbortSignal: true, receivesRuntime: true, durableGate: 'agent' as const },

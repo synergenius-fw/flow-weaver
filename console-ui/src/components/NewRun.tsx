@@ -57,7 +57,7 @@ export function buildMocks(w: ParsedWorkflow, m: Mocking): Record<string, unknow
   return out;
 }
 
-const WHO: Record<string, string> = { approval: 'a person decides', input: 'a person or system answers', agent: 'an agent answers' };
+const WHO: Record<string, string> = { approval: 'a person decides', input: 'a person or system answers', agent: 'an agent answers', timer: 'the clock wakes it' };
 
 export function NewRunCard({ w }: { w: ParsedWorkflow }) {
   const fields = useMemo(() => paramFields(w), [w]);

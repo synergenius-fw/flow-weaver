@@ -123,7 +123,7 @@ export type TExternalNodeType = {
    */
   expression?: boolean;
   /** Explicit compiler-known durable gate boundary. */
-  durableGate?: 'approval' | 'input' | 'agent';
+  durableGate?: 'approval' | 'input' | 'agent' | 'timer';
   /** Requires the durable idempotency/receipt effect contract. */
   durableEffect?: boolean;
   /** Explicitly safe to restore/skip without an effect receipt. */

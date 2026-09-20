@@ -536,6 +536,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
       id, file: rec.filePath, name: rec.workflowName, params: rec.params, mocks: rec.mocks, source: rec.source, status: rec.status,
       startedAt: at(rec.createdAt), updatedAt: at(rec.updatedAt),
       gate: rec.gate ? { node: rec.gate.node, kind: rec.gate.kind } : undefined,
+      due: rec.due ? { at: at(rec.due.at), action: rec.due.action } : undefined,
       result: rec.result, error: rec.error, failedAt: rec.failedNode, traced: !!rec.traced,
       agent: rec.agent, agents: rec.agents, origin: rec.origin,
     };
@@ -725,6 +726,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
       .map((s) => ({
         id: s.runId, file: s.filePath, name: s.workflowName, status: s.status, params: s.params, mocks: s.mocks, source: s.source,
         startedAt: at(s.createdAt), updatedAt: at(s.updatedAt), gate: s.gate, failedAt: s.failedNode, origin: s.origin,
+        due: s.due ? { at: at(s.due.at), action: s.due.action } : undefined,
       }));
     // Runs accumulate indefinitely; a list of hundreds is not history a
     // person reads. What is in flight is never dropped.
@@ -786,6 +788,21 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
     }, 3000);
     storePoll.unref?.();
   }
+
+  // The clock: a sleeping run wakes, a gate with a timeout gives up, without
+  // anyone at the console. Runs the server also ticks are moved once; the
+  // claim decides who, and the other side sees the record change.
+  const clock = setInterval(() => {
+    void coordinator.tick().then(async (moved) => {
+      for (const run of [...moved.woke, ...moved.timedOut]) {
+        listed = undefined;
+        await pushRun(run.runId);
+        broadcast({ type: 'runs' });
+        void afterSegment(run.runId);
+      }
+    }).catch(() => undefined);
+  }, 3000);
+  clock.unref?.();
 
   const heartbeat = setInterval(() => {
     for (const res of globalSubs) res.write(': ping\n\n');
@@ -1279,6 +1296,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
     url: `http://${host}:${actualPort}`,
     async close() {
       clearInterval(heartbeat);
+      clearInterval(clock);
       // Services the console started stop with it: one rule, no orphans.
       await supervisor.close().catch(() => undefined);
       await watcher?.close();

@@ -18,7 +18,12 @@ export const MAX_CONTINUATION_DEPTH = 32;
 export const MAX_CONTINUATION_ENTRIES = 10_000;
 export const MAX_CONTINUATION_STRING_BYTES = 256 * 1024;
 
-export type DurableGateKind = "approval" | "input" | "agent";
+/**
+ * Who answers a gate: a person deciding, a system supplying data, an agent
+ * doing a task, or the clock (`timer`: a `sleep` node, woken by whoever
+ * keeps the run when its time has come).
+ */
+export type DurableGateKind = "approval" | "input" | "agent" | "timer";
 
 export type WireValue =
   | null
@@ -619,7 +624,7 @@ export function structurallyValidEnvelope(value: unknown): value is Continuation
     typeof value.formatVersion !== "number" ||
     typeof value.runId !== "string" ||
     typeof value.gateId !== "string" ||
-    !["approval", "input", "agent"].includes(value.gateKind as string) ||
+    !["approval", "input", "agent", "timer"].includes(value.gateKind as string) ||
     typeof value.workflowId !== "string" ||
     typeof value.bundleDigest !== "string" ||
     typeof value.graphFingerprint !== "string" ||

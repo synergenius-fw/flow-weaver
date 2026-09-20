@@ -24,7 +24,7 @@ export interface DiffMarks { added: string[]; removed: string[]; changed: string
 /** What a row and its tile need to draw a step that no longer exists in the file. */
 export interface DiffNode {
   id: string; type: string; label: string; description: string; builtin: boolean; color: string | null; icon: string | null;
-  pull: boolean; gate: 'approval' | 'input' | 'agent' | null; expression: boolean; durablePure: boolean; effect: boolean; async: boolean;
+  pull: boolean; gate: 'approval' | 'input' | 'agent' | 'timer' | null; expression: boolean; durablePure: boolean; effect: boolean; async: boolean;
   inputs: Array<{ name: string; tsType: string; optional: boolean; description: string }>; outputs: Array<{ name: string; tsType: string; optional: boolean; description: string }>;
   source: string; file: string; line: number | null; outputSchema: null; expr: Array<{ port: string; expr: string }>; pack: null; deploy: null;
 }

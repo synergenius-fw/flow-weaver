@@ -55,19 +55,20 @@ export function renderModule(source: string): string {
   ].join('\n');
 }
 
-const isMain = process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
-  const files = SOURCES.map((file) => ({ name: file, text: fs.readFileSync(path.join(ROOT, file), 'utf8') }));
-  const rendered = renderModule(inlineEngineSource(files));
-  if (process.argv.includes('--check')) {
-    const current = fs.existsSync(OUTPUT) ? fs.readFileSync(OUTPUT, 'utf8') : '';
-    if (current !== rendered) {
-      console.error('src/api/inline-engine.generated.ts is stale; run: npx tsx scripts/generate-inline-engine.ts');
-      process.exit(1);
-    }
-    console.log('inline engine is up to date');
-  } else {
-    fs.writeFileSync(OUTPUT, rendered, 'utf8');
-    console.log(`Generated src/api/inline-engine.generated.ts (${rendered.length} bytes from ${SOURCES.length} files)`);
+// Always a script, never imported (like generate-version.ts), so no
+// "am I main" check: comparing argv[1] with import.meta.url is a drive-letter
+// case away from being wrong on Windows, and a silent no-op there would
+// fail the build with a missing module.
+const files = SOURCES.map((file) => ({ name: file, text: fs.readFileSync(path.join(ROOT, file), 'utf8') }));
+const rendered = renderModule(inlineEngineSource(files));
+if (process.argv.includes('--check')) {
+  const current = fs.existsSync(OUTPUT) ? fs.readFileSync(OUTPUT, 'utf8') : '';
+  if (current !== rendered) {
+    console.error('src/api/inline-engine.generated.ts is stale; run: npx tsx scripts/generate-inline-engine.ts');
+    process.exit(1);
   }
+  console.log('inline engine is up to date');
+} else {
+  fs.writeFileSync(OUTPUT, rendered, 'utf8');
+  console.log(`Generated src/api/inline-engine.generated.ts (${rendered.length} bytes from ${SOURCES.length} files)`);
 }

@@ -75,6 +75,8 @@ A run started in the console is a real execution of the workflow, through the sa
 
 The gate form is built from the port's TypeScript type: a `boolean` is a yes/no, a union of literals a choice, an object its fields. **Reject** is offered when the gate has an `onFailure` port.
 
+A run asleep at a `sleep` node shows when it wakes and a **Wake now** button instead of a form; a gate with a `timeout` says when it times out and takes its failure path. The console's clock ticks every few seconds while it is open, as `fw serve`'s does, so a sleep that is over wakes without anyone at the page. The Project page's *Needs you* list says *sleeping until* or *times out at* on those rows. See [Time](durable-gates#time).
+
 If the file changed since the run paused, the answer is refused with a message saying so; start a new run. See [Durable Gates](durable-gates) for what pauses a run and how an answer is shaped.
 
 When an agent profile is answering a gate, its panel sits on the step's row in the process: the profile's name and model, the model's words as they stream, the tools it calls, and the tokens so far. The form is out of the way until it is done. Then one line stays on the row — *answered in 3.2 s · 1.4k tokens* — and the run goes on. If the profile could not answer — no key in the environment, a model that never submitted, an answer that did not fit — the line says why in red, the form is back, and *ask the agent again* is beside it. A run started with the switch off can still be handed to the agent from that button.

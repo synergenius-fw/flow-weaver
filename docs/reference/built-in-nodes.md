@@ -1,25 +1,26 @@
 ---
 name: Built-in Nodes
-description: Built-in runtime nodes (delay, waitForEvent, invokeWorkflow, waitForAgent), which ones are durable gates, and the mock system for testing
-keywords: [delay, waitForEvent, invokeWorkflow, waitForAgent, built-in, runtime, gate, agent, mock, mocks, FwMockConfig, testing, fast, events, invocations, agents, sleep, duration, timeout]
+description: Built-in runtime nodes (delay, sleep, waitForEvent, invokeWorkflow, waitForAgent), which ones are durable gates, and the mock system for testing
+keywords: [delay, sleep, waitForEvent, invokeWorkflow, waitForAgent, built-in, runtime, gate, timer, agent, mock, mocks, FwMockConfig, testing, fast, events, invocations, agents, duration, timeout, deadline, wake]
 ---
 
 # Built-in Nodes
 
-Flow Weaver provides four built-in node types. They need no import and no `@flowWeaver nodeType` declaration — write `@node <id> <name>` and the parser injects them.
+Flow Weaver provides five built-in node types. They need no import and no `@flowWeaver nodeType` declaration — write `@node <id> <name>` and the parser injects them.
 
 | Node | Classification | Mockable in a compiled workflow |
 |------|----------------|--------------------------------|
 | `delay` | `@durablePure` | Yes — `fast: true` |
 | `invokeWorkflow` | `@durablePure` | Yes — `invocations` |
-| `waitForEvent` | `@durableGate input` | No — it yields; see [Durable Gates](durable-gates) |
-| `waitForAgent` | `@durableGate agent` | No — it yields; see [Durable Gates](durable-gates) |
+| `sleep` | `@durableGate timer` | Yes — `fast: true` wakes it at once; see [Durable Gates](durable-gates) |
+| `waitForEvent` | `@durableGate input` | Yes — `events`; see [Durable Gates](durable-gates) |
+| `waitForAgent` | `@durableGate agent` | Yes — `agents`; see [Durable Gates](durable-gates) |
 
-Using either gate node makes the whole workflow a gated workflow: every other node must then carry `@durablePure`, `@durableGate`, or `@durableEffect`, and `fw run` will refuse it. The other two are ordinary nodes.
+Using any gate node makes the whole workflow a gated workflow: every other node must then carry `@durablePure`, `@durableGate`, or `@durableEffect`, and `fw run` will refuse it. The other two are ordinary nodes.
 
 ## delay
 
-Pauses execution for a specified duration.
+Holds the process for a duration. It is for short pauses in a running segment — a backoff, a settle time — not for waiting hours: the process has to stay up the whole time, and a gated run resumed after a `delay` waits again. For anything a person would notice, use [`sleep`](#sleep).
 
 ```typescript
 /**
@@ -58,6 +59,43 @@ When `fast: true` is set in mock config, `delay` sleeps for 1ms instead of the r
 
 ---
 
+## sleep
+
+A `timer` gate. The run pauses with a wake time, the process is free to go, and whoever keeps the run — the coordinator behind `fw serve`, the console and the MCP tools, or a host of your own — resumes it once the duration has passed. Nothing runs in the meantime.
+
+```typescript
+/**
+ * @flowWeaver nodeType
+ * @durableGate timer
+ * @input duration - How long the run sleeps before it goes on (e.g. "30s", "2h", "3d")
+ * @output wokeAt - When the run went on, as an ISO 8601 time
+ */
+async function sleep(execute: boolean, duration: string)
+```
+
+### Usage in Workflow
+
+```typescript
+/**
+ * @flowWeaver workflow
+ * @node remind sleep [expr: duration="'3d'"]
+ * @path Start -> notify -> remind -> followUp -> Exit
+ */
+```
+
+### Waking it
+
+- The coordinator records the wake time on the run (`due: { at, action: 'wake' }`) and its clock resumes the run when it comes: `fw serve` and the console tick every few seconds, `fw_runs` ticks before it lists. `wokeAt` is the time the clock acted.
+- A person can cut the sleep short: the console's gate card has **Wake now**; over MCP or HTTP, resolve the gate with any time as the answer (`fw_resume { runId, answer: "2026-09-21T09:00:00Z" }`).
+- A host of its own reads `gate.inputs.duration` (or the first positional argument of the gate payload) and resumes with `{ onSuccess: true, onFailure: false, wokeAt }` when it sees fit; see [A host of your own](library#a-host-of-your-own).
+- An unreadable duration wakes at once rather than never.
+
+### Mock Behavior
+
+`fast: true` answers the gate at the boundary with the current time, so a run with sleeps goes straight through, as `delay` does under the same flag.
+
+---
+
 ## waitForEvent
 
 An `input` gate. The workflow yields here and resumes when a coordinator supplies the event data. The inputs describe what is being waited for; they are handed to whoever resolves the gate.
@@ -88,7 +126,7 @@ async function waitForEvent(execute: boolean, eventName: string, match?: string,
 
 - Through MCP: `fw_run` returns `{ status: "waiting", gate: { kind: "input", inputs: { eventName, match, timeout } } }`; answer with `fw_resume { runId, answer: <eventData> }`
 - Programmatically: resolution `{ gateId, value: { onSuccess: true, onFailure: false, eventData } }`
-- `timeout` is information for the coordinator; the engine does not run a timer
+- `timeout` is a deadline the coordinator keeps, not a timer the engine runs. With a readable duration the run carries `due: { at, action: 'timeout' }`, and when that time passes with no answer the coordinator's clock takes the gate's failure path, as a `reject` would (`no answer within 48h` on the failure port). Route `wait:fail` somewhere; an unrouted failure ends the run there. The same works for any gate you declare: name an input `timeout`, give it a duration, and keep its `onFailure` port
 
 ### Mock Behavior
 

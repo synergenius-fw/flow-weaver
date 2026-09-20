@@ -105,7 +105,7 @@ function StepRow({ row, gutter, laneX, w, nodes, mark, slot }: { row: GRow<Step>
         {/* An agent profile at work on this gate streams in above the form;
             once it has answered, or could not, one line stays. */}
         {r?.agent?.node === s.id && (st === 'WAITING' || st === 'SUCCEEDED' || st === 'RUNNING') && <AgentPanel note={r.agent} log={r.agentLog} compact={st !== 'WAITING'} />}
-        {st === 'WAITING' && r?.gate && !(r.agent?.node === s.id && r.agent.status === 'answering') && <GateCard gate={r.gate} />}
+        {st === 'WAITING' && r?.gate && !(r.agent?.node === s.id && r.agent.status === 'answering') && <GateCard gate={r.gate} due={r.due} />}
       </div>
     </div>
   );

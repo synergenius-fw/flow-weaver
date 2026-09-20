@@ -374,6 +374,63 @@ describe('declared routes', () => {
   }, 30000);
 });
 
+describe('the clock', () => {
+  const NAP = `
+/**
+ * @flowWeaver nodeType
+ * @expression
+ * @input wokeAt - When the run woke
+ * @output note - A line about it
+ */
+function report(wokeAt: string): string { return \`woke at \${wokeAt}\`; }
+
+/**
+ * @flowWeaver workflow
+ * @http POST /nap
+ * @param label - A label
+ * @returns note - A line about it
+ * @node z sleep [expr: duration="'150ms'"]
+ * @node say report
+ * @path Start -> z -> say -> Exit
+ * @connect z.wokeAt -> say.wokeAt
+ */
+export async function nap(execute: boolean, params: { label: string }): Promise<{ onSuccess: boolean; onFailure: boolean; note: string }> {
+  throw new Error('generated body was not installed');
+}
+`;
+  let api: WorkflowApi;
+  const announced: RunResponse[] = [];
+  beforeAll(async () => {
+    fs.writeFileSync(path.join(dir, 'nap.ts'), NAP);
+    api = createWorkflowApi({ dir, runsDir, agents: false, callbacks: { sweepMs: 60_000 }, onRun: (r) => { announced.push(r); } });
+    await api.ready();
+  });
+  afterAll(async () => { await api.close(); });
+
+  it('answers 202 with the wake time for a sleeping run, and the sweep wakes it', async () => {
+    const post = (p: string, body: unknown) => api.fetch(new Request(`http://x${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
+    const first = await post('/nap', { label: 'a' });
+    expect(first.status).toBe(202);
+    const run = (await first.json()) as RunResponse;
+    expect(run.status).toBe('waiting');
+    expect(run.gate).toMatchObject({ kind: 'timer', node: 'z', inputs: { duration: '150ms' } });
+    expect(run.due?.action).toBe('wake');
+    expect(Date.parse(run.due!.at) - Date.now()).toBeLessThanOrEqual(150);
+
+    // Not yet: the clock leaves it.
+    await api.tick();
+    expect((await api.fetch(new Request(`http://x${first.headers.get('location')}`))).status).toBe(202);
+
+    await new Promise((r) => setTimeout(r, 200));
+    await api.deliverCallbacks();   // the periodic sweep: the clock first
+    const done = await api.fetch(new Request(`http://x${first.headers.get('location')}`));
+    expect(done.status).toBe(200);
+    expect((await done.json()).note).toMatch(/^woke at \d{4}-/);
+    // Announced like any other state change.
+    expect(announced.some((r) => r.runId === run.runId && r.status === 'completed')).toBe(true);
+  });
+});
+
 describe('embedding', () => {
   let api: WorkflowApi;
   beforeAll(async () => {

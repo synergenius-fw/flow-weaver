@@ -1,14 +1,14 @@
 ---
 name: Durable Gates
-description: Pausing a workflow at an approval, input, or agent gate, resuming it later from another process, and driving it from an AI assistant over MCP
-keywords: [gate, durable, durableGate, durablePure, durableEffect, waitForAgent, waitForEvent, approval, input, agent, yield, continuation, resume, coordinator, fw_run, fw_resume, fw_runs, fw_workflow_run, fw_workflow_resume, bundleDigest, operationKey, receipt, classification, human-in-the-loop, pause]
+description: Pausing a workflow at an approval, input, agent, or timer gate, resuming it later from another process, deadlines and sleeps kept by the coordinator's clock, and driving it from an AI assistant over MCP
+keywords: [gate, durable, durableGate, durablePure, durableEffect, waitForAgent, waitForEvent, sleep, approval, input, agent, timer, timeout, deadline, due, tick, clock, yield, continuation, resume, coordinator, fw_run, fw_resume, fw_runs, fw_workflow_run, fw_workflow_resume, bundleDigest, operationKey, receipt, classification, human-in-the-loop, pause]
 ---
 
 # Durable Gates
 
 A gate is a node where the workflow stops and hands control to something outside it — a person approving, an external system answering, an AI agent doing a task. The run does not wait: it returns a continuation and the process is free to exit. Later, any compatible process resumes from exactly that node with the answer.
 
-- Three gate kinds: `approval`, `input`, `agent`
+- Four gate kinds: `approval`, `input`, `agent`, `timer`
 - A gate is compiler metadata, declared with `@durableGate`; it is never inferred
 - Every node in a workflow that contains a gate has exactly one classification: `@durableGate`, `@durableEffect`, or pure. An `@expression` node is pure automatically; a normal-mode pure node needs `@durablePure`
 - The engine keeps nothing after a yield — no Promise, timer, or process
@@ -23,8 +23,9 @@ A gate is a node where the workflow stops and hands control to something outside
 | `approval` | — | `@durableGate approval` | A person accepts or refuses a value |
 | `input` | `waitForEvent` | `@durableGate input` | An external system supplies data |
 | `agent` | `waitForAgent` | `@durableGate agent` | An AI assistant performs a task and reports back |
+| `timer` | `sleep` | `@durableGate timer` | The clock wakes the run after a duration; nobody answers |
 
-The kind changes nothing mechanically. All three yield the same way and resume the same way; the kind is a label for whoever resolves the gate.
+The kind changes nothing mechanically. All four yield the same way and resume the same way; the kind is a label for whoever resolves the gate — and for a `timer`, whoever resolves it is the coordinator's clock (see [Time](#time)).
 
 ## Classifying every node
 
@@ -38,7 +39,7 @@ Once a workflow's reachable closure contains a gate — including scoped childre
 
 An **`@expression` node needs no tag**: it is a pure input-to-output function by construction — no `execute` parameter, no `onSuccess`/`onFailure`, no way to signal a side effect — so it counts as `@durablePure`. Write `@durablePure` explicitly only on a normal-mode node that is pure. A node that touches the outside world must be `@durableEffect`, and the gate itself `@durableGate`, whatever its mode.
 
-Built-ins are pre-classified: `delay` and `invokeWorkflow` are `@durablePure`; `waitForEvent` is an `input` gate; `waitForAgent` is an `agent` gate.
+Built-ins are pre-classified: `delay` and `invokeWorkflow` are `@durablePure`; `sleep` is a `timer` gate; `waitForEvent` is an `input` gate; `waitForAgent` is an `agent` gate.
 
 A missing or doubled classification is a compile error, reported by name:
 
@@ -318,6 +319,20 @@ The adapter answers one question per effect — *did this already happen?*
 | `{ kind: 'committed', receipt, result }` | Restore both; do not run the body |
 | `{ kind: 'repeatable' }` | Run again under the same key |
 | `{ kind: 'ambiguous' }` | Refuse to resume; never re-run |
+
+## Time
+
+The engine keeps no timer: a gate yields and the process is free to go. Time is the coordinator's, and it keeps it in one field on the run, `due: { at, action }`, set when the run pauses and cleared when it moves:
+
+| The run paused at | `due.action` | When `due.at` passes |
+|-------------------|--------------|----------------------|
+| A `timer` gate (`sleep`) | `wake` | The run resumes along `onSuccess`; `wokeAt` is the time the clock acted |
+| Any gate given a readable `timeout` input (`waitForEvent`'s, or an input of that name on a gate of yours) that has an `onFailure` port | `timeout` | The run resumes along `onFailure`, as a `reject` with the reason `no answer within <timeout>` |
+| Anything else | — | Nothing; the run waits for its answer |
+
+Who runs the clock: `runs.tick()` on the coordinator moves every waiting run whose time has come. `fw serve` ticks with its sweep every few seconds and the console ticks every few seconds; `fw_runs` ticks before it lists, so an assistant never sees a sleep that is over as waiting. Several tickers on one store are fine: a run is claimed while it moves, and the others skip it. A run the clock cannot move — its file changed since it paused, say — stays waiting and is reported in the tick's `skipped`; the console shows it with its past due time, for a person to cancel or answer.
+
+A gate with a due time is still a gate: it can be answered or rejected before the time, by a person, an agent profile or an API call, and the console's gate card says when the clock would act. `fast: true` in the mocks answers a `sleep` at the boundary, so a run with sleeps goes straight through in tests.
 
 ## Driving a run from an AI assistant
 

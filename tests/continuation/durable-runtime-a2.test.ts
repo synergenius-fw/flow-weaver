@@ -1299,7 +1299,7 @@ describe('A2 durable runtime state machine', () => {
     }
   });
 
-  it.each(['approval', 'input', 'agent'] as const)(
+  it.each(['approval', 'input', 'agent', 'timer'] as const)(
     'produces a terminal %s yield object rather than retaining a waiter',
     (kind) => {
     const runtime = createWorkflowRuntime({

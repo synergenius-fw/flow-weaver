@@ -7,7 +7,7 @@ import { quoteArg } from './shell';
 export interface FieldSchema { type: 'string' | 'number' | 'boolean' | 'enum' | 'array' | 'object' | 'any'; optional?: boolean; values?: Array<string | number>; items?: FieldSchema; fields?: Record<string, FieldSchema>; text?: string; /** What the field is for, from the port's description. */ help?: string }
 export interface Port { name: string; tsType: string; optional: boolean; description: string }
 export type Deploy = Record<string, Record<string, unknown>>;
-export interface Node { id: string; type: string; label: string; description: string; builtin: boolean; color: string | null; icon: string | null; pull: boolean; source: string; file: string; line: number | null; gate: 'approval' | 'input' | 'agent' | null; expression: boolean; durablePure: boolean; effect: boolean; async: boolean; inputs: Port[]; outputs: Port[]; outputSchema: Record<string, FieldSchema> | null; expr: Array<{ port: string; expr: string }>; pack: string | null; deploy: Deploy | null }
+export interface Node { id: string; type: string; label: string; description: string; builtin: boolean; color: string | null; icon: string | null; pull: boolean; source: string; file: string; line: number | null; gate: 'approval' | 'input' | 'agent' | 'timer' | null; expression: boolean; durablePure: boolean; effect: boolean; async: boolean; inputs: Port[]; outputs: Port[]; outputSchema: Record<string, FieldSchema> | null; expr: Array<{ port: string; expr: string }>; pack: string | null; deploy: Deploy | null }
 export interface Step { id: string; label: string; type: string; kind: 'step' | 'pause' | 'effect' | 'loop'; gate: string | null; scope: string | null; pure: boolean; expression: boolean; pull: boolean; stage: number; reads: Array<{ port: string; from: string; fromPort: string }>; exprs: Array<{ port: string; expr: string }>; produces: Array<{ port: string; to: string[] }>; children: Step[]; entered: Array<{ from: string; arm: 'ok' | 'fail' }>; successTo: string[]; failureTo: string[]; gateInputs: string[]; gateOutputs: string[]; description: string }
 export interface PortEnd { node: string; port: string }
 export interface Model { name: string; steps: Step[]; startTo: string[]; exitFrom: Array<{ from: string; arm: 'ok' | 'fail' }> }
@@ -49,11 +49,13 @@ export interface ParsedWorkflow {
 
 export const isParsed = (w: Workflow | null): w is ParsedWorkflow => !!w && !w.parseErrors;
 export interface WorkflowSummary { file: string; rel: string; name: string; steps: number; gates: number; errors: number; warnings: number; waiting: number; checked: boolean; codes: string[]; uses: string[] }
-export interface Gate { id: string; kind: 'approval' | 'input' | 'agent'; node: string; inputs: Record<string, unknown>; absent: string[]; outputs: string[]; outputTypes: Record<string, string>; outputSchema: Record<string, FieldSchema> | null; hasSuccessPort: boolean; hasFailurePort: boolean }
+export interface Gate { id: string; kind: 'approval' | 'input' | 'agent' | 'timer'; node: string; inputs: Record<string, unknown>; absent: string[]; outputs: string[]; outputTypes: Record<string, string>; outputSchema: Record<string, FieldSchema> | null; hasSuccessPort: boolean; hasFailurePort: boolean }
+/** When the clock moves a waiting run: a sleep wakes, or a gate with a timeout takes its failure path. */
+export interface Due { at: number; action: 'wake' | 'timeout' }
 export interface RunSnapshot {
   id: string; file: string; name: string; params: Record<string, unknown>;
   status: 'running' | 'waiting' | 'completed' | 'failed' | 'cancelled';
-  startedAt: number; updatedAt: number; gate?: Gate; result?: any; error?: string;
+  startedAt: number; updatedAt: number; gate?: Gate; due?: Due; result?: any; error?: string;
   /** The step that threw, when the trace said which. */
   failedAt?: string;
   /** Who started the run: `console`, `http`, `mcp`; absent on older records. */

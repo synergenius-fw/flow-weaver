@@ -86,13 +86,19 @@ export interface RunResponse {
   /** Present while `waiting`: the gate and what it needs. */
   gate?: {
     id: string;
-    kind: 'approval' | 'input' | 'agent';
+    kind: 'approval' | 'input' | 'agent' | 'timer';
     node: string;
     inputs: Record<string, unknown>;
     absent: string[];
     outputs: string[];
     hasFailurePort: boolean;
   };
+  /**
+   * Present while `waiting` when the clock will move the run: a `timer` gate
+   * wakes (`wake`) at `at`; a gate given a `timeout` takes its failure path
+   * (`timeout`) at `at`. The API's sweep does it; nobody has to call resolve.
+   */
+  due?: { at: string; action: 'wake' | 'timeout' };
   /** What an agent profile is doing, or did, about the run's agent gate. */
   agent?: AgentNote;
   /** Present when `completed`. */

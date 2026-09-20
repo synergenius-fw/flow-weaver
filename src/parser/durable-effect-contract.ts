@@ -27,9 +27,9 @@ export function hasJsDocTag(fn: FunctionLike, tagName: string): boolean {
 
 export function durableGateKind(
   fn: FunctionLike,
-): 'approval' | 'input' | 'agent' | undefined {
+): 'approval' | 'input' | 'agent' | 'timer' | undefined {
   const kind = jsDocTagComment(fn, 'durableGate')?.split(/\s+/)[0];
-  return kind === 'approval' || kind === 'input' || kind === 'agent'
+  return kind === 'approval' || kind === 'input' || kind === 'agent' || kind === 'timer'
     ? kind
     : undefined;
 }

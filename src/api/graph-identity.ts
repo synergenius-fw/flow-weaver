@@ -24,10 +24,35 @@ export interface GraphIdentity {
   readonly continuationGraph: ContinuationGraphCompatibility;
 }
 
+const connectionKey = (c: TWorkflowAST['connections'][number]) => `${c.from.node}.${c.from.port}\0${c.to.node}.${c.to.port}`;
+
+/** A port as the graph knows it: its name and role, not its label or its type's spelling. */
+function portShape(ports: TWorkflowAST['nodeTypes'][number]['inputs']): Record<string, { optional?: true; control?: true; failure?: true }> {
+  const shape: Record<string, { optional?: true; control?: true; failure?: true }> = {};
+  for (const name of Object.keys(ports).sort()) {
+    const port = ports[name];
+    shape[name] = {
+      ...(port.optional ? { optional: true as const } : {}),
+      ...(port.isControlFlow || port.dataType === 'STEP' ? { control: true as const } : {}),
+      ...(port.failure ? { failure: true as const } : {}),
+    };
+  }
+  return shape;
+}
+
 /**
- * Compute the graph identity of `root` within `allWorkflows`. Source
- * locations are diagnostics, not graph identity, so they are left out:
- * identical source parsed from a temp copy yields the same fingerprint.
+ * Compute the graph identity of `root` within `allWorkflows`.
+ *
+ * What goes into the fingerprint is what replaying a continuation depends
+ * on: the instances and their configuration, the connections, the scopes,
+ * the Start and Exit ports, and each node type's ports by name and role
+ * with its durable classification. What stays out is anything that reads
+ * the same graph differently: source locations (a temp copy parses to the
+ * same identity as the file), port labels (a doc comment is not a graph
+ * change) and type spellings (a built-in injected from the registry and
+ * the same built-in inlined by a compile lose their TypeScript types on
+ * re-parse; the graph is the same graph). A changed node body is the
+ * bundle digest's to catch.
  */
 export function graphIdentity(root: TWorkflowAST, allWorkflows: readonly TWorkflowAST[] = []): GraphIdentity {
   const analysis = validateDurableClosure(root, allWorkflows, { enforce: false });
@@ -41,22 +66,30 @@ export function graphIdentity(root: TWorkflowAST, allWorkflows: readonly TWorkfl
     JSON.stringify(
       reachable.map((workflow) => ({
         functionName: workflow.functionName,
-        instances: workflow.instances.map(({ sourceLocation: _sourceLocation, ...instance }) => instance),
-        connections: workflow.connections.map(({ sourceLocation: _sourceLocation, ...connection }) => connection),
+        // Declaration order is how the file happens to be written; a
+        // regenerated JSDoc lists the same connections in another order.
+        instances: [...workflow.instances]
+          .sort((left, right) => left.id.localeCompare(right.id))
+          .map(({ sourceLocation: _sourceLocation, ...instance }) => instance),
+        connections: [...workflow.connections]
+          .sort((left, right) => connectionKey(left).localeCompare(connectionKey(right)))
+          .map(({ sourceLocation: _sourceLocation, ...connection }) => connection),
         scopes: workflow.scopes,
-        startPorts: workflow.startPorts,
-        exitPorts: workflow.exitPorts,
-        nodeTypes: workflow.nodeTypes.map((nodeType) => ({
-          name: nodeType.name,
-          functionName: nodeType.functionName,
-          inputs: nodeType.inputs,
-          outputs: nodeType.outputs,
-          expression: nodeType.expression,
-          scope: nodeType.scope,
-          durableGate: nodeType.durableGate,
-          durableEffect: nodeType.durableEffect,
-          durablePure: nodeType.durablePure,
-        })),
+        startPorts: portShape(workflow.startPorts),
+        exitPorts: portShape(workflow.exitPorts),
+        nodeTypes: [...workflow.nodeTypes]
+          .sort((left, right) => left.name.localeCompare(right.name))
+          .map((nodeType) => ({
+            name: nodeType.name,
+            functionName: nodeType.functionName,
+            inputs: portShape(nodeType.inputs),
+            outputs: portShape(nodeType.outputs),
+            expression: nodeType.expression === true,
+            scope: nodeType.scope,
+            durableGate: nodeType.durableGate,
+            durableEffect: nodeType.durableEffect === true,
+            durablePure: nodeType.durablePure === true,
+          })),
       })),
     ),
   ) as WireValue;

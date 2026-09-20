@@ -52,7 +52,7 @@ export async function resumeWorkflow(
 export function registerWorkflowRunTools(mcp: McpServer): void {
   mcp.tool(
     'fw_workflow_run',
-    'Run a workflow until completion or a durable approval, input, or agent gate. For coordinators: returns the raw continuation. Assistants should use fw_run.',
+    'Run a workflow until completion or a durable approval, input, agent, or timer gate. For coordinators: returns the raw continuation. Assistants should use fw_run.',
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       params: z.record(z.string(), z.unknown()).optional(),

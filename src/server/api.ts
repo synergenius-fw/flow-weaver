@@ -162,8 +162,10 @@ export interface WorkflowApi {
    * (Fastify's `request.body`, say), used instead of reading the stream.
    */
   handle(req: ServerRequest, res: ServerResponse, opts?: { basePath?: string; body?: unknown }): Promise<boolean>;
-  /** Deliver every pending callback now, instead of waiting for the next sweep. */
+  /** Deliver every pending callback now, instead of waiting for the next sweep. Ticks the clock first. */
   deliverCallbacks(): Promise<void>;
+  /** Let the clock act now: wake the runs whose sleep is over, time out the gates whose timeout has passed. */
+  tick(): Promise<void>;
   /** A Node request listener that answers 404 for anything that is not ours. */
   node(): (req: ServerRequest, res: ServerResponse) => void;
   /** Express-style middleware: handles what is ours, calls `next()` for the rest. */
@@ -362,8 +364,23 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
     }
   }
 
+  /**
+   * The periodic pass: the clock first, then the callbacks. A run the clock
+   * moved is announced and followed like a segment a request drove -- an
+   * agent gate it reached is answered, a finished run owes its callback.
+   */
   async function sweep(): Promise<void> {
+    await tick();
     for (const id of [...pending]) await deliverCallback(id);
+  }
+
+  async function tick(): Promise<void> {
+    let moved;
+    try { moved = await coordinator.tick(); } catch { return; }
+    for (const run of [...moved.woke, ...moved.timedOut]) {
+      await announce(run.runId);
+      await afterSegment(run.runId);
+    }
   }
 
   function profiles(): AgentProfiles {
@@ -513,6 +530,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
     const out: RunResponse = { runId: id, workflow: rec.workflowName, status: rec.status, startedAt: rec.createdAt, updatedAt: rec.updatedAt, params: rec.params, links };
     if (rec.status === 'waiting' && rec.gate) {
       out.gate = { id: rec.gate.id, kind: rec.gate.kind, node: rec.gate.node, inputs: rec.gate.inputs, absent: rec.gate.absent, outputs: rec.gate.outputs, hasFailurePort: rec.gate.hasFailurePort };
+      if (rec.due) out.due = rec.due;
       out.links = { ...links, resolve: `${base}/runs/${id}/resolve`, cancel: `${base}/runs/${id}/cancel` };
     }
     if (rec.agent) out.agent = rec.agent;
@@ -956,6 +974,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
     }),
     endpoints: () => registry.getAllEndpoints(),
     deliverCallbacks: sweep,
+    tick,
     close: async () => {
       if (sweeper) clearInterval(sweeper);
       sweeper = undefined;

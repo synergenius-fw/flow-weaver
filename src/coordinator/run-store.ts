@@ -13,6 +13,7 @@ import { buildGateResolution, type ResolveInput } from './gate-resolution.js';
 import { checkDocName, EFFECT_DOC_PREFIX, RESERVED_DOCS, RunBusyError, type RunStore } from './store.js';
 import { missingParams, MissingParamsError } from './params.js';
 import { createFileRunStore } from './file-store.js';
+import { dueFor, type RunDue } from './time.js';
 
 /**
  * The local durable-run coordinator.
@@ -120,6 +121,8 @@ export interface RunView {
     inputs: Record<string, unknown>;
     absent: string[];
   };
+  /** When the clock will move the run, while it waits: a sleep wakes, a gate with a timeout times out. */
+  due?: RunDue;
   result?: unknown;
   error?: string;
 }
@@ -130,6 +133,7 @@ export interface RunSummary {
   workflowName: string;
   filePath: string;
   gate?: { kind: DurableGateKind; node: string };
+  due?: RunDue;
   /** What the run was given, so a list can tell two runs apart. */
   params: Record<string, unknown>;
   failedNode?: string;
@@ -162,8 +166,23 @@ export interface LocalCoordinator {
   keep(runId: string, name: string, data: unknown): Promise<void>;
   /** Read a document kept with `keep`, or undefined. */
   kept<T = unknown>(runId: string, name: string): Promise<T | undefined>;
+  /**
+   * Let the clock act: every waiting run whose `due` time has passed is
+   * resumed -- a sleeping run woken along its success path, a gate with a
+   * timeout sent along its failure path. Safe to call from several
+   * processes at once: a run another process is driving, or already moved,
+   * is skipped. `fw serve` and the console call it every few seconds.
+   */
+  tick(now?: number): Promise<TickResult>;
   /** The store behind it. */
   readonly store: RunStore;
+}
+
+/** What one tick did. A run that could not be moved says why, in a word. */
+export interface TickResult {
+  woke: RunView[];
+  timedOut: RunView[];
+  skipped: { runId: string; reason: 'busy' | 'not-waiting' | 'bundle-changed' | 'failed'; message?: string }[];
 }
 
 /** Everything persisted about one run. The continuation is a document beside it. */
@@ -186,6 +205,8 @@ export interface RunRecord {
     hasSuccessPort: boolean;
     hasFailurePort: boolean;
   };
+  /** When the clock will move the run, while it waits. Set with the gate, cleared with it. */
+  due?: RunDue;
   result?: unknown;
   error?: string;
   /** The step that threw, when the trace said which; a failed run is opened there. */
@@ -278,21 +299,24 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
     if (outcome.kind === 'yielded') {
       const labeled = labelGate(outcome.gate, ast);
       await store.putDoc(record.runId, 'continuation', outcome.continuation);
+      const gate = {
+        id: outcome.gate.id,
+        kind: outcome.gate.kind,
+        node: outcome.gate.address.nodeId,
+        nodeType: outcome.gate.address.nodeType,
+        ...labeled,
+      };
       const next: RunRecord = {
         ...record,
         traced,
         status: 'waiting',
-        gate: {
-          id: outcome.gate.id,
-          kind: outcome.gate.kind,
-          node: outcome.gate.address.nodeId,
-          nodeType: outcome.gate.address.nodeType,
-          ...labeled,
-        },
+        gate,
+        due: dueFor(gate),
         result: undefined,
         error: undefined,
         updatedAt: now,
       };
+      if (next.due === undefined) delete next.due;
       await store.put(next);
       return next;
     }
@@ -302,6 +326,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
       traced,
       status: 'completed',
       gate: undefined,
+      due: undefined,
       result: outcome.result,
       error: undefined,
       updatedAt: now,
@@ -325,6 +350,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
       traced,
       status: cancelled ? 'cancelled' : 'failed',
       gate: undefined,
+      due: undefined,
       result: undefined,
       error: cancelled ? undefined : message,
       failedNode: cancelled ? undefined : failedNodeIn(kept),
@@ -515,6 +541,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
           ...record,
           status: 'cancelled',
           gate: undefined,
+          due: undefined,
           updatedAt: new Date().toISOString(),
         };
         await store.put(next);
@@ -560,6 +587,29 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
       return (await store.getDoc(runId, name)) as T | undefined;
     },
 
+    async tick(now = Date.now()) {
+      const result: TickResult = { woke: [], timedOut: [], skipped: [] };
+      const at = new Date(now).toISOString();
+      for (const summary of await store.list()) {
+        if (summary.status !== 'waiting' || !summary.due || summary.due.at > at) continue;
+        const { runId, due } = summary;
+        // A sleep wakes with the time it woke; a timeout is a refusal the
+        // workflow reads on the gate's failure port, like any other.
+        const input: ResolveInput = due.action === 'wake'
+          ? { answer: summary.gate?.outputs.length ? at : null }
+          : { reject: `no answer within ${String(summary.gate?.inputs.timeout ?? 'the timeout')}` };
+        try {
+          const view = await this.resume({ runId, input });
+          (due.action === 'wake' ? result.woke : result.timedOut).push(view);
+        } catch (error) {
+          const name = error instanceof Error ? error.name : '';
+          const reason = name === 'RunBusyError' ? 'busy' : name === 'RunNotWaitingError' ? 'not-waiting' : name === 'BundleChangedError' ? 'bundle-changed' : 'failed';
+          result.skipped.push({ runId, reason, ...(reason === 'failed' ? { message: error instanceof Error ? error.message : String(error) } : {}) });
+        }
+      }
+      return result;
+    },
+
     async list(filter = {}) {
       const records = await store.list(filter.filePath ? { filePath: path.resolve(filter.filePath) } : {});
       return records.map((record) => ({
@@ -568,6 +618,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
         workflowName: record.workflowName,
         filePath: record.filePath,
         gate: record.gate ? { kind: record.gate.kind, node: record.gate.node } : undefined,
+        due: record.due,
         params: record.params,
         failedNode: record.failedNode,
         mocks: record.mocks,
@@ -595,6 +646,7 @@ function toView(record: RunRecord): RunView {
       inputs: record.gate.inputs,
       absent: record.gate.absent,
     };
+    if (record.due) view.due = record.due;
   }
   if (record.status === 'completed') view.result = record.result;
   if (record.status === 'failed') view.error = record.error;
