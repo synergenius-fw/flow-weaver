@@ -130,7 +130,7 @@ export const missingErrorHandlerRule: TValidationRule = {
         errors.push({
           type: 'error',
           code: 'AGENT_LLM_MISSING_ERROR_HANDLER',
-          message: `LLM node '${instance.id}' has no error handler — its onFailure port is unconnected. LLM calls can fail due to rate limits, timeouts, or model errors.`,
+          message: `LLM node '${instance.id}' has no error handler. Its onFailure port is unconnected. LLM calls can fail due to rate limits, timeouts, or model errors.`,
           node: instance.id,
         });
       }
@@ -146,7 +146,7 @@ export const missingErrorHandlerRule: TValidationRule = {
 
 /**
  * Tool executors that perform actions should have a human-approval node upstream.
- * This is a warning, not an error — read-only tools may not need approval.
+ * This is a warning, not an error, because read-only tools may not need approval.
  */
 export const unguardedToolExecutorRule: TValidationRule = {
   name: 'AGENT_UNGUARDED_TOOL_EXECUTOR',
@@ -259,7 +259,7 @@ export const llmWithoutFallbackRule: TValidationRule = {
 
       const failureConnections = getOutgoing(ast, instance.id, 'onFailure');
 
-      // If unconnected, Rule 1 handles it — skip here
+      // If unconnected, Rule 1 handles it, so skip here
       if (failureConnections.length === 0) continue;
 
       // Static analysis cannot inspect retry behavior hidden behind shared
@@ -292,7 +292,7 @@ export const llmWithoutFallbackRule: TValidationRule = {
 
 /**
  * A tool executor whose non-STEP output ports are all unconnected means
- * tool results are computed but never used — likely a wiring mistake.
+ * tool results are computed but never used, likely a wiring mistake.
  */
 export const toolNoOutputHandlingRule: TValidationRule = {
   name: 'AGENT_TOOL_NO_OUTPUT_HANDLING',

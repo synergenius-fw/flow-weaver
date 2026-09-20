@@ -85,7 +85,7 @@ describe('TrackAllocator', () => {
 });
 
 // ---------------------------------------------------------------------------
-// calculateOrthogonalPath — forward connections
+// calculateOrthogonalPath: forward connections
 // ---------------------------------------------------------------------------
 
 describe('calculateOrthogonalPath: forward connections', () => {
@@ -93,7 +93,7 @@ describe('calculateOrthogonalPath: forward connections', () => {
     const from: [number, number] = [100, 100];
     const to: [number, number] = [400, 100];
     const path = calculateOrthogonalPath(from, to, [], 'a', 'b');
-    // Router may return null for certain geometries; exercise the code path either way
+    // Router may return null for certain geometries. Exercise the code path either way
     if (path) expect(path).toContain('M ');
   });
 
@@ -118,7 +118,7 @@ describe('calculateOrthogonalPath: forward connections', () => {
     const from: [number, number] = [100, 100];
     const to: [number, number] = [400, 103];
     const path = calculateOrthogonalPath(from, to, [], 'a', 'b');
-    // May return null or a path depending on exact thresholds; either is valid
+    // May return null or a path depending on exact thresholds. Either is valid
     expect(path === null || typeof path === 'string').toBe(true);
   });
 
@@ -166,7 +166,7 @@ describe('calculateOrthogonalPath: forward connections', () => {
 });
 
 // ---------------------------------------------------------------------------
-// calculateOrthogonalPath — backward and self connections
+// calculateOrthogonalPath: backward and self connections
 // ---------------------------------------------------------------------------
 
 describe('calculateOrthogonalPath: backward connections', () => {
@@ -227,7 +227,7 @@ describe('calculateOrthogonalPathSafe', () => {
     const from: [number, number] = [100, 100];
     const to: [number, number] = [400, 102];
     const result = calculateOrthogonalPathSafe(from, to, [], 'a', 'b');
-    // Either null or string is acceptable; safe wrapper should not throw
+    // Either null or string is acceptable. Safe wrapper should not throw
     expect(result === null || typeof result === 'string').toBe(true);
   });
 
@@ -296,7 +296,7 @@ describe('shared TrackAllocator', () => {
       [150, 110], [350, 110], boxes, 'a', 'b', { allocator: alloc },
     );
 
-    // Router may return null for certain geometries; exercise the code path either way
+    // Router may return null for certain geometries. Exercise the code path either way
     if (path1 && path2) {
       expect(path1).not.toBe(path2);
     }
@@ -350,7 +350,7 @@ describe('edge cases', () => {
       box('b', 400, 100, 100, 50),
     ];
     const path = calculateOrthogonalPath(from, to, boxes, 'a', 'b');
-    // Router may return null for certain geometries; we exercise the code path either way
+    // Router may return null for certain geometries. We exercise the code path either way
     expect(path === null || typeof path === 'string').toBe(true);
   });
 });

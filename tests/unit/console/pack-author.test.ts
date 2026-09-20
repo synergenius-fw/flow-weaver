@@ -64,7 +64,7 @@ describe('checkPackProject', () => {
     expect(check.manifest.nodeTypes.map((n) => n.name)).toEqual(['double']);
     expect(check.manifest.nodeTypes[0].outputs).toEqual([{ name: 'doubled', type: 'number', optional: false, description: '' }]);
     expect(check.hasManifest).toBe(false);
-    expect(check.changes).toEqual(['No flowweaver.manifest.json yet; fw market pack writes it.']);
+    expect(check.changes).toEqual(['No flowweaver.manifest.json yet. fw market pack writes it.']);
     expect(fs.existsSync(path.join(dir, 'flowweaver.manifest.json'))).toBe(false);
     expect(check.issues.every((i) => typeof i.code === 'string')).toBe(true);
   }, 60000);

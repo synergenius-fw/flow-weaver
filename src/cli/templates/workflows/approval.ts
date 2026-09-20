@@ -55,7 +55,7 @@ function prepare${cap(input)}(${input}: any): { summary: string; ${input}: any }
 /**
  * A person approves or refuses. The run pauses here and resumes with the
  * answer: the approver's note on onSuccess, or a refusal along onFailure.
- * The body never runs; the coordinator substitutes the answer.
+ * The body never runs. The coordinator substitutes the answer.
  *
  * @flowWeaver nodeType
  * @durableGate approval
@@ -98,7 +98,7 @@ function apply${cap(input)}(${input}: any, note: string): { ${output}: string } 
 export async function ${workflowName}(
   execute: boolean,
   params: { ${input}: any }
-): Promise<{ onSuccess: boolean; onFailure: boolean; ${output}: string }> {
+): Promise<{ onSuccess: boolean, onFailure: boolean, ${output}: string }> {
   throw new Error("Compile with: fw compile <file>");
 }
 `.trim();

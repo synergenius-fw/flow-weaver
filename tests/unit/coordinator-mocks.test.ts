@@ -1,8 +1,8 @@
 /**
  * What the console needs from the run store beyond start and resume: a run
  * started with mocks goes through its built-in gates unattended and keeps
- * the mocks for later segments; a failed run remembers the step that threw;
- * a finished run can be forgotten.
+ * the mocks for later segments. A failed run remembers the step that threw.
+ * A finished run can be forgotten.
  */
 import fs from 'node:fs';
 import os from 'node:os';

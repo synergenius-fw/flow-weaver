@@ -5,7 +5,7 @@
  * They provide the common type system for approval workflows.
  */
 
-/** Core approval types — embedded in generated human-approval nodes */
+/** Core approval types, embedded in generated human-approval nodes */
 export const APPROVAL_TYPES = `interface ApprovalRequest {
   /** Unique identifier for this approval request */
   id: string;

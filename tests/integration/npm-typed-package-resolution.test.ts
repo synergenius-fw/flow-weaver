@@ -24,7 +24,7 @@ function setupPackage(pkgName: string, pkgJson: object, dtsContent: string) {
   fs.writeFileSync(path.join(pkgDir, 'index.d.ts'), dtsContent);
 }
 
-describe('npm typed package resolution — full round trip', () => {
+describe('npm typed package resolution: full round trip', () => {
   const parser = new AnnotationParser();
 
   beforeAll(() => {
@@ -35,10 +35,10 @@ describe('npm typed package resolution — full round trip', () => {
       version: '1.0.0',
       types: 'index.d.ts',
     }, `
-export declare function formatDate(date: Date, formatStr: string): string;
-export declare function addDays(date: Date, amount: number): Date;
-export declare function fetchRemote(url: string): Promise<string>;
-export declare function multiply(a: number, b: number): number;
+export declare function formatDate(date: Date, formatStr: string): string
+export declare function addDays(date: Date, amount: number): Date
+export declare function fetchRemote(url: string): Promise<string>
+export declare function multiply(a: number, b: number): number
     `.trim());
   });
 

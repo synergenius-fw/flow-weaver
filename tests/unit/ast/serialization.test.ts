@@ -121,7 +121,7 @@ describe("serializeAST", () => {
   it("pretty-prints with 2-space indentation by default", () => {
     const wf = minimalWorkflow();
     const json = serializeAST(wf);
-    // Pretty JSON has newlines; a compact one would not.
+    // Pretty JSON has newlines. A compact one would not.
     expect(json).toContain("\n");
     // Check indentation: second line should start with two spaces.
     const lines = json.split("\n");

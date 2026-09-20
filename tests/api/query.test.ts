@@ -1,6 +1,6 @@
 /**
- * Comprehensive tests for Query API
- * Tests all 24 read-only query functions
+ * Tests for the Query API
+ * Covers all 24 read-only query functions
  */
 
 import {

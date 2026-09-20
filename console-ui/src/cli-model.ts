@@ -25,10 +25,10 @@ export interface Arg {
 }
 
 export interface Flag {
-  /** The long form, `--output`; the only form the builder writes. */
+  /** The long form, `--output`. The only form the builder writes. */
   long: string;
   short: string | null;
-  /** The value's placeholder, `<path>`; null for a boolean flag. */
+  /** The value's placeholder, `<path>`, or null for a boolean flag. */
   value: string | null;
   variadic: boolean;
   /** `--no-watch` negates `--watch`: on means the flag is passed as written. */
@@ -124,7 +124,7 @@ export function parseLine(line: string, commands: CommandLike[]): Filled | null 
   return { command, args, flags: set, rest };
 }
 
-/** Put a filled form back into a line. Empty values and off flags are left out; placeholders are kept as typed. */
+/** Put a filled form back into a line. Empty values and off flags are left out. Placeholders are kept as typed. */
 export function composeLine(filled: Filled): string {
   const parts: string[] = [...filled.command.words];
   const declared = parseUsage(filled.command.usage);

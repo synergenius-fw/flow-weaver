@@ -76,7 +76,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_compile',
     description:
-      'Compile a workflow to executable code. Only regenerates code inside @flow-weaver-runtime and @flow-weaver-body marker sections — user code outside markers is preserved. Set production: true to strip debug instrumentation. Custom targets are available via registered extensions.',
+      'Compile a workflow to executable code. Only regenerates code inside @flow-weaver-runtime and @flow-weaver-body marker sections, so user code outside markers is preserved. Set production: true to strip debug instrumentation. Custom targets are available via registered extensions.',
     category: 'query',
     params: [
       {
@@ -94,7 +94,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'production',
         type: 'boolean',
-        description: 'Production mode — no debug events (default: false)',
+        description: 'Production mode, meaning no debug events (default: false)',
         required: false,
       },
       {
@@ -157,7 +157,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_diff',
     description:
-      'Semantic diff between two workflow files — node type changes, instance changes, connection changes, breaking changes.',
+      'Semantic diff between two workflow files: node type changes, instance changes, connection changes, breaking changes.',
     category: 'query',
     params: [
       {
@@ -243,7 +243,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'query',
         type: 'string',
-        description: 'Search query text (optional — omit to browse all)',
+        description: 'Search query text (optional, omit to browse all)',
         required: false,
       },
       {
@@ -270,7 +270,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_diagram',
     description:
-      'Generate a diagram of a workflow. Formats: svg draws the spine (steps in run order, control flow as lanes: failure arms, loop bodies, pulled steps) as a vector image; ascii/ascii-compact/text produce plain text readable in terminal. Provide either filePath (workflow .ts file) or source (inline code).',
+      'Generate a diagram of a workflow. Formats: svg draws the spine (steps in run order, control flow as lanes: failure arms, loop bodies, pulled steps) as a vector image. ascii/ascii-compact/text produce plain text readable in terminal. Provide either filePath (workflow .ts file) or source (inline code).',
     category: 'query',
     params: [
       {
@@ -307,7 +307,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'format',
         type: 'string',
-        description: 'Output format: svg (default; the spine as a vector image), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)',
+        description: 'Output format: svg (the default, drawing the spine as a vector image), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)',
         required: false,
         enum: ['svg', 'ascii', 'ascii-compact', 'text'],
       },
@@ -381,7 +381,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'includeGrammar',
         type: 'boolean',
-        description: 'Append the generated EBNF grammar (~3 KB); off by default',
+        description: 'Append the generated EBNF grammar (~3 KB), off by default',
         required: false,
       },
     ],
@@ -548,7 +548,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'preview',
         type: 'boolean',
-        description: 'Preview only — return generated code without writing (default: false)',
+        description: 'Preview only, returning generated code without writing (default: false)',
         required: false,
       },
       {
@@ -678,7 +678,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'target',
         type: 'string',
-        description: 'Deployment target name. Targets come from installed packs; an unknown name returns INVALID_TARGET listing the installed ones.',
+        description: 'Deployment target name. Targets come from installed packs. An unknown name returns INVALID_TARGET listing the installed ones.',
         required: true,
       },
       {
@@ -752,7 +752,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'runId',
         type: 'string',
-        description: 'Stable run identity; generated when omitted',
+        description: 'Stable run identity, generated when omitted',
         required: false,
       },
       {
@@ -766,7 +766,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_workflow_resume',
     description:
-      'Resume one exact durable gate continuation. The prior executor is not retained. For coordinators; assistants should use fw_resume.',
+      'Resume one exact durable gate continuation. The prior executor is not retained. For coordinators. Assistants should use fw_resume.',
     category: 'execution',
     params: [
       {
@@ -860,7 +860,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'answer',
         type: 'object',
-        description: 'For a single-output gate, the value; for multi-output, an object with every output (any JSON value)',
+        description: 'For a single-output gate, the value. For multi-output, an object with every output (any JSON value)',
         required: false,
       },
       {

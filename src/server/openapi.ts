@@ -45,7 +45,7 @@ export function buildOpenApi(input: OpenApiInput): Record<string, unknown> {
       ...(c.route.auth === 'none' ? { security: [] } : {}),
       responses: {
         '200': { description: 'The workflow ran to its end', content: { 'application/json': { schema: e.outputSchema ?? { type: 'object' } } } },
-        '202': { description: `Paused at a gate${c.route.mode === 'async' ? ', or running' : ''}; follow Location`, headers: { Location: { schema: { type: 'string' } } }, content: { 'application/json': { schema: run } } },
+        '202': { description: `Paused at a gate${c.route.mode === 'async' ? ', or running' : ''}. Follow Location`, headers: { Location: { schema: { type: 'string' } } }, content: { 'application/json': { schema: run } } },
         '400': { description: 'Bad parameters, or a refused callback URL', content: { 'application/json': { schema: error } } },
         '409': { description: 'Idempotency-Key reused with different parameters', content: { 'application/json': { schema: error } } },
         '422': { description: 'The workflow finished on its failure path', content: { 'application/json': { schema: e.outputSchema ?? { type: 'object' } } } },

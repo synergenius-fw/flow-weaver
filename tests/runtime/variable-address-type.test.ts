@@ -12,7 +12,7 @@ describe('VariableAddress scope/side support', () => {
     const ctx = new GeneratedExecutionContext(false, testHelpers.createRuntime('variableAddress'));
     const idx = ctx.addExecution('node1');
 
-    // This should compile without errors — scope and side are valid
+    // This should compile without errors because scope and side are valid
     ctx.setVariable(
       {
         id: 'node1',

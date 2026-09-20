@@ -93,12 +93,12 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   useEffect(() => {
-    document.title = reading && doc.value ? `${doc.value.name} · Flow Weaver` : wf.value ? `${wf.value.name} · Flow Weaver` : 'Flow Weaver';
+    document.title = reading && doc.value ? `${doc.value.name} (Flow Weaver)` : wf.value ? `${wf.value.name} (Flow Weaver)` : 'Flow Weaver';
   }, [wf.value?.name, reading, doc.value?.name]);
   return (
     <div
       class={`shell ${mode}`}
-      style={`--rail:${rail}px; grid-template-columns: ${rail}px 0 minmax(0, 1fr) 0 ${side}px`}
+      style={`grid-template-columns: ${rail}px 0 minmax(0, 1fr) 0 ${side}px; --rail:${rail}px`}
     >
       <aside class={`col rail ${ui.railOpen.value ? 'open' : ''}`}><Rail /></aside>
       <Splitter side="rail" />

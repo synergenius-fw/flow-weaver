@@ -23,8 +23,8 @@ describe("type-checker coverage", () => {
     const sourceFile = project.createSourceFile(
       `__test-coverage-types__.ts`,
       `
-        declare const source: ${sourceTypeStr};
-        declare const target: ${targetTypeStr};
+        declare const source: ${sourceTypeStr}
+        declare const target: ${targetTypeStr}
       `,
       { overwrite: true },
     );

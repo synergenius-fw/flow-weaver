@@ -22,7 +22,7 @@ describe('Parse Warnings Integration', () => {
     warnSpy.mockRestore();
   });
 
-  describe('parseFromString — valid code', () => {
+  describe('parseFromString: valid code', () => {
     it('should return empty warnings array for valid code', () => {
       const code = `
 /**
@@ -54,7 +54,7 @@ export async function myWorkflow(
     });
   });
 
-  describe('parseFromString — malformed @input', () => {
+  describe('parseFromString: malformed @input', () => {
     it('should produce warning for @input with missing closing bracket', () => {
       const code = `
 /**
@@ -85,7 +85,7 @@ export async function myWorkflow(
     });
   });
 
-  describe('parseFromString — malformed @connect', () => {
+  describe('parseFromString: malformed @connect', () => {
     it('should produce warning for incomplete @connect (not throw)', () => {
       const code = `
 /**
@@ -109,7 +109,7 @@ export async function myWorkflow(
   throw new Error('Not implemented');
 }
 `;
-      // Should NOT throw — the old behavior was to throw on malformed @connect
+      // Should NOT throw. The old behavior was to throw on malformed @connect
       expect(() => parser.parseFromString(code, 'malformed-connect.ts')).not.toThrow();
 
       const result = parser.parseFromString(code, 'malformed-connect.ts');
@@ -120,7 +120,7 @@ export async function myWorkflow(
     });
   });
 
-  describe('parseFromString — malformed @position', () => {
+  describe('parseFromString: malformed @position', () => {
     it('should produce warning for non-numeric position coordinates', () => {
       const code = `
 /**
@@ -152,7 +152,7 @@ export async function myWorkflow(
     });
   });
 
-  describe('parseFromString — malformed @scope', () => {
+  describe('parseFromString: malformed @scope', () => {
     it('should produce warning for scope missing children', () => {
       const code = `
 /**

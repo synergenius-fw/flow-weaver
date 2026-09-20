@@ -10,14 +10,14 @@ describe("Type Checker", () => {
   // Reuse the shared parser Project for performance
   const project = getParserProject();
 
-  // Helper to get Type objects from type strings — reuses a single filename
+  // Helper to get Type objects from type strings, reuses a single filename
   // to avoid accumulating source files in the project
   function getTypes(sourceTypeStr: string, targetTypeStr: string) {
     const sourceFile = project.createSourceFile(
       `__test-types__.ts`,
       `
-        declare const source: ${sourceTypeStr};
-        declare const target: ${targetTypeStr};
+        declare const source: ${sourceTypeStr}
+        declare const target: ${targetTypeStr}
       `,
       { overwrite: true }
     );

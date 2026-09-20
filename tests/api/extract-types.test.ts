@@ -65,9 +65,9 @@ interface Settings extends Config {
     it("should preserve source order in all array", () => {
       const code = `
 interface First {}
-type Second = string;
+type Second = string
 interface Third {}
-type Fourth = number;
+type Fourth = number
 `;
       const result = extractTypeDeclarations(code);
 
@@ -159,11 +159,11 @@ interface PrivateInterface {
 
     it("should handle complex type aliases", () => {
       const code = `
-type Callback = (event: Event) => void;
-type Optional<T> = T | undefined;
+type Callback = (event: Event) => void
+type Optional<T> = T | undefined
 type DeepPartial<T> = {
-  [P in keyof T]?: DeepPartial<T[P]>;
-};
+  [P in keyof T]?: DeepPartial<T[P]>
+}
 `;
       const result = extractTypeDeclarations(code);
 

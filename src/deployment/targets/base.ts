@@ -189,7 +189,7 @@ export interface DeploySchemaField {
 }
 
 /**
- * Deploy schema — describes all @deploy keys a target accepts.
+ * Deploy schema: describes all @deploy keys a target accepts.
  * Used for validation, Studio autocomplete, and documentation.
  */
 export type DeploySchema = Record<string, DeploySchemaField>;
@@ -1151,7 +1151,7 @@ export abstract class BaseExportTarget implements ExportTarget {
       this.createFile(
         outputDir,
         'runtime/builtin-functions.ts',
-        `// Builtin functions — auto-registers known functions\nimport './function-registry.js';\n`,
+        `// Builtin functions, auto-registers known functions\nimport './function-registry.js';\n`,
         'other'
       )
     );
@@ -1189,10 +1189,10 @@ ${workflows.map((w) => `  { name: '${w.name}', type: 'workflow', exposed: ${w.ex
 ${nodeTypes.map((nt) => `  { name: '${nt.name}', type: 'nodeType', exposed: ${nt.expose} },`).join('\n')}
 ];
 
+// Query helpers over the function list above.
 export const functionRegistry = {
   list(category?: 'workflow' | 'nodeType'): FunctionInfo[] {
-    if (!category) return functions;
-    return functions.filter((f) => f.type === category);
+    return category ? functions.filter((f) => f.type === category) : functions;
   },
   get(name: string): FunctionInfo | undefined {
     return functions.find((f) => f.name === name);

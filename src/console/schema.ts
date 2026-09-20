@@ -2,8 +2,8 @@
  * Field schemas from TypeScript types, so the console can render a form for
  * a workflow's params and a gate's answer instead of a JSON box.
  *
- * A port's `tsType` is a string like `PageRequest`; only the type checker can
- * say what that is. ts-morph resolves it here, depth-limited, into a small
+ * A port's `tsType` is a string like `PageRequest`, and only the type checker
+ * can say what that is. ts-morph resolves it here, depth-limited, into a small
  * schema the client understands.
  */
 import * as fs from 'node:fs';
@@ -71,7 +71,7 @@ function toSchema(t: Type, depth = 0): FieldSchema {
  *
  * An authored gate declares it in its own return type. A built-in gate
  * (`waitForEvent`, `waitForAgent`) has no source, so the schema is taken
- * from the parameter that consumes the output downstream; without that, the
+ * from the parameter that consumes the output downstream. Without that, the
  * caller falls back to a free-form value.
  */
 export function gateOutputSchemas(
@@ -92,7 +92,7 @@ export function gateOutputSchemas(
   const control = new Set(['execute', 'onSuccess', 'onFailure']);
   const out: Record<string, FieldSchema> = {};
   for (const conn of ast.connections) {
-    // `onSuccess`/`onFailure` are filled in by `buildGateResolution`; a
+    // `onSuccess`/`onFailure` are filled in by `buildGateResolution`. A
     // control port wired onward must never become an answer field.
     if (conn.from.node !== gateId || control.has(conn.from.port)) continue;
     const targetType = typeOf(conn.to.node);
@@ -120,15 +120,15 @@ export function workflowParamsSchema(file: string, fnName: string): Record<strin
  *
  * A built-in gate (`waitForEvent`, `waitForAgent`) has no source of its own,
  * so its output shape cannot be read from a return type. Whatever consumes
- * that output downstream does declare it — `plan.agentResult` flows into
- * `checkPlan(plan: Plan)` — so the consumer's parameter is the schema.
+ * that output downstream does declare it (`plan.agentResult` flows into
+ * `checkPlan(plan: Plan)`), so the consumer's parameter is the schema.
  */
 export function nodeInputSchema(file: string, fnName: string, paramName: string): FieldSchema | null {
   try {
     const fn = source(file).getFunction(fnName);
     if (!fn) return null;
     const params = fn.getParameters();
-    // Normal-mode nodes take `execute` first; either way, match by name.
+    // Normal-mode nodes take `execute` first. Either way, match by name.
     const param = params.find((p) => p.getName() === paramName);
     if (!param) return null;
     const s = toSchema(param.getType());

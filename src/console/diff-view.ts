@@ -1,7 +1,7 @@
 /**
  * Two versions of a workflow as one picture with the changes marked on it.
  *
- * The semantic differ says what changed; this turns that into what the
+ * The semantic differ says what changed. This turns that into what the
  * console draws. The two versions are merged into a union -- every step
  * and control edge from either -- and laid out once, so a removed step
  * keeps the place it had and an added one sits where it now runs. Rows and
@@ -74,10 +74,10 @@ function instanceDetail(d: TInstanceDiff, typeChanged: TNodeTypeDiff | undefined
   if (d.changes.config?.pullExecution) bits.push(d.changes.config.pullExecution.after ? 'now pulled on demand' : 'no longer pulled');
   if (d.changes.parent) {
     const a = d.changes.parent.after, b = d.changes.parent.before;
-    bits.push(a ? `moved into ${a.id} · ${a.scope}` : b ? `moved out of ${b.id} · ${b.scope}` : 'scope changed');
+    bits.push(a ? `moved into ${a.id} (${a.scope})` : b ? `moved out of ${b.id} (${b.scope})` : 'scope changed');
   }
   if (typeChanged) bits.push(typeDetail(typeChanged));
-  return bits.join(' · ');
+  return bits.join(', ');
 }
 
 function typeDetail(d: TNodeTypeDiff): string {

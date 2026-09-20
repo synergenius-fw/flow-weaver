@@ -95,7 +95,7 @@ describe('lane layout', () => {
   });
 
   it('does not draw the owner and its body as two parallel lines', () => {
-    // The body's `return` edge already carries the flow onward; the owner's
+    // The body's `return` edge already carries the flow onward. The owner's
     // own success edge would be a second line straight through the body.
     const body = step('inner', { successTo: [] });
     const g = buildGraph(
@@ -175,7 +175,7 @@ describe('lane layout', () => {
   });
 
   it('never points an edge backwards', () => {
-    // Rows are laid out in process order; an edge to an earlier row would be
+    // Rows are laid out in process order. An edge to an earlier row would be
     // drawn as a line going up the page.
     const body = step('inner', { successTo: [] });
     const g = buildGraph(

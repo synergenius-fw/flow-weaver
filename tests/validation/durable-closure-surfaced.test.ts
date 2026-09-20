@@ -2,7 +2,7 @@
  * validateWorkflow must surface durable-closure violations, not just the
  * coordinator at bundle-digest time. A gated workflow that puts a boundary in
  * two branch regions used to pass `fw_validate` and then fail at run time with
- * an opaque coordinator error; it should be an author-time error instead.
+ * an opaque coordinator error. It should be an author-time error instead.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';

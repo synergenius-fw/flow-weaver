@@ -1,13 +1,13 @@
 /**
  * Shared types for the agent loop, providers, and MCP bridge.
  *
- * All types are pure — no runtime imports, no side effects.
+ * All types are pure, with no runtime imports and no side effects.
  */
 
 import type { ChildProcess } from 'node:child_process';
 
 // ---------------------------------------------------------------------------
-// Stream events (canonical union — adopted from platform)
+// Stream events (canonical union, adopted from platform)
 // ---------------------------------------------------------------------------
 
 export type StreamEvent =
@@ -68,9 +68,9 @@ export interface ToolEvent {
  * Providers that only accept strings (CLI, OpenAI, platform) concatenate them.
  */
 export interface SplitPrompt {
-  /** Stable prefix — identical across calls. Cacheable. */
+  /** Stable prefix, identical across calls. Cacheable. */
   prefix: string;
-  /** Dynamic suffix — varies per task/call. Not cached. */
+  /** Dynamic suffix, varies per task/call. Not cached. */
   suffix: string;
 }
 
@@ -119,7 +119,7 @@ export interface AgentProvider {
 // ---------------------------------------------------------------------------
 
 export interface McpBridge {
-  /** Path to the MCP config JSON file — pass to --mcp-config */
+  /** Path to the MCP config JSON file, passed to --mcp-config */
   configPath: string;
   /** Update the executor and event callback for a new request */
   setHandlers: (executor: ToolExecutor, onToolEvent?: (event: ToolEvent) => void) => void;
@@ -226,7 +226,7 @@ export interface CliSessionOptions {
   model: string;
   /** Pre-configured MCP config path. */
   mcpConfigPath?: string;
-  /** When true, ignore user/project MCP servers — only use --mcp-config if provided. */
+  /** When true, ignore user/project MCP servers and only use --mcp-config if provided. */
   strictMcpConfig?: boolean;
   /** Disable specific built-in tools (e.g. ['Read', 'Edit', 'Write', 'Bash'] to force MCP tools). */
   disallowedTools?: string[];

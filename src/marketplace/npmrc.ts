@@ -4,7 +4,7 @@
  * A private pack lives on a private registry, reached through `.npmrc`:
  * `@scope:registry=` routes a scope there, and `//host/path/:_authToken=`
  * holds the token. `npm install` reads both, so installing already works
- * everywhere; searching only asked the public registry. This reads the
+ * everywhere, while searching only asked the public registry. This reads the
  * same files, in npm's order (project over user over defaults), so a
  * search reaches every registry an install would.
  */
@@ -17,7 +17,7 @@ export const PUBLIC_REGISTRY = 'https://registry.npmjs.org/';
 export interface Registry {
   /** Base URL, with a trailing slash. */
   url: string;
-  /** Scopes routed here (`@synergenius`); empty for the default registry. */
+  /** Scopes routed here (`@synergenius`), empty for the default registry. */
   scopes: string[];
   /** Whether this is the unscoped default. */
   isDefault: boolean;
@@ -42,7 +42,7 @@ export function parseNpmrc(text: string, env: NodeJS.ProcessEnv = process.env): 
       if (v === undefined) missing = true;
       return v ?? '';
     });
-    // npm refuses a config whose variable is unset; here the line is skipped
+    // npm refuses a config whose variable is unset. Here the line is skipped
     // rather than a registry being asked with an empty token.
     if (missing) continue;
     out.set(key, value);

@@ -1,5 +1,5 @@
 /**
- * StreamJsonParser — parses Claude CLI stream-json NDJSON output into
+ * StreamJsonParser: parses Claude CLI stream-json NDJSON output into
  * typed StreamEvent values.
  *
  * Extracted from the duplicated parsing logic in platform's claude.ts
@@ -11,7 +11,7 @@
  * - Usage tracking from message_start, message_delta, and result
  * - result event as text fallback and turn boundary
  *
- * The parser does NOT decide turn boundaries — consumers (one-shot vs
+ * The parser does NOT decide turn boundaries. Consumers (one-shot vs
  * persistent session) handle that differently.
  */
 
@@ -49,7 +49,7 @@ export class StreamJsonParser {
     try {
       event = JSON.parse(line);
     } catch {
-      // Non-JSON line — only use as text if no other source is available
+      // Non-JSON line, only used as text if no other source is available
       if (line.trim() && !this.hasAssistantText) {
         this.pushEvent({ type: 'text_delta', text: line });
       }
@@ -176,7 +176,7 @@ export class StreamJsonParser {
         this.pushEvent({ type: 'message_stop', finishReason: 'error' });
         return;
       }
-      // result text is a fallback — only use if content_block_delta never fired
+      // result text is a fallback, only used if content_block_delta never fired
       if (event.result && !this.hasAssistantText) {
         this.pushEvent({ type: 'text_delta', text: event.result as string });
       }

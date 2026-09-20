@@ -45,11 +45,11 @@ export interface ContextResult {
 // ---------------------------------------------------------------------------
 
 // `core` is deliberately one short topic. It is what every persona loads at
-// the start of a session, so it has to be the map — the model, the tool loop,
-// and which topic answers which task — not the reference itself. The bundle
+// the start of a session, so it has to be the map (the model, the tool loop,
+// and which topic answers which task), not the reference itself. The bundle
 // appends every other topic's name and size, and the assistant reads those
 // on demand with fw_docs. The larger presets exist for callers that really
-// want a self-contained dump; they begin with the same map.
+// want a self-contained dump. They begin with the same map.
 export const PRESETS: Record<ContextPreset, string[]> = {
   core: ['orientation'],
   authoring: [
@@ -120,12 +120,12 @@ and code generation.`;
 
 // Three lines on purpose: this text is in every bundle, on every session
 // start. The tool loop, the topic map, and the loading instructions all live
-// in the orientation topic and the closing topic list; repeating them here
+// in the orientation topic and the closing topic list. Repeating them here
 // only costs tokens.
 const ASSISTANT_PREAMBLE = `# Flow Weaver Context
 
 You have the Flow Weaver MCP tools (fw_ prefix). This bundle is the map, not
-the reference; the list at the end names every topic it leaves out, with its
+the reference. The list at the end names every topic it leaves out, with its
 size and how to load one.`;
 
 // ---------------------------------------------------------------------------
@@ -171,7 +171,7 @@ function buildGrammarSection(): string {
 
 /**
  * Sections that only point at other topics. A topic read on its own needs
- * them; a bundle does not, because it ends with its own list of every topic
+ * them. A bundle does not, because it ends with its own list of every topic
  * and the orientation map says when to read each. In `full` they added a
  * fourth copy of the topic list.
  */
@@ -188,7 +188,7 @@ const HEADING_RE = /^(#{1,6})\s+(.*?)\s*$/;
 function prepareTopicBody(content: string): string {
   let lines = content.split('\n');
 
-  // Compact mode prepends "# Name\ndescription\n"; drop that header.
+  // Compact mode prepends "# Name\ndescription\n". Drop that header.
   if (lines[0]?.startsWith('# ')) {
     let startLine = 1;
     if (lines.length > 1 && lines[1].trim() && !lines[1].startsWith('#')) {
@@ -294,11 +294,11 @@ export function buildContext(options: ContextOptions = {}): ContextResult {
       const mentioned = bundleText.includes(`\`${t.slug}\``);
       return mentioned || !t.description
         ? `- \`${t.slug}\` (${size})`
-        : `- \`${t.slug}\` — ${t.description} (${size})`;
+        : `- \`${t.slug}\`: ${t.description} (${size})`;
     });
     const how =
       profile === 'assistant'
-        ? 'Read one with fw_docs(action="read", topic="<slug>", compact=true); search first with fw_docs(action="search", query="...").'
+        ? 'Read one with fw_docs(action="read", topic="<slug>", compact=true). Search first with fw_docs(action="search", query="...").'
         : 'Read one with `fw docs <slug> --compact`, or fw_docs(action="read", topic="<slug>", compact=true) once MCP tools are connected.';
     sections.push(`## Other topics, load on demand\n\n${how}\n\n${rows.join('\n')}`);
   }

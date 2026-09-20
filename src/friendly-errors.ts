@@ -30,7 +30,7 @@ function extractQuoted(message: string): string[] {
 }
 
 function extractTypes(message: string): { source: string; target: string } | null {
-  // New format: "from TypeName (ENUM) to TypeName (ENUM)" — extract the structural types
+  // New format: "from TypeName (ENUM) to TypeName (ENUM)". Extract the structural types
   const structuralMatch = message.match(/from (.+?) \(\w+\) to (.+?) \(\w+\)/);
   if (structuralMatch) return { source: structuralMatch[1], target: structuralMatch[2] };
 
@@ -99,7 +99,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     return {
       title: 'Missing Function Name',
       explanation: 'The compiler found a @flowWeaver workflow annotation but the function is anonymous or not exported.',
-      fix: 'Make sure your workflow is declared as `export function myWorkflowName(...)` — not anonymous or unexported.',
+      fix: 'Make sure your workflow is declared as `export function myWorkflowName(...)`, not anonymous or unexported.',
       code: error.code,
     };
   },
@@ -339,7 +339,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     const nodeName = quoted[1] || error.node || 'unknown';
     return {
       title: 'Multiple Input Connections',
-      explanation: `Input port '${portName}' on node '${nodeName}' has multiple connections. Only one value can be received — use a merge node instead.`,
+      explanation: `Input port '${portName}' on node '${nodeName}' has multiple connections. Only one value can be received, so use a merge node instead.`,
       fix: `Remove extra connections to '${nodeName}.${portName}', or add a merge/combine node to join multiple values before connecting.`,
       code: error.code,
     };
@@ -593,7 +593,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     const nodeName = error.node || 'unknown';
     return {
       title: 'Async Node Missing Error Path',
-      explanation: `Async node '${nodeName}' has no failure handling. Async operations (network calls, file I/O, AI calls) can fail. A normal-mode node's onFailure is silently lost; an @expression node's throw aborts the run with the error.`,
+      explanation: `Async node '${nodeName}' has no failure handling. Async operations (network calls, file I/O, AI calls) can fail. A normal-mode node's onFailure is silently lost. An @expression node's throw aborts the run with the error.`,
       fix: `For a normal-mode node, connect ${nodeName}.onFailure to an error handler, retry node, or Exit.onFailure. For an @expression node, wiring onFailure does nothing about a throw: to route the failure, write the node in normal mode and return onFailure, or suppress this warning if aborting is intended.`,
       code: error.code,
     };
@@ -664,7 +664,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     return {
       title: 'Invalid Durable Closure',
       explanation: error.message,
-      fix: 'Keep each gate/effect in one branch region reading only from its immediate predecessor; thread shared values through the chain rather than wiring them around a gate. See the durable-gates topic.',
+      fix: 'Keep each gate/effect in one branch region reading only from its immediate predecessor. Thread shared values through the chain rather than wiring them around a gate. See the durable-gates topic.',
       code: error.code,
     };
   },
@@ -689,7 +689,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     const toCtx = ends?.[4] || 'another scope';
     return {
       title: 'Cross-Scope Connection',
-      explanation: `Connection '${from}' → '${to}' links a node in ${fromCtx} to a node in ${toCtx}. Nodes in different scopes cannot connect directly; data crosses a scope boundary only through the scope owner's scoped ports.`,
+      explanation: `Connection '${from}' → '${to}' links a node in ${fromCtx} to a node in ${toCtx}. Nodes in different scopes cannot connect directly. Data crosses a scope boundary only through the scope owner's scoped ports.`,
       fix: `Route the value through the scope owner: connect '${from}' to one of the owner's scoped output ports, and read it inside the scope from there. Or move both nodes into the same scope.`,
       code: error.code,
     };
@@ -732,7 +732,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     return {
       title: 'Redundant Coercion',
       explanation: `The \`as ${coerceType}\` coercion is unnecessary because both the source and target ports are already ${dataType}.`,
-      fix: `Remove \`as ${coerceType}\` from the @connect annotation — no coercion is needed.`,
+      fix: `Remove \`as ${coerceType}\` from the @connect annotation. No coercion is needed.`,
       code: error.code,
     };
   },

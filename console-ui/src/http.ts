@@ -20,7 +20,7 @@ const shellQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 /**
  * The request for a route as a `curl` line, with the run form's values where
  * they exist and a typed placeholder where they do not. A GET or DELETE
- * takes the parameters in the path and the query; anything else takes the
+ * takes the parameters in the path and the query, and anything else takes the
  * rest as a JSON body. Without a route, the run resource every workflow has.
  */
 export function curlFor(base: string, name: string, route: HttpRoute | null, params: Port[], values: Record<string, unknown>): string {

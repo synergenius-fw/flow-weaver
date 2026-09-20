@@ -25,7 +25,7 @@ function writeFixture(relativePath: string, content: string): string {
   return fullPath;
 }
 
-describe('checkDeploymentProfiles — manifest invalid (line 667)', () => {
+describe('checkDeploymentProfiles: manifest invalid (line 667)', () => {
   it('returns pass with "Manifest invalid" when manifest has no profiles array', async () => {
     const { checkDeploymentProfiles } = await import('../../src/cli/commands/doctor');
 
@@ -40,7 +40,7 @@ describe('checkDeploymentProfiles — manifest invalid (line 667)', () => {
   });
 });
 
-describe('checkDeploymentProfiles — target must be a string (line 696)', () => {
+describe('checkDeploymentProfiles: target must be a string (line 696)', () => {
   it('reports invalid profile when target is not a string', async () => {
     const { checkDeploymentProfiles } = await import('../../src/cli/commands/doctor');
 
@@ -62,7 +62,7 @@ describe('checkDeploymentProfiles — target must be a string (line 696)', () =>
   });
 });
 
-describe('doctorCommand — non-JSON output (lines 767-802)', () => {
+describe('doctorCommand: non-JSON output (lines 767-802)', () => {
   let originalCwd: () => string;
   let originalExit: (code?: number) => never;
 

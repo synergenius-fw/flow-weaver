@@ -14,7 +14,7 @@ import { makeToolResult } from './response-utils.js';
 export function registerResourceTools(mcp: McpServer): void {
   mcp.tool(
     'fw_list_resources',
-    'List the colors, the annotation tags, and the icons the SVG artifacts draw with a path. Any Material Symbols name (fonts.google.com/icons, snake_case or camelCase) is a valid @icon; the ones listed here also appear in the SVG and PDF artifacts, the rest are drawn as a dot there.',
+    'List the colors, the annotation tags, and the icons the SVG artifacts draw with a path. Any Material Symbols name (fonts.google.com/icons, snake_case or camelCase) is a valid @icon. The ones listed here also appear in the SVG and PDF artifacts, the rest are drawn as a dot there.',
     {
       type: z
         .enum(['icons', 'colors', 'tags', 'all'])

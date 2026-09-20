@@ -17,7 +17,7 @@ import * as path from 'path';
 import * as os from 'os';
 
 // ============================================================================
-// 1. Chevrotain Parser — parseMapLine
+// 1. Chevrotain Parser: parseMapLine
 // ============================================================================
 
 describe('@map Chevrotain parser', () => {
@@ -78,7 +78,7 @@ describe('@map Chevrotain parser', () => {
 });
 
 // ============================================================================
-// 2. JSDoc Parser Integration — @map tag parsing
+// 2. JSDoc Parser Integration: @map tag parsing
 // ============================================================================
 
 describe('@map JSDoc parser integration', () => {
@@ -152,7 +152,7 @@ export function mapWorkflow(
 });
 
 // ============================================================================
-// 3. Parser Expansion — Synthetic node type, instances, connections, scopes
+// 3. Parser Expansion: Synthetic node type, instances, connections, scopes
 // ============================================================================
 
 describe('@map parser expansion', () => {

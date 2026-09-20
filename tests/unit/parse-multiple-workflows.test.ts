@@ -1,5 +1,5 @@
 /**
- * WU11: S16 — Dedicated MULTIPLE_WORKFLOWS error code
+ * WU11, S16: Dedicated MULTIPLE_WORKFLOWS error code
  */
 
 import { describe, it, expect } from 'vitest';

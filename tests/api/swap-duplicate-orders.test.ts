@@ -60,7 +60,7 @@ export async function testWorkflow(execute: boolean, params: { a: number }) {
     // Find the doubler instance
     const doublerBefore = ast.instances.find(i => i.id === 'doubler');
     expect(doublerBefore).toBeDefined();
-    // portConfigs should not carry direction — annotations are direction-agnostic
+    // portConfigs should not carry direction (annotations are direction-agnostic)
     expect(doublerBefore!.config?.portConfigs).toEqual([
       { portName: 'execute', order: 0 },
       { portName: 'value', order: 0 }

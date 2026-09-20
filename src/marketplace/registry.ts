@@ -1,8 +1,8 @@
 /**
- * Registry integration — npm search API + local package scanning.
+ * Registry integration: npm search API plus local package scanning.
  *
  * A pack is a package carrying a `flowweaver.manifest.json` (installed) or
- * the marketplace keyword (on a registry); `flow-weaver-pack-*` is the
+ * the marketplace keyword (on a registry). `flow-weaver-pack-*` is the
  * naming convention, not the test.
  *
  * Uses the npm registry search endpoint filtered by the
@@ -31,7 +31,7 @@ const PACK_NAME_RE = /^(@[^/]+\/)?flow-weaver-pack-.+$/;
 
 /**
  * Whether a registry result is a pack. The keyword is what `market pack`
- * requires and what identifies a pack whatever it is called; the name
+ * requires and what identifies a pack whatever it is called. The name
  * pattern is kept for packs published before the keyword was required.
  */
 export function isPackResult(pkg: { name: string; keywords?: string[] }): boolean {
@@ -67,7 +67,7 @@ interface NpmSearchResult {
 /**
  * One registry's search endpoint, asked and read.
  *
- * The public registry understands `keywords:<kw>` in the text; a private
+ * The public registry understands `keywords:<kw>` in the text. A private
  * one (Verdaccio, GitHub Packages) matches plain text against names and
  * descriptions, so it is asked for the query itself -- or `flow-weaver`
  * when there is none, since Verdaccio matches that and not the longer

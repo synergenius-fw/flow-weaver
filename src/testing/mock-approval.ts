@@ -1,7 +1,7 @@
 /**
  * Mock Approval Provider for deterministic human-approval workflow testing.
  *
- * Mirrors the mock LLM provider pattern — pattern matching on prompts,
+ * Mirrors the mock LLM provider pattern: pattern matching on prompts,
  * call recording, and configurable responses.
  *
  * Usage in vitest/jest tests:

@@ -1,9 +1,9 @@
 /**
- * Provider-agnostic agent loop — streams LLM responses, collects tool calls,
+ * Provider-agnostic agent loop. It streams LLM responses, collects tool calls,
  * executes them via a caller-provided executor, and iterates.
  *
  * The loop never touches provider internals. Adding a new provider (Codex,
- * Gemini, etc.) requires zero loop changes — just implement AgentProvider.
+ * Gemini, etc.) requires zero loop changes: just implement AgentProvider.
  */
 
 import type {
@@ -73,7 +73,7 @@ export async function runAgentLoop(
           break;
 
         case 'tool_use_delta':
-          // Partial JSON — tracked by provider, nothing to do here
+          // Partial JSON, tracked by provider, nothing to do here
           break;
 
         case 'tool_use_end':
@@ -86,7 +86,7 @@ export async function runAgentLoop(
           break;
 
         case 'tool_result':
-          // CLI handled tool internally via MCP — count it
+          // CLI handled tool internally via MCP, so count it
           toolCallCount++;
           break;
 
@@ -169,7 +169,7 @@ export async function runAgentLoop(
       });
     }
 
-    // Between-turns hook — runs after tool execution, before next LLM call
+    // Between-turns hook, runs after tool execution, before next LLM call
     if (options?.onTurnEnd) {
       const turnResult = await options.onTurnEnd({
         iteration,

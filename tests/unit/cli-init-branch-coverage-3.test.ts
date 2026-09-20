@@ -29,10 +29,10 @@ vi.mock('@inquirer/input', () => ({ default: mockInput }));
 const mockSpawn = vi.fn();
 // Intercept execSync so `npm install` never runs the real (network) install.
 // These tests cover initCommand's install-result REPORTING branches, not npm
-// itself; a real `npm install` is slow, flakes under CI load (>60s timeout),
+// itself. A real `npm install` is slow, flakes under CI load (>60s timeout),
 // and leaves a partially-written node_modules that races the afterEach
 // rmSync (ENOTEMPTY). `npmInstallBehavior` lets each test pick success/fail
-// deterministically and instantly; every other command (git init, etc.)
+// deterministically and instantly. Every other command (git init, etc.)
 // passes through to the real execSync.
 let npmInstallBehavior: 'success' | 'fail' = 'success';
 vi.mock('child_process', async (importOriginal) => {

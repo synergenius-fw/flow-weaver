@@ -6,10 +6,10 @@
  * (each in dev + production mode). They exist to make the following refactors
  * provably behavior-neutral:
  *   - removal of the dead `_generateReturns` positional parameter of
- *     generateBranchingNodeCode (and the `false` argument at all 5 call sites);
+ *     generateBranchingNodeCode (and the `false` argument at all 5 call sites)
  *   - decomposition of the ~515-line generateBranchingNodeCode into helpers.
  *
- * If any snapshot changes, the refactor changed emitted output — investigate
+ * If any snapshot changes, the refactor changed emitted output. Investigate
  * before updating. Snapshots are captured against the pre-refactor code.
  *
  * The workflows deliberately exercise distinct branches of

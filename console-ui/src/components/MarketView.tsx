@@ -41,7 +41,7 @@ export function MarketView() {
       <div class="dochead">
         <h1>Find a pack</h1>
         <p class="lede">Packs add node types, export targets, annotations, rules, docs and commands to a project. A pack is an npm package with a <code>flowweaver.manifest.json</code>, named <code>flow-weaver-pack-*</code> by convention.</p>
-        <input type="text" class="marketsearch" placeholder="search the marketplace — openai, cicd, slack…" value={query} onInput={(e) => setQuery((e.target as HTMLInputElement).value)} autoFocus />
+        <input type="text" class="marketsearch" placeholder="search the marketplace: openai, cicd, slack…" value={query} onInput={(e) => setQuery((e.target as HTMLInputElement).value)} autoFocus />
         {/* Which registries were asked, from the project's .npmrc: the
             private one is named here, so its absence is never a mystery. */}
         {searched.length > 0 && (
@@ -49,7 +49,7 @@ export function MarketView() {
             {searched.map((s) => (
               <span key={s.url} class={`pill ${s.ok ? '' : 'err'}`} title={s.error ?? (s.scopes.length ? `for ${s.scopes.join(', ')}` : 'the default registry')}>
                 {s.authenticated && <span class="ms" style="font-size:12px">lock</span>}
-                {host(s.url)}{s.scopes.length ? ` · ${s.scopes.join(' ')}` : ''}{s.ok ? ` · ${s.count}` : ' · failed'}
+                {host(s.url)}{s.scopes.length ? ` for ${s.scopes.join(' ')}` : ''}{s.ok ? `, ${s.count} pack${s.count === 1 ? '' : 's'}` : ', not answering'}
               </span>
             ))}
           </div>

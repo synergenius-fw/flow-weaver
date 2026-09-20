@@ -1,10 +1,10 @@
 /**
  * Lifting a workflow's JSDoc and signature out of its file.
  *
- * Node types arrive from the parser with a complete `functionText`; a
+ * Node types arrive from the parser with a complete `functionText`. A
  * workflow does not. Taking everything up to the first `{` after the name
- * looked right until it met an inline object type -- which every workflow's
- * `params` has -- and cut the signature off at `params: {`.
+ * looked right until it met an inline object type (which every workflow's
+ * `params` has) and cut the signature off at `params: {`.
  */
 import { describe, it, expect } from 'vitest';
 import { workflowSource } from '../../../src/console/source';

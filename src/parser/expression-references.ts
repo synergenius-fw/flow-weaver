@@ -7,14 +7,14 @@
  * port. The parser turns it into a connection flagged `derived`, so every
  * consumer of `workflow.connections` (ordering, cycle detection, queries,
  * the editor, the durable graph) sees the edge without knowing about
- * expressions; the generator fetches the referenced values and substitutes
+ * expressions. The generator fetches the referenced values and substitutes
  * them into the expression before evaluating it.
  *
  * What counts as a reference is decided syntactically, with the TypeScript
  * parser rather than a regex, so text inside string literals is never
  * mistaken for one and `${Start.path}` inside a template literal is:
  *
- * - the expression is parsed as TypeScript; only a property access whose
+ * - the expression is parsed as TypeScript, and only a property access whose
  *   object is a bare identifier is a candidate (`a.b`, not `f().b` or
  *   `x[0].b`), and only dot access is recognised, not `Start["path"]`
  * - the identifier must be `Start` or an instance id of this workflow, and
@@ -50,7 +50,7 @@ export interface ExpressionReference {
 /**
  * Every `identifier.property` access in an expression whose identifier is one
  * of the candidates. Nested access (`Start.expense.id`) yields one reference
- * for `Start.expense`; the trailing `.id` stays in the expression text.
+ * for `Start.expense`. The trailing `.id` stays in the expression text.
  */
 export function findExpressionReferences(expression: string, candidates: ReadonlySet<string>): ExpressionReference[] {
   // Wrap in parentheses so an object literal parses as an expression, not a block
@@ -180,7 +180,7 @@ export function expandExpressionReferences(input: ExpandExpressionReferencesInpu
         const source = instanceById.get(ref.root);
         if (instance.parent || source?.parent) {
           errors.push(
-            `${where}: "${ref.root}.${ref.port}" crosses a scope boundary. Expression references are only supported between top-level nodes; use @connect with a scope qualifier instead.`,
+            `${where}: "${ref.root}.${ref.port}" crosses a scope boundary. Expression references are only supported between top-level nodes. Use @connect with a scope qualifier instead.`,
           );
           continue;
         }

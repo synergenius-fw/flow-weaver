@@ -121,7 +121,7 @@ export class WorkflowGenerator {
 
     // Log warnings
     if (validation.warnings.length > 0) {
-      console.log(`\\n⚠️  ${validation.warnings.length} warning(s):`);
+      console.log(`\\n${validation.warnings.length} warning(s):`);
       validation.warnings.forEach((warning) => {
         console.log(`  - ${warning.message}`);
         if (warning.node) {

@@ -13,8 +13,8 @@ describe('extractFunctionLikes with .d.ts content', () => {
 
   it('finds declare function in .d.ts content', () => {
     const sf = createDtsFile(`
-      export declare function format(date: Date, formatStr: string): string;
-      export declare function addDays(date: Date, amount: number): Date;
+      export declare function format(date: Date, formatStr: string): string
+      export declare function addDays(date: Date, amount: number): Date
     `);
     const fns = extractFunctionLikes(sf);
     expect(fns).toHaveLength(2);
@@ -48,8 +48,8 @@ describe('extractFunctionLikes with .d.ts content', () => {
 
   it('handles overloaded declarations', () => {
     const sf = createDtsFile(`
-      export declare function convert(input: string): number;
-      export declare function convert(input: number): string;
+      export declare function convert(input: string): number
+      export declare function convert(input: number): string
     `);
     const fns = extractFunctionLikes(sf);
     // ts-morph returns each overload as a separate FunctionDeclaration
@@ -58,7 +58,7 @@ describe('extractFunctionLikes with .d.ts content', () => {
     expect(fns[0].getName()).toBe('convert');
   });
 
-  it('handles generic functions — type params resolve to something', () => {
+  it('handles generic functions: type params resolve to something', () => {
     const sf = createDtsFile(`
       export declare function identity<T>(input: T): T;
     `);
@@ -85,7 +85,7 @@ describe('extractFunctionLikes with .d.ts content', () => {
       export declare function fetchData(url: string): Promise<string>;
     `);
     const fns = extractFunctionLikes(sf);
-    // declare function cannot use async keyword; isAsync should be false
+    // declare function cannot use async keyword. isAsync should be false
     expect(fns[0].isAsync()).toBe(false);
   });
 });

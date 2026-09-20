@@ -179,7 +179,7 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
                     <label class="check">
                       <input type="checkbox" checked={on} onChange={(e) => keep({ ...mocking, on: { ...mocking.on, [s.id]: (e.target as HTMLInputElement).checked } })} />
                       <b>{s.label}</b>
-                      <span class="hint">{s.kind === 'pause' ? `${s.gate} gate · ${WHO[s.gate ?? ''] ?? 'the run pauses'}` : 'calls another workflow'}</span>
+                      <span class="hint">{s.kind === 'pause' ? `${s.gate} gate: ${WHO[s.gate ?? ''] ?? 'the run pauses'}` : 'calls another workflow'}</span>
                     </label>
                     {on && (
                       <div class="body">
@@ -217,7 +217,7 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
                 <span class="to">answered by</span>
                 {profiles?.agents.length
                   ? <AgentPick workflow={w.name} node={s.id} disabled={!autoAgents} />
-                  : <button class="linkish" onClick={openAgents}>no profile yet — add one</button>}
+                  : <span class="hint" style="text-transform:none;letter-spacing:0">whoever answers it, here or over MCP. <button class="linkish" onClick={openAgents}>Add a profile</button></span>}
               </div>
             ))}
           </div>

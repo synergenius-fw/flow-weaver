@@ -34,7 +34,7 @@ export interface WorkflowSummary {
   gates: number;
   errors: number;
   warnings: number;
-  /** False until the full parse has run; the rail shows it as still loading. */
+  /** False until the full parse has run. The rail shows it as still loading. */
   checked: boolean;
   /** Every validation code raised, once each. */
   codes: string[];
@@ -104,7 +104,7 @@ const checked = new Map<string, { mtimeMs: number; summary: WorkflowSummary }>()
  * a second on a large project -- and the console asks for the list on every
  * file change. Reusing it needs care: a cache that only the file watcher
  * invalidates goes stale for any caller without one. So the walk is always
- * done (5ms) and its file identities compared; only the reading and parsing
+ * done (5ms) and its file identities compared. Only the reading and parsing
  * is skipped, and only for files that have not changed.
  */
 const listings = new Map<string, { byFile: Map<string, Listed>; signature: string }>();

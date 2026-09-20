@@ -417,7 +417,7 @@ export function printNextSteps(opts: PrintNextStepsOptions): void {
   } else {
     logger.log('    npm run dev');
   }
-  logger.log(`    npx fw console --open${' '.repeat(2)}${logger.dim('See it as a process; run it and watch it from the browser')}`);
+  logger.log(`    npx fw console --open${' '.repeat(2)}${logger.dim('See it as a process. Run it and watch it from the browser')}`);
 
   // Persona-specific guidance (skip if agent was launched, it handles this)
   if (!agentLaunched) {
@@ -493,8 +493,8 @@ function pad(displayName: string, width: number): string {
 /**
  * Maps each persona to the fw_context preset used for agent knowledge bootstrap.
  *
- * Every persona starts from `core`. It is a short map — the model, the tool
- * loop, and which topic answers which task — and the assistant loads further
+ * Every persona starts from `core`. It is a short map (the model, the tool
+ * loop, and which topic answers which task), and the assistant loads further
  * topics with fw_docs as the work calls for them. The `authoring` preset the
  * coding personas used to load is ~70 KB, most of it never needed in a given
  * session.
@@ -506,7 +506,7 @@ export const AGENT_CONTEXT_PRESETS: Record<PersonaId, string> = {
   expert: 'core',
 };
 
-const BOOTSTRAP = 'Before doing anything else, call fw_context(preset="core", profile="assistant"). It is a short map of Flow Weaver; when a task needs more, load the topic it points to with fw_docs rather than reading everything up front.';
+const BOOTSTRAP = 'Before doing anything else, call fw_context(preset="core", profile="assistant"). It is a short map of Flow Weaver. When a task needs more, load the topic it points to with fw_docs rather than reading everything up front.';
 
 const AGENT_PROMPTS: Record<PersonaId, string> = {
   nocode: `${BOOTSTRAP}
@@ -580,7 +580,7 @@ export function generateAgentPrompt(projectName: string, persona: PersonaId, tem
  */
 export function generateEditorPrompt(projectName: string, persona: PersonaId, template: string, useCaseDescription?: string): string {
   const preset = AGENT_CONTEXT_PRESETS[persona];
-  const bootstrap = `Start by calling fw_context(preset="${preset}", profile="assistant") for a short map of Flow Weaver; read further topics with fw_docs as the task needs them.`;
+  const bootstrap = `Start by calling fw_context(preset="${preset}", profile="assistant") for a short map of Flow Weaver, then read further topics with fw_docs as the task needs them.`;
   const desc = useCaseDescription ? ` I want to build: ${useCaseDescription}.` : '';
   if (persona === 'nocode') {
     return `${bootstrap}\nThis is a Flow Weaver project called "${projectName}" using the ${template} template.${desc} Show me the workflow diagram, walk me through what each step does in plain language, then ask me what I want to build. Keep it simple, no code.`;

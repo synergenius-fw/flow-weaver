@@ -48,7 +48,7 @@ function IssueList({ issues, w }: { issues: Issue[]; w: ParsedWorkflow }) {
           <span class={`mark ${i.severity === 'warning' ? 'warn' : ''}`} />
           <div>
             <div>{i.message}</div>
-            <div class="h"><code>{i.code}</code>{i.hint ? ` · ${i.hint}` : ''}</div>
+            <div class="h"><code>{i.code}</code>{i.hint ? `: ${i.hint}` : ''}</div>
           </div>
           <div class="ops"><button onClick={() => explain(i)}>docs</button><button onClick={() => copy(i)}>copy</button></div>
         </div>
@@ -87,8 +87,8 @@ function Timeline({ w }: { w: ParsedWorkflow }) {
               <button class={`tlrow ${st.status}`} key={s.id} onClick={() => { sel.value = s.id; ui.side.value = 'step'; }}>
                 <span class={`rdot ${DOT[st.status] ?? 'cancelled'}`} />
                 <span class="lbl">{s.label}
-                  {many && <span class="times" title="Ran once per item; click to see each pass" onClick={(e) => { e.stopPropagation(); toggle(s.id); }}>×{st.count}{bad ? ` · ${bad} failed` : ''}<span class="ms">{open.has(s.id) ? 'expand_less' : 'expand_more'}</span></span>}
-                  {!many && r.errors[s.id] && <span class="err"> · {r.errors[s.id]}</span>}
+                  {many && <span class="times" title="Ran once per item, click to see each pass" onClick={(e) => { e.stopPropagation(); toggle(s.id); }}>×{st.count}{bad ? `, ${bad} failed` : ''}<span class="ms">{open.has(s.id) ? 'expand_less' : 'expand_more'}</span></span>}
+                  {!many && r.errors[s.id] && <span class="err">: {r.errors[s.id]}</span>}
                 </span>
                 <span class="dur">{st.status === 'RUNNING' ? (many ? `pass ${st.count} running` : 'running') : st.status === 'WAITING' ? 'waiting' : ms(d)}</span>
                 {d != null && <i style={`width:${Math.max(2, (d / longest) * 100)}%`} />}
@@ -96,7 +96,7 @@ function Timeline({ w }: { w: ParsedWorkflow }) {
               {many && open.has(s.id) && (r.passes[s.id] ?? []).map((p) => (
                 <button class={`tlrow sub ${p.status}`} key={`${s.id}#${p.index}`} onClick={() => { sel.value = s.id; ui.side.value = 'step'; ui.pass.value = { id: s.id, index: p.index }; }}>
                   <span class={`rdot ${DOT[p.status] ?? 'cancelled'}`} />
-                  <span class="lbl">pass {p.index + 1}{p.error && <span class="err"> · {p.error}</span>}</span>
+                  <span class="lbl">pass {p.index + 1}{p.error && <span class="err">: {p.error}</span>}</span>
                   <span class="dur">{p.status === 'RUNNING' ? 'running' : ms(passDur(p))}</span>
                   {passDur(p) != null && <i style={`width:${Math.max(2, ((passDur(p) ?? 0) / longest) * 100)}%`} />}
                 </button>
@@ -143,19 +143,19 @@ function RunCard({ w }: { w: ParsedWorkflow }) {
       <div class="in"><div class="kv">
         <span class="k">status</span>
         <span class="val static">
-          {paused ? <>paused <b>{d!.phase}</b> {at} · {d!.position}/{d!.order.length}</>
-            : d?.status === 'running' ? <>stepping · {ms(runDuration(r))}</>
-            : d?.status === 'yielded' ? <>stopped at a gate · {ms(runDuration(r))}</>
-            : d?.status === 'aborted' ? <>stopped · {ms(runDuration(r))}</>
-            : <>{r.status} · {ms(runDuration(r))}</>}
+          {paused ? <>paused <b>{d!.phase}</b> {at} at {d!.position}/{d!.order.length}</>
+            : d?.status === 'running' ? <>stepping, {ms(runDuration(r))}</>
+            : d?.status === 'yielded' ? <>stopped at a gate, {ms(runDuration(r))}</>
+            : d?.status === 'aborted' ? <>stopped, {ms(runDuration(r))}</>
+            : <>{r.status}, {ms(runDuration(r))}</>}
         </span>
         <span class="k">params</span><Value value={r.params} />
         {r.mocks && Object.keys(r.mocks).length > 0 && <><span class="k">mocks</span><Value value={r.mocks} /></>}
         {r.source?.commit && <><span class="k">version</span><span class="val static">{r.source.commit}{r.source.dirty ? ' with uncommitted changes' : ''} <button class="linkish" title="What changed in the file since this run" onClick={() => openChanges(r.source!.commit!)}>changes since</button></span></>}
         {r.error && d?.status !== 'yielded' && <><span class="k">error</span><span class="val static" style="color:var(--err)">{r.error}</span></>}
-        {threw && <><span class="k">threw at</span><span><button class="linkish" onClick={() => { sel.value = threw; ui.side.value = 'step'; }}>{w.nodes[threw]?.label ?? threw}</button> <span class="from">{threw}{(() => { const ps = r.passes[threw] ?? []; const bad = ps.find((p) => p.error || p.status === 'FAILED'); return ps.length > 1 && bad ? ` · pass ${bad.index + 1} of ${ps.length}` : ''; })()}</span></span></>}
+        {threw && <><span class="k">threw at</span><span><button class="linkish" onClick={() => { sel.value = threw; ui.side.value = 'step'; }}>{w.nodes[threw]?.label ?? threw}</button> <span class="from">{threw}{(() => { const ps = r.passes[threw] ?? []; const bad = ps.find((p) => p.error || p.status === 'FAILED'); return ps.length > 1 && bad ? `, pass ${bad.index + 1} of ${ps.length}` : ''; })()}</span></span></>}
       </div></div>
-      {r.traced === false && <div class="in hint">Part of this run was driven over MCP without a step trace; steps from that part are not shown.</div>}
+      {r.traced === false && <div class="in hint">Part of this run was driven over MCP without a step trace, so steps from that part are not shown.</div>}
       {d?.status === 'yielded' && <div class="in hint">{r.error}</div>}
       {paused && d!.phase === 'after' && <div class="in hint">Values {at} produced can be changed in its Step card before the next node reads them.</div>}
       <Timeline w={w} />
@@ -180,7 +180,7 @@ function outcome(r: RunSnapshot, label: (id: string | undefined) => string): str
 /** The parameters in a line, so two runs can be told apart. */
 function paramsLine(params: Record<string, unknown>): string {
   const ents = Object.entries(params ?? {}).filter(([, v]) => v !== undefined);
-  return ents.slice(0, 3).map(([k, v]) => `${k}: ${short(v)}`).join(' · ') + (ents.length > 3 ? ' · …' : '');
+  return ents.slice(0, 3).map(([k, v]) => `${k}: ${short(v)}`).join(', ') + (ents.length > 3 ? ', …' : '');
 }
 
 /**
@@ -219,7 +219,7 @@ function RunHistory({ w }: { w: ParsedWorkflow }) {
             onClick={() => { sel.value = null; ui.side.value = 'run'; openRun(r.id); }}>
             <span class={`rdot ${r.debug?.status === 'paused' ? 'waiting' : r.status}`} />
             <span class="what">{outcome(r, label)}{r.origin && r.origin !== 'console' && <small class="origin" title={`started over ${r.origin === 'http' ? 'HTTP' : r.origin === 'mcp' ? 'MCP, by an assistant' : r.origin}`}>{r.origin}</small>}</span>
-            <span class="right" title={r.source?.commit ? `on ${r.source.commit}${r.source.dirty ? ', with uncommitted changes' : ''}` : undefined}>{r.source?.commit ? `${r.source.commit}${r.source.dirty ? '•' : ''} · ` : ''}{ago(r.startedAt)}{r.status === 'running' || r.status === 'waiting' ? '' : ` · ${ms(runDuration(r))}`}</span>
+            <span class="right" title={r.source?.commit ? `on ${r.source.commit}${r.source.dirty ? ', with uncommitted changes' : ''}` : undefined}>{r.source?.commit ? `${r.source.commit}${r.source.dirty ? '*' : ''}, ` : ''}{ago(r.startedAt)}{r.status === 'running' || r.status === 'waiting' ? '' : `, ${ms(runDuration(r))}`}</span>
             <span class="sub">{paramsLine(r.params) || 'no parameters'}</span>
             {!runActive.value && <span class="again" title="Run again with these parameters" onClick={(e) => { e.stopPropagation(); void startRun(r.params, { mocks: r.mocks }); }}><span class="ms">replay</span></span>}
           </button>
@@ -267,14 +267,14 @@ function StepCard({ id, w }: { id: string; w: ParsedWorkflow }) {
   });
   if (step?.kind === 'loop') traits.push({
     cls: 'loop',
-    label: step.scope ? `scope · ${step.scope}` : 'scope owner',
+    label: step.scope ? `scope ${step.scope}` : 'scope owner',
     why: 'Owns the steps in the band below it and runs them once per item.',
     doc: ['export-interface'],
   });
   const owner = ownerOf(w.model.steps, id);
   if (owner) traits.push({
     cls: 'loop',
-    label: owner.scope ? `inside · ${owner.scope}` : 'inside a scope',
+    label: owner.scope ? `inside ${owner.scope}` : 'inside a scope',
     why: <>Runs once per item, driven by <a class="go" onClick={() => { sel.value = owner.id; ui.side.value = 'step'; }}>{owner.label}</a>.</>,
     doc: ['export-interface'],
   });
@@ -305,7 +305,7 @@ function StepCard({ id, w }: { id: string; w: ParsedWorkflow }) {
   if (n.builtin) traits.push({
     cls: '',
     label: 'built-in',
-    why: 'Provided by the runtime; it has no source in this project.',
+    why: 'Provided by the runtime. It has no source in this project.',
     doc: ['built-in-nodes'],
   });
   const rel = n.file.startsWith(w.file.slice(0, w.file.length - w.rel.length)) ? n.file.slice(w.file.length - w.rel.length) : n.file;
@@ -327,16 +327,16 @@ function StepCard({ id, w }: { id: string; w: ParsedWorkflow }) {
         {n.gate === 'agent' && (
           <div class="in agentrow">
             <span class="hint">answered by</span>
-            {agents.value?.agents.length ? <AgentPick workflow={w.name} node={id} /> : <button class="linkish" onClick={openAgents}>a person — add a profile</button>}
+            {agents.value?.agents.length ? <AgentPick workflow={w.name} node={id} /> : <button class="linkish" onClick={openAgents}>a person (add a profile)</button>}
           </div>
         )}
         {issues.length > 0 && <div class="in"><IssueList issues={issues} w={w} /></div>}
         {passes.length > 1 && (
           <div class="in passes">
-            <span class="hint">ran {passes.length} times · pass</span>
+            <span class="hint">ran {passes.length} times, pass</span>
             {passes.length <= 12
               ? <div class="seg sm">{passes.map((p) => <button key={p.index} class={`${pass === p.index ? 'on' : ''} ${p.error || p.status === 'FAILED' ? 'bad' : ''}`} title={p.error ?? p.status.toLowerCase()} onClick={() => setPicked(p.index)}>{p.index + 1}</button>)}</div>
-              : <Select value={String(pass)} onChange={(v) => setPicked(Number(v))} options={passes.map((p) => ({ value: String(p.index), label: <>{p.index + 1}{p.error || p.status === 'FAILED' ? <span class="opt-ns"> · failed</span> : null}</>, text: `${p.index + 1}` }))} />}
+              : <Select value={String(pass)} onChange={(v) => setPicked(Number(v))} options={passes.map((p) => ({ value: String(p.index), label: <>{p.index + 1}{p.error || p.status === 'FAILED' ? <span class="opt-ns">, failed</span> : null}</>, text: `${p.index + 1}` }))} />}
             {current?.start != null && current.end != null && <span class="hint">{ms(current.end - current.start)}</span>}
           </div>
         )}
@@ -381,7 +381,7 @@ function StepCard({ id, w }: { id: string; w: ParsedWorkflow }) {
             />
           : (
             <div class="in hint">
-              Built-in node · {n.type}
+              Built-in node ({n.type})
               {n.expr.length > 0 && (
                 <div class="ports" style="margin-top:8px">
                   {n.expr.map((e) => (
@@ -426,7 +426,7 @@ function TerminalCard({ id, w }: { id: 'Start' | 'Exit'; w: ParsedWorkflow }) {
                   {v !== undefined && <><Value value={v} />{' '}</>}
                   <span class="from">{p.tsType}</span>
                   {to.length > 0 && <span class="from"> → {to.map((t, i) => <><PortRef node={t.node} port={t.port} />{i < to.length - 1 ? ', ' : ''}</>)}</span>}
-                  {!to.length && <span class="from" style="opacity:.6"> · unread</span>}
+                  {!to.length && <span class="from" style="opacity:.6"> unread</span>}
                 </span>
               </>;
             })}</div> : <div class="hint">no parameters</div>}
@@ -441,7 +441,7 @@ function TerminalCard({ id, w }: { id: 'Start' | 'Exit'; w: ParsedWorkflow }) {
                 <span>
                   {v !== undefined && <><Value value={v} />{' '}</>}
                   <span class="from">{p.tsType}</span>
-                  {from ? <span class="from"> ← <PortRef node={from.node} port={from.port} /></span> : <span class="from" style="opacity:.6"> · nothing feeds it</span>}
+                  {from ? <span class="from"> ← <PortRef node={from.node} port={from.port} /></span> : <span class="from" style="opacity:.6"> nothing feeds it</span>}
                 </span>
               </>;
             })}</div> : <div class="hint">no return values</div>}
@@ -510,7 +510,7 @@ function EditableValue({ value, onSet }: { value: unknown; onSet: (v: unknown) =
   if (!editing) return <><Value value={value} /> <button class="linkish" title="Change this value" onClick={open}>edit</button>{' '}</>;
   return (
     <span class="editval">
-      <input type="text" class="mono" value={text} placeholder='a JSON value — "text", 42, true, { … }' onInput={(e) => setText((e.target as HTMLInputElement).value)}
+      <input type="text" class="mono" value={text} placeholder='a JSON value: "text", 42, true, { … }' onInput={(e) => setText((e.target as HTMLInputElement).value)}
         onKeyDown={(e) => { if (e.key === 'Enter') void commit(); if (e.key === 'Escape') setEditing(false); }} autoFocus />
       <button class="btn primary sm" onClick={commit}>Set</button>
       <button class="btn sm" onClick={() => setEditing(false)}>Cancel</button>

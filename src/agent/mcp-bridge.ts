@@ -1,5 +1,5 @@
 /**
- * MCP bridge — creates a Unix domain socket server that the MCP tool server
+ * MCP bridge: creates a Unix domain socket server that the MCP tool server
  * connects to for executing tools. Also generates the temporary MCP config
  * and tool definition files needed by the Claude CLI.
  *
@@ -54,7 +54,7 @@ export async function createMcpBridge(
   const tsPath = path.resolve(__dirname, 'mcp-tool-server.ts');
   const scriptPath = fs.existsSync(jsPath) ? jsPath : tsPath;
 
-  // In dev the script is .ts — use tsx as the loader.
+  // In dev the script is .ts, so use tsx as the loader.
   const mcpCommand = process.execPath; // node
   let mcpArgs = [scriptPath];
   if (scriptPath.endsWith('.ts')) {
@@ -81,7 +81,7 @@ export async function createMcpBridge(
   };
   fs.writeFileSync(configPath, JSON.stringify(mcpConfig), 'utf-8');
 
-  // Mutable handlers — swapped per request via setHandlers()
+  // Mutable handlers, swapped per request via setHandlers()
   let currentExecutor = executor;
   let currentOnToolEvent = onToolEvent;
 

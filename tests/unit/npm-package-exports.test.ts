@@ -58,8 +58,8 @@ describe('getPackageExports', () => {
   it('extracts declare function exports', () => {
     createPackage(
       'test-declare-fn',
-      `export declare function greet(name: string): string;
-export declare function shout(text: string): string;`,
+      `export declare function greet(name: string): string
+export declare function shout(text: string): string`,
     );
 
     const exports = getPackageExports('test-declare-fn', tmpDir);
@@ -140,8 +140,8 @@ export = _;`,
   it('includes export= when it is a single function (lodash.clonedeep style)', () => {
     createPackage(
       'test-cjs-fn',
-      `declare function cloneDeep<T>(value: T): T;
-export = cloneDeep;`,
+      `declare function cloneDeep<T>(value: T): T
+export = cloneDeep`,
     );
 
     const exports = getPackageExports('test-cjs-fn', tmpDir);
@@ -337,8 +337,8 @@ export declare const createServer: (config: { host: string }) => object;`,
       'test-reexport',
       `export { serve, createServer } from './server.js';`,
       {
-        'server.d.ts': `export declare function serve(opts: object): void;
-export declare function createServer(opts: object): object;`,
+        'server.d.ts': `export declare function serve(opts: object): void
+export declare function createServer(opts: object): object`,
       },
     );
 
@@ -353,8 +353,8 @@ export declare function createServer(opts: object): object;`,
       'test-star-reexport',
       `export * from './utils.js';`,
       {
-        'utils.d.ts': `export declare function debounce(fn: Function, ms: number): Function;
-export declare function throttle(fn: Function, ms: number): Function;`,
+        'utils.d.ts': `export declare function debounce(fn: Function, ms: number): Function
+export declare function throttle(fn: Function, ms: number): Function`,
       },
     );
 
@@ -577,9 +577,9 @@ export type Baz = { qux: number };`,
   it('multiple exports all have slash-free names', () => {
     createPackage(
       'multi-name',
-      `export declare function alpha(): void;
-export declare function beta(): void;
-export declare function gamma(): void;`,
+      `export declare function alpha(): void
+export declare function beta(): void
+export declare function gamma(): void`,
     );
 
     const exports = getPackageExports('multi-name', tmpDir);
@@ -632,8 +632,8 @@ export declare function gamma(): void;`,
   it('deduplicates exports with same function name', () => {
     createPackage(
       'test-dedup',
-      `export declare function foo(): void;
-export declare function foo(x: string): string;`,
+      `export declare function foo(): void
+export declare function foo(x: string): string`,
     );
 
     const exports = getPackageExports('test-dedup', tmpDir);

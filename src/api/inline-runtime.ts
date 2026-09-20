@@ -52,7 +52,7 @@ function generateInlineEngine(production: boolean): string {
     lines.push('type DebugController = TDebugController;');
   }
   lines.push(
-    'type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };',
+    'type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };',
   );
   lines.push('');
   // Production output carries no debugger types at all; the two the engine

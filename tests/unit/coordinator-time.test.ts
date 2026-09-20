@@ -2,7 +2,7 @@
  * The coordinator owns time. A `sleep` node is a timer gate: the run pauses
  * with a `due` time and `tick()` wakes it once that time has passed. A gate
  * given a `timeout` gets a deadline the same way, and `tick()` sends it
- * along its failure path. The engine runs no timer; whoever ticks decides
+ * along its failure path. The engine runs no timer. Whoever ticks decides
  * when, and two tickers never move the same run twice.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';

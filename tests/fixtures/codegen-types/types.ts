@@ -1,4 +1,4 @@
-/** External types — imported by nodes, NOT by the workflow file directly. */
+/** External types, imported by nodes, NOT by the workflow file directly. */
 export interface AppConfig {
   name: string;
   debug: boolean;

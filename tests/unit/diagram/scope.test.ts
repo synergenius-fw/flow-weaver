@@ -10,7 +10,7 @@ function parseWorkflow(filePath: string) {
   return result.workflows[0];
 }
 
-describe('scoped diagram — scope ports', () => {
+describe('scoped diagram: scope ports', () => {
   const forEachFile = path.resolve(__dirname, '../../../fixtures/advanced/example-foreach.ts');
 
   it('creates scope ports from scope-qualified connections', () => {

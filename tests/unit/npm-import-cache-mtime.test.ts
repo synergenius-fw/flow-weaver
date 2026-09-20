@@ -9,7 +9,7 @@ import * as os from 'os';
  * when the .d.ts file changes (resolveNpmImportAnnotation mtime check).
  *
  * This covers the cache access point in resolveNpmImportAnnotation which
- * previously had NO mtime validation — stale node types could be returned
+ * previously had NO mtime validation, so stale node types could be returned
  * if a package's .d.ts changed mid-session.
  */
 

@@ -1,5 +1,5 @@
 /**
- * Long-lived fw processes announce themselves in a directory; readers see
+ * Long-lived fw processes announce themselves in a directory. Readers see
  * the ones alive and drop the rest.
  */
 import fs from 'node:fs';

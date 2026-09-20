@@ -322,7 +322,7 @@ function printResults(results: ValidationResult[], verbose = false) {
     // Print warnings
     if (result.warnings.length > 0 && verbose) {
       if (result.errors.length === 0) {
-        console.log(`\n${colors.yellow}⚠ ${result.file}${colors.reset}`);
+        console.log(`\n${colors.yellow}! ${result.file}${colors.reset}`);
       }
       for (const warning of result.warnings) {
         console.log(
@@ -449,7 +449,7 @@ Examples:
 
   if (files.length === 0) {
     console.log(
-      `${colors.yellow}⚠${colors.reset} No .ts files found matching pattern: ${pattern}`
+      `${colors.yellow}!${colors.reset} No .ts files found matching pattern: ${pattern}`
     );
     process.exit(0);
   }

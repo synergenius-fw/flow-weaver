@@ -202,7 +202,7 @@ QUOTED_STRING  ::= STRING | "'" { any character except "'" } "'"`,
     category: 'workflow',
     syntax: '@path Start -> nodeA -> nodeB:fail -> Exit',
     description:
-      'Declare a complete execution route with scope walking. Steps separated by ->. Suffix :ok (default) or :fail to select onSuccess/onFailure. Data ports, Exit @returns ports included, auto-resolve by walking backward to the nearest ancestor with a same-name output; an explicit @connect wins, and a Start param never passes straight through to Exit.',
+      'Declare a complete execution route with scope walking. Steps separated by ->. Suffix :ok (default) or :fail to select onSuccess/onFailure. Data ports, Exit @returns ports included, auto-resolve by walking backward to the nearest ancestor with a same-name output. An explicit @connect wins, and a Start param never passes straight through to Exit.',
     insertText: '@path Start -> ${1:node1} -> ${2:node2} -> Exit',
     insertTextFormat: 'snippet',
     ebnf: `pathTag        ::= "@path" pathStep ( "->" pathStep )+
@@ -303,7 +303,7 @@ targetType     ::= "string" | "number" | "boolean" | "json" | "object"`,
     category: 'workflow',
     syntax: '@autoConnect',
     description:
-      'Enables automatic linear connection wiring for the workflow. When present, the compiler automatically wires nodes in declaration order (connecting compatible ports from previous nodes). No value is needed — presence enables the feature.',
+      'Enables automatic linear connection wiring for the workflow. When present, the compiler automatically wires nodes in declaration order (connecting compatible ports from previous nodes). No value is needed. Its presence enables the feature.',
     insertText: '@autoConnect',
     insertTextFormat: 'plain',
     ebnf: 'autoConnectTag ::= "@autoConnect"',
@@ -331,7 +331,7 @@ targetType     ::= "string" | "number" | "boolean" | "json" | "object"`,
     category: 'workflow',
     syntax: '@http METHOD /path [mode=sync|async] [auth=bearer|none] [callback]',
     description:
-      'Serves the workflow on an HTTP route with fw serve and the embeddable server. Path :params bind to workflow params by name; GET reads the query string, other methods the JSON body; the return ports are the response, onSuccess as 200 and onFailure as 422. A workflow that pauses at a gate answers 202 with a run id. Several tags give several routes.',
+      'Serves the workflow on an HTTP route with fw serve and the embeddable server. Path :params bind to workflow params by name. GET reads the query string, other methods the JSON body. The return ports are the response, onSuccess as 200 and onFailure as 422. A workflow that pauses at a gate answers 202 with a run id. Several tags give several routes.',
     insertText: '@http POST /${1:path}',
     insertTextFormat: 'snippet',
     ebnf: 'httpTag        ::= "@http" METHOD PATH { "mode=" ("sync"|"async") | "auth=" ("bearer"|"none") | "callback" }',
@@ -524,7 +524,7 @@ export const METADATA_ANNOTATIONS: TAnnotationDoc[] = [
     contexts: ['nodeType'],
   },
   // Durable classification. Once a workflow's reachable closure contains a
-  // gate, every node in it must carry exactly one of these three; the
+  // gate, every node in it must carry exactly one of these three. The
   // compiler refuses an unclassified or doubly classified node.
   {
     name: '@durablePure',
@@ -668,7 +668,7 @@ export const NODE_MODIFIERS: TAnnotationModifierDoc[] = [
     name: 'expr',
     syntax: '[expr:port="value"]',
     description:
-      'Set a port from a JavaScript expression. The expression may reference upstream ports: Start.<param> or <node>.<port>, with any further property access after the port. Each reference becomes a data dependency the graph sees; the expression is the value.',
+      'Set a port from a JavaScript expression. The expression may reference upstream ports: Start.<param> or <node>.<port>, with any further property access after the port. Each reference becomes a data dependency the graph sees. The expression is the value.',
   },
   {
     name: 'minimized',

@@ -66,7 +66,7 @@ class FanParser extends CstParser {
   // @fanIn portRef (Comma portRef)* Arrow portRef
   // Note: Because we can't look ahead past the comma-list to the arrow,
   // we parse as: @fanIn portRefList Arrow portRef
-  // The last element after Arrow is the target; everything before is sources.
+  // The last element after Arrow is the target. Everything before is sources.
   public fanInLine = this.RULE('fanInLine', () => {
     this.CONSUME(FanInTag);
     this.SUBRULE(this.portRef, { LABEL: 'firstSource' });

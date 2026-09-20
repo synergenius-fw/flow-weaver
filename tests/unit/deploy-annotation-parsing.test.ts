@@ -347,7 +347,7 @@ function setupNode(): {} { return {}; }
 `);
     const nt = result.workflows[0].nodeTypes.find(n => n.functionName === 'setupNode');
     // with is passed as a bare value (single quotes won't be matched by the regex)
-    // The regex uses double quotes; single-quoted values would be bare
+    // The regex uses double quotes. Single-quoted values would be bare
     expect(nt?.deploy?.['github-actions']?.action).toBe('actions/setup-node@v4');
   });
 

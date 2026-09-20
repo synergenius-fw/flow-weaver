@@ -72,7 +72,7 @@ function myNode(execute: boolean) {
 
 describe("syncSignatureToJSDoc - type update preserving STEP over BOOLEAN", () => {
   it("does not overwrite STEP type with BOOLEAN from signature", () => {
-    // Existing JSDoc has a port typed as STEP; the signature sees boolean
+    // Existing JSDoc has a port typed as STEP. The signature sees boolean
     // which maps to BOOLEAN. The sync should keep STEP.
     const code = `/**
  * @flowWeaver nodeType
@@ -665,7 +665,7 @@ describe("syncJSDocToSignature - expression function type", () => {
 const myNode = function(execute: boolean) {
   return { onSuccess: true, onFailure: false, result: 42 };
 }`;
-    // This is technically a function expression; parseFunctionSignature
+    // This is technically a function expression. parseFunctionSignature
     // may detect it as a declaration. Either way it should not crash.
     const result = syncJSDocToSignature(code);
     expect(typeof result).toBe("string");

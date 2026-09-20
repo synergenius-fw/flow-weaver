@@ -20,7 +20,7 @@ describe('authored durable effect contracts', () => {
       valid: false,
       diagnostics: expect.arrayContaining([
         expect.stringContaining('injected final operationKey'),
-        expect.stringContaining('exactly required receipt and result fields'),
+        expect.stringContaining('exactly the required receipt and result fields'),
         expect.stringMatching(/result fields.*missing onFailure, onSuccess/),
       ]),
     });

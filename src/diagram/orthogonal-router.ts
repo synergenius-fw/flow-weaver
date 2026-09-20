@@ -2,7 +2,7 @@
  * Orthogonal connection router for SVG diagram rendering.
  *
  * 1-1 port of the platform's orthogonalRouter.ts.
- * Only change: removed gl-matrix dependency — uses plain [number, number] tuples.
+ * Only change: removed the gl-matrix dependency in favor of plain [number, number] tuples.
  */
 
 // ─── Types ───
@@ -41,7 +41,7 @@ const BELOW_BIAS = 40;
 /**
  * Prevents connections from running on the same horizontal track.
  * Create one instance per render batch and pass it to all routing calls.
- * Tracks are snapped to TRACK_SPACING grid; only connections whose X corridors
+ * Tracks are snapped to TRACK_SPACING grid. Only connections whose X corridors
  * overlap can conflict.
  */
 export class TrackAllocator {
@@ -153,7 +153,7 @@ function findClearY(
     const allMin = Math.min(...edges) - EDGE_OFFSET * 2;
     const allMax = Math.max(...edges) + EDGE_OFFSET * 2;
     bestY = Math.abs(allMin - candidateY) < Math.abs(allMax - candidateY) ? allMin : allMax;
-    // Verify the extreme fallback is actually clear; search outward if not
+    // Verify the extreme fallback is actually clear. Search outward if not.
     if (isBlocked(bestY)) {
       for (let offset = TRACK_SPACING; offset < 800; offset += TRACK_SPACING) {
         if (!isBlocked(bestY - offset)) {
@@ -213,7 +213,7 @@ function findClearX(
     const allMin = Math.min(...edges) - EDGE_OFFSET * 2;
     const allMax = Math.max(...edges) + EDGE_OFFSET * 2;
     bestX = Math.abs(allMin - candidateX) <= Math.abs(allMax - candidateX) ? allMin : allMax;
-    // Verify the extreme fallback is actually clear; search outward if not
+    // Verify the extreme fallback is actually clear. Search outward if not.
     if (isBlocked(bestX)) {
       for (let offset = TRACK_SPACING; offset < 800; offset += TRACK_SPACING) {
         if (!isBlocked(bestX - offset)) {
@@ -301,7 +301,7 @@ function simplifyWaypoints(waypoints: Vec2[]): Vec2[] {
     const curr = pts[i];
     const next = pts[i + 1];
 
-    // Skip near-duplicate points; but only if removing won't create a diagonal
+    // Skip near-duplicate points, but only if removing won't create a diagonal
     const distToPrev = Math.abs(prev[0] - curr[0]) + Math.abs(prev[1] - curr[1]);
     if (distToPrev < MIN_SEGMENT_LENGTH) {
       const wouldDiag = Math.abs(prev[0] - next[0]) > 0.5 && Math.abs(prev[1] - next[1]) > 0.5;

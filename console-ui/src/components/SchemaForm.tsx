@@ -5,7 +5,7 @@ import { JsonEditor } from './JsonEditor';
 
 export type Errors = Record<string, string>;
 
-/** Validate a value against a schema; keys are dotted paths, one message each. */
+/** Validate a value against a schema. Keys are dotted paths, one message each. */
 export function validate(schema: FieldSchema, value: unknown, path = ''): Errors {
   const errs: Errors = {};
   const missing = value === undefined || value === null || value === '';
@@ -91,7 +91,7 @@ function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps
     case 'array':
       if (isPrimitiveList(schema)) {
         const lines = Array.isArray(value) ? (value as unknown[]).map(String).join('\n') : '';
-        return wrap(<textarea rows={3} value={lines} placeholder={schema.items!.type === 'number' ? '1\n2\n3 — one per line' : 'one value per line'} onInput={(e) => {
+        return wrap(<textarea rows={3} value={lines} placeholder={schema.items!.type === 'number' ? '1\n2\n3 (one per line)' : 'one value per line'} onInput={(e) => {
           const raw = (e.target as HTMLTextAreaElement).value;
           const items = raw.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => (schema.items!.type === 'number' ? Number(l) : l));
           onChange(items.length ? items : undefined);
@@ -101,7 +101,7 @@ function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps
       if (schema.items && (schema.items.type === 'object' && schema.items.fields || schema.items.type === 'boolean')) {
         return wrap(<ListField path={path} schema={schema} value={value} errors={errors} onChange={onChange} />);
       }
-      return wrap(<JsonField value={value} onChange={onChange} placeholder={'[ … ] — a JSON list'} />);
+      return wrap(<JsonField value={value} onChange={onChange} placeholder={'[ … ] (a JSON list)'} />);
     case 'object':
       if (schema.fields) {
         const obj = (value as Record<string, unknown>) ?? {};
@@ -231,7 +231,7 @@ function JsonField({ value, onChange, rows = 4, placeholder }: { value: unknown;
   const tidy = () => { try { setText(JSON.stringify(JSON.parse(text), null, 2)); setBad(false); } catch { setBad(true); } };
   return (
     <div class="jsonfield">
-      <JsonEditor rows={rows} value={text} placeholder={placeholder ?? '{ "key": "value" } — any JSON'} invalid={bad} onInput={(raw) => {
+      <JsonEditor rows={rows} value={text} placeholder={placeholder ?? '{ "key": "value" } (any JSON)'} invalid={bad} onInput={(raw) => {
         setText(raw);
         if (!raw.trim()) { setBad(false); onChange(undefined); return; }
         try { onChange(JSON.parse(raw)); setBad(false); } catch { setBad(true); }

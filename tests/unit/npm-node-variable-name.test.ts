@@ -51,9 +51,9 @@ describe('npm node variable name generation', () => {
 
       // This is the pattern used in unified.ts for variable declarations (JS only, no types)
       const code = `
-        var ${safeId}Idx;
-        ${safeId}Idx = 1;
-        var ${safeId}Result = ${safeId}Idx + 1;
+        var ${safeId}Idx
+        ${safeId}Idx = 1
+        var ${safeId}Result = ${safeId}Idx + 1
       `;
 
       // Try to parse it (would throw if invalid)

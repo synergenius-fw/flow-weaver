@@ -82,7 +82,7 @@ export interface TCliOptionDoc {
   description: string;
   /** Default value shown as "(default: value)" */
   defaultValue?: string;
-  /** Mutual exclusivity group — options sharing the same group become a single select */
+  /** Mutual exclusivity group: options sharing the same group become a single select */
   exclusive?: string;
   /** Whether this option is required */
   required?: boolean;
@@ -106,7 +106,7 @@ export interface TCliCommandDoc {
   group?: string;
   /** Override list style (default: 'cli') */
   listStyle?: string;
-  /** Valid choices for positional arguments — keyed by arg name */
+  /** Valid choices for positional arguments, keyed by arg name */
   positionalChoices?: Record<string, { id: string; label: string }[]>;
   /** Whether the command is available for programmatic bot/agent use via runCommand */
   botCompatible?: boolean;

@@ -1,5 +1,5 @@
 /**
- * Replay LLM Provider — creates a mock provider from a recorded session.
+ * Replay LLM Provider: creates a mock provider from a recorded session.
  *
  * Usage:
  * ```typescript
@@ -10,7 +10,7 @@
  *
  * // Pass replay to the node or adapter under test; calls replay in order.
  *
- * // Run workflow — LLM calls return recorded responses, no network calls
+ * // Run workflow. LLM calls return recorded responses, no network calls
  *
  * // All MockLlmProvider methods work: getCalls(), getTotalTokens(), etc.
  * expect(replay.getCallCount()).toBe(3);

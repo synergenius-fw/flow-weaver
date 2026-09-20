@@ -55,7 +55,7 @@ function RouteEditor({ w, onDone }: { w: ParsedWorkflow; onDone: () => void }) {
         <button class="btn ghost sm" onClick={onDone}>Cancel</button>
         {error && <span class="err">{error}</span>}
       </div>
-      <div class="hint" style="margin-top:6px">A <code>:name</code> in the path binds that parameter{w.params.length ? ` (${w.params.map((p) => p.name).join(', ')})` : ''}. GET and DELETE take the rest from the query; the others from the body. Written as <code>@http</code> lines on the workflow.</div>
+      <div class="hint" style="margin-top:6px">A <code>:name</code> in the path binds that parameter{w.params.length ? ` (${w.params.map((p) => p.name).join(', ')})` : ''}. GET and DELETE take the rest from the query, the others from the body. Written as <code>@http</code> lines on the workflow.</div>
     </div>
   );
 }
@@ -95,7 +95,7 @@ export function ServePane({ w }: { w: ParsedWorkflow }) {
       <div class="card serve">
         <h3>Serve<span class="sp" />
           {s?.running
-            ? <span class="hint"><span class="sdot ok" /> up · since {ago(Date.parse(s.running.startedAt))}</span>
+            ? <span class="hint"><span class="sdot ok" /> up since {ago(Date.parse(s.running.startedAt))}</span>
             : s?.state === 'starting' ? <span class="hint"><span class="sdot warn" /> starting…</span>
             : <span class="hint"><span class="sdot" /> not running</span>}
           {s?.running
@@ -107,7 +107,7 @@ export function ServePane({ w }: { w: ParsedWorkflow }) {
         {error && <div class="in err">{error}</div>}
         {!s?.running && s?.state !== 'starting' && (
           <div class="in hint">
-            Start serves every workflow in the project on loopback with a generated token; port, host and options are on the <button class="linkish" onClick={openOverview}>Project page</button>. From a terminal: <code>{s?.command ?? 'fw serve --trace'}</code>.
+            Start serves every workflow in the project on loopback with a generated token. Port, host and options are on the <button class="linkish" onClick={openOverview}>Project page</button>. From a terminal: <code>{s?.command ?? 'fw serve --trace'}</code>.
           </div>
         )}
 
@@ -116,7 +116,7 @@ export function ServePane({ w }: { w: ParsedWorkflow }) {
           {editing && <RouteEditor w={w} onDone={() => setEditing(false)} />}
           {!editing && routes.length === 0 && (
             <div class="expose">
-              <div class="hint">Not an endpoint yet. It still answers as a run resource (below); exposing it gives it a path of its own, its parameters bound from the URL or the body, and its return ports as the answer.</div>
+              <div class="hint">Not an endpoint yet. It still answers as a run resource (below). Exposing it gives it a path of its own, its parameters bound from the URL or the body, and its return ports as the answer.</div>
               <div class="formfoot"><button class="btn primary sm" onClick={() => setEditing(true)}>Expose as endpoint</button><span class="hint mono">@http POST {defaultPath(w.name)}</span></div>
             </div>
           )}
@@ -125,7 +125,7 @@ export function ServePane({ w }: { w: ParsedWorkflow }) {
               <div class="endpoint mono"><Method m={r.method} /> <span class="path">{url}{r.path}</span><span class="sp" /><RouteFlags r={r} /></div>
               <div class="hint" style="margin:4px 0 6px">
                 Answers {answerLine(r, gates.length)}.
-                {agentGates.length ? <> The {agentGates.length === 1 ? 'agent gate is' : `${agentGates.length} agent gates are`} answered by {ready ? <>a profile (<button class="linkish" onClick={openAgents}>{ready} ready</button>)</> : <><button class="linkish" onClick={openAgents}>no profile is ready</button>, so they wait for a person</>}.</> : null}
+                {agentGates.length ? <> The {agentGates.length === 1 ? 'agent gate is' : `${agentGates.length} agent gates are`} answered by {ready ? <>a profile (<button class="linkish" onClick={openAgents}>{ready} ready</button>)</> : <><button class="linkish" onClick={openAgents}>no profile is ready</button>, so they wait for a person or an assistant</>}.</> : null}
               </div>
               <pre class="curl mono">{curlFor(url, w.name, r, w.params, params)}</pre>
               <div class="formfoot"><button class="btn sm" onClick={() => copy(withToken(curlFor(url, w.name, r, w.params, params)))}>{token && r.auth !== 'none' ? 'copy request with token' : 'copy request'}</button><span class="hint">parameters come from the run form</span></div>
@@ -141,7 +141,7 @@ export function ServePane({ w }: { w: ParsedWorkflow }) {
           {showResource && (
             <>
               <div class="endpoint mono"><Method m="POST" /> <span class="path">{url}/workflows/{w.name}</span></div>
-              <div class="hint" style="margin:4px 0 6px">The parameters as the body; the run as the answer: <code>200</code> with <code>result</code>, or <code>202</code> with a <code>runId</code> and the gate.</div>
+              <div class="hint" style="margin:4px 0 6px">The parameters as the body, the run as the answer: <code>200</code> with <code>result</code>, or <code>202</code> with a <code>runId</code> and the gate.</div>
               <pre class="curl mono">{legacy}</pre>
               <div class="formfoot"><button class="btn sm" onClick={() => copy(withToken(legacy))}>{token ? 'copy request with token' : 'copy request'}</button></div>
             </>
@@ -157,7 +157,7 @@ export function ServePane({ w }: { w: ParsedWorkflow }) {
             <dt class="mono">POST /runs/:id/cancel</dt><dd>stop it</dd>
             <dt class="mono">GET /openapi.json</dt><dd>all of it, as OpenAPI</dd>
           </dl>
-          <div class="hint" style="margin-top:8px">Runs made here and over the API are the same runs: a gate reached by a caller can be answered on this page. <button class="linkish" onClick={openEndpoints}>All endpoints</button> · <button class="linkish" onClick={() => openDoc('deployment', 'workflows-as-endpoints')}>How routes answer</button></div>
+          <div class="hint" style="margin-top:8px">Runs made here and over the API are the same runs: a gate reached by a caller can be answered on this page. <button class="linkish" onClick={openEndpoints}>All endpoints</button>, or <button class="linkish" onClick={() => openDoc('deployment', 'workflows-as-endpoints')}>how routes answer</button></div>
         </div>
       </div>
     </>

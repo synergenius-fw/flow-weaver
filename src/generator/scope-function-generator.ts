@@ -92,7 +92,7 @@ export function generateScopeFunctionClosure(
 
   // NOTE: Scope function async/sync is determined by the caller (buildNodeArgumentsWithContext)
   // based on whether the parent node or its children are async. We do NOT force async in dev
-  // mode here because the parent node function calls this callback synchronously — if we
+  // mode here because the parent node function calls this callback synchronously. If we
   // return a Promise from an async closure, the parent gets Promise objects instead of values.
 
   // Extract scoped ports for this scope

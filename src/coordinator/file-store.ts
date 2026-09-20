@@ -10,10 +10,10 @@
  *   <root>/<runId>/claim.json          who is driving the run, until when
  *
  * Every write goes through a sibling temp file and a rename, so a reader
- * never sees half a file. A claim is a file created exclusively; one whose
+ * never sees half a file. A claim is a file created exclusively. One whose
  * process is gone on this host, or whose time is up, is taken over. That
  * is enough for the processes on one machine sharing the directory, which
- * is what this store is for; a directory on a network share is not, and a
+ * is what this store is for. A directory on a network share is not, and a
  * database store is the answer past one host.
  */
 import * as fs from 'node:fs';

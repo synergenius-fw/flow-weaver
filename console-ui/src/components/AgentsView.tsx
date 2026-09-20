@@ -9,14 +9,14 @@ type Provider = AgentProfileView['provider'];
 const PROVIDERS: Array<{ id: Provider; title: string; blurb: string; needs: string; icon: string; keyEnv?: string; model: string }> = [
   { id: 'anthropic', title: 'Anthropic API', blurb: 'Claude, over the API.', needs: 'ANTHROPIC_API_KEY in the environment', icon: 'auto_awesome', keyEnv: 'ANTHROPIC_API_KEY', model: 'claude-sonnet-5' },
   { id: 'openai', title: 'OpenAI-compatible', blurb: 'OpenAI, Groq, GitHub Models, or a local Ollama, vLLM, LM Studio.', needs: 'a key variable, or just a base URL for a local server', icon: 'hub', keyEnv: 'OPENAI_API_KEY', model: 'gpt-4o' },
-  { id: 'claude-cli', title: 'Claude Code', blurb: 'The claude command on this machine, with its own login.', needs: 'claude on PATH; nothing else', icon: 'terminal', model: '' },
+  { id: 'claude-cli', title: 'Claude Code', blurb: 'The claude command on this machine, with its own login.', needs: 'claude on PATH, nothing else', icon: 'terminal', model: '' },
 ];
 const providerOf = (id: Provider) => PROVIDERS.find((p) => p.id === id)!;
 
 /**
  * The project's agent profiles: what answers a `waitForAgent` gate when
  * nobody is watching. Adding one is picking a provider and filling a short
- * form; the file it writes is a detail behind the page. A key is never
+ * form. The file it writes is a detail behind the page. A key is never
  * typed here -- only the name of the variable that holds it, checked live.
  */
 export function AgentsView() {
@@ -51,7 +51,7 @@ export function AgentsView() {
         <div class="card welcome">
           <h3>Let a model answer your agent gates</h3>
           <div class="in">
-            <p>{gated ? `${gated} workflow${gated === 1 ? '' : 's'} in this project pause${gated === 1 ? 's' : ''} at a gate.` : 'No workflow here has a gate yet.'} An agent gate waits for a person until a profile is here to answer it. Pick where the model comes from:</p>
+            <p>{gated ? `${gated} workflow${gated === 1 ? '' : 's'} in this project pause${gated === 1 ? 's' : ''} at a gate.` : 'No workflow here has a gate yet.'} Until a profile is here to answer it, an agent gate waits for whoever drives the run: you, here, or an assistant over MCP. Pick where the model comes from:</p>
             <div class="provcards">
               {PROVIDERS.map((p) => (
                 <button class="provcard" key={p.id} onClick={() => { setStarting(p.id); setEditing(''); }}>
@@ -101,7 +101,7 @@ export function AgentsView() {
         <div class="card">
           <h3>Which gate goes to which</h3>
           <div class="in">
-            <p class="hint">A paused gate is matched by <code>workflow/node</code> first, then by its <code>agentId</code>, then the default{a.default ? <> (<b>{a.default}</b>)</> : ' — and there is none, so an unmatched gate waits for a person'}. The <b>answered by</b> menu on a gate's step writes a row here.</p>
+            <p class="hint">A paused gate is matched by <code>workflow/node</code> first, then by its <code>agentId</code>, then the default{a.default ? <> (<b>{a.default}</b>)</> : ' (and there is none, so an unmatched gate waits for a person or an assistant)'}. The <b>answered by</b> menu on a gate's step writes a row here.</p>
             <GateMap gates={a.gates} profiles={a.agents} />
           </div>
         </div>
@@ -111,7 +111,7 @@ export function AgentsView() {
         <div class="card">
           <h3>The file</h3>
           <div class="in hint">
-            All of this is <code>{rel}</code>, versioned with the workflows. Edit it here or by hand; the console rewrites it whole, so a comment you add by hand does not survive a change made here. <a href={editorLink(a.file)}>Open it</a>.
+            All of this is <code>{rel}</code>, versioned with the workflows. Edit it here or by hand. The console rewrites it whole, so a comment you add by hand does not survive a change made here. <a href={editorLink(a.file)}>Open it</a>.
           </div>
         </div>
       )}
@@ -136,9 +136,9 @@ function ProfileRow({ p, isDefault, onEdit }: { p: AgentProfileView; isDefault: 
         <span class="regruns"><span class={`sdot ${p.ready ? 'ok' : 'bad'}`} /> {p.ready ? 'ready' : 'not ready'}</span>
       </div>
       <dl class="regkv">
-        <dt>model</dt><dd>{p.model || <span class="opt-ns">the command's default</span>}<span class="opt-ns"> · {prov.title}</span></dd>
-        {p.provider !== 'claude-cli' && <><dt>key</dt><dd class="mono">{p.keyEnv}<span class={`opt-ns ${p.ready ? '' : 'err'}`}> · {p.reason ?? 'set in the environment'}</span></dd></>}
-        {p.provider === 'claude-cli' && <><dt>command</dt><dd class="mono">{p.bin ?? 'claude'}<span class={`opt-ns ${p.ready ? '' : 'err'}`}> · {p.ready ? 'on PATH' : p.reason}</span></dd></>}
+        <dt>model</dt><dd>{p.model || <span class="opt-ns">the command's default</span>}<span class="opt-ns"> on {prov.title}</span></dd>
+        {p.provider !== 'claude-cli' && <><dt>key</dt><dd class="mono">{p.keyEnv}<span class={`opt-ns ${p.ready ? '' : 'err'}`}> ({p.reason ?? 'set in the environment'})</span></dd></>}
+        {p.provider === 'claude-cli' && <><dt>command</dt><dd class="mono">{p.bin ?? 'claude'}<span class={`opt-ns ${p.ready ? '' : 'err'}`}> ({p.ready ? 'on PATH' : p.reason})</span></dd></>}
         {p.baseUrl && <><dt>base URL</dt><dd class="mono break">{p.baseUrl}</dd></>}
         {p.system && <><dt>told</dt><dd class="sys">{p.system}</dd></>}
         {p.description && <><dt>about</dt><dd>{p.description}</dd></>}
@@ -148,7 +148,7 @@ function ProfileRow({ p, isDefault, onEdit }: { p: AgentProfileView; isDefault: 
         <button class="btn sm" disabled={trying || !p.ready} title={p.ready ? 'One short reply, to see that it works' : p.reason ?? ''} onClick={tryIt}>{trying ? 'Trying…' : 'Try it'}</button>
         {!isDefault && <button class="btn ghost sm" onClick={() => setDefaultProfile(p.name).catch((e: Error) => toast(e.message))}>Make default</button>}
         {tried && (tried.ok
-          ? <span class="tried ok"><span class="ms">check_circle</span> replied in {tried.ms} ms{tried.usage ? ` · ${tried.usage.promptTokens + tried.usage.completionTokens} tokens` : ''}{tried.text ? <span class="hint"> · “{tried.text.slice(0, 60)}”</span> : null}</span>
+          ? <span class="tried ok"><span class="ms">check_circle</span> replied in {tried.ms} ms{tried.usage ? `, ${tried.usage.promptTokens + tried.usage.completionTokens} tokens` : ''}{tried.text ? <span class="hint">: “{tried.text.slice(0, 60)}”</span> : null}</span>
           : <span class="tried bad"><span class="ms">error</span> {tried.error}</span>)}
       </div>
     </div>
@@ -220,22 +220,22 @@ function ProfileForm({ existing, start, suggestions, onDone }: { existing: Agent
           <div class="field"><label><span>key</span><i>the environment variable that holds it</i></label>
             <div class="withstat">
               <input type="text" class="mono" value={keyEnv} placeholder="MY_API_KEY" onInput={(e) => setKeyEnv((e.target as HTMLInputElement).value.toUpperCase())} />
-              <span class={`stat ${keySet === true ? 'ok' : keySet === false ? (local ? 'warn' : 'bad') : ''}`}>{keySet === true ? 'set' : keySet === false ? (local ? 'not set · fine for a local server' : 'not set here') : ''}</span>
+              <span class={`stat ${keySet === true ? 'ok' : keySet === false ? (local ? 'warn' : 'bad') : ''}`}>{keySet === true ? 'set' : keySet === false ? (local ? 'not set (fine for a local server)' : 'not set here') : ''}</span>
             </div>
-            <div class="fhelp">Only the name is saved. The value is read from the shell that started the console or <code>fw serve</code>{keySet === false && !local ? <> — export it there and this turns green</> : ''}.</div>
+            <div class="fhelp">Only the name is saved. The value is read from the shell that started the console or <code>fw serve</code>{keySet === false && !local ? <> (export it there and this turns green)</> : ''}.</div>
           </div>
         )}
         {provider === 'openai' && (
           <div class="field"><label><span>base URL</span><i>optional</i></label>
-            <input type="text" class="mono" value={baseUrl} placeholder="https://api.openai.com — or http://localhost:11434/v1 for Ollama" onInput={(e) => setBaseUrl((e.target as HTMLInputElement).value)} />
+            <input type="text" class="mono" value={baseUrl} placeholder="https://api.openai.com, or http://localhost:11434/v1 for Ollama" onInput={(e) => setBaseUrl((e.target as HTMLInputElement).value)} />
           </div>
         )}
         {provider === 'claude-cli' && (
           <div class="field"><label><span>command</span><i>optional</i></label>
-            <input type="text" class="mono" value={bin} placeholder="claude — or a path to it" onInput={(e) => setBin((e.target as HTMLInputElement).value)} />
+            <input type="text" class="mono" value={bin} placeholder="claude, or a path to it" onInput={(e) => setBin((e.target as HTMLInputElement).value)} />
           </div>
         )}
-        <div class="field"><label><span>what it is told</span><i>optional · goes before the gate's own instructions</i></label>
+        <div class="field"><label><span>what it is told</span><i>optional, goes before the gate's own instructions</i></label>
           <textarea rows={3} value={system} placeholder="You review files for risk. Be terse." onInput={(e) => setSystem((e.target as HTMLTextAreaElement).value)} />
         </div>
         <div class="row2">
@@ -301,7 +301,7 @@ export function AgentsSide() {
         {pane === 'about' && (
           <div class="card">
             <h3>What the model gets</h3>
-            <div class="in hint">The gate's inputs — <code>agentId</code>, <code>context</code>, <code>prompt</code> — and one tool to return the answer, shaped from the gate's output type. No files, no shell, no network of its own: what it needs goes in <code>context</code>. Its words stream onto the step while it works.</div>
+            <div class="in hint">The gate's inputs (<code>agentId</code>, <code>context</code>, <code>prompt</code>) and one tool to return the answer, shaped from the gate's output type. No files, no shell, no network of its own: what it needs goes in <code>context</code>. Its words stream onto the step while it works.</div>
             <h3>Keys</h3>
             <div class="in hint">A profile names the variable a key lives in and nothing more. The console reads it from the shell it was started in and says only whether it is set. Start the console or <code>fw serve</code> from a shell that has it.</div>
             <h3>Local models</h3>

@@ -72,7 +72,7 @@ export interface ConsoleServerOptions {
    * picked up by polling, since a store of yours has no directory to watch.
    */
   store?: RunStore;
-  /** How the project's services are started; a test hands in a fake spawn and its own directories. */
+  /** How the project's services are started. A test hands in a fake spawn and its own directories. */
   services?: Pick<SupervisorOptions, 'spawn' | 'settingsDir' | 'registryDir'>;
 }
 
@@ -96,7 +96,7 @@ function ports(map: Record<string, TPortDefinition> | undefined) {
   return Object.entries(map ?? {})
     .filter(([k, p]) => !CONTROL.has(k) && !p.isControlFlow)
     // Without a TypeScript type the engine's own `STRING`/`OBJECT` stands
-    // in; shown to a person, it reads better as `string`.
+    // in. Shown to a person, it reads better as `string`.
     .map(([k, p]) => ({ name: k, tsType: p.tsType ?? String(p.dataType).toLowerCase(), optional: !!p.optional, description: p.description ?? '' }));
 }
 
@@ -119,7 +119,7 @@ function describeIssue(e: TValidationError) {
 /**
  * A workflow as it was at a git ref. The old text is written beside the
  * file for a moment under a `.fw-diff-` name, so its relative imports still
- * resolve, parsed, and removed; the scanner and the watcher both skip it.
+ * resolve, parsed, and removed. The scanner and the watcher both skip it.
  */
 async function astAt(file: string, name: string, ref: string): Promise<{ ast?: TWorkflowAST; error?: string }> {
   if (ref === 'worktree') {
@@ -521,6 +521,12 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
       hasSuccessPort: g.hasSuccessPort, hasFailurePort: g.hasFailurePort,
       outputTypes: Object.fromEntries(g.outputs.map((o) => [o, nt?.outputs?.[o]?.tsType ?? 'unknown'])),
       outputSchema: ast ? gateOutputSchemas(ast, g.node, rec.filePath) : null,
+      // The words for whoever answers: the gate function's own description,
+      // and each output's label from its @output line. Types alone say what
+      // shape an answer has, not what it means.
+      description: nt?.description ?? '',
+      outputLabels: Object.fromEntries(g.outputs.map((o) => [o, nt?.outputs?.[o]?.label ?? ''])),
+      inputLabels: Object.fromEntries(Object.keys(g.inputs).map((i) => [i, nt?.inputs?.[i]?.label ?? ''])),
     };
   }
 
@@ -690,7 +696,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
     const rec = await coordinator.record(id);
     if (!rec || rec.status !== 'waiting' || !rec.gate) throw new Error('run is not waiting');
     if (live.has(id)) throw new Error('run is already resuming');
-    if (isAnswering(rec.agent, rec.gate.id)) throw new Error(`agent profile ${rec.agent!.profile} is answering this gate; wait for it, or cancel the run`);
+    if (isAnswering(rec.agent, rec.gate.id)) throw new Error(`agent profile ${rec.agent!.profile} is answering this gate. Wait for it, or cancel the run`);
     // Both refusals happen before anything runs, so they are checked here
     // and answered to the person, rather than surfacing from a background
     // segment as a run that quietly stayed waiting.
@@ -1014,7 +1020,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
       // completion knows `fw audio replay` as well as `fw validate`.
       if (url.pathname === '/api/cli/commands') {
         const packCommands = (await describePacks(projectDir)).flatMap((p) => p.cliCommands.map((c) => ({
-          name: `${p.namespace} ${c.name}`, words: [p.namespace, c.name], group: `Pack · ${p.namespace}`,
+          name: `${p.namespace} ${c.name}`, words: [p.namespace, c.name], group: `Pack: ${p.namespace}`,
           description: c.description, usage: c.usage, flags: c.flags, examples: [],
         })));
         return json(res, 200, [...cliCatalog(), ...packCommands]);
@@ -1195,7 +1201,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
         // Forgetting a run: only one that is over, and only from the store --
         // what is in flight is stopped first, with cancel.
         if (!m[2] && req.method === 'DELETE') {
-          if (live.has(id) || debug.get(id)) return json(res, 409, { error: 'the run is in flight; cancel it first' });
+          if (live.has(id) || debug.get(id)) return json(res, 409, { error: 'the run is in flight. Cancel it first' });
           try { await coordinator.remove(id); } catch (err) { return json(res, 409, { error: err instanceof Error ? err.message : String(err) }); }
           listed = undefined;
           broadcast({ type: 'runs' });

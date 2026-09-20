@@ -1,5 +1,5 @@
 /**
- * Anthropic API provider — streams messages via raw fetch + SSE parsing.
+ * Anthropic API provider: streams messages via raw fetch + SSE parsing.
  * No SDK dependency. Uses only Node.js native fetch (available since Node 18).
  *
  * Adapted from pack-weaver's streamAnthropicWithTools.
@@ -16,7 +16,7 @@ export interface AnthropicProviderOptions {
 
 /**
  * Convert a SplitPrompt to Anthropic's system content block array.
- * The prefix gets cache_control for prompt caching; the suffix does not.
+ * The prefix gets cache_control for prompt caching. The suffix does not.
  */
 function buildSystemBlocks(
   prompt: SplitPrompt,

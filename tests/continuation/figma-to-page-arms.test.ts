@@ -4,7 +4,7 @@
  * It is the workflow that surfaced the undefined-execution-index bug: its
  * `finish` node converges a refused link, a refused plan and a completed
  * build, so on the two rejection arms it reads ports from gates that never
- * ran. The unit fixture pins the mechanism; this pins the real graph.
+ * ran. The unit fixture pins the mechanism. This pins the real graph.
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

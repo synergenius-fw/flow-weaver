@@ -248,9 +248,9 @@ interface FwMockConfig {
   fast?: boolean;
   /** Mock invocation results keyed by functionId. Used by invokeWorkflow. */
   invocations?: Record<string, object>;
-  /** Event payloads keyed by event name; a waitForEvent gate returns one as eventData without pausing. */
+  /** Event payloads keyed by event name. A waitForEvent gate returns one as eventData without pausing. */
   events?: Record<string, object>;
-  /** Agent results keyed by agentId; a waitForAgent gate returns one as agentResult without pausing. */
+  /** Agent results keyed by agentId. A waitForAgent gate returns one as agentResult without pausing. */
   agents?: Record<string, object>;
   /** An answer for any gate, keyed by the node's instance id: its data outputs as an object. */
   gates?: Record<string, object>;

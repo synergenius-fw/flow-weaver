@@ -28,14 +28,14 @@ export function registerContextTools(mcp: McpServer): void {
         .enum(['standalone', 'assistant'])
         .optional()
         .default('assistant')
-        .describe('assistant (default) assumes the MCP tools; standalone is self-contained text'),
+        .describe('assistant (default) assumes the MCP tools. standalone is self-contained text'),
       topics: z.string().optional().describe('Comma-separated slugs, replacing the preset'),
       addTopics: z.string().optional().describe('Comma-separated slugs added to the preset'),
       includeGrammar: z
         .boolean()
         .optional()
         .default(false)
-        .describe('Append the generated EBNF for port, node, connect and scope lines (~3 KB); the jsdoc-grammar topic covers the same syntax'),
+        .describe('Append the generated EBNF for port, node, connect and scope lines (~3 KB). The jsdoc-grammar topic covers the same syntax'),
     },
     async (args) => {
       try {

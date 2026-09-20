@@ -41,6 +41,7 @@ jobs:
           fi
 
       - run: npm run typecheck
+      - run: npm run lint:slop
       - run: npm run build
 
   test:

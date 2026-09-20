@@ -2,7 +2,7 @@
  * Pure, state-free helpers extracted from WorkflowValidator (debt #3 step 2).
  *
  * These functions have no dependency on validator instance state
- * (errors/warnings/mode). They were previously private methods; moving them out
+ * (errors/warnings/mode). They were previously private methods. Moving them out
  * shrinks the validator class and lets the extracted rule functions share them.
  * Behavior is identical to the former methods.
  */

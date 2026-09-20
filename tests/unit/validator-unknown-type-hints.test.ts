@@ -1,5 +1,5 @@
 /**
- * WU3: S14 — Distinguish "unannotated function" from "function not found"
+ * WU3, S14: Distinguish "unannotated function" from "function not found"
  *
  * Problem: UNKNOWN_NODE_TYPE says "unknown type X" but doesn't say if
  * function X exists without annotation.

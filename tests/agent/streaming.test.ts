@@ -173,7 +173,7 @@ describe('StreamJsonParser', () => {
 
     parser.reset();
 
-    // Turn 2 — result text should appear since hasAssistantText was reset
+    // Turn 2: result text should appear since hasAssistantText was reset
     parser.feed(JSON.stringify({ type: 'result', result: 'turn2' }));
 
     const textEvents = allEvents.filter((e) => e.type === 'text_delta');

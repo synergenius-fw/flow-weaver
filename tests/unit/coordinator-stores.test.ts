@@ -1,6 +1,6 @@
 /**
- * The run store contract, kept by both built-in stores; the coordinator
- * driving a gated workflow on a store that is not a directory; and the
+ * The run store contract, kept by both built-in stores. The coordinator
+ * driving a gated workflow on a store that is not a directory. The
  * claim keeping two coordinators off the same run.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

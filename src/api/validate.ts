@@ -58,7 +58,7 @@ export function validateWorkflow(
   // effect contracts) otherwise fire only when the coordinator computes the
   // bundle digest, so a gated workflow could validate here and then fail at
   // run time. Surface them at author time as ordinary errors. The analysis
-  // throws a single message on the first violation; we do not have per-node
+  // throws a single message on the first violation. We do not have per-node
   // locations for it, so it is reported without a node.
   if (ast.instances.some((inst) => inst.nodeType === 'waitForAgent' || inst.nodeType === 'waitForEvent')
       || ast.nodeTypes.some((nt) => nt.durableGate !== undefined || nt.durableEffect === true)) {

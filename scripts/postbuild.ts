@@ -44,13 +44,13 @@ function resolveSpecifier(specifier: string, containingDir: string): string {
   if (fs.existsSync(abs + '.js')) return specifier + '.js';
   if (fs.existsSync(path.join(abs, 'index.js'))) return specifier + '/index.js';
 
-  console.warn(`  ⚠ Could not resolve: ${specifier}`);
+  console.warn(`  Warning: could not resolve: ${specifier}`);
   return specifier;
 }
 
 function fixEsmImports(): void {
   if (!fs.existsSync(distDir)) {
-    console.log('dist/ not found — skipping ESM import rewrite');
+    console.log('dist/ not found, skipping ESM import rewrite');
     return;
   }
 
@@ -120,7 +120,7 @@ function isMonorepoContext(): boolean {
 }
 
 function refreshBinSymlinks(): void {
-  console.log('📦 Refreshing bin symlinks in monorepo...');
+  console.log('Refreshing bin symlinks in monorepo...');
 
   try {
     // Run npm rebuild from monorepo root to update bin links
@@ -128,9 +128,9 @@ function refreshBinSymlinks(): void {
       cwd: monorepoRoot,
       stdio: 'inherit',
     });
-    console.log('✅ Bin symlinks updated successfully');
+    console.log('Bin symlinks updated successfully');
   } catch (error) {
-    console.error('⚠️  Failed to refresh bin symlinks:', error);
+    console.error('Warning: failed to refresh bin symlinks:', error);
     // Don't fail the build - this is a nice-to-have
   }
 }

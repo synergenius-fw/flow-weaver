@@ -1,5 +1,5 @@
 /**
- * Comprehensive test suite for getPackageExports.
+ * Test suite for getPackageExports.
  * Covers every TypeScript declaration form, export pattern, parameter type,
  * return type, port inference detail, and edge case.
  */
@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-describe('getPackageExports comprehensive', () => {
+describe('getPackageExports declaration forms', () => {
   let tmpDir: string;
   let nodeModulesDir: string;
 
@@ -78,8 +78,8 @@ describe('getPackageExports comprehensive', () => {
 
     it('function with overloads', () => {
       const get = pkg('t-fn-overload', `
-        export declare function parse(input: string): object;
-        export declare function parse(input: string, options: object): object;
+        export declare function parse(input: string): object
+        export declare function parse(input: string, options: object): object
       `);
       // Should deduplicate
       expect(get()).toHaveLength(1);
@@ -142,9 +142,9 @@ describe('getPackageExports comprehensive', () => {
 
     it('multiple named exports', () => {
       const get = pkg('t-multi-named', `
-        export declare function foo(): void;
-        export declare function bar(): void;
-        export declare function baz(): void;
+        export declare function foo(): void
+        export declare function bar(): void
+        export declare function baz(): void
       `);
       expect(get()).toHaveLength(3);
     });
@@ -158,7 +158,7 @@ describe('getPackageExports comprehensive', () => {
     it('default anonymous function stays as default', () => {
       const get = pkg('t-default-anon', `declare const _default: (x: string) => string;
 export default _default;`);
-      // May resolve to _default or default — either is acceptable
+      // May resolve to _default or default, either is acceptable
       expect(get()).toHaveLength(1);
     });
 
@@ -186,8 +186,8 @@ export default _default;`);
 
     it('star re-export with local override', () => {
       const get = pkg('t-star-override', `
-        export * from './utils.js';
-        export declare function a(): string;
+        export * from './utils.js'
+        export declare function a(): string
       `, {
         'utils.d.ts': `export declare function a(): void;\nexport declare function b(): void;`,
       });
@@ -214,9 +214,16 @@ export default _default;`);
 
     it('export = namespace (CJS) skipped', () => {
       const get = pkg('t-cjs-ns', `
-        interface Methods { a(): void; b(): void; c(): void; d(): void; e(): void; f(): void; }
-        declare const lib: Methods;
-        export = lib;
+        interface Methods {
+          a(): void
+          b(): void
+          c(): void
+          d(): void
+          e(): void
+          f(): void
+        }
+        declare const lib: Methods
+        export = lib
       `);
       expect(get()).toHaveLength(0);
     });
@@ -429,8 +436,8 @@ export default _default;`);
   describe('port details', () => {
     it('every export has execute port', () => {
       const get = pkg('t-port-exec', `
-        export declare function a(): void;
-        export declare function b(): void;
+        export declare function a(): void
+        export declare function b(): void
       `);
       for (const e of get()) {
         expect(e.ports.some(p => p.name === 'execute')).toBe(true);
@@ -593,8 +600,8 @@ export default _default;`);
 
     it('duplicate function names are deduplicated', () => {
       const get = pkg('t-dedup', `
-        export declare function foo(): void;
-        export declare function foo(x: string): string;
+        export declare function foo(): void
+        export declare function foo(x: string): string
       `);
       expect(get().filter(e => e.function === 'foo')).toHaveLength(1);
     });
@@ -788,17 +795,17 @@ export default _default;`);
   describe('real-world patterns', () => {
     it('Express-style middleware', () => {
       const get = pkg('t-express', `
-        export declare function json(options?: object): (req: object, res: object, next: () => void) => void;
-        export declare function urlencoded(options?: object): (req: object, res: object, next: () => void) => void;
+        export declare function json(options?: object): (req: object, res: object, next: () => void) => void
+        export declare function urlencoded(options?: object): (req: object, res: object, next: () => void) => void
       `);
       expect(get()).toHaveLength(2);
     });
 
     it('React hook pattern', () => {
       const get = pkg('t-react-hook', `
-        export declare function useState<T>(initial: T): [T, (value: T) => void];
-        export declare function useEffect(effect: () => void, deps?: any[]): void;
-        export declare function useCallback<T extends (...args: any[]) => any>(callback: T, deps: any[]): T;
+        export declare function useState<T>(initial: T): [T, (value: T) => void]
+        export declare function useEffect(effect: () => void, deps?: any[]): void
+        export declare function useCallback<T extends (...args: any[]) => any>(callback: T, deps: any[]): T
       `);
       expect(get()).toHaveLength(3);
     });
@@ -824,17 +831,17 @@ export default _default;`);
 
     it('Fastify plugin pattern', () => {
       const get = pkg('t-fastify-plugin', `
-        export declare function fastifyPlugin(instance: object, opts: object, done: () => void): void;
-        export declare function fp(fn: Function): Function;
+        export declare function fastifyPlugin(instance: object, opts: object, done: () => void): void
+        export declare function fp(fn: Function): Function
       `);
       expect(get()).toHaveLength(2);
     });
 
     it('Event emitter pattern', () => {
       const get = pkg('t-emitter', `
-        export declare function on(event: string, listener: (...args: any[]) => void): void;
-        export declare function emit(event: string, ...args: any[]): boolean;
-        export declare function once(event: string, listener: (...args: any[]) => void): void;
+        export declare function on(event: string, listener: (...args: any[]) => void): void
+        export declare function emit(event: string, ...args: any[]): boolean
+        export declare function once(event: string, listener: (...args: any[]) => void): void
       `);
       expect(get()).toHaveLength(3);
     });
@@ -850,11 +857,11 @@ export default _default;`);
 
     it('Crypto/hash pattern', () => {
       const get = pkg('t-crypto', `
-        export declare function hash(data: string, algorithm?: string): string;
-        export declare function encrypt(data: string, key: string): Buffer;
-        export declare function decrypt(data: Buffer, key: string): string;
-        export declare function sign(data: string, privateKey: string): string;
-        export declare function verify(data: string, signature: string, publicKey: string): boolean;
+        export declare function hash(data: string, algorithm?: string): string
+        export declare function encrypt(data: string, key: string): Buffer
+        export declare function decrypt(data: Buffer, key: string): string
+        export declare function sign(data: string, privateKey: string): string
+        export declare function verify(data: string, signature: string, publicKey: string): boolean
       `);
       expect(get()).toHaveLength(5);
       expect(get().find(e => e.function === 'verify')?.ports.find(p => p.name === 'publicKey')).toBeDefined();
@@ -915,8 +922,8 @@ export default _default;`);
 
     it('multiple star re-exports from different submodules', () => {
       const get = pkg('t-multi-star', `
-        export * from './utils.js';
-        export * from './helpers.js';
+        export * from './utils.js'
+        export * from './helpers.js'
       `, {
         'utils.d.ts': `export declare function utilA(): void;\nexport declare function utilB(): void;`,
         'helpers.d.ts': `export declare function helperA(): void;\nexport declare function helperB(): void;`,
@@ -926,12 +933,12 @@ export default _default;`);
 
     it('star re-export + named re-export from same module', () => {
       const get = pkg('t-star-named-mix', `
-        export * from './lib.js';
-        export { specific } from './lib.js';
+        export * from './lib.js'
+        export { specific } from './lib.js'
       `, {
         'lib.d.ts': `
-          export declare function specific(): void;
-          export declare function other(): void;
+          export declare function specific(): void
+          export declare function other(): void
         `,
       });
       // Should have both, no duplicates
@@ -943,9 +950,9 @@ export default _default;`);
 
     it('barrel file pattern (index re-exports everything)', () => {
       const get = pkg('t-barrel', `
-        export { create } from './create.js';
-        export { destroy } from './destroy.js';
-        export { update } from './update.js';
+        export { create } from './create.js'
+        export { destroy } from './destroy.js'
+        export { update } from './update.js'
       `, {
         'create.d.ts': `export declare function create(data: object): object;`,
         'destroy.d.ts': `export declare function destroy(id: string): void;`,

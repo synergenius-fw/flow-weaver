@@ -136,7 +136,7 @@ describe('compile --output (-o)', () => {
     fs.writeFileSync(path.join(inputDir, 'one.ts'), source1);
     fs.writeFileSync(path.join(inputDir, 'two.ts'), source2);
 
-    // Output is a file, not a directory — ambiguous with multiple inputs
+    // Output is a file, not a directory (ambiguous with multiple inputs)
     const outputFile = path.join(tmpDir, 'single-output.ts');
 
     await expect(

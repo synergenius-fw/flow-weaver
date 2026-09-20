@@ -1,5 +1,5 @@
 /**
- * Centralized CLI spawn configuration — single source of truth for all
+ * Centralized CLI spawn configuration: the single source of truth for all
  * Claude CLI invocations in automation contexts.
  *
  * RULE: Every automated CLI spawn MUST use getCliBaseArgs() or getCliSessionConfig().
@@ -8,8 +8,8 @@
  * - --strict-mcp-config (prevent user MCP server leakage)
  * - --dangerously-skip-permissions (no permission prompts in automation)
  *
- * Interactive user sessions (e.g., fw init) are exempt — they're the user's
- * own Claude session, not automated workers.
+ * Interactive user sessions (e.g., fw init) are exempt, since they're the
+ * user's own Claude session, not automated workers.
  */
 
 import type { CliSessionOptions } from './types.js';
@@ -29,7 +29,7 @@ export function getCliBaseArgs(options?: {
   const args = [
     '-p',
     '--dangerously-skip-permissions',
-    // Disable ALL built-in tools — only pack/MCP tools visible to model
+    // Disable ALL built-in tools, so only pack/MCP tools are visible to model
     '--allowed-tools', '',
     // Prevent user/project MCP servers from leaking into sessions
     '--strict-mcp-config',
@@ -75,7 +75,7 @@ export function getCliSessionConfig(options: {
     model: options.model,
     mcpConfigPath: options.mcpConfigPath,
     disallowedTools: options.disallowedTools,
-    // Mandatory lockdown — cannot be overridden by callers
+    // Mandatory lockdown, cannot be overridden by callers
     allowedTools: [],
     strictMcpConfig: true,
     appendSystemPrompt: options.appendSystemPrompt,

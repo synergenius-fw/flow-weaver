@@ -36,7 +36,7 @@ export type AgentProviderKind = 'anthropic' | 'openai' | 'claude-cli';
 export interface AgentProfile {
   name: string;
   provider: AgentProviderKind;
-  /** Model id; each provider has a default. */
+  /** Model id. Each provider has a default. */
   model?: string;
   /** Name of the environment variable holding the API key. */
   apiKeyEnv?: string;
@@ -61,7 +61,7 @@ export interface AgentProfiles {
   default?: string;
   /** `agentId` or `workflow/node` → profile name. */
   gates: Record<string, string>;
-  /** What was wrong with the file, if anything; a bad file yields no profiles. */
+  /** What was wrong with the file, if anything. A bad file yields no profiles. */
   errors: string[];
 }
 
@@ -241,7 +241,7 @@ export function saveAgentProfiles(projectDir: string, profiles: Pick<AgentProfil
   if (profiles.default && profiles.agents[profiles.default]) doc.default = profiles.default;
   doc.agents = agents;
   if (Object.keys(profiles.gates).length) doc.gates = profiles.gates;
-  const header = '# Agent profiles: what answers a waitForAgent gate when nobody is watching.\n# Keys are read from the environment variable named here, never stored.\n# Edited by fw console; see the Agents page.\n';
+  const header = '# Agent profiles: what answers a waitForAgent gate when nobody is watching.\n# Keys are read from the environment variable named here, never stored.\n# Edited by fw console. See the Agents page.\n';
   const text = header + YAML.dump(doc, { lineWidth: 100, noRefs: true, quotingType: '"' });
   const file = agentsFile(projectDir);
   fs.mkdirSync(path.dirname(file), { recursive: true });

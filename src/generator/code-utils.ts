@@ -195,9 +195,9 @@ export function nodeResultVar(safeNodeName: string, functionName: string): strin
 export function buildMergeExpression(sources: string[], strategy: TMergeStrategy): string {
   switch (strategy) {
     case 'FIRST':
-      return `(() => { const __s__ = [${sources.join(', ')}]; return __s__.find(v => v !== undefined); })()`;
+      return `[${sources.join(', ')}].find(v => v !== undefined)`;
     case 'LAST':
-      return `(() => { const __s__ = [${sources.join(', ')}]; return __s__.filter(v => v !== undefined).pop(); })()`;
+      return `[${sources.join(', ')}].filter(v => v !== undefined).pop()`;
     case 'COLLECT':
       return `[${sources.join(', ')}]`;
     case 'MERGE':

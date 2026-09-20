@@ -2,7 +2,7 @@ import type { AppConfig, TaskResult } from './types.js';
 
 /**
  * Expression node that returns an external type.
- * Bug 3: generated code will have `as AppConfig` — bare name not in scope.
+ * Bug 3: generated code will have `as AppConfig`, a bare name not in scope.
  *
  * @flowWeaver nodeType
  * @expression
@@ -16,7 +16,7 @@ export function parseConfig(raw: string): AppConfig {
 
 /**
  * Non-expression node that takes an external type as input.
- * Bug 4: getVariable cast uses bare type or Record<string, unknown> — mismatch.
+ * Bug 4: getVariable cast uses bare type or Record<string, unknown>, a mismatch.
  *
  * Note: this node explicitly returns onSuccess/onFailure in its TS type,
  * so Bug 5 does NOT manifest here.

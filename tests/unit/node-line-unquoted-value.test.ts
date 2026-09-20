@@ -31,7 +31,7 @@ describe('unquoted @node attribute values', () => {
   });
 
   it('quotes an expression value inside the attribute, not around it', () => {
-    // `timeout="24h"` is the attribute; the JavaScript string needs its own
+    // `timeout="24h"` is the attribute. The JavaScript string needs its own
     // quotes, so the fix is `timeout="'24h'"` rather than `timeout=24h`.
     const warning = warningFor('@node g greet [expr: timeout=24h]');
     expect(warning).toContain('timeout');

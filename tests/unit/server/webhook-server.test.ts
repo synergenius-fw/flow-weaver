@@ -2,7 +2,7 @@
  * `fw serve` over real HTTP: a workflow endpoint that pauses at a gate and
  * answers 202 with a run id, the run resources that resolve and follow it,
  * the bearer token, and an agent gate answered by a profile with a fake
- * model behind it. The server listens on a free port; runs go to a temp
+ * model behind it. The server listens on a free port. Runs go to a temp
  * store so nothing touches ~/.fw.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';

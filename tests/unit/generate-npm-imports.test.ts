@@ -264,7 +264,8 @@ describe('generate code with moduleFormat option', () => {
     expect(code).toContain("const { format } = require('date-fns');");
     expect(code).toContain('async function testWorkflow');
     expect(code).not.toContain('export async function');
-    expect(code).toContain('module.exports = { testWorkflow }');
+    // The workflow first, then the engine helpers a compiled file exports.
+    expect(code).toMatch(/module\.exports = \{ testWorkflow, createWorkflowRuntime, /);
   });
 
   it('generates ESM imports with explicit moduleFormat: esm', () => {

@@ -33,10 +33,10 @@ describe('npm package edge cases', () => {
     parser.clearCache();
   });
 
-  it('overloaded declarations — picks a signature', () => {
+  it('overloaded declarations: picks a signature', () => {
     setupPackage('overload-pkg', `
-      export declare function convert(input: string): number;
-      export declare function convert(input: number): string;
+      export declare function convert(input: string): number
+      export declare function convert(input: number): string
     `);
     const workflowPath = writeFile('wf-edge-overload.ts', `
       import { convert } from 'overload-pkg';
@@ -63,7 +63,7 @@ describe('npm package edge cases', () => {
     expect(nodeType!.inputs.input).toBeDefined();
   });
 
-  it('generic functions — type params become ANY', () => {
+  it('generic functions: type params become ANY', () => {
     setupPackage('generic-pkg', `
       export declare function identity<T>(input: T): T;
     `);
@@ -93,7 +93,7 @@ describe('npm package edge cases', () => {
     expect(['ANY', 'OBJECT']).toContain(nodeType!.outputs.result.dataType);
   });
 
-  it('class exports — skipped (only functions)', () => {
+  it('class exports: skipped (only functions)', () => {
     setupPackage('class-pkg', `
       export declare class MyService {
         doWork(): void;
@@ -127,11 +127,11 @@ describe('npm package edge cases', () => {
     expect(classNode).toBeUndefined();
   });
 
-  it('default exports — skipped (only named imports)', () => {
+  it('default exports: skipped (only named imports)', () => {
     setupPackage('default-export-pkg', `
-      declare function defaultFn(x: number): number;
-      export default defaultFn;
-      export declare function namedHelper(y: string): string;
+      declare function defaultFn(x: number): number
+      export default defaultFn
+      export declare function namedHelper(y: string): string
     `);
     const workflowPath = writeFile('wf-edge-default.ts', `
       import { namedHelper } from 'default-export-pkg';

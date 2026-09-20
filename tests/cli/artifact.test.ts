@@ -37,7 +37,7 @@ describe('fw artifact', () => {
     await artifactCommand(hello, { output: out });
     const html = fs.readFileSync(out, 'utf8');
     expect(html).toContain('<h1>helloWorld</h1>');
-    expect(html).toContain('use-cases · ');
+    expect(html).toContain('use-cases, ');
     expect(html).toContain('id="theme"');
     expect(logger.success).toHaveBeenCalledWith(expect.stringContaining(out));
   });

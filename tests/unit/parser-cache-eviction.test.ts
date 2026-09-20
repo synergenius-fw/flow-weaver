@@ -6,7 +6,7 @@ import * as os from 'os';
 
 /**
  * Tests that parser caches are bounded and evict old entries.
- * Written before implementation — expects LRU eviction on parseCache.
+ * Written before implementation. Expects LRU eviction on parseCache.
  */
 
 const FIXTURES_DIR = path.join(os.tmpdir(), 'fw-test-cache-eviction');

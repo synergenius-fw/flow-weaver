@@ -24,7 +24,7 @@ export interface ArtifactOptions extends BriefOptions {
 
 export interface Artifact {
   kind: ArtifactKind;
-  /** The bytes; a string for text formats. */
+  /** The bytes, or a string for text formats. */
   body: string | Buffer;
   /** MIME type for a download. */
   type: string;

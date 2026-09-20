@@ -1,5 +1,5 @@
 /**
- * Status command — reports implementation progress for stub workflows
+ * Status command: reports implementation progress for stub workflows
  */
 
 import * as fs from 'fs';

@@ -5,7 +5,7 @@
  * 1. Parse without errors with the current parser
  * 2. Round-trip (parse → generate → re-parse) without structural breaking changes
  *
- * Files are discovered dynamically via glob — adding new examples
+ * Files are discovered dynamically via glob, so adding new examples
  * automatically expands test coverage with zero maintenance.
  */
 

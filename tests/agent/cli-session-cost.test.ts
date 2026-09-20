@@ -3,7 +3,7 @@
  * terminal result event is not lost behind an intermediate message_stop.
  *
  * This is deliberately deterministic. Ambient CLI credentials and network
- * availability are not a test contract; the opt-in live provider probe covers
+ * availability are not a test contract. The opt-in live provider probe covers
  * those separately. Here we exercise the production spawn adapter, stdin
  * framing, stdout parser, turn boundary, and cost projection as one unit.
  */

@@ -331,7 +331,7 @@ export async function testWorkflow(execute: boolean, params: { items: unknown[] 
       const workflow = parsed.workflows[0];
       const result = validator.validate(workflow);
 
-      // Both scopes should be valid — no scope errors
+      // Both scopes should be valid, no scope errors
       const scopeErrors = result.errors.filter(
         (e) => e.code === 'SCOPE_MISSING_REQUIRED_INPUT'
       );

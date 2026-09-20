@@ -4,7 +4,7 @@
  *
  * The route node branches: success -> mainPath, failure -> altPath.
  * The merge node reads onSuccess from both paths. When route succeeds,
- * altPath is CANCELLED — but merge still tries to read altPath.onSuccess.
+ * altPath is CANCELLED, but merge still tries to read altPath.onSuccess.
  */
 
 /**

@@ -14,7 +14,7 @@
  *     de-dupes generated import lines by a `(functionName, importSource)` key.
  *     The NUL was the *separator* inside that key. Replacing it with a space
  *     must not change dedup behavior. These tests exercise that dedup through
- *     the public API: same (fn, source) => one import line; differing => two.
+ *     the public API: same (fn, source) => one import line, differing => two.
  *
  * NOTE: part (1) is expected to FAIL on the unmodified (NUL-containing) file
  * and pass once the NUL is replaced. Part (2) must pass both before and after.

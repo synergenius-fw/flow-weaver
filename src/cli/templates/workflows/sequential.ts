@@ -192,7 +192,7 @@ export const sequentialTemplate: WorkflowTemplate = {
     // The stub's return type declares Exit ports too, so it must match the
     // @returns lines exactly: only the default template produces `error`.
     const returnTypeFor = (outputPort: string, withError: boolean): string => {
-      const body = `onSuccess: boolean; onFailure: boolean; ${outputPort}: any${withError ? '; error: string | null' : ''}`;
+      const body = `onSuccess: boolean, onFailure: boolean, ${outputPort}: any${withError ? ', error: string | null' : ''}`;
       return isAsync ? `Promise<{ ${body} }>` : `{ ${body} }`;
     };
 

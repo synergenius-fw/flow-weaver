@@ -25,11 +25,11 @@ type PositionalArgument = { value: unknown } | { absent: true };
  * input order, skipping `execute` and any trailing runtime arguments
  * (`src/generator/code-utils.ts:16-18`, slice at `unified.ts:2015-2019`). An
  * assistant reading `{"arguments":[{"value":"review"},...]}` would have to
- * open the workflow to learn which position is which; the names come from
+ * open the workflow to learn which position is which. The names come from
  * the parsed node type instead, so the tool result is self-describing.
  *
  * Names are taken in `@input` tag order. If an author declared tags in a
- * different order from the function parameters, labels would be wrong; the
+ * different order from the function parameters, labels would be wrong. The
  * positional payload is the source of truth and a length mismatch is
  * refused rather than zipped. The built-in gate nodes are covered by tests.
  */
@@ -39,7 +39,7 @@ export function labelGate(gate: DurableGate, ast: TWorkflowAST): LabeledGate {
     throw new Error(`gate node not found in workflow: ${gate.address.nodeId}`);
   }
 
-  // `instance.type` is the AST discriminator ('NodeInstance'); the node-type
+  // `instance.type` is the AST discriminator ('NodeInstance'). The node-type
   // name is `instance.nodeType`.
   const nodeType = findNodeType(ast.nodeTypes, instance.nodeType, gate.address.nodeType);
   if (!nodeType) {

@@ -5,7 +5,7 @@
  * every compiled file (see `src/api/inline-runtime.ts`), so it imports
  * nothing but the package version, uses no Node API, and leans on nothing
  * past ES2020. `continuation.ts` adds the graph-aware decoder on top for
- * the coordinator; that half stays in the package.
+ * the coordinator, the half that stays in the package.
  */
 import { VERSION } from "../generated-version.js";
 
@@ -190,7 +190,7 @@ function utf8BytesOf(text: string): number[] {
         index++;
       }
     }
-    // A lone surrogate is not encodable; every UTF-8 encoder, Node's
+    // A lone surrogate is not encodable. Every UTF-8 encoder, Node's
     // included, writes the replacement character for it.
     if (code >= 0xd800 && code <= 0xdfff) code = 0xfffd;
     if (code < 0x80) bytes.push(code);
@@ -230,8 +230,8 @@ export function sha256Hex(text: string): string {
   const bitLength = bytes.length * 8;
   bytes.push(0x80);
   while (bytes.length % 64 !== 56) bytes.push(0);
-  // The length is a 64-bit big-endian integer; strings this long never occur,
-  // so the high word is the floor of the division.
+  // The length is a 64-bit big-endian integer. Strings this long never
+  // occur, so the high word is the floor of the division.
   const high = Math.floor(bitLength / 0x100000000);
   const low = bitLength >>> 0;
   bytes.push(
@@ -345,10 +345,14 @@ function assertWireValue(
   ) {
     throw new WireValidationError("malformed", `${path} is not a plain wire value`);
   }
-  if (budget.seen.has(value)) {
+  // Everything that is not an object was returned or refused above. The cast
+  // is for a compiled file checked without strictNullChecks, where `unknown`
+  // does not narrow to `object` by exclusion.
+  const seen = value as object;
+  if (budget.seen.has(seen)) {
     throw new WireValidationError("malformed", `${path} contains a cycle or repeated object`);
   }
-  budget.seen.add(value);
+  budget.seen.add(seen);
 
   if (Array.isArray(value)) {
     if (Object.getOwnPropertySymbols(value).length > 0) {
@@ -367,7 +371,7 @@ function assertWireValue(
       }
       assertWireValue(descriptors[String(index)].value, `${path}[${index}]`, depth + 1, budget);
     }
-    budget.seen.delete(value);
+    budget.seen.delete(seen);
     return;
   }
 
@@ -390,7 +394,7 @@ function assertWireValue(
     budget.bytes += keyBytes;
     assertWireValue(descriptor.value, `${path}.${key}`, depth + 1, budget);
   }
-  budget.seen.delete(value);
+  budget.seen.delete(seen);
 }
 
 export function validateWireValue(value: unknown): asserts value is WireValue {

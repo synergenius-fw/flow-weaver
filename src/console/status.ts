@@ -31,7 +31,7 @@ const realpath = (p: string): string => { try { return fs.realpathSync(p); } cat
 
 /**
  * What a registration's command line would start: `npx @synergenius/flow-weaver@latest`
- * means whatever npm serves; a path to a `flow-weaver.mjs` or a checkout
+ * means whatever npm serves. A path to a `flow-weaver.mjs` or a checkout
  * names an install, compared with the one answering here.
  */
 export function installVerdict(command: string, args: string[], here: string = installRoot()): { runs: McpRegistration['runs']; install?: string } {
@@ -64,7 +64,7 @@ export function mcpRegistrations(projectDir: string, home: string = os.homedir()
     const map = cfg?.[key] as Record<string, McpEntry> | undefined;
     return map?.['flow-weaver'];
   };
-  // Claude Code: project scope in .mcp.json; user scope, and per-project entries, in ~/.claude.json.
+  // Claude Code: project scope in .mcp.json. User scope, and per-project entries, in ~/.claude.json.
   add('Claude Code (project)', path.join(projectDir, '.mcp.json'), servers(path.join(projectDir, '.mcp.json'), 'mcpServers'));
   const claude = readJson(path.join(home, '.claude.json'));
   if (claude) {

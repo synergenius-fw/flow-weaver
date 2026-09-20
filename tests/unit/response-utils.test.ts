@@ -75,7 +75,7 @@ describe('ERROR_HINTS', () => {
   });
 
   it('points a fan-in error at the port-level mergeStrategy, not only at rewiring', () => {
-    // The docs say to declare `[mergeStrategy:X]` on the port; a hint that
+    // The docs say to declare `[mergeStrategy:X]` on the port. A hint that
     // only offers "a merge node or separate ports" sends the author away from
     // the one-line fix the compiler supports.
     const hint = ERROR_HINTS['MULTIPLE_CONNECTIONS_TO_INPUT'];
@@ -173,7 +173,7 @@ describe('addHintsToItems', () => {
     const result = addHintsToItems(items, friendlyFn);
     expect(result[0].fix).toBe('Remove the cycle');
     expect(result[0]).not.toHaveProperty('hint');
-    // title and explanation restate the message; they are not emitted
+    // title and explanation restate the message. They are not emitted
     expect(result[0]).not.toHaveProperty('friendly');
   });
 

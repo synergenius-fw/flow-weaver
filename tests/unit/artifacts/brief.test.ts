@@ -26,7 +26,7 @@ describe('renderBrief (the page)', () => {
     expect(html.startsWith('<!doctype html>')).toBe(true);
     expect(html).not.toMatch(/https?:\/\/(?!www\.w3\.org)/);
     expect(html).toContain('<h1>figmaToPage</h1>');
-    expect(html).toContain('use-cases · ');
+    expect(html).toContain('use-cases, ');
     // The graph is the spine, in both themes so the toggle needs no reload.
     expect(html).toContain('<svg class="light"');
     expect(html).toContain('<svg class="dark"');

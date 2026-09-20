@@ -42,7 +42,7 @@ const BUILT_IN_DIR = path.join(ROOT, 'src', 'built-in-nodes');
 const OUTPUT_PATH = path.join(BUILT_IN_DIR, 'generated-registry.ts');
 
 // ---------------------------------------------------------------------------
-// Mock helpers — extracted from mock-types.ts and transpiled to JS
+// Mock helpers, extracted from mock-types.ts and transpiled to JS
 // ---------------------------------------------------------------------------
 
 function extractMockHelpers(): string {
@@ -497,7 +497,7 @@ function main() {
     jsCode = jsCode.replace(/^export\s+/gm, '');
     jsProduction = jsProduction.replace(/^export\s+/gm, '');
 
-    // 6. Build registry entry — helpers separated from main function
+    // 6. Build registry entry, with helpers separated from the main function
     const indent = '    ';
     const durableClassification =
       `${durableGate ? `    durableGate: '${durableGate}',\n` : ''}` +
@@ -532,7 +532,7 @@ ${durableClassification}    hasSuccessPort: ${annotated.hasSuccessPort},
  */
 
 import type { TNodeTypeAST } from '../ast/types';
-
+` + `
 export const BUILT_IN_NODE_TYPES: TNodeTypeAST[] = [
 ${entries.join(',\n')},
 ];

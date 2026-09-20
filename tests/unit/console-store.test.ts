@@ -36,7 +36,7 @@ beforeAll(async () => {
   runsDir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fw-console-runs-')), 'runs');
   process.env.FW_RUNS_DIR = runsDir;
   fs.copyFileSync(path.join(fixtures, 'durable-approval.ts'), path.join(project, 'approval.ts'));
-  // The client is not under test; the server only needs the two files to exist.
+  // The client is not under test. The server only needs the two files to exist.
   fs.writeFileSync(path.join(assets, 'index.html'), '<!doctype html>');
   fs.writeFileSync(path.join(assets, 'app.js'), '');
   server = await createConsoleServer({ projectDir: project, port: 0, watch: false, assetsDir: assets, store });
@@ -57,6 +57,12 @@ describe('the console on a store of its own', () => {
     await until(async () => (await api('GET', `/api/runs/${id}`)).body.status === 'waiting');
     expect((await store.get(id))?.status).toBe('waiting');
     expect(await store.getDoc(id, 'continuation')).toBeDefined();
+    // The gate card gets the author's words beside the types: each handed-over
+    // input and each output by its @input/@output label, and the gate
+    // function's description as what is being asked.
+    const gate = (await api('GET', `/api/runs/${id}`)).body.gate as { kind: string; inputLabels: Record<string, string>; outputLabels: Record<string, string>; description: string };
+    expect(gate).toMatchObject({ kind: 'approval', inputLabels: { value: 'Value requiring approval' }, outputLabels: { value: 'Approved value' } });
+    expect(typeof gate.description).toBe('string');
 
     const listed = await api('GET', `/api/runs?file=${encodeURIComponent(file)}&name=durableApproval`);
     expect(listed.body.map((r: { id: string }) => r.id)).toEqual([id]);

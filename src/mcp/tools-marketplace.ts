@@ -1,5 +1,5 @@
 /**
- * MCP Marketplace Tools — fw_market_search, fw_market_install, fw_market_list
+ * MCP Marketplace Tools: fw_market_search, fw_market_install, fw_market_list
  *
  * Allows Claude Code to discover, install, and inspect marketplace packages
  * during vibe coding sessions.
@@ -24,7 +24,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
     'fw_market_search',
     'Search for Flow Weaver packs on every registry the project\'s npm uses (.npmrc: the default and each scoped registry, with its token), or on one registryUrl. Returns name, version, description and which registry had it.',
     {
-      query: z.string().optional().describe('Search query text (optional — omit to browse all)'),
+      query: z.string().optional().describe('Search query text (optional, omit to browse all)'),
       limit: z
         .number()
         .optional()
@@ -41,7 +41,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
           return makeToolResult({
             count: results.length,
             packages: results.map((pkg) => ({ name: pkg.name, version: pkg.version, description: pkg.description, official: pkg.official, publisher: pkg.publisher })),
-            hint: results.length > 0 ? 'Use fw_market_install to install a package' : 'No packages found — try a different query or browse all with no query',
+            hint: results.length > 0 ? 'Use fw_market_install to install a package' : 'No packages found. Try a different query or browse all with no query',
           });
         }
         const multi = await searchAllRegistries({ query: args.query, limit: args.limit, projectDir: process.cwd() });
@@ -51,7 +51,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
           searched: multi.searched.map((s) => ({ url: s.url, scopes: s.scopes, ok: s.ok, count: s.count, ...(s.error ? { error: s.error } : {}) })),
           hint: multi.results.length > 0
             ? 'Use fw_market_install to install a package'
-            : 'No packs found on the configured registries; a registry not in .npmrc can be given as registryUrl',
+            : 'No packs found on the configured registries. A registry not in .npmrc can be given as registryUrl',
         });
       } catch (err) {
         return makeErrorResult(

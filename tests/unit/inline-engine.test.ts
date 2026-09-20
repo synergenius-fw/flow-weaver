@@ -3,7 +3,7 @@
  * package to run: a gate-free workflow runs to the end, and a gated one
  * pauses, hands its host a continuation, and resumes from it, with the same
  * refusals the coordinator makes. Nothing here imports the package into the
- * compiled module; it is transpiled and loaded the way a host would load it.
+ * compiled module. It is transpiled and loaded the way a host would load it.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'node:fs';

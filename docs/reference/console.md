@@ -21,7 +21,7 @@ It binds to `127.0.0.1:4311` by default and re-reads a file as you save it.
 | Where | What |
 |-------|------|
 | Left | The project's workflows as a tree, with each one's verdict: a dot for valid, warnings or errors, a count for runs waiting at a gate. Below it, this guide. |
-| Centre | One workflow as a process: steps in run order, failure arms branching, pulled steps beside the step that reads them. A scope body sits in a tinted band under its owner, named `owner · scope` at its corner: the rows inside run once per item, the owner above them once; a body inside a body is a band inside a band. During a run each step lights up as it goes. `Start` and `Exit` open like steps and show the parameters and return values. |
+| Centre | One workflow as a process: steps in run order, failure arms branching, pulled steps beside the step that reads them. A scope body sits in a tinted band under its owner, named “scope in owner” at its corner: the rows inside run once per item, the owner above them once; a body inside a body is a band inside a band. During a run each step lights up as it goes. `Start` and `Exit` open like steps and show the parameters and return values. |
 | Right | Panes for what you are doing: **Run** (start a run, or the one open now), **Step** (the selected step: what it is, its ports, its code), **Issues** (everything the validator said), **Serve** (the workflow as an HTTP endpoint: its routes, one button to expose it, and the server's Start and Stop), and under **More**: **Reference** (the workflow's annotations), **Changes** (two git versions on one picture), **Export** (when a pack provides a target). |
 | Bottom | A drawer, closed until something opens it: the **Server** and **Watch** output as they print it, and the **CLI**. Drag its top edge for height. |
 | Bar | The glyphs at the bottom left: the **Project** page (with a green dot while the server is up), **Endpoints**, **Agents**, and opening another project. |
@@ -30,7 +30,7 @@ Click a step to read it; click it again to let go. Click a tile's row while a ru
 
 ## The Project page
 
-The front door, and where the console opens when it has nowhere else to go: the project as a whole, with the controls on it.
+The front door, and where the console opens when it has nowhere else to go: the project as a whole, with the controls on it. Its first line counts the workflows and names the ones with errors. In a project where nothing has run yet, a **Start here** card comes first and runs a workflow from the list with one click; the server, endpoints and environment come after it. A workflow's header says *not compiled in place* when its file has no generated body yet: runs from the console use a private compile, so that is not a problem, only a note that `fw compile` has not written the body into the file for code of your own to call.
 
 - **Server** — whether `fw serve` runs for this project, where, since when, how many requests it has answered. **Start** brings it up with the saved settings; **Stop**, **Restart** and **Logs** do what they say. The settings behind the sliders glyph are port, host, whether a token guards it (generated at each start; the card shows it, since anyone who reaches the console can already run every workflow), agent profiles, the step trace, Swagger UI, dev mode, and *start with the console*. Settings are kept per project under your home, never in the project tree. A server someone started from a terminal for the same project is shown too and can be stopped, but not restarted or read: it is not the console's. Services the console started stop with the console.
 - **Endpoints**, **Agents** — the number that matters and the way to the page.
@@ -55,7 +55,7 @@ The **New run** card has three parts.
 
 While a run goes and after it ends, its card shows what it was given, its mocks, and every step as it happened with its duration — the bar under a step is its share of the longest — then the result or the error, with the step that threw one click away. **Run again** repeats it with the same parameters and mocks.
 
-A step inside a scope body runs once per item, and the console keeps each pass apart. The process shows `3× · 2 ms` — three passes, their time added up — the timeline's `×3` opens a line per pass with its own duration and error, and the Step card gets a pass picker so the inputs and outputs shown are the second invoice's, not only the last one's. A failed pass among successes is marked as such, and the Step card opens on it.
+A step inside a scope body runs once per item, and the console keeps each pass apart. The process shows `3× 2 ms`, three passes with their time added up: the timeline's `×3` opens a line per pass with its own duration and error, and the Step card gets a pass picker so the inputs and outputs shown are the second invoice's, not only the last one's. A failed pass among successes is marked as such, and the Step card opens on it.
 
 **Runs** underneath is the history: each row says what became of the run (*completed*, *failed at Parse Figma Link*, *waiting at Approve Plan*), when, how long, and what it was given. Filter by *failed*, *waiting* or *done*; hover a row to run it again; *clear finished* forgets what is over. A run in flight or waiting is never cleared.
 
@@ -73,13 +73,13 @@ A run started in the console is a real execution of the workflow, through the sa
 - A run waiting at a gate survives the console being closed and reopened.
 - The step trace is kept beside the record, so a run opened tomorrow still shows what each step did and how long it took. A segment resumed over MCP keeps no trace, and the console says so instead of guessing.
 
-The gate form is built from the port's TypeScript type: a `boolean` is a yes/no, a union of literals a choice, an object its fields. **Reject** is offered when the gate has an `onFailure` port.
+The gate form is built from the port's TypeScript type: a `boolean` is a yes/no, a union of literals a choice, an object its fields. The words around it are the author's: the gate function's JSDoc description is shown at the top of the card as what is being asked, each input the gate hands over is named by its `@input` label, and each field to fill carries its `@output` label. Write those lines for the person who will answer, not for the compiler. **Reject** is offered when the gate has an `onFailure` port.
 
 A run asleep at a `sleep` node shows when it wakes and a **Wake now** button instead of a form; a gate with a `timeout` says when it times out and takes its failure path. The console's clock ticks every few seconds while it is open, as `fw serve`'s does, so a sleep that is over wakes without anyone at the page. The Project page's *Needs you* list says *sleeping until* or *times out at* on those rows. See [Time](durable-gates#time).
 
 If the file changed since the run paused, the answer is refused with a message saying so; start a new run. See [Durable Gates](durable-gates) for what pauses a run and how an answer is shaped.
 
-When an agent profile is answering a gate, its panel sits on the step's row in the process: the profile's name and model, the model's words as they stream, the tools it calls, and the tokens so far. The form is out of the way until it is done. Then one line stays on the row — *answered in 3.2 s · 1.4k tokens* — and the run goes on. If the profile could not answer — no key in the environment, a model that never submitted, an answer that did not fit — the line says why in red, the form is back, and *ask the agent again* is beside it. A run started with the switch off can still be handed to the agent from that button.
+When an agent profile is answering a gate, its panel sits on the step's row in the process: the profile's name and model, the model's words as they stream, the tools it calls, and the tokens so far. The form is out of the way until it is done. Then one line stays on the row — *answered in 3.2 s, 1.4k tokens* — and the run goes on. If the profile could not answer — no key in the environment, a model that never submitted, an answer that did not fit — the line says why in red, the form is back, and *ask the agent again* is beside it. A run started with the switch off can still be handed to the agent from that button.
 
 ## Agents
 

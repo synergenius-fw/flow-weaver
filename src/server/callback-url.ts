@@ -15,9 +15,9 @@ import { isIP } from 'node:net';
 export interface CallbackPolicy {
   /** Allow loopback, private and link-local addresses. For development. */
   allowPrivate?: boolean;
-  /** Hosts that may receive callbacks (`example.com`, `*.internal.example.com`); anything else is refused. */
+  /** Hosts that may receive callbacks (`example.com`, `*.internal.example.com`). Anything else is refused. */
   hosts?: string[];
-  /** Your own rule; a string is the reason for refusing. */
+  /** Your own rule. A string is the reason for refusing. */
   allow?: (url: URL) => boolean | string;
 }
 
@@ -61,13 +61,13 @@ export async function refuseCallbackUrl(raw: string, policy: CallbackPolicy = {}
     return policy.hosts.some((h) => hostMatches(host, h)) ? undefined : `${host} is not among the hosts this server delivers callbacks to`;
   }
   if (policy.allowPrivate) return undefined;
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return `${host} is a private host; callbacks go to public addresses only`;
-  if (isIP(host)) return isPrivateAddress(host) ? `${host} is a private address; callbacks go to public addresses only` : undefined;
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return `${host} is a private host, and callbacks go to public addresses only`;
+  if (isIP(host)) return isPrivateAddress(host) ? `${host} is a private address, and callbacks go to public addresses only` : undefined;
   try {
     const found = await lookup(host, { all: true });
     if (!found.length) return `${host} does not resolve`;
     const bad = found.find((a) => isPrivateAddress(a.address));
-    if (bad) return `${host} resolves to ${bad.address}, a private address; callbacks go to public addresses only`;
+    if (bad) return `${host} resolves to ${bad.address}, a private address, and callbacks go to public addresses only`;
   } catch {
     return `${host} does not resolve`;
   }

@@ -20,7 +20,7 @@ export const aiReactTemplate: WorkflowTemplate = {
     const providerCode =
       provider === 'mock'
         ? `
-// Mock provider — replace with a real provider for production.
+// Mock provider. Replace with a real provider for production.
 const createMockReactProvider = (): LLMProvider => ({
   async chat(messages) {
     const lastMessage = messages[messages.length - 1];
@@ -38,13 +38,13 @@ const llmProvider: LLMProvider = createMockReactProvider();
 
     return `
 // ============================================================
-// ReAct Agent — Thought → Action → Observation loop
+// ReAct Agent: Thought → Action → Observation loop
 // ============================================================
 //
 // The agent follows the ReAct pattern (Yao et al., 2022):
-//   1. Think — reason about the current state
-//   2. Act — call a tool or FINISH
-//   3. Observe — receive tool output, feed back into next thought
+//   1. Think: reason about the current state
+//   2. Act: call a tool or FINISH
+//   3. Observe: receive tool output, feed back into next thought
 //
 // The reactLoop node manages iteration and message accumulation.
 // think + act run inside the loop's scoped iteration.
@@ -108,7 +108,7 @@ const TOOL_IMPLEMENTATIONS: Record<string, (input: string) => Promise<string>> =
 // ============================================================
 
 /**
- * ReAct loop — manages Think→Act→Observe iterations.
+ * ReAct loop: manages Think→Act→Observe iterations.
  * Accumulates messages and terminates when action is FINISH or max steps.
  *
  * @flowWeaver nodeType
@@ -175,7 +175,7 @@ async function reactLoop(
 }
 
 /**
- * ReAct reasoning step — calls LLM and parses Thought/Action/ActionInput
+ * ReAct reasoning step: calls LLM and parses Thought/Action/ActionInput
  *
  * @flowWeaver nodeType
  * @label Think
@@ -264,7 +264,7 @@ async function act(
 // ============================================================
 
 /**
- * ReAct Agent — iterative Thought→Action→Observation loop
+ * ReAct Agent: iterative Thought→Action→Observation loop
  *
  * @flowWeaver workflow
  * @node loop reactLoop [color: "purple"] [icon: "psychology"]

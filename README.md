@@ -5,7 +5,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green?style=flat)](https://nodejs.org)
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue?style=flat)](./LICENSE)
 
-**A deterministic TypeScript workflow compiler. You describe a workflow with JSDoc annotations; it compiles to a standalone TypeScript function you own.**
+**A deterministic TypeScript workflow compiler. You describe a workflow with JSDoc annotations. It compiles to a standalone TypeScript function you own.**
 
 Flow Weaver turns annotated functions into an execution graph and generates the workflow body in place. The compiled file imports nothing from Flow Weaver: it is plain TypeScript you can read, review and keep, and it is yours under any licence you like. The code that calls it hands it one small object, the runtime, and the compiled file exports the helper that builds it. Running what the compiler produced needs nothing from the package, gates included.
 
@@ -19,7 +19,7 @@ Requires Node.js **22+**.
 npm install @synergenius/flow-weaver
 ```
 
-This installs the `fw` CLI, the MCP server, the local console, and the library — one package.
+This installs the `fw` CLI, the MCP server, the local console, and the library, all in one package.
 
 ## Quick start
 
@@ -44,7 +44,7 @@ Run `fw --help` or `fw <command> --help` for full options.
 
 A **node type** is a plain function annotated `@flowWeaver nodeType`. Its ports are inferred from the signature: each parameter is an input, each field of the returned object an output. Most node types are pure `@expression` functions.
 
-A **workflow** is an exported function annotated `@flowWeaver workflow`. `@param` declares its inputs (`Start`), `@returns` its outputs (`Exit`), `@node` creates instances, and `@path` wires the route — connecting each data port to the nearest earlier step with a matching output. The body is a stub; the compiler fills it in between markers and leaves everything else untouched.
+A **workflow** is an exported function annotated `@flowWeaver workflow`. `@param` declares its inputs (`Start`), `@returns` its outputs (`Exit`), `@node` creates instances, and `@path` wires the route, connecting each data port to the nearest earlier step with a matching output. The body is a stub. The compiler fills it in between markers and leaves everything else untouched.
 
 ```typescript
 /**
@@ -87,7 +87,7 @@ That is a complete workflow. `fw compile` reads the annotations, builds the grap
 
 ## The local console
 
-`fw console` opens a local web app over a project's workflows — every workflow as a process, its issues and code, live runs with each step's values, gates answered from a form built from the port's type, a step-through debugger, and a semantic diff between versions. Runs you start there use the same coordinator the MCP tools and `fw serve` use, so a run paused for approval can be answered from the browser, from an assistant, or over HTTP, interchangeably.
+`fw console` opens a local web app over a project's workflows. Every workflow appears as a process, with its issues and code, live runs with each step's values, gates answered from a form built from the port's type, a step-through debugger, and a semantic diff between versions. Runs you start there use the same coordinator the MCP tools and `fw serve` use, so a run paused for approval can be answered from the browser, from an assistant, or over HTTP, interchangeably.
 
 ```bash
 fw console --open
@@ -97,7 +97,7 @@ Its Project page is the front door: the project's HTTP server with Start, Stop a
 
 ## AI-native editing
 
-The MCP server exposes the full compiler, validator, debugger, and diagram surface to any MCP-compatible editor. Scaffold, add nodes, wire connections, validate, compile, run, and diff — through conversation.
+The MCP server exposes the full compiler, validator, debugger, and diagram surface to any MCP-compatible editor. Scaffold, add nodes, wire connections, validate, compile, run, and diff, all through conversation.
 
 ```bash
 fw mcp-setup     # register the server with Claude, Cursor, VS Code, Windsurf, or Codex
@@ -106,11 +106,11 @@ fw mcp-server    # or start it manually
 
 ## Durable workflows
 
-A **gate** is a node where the run stops and hands control to something outside it: a person approving (`@durableGate approval`), an external system answering (`waitForEvent`), or an AI agent doing a task (`waitForAgent`). The run returns a continuation and the process is free to exit; later, any process resumes from exactly that node with the answer. `fw create workflow approval <file>` writes one to start from.
+A **gate** is a node where the run stops and hands control to something outside it: a person approving (`@durableGate approval`), an external system answering (`waitForEvent`), or an AI agent doing a task (`waitForAgent`). The run returns a continuation and the process is free to exit. Later, any process resumes from exactly that node with the answer. `fw create workflow approval <file>` writes one to start from.
 
-Paused runs live in a store — a directory under `~/.fw/runs` by default, or a store of your own behind a nine-method interface. `fw console`, `fw serve`, the MCP tools and your own code through `createLocalCoordinator` all drive the same runs, so a gate reached anywhere is answered anywhere. (`fw run` is for workflows without gates; it has nowhere to keep a run between one gate and the next.) A host with no package at all works too: the compiled file throws a `DurableGateYield` carrying the continuation, and exports `acceptContinuation` to take it back later — see `fw docs library`.
+Paused runs live in a store (a directory under `~/.fw/runs` by default, or a store of your own behind a nine-method interface). `fw console`, `fw serve`, the MCP tools and your own code through `createLocalCoordinator` all drive the same runs, so a gate reached anywhere is answered anywhere. (`fw run` is for workflows without gates. It has nowhere to keep a run between one gate and the next.) A host with no package at all works too: the compiled file throws a `DurableGateYield` carrying the continuation, and exports `acceptContinuation` to take it back later. See `fw docs library`.
 
-An agent gate can be answered without anyone watching: a **profile** in `.flowweaver/agents.yaml` names a model — Anthropic, any OpenAI-compatible server including a local one, or the Claude Code CLI — and the environment variable that holds its key. The model gets the gate's inputs and one tool shaped from the gate's output type, and the run resumes with what it returns. `fw agents --init` writes the starter file; the console's Agents page edits it with a form.
+An agent gate can be answered without anyone watching: a **profile** in `.flowweaver/agents.yaml` names a model (Anthropic, any OpenAI-compatible server including a local one, or the Claude Code CLI) and the environment variable that holds its key. The model gets the gate's inputs and one tool shaped from the gate's output type, and the run resumes with what it returns. `fw agents --init` writes the starter file. The console's Agents page edits it with a form.
 
 ## Workflows as endpoints
 
@@ -128,9 +128,9 @@ A workflow declares its route, and `fw serve` mounts it:
 export async function reviewFile(execute: boolean, params: { path: string; text: string }) { … }
 ```
 
-Parameters bind from the path, the query or the JSON body. The answer is the workflow's return ports: `200` on success, `422` on the failure path, `202` with a `Location` to poll when a gate pauses the run. An `Idempotency-Key` makes a retry the same run; a `callback` route posts the final response to the caller. `/openapi.json` describes all of it.
+Parameters bind from the path, the query or the JSON body. The answer is the workflow's return ports: `200` on success, `422` on the failure path, `202` with a `Location` to poll when a gate pauses the run. An `Idempotency-Key` makes a retry the same run. A `callback` route posts the final response to the caller. `/openapi.json` describes all of it.
 
-The same handler mounts in your own server — Node, Express, Fastify, or a fetch host — from `@synergenius/flow-weaver/server`:
+The same handler mounts in your own server (Node, Express, Fastify, or a fetch host) from `@synergenius/flow-weaver/server`:
 
 ```typescript
 import { createWorkflowApi } from '@synergenius/flow-weaver/server';
@@ -141,7 +141,7 @@ app.use('/api', api.express());
 
 ## Using it as a library
 
-The compiled file imports nothing from the package. The code that *calls* it needs one object — the runtime — and the compiled file exports the helper that builds it:
+The compiled file imports nothing from the package. The code that *calls* it needs one object, the runtime, and the compiled file exports the helper that builds it:
 
 ```typescript
 import { greeting, createWorkflowRuntime } from './my-workflow';
@@ -151,7 +151,7 @@ const result = await greeting(true, { name: 'Alice' }, runtime);
 // result.result === 'HELLO, ALICE!'
 ```
 
-The package exports the same `createWorkflowRuntime`, built from the same source, for code that already depends on it. Parse, validate, compile, query, and diff are all available programmatically from `@synergenius/flow-weaver/api`; `@synergenius/flow-weaver/coordinator` starts and resumes gated runs from code and takes a run store of your own; `@synergenius/flow-weaver/server` is the HTTP handler behind `fw serve`. See `fw docs library` for the full surface and entry points.
+The package exports the same `createWorkflowRuntime`, built from the same source, for code that already depends on it. Parse, validate, compile, query, and diff are all available programmatically from `@synergenius/flow-weaver/api`. `@synergenius/flow-weaver/coordinator` starts and resumes gated runs from code and takes a run store of your own. `@synergenius/flow-weaver/server` is the HTTP handler behind `fw serve`. See `fw docs library` for the full surface and entry points.
 
 ## CLI reference
 
@@ -171,7 +171,7 @@ The package exports the same `createWorkflowRuntime`, built from the same source
 | `fw modify` | Programmatic graph mutations |
 | `fw create` / `fw templates` | Create workflows or nodes from templates |
 | `fw pattern` | Work with reusable workflow fragments |
-| `fw serve` | Serve the workflows' declared routes and run resources over HTTP; gated runs pause and resume there |
+| `fw serve` | Serve the workflows' declared routes and run resources over HTTP, where gated runs pause and resume |
 | `fw export` / `fw openapi` | Export to a deploy target, or generate an OpenAPI spec |
 | `fw market` | Discover, install, and publish marketplace packs |
 | `fw doctor` | Check the project environment |
@@ -180,7 +180,7 @@ The package exports the same `createWorkflowRuntime`, built from the same source
 
 ## Extending with packs
 
-Node types, deploy targets, CLI commands, and MCP tools are contributed by npm packages ("packs"). Discover, install, and publish them with `fw market`, or build your own — see `fw docs marketplace`.
+Node types, deploy targets, CLI commands, and MCP tools are contributed by npm packages ("packs"). Discover, install, and publish them with `fw market`, or build your own. See `fw docs marketplace`.
 
 ## Documentation
 
@@ -196,7 +196,7 @@ fw docs search <query>   # search across all docs
 
 ## Project status
 
-Flow Weaver is in **beta**. The compiler, validator, CLI, console, and MCP tools are stable and thoroughly tested; CI runs on every commit across Linux, macOS, and Windows. Breaking changes may still occur between minor versions during beta — pin your version if stability matters.
+Flow Weaver is in **beta**. The compiler, validator, CLI, console, and MCP tools are stable and thoroughly tested, and CI runs on every commit across Linux, macOS, and Windows. Breaking changes may still occur between minor versions during beta, so pin your version if stability matters.
 
 ## Community
 
@@ -208,11 +208,11 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
-Flow Weaver is source-available under the [Business Source License 1.1](./LICENSE) (`BUSL-1.1`). Each version becomes open source under the Apache License 2.0 four years after its release. This is a non-binding summary; the [LICENSE](./LICENSE) controls:
+Flow Weaver is source-available under the [Business Source License 1.1](./LICENSE) (`BUSL-1.1`). Each version becomes open source under the Apache License 2.0 four years after its release. This is a non-binding summary. The [LICENSE](./LICENSE) controls:
 
-- **Free for everyone:** evaluation, development, testing, and CI — including compiling, validating, and generating workflows — at any organization size. Everything the compiler produces is yours: compiled workflows, generated code, diagrams, and artifacts are not covered by the license and can be used, modified, and sublicensed without restriction.
+- **Free for everyone:** evaluation, development, testing, and CI (including compiling, validating, and generating workflows) at any organization size. Everything the compiler produces is yours: compiled workflows, generated code, diagrams, and artifacts are not covered by the license and can be used, modified, and sublicensed without restriction.
 - **Free in production** for organizations with fewer than 100 people (employees and contractors, including affiliates).
-- **Commercial license required** for production use by organizations of 100 or more people, and for offering Flow Weaver — or a product whose primary value is its functionality — to third parties as a hosted or managed service.
-- **What counts as production use** is running the package itself in the operation of a business: the coordinator, `fw serve` or the console. The compiled files are output, not the licensed work, whoever runs them — and they carry everything they need to run, so a program that only calls compiled workflows does not use the package at all.
+- **Commercial license required** for production use by organizations of 100 or more people, and for offering Flow Weaver (or a product whose primary value is its functionality) to third parties as a hosted or managed service.
+- **What counts as production use** is running the package itself in the operation of a business: the coordinator, `fw serve` or the console. The compiled files are output, not the licensed work, whoever runs them. They carry everything they need to run, so a program that only calls compiled workflows does not use the package at all.
 
 Commercial licensing, support, and enterprise agreements: support@synergenius.pt.

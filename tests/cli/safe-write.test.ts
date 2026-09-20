@@ -44,10 +44,10 @@ describe('safeWriteFile', () => {
   });
 
   it('throws a clear error when file is read-only', () => {
-    // Skip on Windows — chmod doesn't reliably prevent writes
+    // Skip on Windows (chmod doesn't reliably prevent writes)
     if (process.platform === 'win32') return;
-    // Skip when running as root (e.g. self-hosted runner containers) —
-    // root bypasses Linux file-permission checks, so 0o444 doesn't block.
+    // Skip when running as root (e.g. self-hosted runner containers).
+    // Root bypasses Linux file-permission checks, so 0o444 doesn't block.
     if (typeof process.getuid === 'function' && process.getuid() === 0) return;
 
     const filePath = path.join(tmpDir, 'readonly.ts');

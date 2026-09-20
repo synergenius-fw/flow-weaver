@@ -371,7 +371,7 @@ describe('applyPattern', () => {
       targetNodeTypes: new Set(),
     });
 
-    // @autoConnect should be preserved — no internal @connect lines were added
+    // @autoConnect should be preserved, no internal @connect lines were added
     expect(result.modifiedContent).toContain('@autoConnect');
     expect(result.connectionsAdded).toBe(0);
   });

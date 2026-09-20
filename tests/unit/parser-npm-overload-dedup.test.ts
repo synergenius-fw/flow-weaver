@@ -45,9 +45,9 @@ describe('npm import overload deduplication', () => {
 
   it('overloaded function (3 signatures, same name) produces a single node type', () => {
     setupPackage('overloaded-pkg', `
-      export declare function render(src: string): string;
-      export declare function render(src: string, options: object): string;
-      export declare function render(src: string, options: object, callback: Function): void;
+      export declare function render(src: string): string
+      export declare function render(src: string, options: object): string
+      export declare function render(src: string, options: object, callback: Function): void
     `);
 
     const workflowPath = writeFile('wf-overload-1.ts', `
@@ -111,9 +111,9 @@ describe('npm import overload deduplication', () => {
 
   it('multiple unique functions are all preserved (no over-filtering)', () => {
     setupPackage('multi-unique-pkg', `
-      export declare function alpha(x: number): number;
-      export declare function beta(y: string): string;
-      export declare function gamma(z: boolean): boolean;
+      export declare function alpha(x: number): number
+      export declare function beta(y: string): string
+      export declare function gamma(z: boolean): boolean
     `);
 
     const workflowPath = writeFile('wf-overload-3.ts', `
@@ -150,8 +150,8 @@ describe('npm import overload deduplication', () => {
 
   it('first overload signature is the one used (first-wins)', () => {
     setupPackage('first-wins-pkg', `
-      export declare function transform(input: string): string;
-      export declare function transform(input: string, depth: number): object;
+      export declare function transform(input: string): string
+      export declare function transform(input: string, depth: number): object
     `);
 
     const workflowPath = writeFile('wf-overload-4.ts', `
@@ -185,9 +185,9 @@ describe('npm import overload deduplication', () => {
 
   it('@fwImport path: overloaded package produces a single node type', () => {
     setupPackage('fwimport-overloaded-pkg', `
-      export declare function processData(data: string): string;
-      export declare function processData(data: string, opts: object): string;
-      export declare function processData(data: string, opts: object, flag: boolean): string;
+      export declare function processData(data: string): string
+      export declare function processData(data: string, opts: object): string
+      export declare function processData(data: string, opts: object, flag: boolean): string
     `);
 
     const workflowPath = writeFile('wf-overload-5.ts', `
@@ -222,9 +222,9 @@ describe('npm import overload deduplication', () => {
 
   it('cached result after dedup is consistent across multiple parses', () => {
     setupPackage('cache-test-pkg', `
-      export declare function cached(a: number): number;
-      export declare function cached(a: number, b: number): number;
-      export declare function other(x: string): string;
+      export declare function cached(a: number): number
+      export declare function cached(a: number, b: number): number
+      export declare function other(x: string): string
     `);
 
     const workflowPath = writeFile('wf-overload-6.ts', `

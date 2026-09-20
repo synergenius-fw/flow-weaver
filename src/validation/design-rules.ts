@@ -101,7 +101,7 @@ export const asyncNoErrorPathRule: TValidationRule = {
           type: 'warning',
           code: 'DESIGN_ASYNC_NO_ERROR_PATH',
           message: nt.expression
-            ? `Async expression node '${instance.id}' has no failure handling. Async operations (network, disk, AI) can fail; a throw here aborts the run with the error. If that is intended, suppress this warning; to route the failure inside the graph, write the node in normal mode and return onFailure.`
+            ? `Async expression node '${instance.id}' has no failure handling. Async operations (network, disk, AI) can fail, and a throw here aborts the run with the error. If that is intended, suppress this warning. To route the failure inside the graph, write the node in normal mode and return onFailure.`
             : `Async node '${instance.id}' has no onFailure connection. Async operations (network, disk, AI) can fail, and errors will be silently lost.`,
           node: instance.id,
         });

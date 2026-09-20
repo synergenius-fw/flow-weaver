@@ -2,12 +2,11 @@
  * The identity of a compiled workflow graph, and the graph a continuation is
  * checked against.
  *
- * Three places need the same answer: the executor, which fingerprints the
- * graph before a gated run and hands the continuation graph to
- * `decodeContinuation`; the artifact compiler, which writes both into a
- * deployable module's metadata; and the code generator, which bakes the
- * fingerprint into a gated body so the compiled file can name its own graph
- * when it yields. One computation here keeps them equal.
+ * Three places need the same answer. The executor fingerprints the graph
+ * before a gated run and hands the continuation graph to `decodeContinuation`.
+ * The artifact compiler writes both into a deployable module's metadata. The
+ * code generator bakes the fingerprint into a gated body so the compiled file
+ * can name its own graph when it yields. One computation here keeps them equal.
  */
 import type { TWorkflowAST } from '../ast/types.js';
 import { durableBranchPaths, validateDurableClosure } from './durable-validation.js';

@@ -71,13 +71,13 @@ function StepRow({ row, gutter, laneX, w, nodes, mark, slot }: { row: GRow<Step>
   const dur = stepDuration(s.id);
   // A step in a scope body ran once per item: say how many times, and add the passes up.
   const n = passCount(s.id);
-  const times = n > 1 ? `${n}× · ` : '';
+  const times = n > 1 ? `${n}× ` : '';
   const bp = breakpoints.value.has(s.id);
   let status = null;
-  if (st === 'PAUSED') status = <span class="st debug">paused {r?.debug?.phase}{r?.debug?.phase === 'after' && dur != null ? ` · ${ms(dur)}` : ''}</span>;
-  else if (st === 'RUNNING') status = <span class="st run">{n > 1 ? `pass ${n} · ` : ''}running</span>;
-  else if (st === 'WAITING') status = <span class="st gate">waiting · {s.gate ?? 'gate'}</span>;
-  else if (st === 'FAILED') status = <span class="st err">{times}{r?.errors[s.id] ? 'threw' : 'failed'}{dur != null ? ` · ${ms(dur)}` : ''}</span>;
+  if (st === 'PAUSED') status = <span class="st debug">paused {r?.debug?.phase}{r?.debug?.phase === 'after' && dur != null ? `, ${ms(dur)}` : ''}</span>;
+  else if (st === 'RUNNING') status = <span class="st run">{n > 1 ? `pass ${n}, ` : ''}running</span>;
+  else if (st === 'WAITING') status = <span class="st gate">waiting at {s.gate ?? 'gate'}</span>;
+  else if (st === 'FAILED') status = <span class="st err">{times}{r?.errors[s.id] ? 'threw' : 'failed'}{dur != null ? `, ${ms(dur)}` : ''}</span>;
   else if (st === 'SUCCEEDED') status = <span class="st">{times}{ms(dur)}</span>;
   else if (st === 'CANCELLED') status = <span class="st">cancelled</span>;
   else if (!r && s.kind === 'pause') status = <span class="st gate" style="opacity:.7">{s.gate ?? 'gate'}</span>;
@@ -98,7 +98,7 @@ function StepRow({ row, gutter, laneX, w, nodes, mark, slot }: { row: GRow<Step>
           <span class="lbl">{s.label}</span>
           <span class="id">{node?.builtin || s.label.toLowerCase() === s.id.toLowerCase() ? s.type : s.id}</span>
           {s.pull ? <span class="tag pull">pulled</span> : onDemand && <span class="tag pull">on demand</span>}
-          {s.kind === 'loop' && <span class="tag loop">{s.scope ? `each · ${s.scope}` : 'each'}</span>}
+          {s.kind === 'loop' && <span class="tag loop">{s.scope ? `each ${s.scope}` : 'each'}</span>}
           {issues.length > 0 && <span class={`mark ${worst}`} title={issues.map((i) => i.message).join('\n')} />}
           <span class="sp" />{status}
         </div>
@@ -181,8 +181,8 @@ export function Spine({ w }: { w: ParsedWorkflow }) {
         if (pos.top[first] === undefined || pos.bottom[last] === undefined) return null;
         const top = pos.top[first] + 3;
         return (
-          <div key={sc.owner} class="scope" style={`--d:${sc.depth}; top:${top}px; height:${pos.bottom[last] - 3 - top}px; left:${laneX(sc.lane) - TILE / 2 - 8}px`} aria-hidden="true">
-            <span class="lbl">{sc.owner}{sc.scope ? ` · ${sc.scope}` : ''}</span>
+          <div key={sc.owner} class="scope" style={`--d: ${sc.depth}; top: ${top}px; height: ${pos.bottom[last] - 3 - top}px; left: ${laneX(sc.lane) - TILE / 2 - 8}px`} aria-hidden="true">
+            <span class="lbl">{sc.owner}{sc.scope ? ` ${sc.scope}` : ''}</span>
           </div>
         );
       })}

@@ -168,7 +168,7 @@ describe('local coordinator run store', () => {
   });
 
   it('is no longer traced end to end once a segment ran without one', async () => {
-    // The console started it and watched; an assistant resumed it blind.
+    // The console started it and watched. An assistant resumed it blind.
     // The first segment's trace is still there, but the run has a gap.
     const coordinator = createLocalCoordinator({ rootDir });
     const paused = await coordinator.start({ filePath: approval, params: { value: 4 } }, { trace: true });
@@ -179,7 +179,7 @@ describe('local coordinator run store', () => {
   });
 
   it('keeps no trace unless asked', async () => {
-    // An assistant over MCP never asks; fewer bytes on disk and in its answer.
+    // An assistant over MCP never asks. Fewer bytes on disk and in its answer.
     const coordinator = createLocalCoordinator({ rootDir });
     const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
     expect(await coordinator.trace(paused.runId)).toEqual([]);

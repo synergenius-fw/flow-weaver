@@ -564,7 +564,7 @@ export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean
   it('should warn when an unannotated function has the same name as a built-in', () => {
     const parser = new AnnotationParser();
     const result = parser.parseFromString(`
-// Unannotated function named "delay" — no @flowWeaver nodeType
+// Unannotated function named "delay", no @flowWeaver nodeType
 function delay(execute: boolean, duration: string): { onSuccess: boolean; onFailure: boolean; elapsed: boolean } {
   return { onSuccess: true, onFailure: false, elapsed: true };
 }

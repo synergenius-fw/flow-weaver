@@ -6,8 +6,8 @@
  * it resumes from, its step trace, effect receipts, an agent's transcript,
  * a callback's state), and a claim while a process is driving it. A store
  * is anything that can hold those. The file store under `~/.fw/runs` is the
- * default; the memory store serves tests; a database store is yours to
- * write against this interface, and `checkRunStore` from
+ * default, the memory store serves tests, and a database store is yours to
+ * write against this interface, with `checkRunStore` from
  * `@synergenius/flow-weaver/testing` says whether it holds up.
  *
  * Every method is asynchronous, because a real store is remote. The
@@ -30,19 +30,19 @@ export interface RunStore {
   get(runId: string): Promise<RunRecord | undefined>;
   /** Write the whole record, atomically from a reader's point of view. */
   put(record: RunRecord): Promise<void>;
-  /** Every run's record, newest first; only one file's when asked. */
+  /** Every run's record, newest first, or only one file's when asked. */
   list(filter?: { filePath?: string }): Promise<RunRecord[]>;
   /** Forget the run: its record, its documents, its claim. */
   remove(runId: string): Promise<void>;
   /** A document kept beside the run, or undefined. */
   getDoc(runId: string, name: string): Promise<unknown | undefined>;
-  /** Write a document, atomically; a run need not have a record yet. */
+  /** Write a document, atomically. A run need not have a record yet. */
   putDoc(runId: string, name: string, data: unknown): Promise<void>;
-  /** Drop a document; nothing happens when it is not there. */
+  /** Drop a document. Nothing happens when it is not there. */
   deleteDoc(runId: string, name: string): Promise<void>;
   /** Take the run for `owner` for up to `ttlMs`. False when another owner holds it. */
   claim(runId: string, owner: string, ttlMs: number): Promise<boolean>;
-  /** Give the run back; nothing happens when `owner` does not hold it. */
+  /** Give the run back. Nothing happens when `owner` does not hold it. */
   release(runId: string, owner: string): Promise<void>;
 }
 
@@ -62,6 +62,6 @@ export function checkDocName(name: string): void {
 export class RunBusyError extends Error {
   readonly name = 'RunBusyError';
   constructor(readonly runId: string) {
-    super(`run ${runId} is being driven by another process; try again shortly`);
+    super(`run ${runId} is being driven by another process. Try again shortly`);
   }
 }

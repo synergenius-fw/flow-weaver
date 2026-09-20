@@ -21,7 +21,7 @@ export interface WorkflowEndpoint {
   outputSchema?: Record<string, unknown>;
   /** Workflow description. */
   description?: string;
-  /** How many durable gates the workflow declares; a gated workflow answers 202 and a run id. */
+  /** How many durable gates the workflow declares. A gated workflow answers 202 and a run id. */
   gates?: number;
   /** The routes the workflow declares with `@http`, in order. */
   routes?: import('../ast/types.js').THttpRoute[];
@@ -31,15 +31,15 @@ export interface WorkflowEndpoint {
 export interface WebhookServerConfig {
   port: number;
   host: string;
-  /** Directory containing the workflow files; also where `.flowweaver/agents.yaml` is looked for. */
+  /** Directory containing the workflow files. It is also where `.flowweaver/agents.yaml` is looked for. */
   workflowDir: string;
   /** Re-discover workflows when files change. */
   watchEnabled: boolean;
-  /** CORS origin; unset means no CORS headers are sent. */
+  /** CORS origin. Unset means no CORS headers are sent. */
   corsOrigin?: string | string[];
   /** Deprecated alias for `trace: false`. */
   production?: boolean;
-  /** Accepted for compatibility; workflows are compiled by the coordinator as they run. */
+  /** Accepted for compatibility. Workflows are compiled by the coordinator as they run. */
   precompile?: boolean;
   /** Serve Swagger UI at /docs. The spec at /openapi.json is always there. */
   swaggerEnabled?: boolean;
@@ -51,7 +51,7 @@ export interface WebhookServerConfig {
   trace?: boolean;
   /** Development conveniences: error stacks in responses, `mocks` accepted in a start body. */
   dev?: boolean;
-  /** Where runs are stored; defaults to the shared `~/.fw/runs`. */
+  /** Where runs are stored. Defaults to the shared `~/.fw/runs`. */
   runsDir?: string;
   /** A run store of your own in place of the directory. */
   store?: import('../coordinator/store.js').RunStore;
@@ -61,11 +61,11 @@ export interface WebhookServerConfig {
   agentProvider?: (profile: import('../agent/profiles.js').AgentProfile, env: NodeJS.ProcessEnv) => import('../agent/types.js').AgentProvider;
   /** Also mount every workflow at `POST /workflows/<name>`, declared or not. Default true. */
   legacyRoutes?: boolean;
-  /** Which callback URLs are delivered to; public hosts only by default. */
+  /** Which callback URLs are delivered to. Public hosts only by default. */
   callbacks?: import('./callback-url.js').CallbackPolicy & { sweepMs?: number };
   /** The largest request body read. Default 1 MiB. */
   maxBodyBytes?: number;
-  /** Segments started by requests that may run at once; past it, 503. Default 32. */
+  /** Segments started by requests that may run at once. Past it, 503. Default 32. */
   maxInFlight?: number;
   /** The longest a request waits for its segment before answering 202. Default 60 s. */
   maxWaitMs?: number;
@@ -95,8 +95,8 @@ export interface RunResponse {
   };
   /**
    * Present while `waiting` when the clock will move the run: a `timer` gate
-   * wakes (`wake`) at `at`; a gate given a `timeout` takes its failure path
-   * (`timeout`) at `at`. The API's sweep does it; nobody has to call resolve.
+   * wakes (`wake`) at `at`, and a gate given a `timeout` takes its failure path
+   * (`timeout`) at `at`. The API's sweep does it, so nobody has to call resolve.
    */
   due?: { at: string; action: 'wake' | 'timeout' };
   /** What an agent profile is doing, or did, about the run's agent gate. */

@@ -1,13 +1,13 @@
 /**
  * An agent gate answered by a profile, through the coordinator.
  *
- * The engine yields at `waitForAgent` and keeps nothing; the coordinator
- * holds the run; somebody must supply `agentResult`. This is that somebody
+ * The engine yields at `waitForAgent` and keeps nothing. The coordinator
+ * holds the run, and somebody must supply `agentResult`. This is that somebody
  * when a profile in `.flowweaver/agents.yaml` matches the gate: it looks the
  * profile up, records on the run that an answer is being worked out, calls
  * the model (`src/agent/gate.ts`), keeps the transcript beside the run, and
  * records what came of it. Resuming is left to the driver -- the console
- * drives its own segments so it can stream them; `autoAnswerAgentGates`
+ * drives its own segments so it can stream them, and `autoAnswerAgentGates`
  * below does it for callers with no such needs, `fw serve` among them.
  *
  * A gate with no matching profile, a profile that is not ready, or a model

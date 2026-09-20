@@ -1,5 +1,5 @@
 /**
- * Comprehensive editing workflow tests for JSDoc Port Sync
+ * Editing workflow tests for JSDoc Port Sync
  *
  * These tests simulate real user editing patterns and edge cases.
  */

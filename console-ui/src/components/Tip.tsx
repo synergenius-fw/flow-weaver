@@ -23,7 +23,7 @@ export function Tip({ label, shortcut, side = 'right', children }: { label: stri
       if (!r) return;
       // Above or below, the bubble is centred on the control -- unless the
       // control sits by the right edge, where centring would push the text
-      // off screen; then it hangs from the control's right side.
+      // off screen. Then it hangs from the control's right side.
       const end = side !== 'right' && r.left + r.width / 2 > window.innerWidth - 180;
       setAt(side === 'right' ? { x: r.right + 8, y: r.top + r.height / 2, end }
         : side === 'top' ? { x: end ? window.innerWidth - r.right : r.left + r.width / 2, y: r.top - 8, end }
@@ -36,7 +36,7 @@ export function Tip({ label, shortcut, side = 'right', children }: { label: stri
     <span class="tipwrap" ref={ref} onMouseEnter={show} onMouseLeave={hide} onFocusCapture={show} onBlurCapture={hide} onMouseDown={hide}>
       {children}
       {at && (
-        <span class={`tip ${side} ${at.end ? 'end' : ''}`} role="tooltip" style={at.end ? `right:${at.x}px; top:${at.y}px` : `left:${at.x}px; top:${at.y}px`}>
+        <span class={`tip ${side} ${at.end ? 'end' : ''}`} role="tooltip" style={at.end ? `right: ${at.x}px; top: ${at.y}px` : `left: ${at.x}px; top: ${at.y}px`}>
           {label}
           {shortcut && <kbd>{keys(shortcut)}</kbd>}
         </span>

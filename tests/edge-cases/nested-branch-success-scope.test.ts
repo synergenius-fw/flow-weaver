@@ -287,7 +287,7 @@ describe('Nested branching node _success variable scope', () => {
 
     for (const flag of guardedFlags) {
       const assignPattern = new RegExp(`${flag}\\s*=\\s*(?:true|\\w+Result\\.onSuccess)`);
-      expect(generatedCode, `${flag} is used as guard but never set to true — downstream nodes are dead code`).toMatch(
+      expect(generatedCode, `${flag} is used as guard but never set to true, so downstream nodes are dead code`).toMatch(
         assignPattern,
       );
     }

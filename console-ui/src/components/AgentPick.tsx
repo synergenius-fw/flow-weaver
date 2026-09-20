@@ -12,10 +12,10 @@ export function AgentPick({ workflow, node, disabled }: { workflow: string; node
   if (!a) return null;
   const key = `${workflow}/${node}`;
   const value = a.gates[key] ?? '';
-  const fallback = a.default ? `default · ${a.default}` : 'a person';
+  const fallback = a.default ? `the default, ${a.default}` : 'whoever drives the run';
   const options: Opt[] = [
     { value: '', label: fallback, text: fallback },
-    ...a.agents.map((p) => ({ value: p.name, label: <>{p.name}<span class="opt-ns"> · {p.provider}{p.ready ? '' : ' · not ready'}</span></>, text: p.name })),
+    ...a.agents.map((p) => ({ value: p.name, label: <>{p.name}<span class="opt-ns"> ({p.provider}{p.ready ? '' : ', not ready'})</span></>, text: p.name })),
   ];
   const chosen = a.agents.find((p) => p.name === (value || a.default));
   return (

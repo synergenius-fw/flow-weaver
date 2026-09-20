@@ -92,7 +92,7 @@ describe('runAgentLoop', () => {
   });
 
   it('should respect maxIterations', async () => {
-    // Provider always requests tool calls — should hit max
+    // Provider always requests tool calls, so it should hit max
     const provider = mockProvider(
       Array.from({ length: 5 }, () => [
         { type: 'tool_use_start', id: 'tc_1', name: 'read_file' } as StreamEvent,

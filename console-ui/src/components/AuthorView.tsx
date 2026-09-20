@@ -39,11 +39,11 @@ export function AuthorView() {
         <div class="meta">
           <span class="mono">{p.name}@{check?.version ?? p.version}</span>
           {check && (check.valid
-            ? <span class="pill ok">passes the marketplace rules{warnings.length ? ` · ${warnings.length} warning${warnings.length > 1 ? 's' : ''}` : ''}</span>
+            ? <span class="pill ok">passes the marketplace rules{warnings.length ? `, ${warnings.length} warning${warnings.length > 1 ? 's' : ''}` : ''}</span>
             : <span class="pill err">{errors.length} error{errors.length > 1 ? 's' : ''}</span>)}
           {check && <span class="hint">{check.parsedFiles} file{check.parsedFiles === 1 ? '' : 's'} parsed</span>}
         </div>
-        <p class="lede">This project is a pack. What is below is the manifest as <code>fw market pack</code> would write it from the sources, checked against the marketplace rules; nothing has been written.</p>
+        <p class="lede">This project is a pack. What is below is the manifest as <code>fw market pack</code> would write it from the sources, checked against the marketplace rules. Nothing has been written.</p>
         <div class="docactions">
           <button class="btn sm" disabled={busy} onClick={load}>{busy ? 'Checking…' : 'Check again'}</button>
           <button class="btn sm" onClick={() => stageCli('fw market pack')} title="Write flowweaver.manifest.json">▶ fw market pack</button>

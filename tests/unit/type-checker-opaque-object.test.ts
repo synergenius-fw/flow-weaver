@@ -12,7 +12,7 @@ describe('opaque object types in string compatibility', () => {
   });
 
   it('does not report a structural mismatch against an opaque object', () => {
-    // The built-in waitForAgent declares `context: object`; a producer may be typed precisely
+    // The built-in waitForAgent declares `context: object`. A producer may be typed precisely
     expect(checkTypeCompatibilityFromStrings('{ path: string }', 'object').isCompatible).toBe(true);
     // ...and its `agentResult: object` feeds a consumer typed as a record
     expect(checkTypeCompatibilityFromStrings('object', 'Record<string, unknown>').isCompatible).toBe(true);

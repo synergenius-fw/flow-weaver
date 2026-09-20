@@ -48,7 +48,7 @@ async function crossCheckFriendlyErrors(): Promise<void> {
     }
     if (missing.length > 0) {
       console.warn(
-        `⚠ ${missing.length} validation code(s) have no friendly-error mapping:\n  ${missing.join(', ')}`
+        `Warning: ${missing.length} validation code(s) have no friendly-error mapping:\n  ${missing.join(', ')}`
       );
     }
   } catch {
@@ -420,7 +420,7 @@ function processFile(content: string, filePath: string): string {
       // Generate and inject the content
       const generator = sectionGenerators[sectionId];
       if (!generator) {
-        console.warn(`⚠ Unknown section "${sectionId}" in ${path.basename(filePath)}`);
+        console.warn(`Warning: unknown section "${sectionId}" in ${path.basename(filePath)}`);
         // Keep existing content until END marker
         continue;
       }
@@ -434,7 +434,7 @@ function processFile(content: string, filePath: string): string {
     if (endMatch) {
       if (inSection !== endMatch[1]) {
         console.warn(
-          `⚠ Mismatched markers: expected END for "${inSection}" but found "${endMatch[1]}" in ${path.basename(filePath)}`
+          `Warning: mismatched markers, expected END for "${inSection}" but found "${endMatch[1]}" in ${path.basename(filePath)}`
         );
       }
       output.push(line); // Keep the END marker
@@ -451,7 +451,7 @@ function processFile(content: string, filePath: string): string {
   }
 
   if (inSection !== null) {
-    console.warn(`⚠ Unclosed marker "${inSection}" in ${path.basename(filePath)}`);
+    console.warn(`Warning: unclosed marker "${inSection}" in ${path.basename(filePath)}`);
   }
 
   return output.join('\n');
@@ -472,7 +472,7 @@ let stale = false;
 
 for (const filePath of docFiles) {
   if (!fs.existsSync(filePath)) {
-    console.warn(`⚠ Doc file not found: ${filePath}`);
+    console.warn(`Warning: doc file not found: ${filePath}`);
     continue;
   }
 
@@ -491,7 +491,7 @@ for (const filePath of docFiles) {
       console.log(`✓ Updated ${basename}`);
     }
   } else {
-    console.log(`· ${basename} is up to date`);
+    console.log(`  ${basename} is up to date`);
   }
 }
 

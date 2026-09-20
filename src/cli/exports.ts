@@ -1,5 +1,5 @@
 /**
- * CLI utilities — public barrel for export target packs.
+ * CLI utilities: public barrel for export target packs.
  *
  * Exposes CLI internals that marketplace packs need: template types,
  * provider code generators, LLM type snippets, compileCustomTarget,

@@ -1,7 +1,7 @@
 /**
  * Marketplace types for Flow Weaver package distribution.
  *
- * A pack is a package carrying a `flowweaver.manifest.json`; by convention
+ * A pack is a package carrying a `flowweaver.manifest.json`. By convention
  * it is named `flow-weaver-pack-*`. npm is the distribution backbone. The manifest is auto-generated
  * from source annotations via the parser.
  */
@@ -207,7 +207,7 @@ export type TManifestTagHandler = {
   exportName?: string;
   /**
    * Named export of a serializer (TTagSerializerFn) that emits this
-   * namespace's JSDoc annotations from its deploy data — the inverse of the
+   * namespace's JSDoc annotations from its deploy data, the inverse of the
    * handler. Keeps annotation regeneration symmetric with parsing so no tags
    * are dropped. Resolved from the same `file`. When omitted, core emits
    * nothing for the namespace (legacy behavior on packs without a serializer).

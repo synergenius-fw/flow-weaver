@@ -36,7 +36,7 @@ const EXECUTE_WHEN_VALUE_PATTERN = /@executeWhen\s+(\w*)$/;
 const FLOW_WEAVER_VALUE_PATTERN = /@flowWeaver\s+(\w*)$/;
 const COLOR_VALUE_PATTERN = /@color\s+(\w*)$/;
 
-// Sugar annotation patterns — node ID completions
+// Sugar annotation patterns for node ID completions
 // @path ... -> | (after arrow in path chain)
 const PATH_NODE_PATTERN = /@path\s+(?:\w+(?::\w+)?\s*->\s*)+(\w*)$/;
 // @scope name [... , | (node IDs inside brackets)

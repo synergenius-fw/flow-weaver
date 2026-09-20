@@ -249,7 +249,7 @@ export function parseTriggerLine(input: string, warnings: string[]): TriggerPars
   const cst = parserInstance.triggerLine();
 
   if (parserInstance.errors.length > 0) {
-    // Don't warn here — return null so domain-specific handlers (e.g. CI/CD)
+    // Don't warn here. Return null so domain-specific handlers (e.g. CI/CD)
     // get a chance to parse the trigger. The caller can warn if nothing handles it.
     return null;
   }

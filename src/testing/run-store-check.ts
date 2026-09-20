@@ -1,11 +1,11 @@
 /**
  * Does a run store keep the contract? Run this against yours from any test
- * framework; it throws on the first thing that is wrong, naming it.
+ * framework. It throws on the first thing that is wrong, naming it.
  *
  *   import { checkRunStore } from '@synergenius/flow-weaver/testing';
  *   it('keeps the run store contract', () => checkRunStore(() => createMyStore(url)));
  *
- * The factory is called once; the store should start empty.
+ * The factory is called once, and the store should start empty.
  */
 import assert from 'node:assert/strict';
 import type { RunStore } from '../coordinator/store.js';
@@ -33,7 +33,7 @@ export async function checkRunStore(make: () => RunStore | Promise<RunStore>): P
   const gotA = await store.get('run-a');
   assert.deepEqual(gotA, a, 'get returns what put stored');
   gotA!.params.amount = 99;
-  assert.equal((await store.get('run-a'))!.params.amount, 3, 'get returns a copy; mutating it changes nothing');
+  assert.equal((await store.get('run-a'))!.params.amount, 3, 'get returns a copy, so mutating it changes nothing');
   await store.put({ ...a, status: 'completed', gate: undefined, result: { ok: true }, updatedAt: new Date(Date.now() + 1000).toISOString() });
   assert.equal((await store.get('run-a'))!.status, 'completed', 'put replaces the whole record');
 

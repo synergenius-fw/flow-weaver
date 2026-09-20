@@ -163,7 +163,7 @@ describe('CLI create command', () => {
   describe('file insertion logic', () => {
     it('should append to end by default', () => {
       const existing = `// Header comment
-type MyType = string;
+const myType = 'x';
 
 function existingFunction() {}
 `;

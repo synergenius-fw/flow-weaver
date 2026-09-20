@@ -2,7 +2,7 @@ import { doc, docHeading, guide, workflows, selectWorkflow, closeDoc, ui, type W
 import { slugify } from '../format';
 import { PaneTab } from './PaneTab';
 
-/** The page's headings; the one in view is marked, and each scrolls to itself. */
+/** The page's headings. The one in view is marked, and each scrolls to itself. */
 export function Contents() {
   const d = doc.value;
   if (!d) return null;
@@ -64,7 +64,7 @@ export function InProject() {
         <h3>In this project<span class="sp" /><span class="hint">{hit.length}</span></h3>
         <div class="in">
           {hit.length
-            ? hit.map(({ w, on }) => <Row key={`${w.file}|${w.name}`} w={w} note={on.map((u) => u.replace(/^(gate|builtin):/, '')).join(' · ')} />)
+            ? hit.map(({ w, on }) => <Row key={`${w.file}|${w.name}`} w={w} note={on.map((u) => u.replace(/^(gate|builtin):/, '')).join(', ')} />)
             : <div class="hint">Nothing here uses this yet.</div>}
         </div>
       </div>,
@@ -81,7 +81,7 @@ export function InProject() {
           {codes.length ? codes.map(([code, ws]) => (
             <div class="codegroup" key={code}>
               <button class="linkish mono" onClick={() => document.getElementById(slugify(code))?.scrollIntoView({ block: 'start', behavior: 'smooth' })}>{code}</button>
-              <span class="hint"> · {ws.length}</span>
+              <span class="hint"> ({ws.length})</span>
               <div>{ws.map((w) => <Row key={`${w.file}|${w.name}`} w={w} />)}</div>
             </div>
           )) : <div class="hint">Every workflow is clean.</div>}

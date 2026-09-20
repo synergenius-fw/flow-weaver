@@ -158,7 +158,7 @@ export function topLevelWorkflow(
   describe('Error handling', () => {
     it('should parse workflow with bad port connection (validation is separate)', () => {
       // Note: Port validation happens in the validator, not parser.
-      // The parser will accept the connection syntax; validation is a separate step.
+      // The parser will accept the connection syntax. Validation is a separate step.
       const testCode = `
 import { validateAndTransform } from './workflow-utils';
 

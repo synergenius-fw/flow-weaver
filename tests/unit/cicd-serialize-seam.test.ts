@@ -21,7 +21,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 // ---------------------------------------------------------------------------
-// A fuller mock CI/CD handler that also parses @matrix and @artifact — the
+// A fuller mock CI/CD handler that also parses @matrix and @artifact, the
 // tags core's hardcoded serializer never emitted.
 // ---------------------------------------------------------------------------
 
@@ -149,7 +149,7 @@ describe('pack-contributed tag serialize seam', () => {
     expect(compiled).not.toContain('@matrix node=');
   });
 
-  it('a registered serializer emits ALL its tags — including @matrix/@artifact core never hardcoded', () => {
+  it('a registered serializer emits ALL its tags, including @matrix/@artifact core never hardcoded', () => {
     tagHandlerRegistry.registerSerializer('cicd', cicdSerializer);
     const compiled = compileSource(makeWorkflow(
       ' * @secret NPM_TOKEN - Auth\n * @runner ubuntu-latest\n * @matrix node=["18","20"]\n * @artifact dist path="dist/"'

@@ -49,7 +49,7 @@ describe('template regressions', () => {
       '%s template should produce proper label for kebab-case input',
       (templateId) => {
         const code = generateNodeFromTemplate(templateId, 'myNodeName');
-        // The label should be derived from the name — just check it's present
+        // The label should be derived from the name, so just check it's present
         expect(code).toContain('@flowWeaver nodeType');
         expect(code).toContain('function myNodeName');
       },
@@ -60,7 +60,7 @@ describe('template regressions', () => {
 
   describe('ReAct workflow completeness', () => {
     // BUG: Original ai-react template had no actual loop, wrong port types,
-    // and missing execution wires — essentially non-functional.
+    // and missing execution wires, so it was essentially non-functional.
     // FIX: Complete rewrite with scoped reactLoop, Think→Act→Observe iteration.
     it('should generate a workflow with scoped loop', () => {
       const code = generateWorkflowFromTemplate('ai-react', { workflowName: 'testReact' });

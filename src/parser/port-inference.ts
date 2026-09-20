@@ -2,9 +2,9 @@
  * Port parsing and TS-type inference, extracted from AnnotationParser (debt #4).
  *
  * parseStartPorts / parseExitPorts derive a workflow's Start/Exit port
- * definitions from a function's signature and its parsed @flowWeaver config;
+ * definitions from a function's signature and its parsed @flowWeaver config.
  * extractTypeSchema / isExpandableObjectType / inferPortType map ts-morph Types
- * to Flow Weaver data types; capitalize is a shared label helper. These use no
+ * to Flow Weaver data types, and capitalize is a shared label helper. These use no
  * AnnotationParser instance state, so extracting them as free functions is
  * behavior-neutral and shrinks the parser god-class.
  */

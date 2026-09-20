@@ -3,7 +3,7 @@
  * statement for every `@fwImport` node type. The generated body calls the
  * imported function by bare name, so without the import the module throws
  * `<fn> is not defined` at run time. The `@fwImport` JSDoc alone is not
- * enough — it persists intent but is not executable.
+ * enough: it persists intent but is not executable.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as path from 'node:path';

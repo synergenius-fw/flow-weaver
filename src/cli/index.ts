@@ -24,7 +24,7 @@ import { enforceLicense, LicenseError } from './license.js';
 // All command handlers are lazy-loaded via dynamic import() inside their
 // .action() callbacks. This avoids pulling in the parser/compiler/runtime
 // chains (ts-morph, chevrotain, etc.) until a command that actually needs
-// them is invoked — making lightweight commands like `fw --version` ~80%
+// them is invoked, which makes lightweight commands like `fw --version` ~80%
 // faster (~0.5s vs ~2.5s).
 // ---------------------------------------------------------------------------
 
@@ -478,13 +478,13 @@ program
 // Serve command
 program
   .command('serve [directory]')
-  .description('Serve the workflows as HTTP endpoints; gated runs pause, resume and stream over the same API')
+  .description('Serve the workflows as HTTP endpoints. Gated runs pause, resume and stream over the same API')
   .option('-p, --port <port>', 'Server port', '3000')
-  .option('-H, --host <host>', 'Server host; beyond loopback needs --token or --insecure', '127.0.0.1')
+  .option('-H, --host <host>', 'Server host. Beyond loopback needs --token or --insecure', '127.0.0.1')
   .option('--token <token>', 'Bearer token every request must carry (also FW_SERVE_TOKEN)')
   .option('--no-agents', 'Do not answer agent gates from .flowweaver/agents.yaml')
   .option('--trace', 'Keep a step trace for every run and stream it on /runs/:id/events', false)
-  .option('--dev', 'Error stacks in responses; mocks accepted when starting a run', false)
+  .option('--dev', 'Error stacks in responses, and mocks accepted when starting a run', false)
   .option('--insecure', 'Listen beyond loopback without a token', false)
   .option('--no-watch', 'Disable file watching for hot reload')
   .option('--cors <origin>', 'Send CORS headers for this origin')
@@ -555,7 +555,7 @@ program
   .option('-f, --format <format>', 'Output format: json, yaml', 'json')
   .option('--server <url>', 'Server URL')
   .option('--no-auth', 'Leave out the bearer scheme, for a server without a token')
-  .option('--no-legacy', 'Leave out POST /workflows/<name>; declared @http routes only')
+  .option('--no-legacy', 'Leave out POST /workflows/<name>, and declare @http routes only')
   .action(wrapAction(async (directory: string, options) => {
       const { openapiCommand } = await import('./commands/openapi.js');
       await openapiCommand(directory, options);
@@ -733,8 +733,8 @@ if (!process.argv.slice(2).length) {
   process.exit(0);
 }
 
-// Licensed-build gate (OFF by default; see ./license.ts). NO-OP for the normal
-// package + every library importer; only an exported licensable artifact (with
+// Licensed-build gate (OFF by default, see ./license.ts). NO-OP for the normal
+// package and every library importer. Only an exported licensable artifact (with
 // the injected `license-mode` marker) enforces a license here. `--help` /
 // `--version` stay ungated so a customer can always inspect the tool.
 {

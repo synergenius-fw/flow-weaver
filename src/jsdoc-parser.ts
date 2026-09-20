@@ -56,7 +56,7 @@ import {
  * returns an empty array even though the type genuinely has a call signature.
  * That made scoped-port inference (which reads the callback's signature to derive
  * port types) flake: the port came out with no `tsType`. A test-only checker
- * warmup masked it unreliably; this is the real fix.
+ * warmup masked it unreliably. This is the real fix.
  *
  * Force the checker to materialize the signatures: if the direct call returns
  * none, retry via the APPARENT type (`getApparentType()` drives the checker to
@@ -74,7 +74,7 @@ function resolveCallSignatures(callbackType: Type): ReturnType<Type['getCallSign
     sigs = callbackType.getApparentType().getCallSignatures();
     if (sigs.length > 0) return sigs;
   } catch {
-    // getApparentType can throw on exotic types; fall through to the next retry.
+    // getApparentType can throw on exotic types. Fall through to the next retry.
   }
 
   // Retry 2: re-resolve the type from its symbol's declaration. Reading the
@@ -88,7 +88,7 @@ function resolveCallSignatures(callbackType: Type): ReturnType<Type['getCallSign
       if (sigs.length > 0) return sigs;
     }
   } catch {
-    // Best-effort; fall through.
+    // Best-effort. Fall through.
   }
 
   return sigs;
@@ -330,17 +330,17 @@ export interface JSDocWorkflowConfig {
     target: { node: string; port: string };
     targetType: 'string' | 'number' | 'boolean' | 'json' | 'object';
   }>;
-  /** @trigger annotation — event name and/or cron schedule */
+  /** @trigger annotation: event name and/or cron schedule */
   trigger?: { event?: string; cron?: string };
-  /** @http annotations — the routes the workflow is served on */
+  /** @http annotations: the routes the workflow is served on */
   http?: THttpRoute[];
-  /** @cancelOn annotation — cancel on matching external event */
+  /** @cancelOn annotation: cancel on matching external event */
   cancelOn?: { event: string; match?: string; timeout?: string };
-  /** @retries annotation — retry count */
+  /** @retries annotation: retry count */
   retries?: number;
-  /** @timeout annotation — function-level timeout */
+  /** @timeout annotation: function-level timeout */
   timeout?: string;
-  /** @throttle annotation — rate limiting */
+  /** @throttle annotation: rate limiting */
   throttle?: { limit: number; period?: string };
 
   // ── Per-target deployment config from @deploy annotations ──────
@@ -905,7 +905,7 @@ export class JSDocParser {
     if (isExecutePort(name) || isScopedStepInput) {
       // E: Warn if user explicitly specified a non-STEP type on a reserved port
       if (result.dataType && result.dataType !== 'STEP') {
-        warnings.push(`Port "${name}" is a reserved control port; type will always be STEP.`);
+        warnings.push(`Port "${name}" is a reserved control port. Its type will always be STEP.`);
       }
       type = 'STEP';
     } else if (scope) {
@@ -1015,7 +1015,7 @@ export class JSDocParser {
     if (isSuccessPort(name) || isFailurePort(name) || isScopedStepOutput) {
       // E: Warn if user explicitly specified a non-STEP type on a reserved port
       if (result.dataType && result.dataType !== 'STEP') {
-        warnings.push(`Port "${name}" is a reserved control port; type will always be STEP.`);
+        warnings.push(`Port "${name}" is a reserved control port. Its type will always be STEP.`);
       }
       type = 'STEP';
     } else if (scope) {
@@ -1628,7 +1628,7 @@ export class JSDocParser {
     }
     config.http = config.http || [];
     if (config.http.some((r) => r.method === route.method && r.path === route.path)) {
-      warnings.push(`Duplicate @http route ${route.method} ${route.path}; the first one stands.`);
+      warnings.push(`Duplicate @http route ${route.method} ${route.path}. The first one stands.`);
       return;
     }
     config.http.push(route);

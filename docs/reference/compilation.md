@@ -13,16 +13,16 @@ Flow Weaver compiles annotated TypeScript into executable workflow code. The com
 Compilation is **in-place** by default. The compiler inserts generated code into marker sections within your source file:
 
 ```typescript
-// Your node types and annotations above — untouched
+// Your node types and annotations above (untouched)
 
-// @flow-weaver-runtime — start
+// @flow-weaver-runtime-start
 // Generated imports and runtime setup
-// @flow-weaver-runtime — end
+// @flow-weaver-runtime-end
 
 export function myWorkflow(params: { data: string }) {
-  // @flow-weaver-body — start
+  // @flow-weaver-body-start
   // Generated execution logic
-  // @flow-weaver-body — end
+  // @flow-weaver-body-end
 }
 ```
 
@@ -58,17 +58,17 @@ fw compile workflow.ts
 
 Generates code like:
 ```typescript
-// @flow-weaver-runtime — start
+// @flow-weaver-runtime-start
 // (inline runtime: GeneratedExecutionContext, CancellationError, types)
-// @flow-weaver-runtime — end
+// @flow-weaver-runtime-end
 
 export function myWorkflow(params: { data: string }) {
-  // @flow-weaver-body — start
+  // @flow-weaver-body-start
   const ctx = new ExecutionContext();
   const validate_result = validateRecord(true, params.data);
   // ... execution chain
   return { onSuccess: true, onFailure: false, result: score_result.score };
-  // @flow-weaver-body — end
+  // @flow-weaver-body-end
 }
 ```
 

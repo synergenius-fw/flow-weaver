@@ -50,7 +50,7 @@ export function registerRunTools(
       answer: z
         .unknown()
         .optional()
-        .describe('For a single-output gate, the value; for multi-output, an object with every output'),
+        .describe('For a single-output gate, the value. For multi-output, an object with every output'),
       reject: z.string().optional().describe('Fail the gate with this reason'),
     },
     async (args: { runId: string; answer?: unknown; reject?: string }) => {
@@ -74,11 +74,11 @@ export function registerRunTools(
     {
       runId: z.string().optional(),
       filePath: z.string().optional().describe('Only runs of this workflow file'),
-      status: z.enum(['waiting', 'completed', 'failed', 'cancelled']).optional().describe('Only runs in this state; waiting is the one that needs you'),
+      status: z.enum(['waiting', 'completed', 'failed', 'cancelled']).optional().describe('Only runs in this state. waiting is the one that needs you'),
       limit: z.number().int().min(1).max(200).optional().describe('How many, newest first. Default 20'),
     },
     async (args: { runId?: string; filePath?: string; status?: 'waiting' | 'completed' | 'failed' | 'cancelled'; limit?: number }) => {
-      // The MCP server has no clock of its own running; a look at the runs
+      // The MCP server has no clock of its own running. A look at the runs
       // is the moment to let time act, so a sleep that is over is not shown
       // as waiting.
       await coordinator.tick().catch(() => undefined);
@@ -91,7 +91,7 @@ export function registerRunTools(
       const all = (await coordinator.list({ filePath: args.filePath })).filter((r) => !args.status || r.status === args.status);
       const limit = args.limit ?? 20;
       const runs = all.slice(0, limit);
-      return makeToolResult(all.length > limit ? { runs, total: all.length, note: `${all.length - limit} older run(s) not shown; pass limit, status or filePath to narrow` } : runs);
+      return makeToolResult(all.length > limit ? { runs, total: all.length, note: `${all.length - limit} older run(s) not shown. Pass limit, status or filePath to narrow` } : runs);
     },
   );
 }

@@ -102,7 +102,7 @@ describe('Model-Driven Workflows', () => {
     it('draft mode moves MISSING_REQUIRED_INPUT for stubs to warnings', () => {
       // Stub with a required input that has no connection
       const stub = makeStubNodeType('process', { data: 'STRING' }, { result: 'STRING' });
-      // Remove optional flag — port is required by default
+      // Remove optional flag, port is required by default
       const workflow = makeStubWorkflow([stub]);
 
       const result = validator.validate(workflow, { mode: 'draft' });
@@ -115,7 +115,7 @@ describe('Model-Driven Workflows', () => {
 
     it('structural errors still surface in draft mode', () => {
       const workflow = makeStubWorkflow([stubA]);
-      // Add a connection to a non-existent node — a structural error unrelated to stubs
+      // Add a connection to a non-existent node, a structural error unrelated to stubs
       workflow.connections.push({
         type: 'Connection',
         from: { node: 'ghost', port: 'out' },

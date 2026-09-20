@@ -1,5 +1,5 @@
 /**
- * Persistent CLI session manager — eliminates cold-start delay by keeping
+ * Persistent CLI session manager that eliminates cold-start delay by keeping
  * the Claude CLI process alive between messages.
  *
  * Instead of spawning a new CLI process per message (~5s cold start + MCP
@@ -40,7 +40,7 @@ try {
 } catch { /* non-fatal */ }
 
 // ---------------------------------------------------------------------------
-// CliSession — persistent CLI process
+// CliSession: persistent CLI process
 // ---------------------------------------------------------------------------
 
 interface ActiveTurn {
@@ -89,7 +89,7 @@ export class CliSession {
 
   /**
    * Inject a mock child process for testing.
-   * @internal — test only
+   * @internal test only
    */
   _injectForTest(child: ChildProcess): void {
     this.child = child;
@@ -198,7 +198,7 @@ export class CliSession {
    * Send a user message and stream back events.
    * Auto-respawns if the process has died.
    *
-   * Phase 1.3: Concurrent send() guard — throws if a previous turn is still active.
+   * Phase 1.3: Concurrent send() guard that throws if a previous turn is still active.
    * The activeTurn lock is claimed synchronously BEFORE any async work (spawn)
    * to prevent TOCTOU races.
    */
@@ -315,7 +315,7 @@ export class CliSession {
       // subsequent stdout data (including the result) will be silently dropped
       // because activeTurn is about to be set to null.
       if (!turn.done) {
-        process.stderr.write(`\x1b[33m  ⚠ CliSession: generator abandoned before turn.done (events=${turn.events.length}). Result event will be lost.\x1b[0m\n`);
+        process.stderr.write(`\x1b[33m  CliSession: generator abandoned before turn.done (events=${turn.events.length}). Result event will be lost.\x1b[0m\n`);
       }
       this.activeTurn = null;
       this.resetIdleTimer();
@@ -332,7 +332,7 @@ export class CliSession {
    */
   kill(): void {
     if (this.hasActiveTurn) {
-      process.stderr.write(`\x1b[31m  ✗ CliSession.kill() called with active turn — data loss will occur (session=${this.sessionId.slice(0, 8)})\x1b[0m\n`);
+      process.stderr.write(`\x1b[31m  ✗ CliSession.kill() called with active turn, so data loss will occur (session=${this.sessionId.slice(0, 8)})\x1b[0m\n`);
       this._onSessionKilled?.({ sessionId: this.sessionId, hadActiveTurn: true, eventsInTurn: this.activeTurn!.events.length });
     }
     this.clearIdleTimer();
@@ -418,13 +418,13 @@ export class CliSession {
       const hasResult = this.activeTurn.events.some((e) => e.type === 'usage' && (e as Record<string, unknown>).costUsd != null);
       if (!hasResult) {
         const lastStderr = this.stderrBuf.slice(-500);
-        this.log?.warn('CLI session died before result event — costUsd will be 0', {
+        this.log?.warn('CLI session died before result event, so costUsd will be 0', {
           sessionId: this.sessionId,
           eventsInTurn: eventCount,
           lastStderr: lastStderr || '(empty)',
         });
         // Always log to stderr so it's visible in bench output
-        process.stderr.write(`\x1b[33m  ⚠ CLI session died before result event (${eventCount} events buffered). costUsd will be 0. stderr: ${lastStderr.slice(0, 200)}\x1b[0m\n`);
+        process.stderr.write(`\x1b[33m  CLI session died before result event (${eventCount} events buffered). costUsd will be 0. stderr: ${lastStderr.slice(0, 200)}\x1b[0m\n`);
       }
       if (!this.activeTurn.events.some((e) => e.type === 'message_stop')) {
         this.activeTurn.events.push({ type: 'message_stop', finishReason: 'error' });
@@ -489,13 +489,13 @@ export function getOrCreateCliSession(
     if (existing.matchesOptions(options)) {
       return existing;
     }
-    // Options changed — but REFUSE to kill if there's an active turn
+    // Options changed, but REFUSE to kill if there's an active turn
     if (existing.hasActiveTurn) {
-      process.stderr.write(`\x1b[33m  ⚠ getOrCreateCliSession: fingerprint mismatch on key "${key}" but session has active turn — reusing existing session to prevent data loss\x1b[0m\n`);
+      process.stderr.write(`\x1b[33m  getOrCreateCliSession: fingerprint mismatch on key "${key}" but session has active turn. Reusing existing session to prevent data loss\x1b[0m\n`);
       return existing;
     }
-    // No active turn — safe to kill and recreate
-    process.stderr.write(`\x1b[2m  [session-cache] killing session for key "${key}" — fingerprint changed\x1b[0m\n`);
+    // No active turn, so it is safe to kill and recreate
+    process.stderr.write(`\x1b[2m  [session-cache] killing session for key "${key}", fingerprint changed\x1b[0m\n`);
     existing.kill();
     sessions.delete(key);
   } else if (existing) {

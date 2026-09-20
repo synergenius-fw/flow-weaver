@@ -54,7 +54,7 @@ function createWorkflow(overrides: Partial<TWorkflowAST> = {}): TWorkflowAST {
 
 // ── Parser-level tests (JSDoc parser) ──────────────────────────────────
 
-describe('Annotation Validation — Parser', () => {
+describe('Annotation Validation: Parser', () => {
   let parser: AnnotationParser;
   let warnSpy: MockInstance;
 
@@ -341,7 +341,7 @@ function myNode(execute: boolean): { onSuccess: boolean } {
 
 // ── Validator-level tests ──────────────────────────────────────────────
 
-describe('Annotation Validation — Validator', () => {
+describe('Annotation Validation: Validator', () => {
   let validator: WorkflowValidator;
 
   beforeEach(() => {

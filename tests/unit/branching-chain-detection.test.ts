@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { detectBranchingChains } from '../../src/generator/control-flow';
 
 /**
- * Tests for chain detection logic — written before implementation.
+ * Tests for chain detection logic, written before implementation.
  * detectBranchingChains identifies sequential chains of branching nodes
  * where each node's success region has exactly one branching child
  * and the failure region has zero (or vice versa).

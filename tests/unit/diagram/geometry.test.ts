@@ -214,7 +214,7 @@ describe('buildDiagramGraph', () => {
   });
 });
 
-describe('buildDiagramGraph — layout', () => {
+describe('buildDiagramGraph: layout', () => {
   it('normalises the auto-layout into positive coordinates', () => {
     const ast = createSimpleWorkflow();
     const graph = buildDiagramGraph(ast);
@@ -237,7 +237,7 @@ describe('buildDiagramGraph — layout', () => {
   });
 });
 
-describe('buildDiagramGraph — scoped workflows', () => {
+describe('buildDiagramGraph: scoped workflows', () => {
   it('expands scoped parent to contain children', () => {
     const ast = createScopedWorkflow();
     const graph = buildDiagramGraph(ast);

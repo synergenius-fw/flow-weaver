@@ -11,7 +11,7 @@ const flatten = (steps: Step[]): Step[] => steps.flatMap((s) => [s, ...flatten(s
 function Ref({ id, w }: { id: string; w: ParsedWorkflow }) {
   const label = id === 'Start' || id === 'Exit' ? id : w.nodes[id]?.label ?? id;
   return (
-    <button class="stepref" title={label !== id ? `${label} · ${id}` : id} onClick={() => { sel.value = id; ui.side.value = 'step'; }}>
+    <button class="stepref" title={label !== id ? `${label} (${id})` : id} onClick={() => { sel.value = id; ui.side.value = 'step'; }}>
       {id}
     </button>
   );
@@ -59,8 +59,8 @@ export function ReferencePane({ w }: { w: ParsedWorkflow }) {
           </div>
         )}
         <div class="in"><div class="kv">
-          <span class="k">compiled</span><span class="val static">{w.compiled ? 'yes · body generated in place' : <>no · <button class="linkish" onClick={() => stageCli(`fw compile ${w.rel}`)}>▶ fw compile</button></>}</span>
-          <span class="k">steps</span><span class="val static">{steps.length}{steps.some((s) => s.kind === 'pause') ? ` · ${steps.filter((s) => s.kind === 'pause').length} gate${steps.filter((s) => s.kind === 'pause').length > 1 ? 's' : ''}` : ''}</span>
+          <span class="k">compiled</span><span class="val static">{w.compiled ? 'yes, body generated in place' : <>no, <button class="linkish" onClick={() => stageCli(`fw compile ${w.rel}`)}>▶ fw compile</button></>}</span>
+          <span class="k">steps</span><span class="val static">{steps.length}{steps.some((s) => s.kind === 'pause') ? `, ${steps.filter((s) => s.kind === 'pause').length} gate${steps.filter((s) => s.kind === 'pause').length > 1 ? 's' : ''}` : ''}</span>
         </div></div>
       </div>
 
@@ -90,7 +90,7 @@ export function ReferencePane({ w }: { w: ParsedWorkflow }) {
       </div>
 
       <div class="card">
-        <h3>Wiring<span class="mono">@path · @connect</span></h3>
+        <h3>Wiring<span class="mono">@path, @connect</span></h3>
         {r.paths.length > 0 && (
           <div class="in"><h5>Paths</h5>
             {r.paths.map((p, i) => (
@@ -133,7 +133,7 @@ export function ReferencePane({ w }: { w: ParsedWorkflow }) {
           </div>
         )}
         <div class="in hint">
-          <button class="linkish" onClick={() => openDoc('jsdoc-grammar')}>The grammar</button> · <button class="linkish" onClick={() => openDoc('advanced-annotations')}>paths, expressions, pull execution</button>
+          <button class="linkish" onClick={() => openDoc('jsdoc-grammar')}>The grammar</button>, then <button class="linkish" onClick={() => openDoc('advanced-annotations')}>paths, expressions, pull execution</button>
         </div>
       </div>
 

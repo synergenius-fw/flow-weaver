@@ -834,7 +834,7 @@ describe('exportCommand (CLI layer)', () => {
 
     (exportWorkflowMocked as ReturnType<typeof vi.fn>).mockResolvedValueOnce(mockResult);
 
-    // Should not throw; the dry-run branch shows first 40 lines + "more lines" info
+    // Should not throw. The dry-run branch shows the first 40 lines plus "more lines" info.
     await expect(
       exportCommand('input.ts', {
         target: 'lambda',

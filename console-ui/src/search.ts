@@ -17,7 +17,7 @@ const words = (q: string): string[] => norm(q).split(/\s+/).filter(Boolean);
  * How well a title (and its detail) answers a query. 0 means no match:
  * every term has to appear somewhere. Otherwise, in descending order: the
  * title is the query, starts with it, has a word starting with it, contains
- * it; a term found only in the detail counts for less. A short title that
+ * it. A term found only in the detail counts for less. A short title that
  * matches beats a long one that also does.
  */
 export function score(query: string, item: Searchable): number {

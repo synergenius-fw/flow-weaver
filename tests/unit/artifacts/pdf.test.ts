@@ -1,6 +1,6 @@
 /**
  * The PDF is printed by whatever Chromium-family browser is on the machine.
- * Finding one is tested against a fake filesystem layout; printing is tested
+ * Finding one is tested against a fake filesystem layout. Printing is tested
  * against a fake browser that honours --print-to-pdf, and against the real
  * one when the machine running the tests has it.
  */
@@ -86,7 +86,7 @@ describe('renderArtifact', () => {
     expect(svg.type).toBe('image/svg+xml'); expect(String(svg.body).startsWith('<svg')).toBe(true);
     const pdf = await renderArtifact(ast, 'pdf', { pdf: { browser: fakeBrowser } });
     expect(pdf.type).toBe('application/pdf'); expect(pdf.extension).toBe('.brief.pdf');
-    expect((pdf.body as Buffer).toString()).toContain('helloWorld · Flow Weaver brief');
+    expect((pdf.body as Buffer).toString()).toContain('helloWorld (Flow Weaver brief)');
   }, 60000);
 
   const real = findBrowser();

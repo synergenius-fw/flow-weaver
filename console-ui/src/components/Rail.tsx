@@ -266,7 +266,7 @@ function Packs({ filter }: { filter: string }) {
       {list.map((p) => (
         <button key={p.name} class={`item ${current === p.name ? 'on' : ''}`} title={p.name} onClick={() => openPack(p.name)}>
           <span class={`ticon ${p.compatible === false ? 'warnicon' : ''}`}><span class="ms">{p.compatible === false ? 'warning' : 'inventory_2'}</span></span>
-          <span class="t"><b>{p.namespace}</b><small>{p.version}{p.nodeTypes.length ? ` · ${p.nodeTypes.length} node type${p.nodeTypes.length > 1 ? 's' : ''}` : ''}{p.exportTargets.length ? ` · ${p.exportTargets.length} target${p.exportTargets.length > 1 ? 's' : ''}` : ''}</small></span>
+          <span class="t"><b>{p.namespace}</b><small>{p.version}{p.nodeTypes.length ? `, ${p.nodeTypes.length} node type${p.nodeTypes.length > 1 ? 's' : ''}` : ''}{p.exportTargets.length ? `, ${p.exportTargets.length} target${p.exportTargets.length > 1 ? 's' : ''}` : ''}</small></span>
         </button>
       ))}
       {!list.length && <div class="empty">nothing matching "{filter}"</div>}
@@ -337,7 +337,7 @@ export function Rail() {
         </Tip>
         <span class="barsep" />
         {views.map((v) => (
-          <Tip key={v.id} label={v.badge && v.badgeKind === 'waiting' ? `${v.label} · ${v.badge} waiting at a gate` : v.label}>
+          <Tip key={v.id} label={v.badge && v.badgeKind === 'waiting' ? `${v.label}, ${v.badge} waiting at a gate` : v.label}>
             <button class={tab === v.id ? 'on' : ''} aria-label={v.label} onClick={() => { ui.railTab.value = v.id; }}>
               <span class="ms">{v.icon}</span>
               {!!v.badge && <span class={`badge ${v.badgeKind ?? ''}`}>{v.badge}</span>}
@@ -347,18 +347,18 @@ export function Rail() {
         <span class="sp" />
         {/* The project as a whole: its server, endpoints, agents, environment.
             The server's state shows on the glyph from anywhere. */}
-        <Tip label={`Project · server ${serviceOf('serve')?.state === 'running' ? 'up' : serviceOf('serve')?.state === 'starting' ? 'starting' : 'down'}`}>
+        <Tip label={`Project, server ${serviceOf('serve')?.state === 'running' ? 'up' : serviceOf('serve')?.state === 'starting' ? 'starting' : 'down'}`}>
           <button class={view.value.kind === 'project' ? 'on' : ''} aria-label="Project" onClick={openOverview}>
             <span class="ms">space_dashboard</span>
             {serviceOf('serve')?.state === 'running' && <span class="livedot" />}
           </button>
         </Tip>
-        <Tip label="Endpoints · workflows over HTTP">
+        <Tip label="Endpoints: workflows over HTTP">
           <button class={view.value.kind === 'endpoints' ? 'on' : ''} aria-label="Endpoints" onClick={openEndpoints}>
             <span class="ms">api</span>
           </button>
         </Tip>
-        <Tip label="Agents · what answers an agent gate">
+        <Tip label="Agents: what answers an agent gate">
           <button class={view.value.kind === 'agents' ? 'on' : ''} aria-label="Agents" onClick={openAgents}>
             <span class="ms">smart_toy</span>
           </button>

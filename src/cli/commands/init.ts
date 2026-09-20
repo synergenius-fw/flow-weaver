@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Init command — scaffolds a new flow-weaver project interactively.
+ * Init command: scaffolds a new flow-weaver project interactively.
  * Supports persona-aware onboarding for nocode, low-code, vibe-coder, and expert users.
  */
 
@@ -404,7 +404,7 @@ export function generateProjectFiles(
     : [`const { ${workflowName}, createWorkflowRuntime } = require('./${workflowJsFile}');`];
   const mainTs = [
     '/**',
-    ` * ${projectName} — workflow runner`,
+    ` * ${projectName}: workflow runner`,
     ' *',
     ' * Usage:',
     ' *   npm run dev      compile workflow + run this file',

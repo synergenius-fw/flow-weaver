@@ -108,7 +108,7 @@ export function testWorkflow(
 }
 `;
 
-describe('buildControlFlowGraph — data-flow ordering', () => {
+describe('buildControlFlowGraph: data-flow ordering', () => {
   it('should order data-dependent nodes before branching nodes that consume their output', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-cfg-'));
     const tmpFile = path.join(tmpDir, 'ordering-test.ts');
@@ -157,7 +157,7 @@ describe('buildControlFlowGraph — data-flow ordering', () => {
       });
       expect(result.code).toBeDefined();
 
-      // Import and execute — must not throw "Cannot access aggIdx before initialization"
+      // Import and execute. Must not throw "Cannot access aggIdx before initialization"
       const compiled = await import(tmpFile);
       const execResult = await compiled.testWorkflow(
         true,

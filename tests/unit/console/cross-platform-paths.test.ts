@@ -17,7 +17,7 @@ describe('toPosix', () => {
   });
 
   it('converts the platform separator', () => {
-    // On Windows `path.sep` is `\`; elsewhere this is already a no-op.
+    // On Windows `path.sep` is `\`. Elsewhere this is already a no-op.
     const native = ['a', 'b', 'flow.ts'].join(path.sep);
     expect(toPosix(native)).toBe('a/b/flow.ts');
   });

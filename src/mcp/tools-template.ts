@@ -68,7 +68,7 @@ export function registerTemplateTools(mcp: McpServer): void {
       preview: z
         .boolean()
         .optional()
-        .describe('Preview only — return generated code without writing (default: false)'),
+        .describe('Preview only, returning generated code without writing (default: false)'),
       config: z
         .record(z.string(), z.unknown())
         .optional()

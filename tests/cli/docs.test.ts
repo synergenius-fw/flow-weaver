@@ -12,7 +12,7 @@ vi.mock('../../src/docs/index.js', () => ({
   searchDocs: vi.fn(),
 }));
 
-// The commands load pack doc topics before reading; that path is covered by
+// The commands load pack doc topics before reading. That path is covered by
 // tests/unit/docs/pack-topics.test.ts and is not what these tests are about.
 vi.mock('../../src/docs/pack-topics.js', () => ({
   loadPackDocTopics: vi.fn().mockResolvedValue(0),

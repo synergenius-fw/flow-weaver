@@ -1,5 +1,5 @@
 /**
- * Artifact command — a workflow as something to hand to a person: the brief
+ * Artifact command: a workflow as something to hand to a person. The brief
  * as a page or a PDF, or the spine as an SVG.
  */
 import * as fs from 'node:fs';

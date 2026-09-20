@@ -269,7 +269,7 @@ describe('generateInPlace sourceLocation.file mismatch', () => {
     const parsed = parser.parse(tmpFile);
     const wf = parsed.workflows[0];
 
-    // Only send visuals — no sourceLocation override
+    // Only send visuals, no sourceLocation override
     const updated = updateNodeType(wf, 'shout', {
       visuals: { color: 'green', icon: 'biotech' },
     } as Partial<TNodeTypeAST>);
@@ -342,7 +342,7 @@ describe('generateInPlace sourceLocation.file mismatch', () => {
 
     const result = generateInPlace(WORKFLOW_SOURCE, updated);
 
-    // shout should be SKIPPED (different basename) — original @color teal preserved
+    // shout should be SKIPPED (different basename), original @color teal preserved
     expect(result.code).toContain('@color teal');
     expect(result.code).not.toContain('@color green');
   });
@@ -351,7 +351,7 @@ describe('generateInPlace sourceLocation.file mismatch', () => {
     const parsed = parser.parse(tmpFile);
     const wf = parsed.workflows[0];
 
-    // Same basename (testing.ts) but different directory — this is the roundtrip scenario
+    // Same basename (testing.ts) but different directory. This is the roundtrip scenario
     const updated = updateNodeType(wf, 'shout', {
       visuals: { color: 'green', icon: 'ai' },
       sourceLocation: { file: '/virtual/workspace/testing.ts', line: 1, column: 0 },

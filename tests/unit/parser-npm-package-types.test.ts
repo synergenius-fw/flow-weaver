@@ -235,9 +235,9 @@ describe('parser npm package type resolution', () => {
 
   it('multiple functions from same package, only import the referenced ones', () => {
     setupPackage('multi-fn', `
-      export declare function fnA(x: number): number;
-      export declare function fnB(x: string): string;
-      export declare function fnC(x: boolean): boolean;
+      export declare function fnA(x: number): number
+      export declare function fnB(x: string): string
+      export declare function fnC(x: boolean): boolean
     `);
     const workflowPath = writeFile('wf-npm-7.ts', `
       import { fnA, fnC } from 'multi-fn';

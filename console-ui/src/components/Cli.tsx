@@ -164,7 +164,7 @@ function Builder({ commands, initial, onLine, onRun, onClose }: { commands: CliC
         <div class="fields">
           {args.map((a, i) => (
             <div class="field" key={a.name}>
-              <label><span>{a.name}{a.required && <i>*</i>}{a.variadic && <em> · several, space-separated</em>}</span></label>
+              <label><span>{a.name}{a.required && <i>*</i>}{a.variadic && <em> (several, space-separated)</em>}</span></label>
               <input type="text" class="mono" value={filled.args[i] ?? ''} placeholder={a.required ? `<${a.name}>` : `[${a.name}]`} onInput={(e) => setArg(i, (e.target as HTMLInputElement).value)} />
             </div>
           ))}
@@ -347,7 +347,7 @@ export function CliPane() {
           onRerun={() => go(r.args.join(' '))}
           onRemove={() => { cli.runs.value = cli.runs.value.filter((x) => x.id !== r.id); }} />
       ))}
-      {!cli.runs.value.length && <div class="hint" style="padding:4px 12px">Nothing run yet. Type a command, or open Commands to build one; any ▶ in the guide lands here.</div>}
+      {!cli.runs.value.length && <div class="hint" style="padding:4px 12px">Nothing run yet. Type a command, or open Commands to build one. Any ▶ in the guide lands here.</div>}
     </div>
   );
 }

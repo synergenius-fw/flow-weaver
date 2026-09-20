@@ -61,7 +61,7 @@ const names = (list: Array<{ name: string }> | undefined): Set<string> => new Se
 
 /** What differs between the committed manifest and the generated one, as sentences. */
 export function manifestChanges(existing: TMarketplaceManifest | null, next: TMarketplaceManifest): string[] {
-  if (!existing) return ['No flowweaver.manifest.json yet; fw market pack writes it.'];
+  if (!existing) return ['No flowweaver.manifest.json yet. fw market pack writes it.'];
   const out: string[] = [];
   if (existing.version !== next.version) out.push(`version ${existing.version} → ${next.version}`);
   if ((existing.description ?? '') !== (next.description ?? '')) out.push('description changed');

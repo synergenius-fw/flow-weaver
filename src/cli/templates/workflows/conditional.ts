@@ -4,7 +4,7 @@
  *
  * Design: evaluateCondition uses onSuccess for "condition met" and
  * onFailure for "condition not met". Error handling is done inside
- * the function body via try/catch — errors route to Exit.onFailure
+ * the function body via try/catch, and errors route to Exit.onFailure
  * via the handler chain.
  */
 

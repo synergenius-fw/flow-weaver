@@ -1,5 +1,5 @@
 /**
- * OpenAI-compatible API provider — works with any service that speaks
+ * OpenAI-compatible API provider: works with any service that speaks
  * the OpenAI chat completions API: OpenAI, Groq, Together, Ollama, etc.
  *
  * No SDK dependency. Uses only Node.js native fetch + SSE parsing.

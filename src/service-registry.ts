@@ -1,12 +1,12 @@
 /**
  * Long-lived `fw` processes announce themselves.
  *
- * An MCP server speaks stdio to the editor that started it; nothing else
+ * An MCP server speaks stdio to the editor that started it, and nothing else
  * can connect to it to ask how it is. `fw serve` and `fw console` have
  * ports, but nobody knows which. So each writes a small record under
  * `~/.fw/services/` when it starts -- what it is, which install it runs
  * from, where, since when -- and touches it as it works. Anyone can read
- * the directory; a record whose process is gone is dropped on reading.
+ * the directory, and a record whose process is gone is dropped on reading.
  * The same idea as the run store: a directory on disk is the shared truth.
  */
 import * as fs from 'node:fs';
@@ -59,7 +59,7 @@ export function isAlive(pid: number): boolean {
 
 export interface Announcement {
   readonly file: string;
-  /** Note activity; at most one write a second. */
+  /** Note activity, at most one write a second. */
   touch(activity?: string): void;
   /** Change what is known about the service (its client, its project). */
   update(patch: Partial<Pick<ServiceRecord, 'client' | 'project' | 'url'>>): void;

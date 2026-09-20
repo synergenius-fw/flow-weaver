@@ -62,7 +62,7 @@ type Json = Record<string, unknown>;
 
 // ---------------------------------------------------------------- transport
 
-/** What the handler reads from a request. Node's IncomingMessage is one; so is the fetch shim below. */
+/** What the handler reads from a request. Node's IncomingMessage is one, and so is the fetch shim below. */
 export interface ServerRequest {
   method?: string;
   url?: string;
@@ -97,7 +97,7 @@ export interface WorkflowApiOptions {
   trace?: boolean;
   /** Error stacks in responses; `mocks` accepted in a start body. */
   dev?: boolean;
-  /** Where runs are stored; defaults to the shared `~/.fw/runs`. */
+  /** Where runs are stored. Defaults to the shared `~/.fw/runs`. */
   runsDir?: string;
   /** A run store of your own -- a database, for several instances -- in place of the directory. */
   store?: RunStore;
@@ -105,7 +105,7 @@ export interface WorkflowApiOptions {
   watch?: boolean;
   /** Also mount every workflow at `POST /workflows/<name>`, declared or not. Default true. */
   legacyRoutes?: boolean;
-  /** CORS origin; unset sends no CORS headers. */
+  /** CORS origin. Unset sends no CORS headers. */
   cors?: string | string[];
   /** The environment agent profiles read their keys from. Defaults to `process.env`. */
   env?: NodeJS.ProcessEnv;
@@ -117,7 +117,7 @@ export interface WorkflowApiOptions {
   maxBodyBytes?: number;
   /**
    * Which callback URLs are delivered to. By default only public http(s)
-   * hosts; see `CallbackPolicy`. `sweepMs` is how often pending callbacks
+   * hosts. See `CallbackPolicy`. `sweepMs` is how often pending callbacks
    * are retried and runs finished elsewhere are checked (default 3 s).
    */
   callbacks?: CallbackPolicy & { sweepMs?: number };
@@ -154,7 +154,7 @@ export interface RouteInfo {
 }
 
 export interface WorkflowApi {
-  /** Discovery done; safe to serve. Called for you by the adapters. */
+  /** Discovery done, so it is safe to serve. Called for you by the adapters. */
   ready(): Promise<void>;
   /**
    * Handle a request if it is ours. `basePath` is the mount prefix, for the
@@ -211,16 +211,16 @@ export function errorToHttp(err: unknown): HttpError {
 export const isLoopback = (host: string) => ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host);
 
 const DEFAULT_MAX_BODY = 1024 * 1024;
-/** Delay before each retry of a callback; after the last, the server gives up and records why. */
+/** Delay before each retry of a callback. After the last, the server gives up and records why. */
 const CALLBACK_BACKOFF_MS = [2_000, 10_000, 60_000, 300_000, 900_000];
-/** Paths the API keeps for itself; a declared route under one is refused. */
+/** Paths the API keeps for itself. A declared route under one is refused. */
 export const RESERVED_PATHS = ['/health', '/workflows', '/runs', '/openapi.json', '/docs'];
 const RESERVED = RESERVED_PATHS;
 
 /**
  * Which declared routes can be mounted together, and why the rest cannot:
  * a route under a reserved path, or the same method and path declared by
- * two workflows. The console asks this of the whole project; the API asks
+ * two workflows. The console asks this of the whole project. The API asks
  * it of what the registry found.
  */
 export function planRoutes<T extends { name: string; routes: THttpRoute[] }>(list: T[]): { mounted: Array<{ owner: T; route: THttpRoute }>; problems: string[] } {
@@ -230,12 +230,12 @@ export function planRoutes<T extends { name: string; routes: THttpRoute[] }>(lis
   for (const owner of list) {
     for (const route of owner.routes) {
       if (RESERVED.some((r) => route.path === r || route.path.startsWith(`${r}/`))) {
-        problems.push(`${owner.name}: @http ${route.method} ${route.path} is under a reserved path (${RESERVED.join(', ')}); not mounted`);
+        problems.push(`${owner.name}: @http ${route.method} ${route.path} is under a reserved path (${RESERVED.join(', ')}), so it is not mounted`);
         continue;
       }
       const key = `${route.method} ${route.path}`;
       const other = seen.get(key);
-      if (other) { problems.push(`${owner.name}: @http ${key} is already declared by ${other}; not mounted`); continue; }
+      if (other) { problems.push(`${owner.name}: @http ${key} is already declared by ${other}, not mounted`); continue; }
       seen.set(key, owner.name);
       mounted.push({ owner, route });
     }
@@ -500,7 +500,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
 
   /** Refuse a new segment when the server is at its limit. */
   function admit(): void {
-    if (live.size >= maxInFlight) throw new HttpError(503, 'BUSY', `${live.size} runs are in flight, the limit here; try again shortly`, undefined, { 'Retry-After': '2' });
+    if (live.size >= maxInFlight) throw new HttpError(503, 'BUSY', `${live.size} runs are in flight, the limit here. Try again shortly`, undefined, { 'Retry-After': '2' });
   }
 
   /** The output ports of a completed run, without the control ports. */
@@ -721,7 +721,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
           options.onCallback?.({ runId: id, url: note.callbackUrl, ok: true, status, attempt });
           return;
         }
-        error = r.status >= 300 && r.status < 400 ? `callback answered ${r.status}; redirects are not followed` : `callback answered ${r.status}`;
+        error = r.status >= 300 && r.status < 400 ? `callback answered ${r.status}, redirects are not followed` : `callback answered ${r.status}`;
       } catch (e) { error = e instanceof Error ? e.message : String(e); }
       const gaveUp = attempt >= CALLBACK_BACKOFF_MS.length;
       const next: HttpNote = { ...note, attempts: attempt, lastError: error, ...(gaveUp ? { gaveUp: new Date().toISOString() } : { nextAt: new Date(Date.now() + CALLBACK_BACKOFF_MS[attempt - 1]).toISOString() }) };
@@ -900,7 +900,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
       if (method === 'GET' && p === '/workflows') { json(res, 200, { count: registry.getAllEndpoints().length, workflows: registry.getAllEndpoints().map(describeEndpoint), problems: routeProblems } satisfies WorkflowListResponse & { problems: string[] }); return true; }
       if (method === 'GET' && p === '/openapi.json') { json(res, 200, openapi(undefined, base)); return true; }
       if (method === 'GET' && p === '/docs') {
-        if (!options.docs) throw new HttpError(404, 'NOT_FOUND', 'docs are off; start with --swagger, or docs: true');
+        if (!options.docs) throw new HttpError(404, 'NOT_FOUND', 'docs are off. Start with --swagger, or docs: true');
         html(res, swaggerPage(`${base}/openapi.json`)); return true;
       }
 

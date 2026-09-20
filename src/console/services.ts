@@ -11,7 +11,7 @@
  *
  * Settings live per project under the user's home, never in the project
  * tree. A token is generated per start and handed to the child through
- * the environment; the page shows it because anyone who reaches the
+ * the environment. The page shows it because anyone who reaches the
  * console can already run every workflow.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -61,7 +61,7 @@ export interface ServiceView {
   error?: string;
   /** Kept log lines, for the drawer to know there is something to open. */
   lines: number;
-  /** The token the running server wants; only for a server this console started. */
+  /** The token the running server wants, only for a server this console started. */
   token?: string;
   /** What the registry knows: requests answered, the last one, the install. */
   activity?: { count: number; last?: string; at: string; version: string; install: string };
@@ -73,11 +73,11 @@ export interface SupervisorOptions {
   projectDir: string;
   /** Where settings are kept. Default `~/.fw/console`, or `FW_CONSOLE_DIR`. */
   settingsDir?: string;
-  /** Start a child; a test hands in a fake. */
+  /** Start a child. A test hands in a fake. */
   spawn?: (args: string[], cwd: string, env: NodeJS.ProcessEnv) => ChildProcess;
   /** Called whenever a service changes state or says something. */
   onChange?: (event: { kind: ManagedKind; state: ServiceState; line?: LogLine; url?: string; exitCode?: number | null; error?: string }) => void;
-  /** Where the registry is read from; a test points it elsewhere. */
+  /** Where the registry is read from. A test points it elsewhere. */
   registryDir?: string;
 }
 
@@ -158,7 +158,7 @@ export class Supervisor {
     const existing = this.children.get(kind);
     if (existing && (existing.state === 'running' || existing.state === 'starting')) return this.view(kind);
     const others = this.registryFor(kind);
-    if (kind === 'serve' && others.length) throw new Error(`fw serve is already running for this project (pid ${others[0].pid}${others[0].url ? `, ${others[0].url}` : ''}); stop it first`);
+    if (kind === 'serve' && others.length) throw new Error(`fw serve is already running for this project (pid ${others[0].pid}${others[0].url ? `, ${others[0].url}` : ''}). Stop it first`);
 
     const settings = this.settings();
     const { NODE_OPTIONS: _flags, VITEST: _test, ...base } = process.env;
@@ -180,7 +180,7 @@ export class Supervisor {
     const proc = (this.opts.spawn ?? spawnFwWith)(args, this.projectDir, env);
     const child: Child = { kind, proc, state: 'starting', startedAt: new Date().toISOString(), token, lines: [] };
     this.children.set(kind, child);
-    // Watch is running as soon as it is up; a server is running once it says where it listens.
+    // Watch is running as soon as it is up. A server is running once it says where it listens.
     if (kind === 'watch') child.state = 'running';
 
     const onData = (stream: 'out' | 'err') => (chunk: Buffer) => {

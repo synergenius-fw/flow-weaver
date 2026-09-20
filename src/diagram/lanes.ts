@@ -8,11 +8,11 @@
  * enough to show failure arms, loop bodies, fan-out/fan-in and pull edges
  * without a general graph layout.
  *
- * The console draws this live and the SVG renderer draws it still; both
+ * The console draws this live and the SVG renderer draws it still. Both
  * take the picture from here, so the two never disagree about the shape.
  */
 
-/** What the layout needs to know about a step; the process model has all of it. */
+/** What the layout needs to know about a step. The process model has all of it. */
 export interface LaneStep {
   id: string;
   /** `[pullExecution:]` declared: the step runs when something reads it. */
@@ -33,7 +33,7 @@ export interface LaneModel {
   exitFrom: Array<{ from: string; arm: 'ok' | 'fail' }>;
 }
 
-/** A lane holding a tile must fit one; a lane carrying only edges need not. */
+/** A lane holding a tile must fit one. A lane carrying only edges need not. */
 const TILE_LANE = 26;
 /** Only wide enough to tell two lines apart. */
 const EDGE_LANE = 11;

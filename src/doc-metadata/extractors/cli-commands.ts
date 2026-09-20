@@ -73,14 +73,14 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   {
     name: 'serve',
     syntax: 'fw serve [directory] [options]',
-    description: 'Serve the workflows as HTTP endpoints; gated runs pause, resume and stream over the same API',
+    description: 'Serve the workflows as HTTP endpoints. Gated runs pause, resume and stream over the same API',
     options: [
       { flags: '-p, --port', arg: '<port>', description: 'Server port', defaultValue: '3000' },
-      { flags: '-H, --host', arg: '<host>', description: 'Server host; beyond loopback needs --token or --insecure', defaultValue: '127.0.0.1' },
+      { flags: '-H, --host', arg: '<host>', description: 'Server host. Beyond loopback it needs --token or --insecure', defaultValue: '127.0.0.1' },
       { flags: '--token', arg: '<token>', description: 'Bearer token every request must carry (also FW_SERVE_TOKEN)' },
       { flags: '--no-agents', description: 'Do not answer agent gates from .flowweaver/agents.yaml' },
       { flags: '--trace', description: 'Keep a step trace for every run and stream it on /runs/:id/events' },
-      { flags: '--dev', description: 'Error stacks in responses; mocks accepted when starting a run' },
+      { flags: '--dev', description: 'Error stacks in responses, and mocks accepted when starting a run' },
       { flags: '--insecure', description: 'Listen beyond loopback without a token' },
       { flags: '--no-watch', description: 'Disable file watching for hot reload' },
       { flags: '--cors', arg: '<origin>', description: 'Send CORS headers for this origin' },
@@ -296,7 +296,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
       { flags: '-f, --format', arg: 'json|yaml', description: 'Output format', defaultValue: 'json' },
       { flags: '--server', arg: '<url>', description: 'Server URL' },
       { flags: '--no-auth', description: 'Leave out the bearer scheme, for a server without a token' },
-      { flags: '--no-legacy', description: 'Leave out POST /workflows/<name>; declared @http routes only' },
+      { flags: '--no-legacy', description: 'Leave out POST /workflows/<name>, keeping declared @http routes only' },
     ],
   },
   {

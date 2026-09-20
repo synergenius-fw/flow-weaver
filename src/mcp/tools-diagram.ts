@@ -16,7 +16,7 @@ const ASCII_FORMATS = new Set(['ascii', 'ascii-compact', 'text']);
 export function registerDiagramTools(mcp: McpServer): void {
   mcp.tool(
     'fw_diagram',
-    'Generate a diagram of a workflow. Formats: svg draws the spine (steps in run order, control flow as lanes: failure arms, loop bodies, pulled steps) as a vector image; ascii/ascii-compact/text produce plain text readable in terminal. ' +
+    'Generate a diagram of a workflow. Formats: svg draws the spine (steps in run order, control flow as lanes: failure arms, loop bodies, pulled steps) as a vector image. ascii/ascii-compact/text produce plain text readable in terminal. ' +
       'Provide either filePath (workflow .ts file) or source (inline code).',
     {
       filePath: z
@@ -42,7 +42,7 @@ export function registerDiagramTools(mcp: McpServer): void {
       format: z
         .enum(['svg', 'ascii', 'ascii-compact', 'text'])
         .optional()
-        .describe('Output format: svg (default; the spine as a vector image), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)'),
+        .describe('Output format: svg (the default, drawing the spine as a vector image), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)'),
     },
     async (args: {
       filePath?: string;

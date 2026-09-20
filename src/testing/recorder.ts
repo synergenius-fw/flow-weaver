@@ -1,5 +1,5 @@
 /**
- * Recording LLM Provider — wraps a real provider and records all interactions.
+ * Recording LLM Provider: wraps a real provider and records all interactions.
  *
  * Usage:
  * ```typescript
@@ -60,7 +60,7 @@ export interface LlmRecording {
 // ---------------------------------------------------------------------------
 
 export interface RecordingLlmProvider {
-  /** The wrapped provider — use this as your LLMProvider */
+  /** The wrapped provider: use this as your LLMProvider */
   provider: LLMProvider;
   /** Get the current recording */
   getRecording(): LlmRecording;

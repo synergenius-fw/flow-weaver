@@ -35,7 +35,7 @@ describe('applyModifyOperation addConnection is idempotent', () => {
     const result = applyModifyOperation(ast, 'addConnection', { from: 'Start.value', to: 'a.value' });
 
     expect(result.ast.connections).toHaveLength(before);
-    expect(result.warnings).toEqual(['Connection Start.value -> a.value already exists; skipped']);
+    expect(result.warnings).toEqual(['Connection Start.value -> a.value already exists, skipped']);
   });
 
   it('still adds a connection that is new', () => {

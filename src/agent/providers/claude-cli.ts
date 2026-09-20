@@ -1,5 +1,5 @@
 /**
- * Claude CLI provider — spawns the Claude Code CLI with stream-json output
+ * Claude CLI provider: spawns the Claude Code CLI with stream-json output
  * and MCP bridge for tool execution.
  *
  * Adapted from platform's streamClaudeCliChat. Platform-specific dependencies
@@ -115,7 +115,7 @@ export class ClaudeCliProvider implements AgentProvider {
       );
     }
 
-    // Timeout — per-request override or provider default
+    // Timeout, per-request override or provider default
     const timeout = options?.timeout ?? this.timeout;
     const timer = setTimeout(() => {
       child.kill('SIGTERM');

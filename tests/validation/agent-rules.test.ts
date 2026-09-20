@@ -2,9 +2,9 @@
  * Tests for agent-specific validation rules
  *
  * Each rule is tested with:
- * 1. Positive case — triggers the rule
- * 2. Negative case — satisfies the rule
- * 3. Edge cases — renamed nodes, expression nodes, etc.
+ * 1. Positive case that triggers the rule
+ * 2. Negative case that satisfies the rule
+ * 3. Edge cases such as renamed nodes, expression nodes, etc.
  */
 
 import {
@@ -185,7 +185,7 @@ describe('agent validation rules', () => {
     it('stays silent when the llm role came only from @color', () => {
       // A node whose only "llm" signal is a cosmetic @color purple is not
       // known to call a model. Colour is documented as a weak, tie-breaking
-      // signal; a diagnostic that says "LLM node has no error handler" about
+      // signal. A diagnostic that says "LLM node has no error handler" about
       // a URL parser is wrong, not merely loud, and teaches authors to
       // suppress without reading. No agent rule fires on colour alone.
       const colourOnly = makeNodeType({
@@ -326,7 +326,7 @@ describe('agent validation rules', () => {
     it('stays silent when the tool-executor role rests only on @color', () => {
       // A pure read of a design file, coloured cyan because the palette says
       // cyan is for network/cloud. Nothing about its ports, icon or name says
-      // "tool executor"; a colour is not evidence that it performs an action.
+      // "tool executor". A colour is not evidence that it performs an action.
       const reader = makeNodeType({
         name: 'extractDesign',
         functionName: 'extractDesign',
@@ -563,7 +563,7 @@ describe('agent validation rules', () => {
         connections: [
           conn('Start', 'execute', 'tool', 'execute'),
           conn('tool', 'onSuccess', 'Exit', 'onSuccess'),
-          // No data output connections — result, resultMessage, toolName all unconnected
+          // No data output connections: result, resultMessage, toolName all unconnected
         ],
       });
 
@@ -699,7 +699,7 @@ describe('agent validation rules', () => {
         outputs: {
           onSuccess: { dataType: 'STEP' as any },
           onFailure: { dataType: 'STEP' as any },
-          // Has messages input missing — not detected by port signature
+          // Has messages input missing (not detected by port signature)
           // But has psychology icon
           response: { dataType: 'STRING' as any },
         },

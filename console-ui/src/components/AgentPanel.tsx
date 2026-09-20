@@ -28,13 +28,13 @@ export function AgentPanel({ note, log, compact = false }: { note: AgentNote; lo
 
   const usage = note.usage ?? log.usage;
   const tokens = usage && usage.promptTokens + usage.completionTokens > 0 ? `${fmtK(usage.promptTokens + usage.completionTokens)} tokens` : '';
-  const cost = usage?.costUsd ? ` · $${usage.costUsd.toFixed(4)}` : '';
+  const cost = usage?.costUsd ? `, $${usage.costUsd.toFixed(4)}` : '';
   const took = note.endedAt && note.startedAt ? ms(Date.parse(note.endedAt) - Date.parse(note.startedAt)) : log.ms != null ? ms(log.ms) : '';
   const what = answering ? 'answering…'
     : note.status === 'answered' ? `answered${took ? ` in ${took}` : ''}`
       : note.status === 'rejected' ? `rejected${note.error ? `: ${note.error}` : ''}`
         : `could not answer${note.error ? `: ${note.error}` : ''}`;
-  const model = note.model ? ` · ${note.model}` : '';
+  const model = note.model ? ` (${note.model})` : '';
   const showLog = !compact && (answering || open) && (log.text || log.tools.length > 0 || log.thinking);
   const canRetry = !answering && run.value?.status === 'waiting';
   const retry = async () => { setBusy(true); try { await askAgent(); } finally { setBusy(false); } };

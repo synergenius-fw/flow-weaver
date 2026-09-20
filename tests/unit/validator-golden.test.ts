@@ -3,16 +3,16 @@
  *
  * These parse a curated corpus of REAL fixture workflows and snapshot the full
  * validation output (valid flag + ordered error/warning diagnostics) in both
- * strict and draft modes. They pin the current behavior of validate() — including
+ * strict and draft modes. They pin the current behavior of validate(), including
  * rule ordering, cascading-error dedup, draft-mode reclassification, warning
- * suppression, and doc-URL attachment — BEFORE the rule-registry migration, so
+ * suppression, and doc-URL attachment, BEFORE the rule-registry migration, so
  * the migration can be proven behavior-neutral.
  *
  * The corpus deliberately spans valid, invalid, scoped, async, expression,
  * branching, and pull workflows to exercise as many of the ~22 validateX rules
  * as possible through the real parse pipeline.
  *
- * If any snapshot changes, the migration changed validation output — investigate
+ * If any snapshot changes, the migration changed validation output. Investigate
  * before updating.
  */
 

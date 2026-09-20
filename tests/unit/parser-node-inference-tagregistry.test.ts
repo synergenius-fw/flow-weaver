@@ -11,7 +11,7 @@
  *
  * This test closes that gap: it registers a custom nodeType-scoped tag handler
  * on a fresh per-instance registry and confirms the handler's effect appears on
- * the parsed node type's deploy data — which only happens if extractNodeTypes
+ * the parsed node type's deploy data, which only happens if extractNodeTypes
  * actually uses the instance's tagRegistry.
  */
 
@@ -74,7 +74,7 @@ describe('extractNodeTypes threads the instance tagRegistry (debt #5)', () => {
 
   it('does NOT apply the custom tag when the instance registry lacks the handler', () => {
     // A default parser (empty registry, no custom handler) must not populate the
-    // custom namespace — proving the effect above is registry-driven, not
+    // custom namespace, proving the effect above is registry-driven, not
     // hardcoded.
     const parser = new AnnotationParser();
     parser.tagRegistry = new TagHandlerRegistry();

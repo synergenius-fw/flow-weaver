@@ -12,7 +12,7 @@ import type { WorkflowSummary } from './state';
 export interface TreeLeaf {
   kind: 'workflow';
   key: string;
-  /** The workflow's name, or `file · name` where a file holds several. */
+  /** The workflow's name, or "name in file" where a file holds several. */
   label: string;
   workflow: WorkflowSummary;
 }

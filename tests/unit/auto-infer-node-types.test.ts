@@ -245,7 +245,7 @@ export function myWorkflow(execute: boolean): { onSuccess: boolean } {
     const addTypes = result.workflows[0].nodeTypes.filter((nt) => nt.functionName === 'add');
     // Should be exactly one (the annotated one), not a duplicate
     expect(addTypes).toHaveLength(1);
-    // Should NOT have inferred flag — it came from annotation
+    // Should NOT have inferred flag, it came from annotation
     expect(addTypes[0].inferred).toBeFalsy();
   });
 

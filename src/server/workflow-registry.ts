@@ -60,7 +60,7 @@ export class WorkflowRegistry {
 
         // The same parse the console and the coordinator do, so built-in
         // gates and imported node types resolve the same way here. A file
-        // with several workflows refuses a nameless parse; naming one gives
+        // with several workflows refuses a nameless parse. Naming one gives
         // all of them.
         let result = await parseWorkflow(file, { projectDir: path.dirname(file) });
         if (result.errors.length && result.availableWorkflows.length > 1) {

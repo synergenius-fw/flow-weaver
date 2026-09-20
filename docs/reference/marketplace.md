@@ -152,7 +152,7 @@ Before publishing, install the pack into a project the way a user will, and use 
 cd ../my-project
 npm install ../flow-weaver-pack-openai     # or: npm link flow-weaver-pack-openai
 fw market list                             # the pack, its node types and what it contributes
-fw console                                 # Packs → the pack's page; its node types in the Step pane
+fw console                                 # Packs shows the pack's page, with its node types in the Step pane
 ```
 
 The manifest's `file` paths are resolved inside `node_modules/<pack>/`, so a handler, rule set or target only loads when `dist/` was built and is in `files`.

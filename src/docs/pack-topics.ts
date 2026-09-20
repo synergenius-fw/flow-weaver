@@ -11,7 +11,7 @@ import { registerPackDocTopics } from './index.js';
  * has resolved them to absolute paths since manifest v2, but nothing handed
  * the result to the docs registry, so a declared topic was invisible. This
  * is that missing step. Call it once per process before the first docs
- * read; the registry ignores a slug it already holds and a core slug always
+ * read. The registry ignores a slug it already holds and a core slug always
  * wins over a pack's.
  *
  * Returns the number of topics offered to the registry. A topic whose file

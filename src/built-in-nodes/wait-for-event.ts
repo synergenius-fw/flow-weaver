@@ -19,12 +19,12 @@ export async function waitForEvent(
 
   const mocks = getMockConfig(runtime);
   if (mocks) {
-    // Mock mode — look up event data by name (supports instance-qualified keys)
+    // Mock mode: look up event data by name (supports instance-qualified keys)
     const mockData = lookupMock(mocks.events, eventName, runtime);
     if (mockData !== undefined) {
       return { onSuccess: true, onFailure: false, eventData: mockData };
     }
-    // No mock data for this event — simulate timeout
+    // No mock data for this event, so simulate timeout
     return { onSuccess: false, onFailure: true, eventData: {} };
   }
 

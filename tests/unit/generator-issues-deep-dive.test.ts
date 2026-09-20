@@ -1,13 +1,13 @@
 /**
- * TDD Tests: Generator Issues from Deep Dive
+ * TDD Tests: Generator Issues
  *
- * Tests for all 9 issues found in the deep dive analysis.
+ * Tests for all 9 issues found while reviewing the generator.
  * Each phase has its own describe block.
  */
 import * as path from 'path';
 import { generator } from '../../src/generator';
 
-describe('Generator Issues Deep Dive', () => {
+describe('Generator Issues', () => {
   const examplesDir = path.join(__dirname, '../../fixtures');
 
   // ============================================================

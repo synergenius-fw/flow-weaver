@@ -34,21 +34,21 @@ interface RetrievedDocument {
   metadata?: Record<string, unknown>;
 }
 
-// Mock document store — replace with real vector database
+// Mock document store. Replace with a real vector database
 const MOCK_DOCUMENTS: Record<string, RetrievedDocument[]> = {
   default: [
     { text: 'Flow Weaver compiles workflows to standalone TypeScript functions.', score: 0.95, metadata: { source: 'docs/overview.md' } },
     { text: 'The compiler validates connections at compile time, catching errors before runtime.', score: 0.88, metadata: { source: 'docs/compiler.md' } },
     { text: 'Workflows are standard TypeScript files with JSDoc annotations.', score: 0.82, metadata: { source: 'docs/authoring.md' } },
     { text: 'Deploy compiled workflows to any supported target via installed packs.', score: 0.75, metadata: { source: 'docs/deployment.md' } },
-    { text: 'The visual editor provides bidirectional editing — code changes update the canvas and vice versa.', score: 0.71, metadata: { source: 'docs/editor.md' } },
+    { text: 'The visual editor provides bidirectional editing, so code changes update the canvas and vice versa.', score: 0.71, metadata: { source: 'docs/editor.md' } },
   ],
 };
 
 async function mockRetrieve(query: string, collection: string, topK: number): Promise<RetrievedDocument[]> {
   const docs = MOCK_DOCUMENTS[collection] || MOCK_DOCUMENTS['default'] || [];
 
-  // Simple keyword overlap scoring (mock — real stores use vector similarity)
+  // Simple keyword overlap scoring (mock, since real stores use vector similarity)
   const queryWords = new Set(query.toLowerCase().split(/\\s+/));
   const scored = docs.map((doc) => {
     const docWords = doc.text.toLowerCase().split(/\\s+/);

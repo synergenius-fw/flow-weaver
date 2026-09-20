@@ -185,7 +185,7 @@ export function registerQueryTools(mcp: McpServer): void {
   mcp.tool(
     'fw_compile',
     'Compile a workflow to executable code. Only regenerates code inside @flow-weaver-runtime ' +
-      'and @flow-weaver-body marker sections — user code outside markers is preserved. ' +
+      'and @flow-weaver-body marker sections, so user code outside markers is preserved. ' +
       'Set production: true to strip debug instrumentation. Custom targets are available via registered extensions.',
     {
       filePath: z.string().describe('Path to the workflow file'),
@@ -193,7 +193,7 @@ export function registerQueryTools(mcp: McpServer): void {
       production: z
         .boolean()
         .optional()
-        .describe('Production mode — no debug events (default: false)'),
+        .describe('Production mode, meaning no debug events (default: false)'),
       workflowName: z.string().optional().describe('Specific workflow name'),
       target: z
         .string()
@@ -311,7 +311,7 @@ export function registerQueryTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_diff',
-    'Semantic diff between two workflow files — node type changes, instance changes, connection changes, breaking changes.',
+    'Semantic diff between two workflow files: node type changes, instance changes, connection changes, breaking changes.',
     {
       file1: z.string().describe('Path to first workflow file'),
       file2: z.string().describe('Path to second workflow file'),

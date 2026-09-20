@@ -11,9 +11,9 @@
  * console, the brief and the spine SVG all draw from this model.
  *
  * Vocabulary:
- *   stage   -- the longest control path from Start; steps sharing a stage
+ *   stage   -- the longest control path from Start. Steps sharing a stage
  *              have no control dependency between them
- *   pause   -- a durable gate; the process stops here and waits for a resolver
+ *   pause   -- a durable gate, where the process stops and waits for a resolver
  *   segment -- the run between two pauses, i.e. what one continuation covers
  *   arm     -- a failure edge
  *   loop    -- a scope owner, with its children as an inner process

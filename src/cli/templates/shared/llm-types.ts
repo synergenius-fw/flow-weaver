@@ -5,7 +5,7 @@
  * They provide the common type system that all AI workflows need.
  */
 
-/** Core LLM types — embedded in all AI templates */
+/** Core LLM types, embedded in all AI templates */
 export const LLM_CORE_TYPES = `interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
@@ -42,7 +42,7 @@ interface LLMProvider {
   ): Promise<LLMResponse>;
 }`;
 
-/** Simplified LLM types — for templates that don't need tool calling */
+/** Simplified LLM types, for templates that don't need tool calling */
 export const LLM_SIMPLE_TYPES = `interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;

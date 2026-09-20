@@ -41,12 +41,12 @@ export function Search() {
       .map((x) => ({ kind: 'workflow' as Kind, title: x.title, detail: x.detail, score: x.score + 5, run: () => { close(); void selectWorkflow(x.w.file, x.w.name); } })));
     const current = wf.value;
     if (isParsed(current)) {
-      out.push(...rank(query, flatten(current.model.steps).map((s) => ({ title: s.label, detail: `${s.id} · ${s.type}`, s })), 6)
+      out.push(...rank(query, flatten(current.model.steps).map((s) => ({ title: s.label, detail: `${s.id} (${s.type})`, s })), 6)
         .map((x) => ({ kind: 'step' as Kind, title: x.title, detail: x.detail, score: x.score, run: () => { close(); if (view.value.kind !== 'workflow') view.value = { kind: 'workflow' }; sel.value = x.s.id; ui.side.value = 'step'; } })));
     }
     out.push(...rank(query, packs.value.map((p) => ({ title: p.namespace, detail: p.name, p })), 4)
       .map((x) => ({ kind: 'pack' as Kind, title: x.title, detail: x.detail, score: x.score, run: () => { close(); void openPack(x.p.name); } })));
-    out.push(...rank(query, packs.value.flatMap((p) => p.nodeTypes.map((n) => ({ title: n.name, detail: `${p.namespace} · ${n.description}`, p }))), 6)
+    out.push(...rank(query, packs.value.flatMap((p) => p.nodeTypes.map((n) => ({ title: n.name, detail: `${p.namespace}: ${n.description}`, p }))), 6)
       .map((x) => ({ kind: 'node' as Kind, title: x.title, detail: x.detail, score: x.score - 5, run: () => { close(); void openPack(x.p.name); } })));
     out.push(...rank(query, cliCommands.value.map((c) => ({ title: `fw ${c.name}`, detail: c.description, c })), 6)
       .map((x) => ({ kind: 'command' as Kind, title: x.title, detail: x.detail, score: x.score - 5, run: () => { close(); stageCli(x.c.usage); cli.build.value = true; } })));

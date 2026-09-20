@@ -47,7 +47,7 @@ export interface StartRequest {
   /**
    * The run's identity, when the driver needs it before the run ends. The
    * console answers `POST /api/runs` with the id while the run goes on in
-   * the background; an assistant over MCP waits and is told afterwards.
+   * the background. An assistant over MCP waits and is told afterwards.
    */
   runId?: string;
   /**
@@ -156,7 +156,7 @@ export interface LocalCoordinator {
   list(filter?: { filePath?: string }): Promise<RunSummary[]>;
   /** Everything persisted about a run, for a driver that shows more than the minimum. */
   record(runId: string): Promise<RunRecord | undefined>;
-  /** The kept step trace, in order across every segment; empty when none was kept. */
+  /** The kept step trace, in order across every segment. Empty when none was kept. */
   trace(runId: string): Promise<TraceEntry[]>;
   /** Forget a finished run: its record, trace and receipts. A waiting run must be cancelled first. */
   remove(runId: string): Promise<void>;
@@ -209,15 +209,15 @@ export interface RunRecord {
   due?: RunDue;
   result?: unknown;
   error?: string;
-  /** The step that threw, when the trace said which; a failed run is opened there. */
+  /** The step that threw, when the trace said which. A failed run is opened there. */
   failedNode?: string;
-  /** True when every segment kept its step trace; false when any did not. */
+  /** True when every segment kept its step trace, false when any did not. */
   traced?: boolean;
-  /** The mocks the run was started with; every segment uses the same. */
+  /** The mocks the run was started with. Every segment uses the same. */
   mocks?: FwMockConfig;
   /** Where the file stood when the run started, when the driver said. */
   source?: { commit?: string; dirty?: boolean };
-  /** Whether agent gates may be answered by a profile; absent means `auto`. */
+  /** Whether agent gates may be answered by a profile. Absent means `auto`. */
   agents?: 'auto' | 'manual';
   /** What an agent profile did about the latest agent gate, if one was asked. */
   agent?: AgentNote;
@@ -233,7 +233,7 @@ export class ParseError extends Error {
 export class AmbiguousWorkflowError extends Error {
   readonly name = 'AmbiguousWorkflowError';
   constructor(readonly names: readonly string[]) {
-    super(`file declares several workflows; pass workflowName: ${names.join(', ')}`);
+    super(`file declares several workflows. Pass workflowName, one of: ${names.join(', ')}`);
   }
 }
 export class RunNotFoundError extends Error {
@@ -251,7 +251,7 @@ export class RunNotWaitingError extends Error {
 export class BundleChangedError extends Error {
   readonly name = 'BundleChangedError';
   constructor() {
-    super('workflow or its compiled output changed since the run paused; start a new run');
+    super('workflow or its compiled output changed since the run paused. Start a new run');
   }
 }
 
@@ -420,7 +420,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
       if (available.length === 1) workflowName = available[0];
       else throw new AmbiguousWorkflowError(available);
     } else if (!available.includes(workflowName)) {
-      throw new ParseError(`workflow ${workflowName} not found; available: ${available.join(', ')}`);
+      throw new ParseError(`workflow ${workflowName} not found. Available: ${available.join(', ')}`);
     }
 
     if (first.ast.functionName === workflowName) return { ast: first.ast, workflowName };

@@ -103,7 +103,7 @@ describe('renderSpineSVG', () => {
     const svg = renderSpineSVG(ast, { theme: 'dark', title: false });
     const band = /<g class="scope" data-owner="loop"><rect x="([\d.]+)" y="([\d.]+)" width="[\d.]+" height="([\d.]+)" rx="8"/.exec(svg);
     expect(band).not.toBeNull();
-    expect(svg).toContain('>loop · line</text>');
+    expect(svg).toContain('>each line</text>');
     // Two body rows, so the band is two rows tall less its inset...
     expect(Number(band![3])).toBe(2 * 40 - 6);
     // ...and it is drawn before the edges and the rows, so it is behind them.
@@ -133,7 +133,7 @@ describe('renderSpineSVG', () => {
   it('can leave the title to the page around it', () => {
     const withTitle = renderSpineSVG(gated, { subtitle: 'my-project' });
     expect(withTitle).toContain('>gated</text>');
-    expect(withTitle).toContain('my-project · 4 steps · 1 pause');
+    expect(withTitle).toContain('my-project, 4 steps, 1 pause');
     const bare = renderSpineSVG(gated, { title: false });
     expect(bare).not.toContain('>gated</text>');
     expect(bare).not.toContain('font-weight="600"');

@@ -24,7 +24,7 @@ export interface PackView {
   path: string;
   description: string;
   engineVersion: string | null;
-  /** Whether this Flow Weaver satisfies `engineVersion`; null when it cannot be read. */
+  /** Whether this Flow Weaver satisfies `engineVersion`. Null when it cannot be read. */
   compatible: boolean | null;
   nodeTypes: Array<{ name: string; functionName: string; description: string; inputs: PackPort[]; outputs: PackPort[]; color: string | null; icon: string | null }>;
   workflows: Array<{ name: string; description: string; params: PackPort[]; returns: PackPort[]; nodes: number }>;

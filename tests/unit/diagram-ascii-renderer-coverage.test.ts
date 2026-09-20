@@ -57,7 +57,7 @@ describe('renderASCII spanning route (lines 362-363)', () => {
   it('routes spanning connections via highway above boxes when avgY is low', () => {
     const graph = buildDiagramGraph(makeWorkflowWithSpanningConnection());
     const result = renderASCII(graph);
-    // The spanning connection should be rendered; verify the result contains
+    // The spanning connection should be rendered. Verify the result contains
     // all node labels and connection characters
     expect(result).toContain('a');
     expect(result).toContain('b');

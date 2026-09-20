@@ -99,7 +99,7 @@ export interface WorkflowExecutionRequest {
    *
    * Flow Weaver observes cancellation at generated node boundaries, nested
    * scopes and engine-owned waits. A node that ignores cancellation is not
-   * preempted; a hard stop requires a parent-owned process boundary.
+   * preempted. A hard stop requires a parent-owned process boundary.
    */
   abortSignal?: AbortSignal;
 }

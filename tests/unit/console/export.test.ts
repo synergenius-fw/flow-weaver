@@ -82,7 +82,7 @@ describe('runExport', () => {
 
 describe('exportWorkflow projectDir', () => {
   it('finds targets in the given project rather than the working directory', async () => {
-    // The working directory has no packs; the temp project has the echo target.
+    // The working directory has no packs. The temp project has the echo target.
     await expect(exportWorkflow({ target: 'echo', input: hello, output: path.join(project, 'cwd-out'), dryRun: true }))
       .rejects.toThrow(/No export targets installed|Unknown target/);
     const r = await exportWorkflow({ target: 'echo', input: hello, output: path.join(project, 'cwd-out'), dryRun: true, projectDir: project });

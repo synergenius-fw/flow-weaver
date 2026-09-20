@@ -195,7 +195,7 @@ function double(x: number): number {
 function double(
   execute: boolean,
   x: number
-): { onSuccess: boolean; onFailure: boolean; result: number | null } {
+): { onSuccess: boolean, onFailure: boolean, result: number | null } {
   if (!execute) return { onSuccess: false, onFailure: false, result: null };
   try {
     const result = x * 2;
@@ -224,7 +224,7 @@ async function fetchUser(id: string): Promise<User> {
 async function fetchUser(
   execute: boolean,
   id: string
-): Promise<{ onSuccess: boolean; onFailure: boolean; user: User | null }> {
+): Promise<{ onSuccess: boolean, onFailure: boolean, user: User | null }> {
   if (!execute) return { onSuccess: false, onFailure: false, user: null };
   try {
     const user = await db.users.findById(id);
@@ -254,7 +254,7 @@ function analyze(text: string): { wordCount: number; charCount: number } {
 function analyze(
   execute: boolean,
   text: string
-): { onSuccess: boolean; onFailure: boolean; wordCount: number | null; charCount: number | null } {
+): { onSuccess: boolean, onFailure: boolean, wordCount: number | null, charCount: number | null } {
   if (!execute) return { onSuccess: false, onFailure: false, wordCount: null, charCount: null };
   try {
     const wordCount = text.split(' ').length;

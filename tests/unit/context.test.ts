@@ -70,7 +70,7 @@ describe('buildContext', () => {
     // The orientation map names jsdoc-grammar, so the closing list does not describe it again
     expect(result.content).toMatch(/^- `jsdoc-grammar` \(\d+ KB\)$/m);
     // visual-reference is named nowhere in the bundle, so it keeps its description
-    expect(result.content).toMatch(/^- `visual-reference` — .+ \(\d+ KB\)$/m);
+    expect(result.content).toMatch(/^- `visual-reference`: .+ \(\d+ KB\)$/m);
   });
 
   it('includes EBNF grammar by default', () => {
@@ -173,7 +173,7 @@ describe('PRESETS', () => {
   });
 
   it('cicd topics are contributed by extension via registerPackDocTopics', () => {
-    // CI/CD is now an extension; its preset contribution is
+    // CI/CD is now an extension. Its preset contribution is
     // verified through pack doc topic registration in extension tests.
   });
 });

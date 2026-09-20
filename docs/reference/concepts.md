@@ -23,7 +23,7 @@ Here is a complete, minimal workflow written entirely by hand:
  * @output message - Greeting message
  */
 function greet(name: string): string {
-  return `Hello, ${name}!`;
+  return "Hello, " + name + "!";
 }
 
 /**

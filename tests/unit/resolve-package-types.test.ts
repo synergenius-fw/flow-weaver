@@ -44,7 +44,7 @@ describe('resolvePackageTypesPath', () => {
   });
 
   it('walks up directories to find node_modules when no override', () => {
-    // fromDir is deep inside fixture dir — should still find fixtures/fake-node-modules
+    // fromDir is deep inside fixture dir, should still find fixtures/fake-node-modules
     // if node_modules were named node_modules. We test with override to avoid relying
     // on real node_modules layout.
     const deepDir = path.join(fixturesDir, 'some', 'deep', 'path');

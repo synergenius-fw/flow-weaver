@@ -357,7 +357,7 @@ export function parseReturnTypeFieldsWithTypes(functionText: string): Array<{ na
 /**
  * Split object type fields by comma or semicolon, respecting nested angle brackets,
  * square brackets, braces, and parentheses.
- * e.g. "report: Record<string, unknown>; count: number" → ["report: Record<string, unknown>", "count: number"]
+ * e.g. "report: Record<string, unknown>, count: number" → ["report: Record<string, unknown>", "count: number"]
  */
 function splitObjectFields(content: string): string[] {
   const result: string[] = [];

@@ -55,7 +55,7 @@ export async function migrateCommand(
       const parseResult = await parseWorkflow(filePath);
 
       if (parseResult.errors.length > 0) {
-        logger.error(`  ${file}: parse errors — skipping`);
+        logger.error(`  ${file}: parse errors, skipping`);
         parseResult.errors.forEach((err) => logger.error(`    ${err}`));
         errorCount++;
         continue;

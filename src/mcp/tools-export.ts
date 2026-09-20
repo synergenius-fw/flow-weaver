@@ -21,7 +21,7 @@ export function registerExportTools(mcp: McpServer): void {
       filePath: z.string().describe('Path to the workflow .ts file'),
       target: z
         .string()
-        .describe('Deployment target name. Targets come from installed packs; an unknown name returns INVALID_TARGET listing the installed ones.'),
+        .describe('Deployment target name. Targets come from installed packs. An unknown name returns INVALID_TARGET listing the installed ones.'),
       outputDir: z.string().optional().describe('Output directory for generated files (default: ./dist relative to workflow)'),
       serviceName: z
         .string()

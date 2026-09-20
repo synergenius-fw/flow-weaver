@@ -42,7 +42,7 @@ function ServerSettings({ s, running, onDone }: { s: ServeSettings; running: boo
   const set = (patch: Partial<ServeSettings>) => setF((cur) => ({ ...cur, ...patch }));
   const save = async () => {
     setBusy(true); setError('');
-    try { await saveServiceSettings('serve', f); toast(running ? 'saved · restart to apply' : 'saved'); onDone(); }
+    try { await saveServiceSettings('serve', f); toast(running ? 'saved, restart to apply' : 'saved'); onDone(); }
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -57,8 +57,8 @@ function ServerSettings({ s, running, onDone }: { s: ServeSettings; running: boo
         <div class="field"><label>auth</label><Select value={f.auth} options={[{ value: 'token', label: 'bearer token, generated at start' }, { value: 'open', label: 'open (loopback only)' }]} onChange={(v) => set({ auth: v as 'token' | 'open' })} /></div>
       </div>
       <div class="opts">
-        {check('agents', 'agent profiles answer agent gates', 'Off: agent gates wait for a person')}
-        {check('trace', 'keep a step trace per run', 'What the run pages show step by step; costs a debug build')}
+        {check('agents', 'agent profiles answer agent gates', 'Off: agent gates wait for a person or an assistant')}
+        {check('trace', 'keep a step trace per run', 'What the run pages show step by step. Costs a debug build')}
         {check('swagger', 'Swagger UI at /docs', 'The page and /openapi.json readable without the token')}
         {check('dev', 'dev: stacks in errors, mocks accepted, callbacks to localhost', 'Never in production')}
         {check('autoStart', 'start with the console', 'Bring the server up whenever the console opens this project')}
@@ -90,7 +90,7 @@ export function ServerCard() {
       <h3>
         <span class={`sdot ${up ? 'ok' : s.state === 'starting' ? 'warn' : s.error ? 'bad' : ''}`} />
         Server
-        <span class="hint">{STATE_WORD[s.state]}{up && s.startedAt ? ` · since ${since(s.startedAt)}` : ''}{up && !s.owned ? ' · started from a terminal' : ''}</span>
+        <span class="hint">{STATE_WORD[s.state]}{up && s.startedAt ? `, since ${since(s.startedAt)}` : ''}{up && !s.owned ? ', started from a terminal' : ''}</span>
         <span class="sp" />
         {s.state !== 'running' && s.state !== 'starting' && <button class="btn primary sm" disabled={!!busy} onClick={() => act('start', () => startService('serve'))}>{busy === 'start' ? 'Starting…' : 'Start'}</button>}
         {(up || s.state === 'starting') && <button class="btn sm" disabled={!!busy} onClick={() => act('stop', () => stopService('serve', s.owned ? undefined : s.pid))}>{busy === 'stop' ? 'Stopping…' : 'Stop'}</button>}
@@ -103,9 +103,9 @@ export function ServerCard() {
         <div class="in svcline">
           <a class="mono" href={s.url} target="_blank" rel="noreferrer">{s.url}</a>
           <button class="linkish" onClick={() => copy(s.url ?? '')}>copy</button>
-          {s.token && <span class="hint">· token <code title={s.token}>{s.token.slice(0, 6)}…</code> <button class="linkish" onClick={() => copy(s.token!, 'token copied')}>copy</button></span>}
-          {!s.token && s.owned && <span class="hint">· open, no token</span>}
-          {s.activity && <span class="hint">· {s.activity.count} request{s.activity.count === 1 ? '' : 's'}{s.activity.last ? `, last ${s.activity.last} ${since(s.activity.at)}` : ''}</span>}
+          {s.token && <span class="hint">token <code title={s.token}>{s.token.slice(0, 6)}…</code> <button class="linkish" onClick={() => copy(s.token!, 'token copied')}>copy</button></span>}
+          {!s.token && s.owned && <span class="hint">open, no token</span>}
+          {s.activity && <span class="hint">{s.activity.count} request{s.activity.count === 1 ? '' : 's'}{s.activity.last ? `, last ${s.activity.last} ${since(s.activity.at)}` : ''}</span>}
         </div>
       )}
       {!up && s.state !== 'starting' && (
@@ -120,7 +120,7 @@ export function ServerCard() {
           <h5>Also running for this project</h5>
           {s.others.map((o) => (
             <div class="svcother" key={o.pid}>
-              <span class="mono">{o.url ?? `pid ${o.pid}`}</span><span class="hint"> · pid {o.pid} · v{o.version} · since {since(o.startedAt)}</span>
+              <span class="mono">{o.url ?? `pid ${o.pid}`}</span><span class="hint"> (pid {o.pid}, v{o.version}, since {since(o.startedAt)})</span>
               <span class="sp" /><button class="btn ghost sm" onClick={() => act(`stop-${o.pid}`, () => stopService('serve', o.pid))}>Stop</button>
             </div>
           ))}
@@ -167,27 +167,36 @@ export function ProjectView() {
   const [r, setR] = useState<Report | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [runCount, setRunCount] = useState<number | null>(null);
   const load = () => {
     setBusy(true); setError('');
     Promise.all([
       get<Report>('/api/status').then(setR),
+      get<unknown[]>('/api/runs').then((rows) => setRunCount(rows.length)).catch(() => setRunCount(null)),
       loadServices(), loadAgents().catch(() => undefined), loadEndpoints().catch(() => undefined),
     ]).catch((e: Error) => setError(e.message)).finally(() => setBusy(false));
   };
   useEffect(() => { if (view.value.kind === 'project') load(); }, [view.value.kind]);
   if (view.value.kind !== 'project') return null;
   const waiting = workflows.value.reduce((n, w) => n + w.waiting, 0);
-  const errors = workflows.value.reduce((n, w) => n + w.errors, 0);
+  const broken = workflows.value.filter((w) => w.errors > 0);
+  const errors = broken.length;
   const a = agents.value;
   const ready = a?.agents.filter((p) => p.ready).length ?? 0;
   const e = endpoints.value;
   const routes = e?.workflows.reduce((n, w) => n + w.routes.length, 0) ?? 0;
   void runs.value;
+  // Nothing has run yet: the page leads with a workflow to run, not with the
+  // plumbing around it. A project that has runs knows its way around.
+  const fresh = runCount === 0 && workflows.value.length > 0;
+  const first = workflows.value.find((w) => w.errors === 0) ?? workflows.value[0];
+  const runFirst = async () => { await selectWorkflow(first.file, first.name); ui.side.value = 'run'; };
+  const named = (list: typeof broken) => list.slice(0, 3).map((w) => w.name).join(', ') + (list.length > 3 ? ` and ${list.length - 3} more` : '');
   return (
     <div class="docview projectview">
       <div class="dochead">
         <h1>{project.value.name || 'Project'}</h1>
-        <p class="lede">{workflows.value.length} workflow{workflows.value.length === 1 ? '' : 's'}{errors ? <>, <span class="bad">{errors} with errors</span></> : ''}{waiting ? <>, <b>{waiting} waiting at a gate</b></> : ''}. Its server, endpoints, agents and environment, and the controls for them.</p>
+        <p class="lede">{workflows.value.length} workflow{workflows.value.length === 1 ? '' : 's'}{errors ? <>, <span class="bad">{errors} with errors</span> ({named(broken)})</> : ''}{waiting ? <>, <b>{waiting} waiting at a gate</b></> : ''}. {fresh ? 'Nothing has run yet.' : 'Its server, endpoints, agents and environment, and the controls for them.'}</p>
         <div class="docactions">
           <button class="btn sm" disabled={busy} onClick={load}>{busy ? 'Checking…' : 'Check again'}</button>
           <button class="btn sm" onClick={() => stageCli('fw doctor')}>▶ fw doctor</button>
@@ -196,6 +205,19 @@ export function ProjectView() {
         </div>
       </div>
       {error && <div class="card"><div class="in" style="color:var(--err)">{error}</div></div>}
+
+      {fresh && first && (
+        <div class="card starthere">
+          <h3><span class="ms">play_arrow</span>Start here</h3>
+          <div class="in">
+            <p>Every workflow on the left is a process you can run from this page: fill its parameters, watch each step, answer its gates. Try one now.</p>
+            <div class="formfoot">
+              <button class="btn primary" onClick={() => void runFirst()}>Run {first.name}</button>
+              <span class="hint">{first.steps} step{first.steps === 1 ? '' : 's'}{first.gates ? `, ${first.gates} gate${first.gates === 1 ? '' : 's'}` : ''}. Or pick another in the list.</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ServerCard />
 
@@ -211,7 +233,7 @@ export function ProjectView() {
           <h3><span class="ms">smart_toy</span>Agents<span class="sp" /><span class="ms go">chevron_right</span></h3>
           <div class="in">
             <div class="big">{a ? `${ready}/${a.agents.length}` : '…'}</div>
-            <div class="hint">{a ? (a.agents.length ? `profile${a.agents.length === 1 ? '' : 's'} ready${a.default ? `, default ${a.default}` : ', no default'}` : 'no profile; agent gates wait for a person') : 'reading'}</div>
+            <div class="hint">{a ? (a.agents.length ? `profile${a.agents.length === 1 ? '' : 's'} ready${a.default ? `, default ${a.default}` : ', no default'}` : 'no profile, agent gates wait for you or an assistant') : 'reading'}</div>
           </div>
         </button>
         <WatchCard />
@@ -245,7 +267,7 @@ export function ProjectView() {
               <span class="k">version</span><span class="val static">{r.console.version}</span>
               <span class="k">install</span><span class="val static mono">{r.console.install}</span>
               <span class="k">project</span><span class="val static mono">{r.console.project}</span>
-              <span class="k">listening</span><span class="val static mono">{r.console.url}{r.console.watching ? ' · watching files' : ' · not watching'}</span>
+              <span class="k">listening</span><span class="val static mono">{r.console.url}{r.console.watching ? ', watching files' : ', not watching'}</span>
               <span class="k">run store</span><span class="val static mono">{r.console.runsDir}</span>
             </div></div>
           </div>
@@ -255,8 +277,8 @@ export function ProjectView() {
               <div class="check-row" key={g.url}>
                 <Dot ok={g.ok} />
                 <div>
-                  <b>{host(g.url)}</b>{g.scopes.length ? <span class="hint"> · {g.scopes.join(' ')}</span> : <span class="hint"> · default</span>}
-                  <div class="hint">{g.ok ? (g.user ? `signed in as ${g.user}` : g.authenticated ? 'answers · token not accepted' : 'answers · no token') : (g.error ?? `status ${g.status}`)}{g.ms != null ? ` · ${ms(g.ms)}` : ''}</div>
+                  <b>{host(g.url)}</b>{g.scopes.length ? <span class="hint"> for {g.scopes.join(' ')}</span> : <span class="hint"> (default)</span>}
+                  <div class="hint">{g.ok ? (g.user ? `signed in as ${g.user}` : g.authenticated ? 'answers, token not accepted' : 'answers, no token') : (g.error ?? `status ${g.status}`)}{g.ms != null ? `, ${ms(g.ms)}` : ''}</div>
                 </div>
               </div>
             ))}</div>
@@ -278,7 +300,7 @@ export function ProjectSide() {
   const Row = ({ r, what }: { r: RunRow; what: string }) => (
     <button class="runrow" onClick={() => open(r)}>
       <span class={`rdot ${r.status}`} />
-      <span class="what">{r.name} · {what}{r.origin && r.origin !== 'console' && <small class="origin">{r.origin}</small>}</span>
+      <span class="what">{r.name}: {what}{r.origin && r.origin !== 'console' && <small class="origin">{r.origin}</small>}</span>
       <span class="right">{ago(r.updatedAt)}</span>
     </button>
   );
@@ -302,7 +324,7 @@ export function ProjectSide() {
         )}
         <div class="card">
           <h3>Where things live</h3>
-          <div class="in hint">Runs made here, over the server and by an assistant are the same runs. A gate reached anywhere is answered here. <button class="linkish" onClick={() => openDoc('console')}>The console</button> · <button class="linkish" onClick={() => openDoc('deployment', 'http-serve-mode')}>The server</button></div>
+          <div class="in hint">Runs made here, over the server and by an assistant are the same runs. A gate reached anywhere is answered here. <button class="linkish" onClick={() => openDoc('console')}>The console</button>, or <button class="linkish" onClick={() => openDoc('deployment', 'http-serve-mode')}>the server</button></div>
         </div>
       </div>
     </>

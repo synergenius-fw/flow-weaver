@@ -5,11 +5,11 @@
 import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 export interface FwMockConfig {
-  /** Mock event data keyed by event name. Used by waitForEvent; answers the gate without pausing. */
+  /** Mock event data keyed by event name. Used by waitForEvent to answer the gate without pausing. */
   events?: Record<string, object>;
   /** Mock invocation results keyed by functionId. Used by invokeWorkflow. */
   invocations?: Record<string, object>;
-  /** Mock agent results keyed by agentId. Used by waitForAgent; answers the gate without pausing. */
+  /** Mock agent results keyed by agentId. Used by waitForAgent to answer the gate without pausing. */
   agents?: Record<string, object>;
   /**
    * An answer for any durable gate, keyed by the node's instance id: the

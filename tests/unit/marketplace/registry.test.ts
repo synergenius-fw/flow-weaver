@@ -272,7 +272,7 @@ describe('listInstalledPackages', () => {
 
     await listInstalledPackages('/project');
 
-    // Called once per pattern (unscoped and scoped); the manifest is the identity.
+    // Called once per pattern (unscoped and scoped). The manifest is the identity.
     expect(mockGlob).toHaveBeenCalledTimes(2);
     const patterns = mockGlob.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(patterns).toContain('/project/node_modules/*/flowweaver.manifest.json');

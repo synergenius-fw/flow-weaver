@@ -20,7 +20,7 @@ import { removeNode, renameNode } from '../../src/api/manipulation/nodes';
 /**
  * Simple 3-node linear path: Start -> validator -> transformer -> Exit
  * validator outputs: message, score
- * transformer inputs: message, score; outputs: message, score
+ * transformer inputs: message, score. Outputs: message, score
  */
 function simplePathSource(extra = '') {
   return `

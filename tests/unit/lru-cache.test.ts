@@ -89,7 +89,7 @@ describe('LRUCache', () => {
       // Access 'a' to promote it
       cache.get('a');
 
-      // Insert 'd' — should evict 'b' (now oldest), not 'a'
+      // Insert 'd', should evict 'b' (now oldest), not 'a'
       cache.set('d', 4);
       expect(cache.get('a')).toBe(1);
       expect(cache.get('b')).toBeUndefined();
@@ -106,7 +106,7 @@ describe('LRUCache', () => {
       // Overwrite 'a' to promote it
       cache.set('a', 10);
 
-      // Insert 'd' — should evict 'b', not 'a'
+      // Insert 'd', should evict 'b', not 'a'
       cache.set('d', 4);
       expect(cache.get('a')).toBe(10);
       expect(cache.get('b')).toBeUndefined();

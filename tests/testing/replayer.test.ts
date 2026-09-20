@@ -297,7 +297,7 @@ describe('createReplayProvider', () => {
       // Step 3: Replay
       const replay = createReplayProvider(loaded);
 
-      const rr1 = await replay.chat([userMsg('different input — doesnt matter')]);
+      const rr1 = await replay.chat([userMsg('different input, does not matter')]);
       const rr2 = await replay.chat([userMsg('also different')]);
 
       // Responses should match originals exactly

@@ -26,7 +26,7 @@ function autoApprove(): { decision: string } {
 }
 
 /**
- * Never called; the compiler replaces this gate with a durable yield.
+ * Never called. The compiler replaces this gate with a durable yield.
  *
  * @flowWeaver nodeType
  * @durableGate approval

@@ -10,7 +10,7 @@ import {
   isValidPortLine,
 } from '../../src/chevrotain-parser/port-parser';
 
-// Shared warnings array — reset per test isn't needed since we don't assert on it here
+// Shared warnings array. Reset per test isn't needed since we don't assert on it here
 const w: string[] = [];
 
 describe('Chevrotain Port Parser', () => {

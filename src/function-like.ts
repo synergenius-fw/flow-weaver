@@ -59,16 +59,16 @@ function wrapFunctionDeclaration(fn: FunctionDeclaration): FunctionLike {
  * Scan a source file and return every function-like declaration that could
  * carry @flowWeaver annotations:
  *
- *  1. Classic `function foo() {}`         — FunctionDeclaration (existing)
- *  2. `const foo = () => {}`              — ArrowFunction assigned to variable
- *  3. `const foo = function() {}`         — FunctionExpression assigned to variable
+ *  1. Classic `function foo() {}`         : FunctionDeclaration (existing)
+ *  2. `const foo = () => {}`              : ArrowFunction assigned to variable
+ *  3. `const foo = function() {}`         : FunctionExpression assigned to variable
  *
  * The returned list preserves source order.
  */
 export function extractFunctionLikes(sourceFile: SourceFile): FunctionLike[] {
   const results: FunctionLike[] = [];
 
-  // 1. Regular function declarations — wrapped to satisfy getTypeResolutionNode()
+  // 1. Regular function declarations, wrapped to satisfy getTypeResolutionNode()
   for (const fn of sourceFile.getFunctions()) {
     results.push(wrapFunctionDeclaration(fn));
   }

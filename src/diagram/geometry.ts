@@ -29,8 +29,8 @@ export const SCOPE_PADDING_Y = 40;         // vertical padding inside scope (top
 export const SCOPE_PORT_COLUMN = 45;     // matches platform scopeContainerStyle minWidth/maxWidth
 export const SCOPE_INNER_GAP_X = 240;    // horizontal gap between children inside scope
 
-// Routing mode threshold — connections longer than this use orthogonal routing
-// (midpoint of original 250–350 hysteresis thresholds)
+// Routing mode threshold. Connections longer than this use orthogonal routing.
+// (midpoint of original 250 to 350 hysteresis thresholds)
 export const ORTHOGONAL_DISTANCE_THRESHOLD = 300;
 
 // Connections beyond this x-distance show as stubs only (no full path).
@@ -41,7 +41,7 @@ export const STUB_DISTANCE_THRESHOLD = 500;
 // Stub length for long-distance connections (short segment from port center outward)
 export const STUB_LENGTH = 30;
 
-// ---- Font metrics (Montserrat 600-weight, 10px — measured via SVG getBBox) ----
+// ---- Font metrics (Montserrat 600-weight, 10px, measured via SVG getBBox) ----
 
 const CHAR_WIDTHS: Record<string, number> = {
   ' ': 2.78, '!': 3.34, '"': 4.74, '#': 5.56, '$': 5.56, '%': 8.9, '&': 7.23,

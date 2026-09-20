@@ -70,7 +70,7 @@ export function impliedPathDataEdges(steps: readonly PathStepRef[], ports: PathP
 /**
  * The data edges implied for one step, `steps[stepIndex]`, from the steps
  * before it. The parser calls this per consecutive pair so that the data
- * edges of a step are added right after its control-flow edge; connection
+ * edges of a step are added right after its control-flow edge. Connection
  * order is part of a workflow's graph fingerprint and must stay stable.
  */
 export function impliedPathDataEdgesInto(

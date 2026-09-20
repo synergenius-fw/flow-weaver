@@ -19,7 +19,7 @@ describe('Windows ESM import compatibility', () => {
   it('deployment/index.ts uses pathToFileURL for dynamic imports', () => {
     const source = fs.readFileSync(path.join(SRC_ROOT, 'deployment/index.ts'), 'utf8');
     expect(source).toContain("import { pathToFileURL } from 'url'");
-    // Should NOT have bare import(filePath) — must use pathToFileURL
+    // Should NOT have bare import(filePath): must use pathToFileURL
     expect(source).toContain('pathToFileURL(filePath).href');
     expect(source).not.toMatch(/await import\(filePath\)/);
   });

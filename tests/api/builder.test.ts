@@ -1,6 +1,6 @@
 /**
- * Comprehensive tests for Builder API
- * Tests the fluent WorkflowBuilder class and factory functions
+ * Tests for the Builder API
+ * Covers the fluent WorkflowBuilder class and factory functions
  */
 
 import {

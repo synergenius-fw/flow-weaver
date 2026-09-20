@@ -4,9 +4,9 @@
  * Flow Weaver ships no browser. Every Chromium-family browser prints a page
  * to PDF headlessly, and one is on most machines that build software, so the
  * brief's PDF is that: the print rendering written to a file and printed by
- * Chrome, Chromium, Edge or Brave. `FW_BROWSER` names one explicitly; without
+ * Chrome, Chromium, Edge or Brave. `FW_BROWSER` names one explicitly. Without
  * it the usual install locations are tried. When none is found the error
- * says so and what to do -- the HTML brief prints to PDF from any browser.
+ * says so and what to do: the HTML brief prints to PDF from any browser.
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -17,7 +17,7 @@ import { pathToFileURL } from 'node:url';
 export class BrowserNotFoundError extends Error {
   readonly name = 'BrowserNotFoundError';
   constructor() {
-    super('No Chromium-family browser found to print the PDF. Install Chrome, Chromium, Edge or Brave, or point FW_BROWSER at one; or open the HTML brief and print it to PDF from any browser.');
+    super('No Chromium-family browser found to print the PDF. Install Chrome, Chromium, Edge or Brave, or point FW_BROWSER at one. You can also open the HTML brief and print it to PDF from any browser.');
   }
 }
 

@@ -1,6 +1,6 @@
 /**
  * Which parameter feeds which input, and which output becomes which return
- * value. The process model stops at the step level; a person clicking
+ * value. The process model stops at the step level. A person clicking
  * `Start` or `Exit` in the console wants the port level.
  */
 import path from 'node:path';

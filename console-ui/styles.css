@@ -350,8 +350,15 @@ h5.fold { display: flex; align-items: center; gap: 8px; cursor: pointer; user-se
 .gatecard .gh b { color: var(--gate); font-weight: 500; }
 .gatecard section { padding: 10px 12px; }
 .gatecard section + section { border-top: 1px solid var(--line); }
+/* What is being asked, in the author's words: the gate function's description. */
+.gatecard .asked { font-size: 13px; line-height: 1.5; color: var(--fg); white-space: pre-line; }
+/* The Project page's first card when nothing has run yet. */
+.card.starthere p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--dim); }
+.card.starthere .formfoot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; align-items: baseline; }
 .kv .k { color: var(--dim); font-family: var(--mono); font-size: 11.5px; }
+/* The author's words for a handed-over value, under the pair. */
+.kv .khelp { grid-column: 1 / -1; font-size: 11px; color: var(--faint); margin: -3px 0 3px; line-height: 1.4; }
 .val { font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; word-break: break-word; cursor: pointer; }
 .val.static { cursor: default; }
 .val .sz { color: var(--faint); margin-left: 6px; font-size: 10.5px; }

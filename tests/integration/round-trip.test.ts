@@ -40,7 +40,7 @@ describe("Round-trip Tests", () => {
     }
     delete normalized.sourceFile;
 
-    // Remove macros — @path sugar is semantically equivalent to explicit connections
+    // Remove macros (@path sugar is semantically equivalent to explicit connections)
     delete normalized.macros;
 
     // Remove functionText, metadata, and path from nodes

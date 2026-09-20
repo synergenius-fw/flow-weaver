@@ -177,7 +177,7 @@ function formatText(diff: TWorkflowDiff): string {
     lines.push('  CHANGE DETAILS');
     lines.push('  ───────────────────────────────────────────────────────────');
     for (const reason of reasons) {
-      lines.push(`  • ${reason}`);
+      lines.push(`  - ${reason}`);
     }
     lines.push('');
   }

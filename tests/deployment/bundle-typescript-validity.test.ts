@@ -16,7 +16,7 @@ import { execSync } from 'child_process';
 import { parseWorkflow } from '../../src/api/parse';
 import { generateCode } from '../../src/api/generate';
 
-// Resolve tsc via Node module resolution — works in worktrees where
+// Resolve tsc via Node module resolution. Works in worktrees where
 // node_modules may live in a parent directory rather than __dirname/../../
 const TSC_PATH = (() => {
   try {

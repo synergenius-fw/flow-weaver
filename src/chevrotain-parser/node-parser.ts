@@ -228,13 +228,13 @@ class NodeParser extends CstParser {
     this.CONSUME(StringLiteral, { LABEL: 'iconValue' });
   });
 
-  // job: "value" — CI/CD job group
+  // job: "value" (CI/CD job group)
   private jobAttr = this.RULE('jobAttr', () => {
     this.CONSUME(JobPrefix);
     this.CONSUME(StringLiteral, { LABEL: 'jobValue' });
   });
 
-  // environment: "value" — CI/CD deployment environment
+  // environment: "value" (CI/CD deployment environment)
   private environmentAttr = this.RULE('environmentAttr', () => {
     this.CONSUME(EnvironmentAttrPrefix);
     this.CONSUME(StringLiteral, { LABEL: 'environmentValue' });

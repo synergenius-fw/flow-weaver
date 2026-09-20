@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Marketplace commands — init, pack, publish, install, search, list
+ * Marketplace commands: init, pack, publish, install, search, list
  */
 
 import * as fs from 'fs';
@@ -185,7 +185,7 @@ fw market install ${name}
 
 ### Node Types
 
-- **Sample** — A sample node type in src/node-types/sample.ts; add yours beside it and re-export them from src/index.ts
+- **Sample**: a sample node type in src/node-types/sample.ts. Add yours beside it and re-export them from src/index.ts
 
 ## Development
 
@@ -292,7 +292,7 @@ export async function marketPackCommand(directory?: string, options: MarketPackO
   logger.success(`Manifest written to ${path.relative(dir, outPath)}`);
 
   if (warnings.length > 0) {
-    logger.warn(`${warnings.length} warning(s) — consider fixing before publishing`);
+    logger.warn(`${warnings.length} warning(s). Consider fixing before publishing`);
   }
 
   logger.newline();
@@ -319,7 +319,7 @@ export async function marketPublishCommand(directory?: string, options: MarketPu
 
   // 2. Pre-publish checks
   if (!fs.existsSync(path.join(dir, 'LICENSE'))) {
-    logger.warn('LICENSE file not found — consider adding one');
+    logger.warn('LICENSE file not found. Consider adding one');
   }
 
   const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
@@ -549,7 +549,7 @@ function displayManifestSummary(manifest: TMarketplaceManifest): void {
   if (manifest.nodeTypes.length > 0) {
     logger.log('  Node Types:');
     for (const nt of manifest.nodeTypes) {
-      const desc = nt.description ? ` — ${nt.description}` : '';
+      const desc = nt.description ? `: ${nt.description}` : '';
       logger.log(`    - ${nt.name}${desc}`);
     }
   }
@@ -557,7 +557,7 @@ function displayManifestSummary(manifest: TMarketplaceManifest): void {
   if (manifest.workflows.length > 0) {
     logger.log('  Workflows:');
     for (const wf of manifest.workflows) {
-      const desc = wf.description ? ` — ${wf.description}` : '';
+      const desc = wf.description ? `: ${wf.description}` : '';
       logger.log(`    - ${wf.name}${desc}`);
     }
   }
@@ -565,7 +565,7 @@ function displayManifestSummary(manifest: TMarketplaceManifest): void {
   if (manifest.patterns.length > 0) {
     logger.log('  Patterns:');
     for (const pat of manifest.patterns) {
-      const desc = pat.description ? ` — ${pat.description}` : '';
+      const desc = pat.description ? `: ${pat.description}` : '';
       logger.log(`    - ${pat.name}${desc}`);
     }
   }

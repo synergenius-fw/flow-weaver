@@ -1,5 +1,5 @@
 /**
- * Implement command — replaces a stub node with a real function skeleton
+ * Implement command: replaces a stub node with a real function skeleton
  */
 
 import * as fs from 'fs';

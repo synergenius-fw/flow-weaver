@@ -582,35 +582,35 @@ The three `@durable…` tags are a closed classification: once a workflow's reac
 
 Named colors adapt to the diagram theme (dark/light). You can also pass any hex color directly (e.g. `@color "#ff6b35"`).
 
-`blue` · `purple` · `cyan` · `orange` · `pink` · `green` · `red` · `yellow` · `teal` (alias for cyan)
+`blue`, `purple`, `cyan`, `orange`, `pink`, `green`, `red`, `yellow`, `teal` (alias for cyan)
 
 ## Available Icons
 
 Any [Material Symbols](https://fonts.google.com/icons) name is valid, in the font's `snake_case` or in `camelCase` (`swap_horiz` and `swapHoriz` are the same icon). The console draws the icon from the font; the SVG artifacts draw the icons in the visual-reference table with a path and any other as a dot.
 
-**AI & ML:** `psychology` · `smartToy` · `autoAwesome` · `modelTraining` · `science` · `biotech`
+**AI & ML:** `psychology`, `smartToy`, `autoAwesome`, `modelTraining`, `science`, `biotech`
 
-**Data & storage:** `database` · `dataObject` · `tableChart` · `token` · `storage` · `memory`
+**Data & storage:** `database`, `dataObject`, `tableChart`, `token`, `storage`, `memory`
 
-**Cloud & network:** `api` · `webhook` · `cloudSync` · `cloudUpload` · `cloudDownload` · `dns` · `router` · `http` · `link`
+**Cloud & network:** `api`, `webhook`, `cloudSync`, `cloudUpload`, `cloudDownload`, `dns`, `router`, `http`, `link`
 
-**Security & auth:** `key` · `shield` · `vpnKey` · `verified` · `security` · `policy` · `adminPanelSettings`
+**Security & auth:** `key`, `shield`, `vpnKey`, `verified`, `security`, `policy`, `adminPanelSettings`
 
-**Logic & flow:** `altRoute` · `callSplit` · `callMerge` · `rule` · `filterAlt` · `repeat` · `sort`
+**Logic & flow:** `altRoute`, `callSplit`, `callMerge`, `rule`, `filterAlt`, `repeat`, `sort`
 
-**Actions & status:** `bolt` · `build` · `rocketLaunch` · `send` · `sync` · `refresh`
+**Actions & status:** `bolt`, `build`, `rocketLaunch`, `send`, `sync`, `refresh`
 
-**Communication:** `notifications` · `email` · `campaign`
+**Communication:** `notifications`, `email`, `campaign`
 
-**Scheduling:** `event` · `schedule` · `timer`
+**Scheduling:** `event`, `schedule`, `timer`
 
-**General tools:** `terminal` · `settings` · `tune` · `search` · `save` · `upload` · `download` · `edit` · `delete`
+**General tools:** `terminal`, `settings`, `tune`, `search`, `save`, `upload`, `download`, `edit`, `delete`
 
-**Status:** `checkCircle` · `error` · `warning` · `info` · `help` · `visibility`
+**Status:** `checkCircle`, `error`, `warning`, `info`, `help`, `visibility`
 
-**Files:** `folder` · `description` · `attachFile`
+**Files:** `folder`, `description`, `attachFile`
 
-**Structural:** `code` (default) · `flow` (workflow nodes) · `startNode` · `exitNode`
+**Structural:** `code` (default), `flow` (workflow nodes), `startNode`, `exitNode`
 
 ---
 

@@ -365,7 +365,7 @@ describe('Scope Function Generator', () => {
         false,
       );
 
-      // success/failure should be read from child node's onSuccess/onFailure — NOT hardcoded
+      // success/failure should be read from child node's onSuccess/onFailure, NOT hardcoded
       expect(code).toContain('scopeReturn_success');
       expect(code).toContain('scopeReturn_failure');
       // Should use hasVariable check (safe for expression nodes that don't set onSuccess/onFailure)

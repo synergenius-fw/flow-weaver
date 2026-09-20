@@ -3,7 +3,7 @@
  *
  * Each rule is a free function taking a ValidationContext (the mutable
  * errors/warnings arrays + mode flags) plus the workflow and any precomputed
- * maps. They were previously private methods of WorkflowValidator; extracting
+ * maps. They were previously private methods of WorkflowValidator. Extracting
  * them behind an explicit context removes the god-class while preserving
  * behavior exactly (same logic, same emission order). WorkflowValidator.validate()
  * builds the context and invokes these in a fixed order.
@@ -353,7 +353,7 @@ export function validateTypeCompatibility(
       return;
     }
 
-    // Block coercion on FUNCTION ports — coercing a function value is nonsensical
+    // Block coercion on FUNCTION ports, since coercing a function value is nonsensical
     if (conn.coerce && (sourceType === 'FUNCTION' || targetType === 'FUNCTION')) {
       ctx.errors.push({
         type: 'error',
@@ -372,7 +372,7 @@ export function validateTypeCompatibility(
         ctx.warnings.push({
           type: 'warning',
           code: 'REDUNDANT_COERCE',
-          message: `Coercion \`as ${conn.coerce}\` on connection "${fromNode}.${fromPort}" → "${toNode}.${toPort}" is redundant — source and target are both ${sourceType}.`,
+          message: `Coercion \`as ${conn.coerce}\` on connection "${fromNode}.${fromPort}" → "${toNode}.${toPort}" is redundant because source and target are both ${sourceType}.`,
           connection: conn,
           location: connLocation,
         });

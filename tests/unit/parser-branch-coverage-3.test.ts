@@ -1830,7 +1830,7 @@ describe('parser branch coverage 3', () => {
         '}',
       ].join('\n');
       const result = parser.generateAnnotationSuggestion(code, 4);
-      // Only 1 node, so no structure suggestions; if no missing ports => null
+      // Only 1 node, so no structure suggestions. If no missing ports => null
       // Could still suggest ports though
       expect(result === null || typeof result.text === 'string').toBe(true);
     });

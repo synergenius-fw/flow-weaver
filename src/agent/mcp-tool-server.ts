@@ -13,11 +13,11 @@
  *   Request:  {"name":"fw_run_command","args":{"command":"ls"}}
  *   Response: {"result":"...","isError":false}
  *
- * IMPORTANT — Transport compatibility:
+ * IMPORTANT (transport compatibility):
  *   Claude Code CLI v2.1.76+ uses NDJSON (newline-delimited JSON) for MCP
  *   stdio, NOT the Content-Length framing from the MCP SDK spec. This server
  *   auto-detects the transport on the first stdin chunk: if the first
- *   non-whitespace character is '{', it uses NDJSON; otherwise Content-Length.
+ *   non-whitespace character is '{', it uses NDJSON. Otherwise Content-Length.
  *   Responses match the detected format.
  *
  *   The CLI also sends protocolVersion "2025-11-25" (not the spec's
@@ -82,7 +82,7 @@ function callTool(
 // ---------------------------------------------------------------------------
 
 // Auto-detect transport: NDJSON (newline-delimited) or Content-Length framed.
-// Claude Code CLI uses NDJSON; standard MCP SDK uses Content-Length.
+// Claude Code CLI uses NDJSON. Standard MCP SDK uses Content-Length.
 let useNdjson = false;
 let transportDetected = false;
 
@@ -159,7 +159,7 @@ async function handleMessage(msg: {
     return;
   }
 
-  // Unknown method — return empty result for requests, ignore notifications
+  // Unknown method: return empty result for requests, ignore notifications
   if (id !== undefined) {
     send({ jsonrpc: '2.0', id, result: {} });
   }

@@ -2,8 +2,8 @@
  * Node-type extraction and inference, extracted from AnnotationParser (debt #5 / PR-A).
  *
  * extractNodeTypes walks a source file's @flowWeaver-annotated (and inferable)
- * functions into TNodeTypeAST[]; the infer* functions derive node types from
- * bare function signatures (expression mode); hasFlowWeaverAnnotation detects
+ * functions into TNodeTypeAST[]. The infer* functions derive node types from
+ * bare function signatures (expression mode), and hasFlowWeaverAnnotation detects
  * the annotation. These form a closed, near-stateless group: they call only each
  * other, and the sole instance dependency (the tag-handler registry, used by
  * extractNodeTypes) is now passed as an explicit parameter. Extracting them as
@@ -74,7 +74,7 @@ export function extractNodeTypes(
           ...(portDef.tsType && { tsType: portDef.tsType }),
           // The fan-in strategy is what lets the validator accept several
           // connections into this port and tells the generator how to combine
-          // them; dropping it here silently turned every strategy into FIRST.
+          // them. Dropping it here silently turned every strategy into FIRST.
           ...(portDef.mergeStrategy && { mergeStrategy: portDef.mergeStrategy }),
         };
       }
@@ -94,7 +94,7 @@ export function extractNodeTypes(
       }
     }
 
-    // Ambient declarations (declare function) are stub nodes — interface only, no implementation.
+    // Ambient declarations (declare function) are stub nodes: interface only, no implementation.
     // Force expression mode so ports are inferred from the TypeScript signature.
     const isStub = fn.isAmbient?.() ?? false;
     if (isStub) {
@@ -107,7 +107,7 @@ export function extractNodeTypes(
     //   - none explicit           -> the inferred ports
     //   - explicit ⊂ inferred     -> a partial annotation: the inferred ports,
     //                                with each explicit one overlaid (label,
-    //                                order, strategy, optional, default; a
+    //                                order, strategy, optional, default, and a
     //                                specific dataType wins over an inferred
     //                                one, ANY does not)
     //   - explicit covers every inferred port, or names one the signature

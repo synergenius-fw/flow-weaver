@@ -7,7 +7,7 @@ import { Markdown } from './Markdown';
  * A topic in the centre of the console.
  *
  * The rail names it, the right pane lists its sections and what in the
- * project it touches; this is the page itself. Scrolling keeps the
+ * project it touches. This is the page itself. Scrolling keeps the
  * contents list in step, and opening an anchor lands on it.
  */
 export function DocView() {

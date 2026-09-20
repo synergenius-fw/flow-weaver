@@ -1,6 +1,6 @@
 /**
- * Comprehensive tests for Manipulation API
- * Tests all 27 manipulation functions with various scenarios
+ * Tests for the Manipulation API
+ * Covers all 27 manipulation functions across various scenarios
  */
 
 import {

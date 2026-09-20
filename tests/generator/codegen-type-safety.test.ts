@@ -1,5 +1,5 @@
 /**
- * Comprehensive tests for compiler codegen type-safety.
+ * Tests for compiler codegen type-safety.
  *
  * Tests that generated code compiles under `tsc --strict` when node types
  * are imported from separate files (cross-file compilation).

@@ -1,5 +1,5 @@
 /**
- * Manifest generation — converts parsed ASTs into a flowweaver.manifest.json file.
+ * Manifest generation: converts parsed ASTs into a flowweaver.manifest.json file.
  *
  * The manifest mirrors AST types so the editor can consume it directly
  * without re-parsing source files.

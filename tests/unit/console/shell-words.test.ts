@@ -30,7 +30,7 @@ describe('splitArgs', () => {
   });
 
   it('does not expand anything', () => {
-    // A glob stays a glob; the CLI decides what it means.
+    // A glob stays a glob. The CLI decides what it means.
     expect(splitArgs("fw compile '**/*.ts'")).toEqual(['fw', 'compile', '**/*.ts']);
   });
 });

@@ -63,8 +63,8 @@ const RESERVED_OPTION_KEYS = new Set([
 /**
  * Promote each pack deploy namespace to a top-level `options.<namespace>`
  * convenience mirror (e.g. `deploy['cicd']` → `options.cicd`). Packs type these
- * fields via module augmentation of TWorkflowOptions; core stays namespace-
- * agnostic. Returns a partial options object to spread; reserved core keys are
+ * fields via module augmentation of TWorkflowOptions, while core stays namespace-
+ * agnostic. Returns a partial options object to spread. Reserved core keys are
  * skipped so a namespace can never clobber a built-in option.
  */
 function promoteDeployNamespaces(
@@ -99,7 +99,7 @@ export type TExternalNodeType = {
   /**
    * Whether the node's implementation is async (returns a Promise). The
    * code generator emits `await` for the node's call ONLY when its
-   * nodeType is async; a missing/false value generates a synchronous
+   * nodeType is async. A missing/false value generates a synchronous
    * call. Carrying it on the wire matters for runtime-provided foreign
    * nodes resolved from a pack manifest (the on-device case): e.g.
    * pack-core's `waitForApproval` is async, and without `isAsync` the
@@ -111,7 +111,7 @@ export type TExternalNodeType = {
   isAsync?: boolean;
   /**
    * Whether the node is an `@expression` node (data-in, data-out, no
-   * `execute` step port; the generator calls it WITHOUT the leading
+   * `execute` step port, so the generator calls it WITHOUT the leading
    * `execute` argument and auto-sets `onSuccess`/`onFailure`). Carrying
    * it on the wire matters for runtime-provided foreign nodes resolved
    * from a pack manifest (the on-device case): e.g. pack-core's
@@ -165,7 +165,7 @@ function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
   // gets the `execute` STEP input and onSuccess/onFailure STEP outputs, exactly
   // as source-parsed node types do (see the mandatory-port merge in
   // `extractNodeTypes`). These STEP ports are what `@path` / `@connect` wire
-  // and what the validator checks; dropping `execute` for expression nodes
+  // and what the validator checks. Dropping `execute` for expression nodes
   // breaks `@path Start -> ... -> <exprNode> -> ...` with "does not have input
   // port execute". The `expression` flag below only changes CODEGEN (the call
   // omits the leading `execute` arg), never the port set.
@@ -270,7 +270,7 @@ export class AnnotationParser {
     for (const discovered of handlers) {
       // Handler may already be registered (e.g. by side-effect imports), but we
       // still need to load the module to pick up the serializer, so don't skip
-      // the whole entry — guard the handler registration itself instead.
+      // the whole entry. Guard the handler registration itself instead.
       const handlerAlreadyRegistered = discovered.tags.every((t) => this.tagRegistry.has(t));
 
       try {
@@ -392,7 +392,7 @@ export class AnnotationParser {
     const stats = fs.statSync(filePath);
     const hasExternalTypes = externalNodeTypes && externalNodeTypes.length > 0;
 
-    // Skip cache when external node types are provided — cache was built without them
+    // Skip cache when external node types are provided (cache was built without them)
     if (!hasExternalTypes) {
       const cached = this.parseCache.get(filePath);
 
@@ -413,14 +413,14 @@ export class AnnotationParser {
         return cached.result;
       }
 
-      // FAST PATH 3: Incremental patching disabled — re-enable when detectMinorEdit
+      // FAST PATH 3: Incremental patching disabled. Re-enable when detectMinorEdit
       // returns affected functions. Infrastructure preserved in detectMinorEdit/patchAST.
 
       // FALLBACK: Full parse
       return this.fullParse(filePath, content, hash, stats.mtimeMs);
     }
 
-    // External types provided — always do a full parse without caching the result
+    // External types provided: always do a full parse without caching the result
     const rawContent = fs.readFileSync(filePath, 'utf-8');
     const content = hasInPlaceMarkers(rawContent) ? stripGeneratedSections(rawContent) : rawContent;
     const hash = this.computeHash(content);
@@ -482,7 +482,7 @@ export class AnnotationParser {
     this.importStack.add(filePath);
 
     // A virtual typed graph must be loaded before local function types are
-    // inspected; otherwise TypeScript sees its not-yet-materialized aliases as
+    // inspected. Otherwise TypeScript sees its not-yet-materialized aliases as
     // `any`. Normal filesystem parsing keeps the historical order.
     const importedNodeTypes = sourceLoader === undefined
       ? []

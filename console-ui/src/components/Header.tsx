@@ -23,7 +23,7 @@ function ShareMenu({ file, name }: { file: string; name: string }) {
   const href = (kind: string) => `/api/artifact?${q({ file, name, kind, theme: dark ? 'dark' : 'light' })}`;
   const items: Array<{ kind: string; icon: string; label: string; what: string }> = [
     { kind: 'brief', icon: 'description', label: 'Brief', what: 'The workflow as a page for a PM or an architect: the graph to click through, what goes in and out, where people are needed.' },
-    { kind: 'pdf', icon: 'picture_as_pdf', label: 'Brief (PDF)', what: 'A one-page overview — the graph beside what goes in, what comes out, the pauses and the failure arms — then every step in detail. Printed by the browser on this machine.' },
+    { kind: 'pdf', icon: 'picture_as_pdf', label: 'Brief (PDF)', what: 'A one-page overview (the graph beside what goes in, what comes out, the pauses and the failure arms), then every step in detail. Printed by the browser on this machine.' },
     { kind: 'svg', icon: 'image', label: 'Diagram (SVG)', what: 'The spine as drawn here, as a vector image for a slide or a document.' },
   ];
   return (
@@ -50,7 +50,7 @@ export function Header() {
   /* Only where the rail is an overlay: elsewhere it is always on screen,
      so a button to reveal it is a control that does nothing. */
   const menu = isNarrow.value && (
-    <button class="btn ghost sm menu-btn" onClick={() => { ui.railOpen.value = !ui.railOpen.value; }} title="Workflows" aria-label="Workflows">☰</button>
+    <button class="btn ghost sm menu-btn" onClick={() => { ui.railOpen.value = !ui.railOpen.value; }} title="Workflows" aria-label="Workflows"><span class="ms">menu</span></button>
   );
 
   // A topic open in the centre: a slim bar saying where you are and the
@@ -147,10 +147,10 @@ export function Header() {
   void now.value; // re-render the clock while a run is active
   const status = !r ? null
     : r.debug?.status === 'paused' ? <span class="pill debug">paused {r.debug.phase} {w.nodes[r.debug.node ?? '']?.label ?? r.debug.node}</span>
-    : r.debug?.status === 'running' ? <span class="pill debug">stepping · {ms(runDuration(r))}</span>
-    : r.status === 'running' ? <span class="pill run">running · {ms(runDuration(r))}</span>
+    : r.debug?.status === 'running' ? <span class="pill debug">stepping, {ms(runDuration(r))}</span>
+    : r.status === 'running' ? <span class="pill run">running, {ms(runDuration(r))}</span>
     : r.status === 'waiting' ? <span class="pill gate">waiting at {r.gate?.node}</span>
-    : r.status === 'completed' ? <span class="pill ok">completed · {ms(runDuration(r))}</span>
+    : r.status === 'completed' ? <span class="pill ok">completed in {ms(runDuration(r))}</span>
     : r.status === 'failed' ? <span class="pill err">failed</span> : <span class="pill">cancelled</span>;
 
   return (
@@ -159,11 +159,11 @@ export function Header() {
         {title}
         <div class="meta">
           <span class="mono">{w.rel}</span>
-          <span>{w.model.steps.length} step{w.model.steps.length === 1 ? '' : 's'}{gates ? ` · ${gates} gate${gates > 1 ? 's' : ''}` : ''}</span>
+          <span>{w.model.steps.length} step{w.model.steps.length === 1 ? '' : 's'}{gates ? `, ${gates} gate${gates > 1 ? 's' : ''}` : ''}</span>
           {errs > 0 && <span class="pill err">{errs} error{errs > 1 ? 's' : ''}</span>}
           {warns > 0 && <span class="pill warn">{warns} warning{warns > 1 ? 's' : ''}</span>}
           {!errs && !warns && <span class="pill ok">valid</span>}
-          {!w.compiled && <button class="pill linkpill" title="What compiling does" onClick={() => openDoc('compilation')}>not compiled</button>}
+          {!w.compiled && <button class="pill linkpill" title="Runs here use a private compile, so this is not a problem. fw compile writes the generated body into this file, for code of your own to call." onClick={() => openDoc('compilation')}>not compiled in place</button>}
           {status}
         </div>
       </div>

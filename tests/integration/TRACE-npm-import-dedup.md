@@ -92,7 +92,7 @@ File state: 3 @fwImport ✗  (grows unboundedly with each write)
 
 ## Root Cause
 
-**`parser.ts:1130`** — No deduplication between `availableNodeTypes` (containing the external/runtime type) and `importedNpmNodeTypes` (from `@fwImport` annotations):
+**`parser.ts:1130`**: no deduplication between `availableNodeTypes` (containing the external/runtime type) and `importedNpmNodeTypes` (from `@fwImport` annotations):
 
 ```typescript
 const workflowNodeTypes = [...availableNodeTypes, ...importedNpmNodeTypes];
@@ -104,7 +104,7 @@ Then `mutateWorkflowFile`'s merge logic (lines 676-682) copies `importSource` on
 
 ## Fix Location
 
-**`parser.ts:1130`** — When merging, prefer `importedNpmNodeTypes` over duplicates in `availableNodeTypes`:
+**`parser.ts:1130`**: when merging, prefer `importedNpmNodeTypes` over duplicates in `availableNodeTypes`:
 
 ```typescript
 // Deduplicate: @fwImport types take precedence over external types with same name

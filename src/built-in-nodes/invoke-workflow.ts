@@ -21,12 +21,12 @@ export async function invokeWorkflow(
 
   const mocks = getMockConfig(runtime);
   if (mocks) {
-    // Mock mode — look up result by functionId (supports instance-qualified keys)
+    // Mock mode: look up result by functionId (supports instance-qualified keys)
     const mockResult = lookupMock(mocks.invocations, functionId, runtime);
     if (mockResult !== undefined) {
       return { onSuccess: true, onFailure: false, result: mockResult };
     }
-    // No mock data for this functionId — simulate failure
+    // No mock data for this functionId, so simulate failure
     return { onSuccess: false, onFailure: true, result: {} };
   }
 

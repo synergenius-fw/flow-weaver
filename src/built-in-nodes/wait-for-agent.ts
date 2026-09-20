@@ -24,7 +24,7 @@ export async function waitForAgent(
   if (mockResult !== undefined) {
     return { onSuccess: true, onFailure: false, agentResult: mockResult };
   }
-  // Mocks section exists but key not found — fail like waitForEvent/invokeWorkflow
+  // Mocks section exists but key not found, so fail like waitForEvent/invokeWorkflow
   if (mocks?.agents) {
     return { onSuccess: false, onFailure: true, agentResult: {} };
   }

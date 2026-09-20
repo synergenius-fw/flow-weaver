@@ -47,11 +47,11 @@ export function ExportPane({ w }: { w: ParsedWorkflow }) {
           <div class="field"><label><span>target</span></label>
             <Select
               value={target}
-              options={list.map((x) => ({ value: x.name, text: `${x.name}${x.pack ? ` ${packNs(x.pack)}` : ''}`, label: <>{x.name}{x.pack ? <span class="opt-ns"> · {packNs(x.pack)}</span> : null}</> }))}
+              options={list.map((x) => ({ value: x.name, text: `${x.name}${x.pack ? ` ${packNs(x.pack)}` : ''}`, label: <>{x.name}{x.pack ? <span class="opt-ns"> from {packNs(x.pack)}</span> : null}</> }))}
               onChange={(v) => { setTarget(v); store.set(key, v); }}
             />
           </div>
-          {t && <div class="hint" style="margin:-4px 0 10px">{t.description}{t.pack && <> · from <button class="linkish" onClick={() => openPack(t.pack!)}>{packNs(t.pack)}</button></>}</div>}
+          {t && <div class="hint" style="margin:-4px 0 10px">{t.description}{t.pack && <> (from <button class="linkish" onClick={() => openPack(t.pack!)}>{packNs(t.pack)}</button>)</>}</div>}
           <div class="field"><label><span>output</span></label>
             <input type="text" class="mono" value={outDir} placeholder={defaultOut} onInput={(e) => setOutDir((e.target as HTMLInputElement).value)} />
           </div>
@@ -68,7 +68,7 @@ export function ExportPane({ w }: { w: ParsedWorkflow }) {
               {Object.entries(t.deploySchema).map(([k, f]) => (
                 <><span class="p" title={f.description}>{k}</span><span>
                   {k in current ? <Value value={current[k]} /> : <span class="from" style="opacity:.7">{f.default !== undefined ? `default ${JSON.stringify(f.default)}` : 'unset'}</span>}
-                  <span class="from"> · {f.type}</span>
+                  <span class="from"> ({f.type})</span>
                 </span></>
               ))}
             </div>

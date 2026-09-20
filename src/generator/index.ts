@@ -1,5 +1,5 @@
 /**
- * Generator utilities — public barrel for export target packs.
+ * Generator utilities: the public barrel for export target packs.
  *
  * Exposes control-flow analysis and code generation helpers used by
  * compile targets (Inngest deep generator, CI/CD compile target, etc.).

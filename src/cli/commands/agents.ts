@@ -2,7 +2,7 @@
  * Agents command: the project's agent profiles, and a starter file.
  *
  * A profile is what answers a `waitForAgent` gate while nobody is watching.
- * The console has an editor for them; this is the same information for a
+ * The console has an editor for them. This is the same information for a
  * terminal, and the one-line way to get the file to start from.
  */
 
@@ -28,14 +28,14 @@ export async function agentsCommand(dir: string | undefined, options: AgentsOpti
 
   if (options.init) {
     if (fs.existsSync(file) && !options.force) {
-      throw new Error(`${path.relative(projectDir, file)} already exists; edit it, or pass --force to replace it with the starter`);
+      throw new Error(`${path.relative(projectDir, file)} already exists. Edit it, or pass --force to replace it with the starter`);
     }
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, STARTER_AGENTS_YAML);
     if (options.json) { console.log(JSON.stringify({ written: file }, null, 2)); return; }
     logger.success(`Wrote ${path.relative(projectDir, file)}`);
     logger.log(`  Open it, pick a provider, and name the environment variable that holds its key. Never put the key itself in the file.`);
-    logger.log(`  \`fw agents\` says whether each profile is ready; the console's Agents page edits the same file.`);
+    logger.log(`  \`fw agents\` says whether each profile is ready. The console's Agents page edits the same file.`);
     return;
   }
 
@@ -52,7 +52,7 @@ export async function agentsCommand(dir: string | undefined, options: AgentsOpti
 
   if (!p.exists) {
     logger.info(`No ${path.relative(projectDir, file)}: agent gates in this project wait for a person.`);
-    logger.log(`  \`fw agents --init\` writes a starter file; the console's Agents page does the same with a form.`);
+    logger.log(`  \`fw agents --init\` writes a starter file. The console's Agents page does the same with a form.`);
     return;
   }
 
@@ -62,7 +62,7 @@ export async function agentsCommand(dir: string | undefined, options: AgentsOpti
   if (!profiles.length) logger.log('  none defined');
   for (const a of profiles) {
     const mark = a.ready ? '✓' : '✗';
-    logger.log(`  ${mark} ${logger.bold(a.name)}${a.isDefault ? logger.dim(' (default)') : ''}  ${a.provider}${a.model ? ` · ${a.model}` : ''}`);
+    logger.log(`  ${mark} ${logger.bold(a.name)}${a.isDefault ? logger.dim(' (default)') : ''}  ${a.provider}${a.model ? ` (${a.model})` : ''}`);
     logger.log(`      ${a.ready ? (a.keyEnv ? `${a.keyEnv} is set` : 'ready') : (a.reason ?? 'not ready')}`);
   }
   if (!p.default) logger.log(`  ${logger.dim('no default: a gate is answered only when a mapping below names its profile')}`);

@@ -94,7 +94,7 @@ describe('composeLine', () => {
   });
 
   it('round-trips through parseLine', () => {
-    // Quoted as a shell would want it; the JSON's own quotes survive the round trip.
+    // Quoted as a shell would want it. The JSON's own quotes survive the round trip.
     const line = `run flow.ts --params '{"a":1}' --breakpoint a`;
     const f = parseLine(line, all)!;
     expect(composeLine(f)).toBe('run flow.ts --params "{\\"a\\":1}" --breakpoint a');

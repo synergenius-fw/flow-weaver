@@ -1,7 +1,7 @@
 /**
  * @module marketplace
  *
- * Flow Weaver Marketplace — discover, install, and publish reusable
+ * Flow Weaver Marketplace: discover, install, and publish reusable
  * node types, workflows, and patterns via npm.
  */
 

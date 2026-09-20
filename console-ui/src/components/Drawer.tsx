@@ -13,7 +13,7 @@ function Logs({ kind }: { kind: ServiceKind }) {
   const pinned = useRef(true);
   const s = serviceOf(kind);
   const alive = s?.state === 'running' || s?.state === 'starting';
-  // The stream replays what is kept, then follows; a restart of the service
+  // The stream replays what is kept, then follows. A restart of the service
   // starts a new child, so the stream is opened again when the pid changes.
   useEffect(() => {
     setLines([]); setSynced(false);
@@ -34,15 +34,15 @@ function Logs({ kind }: { kind: ServiceKind }) {
     <div class="logs">
       <div class="logbar">
         <span class={`sdot ${alive ? 'ok' : s?.error ? 'bad' : ''}`} />
-        <span class="hint">{kind === 'serve' ? 'fw serve' : 'fw watch'} · {!s || s.state === 'stopped' ? 'not running' : s.state === 'exited' ? `stopped${s.exitCode ? ` (exit ${s.exitCode})` : ''}` : s.state}{s?.url ? <> · <a class="mono" href={s.url} target="_blank" rel="noreferrer">{s.url}</a></> : null}</span>
+        <span class="hint">{kind === 'serve' ? 'fw serve' : 'fw watch'}: {!s || s.state === 'stopped' ? 'not running' : s.state === 'exited' ? `stopped${s.exitCode ? ` (exit ${s.exitCode})` : ''}` : s.state}{s?.url ? <> at <a class="mono" href={s.url} target="_blank" rel="noreferrer">{s.url}</a></> : null}</span>
         <span class="sp" />
         {!alive && <button class="btn primary sm" onClick={() => startService(kind).catch((e: Error) => toast(e.message))}>Start</button>}
         {alive && <button class="btn sm" onClick={() => stopService(kind).catch((e: Error) => toast(e.message))}>Stop</button>}
-        <button class="btn ghost sm" onClick={() => setLines([])} title="Clear what is shown; the server keeps its own">Clear</button>
+        <button class="btn ghost sm" onClick={() => setLines([])} title="Clear what is shown. The server keeps its own">Clear</button>
       </div>
       <div class="logbody mono" ref={box} onScroll={onScroll}>
         {lines.map((l, i) => <div class={`ln ${l.stream}`} key={i}><span class="t">{time(l.t)}</span>{l.text}</div>)}
-        {synced && !lines.length && <div class="hint">{alive ? 'nothing printed yet' : 'nothing kept; start it to see its output here'}</div>}
+        {synced && !lines.length && <div class="hint">{alive ? 'nothing printed yet' : 'nothing kept, start it to see its output here'}</div>}
       </div>
     </div>
   );

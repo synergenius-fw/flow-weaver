@@ -32,7 +32,7 @@ const SKIP_GROUPS = new Set(['Quick Reference', 'Global Flag', 'Related Topics']
 
 const cell = (s: string): string => s.trim().replace(/^`|`$/g, '');
 
-/** Parse the reference's markdown into commands. Exposed for tests; use {@link cliCatalog} otherwise. */
+/** Parse the reference's markdown into commands. Exposed for tests. Use {@link cliCatalog} otherwise. */
 export function parseCliReference(markdown: string): CliCommand[] {
   const out: CliCommand[] = [];
   let group = '';

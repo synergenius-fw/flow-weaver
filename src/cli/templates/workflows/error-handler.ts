@@ -1,6 +1,6 @@
 /**
  * Error Handler Template
- * Try/catch/retry pattern for robust error handling
+ * Try/catch/retry pattern that recovers from transient failures
  */
 
 import type { WorkflowTemplate, WorkflowTemplateOptions } from '../index';

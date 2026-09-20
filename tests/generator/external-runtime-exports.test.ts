@@ -49,7 +49,7 @@ describe('inline runtime generation', () => {
     const source = fs.readFileSync(
       path.resolve(__dirname, '../../src/api/generate-in-place.ts'), 'utf-8'
     );
-    // External runtime path support was removed — always inlines
+    // External runtime path support was removed: always inlines
     expect(source).not.toContain('externalRuntimePath');
   });
 });

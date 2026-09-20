@@ -20,7 +20,7 @@ export type AgentNodeRole = 'llm' | 'tool-executor' | 'human-approval' | 'memory
 // Signal matchers (ordered by priority)
 // ---------------------------------------------------------------------------
 
-/** Port-based detection — most reliable since port names define the contract */
+/** Port-based detection: most reliable since port names define the contract */
 const PORT_SIGNATURES: Array<{ role: AgentNodeRole; match: (nt: TNodeTypeAST) => boolean }> = [
   {
     // LLM node: has 'messages' input AND ('content' or 'toolCalls' output)
@@ -59,7 +59,7 @@ const PORT_SIGNATURES: Array<{ role: AgentNodeRole; match: (nt: TNodeTypeAST) =>
   },
 ];
 
-/** Icon-based detection — reliable when present, from @icon annotation */
+/** Icon-based detection: reliable when present, from @icon annotation */
 const ICON_MAP: Record<string, AgentNodeRole> = {
   psychology: 'llm',
   build: 'tool-executor',
@@ -67,14 +67,14 @@ const ICON_MAP: Record<string, AgentNodeRole> = {
   database: 'memory',
 };
 
-/** Color-based detection — weaker signal, only used to confirm */
+/** Color-based detection: weaker signal, only used to confirm */
 const COLOR_MAP: Record<string, AgentNodeRole> = {
   purple: 'llm',
   cyan: 'tool-executor',
   orange: 'human-approval',
 };
 
-/** Name pattern heuristics — fallback only */
+/** Name pattern heuristics: fallback only */
 const NAME_PATTERNS: Array<{ role: AgentNodeRole; pattern: RegExp }> = [
   { role: 'llm', pattern: /^(llm|chat|completion|model|ai)/i },
   { role: 'tool-executor', pattern: /^(tool|action|execute|exec)/i },
@@ -90,10 +90,10 @@ const NAME_PATTERNS: Array<{ role: AgentNodeRole; pattern: RegExp }> = [
  * Detect the agent role of a node type using multi-signal analysis.
  *
  * Priority:
- * 1. Port signature patterns (strongest — defines the contract)
- * 2. @icon annotation (strong — explicit visual intent)
- * 3. @color annotation (weak — only used to break ties)
- * 4. Function name heuristics (weakest — fallback only)
+ * 1. Port signature patterns (strongest, defines the contract)
+ * 2. @icon annotation (strong, explicit visual intent)
+ * 3. @color annotation (weak, only used to break ties)
+ * 4. Function name heuristics (weakest, fallback only)
  *
  * @returns The detected role, or null if the node is not an agent node
  */
@@ -108,7 +108,7 @@ export type AgentRoleSignal = 'port' | 'icon' | 'color' | 'name';
  * Like detectNodeRole, but also reports which signal decided it, so a rule
  * can weigh its response. A role that rests only on `@color` or a name
  * pattern is a guess about a cosmetic choice, not evidence that the node
- * calls a model; rules that would block on it should downgrade to a warning.
+ * calls a model. Rules that would block on it should downgrade to a warning.
  */
 export function detectNodeRoleSignal(
   nodeType: TNodeTypeAST,

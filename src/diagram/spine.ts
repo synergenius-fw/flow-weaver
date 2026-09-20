@@ -18,7 +18,7 @@ import { NODE_ICON_PATHS } from './theme';
 
 export interface SpineOptions {
   theme?: 'dark' | 'light';
-  /** The workflow's name and a line of facts above the spine. On by default; off when the page around it already says so. */
+  /** The workflow's name and a line of facts above the spine. On by default, off when the page around it already says so. */
   title?: boolean;
   /** Shown under the title in place of the file name. */
   subtitle?: string;
@@ -115,7 +115,7 @@ export function renderSpineSVG(ast: TWorkflowAST, options: SpineOptions = {}): s
     const onDemand = !s.pull && !s.entered.length && !s.successTo.length && !s.failureTo.length && (s.reads.length > 0 || s.produces.length > 0);
     if (s.pull) tags.push({ text: 'pulled', color: p.pull });
     else if (onDemand) tags.push({ text: 'on demand', color: p.pull });
-    if (s.kind === 'loop') tags.push({ text: s.scope ? `each · ${s.scope}` : 'each', color: p.loop });
+    if (s.kind === 'loop') tags.push({ text: s.scope ? `each ${s.scope}` : 'each', color: p.loop });
     const id = look?.builtin || s.label.toLowerCase() === s.id.toLowerCase() ? s.type : s.id;
     const right = s.kind === 'pause' ? { text: s.gate ?? 'gate', color: p.gate } : undefined;
     return { label: s.label, id, tags, right };
@@ -149,11 +149,11 @@ export function renderSpineSVG(ast: TWorkflowAST, options: SpineOptions = {}): s
 
   const out: string[] = [];
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="t" font-family='${SANS}'>`);
-  out.push(`<title id="t">${esc(ast.functionName)} — ${graph.rows.length - 2} steps${gates ? `, ${gates} pause${gates === 1 ? '' : 's'}` : ''}</title>`);
+  out.push(`<title id="t">${esc(ast.functionName)}: ${graph.rows.length - 2} steps${gates ? `, ${gates} pause${gates === 1 ? '' : 's'}` : ''}</title>`);
   out.push(`<rect width="${W}" height="${H}" fill="${p.bg}"/>`);
 
   if (title) {
-    const facts = [options.subtitle ?? ast.sourceFile.split(/[\\/]/).pop() ?? '', `${graph.rows.length - 2} step${graph.rows.length - 2 === 1 ? '' : 's'}`, gates ? `${gates} pause${gates === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+    const facts = [options.subtitle ?? ast.sourceFile.split(/[\\/]/).pop() ?? '', `${graph.rows.length - 2} step${graph.rows.length - 2 === 1 ? '' : 's'}`, gates ? `${gates} pause${gates === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ');
     out.push(`<text x="${PAD}" y="24" font-size="15" font-weight="600" fill="${p.fg}">${esc(ast.functionName)}</text>`);
     out.push(`<text x="${PAD}" y="42" font-size="11.5" fill="${p.dim}">${esc(facts)}</text>`);
   }
@@ -167,7 +167,7 @@ export function renderSpineSVG(ast: TWorkflowAST, options: SpineOptions = {}): s
     const bh = rowTop(sc.last) + ROW - 3 - by;
     out.push(`<g class="scope" data-owner="${esc(sc.owner)}"><rect x="${bx}" y="${by}" width="${W - PAD - bx}" height="${bh}" rx="8" fill="${p.loop}" fill-opacity="${(0.07 + sc.depth * 0.03).toFixed(2)}" stroke="${p.loop}" stroke-opacity=".28"/>`);
     // The name sits in the band's top edge, like a fieldset legend, clear of whatever the first row says at its right.
-    const name = `${sc.owner}${sc.scope ? ` · ${sc.scope}` : ''}`;
+    const name = `${sc.owner}${sc.scope ? ` ${sc.scope}` : ''}`;
     const nw = width(name, 10.5) + 10;
     out.push(`<rect x="${W - PAD - 10 - nw}" y="${by - 7}" width="${nw}" height="14" rx="4" fill="${p.bg}"/>`);
     out.push(`<text x="${W - PAD - 15}" y="${by + 3.5}" font-size="10.5" text-anchor="end" fill="${p.loop}">${esc(name)}</text></g>`);

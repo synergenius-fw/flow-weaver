@@ -7,7 +7,7 @@
  * decomposition (extracting the macro-expansion and port-inference clusters
  * into modules), so the extraction can be proven behavior-neutral.
  *
- * If any snapshot changes, the refactor changed parser output — investigate
+ * If any snapshot changes, the refactor changed parser output. Investigate
  * before updating. Snapshots are captured against the pre-refactor code.
  */
 

@@ -176,7 +176,7 @@ function validateEnvelopeMember(
   const envelopeNames = envelopeProperties.map((property) => property.getName()).sort();
   if (envelopeNames.join(',') !== 'receipt,result') {
     diagnostics.push(
-      `return envelope must have exactly required receipt and result fields; found ${envelopeNames.join(', ') || 'none'}`,
+      `return envelope must have exactly the required receipt and result fields. Found ${envelopeNames.join(', ') || 'none'}`,
     );
   }
   const receiptProperty = envelope.getProperty('receipt');

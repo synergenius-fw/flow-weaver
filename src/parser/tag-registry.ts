@@ -37,7 +37,7 @@ export type TRegisteredTagHandler = {
  * including the leading ` * ` prefix (e.g. ` * @secret NPM_TOKEN`).
  *
  * Registered per namespace so JSDoc regeneration stays symmetric with parsing:
- * whatever tags a pack learns to parse, it also emits — no core changes needed.
+ * whatever tags a pack learns to parse, it also emits, with no core changes needed.
  */
 export type TTagSerializerFn = (
   deployData: Record<string, unknown>,
@@ -66,7 +66,7 @@ export class TagHandlerRegistry {
 
   /**
    * Register (or clear) the serializer for a namespace. Passing `undefined`
-   * removes it — used to keep round-trip emission symmetric with parsing.
+   * removes it, keeping round-trip emission symmetric with parsing.
    */
   registerSerializer(namespace: string, serializer: TTagSerializerFn | undefined): void {
     if (serializer) {

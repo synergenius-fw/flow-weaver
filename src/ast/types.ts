@@ -219,7 +219,7 @@ export type TNodeTypeAST = {
   receivesRuntime?: boolean;
   /** Explicit compiler-known durable gate boundary. */
   durableGate?: 'approval' | 'input' | 'agent' | 'timer';
-  /** Explicit effect adapter contract; never inferred from a function name. */
+  /** Explicit effect adapter contract, never inferred from a function name. */
   durableEffect?: boolean;
   /**
    * Compiler analysis of an authored durable-effect callable. Runtime-provided
@@ -431,7 +431,7 @@ export type TTypeCompatibility = {
  * Declared as an `interface` so packs can contribute domain-specific option
  * fields via module augmentation (e.g. flow-weaver-pack-cicd augments this
  * with `cicd?: TCICDOptions`). Core carries only generic options plus the
- * `deploy` escape hatch; vendor/domain vocabularies live in their packs.
+ * `deploy` escape hatch. Vendor and domain vocabularies live in their packs.
  */
 /**
  * One HTTP route a workflow answers on, from `@http METHOD /path [mode=…] [auth=…] [callback]`.
@@ -462,7 +462,7 @@ export interface TWorkflowOptions {
   trigger?: { event?: string; cron?: string };
   /** The HTTP routes this workflow is served on (`@http`), in declaration order */
   http?: THttpRoute[];
-  /** Cancellation configuration — cancel on matching external event */
+  /** Cancellation configuration: cancel on matching external event */
   cancelOn?: { event: string; match?: string; timeout?: string };
   /** Number of retries on failure */
   retries?: number;
@@ -504,7 +504,7 @@ export type TConnectionAST = {
   /**
    * Set when the connection was not written as `@connect` but derived from an
    * `[expr: port="..."]` binding on the target instance that references
-   * `from.node`'s port. The expression is the value source; the connection
+   * `from.node`'s port. The expression is the value source. The connection
    * records the data dependency so ordering, cycle detection, queries and
    * the editor see it. Derived connections are never emitted as `@connect`,
    * are exempt from the one-source and type-compatibility rules (the

@@ -75,7 +75,7 @@ export interface ExportResult {
 /**
  * Export a workflow for deployment.
  *
- * Delegates to the target registry — every target is a plugin discovered
+ * Delegates to the target registry, where every target is a plugin discovered
  * from installed marketplace packs. The legacy template system has been
  * replaced by target classes that generate their own handler + config.
  */

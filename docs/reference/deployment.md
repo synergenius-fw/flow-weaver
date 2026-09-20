@@ -191,11 +191,11 @@ import { createWorkflowApi } from '@synergenius/flow-weaver/server';
 
 const api = createWorkflowApi({
   dir: './workflows',                    // the project: its workflows and .flowweaver/agents.yaml
-  token: process.env.FW_SERVE_TOKEN,     // bearer token; unset means open
+  token: process.env.FW_SERVE_TOKEN,     // bearer token, unset means open
   agents: true,                          // answer agent gates from the project's profiles
   trace: false,                          // keep and stream a step trace per run
   legacyRoutes: true,                    // also POST /workflows/<name> for every workflow
-  runsDir: undefined,                    // where runs live; the shared ~/.fw/runs by default
+  runsDir: undefined,                    // where runs live, defaulting to the shared ~/.fw/runs
   maxWaitMs: 60_000,                     // answer 202 with the result URL past this
   maxInFlight: 32,                       // 503 past this many running segments
   callbacks: { hosts: ['hooks.example.com'] },
@@ -234,7 +234,10 @@ What comes up when the API goes into an existing code base, and what the API doe
   fastify.all('/api/*', async (request, reply) => {
     reply.hijack();
     const handled = await api.handle(request.raw, reply.raw, { basePath: '/api', body: request.body });
-    if (!handled) { reply.raw.writeHead(404); reply.raw.end(); }
+    if (!handled) {
+      reply.raw.writeHead(404);
+      reply.raw.end();
+    }
   });
   ```
 
@@ -254,7 +257,7 @@ What comes up when the API goes into an existing code base, and what the API doe
 
 ```bash
 fw serve                                           # this directory, 127.0.0.1:3000
-fw serve ./workflows --trace --swagger             # every step streamed; docs at /docs
+fw serve ./workflows --trace --swagger             # every step streamed, docs at /docs
 fw serve --host 0.0.0.0 --token "$FW_SERVE_TOKEN"  # reachable from elsewhere, guarded
 fw serve --no-agents                               # a person answers every agent gate
 ```

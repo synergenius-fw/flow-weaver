@@ -152,7 +152,7 @@ describe('Bundle mode calling conventions', () => {
 
     // Expression nodes in bundle mode import _impl which has NO execute param
     // (expression _impl preserves original function signature)
-    // So call should be: multiply(n1_a, n1_b) — without execute
+    // So call should be: multiply(n1_a, n1_b), without execute
     expect(code).toMatch(/multiply\(n1_a,\s*n1_b\)/);
     // Should NOT have execute before data args
     expect(code).not.toMatch(/multiply\(n1_execute/);

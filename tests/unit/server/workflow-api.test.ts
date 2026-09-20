@@ -1,9 +1,9 @@
 /**
  * Workflows as endpoints, through `createWorkflowApi`: a declared `@http`
  * route binds the workflow's parameters from the path, the query or the
- * body and answers with its return ports; a gate answers 202 and a run to
- * follow; `Idempotency-Key` makes a retry the same run; `callback` posts
- * the final response; and the same handler serves Node, an Express-style
+ * body and answers with its return ports. A gate answers 202 and a run to
+ * follow. `Idempotency-Key` makes a retry the same run. `callback` posts
+ * the final response. The same handler serves Node, an Express-style
  * mount and a fetch host. Runs go to a temp store, nothing touches ~/.fw.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -120,7 +120,7 @@ beforeAll(async () => {
   fs.writeFileSync(path.join(dir, 'slow.ts'), SLOW);
   server = new WebhookServer({
     port: 0, host: '127.0.0.1', workflowDir: dir, watchEnabled: false, token: TOKEN, runsDir, agents: false,
-    // The test's sinks are on loopback, which the default policy refuses; name the host instead of allowing everything.
+    // The test's sinks are on loopback, which the default policy refuses. Name the host instead of allowing everything.
     callbacks: { hosts: ['127.0.0.1'], sweepMs: 150 },
     onRun: (r) => { seen.push(r); },
     onCallback: (o) => { callbacks.push({ runId: o.runId, ok: o.ok, attempt: o.attempt, error: o.error }); },
@@ -330,7 +330,7 @@ describe('declared routes', () => {
     expect((await call('GET', '/health', undefined, {})).body.routes).toBe(6);
   });
 
-  it('hands a slow run over with 202 when it outlasts the wait budget; the result URL answers in the declared shape', async () => {
+  it('hands a slow run over with 202 when it outlasts the wait budget, and the result URL answers in the declared shape', async () => {
     const r = await call('POST', '/slow', { n: 4 }, { ...auth, Prefer: 'wait=0.05' });
     expect(r.status).toBe(202);
     expect(r.body.status).toBe('running');

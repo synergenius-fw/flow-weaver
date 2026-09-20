@@ -18,7 +18,7 @@ import {
 } from '../src/runtime/durable-execution';
 
 // A test that starts an fw service (the MCP server, the console) must not
-// announce itself in the real ~/.fw/services; every test file gets its own
+// announce itself in the real ~/.fw/services. Every test file gets its own
 // directory, which the OS cleans up.
 process.env.FW_SERVICES_DIR ??= fs.mkdtempSync(path.join(os.tmpdir(), 'fw-services-test-'));
 
@@ -34,7 +34,7 @@ process.env.FW_SERVICES_DIR ??= fs.mkdtempSync(path.join(os.tmpdir(), 'fw-servic
 // registry per test file), so this setup module re-imports and re-runs once per
 // file. A single module-level call therefore already warms the checker at the
 // start of every file. (An earlier version also re-warmed in `beforeAll` on the
-// belief the shared project used `isolate: false`; it does not, so the extra
+// belief the shared project used `isolate: false`. It does not, so the extra
 // call was a redundant second parse per file, doubling setup cost under load for
 // no benefit. The deterministic fix lives in the parser: see
 // `resolveCallSignatures` in src/jsdoc-parser.ts, which forces signature

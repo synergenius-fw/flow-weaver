@@ -1,5 +1,5 @@
 /**
- * WU1: B2 — Scoped expression nodes missing onSuccess/onFailure
+ * WU1, B2: Scoped expression nodes missing onSuccess/onFailure
  *
  * Bug: scope-function-generator.ts extracts result.onSuccess from expression
  * node return (undefined). Non-scoped code correctly hardcodes true/false.

@@ -25,7 +25,7 @@
  * injected trailing `operationKey`, and a `{ receipt, result }` return
  * envelope instead of plain outputs -- because the engine has to be able to
  * replay it after a resume rather than run it twice. That contract is worth
- * meeting for a real effect; it would only obscure what this demo is about,
+ * meeting for a real effect. It would only obscure what this demo is about,
  * so the text is passed in instead of read from disk.
  *
  * @flowWeaver nodeType

@@ -49,7 +49,7 @@ export interface ParsedWorkflow {
 
 export const isParsed = (w: Workflow | null): w is ParsedWorkflow => !!w && !w.parseErrors;
 export interface WorkflowSummary { file: string; rel: string; name: string; steps: number; gates: number; errors: number; warnings: number; waiting: number; checked: boolean; codes: string[]; uses: string[] }
-export interface Gate { id: string; kind: 'approval' | 'input' | 'agent' | 'timer'; node: string; inputs: Record<string, unknown>; absent: string[]; outputs: string[]; outputTypes: Record<string, string>; outputSchema: Record<string, FieldSchema> | null; hasSuccessPort: boolean; hasFailurePort: boolean }
+export interface Gate { id: string; kind: 'approval' | 'input' | 'agent' | 'timer'; node: string; inputs: Record<string, unknown>; absent: string[]; outputs: string[]; outputTypes: Record<string, string>; outputSchema: Record<string, FieldSchema> | null; hasSuccessPort: boolean; hasFailurePort: boolean; /** The gate function's description: what is being asked, in the author's words. */ description?: string; /** Each output's @output label, the words for the field that answers it. */ outputLabels?: Record<string, string>; inputLabels?: Record<string, string> }
 /** When the clock moves a waiting run: a sleep wakes, or a gate with a timeout takes its failure path. */
 export interface Due { at: number; action: 'wake' | 'timeout' }
 export interface RunSnapshot {
@@ -58,7 +58,7 @@ export interface RunSnapshot {
   startedAt: number; updatedAt: number; gate?: Gate; due?: Due; result?: any; error?: string;
   /** The step that threw, when the trace said which. */
   failedAt?: string;
-  /** Who started the run: `console`, `http`, `mcp`; absent on older records. */
+  /** Who started the run: `console`, `http`, `mcp`. Absent on older records. */
   origin?: string;
   /** The mocks the run was started with, so it can be run again the same way. */
   mocks?: Record<string, unknown>;
@@ -137,7 +137,7 @@ export interface DiffView {
   model: Model | null;
   nodes: Record<string, Node>;
 }
-/** The diff the spine is showing, if the Changes pane has one; and how: marked, or one side only. */
+/** The diff the spine is showing, if the Changes pane has one, and how: marked, or one side only. */
 export const diffView = signal<DiffView | null>(null);
 export type DiffMode = 'diff' | 'before' | 'after';
 export const diffMode = signal<DiffMode>('diff');
@@ -215,13 +215,13 @@ export const ui = {
   railW: signal(store.get('railW', 284)),
   sideW: signal(store.get('sideW', 420)),
   railOpen: signal(false),
-  /** Folder keys the user has collapsed; everything else is open. */
+  /** Folder keys the user has collapsed. Everything else is open. */
   collapsed: signal<Set<string>>(new Set(store.get<string[]>('collapsed', []))),
   /** Which of the rail's lists is showing: the project, the guide, or the packs. */
   railTab: signal<'workflows' | 'guide' | 'packs'>(store.get<'workflows' | 'guide' | 'packs'>('railTab', 'workflows')),
   /** Which pane the right column shows while a pack is open. */
   packSide: signal<'project' | 'cli'>('project'),
-  /** Guide groups the user has folded; the rest stay open, since the tab has the whole rail. */
+  /** Guide groups the user has folded. The rest stay open, since the tab has the whole rail. */
   guideShut: signal<Set<string>>(new Set(store.get<string[]>('guideShut', []))),
   picker: signal(false),
   /** The search palette (⌘K). */
@@ -438,7 +438,7 @@ stream('/api/events', (msg) => {
     reloadTimer = setTimeout(async () => {
       await loadWorkflows();
       const w = wf.value;
-      if (w && msg.file === w.file) { await selectWorkflow(w.file, w.name, true); toast('file changed · reloaded'); }
+      if (w && msg.file === w.file) { await selectWorkflow(w.file, w.name, true); toast('file changed, reloaded'); }
     }, 250);
   }
   if (msg.type === 'runs') { refreshRuns(); loadWorkflows(); }

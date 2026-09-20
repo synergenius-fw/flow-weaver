@@ -1,5 +1,5 @@
 /**
- * Pure pattern API — no I/O, no console, no filesystem writes.
+ * Pure pattern API: no I/O, no console, no filesystem writes.
  *
  * Provides business logic for listing patterns, applying patterns to workflows,
  * and generating node type code. CLI and MCP layers call these functions
@@ -200,7 +200,7 @@ export function applyPattern(options: ApplyPatternOptions): ApplyPatternResult {
   let modifiedContent =
     targetContent.slice(0, insertPosition) + newAnnotations + targetContent.slice(insertPosition);
 
-  // Strip @autoConnect when pattern adds explicit connections — the explicit @connect
+  // Strip @autoConnect when pattern adds explicit connections. The explicit @connect
   // annotations would conflict with autoConnect (parser skips auto-wiring when connections exist)
   if (connectDeclarations.length > 0 && modifiedContent.match(/@autoConnect\b/)) {
     modifiedContent = modifiedContent.replace(/^\s*\*\s*@autoConnect\s*\n/m, '');

@@ -304,7 +304,7 @@ export function flow(execute: boolean, params: { items: unknown[]; tag: string }
 `;
     const result = parser.parseFromString(code);
     expect(result.errors).toEqual([
-      '[expr] child.tag: "Start.tag" crosses a scope boundary. Expression references are only supported between top-level nodes; use @connect with a scope qualifier instead.',
+      '[expr] child.tag: "Start.tag" crosses a scope boundary. Expression references are only supported between top-level nodes. Use @connect with a scope qualifier instead.',
     ]);
   });
 });

@@ -59,8 +59,8 @@ function setupFakePack(): void {
   // Write the handler module
   const handlerCode = `
     export function testHandler(tagName, comment, ctx) {
-      ctx.deploy.handled = true;
-      ctx.deploy.value = comment.trim();
+      ctx.deploy.handled = true
+      ctx.deploy.value = comment.trim()
     }
   `;
   fs.writeFileSync(path.join(packDir, 'dist', 'handler.js'), handlerCode);

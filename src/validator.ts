@@ -33,7 +33,7 @@ import {
 // Re-export TValidationError for convenience
 export type { TValidationError } from './ast/types';
 
-// The reference as published with the source; the same pages `fw docs`
+// The reference as published with the source. These are the same pages `fw docs`
 // prints and the console shows.
 const DOCS_BASE = 'https://github.com/synergenius-fw/flow-weaver/blob/main/docs/reference';
 const doc = (topic: string, anchor?: string) => `${DOCS_BASE}/${topic}.md${anchor ? `#${anchor}` : ''}`;
@@ -88,7 +88,7 @@ export class WorkflowValidator {
     scopedPorts.forEach(([portName, portDef]) => {
       if (portDef.scope && !scopeNameRegex.test(portDef.scope)) {
         errors.push(
-          `Port "${portName}" has invalid scope name "${portDef.scope}". Scope names must be valid JavaScript identifiers (letters, numbers, underscore, dollar sign; cannot start with number).`
+          `Port "${portName}" has invalid scope name "${portDef.scope}". Scope names must be valid JavaScript identifiers (letters, numbers, underscore, dollar sign, and cannot start with a number).`
         );
       }
     });

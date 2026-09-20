@@ -37,7 +37,7 @@ export interface DiagramNode {
   y: number;
   width: number;
   height: number;
-  // Scope rendering — present when node has scoped children
+  // Scope rendering, present when node has scoped children
   scopeChildren?: DiagramNode[];
   scopeConnections?: DiagramConnection[];
   scopePorts?: { inputs: DiagramPort[]; outputs: DiagramPort[] };

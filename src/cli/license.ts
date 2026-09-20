@@ -11,7 +11,7 @@
  *
  * The license is a detached Ed25519 signature over a canonical JSON claim,
  * verified against the Synergenius platform-root PUBLIC key pinned below. The
- * private half never ships; only Synergenius can mint a license. No network
+ * private half never ships, so only Synergenius can mint a license. No network
  * call: the license file plus this pinned key verify entirely offline.
  *
  * License file (`license.synergenius.json`), base64url of:
@@ -88,7 +88,7 @@ function readLicenseKey(): string | null {
  * `rootPublicKeyB64` is a test seam: the pinned key's private half never
  * ships, so the success path can only be exercised by signing with an
  * ephemeral keypair and verifying against its public half. Production callers
- * never pass it; the default is the pinned Synergenius root key.
+ * never pass it. The default is the pinned Synergenius root key.
  */
 export function verifyLicenseKey(
   licenseKey: string,

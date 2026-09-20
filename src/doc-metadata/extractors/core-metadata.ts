@@ -2,8 +2,8 @@
  * Core metadata extractor.
  *
  * Provides runtime-accessible arrays and objects for data types, strategies,
- * reserved names, templates, and package exports — derived from the actual
- * source constants so documentation stays in sync automatically.
+ * reserved names, templates, and package exports. These are derived from the
+ * actual source constants so documentation stays in sync automatically.
  */
 
 import {

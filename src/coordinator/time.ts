@@ -33,7 +33,7 @@ export function parseDuration(text: unknown): number | undefined {
 /**
  * When the clock will move a run that just paused at `gate`, if ever.
  *
- * A `timer` gate wakes after its `duration`; an unreadable duration wakes at
+ * A `timer` gate wakes after its `duration`. An unreadable duration wakes at
  * once rather than never. Any other gate with a readable `timeout` input and
  * a failure port times out along that port. A timeout on a gate with no
  * failure port is not a deadline: there is nowhere for the run to go.

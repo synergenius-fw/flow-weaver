@@ -412,7 +412,7 @@ describe('sugar-optimizer', () => {
 
     it('should not cover a Start param passed straight through to Exit', () => {
       const sugar = { paths: [pathMacro([{ node: 'Start' }, { node: 'a' }, { node: 'Exit' }])] };
-      // A pass-through is never implied; it must be an explicit @connect
+      // A pass-through is never implied. It must be an explicit @connect
       const c = conn('Start', 'result', 'Exit', 'result');
       expect(isConnectionCoveredBySugar(c, sugar)).toBe(false);
     });

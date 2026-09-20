@@ -27,8 +27,8 @@ function forEach(
   onFailure: boolean,
   processed: any
 ) {
-  if (!execute) return { execute: false, item: null, processItem: () => {}, onSuccess: false, onFailure: false, results: [] };
-  return { execute: true, item: items[0], processItem: () => {}, onSuccess: true, onFailure: false, results: [] };
+  if (!execute) return { execute: false, item: null, processItem: () => {}, onSuccess: false, onFailure: false, results: [] }
+  return { execute: true, item: items[0], processItem: () => {}, onSuccess: true, onFailure: false, results: [] }
 }
 
 export { forEach };

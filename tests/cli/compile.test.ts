@@ -207,7 +207,7 @@ export function validWorkflow(execute: boolean): Promise<{ onSuccess: boolean; o
       fs.writeFileSync(tmpFile, content);
 
       try {
-        // Should not throw — valid workflow passes validation gate
+        // Should not throw. A valid workflow passes the validation gate.
         const result = await compileWorkflow(tmpFile, { write: false });
         expect(result.code).toBeDefined();
         expect(result.code).toContain('GeneratedExecutionContext');
@@ -252,7 +252,7 @@ export function validWorkflow(execute: boolean): Promise<{ onSuccess: boolean; o
 
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-skip-'));
       const tmpFile = path.join(tmpDir, 'main.ts');
-      // File imports a nonexistent module — would cause parse error if not skipped
+      // File imports a nonexistent module. It would cause a parse error if not skipped.
       fs.writeFileSync(tmpFile, 'import { foo } from "./nonexistent-module.js";\nexport const bar = foo;\n');
 
       const errorOutput: string[] = [];
@@ -812,7 +812,7 @@ export function alwaysThrows(execute: boolean): { onSuccess: boolean; onFailure:
       });
 
       // The body references params (the recursion-depth guard reads it via
-      // a TS cast); the signature must now declare it.
+      // a TS cast). The signature must now declare it.
       expect(generated.code).toContain('params as { __rd__?: number }');
       expect(generated.code).toMatch(/function alwaysThrows\(\s*execute[^)]*\bparams\b/);
       // params must precede __runtime__ (positional order is part of the ABI).

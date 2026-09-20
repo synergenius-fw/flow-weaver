@@ -35,13 +35,13 @@ const PATH_SEPARATOR_RULES = [
   {
     // .includes('/src/') or .includes('/dist/') or .includes('/tests/')
     pattern: /\.includes\(\s*['"]\/(?:src|dist|tests|node_modules)\//,
-    description: 'Hardcoded Unix path separator in .includes() — use path.sep or path.join',
+    description: 'Hardcoded Unix path separator in .includes(): use path.sep or path.join',
     allowlist: [] as string[],
   },
   {
     // .replace('/src/', '/dist/') without path.sep
     pattern: /\.replace\(\s*['"]\/(?:src|dist)\//,
-    description: 'Hardcoded Unix path separator in .replace() — use path.sep',
+    description: 'Hardcoded Unix path separator in .replace(): use path.sep',
     allowlist: [] as string[],
   },
 ];

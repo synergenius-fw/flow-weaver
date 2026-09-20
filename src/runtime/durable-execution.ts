@@ -136,7 +136,7 @@ export interface CreateWorkflowRuntimeOptions {
   readonly resolution?: GateResolution;
   /**
    * The identity of the compiled artifact this run executes, `sha256:<hex>`.
-   * A coordinator that hashes the artifact passes it; a continuation is
+   * A coordinator that hashes the artifact passes it, and a continuation is
    * refused on resume when it names another. Left out, the engine derives one
    * from the workflow's own graph identity, so a host that keeps a
    * continuation and brings it back to the same compiled file needs nothing

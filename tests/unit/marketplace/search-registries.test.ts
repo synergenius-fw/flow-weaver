@@ -31,14 +31,14 @@ describe('searchAllRegistries', () => {
 
     const pub = new URL(calls.find((c) => c.url.startsWith('https://registry.npmjs.org/'))!.url);
     const priv = new URL(calls.find((c) => c.url.startsWith('https://npm.example.com/'))!.url);
-    // The public registry understands the keyword qualifier; a private one gets plain text.
+    // The public registry understands the keyword qualifier. A private one gets plain text.
     expect(pub.pathname).toBe('/-/v1/search');
     expect(pub.searchParams.get('text')).toBe('keywords:flow-weaver-marketplace-pack x');
     expect(priv.searchParams.get('text')).toBe('x');
     expect(calls.find((c) => c.url.startsWith('https://npm.example.com/'))!.auth).toBe('Bearer secret');
     expect(calls.find((c) => c.url.startsWith('https://registry.npmjs.org/'))!.auth).toBeUndefined();
 
-    // Merged: a name once, the first registry keeping it; only packs kept.
+    // Merged: a name once, the first registry keeping it. Only packs kept.
     expect(results.map((r) => [r.name, r.registry]).sort()).toEqual([
       ['@acme/flow-weaver-pack-audio', 'npm.example.com'],
       ['flow-weaver-pack-openai', 'registry.npmjs.org'],

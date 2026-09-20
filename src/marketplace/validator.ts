@@ -1,5 +1,5 @@
 /**
- * Package validation — checks that a marketplace package meets
+ * Package validation: checks that a marketplace package meets
  * all requirements before publishing.
  */
 
@@ -28,7 +28,7 @@ function validatePackageJson(
 
   // PKG-005: the naming convention. A pack is identified by its manifest
   // and the marketplace keyword, so a name an organisation's policy
-  // dictates does not stop it being one; the convention only helps people
+  // dictates does not stop it being one. The convention only helps people
   // find it on a registry.
   const name = pkg.name as string | undefined;
   if (!name || !PACK_NAME_RE.test(name)) {
@@ -36,7 +36,7 @@ function validatePackageJson(
       issue(
         'PKG-005',
         'warning',
-        `Package name "${name ?? ''}" does not follow the "flow-weaver-pack-*" (or "@<scope>/flow-weaver-pack-*") convention; the pack still works, but is harder to find on a registry`,
+        `Package name "${name ?? ''}" does not follow the "flow-weaver-pack-*" (or "@<scope>/flow-weaver-pack-*") convention. The pack still works, but is harder to find on a registry`,
       )
     );
   }

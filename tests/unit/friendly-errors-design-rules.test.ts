@@ -114,7 +114,7 @@ describe('coercion error rules', () => {
   it('COERCE_TYPE_MISMATCH', () => {
     const r = getFriendlyError({
       code: 'COERCE_TYPE_MISMATCH',
-      message: 'Coercion `as string` produces wrong type; target expects NUMBER',
+      message: 'Coercion `as string` produces wrong type. Target expects NUMBER',
     });
     expectValid(r, 'COERCE_TYPE_MISMATCH');
     expect(r!.explanation).toContain('as string');

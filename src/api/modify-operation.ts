@@ -171,7 +171,7 @@ export function applyModifyOperation(
           !c.to.scope
       );
       if (alreadyConnected) {
-        warnings.push(`Connection ${from} -> ${to} already exists; skipped`);
+        warnings.push(`Connection ${from} -> ${to} already exists, skipped`);
         break;
       }
 

@@ -37,7 +37,7 @@ describe('calling a compiled workflow from code', () => {
     const result = await mod.helloWorld(true, { firstName: 'Ada', lastName: 'Lovelace' }, runtime);
     expect(result.onSuccess).toBe(true);
     expect(result.message).toContain('Ada Lovelace');
-    // The runtime is not optional; the topic says so because this is what happens.
+    // The runtime is not optional. The topic says so because this is what happens.
     await expect(Reflect.apply(mod.helloWorld, undefined, [true, { firstName: 'Ada', lastName: 'Lovelace' }])).rejects.toThrow(/services/);
   });
 
@@ -52,7 +52,7 @@ describe('calling a compiled workflow from code', () => {
   });
 
   it('types the compiled signature against the package runtime without a cast', () => {
-    // The compiled file declares its own runtime types; its debug-controller
+    // The compiled file declares its own runtime types. Its debug-controller
     // hook must not name the context class, or nothing from the package is
     // assignable to it.
     const compiled = fs.readFileSync(file, 'utf8');

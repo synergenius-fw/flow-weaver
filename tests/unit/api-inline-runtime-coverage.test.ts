@@ -10,7 +10,7 @@ describe('generateStandaloneRuntimeModule', () => {
     const output = generateStandaloneRuntimeModule(false, 'esm');
     expect(output).toContain('Shared Runtime Module');
     expect(output).toContain('GeneratedExecutionContext');
-    // Debug client was removed — should not appear
+    // Debug client was removed, should not appear
     expect(output).not.toContain('createFlowWeaverDebugClient');
     // ESM mode should NOT have module.exports
     expect(output).not.toContain('module.exports');
@@ -31,7 +31,7 @@ describe('generateStandaloneRuntimeModule', () => {
     expect(output).toContain('module.exports');
     expect(output).toContain('GeneratedExecutionContext');
     expect(output).toContain('CancellationError');
-    // Debug client was removed — should not appear
+    // Debug client was removed, should not appear
     expect(output).not.toContain('createFlowWeaverDebugClient');
     // Dev mode should still include TDebugger type
     expect(output).toContain('TDebugger');
@@ -49,7 +49,7 @@ describe('generateStandaloneRuntimeModule', () => {
   it('should default to ESM when no moduleFormat is specified', () => {
     const output = generateStandaloneRuntimeModule(false);
     expect(output).not.toContain('module.exports');
-    // Debug client was removed — should not appear
+    // Debug client was removed, should not appear
     expect(output).not.toContain('createFlowWeaverDebugClient');
   });
 });

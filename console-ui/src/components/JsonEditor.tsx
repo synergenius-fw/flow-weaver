@@ -7,7 +7,7 @@ import { tokenizeJson } from '../tokens';
  * A `<textarea>` cannot colour its own text, so the text is drawn twice: a
  * highlighted `<pre>` mirror underneath, and the real textarea on top with a
  * transparent colour and a visible caret. The two share the exact same font,
- * padding and wrapping, so the caret and the coloured glyphs line up; the
+ * padding and wrapping, so the caret and the coloured glyphs line up. The
  * mirror is scrolled to follow the textarea. The mirror uses the same `j-*`
  * classes as the read-only value view, so a key, a string, a number, a
  * boolean and null read the same here as everywhere else.

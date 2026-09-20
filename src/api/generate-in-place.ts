@@ -118,12 +118,12 @@ export function generateInPlace(
   let hasChanges = false;
 
   // Step 1: Update JSDoc annotations for node type functions
-  // Skip sibling workflows (variant IMPORTED_WORKFLOW/WORKFLOW) — their JSDoc should not be rewritten
+  // Skip sibling workflows (variant IMPORTED_WORKFLOW/WORKFLOW). Their JSDoc should not be rewritten.
   for (const nodeType of ast.nodeTypes) {
     if (nodeType.variant === 'IMPORTED_WORKFLOW' || nodeType.variant === 'WORKFLOW' || nodeType.variant === 'MAP_ITERATOR') {
       continue;
     }
-    // Skip node types imported from other files — the import statement handles them.
+    // Skip node types imported from other files. The import statement handles them.
     // Inlining would create duplicate declarations (TS2440) and duplicate node type names.
     // Compare basenames as a fallback: after a client roundtrip (JSON serialization),
     // sourceLocation.file may contain a virtual path ("/testing.ts") instead of the
@@ -141,7 +141,7 @@ export function generateInPlace(
         continue;
       }
     }
-    // Skip built-in auto-injected nodes — step 1.2 handles their insertion
+    // Skip built-in auto-injected nodes. Step 1.2 handles their insertion.
     if (!nodeType.sourceLocation && nodeType.helperText != null) {
       continue;
     }

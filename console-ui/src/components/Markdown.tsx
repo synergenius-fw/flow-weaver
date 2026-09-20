@@ -8,7 +8,7 @@ import { Highlight } from './Code';
 /**
  * The reference topics rendered as pages.
  *
- * `marked` reads the markdown; the rendering is done here, token by token,
+ * `marked` reads the markdown. The rendering is done here, token by token,
  * so a table is a table, a code block goes through the same highlighter as
  * a node's source, a link to another topic opens it in the console, and an
  * `fw` command gets a button that puts it on the command line.

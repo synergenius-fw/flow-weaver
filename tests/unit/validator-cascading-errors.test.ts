@@ -1,5 +1,5 @@
 /**
- * WU2: S13 — Deduplicate cascading errors from UNKNOWN_NODE_TYPE
+ * WU2, S13: Deduplicate cascading errors from UNKNOWN_NODE_TYPE
  *
  * Problem: 3 unknown types → 19 errors (3 root + 16 cascading).
  * The validator continues all checks after UNKNOWN_NODE_TYPE, producing

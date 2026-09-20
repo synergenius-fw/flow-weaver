@@ -188,7 +188,7 @@ export class DebugSessions {
     const s = this.need(id);
     if (s.view.status !== 'paused' || !s.last) throw new Error('the session is not paused');
     const key = latestKey(s.last.variables, node, port);
-    if (!key) throw new Error(`${node}.${port} has no value yet; it can be set once ${node} has run`);
+    if (!key) throw new Error(`${node}.${port} has no value yet. It can be set once ${node} has run`);
     s.controller.setVariable(key, value);
     s.last.variables[key] = value;
     s.view = { ...s.view, values: { ...s.view.values, [`${node}.${port}`]: value }, updatedAt: Date.now() };
@@ -239,7 +239,7 @@ export class DebugSessions {
       const gate = next.outcome.gate.address.nodeId;
       s.view = {
         ...s.view, status: 'yielded', node: gate, phase: undefined, updatedAt: now,
-        error: `Reached the gate at ${gate}. The debugger cannot hold a gate; run the workflow without it to answer one.`,
+        error: `Reached the gate at ${gate}. The debugger cannot hold a gate. Run the workflow without it to answer one.`,
       };
     } else {
       const error = next.kind === 'error' ? next.error : undefined;

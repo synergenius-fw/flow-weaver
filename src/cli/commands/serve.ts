@@ -13,25 +13,25 @@ import { loadAgentProfiles, readiness } from '../../agent/profiles.js';
 export interface ServeOptions {
   /** Server port. Default 3000. */
   port?: number;
-  /** Server host. Default 127.0.0.1; anything else needs a token or --insecure. */
+  /** Server host. Default 127.0.0.1. Anything else needs a token or --insecure. */
   host?: string;
   /** Re-discover workflows when files change. Default true. */
   watch?: boolean;
   /** Deprecated alias for `trace: false`. */
   production?: boolean;
-  /** Accepted for compatibility; has no effect. */
+  /** Accepted for compatibility. Has no effect. */
   precompile?: boolean;
-  /** CORS origin; unset sends no CORS headers. */
+  /** CORS origin. Unset sends no CORS headers. */
   cors?: string;
   /** Swagger UI at /docs. */
   swagger?: boolean;
-  /** Bearer token; also read from FW_SERVE_TOKEN. */
+  /** Bearer token. Also read from FW_SERVE_TOKEN. */
   token?: string;
   /** Answer agent gates from .flowweaver/agents.yaml. Default true. */
   agents?: boolean;
   /** Keep and stream a step trace per run. */
   trace?: boolean;
-  /** Error stacks in responses; mocks accepted in a start body. */
+  /** Error stacks in responses. Mocks accepted in a start body. */
   dev?: boolean;
   /** Listen beyond loopback without a token. */
   insecure?: boolean;
@@ -47,7 +47,7 @@ const isLoopback = (host: string) => ['127.0.0.1', 'localhost', '::1', '[::1]'].
  * fw serve                              # this directory, on 127.0.0.1:3000
  * fw serve ./workflows --port 8080
  * fw serve --host 0.0.0.0 --token $FW_SERVE_TOKEN   # reachable, guarded
- * fw serve --trace --dev                # streams every step; stacks in errors
+ * fw serve --trace --dev                # streams every step, stacks in errors
  * fw serve --no-agents                  # agent gates wait for a person
  * ```
  */
@@ -76,10 +76,10 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
     const profiles = loadAgentProfiles(workflowDir);
     const ready = Object.values(profiles.agents).filter((p) => readiness(p).ready).length;
     logger.info(profiles.exists
-      ? `Agents: ${Object.keys(profiles.agents).length} profile(s), ${ready} ready${profiles.default ? `, default ${profiles.default}` : ''}${profiles.errors.length ? ` — ${profiles.errors.length} problem(s) in ${profiles.file}` : ''}`
-      : 'Agents: no .flowweaver/agents.yaml; agent gates wait for a person (fw agents --init writes a starter)');
+      ? `Agents: ${Object.keys(profiles.agents).length} profile(s), ${ready} ready${profiles.default ? `, default ${profiles.default}` : ''}${profiles.errors.length ? `, ${profiles.errors.length} problem(s) in ${profiles.file}` : ''}`
+      : 'Agents: no .flowweaver/agents.yaml. Agent gates wait for a person (fw agents --init writes a starter)');
   } else {
-    logger.info('Agents: off; agent gates wait for a person');
+    logger.info('Agents: off. Agent gates wait for a person');
   }
   logger.info(`File watching: ${options.watch !== false ? 'enabled' : 'disabled'}`);
   logger.newline();

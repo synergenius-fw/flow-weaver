@@ -109,9 +109,9 @@ describe("Shared Port Ordering Utilities", () => {
 
       assignImplicitPortOrders(ports);
 
-      // External scope — execute is the only mandatory port, gets -1
+      // External scope: execute is the only mandatory port, gets -1
       expect(ports.execute.metadata?.order).toBe(-1);
-      // loop scope — start is mandatory within scope, gets -1; item follows at 0
+      // loop scope: start is mandatory within scope, gets -1. Item follows at 0
       expect(ports.start.metadata?.order).toBe(-1);
       expect(ports.item.metadata?.order).toBe(0);
     });
@@ -225,7 +225,7 @@ describe("Shared Port Ordering Utilities", () => {
 
       assignImplicitPortOrders(ports);
 
-      // result has explicit order 1; mandatory ports must not also get 1
+      // result has explicit order 1. Mandatory ports must not also get 1
       const orders = [
         ports.onSuccess.metadata?.order,
         ports.onFailure.metadata?.order,

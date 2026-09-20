@@ -189,6 +189,7 @@ export function report(
  * Rate a batch of invoices and report on it.
  *
  * @flowWeaver workflow
+ * @http POST /rate-invoice-batch
  * @param batch - Raw invoice lines
  * @returns status - "posted" or "refused"
  * @returns report - What happened

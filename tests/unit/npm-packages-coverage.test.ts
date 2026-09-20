@@ -162,8 +162,8 @@ describe('getPackageExports error handling', () => {
   it('returns node types for valid package with exported functions', () => {
     const nmDir = path.join(tmpBase, 'valid-pkg', 'node_modules');
     setupPackage(nmDir, 'valid-math', `
-      export declare function add(a: number, b: number): number;
-      export declare function greet(name: string): string;
+      export declare function add(a: number, b: number): number
+      export declare function greet(name: string): string
     `);
 
     const result = getPackageExports(

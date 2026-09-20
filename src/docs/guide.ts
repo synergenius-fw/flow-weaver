@@ -63,7 +63,7 @@ const GROUPS: Array<{ title: string; topics: Array<[slug: string, related?: Rela
   { title: 'Reference', topics: [['error-codes', { codes: true }]] },
 ];
 
-/** Every topic, in reading order. A topic the manifest does not know goes under "More"; a pack's under "Packs". */
+/** Every topic, in reading order. A topic the manifest does not know goes under "More", a pack's under "Packs". */
 export function guideOutline(topics: DocTopic[] = listTopics(), packSlugs: Set<string> = new Set()): GuideGroup[] {
   const byslug = new Map(topics.map((t) => [t.slug, t]));
   const placed = new Set<string>();

@@ -153,7 +153,7 @@ export function registerPatternTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_modify',
-    'Modify a workflow file: add/remove/rename nodes, add/remove connections, set labels. Parses the file, applies the mutation, and rewrites only the JSDoc annotations. A file that was already compiled in place is recompiled so its generated body stays consistent; an uncompiled file stays uncompiled. Returns auto-validation results and a text description of the updated workflow.',
+    'Modify a workflow file: add/remove/rename nodes, add/remove connections, set labels. Parses the file, applies the mutation, and rewrites only the JSDoc annotations. A file that was already compiled in place is recompiled so its generated body stays consistent. An uncompiled file stays uncompiled. Returns auto-validation results and a text description of the updated workflow.',
     {
       filePath: z.string().describe('Path to the workflow file'),
       workflowName: z.string().optional().describe('Specific workflow if file has multiple'),
@@ -340,7 +340,7 @@ export function registerPatternTools(mcp: McpServer): void {
                 !c.to.scope
             );
             if (alreadyConnected) {
-              warnings.push(`Connection ${from} -> ${to} already exists; skipped`);
+              warnings.push(`Connection ${from} -> ${to} already exists, so it was skipped`);
               break;
             }
 

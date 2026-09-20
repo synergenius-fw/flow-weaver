@@ -65,7 +65,7 @@ vi.mock('../../src/mcp/workflow-executor', () => ({
   executeWorkflow: vi.fn(async (_request: Record<string, unknown>) => {
     if (mockExecError) throw mockExecError;
     if (mockExecResolve !== null) {
-      // Caller set up a deferred promise; return it
+      // Caller set up a deferred promise. Return it
       return new Promise((resolve) => { mockExecResolve = resolve; });
     }
     return mockExecResult;

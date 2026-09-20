@@ -64,7 +64,7 @@ export function stripJsonComments(text: string): string {
   let result = '';
   let i = 0;
   while (i < text.length) {
-    // String literal — copy verbatim
+    // String literal, copied verbatim
     if (text[i] === '"') {
       const start = i;
       i++; // skip opening quote
@@ -473,7 +473,7 @@ export function checkTsconfigModuleResolution(cwd: string): CheckResult {
     return {
       name: 'tsconfig "moduleResolution"',
       status: 'fail',
-      message: '"moduleResolution" is "node" (Node10) — cannot resolve ESM exports',
+      message: '"moduleResolution" is "node" (Node10), which cannot resolve ESM exports',
       fix: 'Set "moduleResolution": "nodenext" or "bundler" in tsconfig.json',
     };
   }
@@ -686,7 +686,7 @@ export function checkProjectConfig(cwd: string): CheckResult {
     return {
       name: 'Project config',
       status: 'fail',
-      message: `Invalid defaultFileType "${config.defaultFileType}" — must be one of: ${VALID_FILE_TYPES.join(', ')}`,
+      message: `Invalid defaultFileType "${config.defaultFileType}", must be one of: ${VALID_FILE_TYPES.join(', ')}`,
       fix: `Set defaultFileType to one of: ${VALID_FILE_TYPES.join(', ')}`,
     };
   }
@@ -868,7 +868,7 @@ export function checkRunningServices(services: ServiceRecord[] = listServices())
     name: 'Running services',
     status: elsewhere.length ? 'warn' : 'pass',
     message: lines.join('; '),
-    ...(elsewhere.length ? { fix: `An MCP server runs from ${elsewhere[0].install}, not from here; restart it from this install if this is the one you are changing.` } : {}),
+    ...(elsewhere.length ? { fix: `An MCP server runs from ${elsewhere[0].install}, not from here. Restart it from this install if this is the one you are changing.` } : {}),
   };
 }
 
@@ -921,7 +921,7 @@ export async function doctorCommand(options: DoctorOptions = {}): Promise<void> 
     logger.section('Flow Weaver Doctor');
 
     const statusIcon = (s: CheckStatus) =>
-      s === 'pass' ? logger.highlight('pass') : s === 'warn' ? '⚠ warn' : '✗ fail';
+      s === 'pass' ? logger.highlight('pass') : s === 'warn' ? 'warn' : '✗ fail';
 
     const rows: [string, string, string][] = report.checks.map((check) => [
       check.name,

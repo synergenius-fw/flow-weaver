@@ -10,11 +10,11 @@ export type Opt = { value: string; label: ComponentChildren; text?: string; disa
  * the browser hands that popup to the OS, so on macOS it arrives as a
  * system-blue menu in the system font, unlike anything else on the page.
  * This one draws the box like our other fields (own chevron, already in
- * styles.css) and draws the list itself — a floating panel positioned in
+ * styles.css) and draws the list itself: a floating panel positioned in
  * the viewport so a scroll container never clips it, with our rows, our
  * tint on the current and the hovered one, keyboard control and
  * type-ahead. `text` is the plain string a rich `label` reduces to, used
- * for the closed box and for type-ahead; it falls back to the value.
+ * for the closed box and for type-ahead. It falls back to the value.
  */
 export function Select({ value, options, onChange, disabled, class: cls, placeholder, title }: {
   value: string;
@@ -38,7 +38,7 @@ export function Select({ value, options, onChange, disabled, class: cls, placeho
   const place = () => {
     const r = box.current?.getBoundingClientRect();
     if (!r) return;
-    // The panel is at most 280px tall; if it would run off the bottom of
+    // The panel is at most 280px tall. If it would run off the bottom of
     // the window and there is more room above, it hangs upward instead.
     const below = window.innerHeight - r.bottom;
     const above = below < 200 && r.top > below;
@@ -135,7 +135,7 @@ export function Select({ value, options, onChange, disabled, class: cls, placeho
           ref={panel}
           class={`selpanel ${at.above ? 'above' : ''}`}
           role="listbox"
-          style={`left:${at.left}px; ${at.above ? `bottom:${window.innerHeight - at.top}px` : `top:${at.top}px`}; min-width:${at.width}px; max-width:${at.maxWidth}px`}
+          style={`left: ${at.left}px; min-width: ${at.width}px; max-width: ${at.maxWidth}px; ${at.above ? `bottom: ${window.innerHeight - at.top}px` : `top: ${at.top}px`}`}
         >
           {options.map((o, i) => (
             <div

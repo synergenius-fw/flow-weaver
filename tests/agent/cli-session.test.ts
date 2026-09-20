@@ -1,5 +1,5 @@
 /**
- * Tests for CliSession — persistent CLI session manager.
+ * Tests for CliSession, the persistent CLI session manager.
  *
  * Covers:
  * - PR #312: disallowedTools + systemPrompt flag passing
@@ -236,7 +236,7 @@ describe('CliSession concurrent send() guard', () => {
   it('throws when send() is called while a previous send() is in progress', async () => {
     const session = createLiveSession();
 
-    // Start first send — it will block waiting for result event
+    // Start first send. It will block waiting for the result event.
     const gen1 = session.send('first message');
     // Drive the generator to start (hits the first yield point / await)
     const firstNext = gen1.next();
@@ -245,7 +245,7 @@ describe('CliSession concurrent send() guard', () => {
     const gen2 = session.send('second message');
     await expect(gen2.next()).rejects.toThrow('concurrent send()');
 
-    // Clean up — complete the first turn
+    // Clean up by completing the first turn
     session.kill();
     // Drain first generator
     try { await firstNext; } catch { /* killed */ }
@@ -286,12 +286,12 @@ describe('CliSession concurrent send() guard', () => {
     // This prevents a second send() from passing the guard during the async spawn.
     //
     // We verify by checking that immediately after calling send() on a dead session,
-    // a second send() throws — proving activeTurn was set before the async spawn.
+    // a second send() throws, proving activeTurn was set before the async spawn.
     const { fn } = createMockSpawn();
     const session = new CliSession(baseOptions({ spawnFn: fn as any }));
     // Session is NOT alive (never spawned), so send() will call spawn()
 
-    // Start first send — spawn runs synchronously from the mock
+    // Start first send. Spawn runs synchronously from the mock.
     const gen1 = session.send('msg1');
     // Drive generator to first yield (past the spawn)
     const p1 = gen1.next();
@@ -405,7 +405,7 @@ describe('CliSession idle timeout cleanup', () => {
     // Session is alive, idle timer is set
     expect(session.ready).toBe(true);
 
-    // Simulate process crash — markDead is called via the 'exit' handler
+    // Simulate a process crash. markDead is called via the 'exit' handler.
     // Access the child's 'on' mock to find the exit callback
     const child = (session as any).child;
     const exitCb = (fn as any).mock.results[0].value.on.mock.calls
@@ -479,7 +479,7 @@ describe('CliSession idle timeout cleanup', () => {
     const unrefCountBefore = unrefCalls.length;
     session.kill();
 
-    // kill() creates a 2000ms SIGKILL timer — it should also be unref'd
+    // kill() creates a 2000ms SIGKILL timer that should also be unref'd
     const sigkillUnrefs = unrefCalls.slice(unrefCountBefore).filter(ms => ms === 2000);
     expect(sigkillUnrefs.length).toBeGreaterThan(0);
 

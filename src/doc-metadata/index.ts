@@ -11,7 +11,7 @@ export { extractGrammarEBNF, extractTerminals } from './extractors/grammar-rules
 export type { TGrammarGroupDoc, TTerminalDoc } from './extractors/grammar-rules.js';
 export type { TMcpToolDoc, TMcpToolParam, TCliCommandDoc, TCliOptionDoc } from './types.js';
 
-// Core metadata — data types, strategies, reserved names, templates, package exports
+// Core metadata: data types, strategies, reserved names, templates, package exports
 export {
   DATA_TYPES,
   MERGE_STRATEGIES,

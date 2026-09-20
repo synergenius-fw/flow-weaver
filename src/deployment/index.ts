@@ -112,9 +112,9 @@ import { ExportTargetRegistry } from './targets/base.js';
  * Scans `node_modules/` for installed packs -- any package with a
  * `flowweaver.manifest.json` -- that declare `exportTargets` in it.
  * Each target class is eagerly imported (to resolve the async import) but
- * lazily instantiated — the constructor only runs when `registry.get()` is called.
+ * lazily instantiated. The constructor only runs when `registry.get()` is called.
  *
- * @param projectDir — project root to scan for installed packs.
+ * @param projectDir project root to scan for installed packs.
  *   When omitted, returns an empty registry (useful for tests).
  */
 export async function createTargetRegistry(projectDir?: string): Promise<ExportTargetRegistry> {

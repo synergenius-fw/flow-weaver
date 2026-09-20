@@ -62,7 +62,7 @@ describe('detectCliTools', () => {
   });
 });
 
-describe('mcpSetupCommand — non-interactive branch (lines 447-449)', () => {
+describe('mcpSetupCommand: non-interactive branch (lines 447-449)', () => {
   let origIsTTY: boolean | undefined;
 
   beforeEach(() => {
@@ -88,7 +88,7 @@ describe('mcpSetupCommand — non-interactive branch (lines 447-449)', () => {
   });
 });
 
-describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () => {
+describe('mcpSetupCommand: interactive confirm branch (lines 450-485)', () => {
   let origIsTTY: boolean | undefined;
 
   beforeEach(() => {
@@ -175,7 +175,7 @@ describe('mcpSetupCommand — interactive confirm branch (lines 450-485)', () =>
   });
 });
 
-describe('mcpSetupCommand — --all flag (line 446)', () => {
+describe('mcpSetupCommand: --all flag (line 446)', () => {
   it('configures all detected tools when --all is passed', async () => {
     const { mcpSetupCommand } = await import('../../src/cli/commands/mcp-setup');
     const deps = makeCursorDetectedDeps();

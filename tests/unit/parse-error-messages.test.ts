@@ -1,5 +1,5 @@
 /**
- * WU7: S11 — "No workflows found" should mention nodeType prerequisite
+ * WU7, S11: "No workflows found" should mention nodeType prerequisite
  */
 
 import { describe, it, expect } from 'vitest';

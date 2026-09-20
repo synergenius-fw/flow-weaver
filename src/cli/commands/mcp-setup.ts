@@ -1,5 +1,5 @@
 /**
- * mcp-setup command — detect AI coding tools and configure the Flow Weaver MCP server.
+ * mcp-setup command: detect AI coding tools and configure the Flow Weaver MCP server.
  */
 
 import { execSync } from 'child_process';
@@ -422,7 +422,7 @@ export async function mcpSetupCommand(
       const status = t.detected
         ? (t.configured ? 'detected, configured' : 'detected')
         : 'not found';
-      const icon = t.detected ? (t.configured ? '●' : '○') : '·';
+      const icon = t.detected ? (t.configured ? '●' : '○') : ' ';
       d.log(`  ${icon} ${t.displayName.padEnd(18)} ${status}`);
     }
     d.log('');

@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks';
 import { bytes } from '../format';
 import { Json, JsonInline } from './Json';
 
-/** A value at a glance, expandable to pretty JSON; large values show their size. */
+/** A value at a glance, expandable to pretty JSON. Large values show their size. */
 export function Value({ value, open: initial = false, static: isStatic = false }: { value: unknown; open?: boolean; static?: boolean }) {
   const [open, setOpen] = useState(initial);
   if (value === undefined) return <span class="val static" style="color:var(--faint)">—</span>;

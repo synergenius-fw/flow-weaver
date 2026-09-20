@@ -81,7 +81,7 @@ export interface AnswerGateOptions {
   gate: GateToAnswer;
   workflow: GateWorkflow;
   profile: AgentProfile;
-  /** The provider to call; built from the profile and environment when omitted. */
+  /** The provider to call, built from the profile and environment when omitted. */
   provider?: AgentProvider;
   env?: NodeJS.ProcessEnv;
   /** Working directory for a CLI provider. */
@@ -182,7 +182,7 @@ export function systemPromptFor(profile: AgentProfile, workflow: GateWorkflow, g
     `You are completing one step of the workflow "${workflow.name}"${workflow.description ? ` (${workflow.description})` : ''}: the agent gate "${gate.node}".`,
     'You receive the gate\'s inputs as JSON: `agentId` names the task, `context` is the material to work from, `prompt` is the instruction when there is one.',
     `Do the task, then call \`${SUBMIT_TOOL}\` exactly once with the result.${gate.hasFailurePort ? ` If the task cannot be done from what you were given, call \`${REJECT_TOOL}\` with a short reason instead.` : ''}`,
-    'Only the tool call counts; anything you write in prose is discarded.',
+    'Only the tool call counts. Anything you write in prose is discarded.',
   ];
   return lines.filter(Boolean).join('\n\n');
 }
@@ -306,7 +306,7 @@ export async function answerGate(opts: AnswerGateOptions): Promise<GateAgentResu
     signal: opts.signal,
     onStreamEvent,
     onToolEvent,
-    // Once the answer is in hand there is nothing more to ask; stop before
+    // Once the answer is in hand there is nothing more to ask. Stop before
     // another model turn is paid for.
     onTurnEnd: async () => (captured ? { continue: false } : undefined),
   });

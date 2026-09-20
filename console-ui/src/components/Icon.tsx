@@ -1,7 +1,7 @@
 import { iconsReady } from '../state';
 import { iconName } from '../format';
 
-/** A Material Symbol by Flow Weaver icon name; renders nothing until the font is available. */
+/** A Material Symbol by Flow Weaver icon name. Renders nothing until the font is available. */
 export function Icon({ name }: { name: string }) {
   if (!iconsReady.value) return null;
   return <span class="ms" aria-hidden="true">{iconName(name)}</span>;

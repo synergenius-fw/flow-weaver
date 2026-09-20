@@ -1,6 +1,6 @@
 /**
  * The Code view's colouring: keywords, strings, numbers, types and function
- * names in code; tags, declared names and backticked code in doc comments.
+ * names in code, then tags, declared names and backticked code in doc comments.
  */
 import { describe, it, expect } from 'vitest';
 import { tokenizeLines, tokenizeJson } from '../../../console-ui/src/tokens';
@@ -28,7 +28,7 @@ describe('tokenizeLines', () => {
   it('lights the tag, the declared name and backticked code inside a doc comment, across lines', () => {
     const lines = tokenizeLines([
       '/**',
-      ' * Run the rating once per invoice; it owns the `line` scope.',
+      ' * Run the rating once per invoice. It owns the `line` scope.',
       ' * @flowWeaver nodeType',
       ' * @label For Each Invoice',
       ' * @input invoices - Invoices to rate',
@@ -37,7 +37,7 @@ describe('tokenizeLines', () => {
       'const after = 1;',
     ].join('\n'));
     const k = (i: number) => lines[i].filter((t) => t.t).map((t) => `${t.t}:${t.c}`);
-    expect(k(1)).toEqual([' * Run the rating once per invoice; it owns the ', '`line`', ' scope.'].map((c, i) => `${i === 1 ? 'i' : 'c'}:${c}`));
+    expect(k(1)).toEqual([' * Run the rating once per invoice. It owns the ', '`line`', ' scope.'].map((c, i) => `${i === 1 ? 'i' : 'c'}:${c}`));
     expect(k(2)).toEqual(['c: * ', 't:@flowWeaver', 'c: nodeType']);
     // A label is prose: nothing after the tag is a name.
     expect(k(3)).toEqual(['c: * ', 't:@label', 'c: For Each Invoice']);

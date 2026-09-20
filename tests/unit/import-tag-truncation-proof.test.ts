@@ -31,7 +31,7 @@ export function testWorkflow() {}
     const comment = importTag!.getCommentText() || '';
     const isTruncated = !comment.includes('npm/autoprefixer/autoprefixer');
 
-    // Document the actual behavior — varies by TypeScript version/environment
+    // Document the actual behavior, which varies by TypeScript version/environment
     if (isTruncated) {
       // TypeScript truncates @import first word as type annotation
     } else {

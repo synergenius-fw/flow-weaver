@@ -24,12 +24,12 @@ export const logger = {
   },
 
   warn(message: string): void {
-    console.warn(`${pc.yellow('⚠')} ${message}`);
+    console.warn(pc.yellow(message));
   },
 
   debug(message: string): void {
     if (process.env.DEBUG) {
-      console.log(`${pc.dim('🔍')} ${pc.dim(message)}`);
+      console.log(pc.dim(message));
     }
   },
 

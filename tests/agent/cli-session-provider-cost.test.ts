@@ -14,7 +14,7 @@ import { runAgentLoop } from '../../src/agent/agent-loop.js';
 import type { AgentProvider, AgentMessage, ToolDefinition, StreamEvent, StreamOptions, McpBridge, ToolEvent } from '../../src/agent/types.js';
 import { joinSplitPrompt } from '../../src/agent/types.js';
 
-// Minimal CliSessionProvider replica — same logic as pack-weaver's
+// Minimal CliSessionProvider replica with the same logic as pack-weaver's
 const TOOL_USE_EVENT_TYPES = new Set(['tool_use_start', 'tool_use_delta', 'tool_use_end']);
 
 class TestCliSessionProvider implements AgentProvider {

@@ -3,7 +3,7 @@
  *
  * These functions expand the @map / @path / @fanout / @fanin / @coerce macros
  * and generate implicit auto-connections. They were previously private methods
- * of AnnotationParser; they use no instance state (all inputs/outputs are
+ * of AnnotationParser. They use no instance state (all inputs/outputs are
  * explicit parameters), so extracting them as free functions is behavior-neutral
  * and shrinks the parser god-class.
  */

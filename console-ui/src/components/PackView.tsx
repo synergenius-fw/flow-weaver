@@ -29,8 +29,8 @@ export function PackView() {
         <div class="meta">
           <span class="mono">{p.name}@{p.version}</span>
           {p.engineVersion && (
-            <span class={`pill ${p.compatible === false ? 'warn' : p.compatible ? 'ok' : ''}`} title={p.compatible === false ? 'This pack expects a newer Flow Weaver; it still loads, with a warning' : ''}>
-              engine {p.engineVersion}{p.compatible === false ? ' · newer than this one' : ''}
+            <span class={`pill ${p.compatible === false ? 'warn' : p.compatible ? 'ok' : ''}`} title={p.compatible === false ? 'This pack expects a newer Flow Weaver. It still loads, with a warning' : ''}>
+              engine {p.engineVersion}{p.compatible === false ? ' (newer than this one)' : ''}
             </span>
           )}
           {users.length > 0 && <span class="pill">used by {users.length} workflow{users.length > 1 ? 's' : ''}</span>}
@@ -67,11 +67,11 @@ export function PackBody({ p }: { p: Pack }) {
           </table></div>
         </Section>
         <Section title="Patterns" count={p.patterns.length} what="patterns">
-          <ul>{p.patterns.map((x) => <li key={x.name}><code>{x.name}</code> · {x.nodes} nodes{x.description ? ` — ${x.description}` : ''}</li>)}</ul>
+          <ul>{p.patterns.map((x) => <li key={x.name}><code>{x.name}</code>, {x.nodes} nodes{x.description ? `: ${x.description}` : ''}</li>)}</ul>
         </Section>
         <Section title="Export targets" count={p.exportTargets.length} what="export targets">
           <ul>{p.exportTargets.map((t) => (
-            <li key={t.name}><code>{t.name}</code>{t.description ? ` — ${t.description}` : ''} <button class="linkish" onClick={() => stageCli(`fw export <input> --target ${t.name}`)}>▶ export with it</button></li>
+            <li key={t.name}><code>{t.name}</code>{t.description ? `: ${t.description}` : ''} <button class="linkish" onClick={() => stageCli(`fw export <input> --target ${t.name}`)}>▶ export with it</button></li>
           ))}</ul>
         </Section>
         <Section title="Annotations it understands" count={p.tagHandlers.length} what="tag handlers">
@@ -82,10 +82,10 @@ export function PackBody({ p }: { p: Pack }) {
           <p class="hint">Whatever these tags say lands under the namespace, and shows on the step or workflow as pack tags.</p>
         </Section>
         <Section title="Validation rules" count={p.validationRuleSets.length} what="rule sets">
-          <ul>{p.validationRuleSets.map((r) => <li key={r.name}>{r.name} <span class="hint">· applies to <code>{r.namespace}</code></span></li>)}</ul>
+          <ul>{p.validationRuleSets.map((r) => <li key={r.name}>{r.name} <span class="hint">applies to <code>{r.namespace}</code></span></li>)}</ul>
         </Section>
         <Section title="Documentation" count={p.docs.length} what="topics">
-          <ul>{p.docs.map((d) => <li key={d.slug}><a href={`#doc/${d.slug}`} onClick={(e) => { e.preventDefault(); openDoc(d.slug); }}>{d.name}</a>{d.description ? ` — ${d.description}` : ''}</li>)}</ul>
+          <ul>{p.docs.map((d) => <li key={d.slug}><a href={`#doc/${d.slug}`} onClick={(e) => { e.preventDefault(); openDoc(d.slug); }}>{d.name}</a>{d.description ? `: ${d.description}` : ''}</li>)}</ul>
         </Section>
         <Section title="CLI commands" count={p.cliCommands.length} what="commands">
           <div class="block cmd"><pre>

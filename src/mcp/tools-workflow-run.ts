@@ -57,7 +57,7 @@ export function registerWorkflowRunTools(mcp: McpServer): void {
       filePath: z.string().describe('Path to the workflow .ts file'),
       params: z.record(z.string(), z.unknown()).optional(),
       workflowName: z.string().optional(),
-      runId: z.string().optional().describe('Stable run identity; generated when omitted'),
+      runId: z.string().optional().describe('Stable run identity, generated when omitted'),
       bundleDigest: z.string().optional().describe('Verified sha256 identity of the executable bundle'),
     },
     async (args: {
@@ -88,7 +88,7 @@ export function registerWorkflowRunTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_workflow_resume',
-    'Resume one exact durable gate continuation. The prior executor is not retained. For coordinators; assistants should use fw_resume.',
+    'Resume one exact durable gate continuation. The prior executor is not retained. For coordinators. Assistants should use fw_resume.',
     {
       runId: z.string(),
       filePath: z.string(),

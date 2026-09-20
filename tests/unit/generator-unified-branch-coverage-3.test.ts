@@ -404,6 +404,11 @@ describe('Unified Generator - buildStepSourceCondition failure port', () => {
 // 8. Exit port with explicit onSuccess/onFailure connections
 // ---------------------------------------------------------------------------
 describe('Unified Generator - explicit exit onSuccess/onFailure', () => {
+  // The defaults under test are the ones in the body's final result. The
+  // file as a whole also carries the inlined engine, whose own code says
+  // `onSuccess: true,` for a mocked gate, so only the tail is inspected.
+  const finalResultOf = (code: string) => code.slice(code.indexOf('const finalResult'));
+
   it('does not add default onSuccess when explicitly connected', () => {
     const node = makeSimpleNodeType('explicitExit');
 
@@ -421,7 +426,7 @@ describe('Unified Generator - explicit exit onSuccess/onFailure', () => {
     const code = generateCode(workflow, { production: true });
     expect(code).toContain('exit_onSuccess');
     // Should still have default onFailure since only onSuccess is connected
-    expect(code).toContain('onFailure: false');
+    expect(finalResultOf(code)).toContain('onFailure: false');
   });
 
   it('does not add default onFailure when explicitly connected', () => {
@@ -441,7 +446,7 @@ describe('Unified Generator - explicit exit onSuccess/onFailure', () => {
     const code = generateCode(workflow, { production: true });
     expect(code).toContain('exit_onFailure');
     // Should still have default onSuccess since only onFailure is connected
-    expect(code).toContain('onSuccess: true');
+    expect(finalResultOf(code)).toContain('onSuccess: true');
   });
 
   it('does not add defaults when both onSuccess and onFailure are explicitly connected', () => {
@@ -463,8 +468,8 @@ describe('Unified Generator - explicit exit onSuccess/onFailure', () => {
     // Both are connected, no defaults should be added
     expect(code).toContain('exit_onSuccess');
     expect(code).toContain('exit_onFailure');
-    expect(code).not.toContain('onSuccess: true,');
-    expect(code).not.toContain('onFailure: false,');
+    expect(finalResultOf(code)).not.toContain('onSuccess: true,');
+    expect(finalResultOf(code)).not.toContain('onFailure: false,');
   });
 });
 

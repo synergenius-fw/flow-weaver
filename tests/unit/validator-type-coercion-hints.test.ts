@@ -1,5 +1,5 @@
 /**
- * WU8: S15 — LOSSY_TYPE_COERCION should hint about @strictTypes
+ * WU8, S15: LOSSY_TYPE_COERCION should hint about @strictTypes
  */
 
 import { describe, it, expect } from 'vitest';

@@ -56,7 +56,7 @@ Pure nodes are ordinary `@expression` functions and need no durable tag. The gat
 
 ```typescript
 /**
- * An @expression node counts as pure automatically; no @durablePure needed.
+ * An @expression node counts as pure automatically. No @durablePure needed.
  *
  * @flowWeaver nodeType
  * @expression

@@ -57,7 +57,7 @@ export function buildGateResolution(
 function dataPorts(outputs: readonly string[], answer: unknown): Record<string, unknown> {
   if (outputs.length === 0) {
     if (answer !== null && answer !== undefined) {
-      throw new InvalidAnswerError('this gate has no data outputs; answer must be null');
+      throw new InvalidAnswerError('this gate has no data outputs, so answer must be null');
     }
     return {};
   }

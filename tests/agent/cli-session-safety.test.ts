@@ -25,7 +25,7 @@ function makeOpts(overrides: Partial<CliSessionOptions> = {}): CliSessionOptions
   };
 }
 
-describe('CliSession fingerprint — mcpConfigPath excluded', () => {
+describe('CliSession fingerprint (mcpConfigPath excluded)', () => {
   beforeEach(() => {
     // Kill all sessions between tests
     killAllCliSessions();
@@ -41,7 +41,7 @@ describe('CliSession fingerprint — mcpConfigPath excluded', () => {
 
     const session2 = getOrCreateCliSession('test-fp-1', opts2);
 
-    // Same session — not killed and recreated
+    // Same session, not killed and recreated
     expect(session2.sessionId).toBe(session1.sessionId);
   });
 
@@ -54,7 +54,7 @@ describe('CliSession fingerprint — mcpConfigPath excluded', () => {
 
     const session2 = getOrCreateCliSession('test-fp-2', opts2);
 
-    // Different session — model is a semantic option
+    // Different session, because model is a semantic option
     expect(session2.sessionId).not.toBe(session1.sessionId);
   });
 
@@ -129,7 +129,7 @@ describe('CliSession active turn protection', () => {
       return true;
     });
 
-    // Different model — would normally kill and recreate
+    // Different model would normally kill and recreate
     const opts2 = makeOpts({ model: 'claude-opus-4-6' });
     const session2 = getOrCreateCliSession('test-active-3', opts2);
 
@@ -139,7 +139,7 @@ describe('CliSession active turn protection', () => {
     expect(session2.sessionId).toBe(session1.sessionId);
 
     // Should have logged a warning
-    expect(captured.some(c => c.includes('active turn') && c.includes('reusing'))).toBe(true);
+    expect(captured.some(c => c.includes('active turn') && /reusing/i.test(c))).toBe(true);
   });
 
   it('hasActiveTurn returns correct state', () => {

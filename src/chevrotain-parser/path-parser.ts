@@ -154,7 +154,7 @@ class PathVisitor extends BaseVisitor {
         route = suffix;
       } else {
         this.warnings.push(
-          `@path: invalid route suffix ":${suffix}" on node "${node}" — expected ":ok" or ":fail", ignoring suffix.`
+          `@path: invalid route suffix ":${suffix}" on node "${node}". Expected ":ok" or ":fail", ignoring suffix.`
         );
       }
     }

@@ -1,7 +1,7 @@
 /**
  * Lifting a workflow's own JSDoc and signature out of its file.
  *
- * Node types arrive from the parser with a complete `functionText`; a
+ * Node types arrive from the parser with a complete `functionText`, but a
  * workflow does not, so the console reads it from the source itself. The
  * naive way -- everything up to the first `{` after the name -- cuts a
  * signature in half the moment a parameter has an inline object type, which
@@ -63,7 +63,7 @@ function endOfSignature(text: string, from: number): number {
       continue;
     }
 
-    // After the parameters close, a `:` introduces the return type; its
+    // After the parameters close, a `:` introduces the return type. Its
     // own braces (`): { onSuccess: boolean } {`) are not the body.
     if (c === ':' && depth === 0 && closedParams) {
       inReturnType = true;
@@ -82,7 +82,7 @@ function endOfSignature(text: string, from: number): number {
       if (c === '>' && text[i - 1] === '=') continue;
       depth--;
       if (c === ')' && depth === 0) closedParams = true;
-      // The return type ends when its own brackets balance; what follows
+      // The return type ends when its own brackets balance. What follows
       // at depth zero is the body.
       if (depth === 0 && inReturnType && c !== ')') inReturnType = false;
       continue;
@@ -101,7 +101,7 @@ export interface WorkflowSource {
  *
  * @param text - The file's contents.
  * @param fnName - The exported workflow function's name.
- * @returns The source and the 1-based line it starts on; empty when the
+ * @returns The source and the 1-based line it starts on. Empty when the
  *   declaration cannot be found.
  */
 export function workflowSource(text: string, fnName: string): WorkflowSource {
