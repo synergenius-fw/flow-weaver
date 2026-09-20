@@ -7,7 +7,7 @@
 
 **A deterministic TypeScript workflow compiler. You describe a workflow with JSDoc annotations; it compiles to a standalone TypeScript function you own.**
 
-Flow Weaver turns annotated functions into an execution graph and generates the workflow body in place. The compiled output imports nothing from Flow Weaver — no runtime to install in production, no SDK, no lock-in. Delete the package after compiling and the file still runs.
+Flow Weaver turns annotated functions into an execution graph and generates the workflow body in place. The compiled file imports nothing from Flow Weaver: it is plain TypeScript you can read, review and keep, and it is yours under any licence you like. The code that calls it hands it one small object, the runtime, built with a helper from the package or by a coordinator of your own.
 
 Workflows are plain `.ts` files, so everything you already do with code applies: Git, code review, tests, linting, CI. Build them by hand the way you write JSDoc, or drive the whole compiler through MCP tools from Claude Code, Cursor, VS Code, Windsurf, or any MCP-compatible editor.
 
@@ -141,7 +141,7 @@ app.use('/api', api.express());
 
 ## Using it as a library
 
-The compiled file needs nothing from the package. The code that *calls* it needs one object — the runtime:
+The compiled file imports nothing from the package. The code that *calls* it needs one object — the runtime — which the package builds:
 
 ```typescript
 import { createWorkflowRuntime } from '@synergenius/flow-weaver';
@@ -214,5 +214,6 @@ Flow Weaver is source-available under the [Business Source License 1.1](./LICENS
 - **Free for everyone:** evaluation, development, testing, and CI — including compiling, validating, and generating workflows — at any organization size. Everything the compiler produces is yours: compiled workflows, generated code, diagrams, and artifacts are not covered by the license and can be used, modified, and sublicensed without restriction.
 - **Free in production** for organizations with fewer than 100 people (employees and contractors, including affiliates).
 - **Commercial license required** for production use by organizations of 100 or more people, and for offering Flow Weaver — or a product whose primary value is its functionality — to third parties as a hosted or managed service.
+- **What counts as production use** is running workflows through the package itself: its runtime helper, the coordinator, `fw serve` or the console, in the operation of a business. The compiled files are output, not the licensed work, whoever runs them.
 
 Commercial licensing, support, and enterprise agreements: support@synergenius.pt.
