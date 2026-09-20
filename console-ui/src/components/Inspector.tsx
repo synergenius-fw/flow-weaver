@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { defaultPass } from '../run-events';
-import { wf, run, runs, sel, ui, now, startRun, openRun, runDuration, stepDuration, passesOf, passValue, toast, isParsed, runActive, cancelRun, leaveRun, deleteRun, flatSteps, openDoc, openPack, openChanges, debugAction, targets, type Issue, type Step, type ParsedWorkflow, type Deploy, type RunSnapshot } from '../state';
+import { wf, run, runs, sel, ui, now, startRun, openRun, runDuration, stepDuration, passesOf, passValue, toast, isParsed, runActive, cancelRun, leaveRun, deleteRun, flatSteps, openDoc, openPack, openChanges, debugAction, targets, agents, openAgents, type Issue, type Step, type ParsedWorkflow, type Deploy, type RunSnapshot } from '../state';
 import { get } from '../api';
 import { ago, ms, short, editorLink, packNs } from '../format';
 import { NewRunCard } from './NewRun';
@@ -12,10 +12,12 @@ import { Expr, PortRef } from './Expr';
 import { Code } from './Code';
 import { CliPane } from './Cli';
 import { ExportPane } from './Export';
+import { ServePane } from './ServePane';
 import { PaneTab } from './PaneTab';
 import { ReferencePane } from './ReferencePane';
 import { Keys } from './Tip';
 import { Select } from './Select';
+import { AgentPick } from './AgentPick';
 import { kindIcon } from './Icon';
 import { colorVar } from '../format';
 
@@ -217,7 +219,7 @@ function RunHistory({ w }: { w: ParsedWorkflow }) {
           <button key={r.id} class={`runrow ${run.value?.id === r.id ? 'on' : ''}`}
             onClick={() => { sel.value = null; ui.side.value = 'run'; openRun(r.id); }}>
             <span class={`rdot ${r.debug?.status === 'paused' ? 'waiting' : r.status}`} />
-            <span class="what">{outcome(r, label)}</span>
+            <span class="what">{outcome(r, label)}{r.origin && r.origin !== 'console' && <small class="origin" title={`started over ${r.origin === 'http' ? 'HTTP' : r.origin === 'mcp' ? 'MCP, by an assistant' : r.origin}`}>{r.origin}</small>}</span>
             <span class="right" title={r.source?.commit ? `on ${r.source.commit}${r.source.dirty ? ', with uncommitted changes' : ''}` : undefined}>{r.source?.commit ? `${r.source.commit}${r.source.dirty ? '•' : ''} · ` : ''}{ago(r.startedAt)}{r.status === 'running' || r.status === 'waiting' ? '' : ` · ${ms(runDuration(r))}`}</span>
             <span class="sub">{paramsLine(r.params) || 'no parameters'}</span>
             {!runActive.value && <span class="again" title="Run again with these parameters" onClick={(e) => { e.stopPropagation(); void startRun(r.params, { mocks: r.mocks }); }}><span class="ms">replay</span></span>}
@@ -323,6 +325,12 @@ function StepCard({ id, w }: { id: string; w: ParsedWorkflow }) {
           </div>
         )}
         {n.description && <div class={`in hint desc ${descOpen ? 'open' : ''}`} onClick={() => setDescOpen(!descOpen)}>{n.description}</div>}
+        {n.gate === 'agent' && (
+          <div class="in agentrow">
+            <span class="hint">answered by</span>
+            {agents.value?.agents.length ? <AgentPick workflow={w.name} node={id} /> : <button class="linkish" onClick={openAgents}>a person — add a profile</button>}
+          </div>
+        )}
         {issues.length > 0 && <div class="in"><IssueList issues={issues} w={w} /></div>}
         {passes.length > 1 && (
           <div class="in passes">
@@ -614,6 +622,7 @@ export function Inspector() {
         <PaneTab icon="difference" label="Changes" on={pane === 'changes'} onClick={() => { ui.side.value = 'changes'; }} />
         {/* Only when a pack provides a target: an Export tab with nothing behind it would be a promise. */}
         {targets.value.length > 0 && <PaneTab icon="output" label="Export" on={pane === 'export'} onClick={() => { ui.side.value = 'export'; }} />}
+        <PaneTab icon="dns" label="Serve" on={pane === 'serve'} onClick={() => { ui.side.value = 'serve'; }} />
         <PaneTab icon="terminal" label="CLI" on={pane === 'cli'} onClick={() => { ui.side.value = 'cli'; }} />
       </div>
       <div class="panebody">
@@ -636,6 +645,7 @@ export function Inspector() {
         )}
         {pane === 'cli' && <CliPane />}
         {pane === 'export' && <ExportPane w={w} />}
+        {pane === 'serve' && <ServePane w={w} />}
       </div>
     </>
   );

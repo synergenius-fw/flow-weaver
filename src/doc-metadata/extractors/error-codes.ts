@@ -250,6 +250,13 @@ export const VALIDATION_CODES: TValidationCodeDoc[] = [
     category: 'data-flow',
   },
   {
+    code: 'HTTP_PARAM_UNKNOWN',
+    severity: 'error',
+    title: 'HTTP route param is not a workflow param',
+    description: 'An @http route has a :param segment that names no parameter of the workflow',
+    category: 'data-flow',
+  },
+  {
     code: 'MULTIPLE_EXIT_CONNECTIONS',
     severity: 'warning',
     title: 'Multiple Exit Connections',

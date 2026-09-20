@@ -26,6 +26,7 @@ import {
   generateNodeInstanceTag,
   formatJSDocDescription,
   planPortTags,
+  httpRouteText,
 } from '../annotation-generator';
 import { shouldWorkflowBeAsync } from '../generator/async-detection';
 import { detectSugarPatterns, filterStaleMacros } from '../sugar-optimizer';
@@ -1634,6 +1635,8 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
     if (t.cron) parts.push(`cron="${t.cron}"`);
     if (parts.length > 0) lines.push(` * @trigger ${parts.join(' ')}`);
   }
+  // @http round-trip
+  for (const r of ast.options?.http ?? []) lines.push(` * @http ${httpRouteText(r)}`);
   // @cancelOn round-trip
   if (ast.options?.cancelOn) {
     const c = ast.options.cancelOn;

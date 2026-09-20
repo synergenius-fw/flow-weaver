@@ -1,5 +1,5 @@
 import { signal, computed, batch } from '@preact/signals';
-import { get, post, del, stream, store, q } from './api';
+import { get, post, put, del, stream, store, q } from './api';
 import { applyEvent, emptyTrace, valueAt, type RunTrace, type Pass } from './run-events';
 import { quoteArg } from './shell';
 
@@ -22,6 +22,10 @@ export type Workflow = ParsedWorkflow | UnparsedWorkflow;
 
 export interface UnparsedWorkflow { file: string; rel: string; name: string; parseErrors: string[] }
 
+/** One `@http` line: the route a workflow is served on. */
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export interface HttpRoute { method: HttpMethod; path: string; mode?: 'sync' | 'async'; auth?: 'bearer' | 'none'; callback?: boolean }
+
 export interface ParsedWorkflow {
   file: string; rel: string; name: string; description: string; compiled: boolean;
   params: Port[]; paramsSchema: Record<string, FieldSchema> | null; returns: Port[];
@@ -30,6 +34,8 @@ export interface ParsedWorkflow {
   wiring: { start: Record<string, PortEnd[]>; exit: Record<string, PortEnd> };
   /** What pack tags said at the workflow level, by namespace. */
   deploy: Deploy | null;
+  /** The routes the workflow declares with `@http`. */
+  http: HttpRoute[];
   /** The annotations as what they declare, for the Reference pane. */
   reference: {
     options: Record<string, unknown>;
@@ -50,6 +56,8 @@ export interface RunSnapshot {
   startedAt: number; updatedAt: number; gate?: Gate; result?: any; error?: string;
   /** The step that threw, when the trace said which. */
   failedAt?: string;
+  /** Who started the run: `console`, `http`, `mcp`; absent on older records. */
+  origin?: string;
   /** The mocks the run was started with, so it can be run again the same way. */
   mocks?: Record<string, unknown>;
   /** The commit the file stood at when the run started, and whether it had uncommitted changes. */
@@ -58,10 +66,48 @@ export interface RunSnapshot {
   traced?: boolean;
   /** Present on a step-through session; `status` is then `running` while it is paused too. */
   debug?: DebugInfo;
+  /** What an agent profile is doing, or did, about the run's latest agent gate. */
+  agent?: AgentNote;
+  /** Whether agent gates are answered by a profile (`auto`) or wait for a person (`manual`). */
+  agents?: 'auto' | 'manual';
 }
 export interface DebugInfo { status: 'running' | 'paused' | 'completed' | 'failed' | 'aborted' | 'yielded'; node?: string; phase?: 'before' | 'after'; position: number; order: string[]; breakpoints: string[] }
+/** The record the coordinator keeps of an agent profile's work on a gate (`src/coordinator/run-store.ts`). */
+export interface AgentNote { gateId: string; node: string; profile: string; provider: string; model?: string; status: 'answering' | 'answered' | 'rejected' | 'failed'; startedAt: string; endedAt?: string; usage?: { promptTokens: number; completionTokens: number; costUsd?: number }; toolCalls?: number; error?: string }
+/** What the agent said and did, as it streams in over the run's events. */
+export interface AgentLog {
+  phase: 'idle' | 'answering' | 'done';
+  profile?: string; provider?: string; model?: string;
+  text: string;
+  thinking: string;
+  tools: Array<{ name: string; args?: unknown; result?: string; isError?: boolean; done: boolean }>;
+  usage?: { promptTokens: number; completionTokens: number; costUsd?: number };
+  outcome?: 'answer' | 'reject' | 'failed';
+  error?: string;
+  reason?: string;
+  ms?: number;
+}
+export const emptyAgentLog = (): AgentLog => ({ phase: 'idle', text: '', thinking: '', tools: [] });
+/** Fold one `agent` event from the run's stream into the log. */
+export function applyAgentEvent(log: AgentLog, e: any): void {
+  switch (e.phase) {
+    case 'start': Object.assign(log, emptyAgentLog(), { phase: 'answering', profile: e.profile, provider: e.provider, model: e.model }); break;
+    case 'text': log.text += e.text; break;
+    case 'thinking': log.thinking += e.text; break;
+    case 'tool':
+      if (e.stage === 'start') log.tools.push({ name: e.name, args: e.args, done: false });
+      else {
+        const open = [...log.tools].reverse().find((t) => t.name === e.name && !t.done);
+        if (open) Object.assign(open, { result: e.result, isError: e.isError, done: true });
+        else log.tools.push({ name: e.name, args: e.args, result: e.result, isError: e.isError, done: true });
+      }
+      break;
+    case 'usage': log.usage = { promptTokens: e.promptTokens, completionTokens: e.completionTokens, ...(e.costUsd ? { costUsd: e.costUsd } : {}) }; break;
+    case 'done': Object.assign(log, { phase: 'done', outcome: e.outcome, error: e.error, reason: e.reason, ms: e.ms }); break;
+  }
+}
 export type { Pass, StepSummary } from './run-events';
-export interface RunState extends RunSnapshot, Omit<RunTrace, 'result'> { synced: boolean }
+export interface RunState extends RunSnapshot, Omit<RunTrace, 'result'> { synced: boolean; agentLog: AgentLog }
 
 // ---------------------------------------------------------------- signals
 export const project = signal<{ dir: string; name: string; parent: string }>({ dir: '', name: '', parent: '' });
@@ -72,7 +118,7 @@ export const run = signal<RunState | null>(null);
 export const sel = signal<string | null>(null);
 export const now = signal(Date.now());
 export const toastMsg = signal('');
-export type SidePane = 'run' | 'step' | 'issues' | 'reference' | 'changes' | 'cli' | 'export';
+export type SidePane = 'run' | 'step' | 'issues' | 'reference' | 'changes' | 'cli' | 'export' | 'serve';
 
 // --------------------------------------------------------------- changes
 export type Change = 'added' | 'removed' | 'changed';
@@ -108,7 +154,7 @@ export interface Doc { slug: string; name: string; description: string; sections
  * it is a thing opened in the same place a workflow is, and the workflow
  * stays loaded behind it, one click away.
  */
-export type View = { kind: 'workflow' } | { kind: 'doc'; slug: string } | { kind: 'pack'; name: string } | { kind: 'market' } | { kind: 'author' } | { kind: 'status' };
+export type View = { kind: 'workflow' } | { kind: 'doc'; slug: string } | { kind: 'pack'; name: string } | { kind: 'market' } | { kind: 'author' } | { kind: 'status' } | { kind: 'agents' } | { kind: 'endpoints' };
 export const view = signal<View>({ kind: 'workflow' });
 export const guide = signal<GuideGroup[]>([]);
 export const doc = signal<Doc | null>(null);
@@ -201,14 +247,19 @@ export function openRun(id: string) {
   let draft: RunState | null = null;
   closeRun = stream(`/api/runs/${id}/events`, (msg) => {
     if (msg.type === 'run') {
-      draft = draft ? { ...draft, ...msg.run } : { ...msg.run, ...emptyTrace(), synced: false };
+      // A new snapshot may drop `agent` (the run moved on); a stale note
+      // must not survive the spread.
+      const { agent: _a, agents: _b, ...rest } = draft ?? ({} as RunState);
+      draft = draft ? { ...rest, ...msg.run } as RunState : { ...msg.run, ...emptyTrace(), synced: false, agentLog: emptyAgentLog() };
       if (['completed', 'failed', 'cancelled'].includes(msg.run.status)) refreshRuns();
     } else if (msg.type === 'event' && draft) {
       applyEvent(draft, msg.t, msg.e);
+    } else if (msg.type === 'agent' && draft) {
+      applyAgentEvent(draft.agentLog, msg);
     } else if (msg.type === 'synced' && draft) {
       draft.synced = true;
     }
-    if (draft?.synced) run.value = { ...draft, states: { ...draft.states }, passes: { ...draft.passes }, values: { ...draft.values } };
+    if (draft?.synced) run.value = { ...draft, states: { ...draft.states }, passes: { ...draft.passes }, values: { ...draft.values }, agentLog: { ...draft.agentLog, tools: [...draft.agentLog.tools] } };
   });
 }
 
@@ -319,12 +370,15 @@ export interface StartOptions {
   runTo?: 'first' | 'breakpoint';
   /** Answers for gates and calls, so the run goes through them unattended. */
   mocks?: Record<string, unknown>;
+  /** Whether agent gates are answered by a profile, or wait for a person. */
+  agents?: 'auto' | 'manual';
 }
 export async function startRun(params: Record<string, unknown>, options: StartOptions = {}) {
   const w = wf.value!;
   store.set(`params:${w.file}:${w.name}`, params);
   const body: Record<string, unknown> = { file: w.file, name: w.name, params };
   if (options.mocks && Object.keys(options.mocks).length) body.mocks = options.mocks;
+  if (options.agents) body.agents = options.agents;
   if (options.debug) { body.debug = true; body.breakpoints = [...breakpoints.value]; body.runTo = options.runTo ?? 'first'; }
   const r = await post<RunSnapshot>('/api/runs', body);
   sel.value = null;
@@ -451,6 +505,85 @@ export function openStatus(): void {
   location.hash = 'status';
 }
 
+// ---------------------------------------------------------------- agents
+/** One agent profile as `/api/agents` describes it: readiness by environment, never a key. */
+export interface AgentProfileView { name: string; provider: 'anthropic' | 'openai' | 'claude-cli'; model: string | null; keyEnv: string | null; ready: boolean; reason: string | null; description: string | null; system: string | null; maxIterations: number | null; baseUrl: string | null; bin: string | null }
+export interface AgentsInfo { file: string; exists: boolean; default: string | null; errors: string[]; gates: Record<string, string>; starter: string; agents: AgentProfileView[]; suggestedModels: Record<string, string[]> }
+export const agents = signal<AgentsInfo | null>(null);
+export async function loadAgents(): Promise<AgentsInfo> {
+  const a = await get<AgentsInfo>('/api/agents');
+  agents.value = a;
+  return a;
+}
+/** What a profile form sends; the name is in the URL. */
+export interface ProfileFields { provider: AgentProfileView['provider']; model?: string; apiKeyEnv?: string; baseUrl?: string; system?: string; maxIterations?: number; bin?: string; description?: string }
+export async function saveProfile(name: string, fields: ProfileFields): Promise<void> { agents.value = await put(`/api/agents/profiles/${encodeURIComponent(name)}`, fields); }
+export async function deleteProfile(name: string): Promise<void> { agents.value = await del(`/api/agents/profiles/${encodeURIComponent(name)}`); }
+export async function setDefaultProfile(name: string | null): Promise<void> { agents.value = await put('/api/agents/default', { name }); }
+/** Send a gate to a profile, or back to a person; `key` is an agentId or `workflow/node`. */
+export async function setGateProfile(key: string, profile: string | null): Promise<void> { agents.value = await put('/api/agents/gates', { key, profile }); }
+export interface TryOutcome { ok: boolean; ms: number; text?: string; usage?: { promptTokens: number; completionTokens: number; costUsd?: number }; error?: string }
+export async function tryAgentProfile(name: string): Promise<TryOutcome> { return post(`/api/agents/try/${encodeURIComponent(name)}`); }
+/** Whether an environment variable is set where the console runs; its value is never sent. */
+export async function envIsSet(name: string): Promise<boolean> { return (await get<{ set: boolean }>(`/api/agents/env?name=${encodeURIComponent(name)}`)).set; }
+/** The profile that would answer a step of the open workflow, from the static mapping; the gate's agentId may still pick another at run time. */
+export function profileForStep(workflowName: string, node: string): { name: string; via: 'step' | 'default' } | null {
+  const a = agents.value;
+  if (!a) return null;
+  const byStep = a.gates[`${workflowName}/${node}`];
+  if (byStep) return { name: byStep, via: 'step' };
+  if (a.default) return { name: a.default, via: 'default' };
+  return null;
+}
+/** The agent profiles page. */
+export function openAgents(): void {
+  ui.railOpen.value = false;
+  view.value = { kind: 'agents' };
+  location.hash = 'agents';
+  void loadAgents();
+}
+/** Ask the profile to answer the open run's gate now -- after it failed, or on a run started manual. */
+export async function askAgent(): Promise<void> {
+  await post(`/api/runs/${run.value!.id}/agent`, {});
+}
+/** Whether `fw serve` is running for this project, and how to reach it. */
+export interface ServeInfo { running: { url: string | null; pid: number; startedAt: string; version: string; install: string } | null; command: string }
+export const serveInfo = signal<ServeInfo | null>(null);
+export async function loadServe(): Promise<ServeInfo> {
+  const s = await get<ServeInfo>('/api/serve');
+  serveInfo.value = s;
+  return s;
+}
+
+/** A workflow with its declared routes, as the Endpoints page lists them. */
+export interface EndpointWorkflow { file: string; rel: string; name: string; description: string; routes: Array<HttpRoute & { mounted: boolean }>; gates: number; params: Port[]; returns: Port[]; parses: boolean }
+export interface EndpointsInfo { workflows: EndpointWorkflow[]; candidates: Array<Omit<EndpointWorkflow, 'routes'>>; problems: string[]; serve: ServeInfo }
+export const endpoints = signal<EndpointsInfo | null>(null);
+export async function loadEndpoints(): Promise<EndpointsInfo> {
+  const e = await get<EndpointsInfo>('/api/endpoints');
+  endpoints.value = e;
+  serveInfo.value = e.serve;
+  return e;
+}
+/** The project's endpoints page. */
+export function openEndpoints(): void {
+  ui.railOpen.value = false;
+  view.value = { kind: 'endpoints' };
+  location.hash = 'endpoints';
+  void loadEndpoints();
+}
+/** Rewrite a workflow's `@http` lines. The open workflow is refreshed when it is the one. */
+export async function setHttpRoutes(file: string, name: string, routes: HttpRoute[]): Promise<void> {
+  const w = await put<ParsedWorkflow>('/api/workflow/http', { file, name, routes });
+  if (wf.value && wf.value.file === file && wf.value.name === name) wf.value = w;
+  if (endpoints.value) void loadEndpoints().catch(() => undefined);
+}
+/** Open a workflow on its Serve pane, where its routes are edited. */
+export function openServe(file: string, name: string): void {
+  void selectWorkflow(file, name);
+  ui.side.value = 'serve';
+}
+
 /** The open project as a pack: its manifest as it would be written, and the rules over it. */
 export function openAuthor(): void {
   ui.railOpen.value = false;
@@ -548,6 +681,8 @@ async function applyHash(initial = false): Promise<void> {
   if (h === 'market') { if (view.value.kind !== 'market') openMarket(); return; }
   if (h === 'author') { if (view.value.kind !== 'author') openAuthor(); return; }
   if (h === 'status') { if (view.value.kind !== 'status') openStatus(); return; }
+  if (h === 'agents') { if (view.value.kind !== 'agents') openAgents(); return; }
+  if (h === 'endpoints') { if (view.value.kind !== 'endpoints') openEndpoints(); return; }
   const asPack = h.match(/^pack\/(.+)$/);
   if (asPack) {
     const name = decodeURIComponent(asPack[1]);

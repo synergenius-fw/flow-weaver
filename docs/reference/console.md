@@ -22,7 +22,7 @@ It binds to `127.0.0.1:4311` by default and re-reads a file as you save it.
 |-------|------|
 | Left | The project's workflows as a tree, with each one's verdict: a dot for valid, warnings or errors, a count for runs waiting at a gate. Below it, this guide. |
 | Centre | One workflow as a process: steps in run order, failure arms branching, pulled steps beside the step that reads them. A scope body sits in a tinted band under its owner, named `owner · scope` at its corner: the rows inside run once per item, the owner above them once; a body inside a body is a band inside a band. During a run each step lights up as it goes. `Start` and `Exit` open like steps and show the parameters and return values. |
-| Right | Panes for what you are doing: **Run** (start a run, or the one open now), **Step** (the selected step: what it is, its ports, its code), **Issues** (everything the validator said), **Reference** (the workflow's annotations), **CLI** (run an `fw` command here). |
+| Right | Panes for what you are doing: **Run** (start a run, or the one open now), **Step** (the selected step: what it is, its ports, its code), **Issues** (everything the validator said), **Reference** (the workflow's annotations), **Changes** (two git versions on one picture), **Serve** (the workflow as an HTTP endpoint: its routes, and one button to expose it), **CLI** (run an `fw` command here). |
 
 Click a step to read it; click it again to let go. Click a tile's row while a run is going to see the values that flowed through it.
 
@@ -33,6 +33,8 @@ The **New run** card has three parts.
 **Parameters** is a form built from the workflow's TypeScript types: a `boolean` is a yes/no, a union of literals a choice, an object its fields, a list of objects rows to add and remove, and anything the type checker cannot name a JSON box with a *tidy* button. A port's description sits under its field. The whole thing can be switched to JSON, cleared, and kept under a name with **save** — presets live in this browser, per workflow, and are picked from the menu beside the title.
 
 **Mocks** lists every gate and every call to another workflow. Ticking one gives it an answer here — the gate's own outputs, as a form from their types — and the run goes through it without pausing, as if a person had answered that. A workflow with delays gets a *skip delays* switch. What is not ticked pauses as usual. This is the same mock config `fw run --mocks` takes (see [Built-in Nodes](built-in-nodes)); **copy as CLI** puts the run, parameters and mocks included, on the clipboard as an `fw run` command.
+
+**Agents** appears when the workflow has an agent gate that is not mocked. It names the profile each gate would go to — from `.flowweaver/agents.yaml`, see [Agent profiles](durable-gates#agent-profiles) — with a dot for whether that profile can run from here, and a switch: *Let a profile answer the agent gates*. On, the run does not stop at those gates; off, they wait for you as any gate does. The choice is kept per workflow.
 
 **How** is *Run* or *Step through*. Stepping pauses before the first step, or runs to the first breakpoint when there is one; the breakpoints are listed there and can be removed. `⌘↵` (`Ctrl+↵`) starts the run from anywhere in the card.
 
@@ -59,6 +61,20 @@ A run started in the console is a real execution of the workflow, through the sa
 The gate form is built from the port's TypeScript type: a `boolean` is a yes/no, a union of literals a choice, an object its fields. **Reject** is offered when the gate has an `onFailure` port.
 
 If the file changed since the run paused, the answer is refused with a message saying so; start a new run. See [Durable Gates](durable-gates) for what pauses a run and how an answer is shaped.
+
+When an agent profile is answering a gate, its panel sits on the step's row in the process: the profile's name and model, the model's words as they stream, the tools it calls, and the tokens so far. The form is out of the way until it is done. Then one line stays on the row — *answered in 3.2 s · 1.4k tokens* — and the run goes on. If the profile could not answer — no key in the environment, a model that never submitted, an answer that did not fit — the line says why in red, the form is back, and *ask the agent again* is beside it. A run started with the switch off can still be handed to the agent from that button.
+
+## Agents
+
+The Agents page — the robot glyph on the left bar — is the project's `.flowweaver/agents.yaml` as the console reads it: each profile with its provider and model, the environment variable its key comes from and whether that variable is set (the key itself is never shown), the system prompt, and which gate goes to which profile. A project without the file gets the starter file to copy. Problems in the file are listed the way the validator lists a workflow's.
+
+## Serve
+
+The **Serve** pane is the open workflow as an HTTP endpoint. It says whether `fw serve` is running for this project — it looks in the same place `fw doctor` does — and lists the routes the workflow declares with `@http`, each with the request to copy as `curl`, the parameters coming from the run form, and what the route answers with. A workflow with no route has one button, **Expose as endpoint**, which writes `@http POST /<name>` on the workflow; **Edit** opens the same small editor for a workflow that has routes: a method, a path (`:param` binds a parameter), and three switches — answer at once, no token, accept a callback URL. Saving rewrites only the `@http` lines. Under the routes, the run resource every workflow has regardless, and the run URLs to resolve, follow and cancel a run. Runs made over the API are the same runs as the console's, so a gate a caller reached can be answered on this page; a run started elsewhere says so in the run list (`http`, `mcp`). See [Deployment](deployment#workflows-as-endpoints).
+
+## Endpoints
+
+The Endpoints page — the API glyph on the left bar — is every declared route in the project on one page: method, path, what it answers with, the flags it carries, and the request to copy, grouped by workflow; the routes that could not be mounted and why; and whether `fw serve` is up. A project with no routes yet is told what a route adds over the run resource and shown the workflows to start with. The side has the response contract in short, and the snippets to mount the same API in an Express app or a fetch host. See [Embedding the API](deployment#embedding-the-api).
 
 ## Debugging
 
@@ -101,6 +117,18 @@ The **CLI** pane runs `fw` commands in the project — as an argument list hande
 - **Build** — *Commands* opens the catalogue as a form: pick a command, fill its arguments (the open workflow's file is filled in for an input) and its options, with each flag's description and default beside it; the line it makes is shown as you go, and examples from the reference can be taken as a starting point. Typing and the form are two views of one line: a typed line opens in the form with what it had, and the form writes back to the line.
 - **Placeholders** — a line with a `<placeholder>` still in it, from a ▶ in the guide say, opens the form on that command with the rest filled in.
 - **Output** — streamed as the command runs, with the exit status and time; each run can be stopped, run again, copied, opened full screen or removed.
+
+## The console on a store of your own
+
+`fw console` shows the runs in `~/.fw/runs`, the same directory `fw serve`, `fw_run` and your own `createLocalCoordinator()` use on this machine. A service in production keeps its runs in a [run store](library#run-stores) of its own instead; to answer those gates from the console, run it from code on the same store:
+
+```typescript
+import { createConsoleServer } from '@synergenius/flow-weaver/console';
+
+await createConsoleServer({ projectDir: '/srv/workflows', port: 4311, store: myStore });
+```
+
+Everything on this page then reads and writes that store: the run list, the gate forms, the agent panel, the Serve pane's run URLs. Changes made by other instances arrive by polling every few seconds rather than at once. Put it behind your own login; the console has none of its own.
 
 ## Status
 

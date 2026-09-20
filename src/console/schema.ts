@@ -66,6 +66,43 @@ function toSchema(t: Type, depth = 0): FieldSchema {
   return { type: 'any', text: t.getText() };
 }
 
+/**
+ * The shape of each data output of a gate node.
+ *
+ * An authored gate declares it in its own return type. A built-in gate
+ * (`waitForEvent`, `waitForAgent`) has no source, so the schema is taken
+ * from the parameter that consumes the output downstream; without that, the
+ * caller falls back to a free-form value.
+ */
+export function gateOutputSchemas(
+  ast: { instances: Array<{ id: string; nodeType: string }>; nodeTypes: Array<{ name: string; functionName: string; functionText?: string; sourceLocation?: { file?: string } }>; connections: Array<{ from: { node: string; port: string }; to: { node: string; port: string } }> },
+  gateId: string,
+  fallbackFile: string,
+): Record<string, FieldSchema> | null {
+  const typeOf = (id: string) => {
+    const inst = ast.instances.find((i) => i.id === id);
+    return inst ? ast.nodeTypes.find((n) => n.name === inst.nodeType) ?? ast.nodeTypes.find((n) => n.functionName === inst.nodeType) : undefined;
+  };
+  const nt = typeOf(gateId);
+  const nodeFile = nt?.sourceLocation?.file ?? fallbackFile;
+  if (nt?.functionText) {
+    const own = nodeOutputSchema(nodeFile, nt.functionName);
+    if (own && Object.keys(own).length) return own;
+  }
+  const control = new Set(['execute', 'onSuccess', 'onFailure']);
+  const out: Record<string, FieldSchema> = {};
+  for (const conn of ast.connections) {
+    // `onSuccess`/`onFailure` are filled in by `buildGateResolution`; a
+    // control port wired onward must never become an answer field.
+    if (conn.from.node !== gateId || control.has(conn.from.port)) continue;
+    const targetType = typeOf(conn.to.node);
+    if (!targetType?.functionText) continue;
+    const schema = nodeInputSchema(targetType.sourceLocation?.file ?? fallbackFile, targetType.functionName, conn.to.port);
+    if (schema) out[conn.from.port] = schema;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /** The `params` object of a workflow function: one schema per declared Start port. */
 export function workflowParamsSchema(file: string, fnName: string): Record<string, FieldSchema> | null {
   try {

@@ -486,6 +486,17 @@ const errorMappers: Record<string, ErrorMapper> = {
     };
   },
 
+  HTTP_PARAM_UNKNOWN(error) {
+    const quoted = extractQuoted(error.message);
+    const param = (quoted[0] || ':param').replace(/^:/, '');
+    return {
+      title: 'Route Parameter Is Not a Workflow Parameter',
+      explanation: `The @http route has a ':${param}' segment, but the workflow has no @param named '${param}', so there is nothing for the path to bind to.`,
+      fix: `Name a segment after one of the workflow's @param entries, or add '@param ${param}' to the workflow and connect it.`,
+      code: error.code,
+    };
+  },
+
   MULTIPLE_EXIT_CONNECTIONS(error) {
     const quoted = extractQuoted(error.message);
     const portName = quoted[0] || 'unknown';

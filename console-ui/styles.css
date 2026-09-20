@@ -823,3 +823,138 @@ input[type=radio]:disabled { opacity: .5; cursor: default; }
 .tip.top.end { transform: translateY(-100%); }
 .tip.bottom.end { transform: none; }
 .tip kbd { font: 10.5px/1 var(--mono); color: var(--dim); border: 1px solid var(--line-2); border-radius: 3px; padding: 2px 4px; }
+
+
+/* ------------------------------------------------------------- agents
+   An agent profile at work on a gate: who, what it is doing, the words as
+   they come, the tools it calls; then one line once it is done. */
+.agentpanel { margin: 6px 0 4px; border: 1px solid color-mix(in srgb, var(--gate) 35%, var(--line)); border-radius: 7px; background: color-mix(in srgb, var(--gate) 6%, var(--panel)); font-size: 12px; }
+.agentpanel.failed { border-color: color-mix(in srgb, var(--err) 40%, var(--line)); background: color-mix(in srgb, var(--err) 5%, var(--panel)); }
+.agentpanel.compact { margin: 4px 0 0; background: transparent; border-color: transparent; }
+.agentpanel .ah { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; }
+.agentpanel.compact .ah { padding: 2px 0; cursor: default; }
+.agentpanel .ah > .ms { color: var(--gate); font-size: 16px; }
+.agentpanel .ah b { font-weight: 600; }
+.agentpanel .what { color: var(--dim); }
+.agentpanel .what.answering { color: var(--gate); }
+.agentpanel .what.answering::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--gate); animation: pulse 1.2s infinite; vertical-align: middle; }
+.agentpanel .what.answered { color: var(--ok); }
+.agentpanel .what.rejected { color: var(--warn); }
+.agentpanel .what.failed { color: var(--err); }
+.agentpanel .fold { color: var(--faint); font-size: 16px; }
+.agentpanel .alog { max-height: 260px; overflow: auto; padding: 4px 10px 8px; border-top: 1px solid color-mix(in srgb, var(--gate) 20%, var(--line)); }
+.agentpanel .athink { color: var(--faint); font-style: italic; white-space: pre-wrap; margin-bottom: 6px; font-size: 11.5px; }
+.agentpanel .atext { white-space: pre-wrap; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; }
+.agentpanel .caret { color: var(--gate); animation: pulse 1s infinite; }
+.agentpanel .atools { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.agentpanel .atool { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 11.5px; }
+.agentpanel .atool .ms { font-size: 14px; align-self: center; color: var(--faint); }
+.agentpanel .atool.ok .ms { color: var(--ok); } .agentpanel .atool.bad .ms { color: var(--err); } .agentpanel .atool.pending .ms { animation: spin 1s linear infinite; color: var(--gate); }
+.agentpanel .atool code { color: var(--fg); }
+.agentpanel .aargs { color: var(--dim); max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.agentpanel .ares { overflow-wrap: anywhere; }
+.agentpanel .aactions { display: flex; align-items: center; gap: 8px; padding: 6px 10px 8px; border-top: 1px solid color-mix(in srgb, var(--err) 25%, var(--line)); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* The New run card: which profile a gate goes to, and the switch. */
+.agentgates { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 6px 22px; }
+.agentgate { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.agentgate .ms { color: var(--gate); font-size: 15px; }
+.agentgate .to { color: var(--dim); }
+.agentgate .to b { color: var(--fg); font-weight: 500; }
+.agentgate .sdot { margin-left: 2px; }
+
+/* The Agents page and the Serve pane. */
+.agentsview .starter { position: relative; margin-top: 8px; }
+.agentsview .starter pre { margin: 0; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font-size: 11.5px; line-height: 1.5; white-space: pre-wrap; }
+.agentsview .starter .btn { position: absolute; top: 6px; right: 6px; }
+.agentsview .regkv dd.sys { white-space: pre-wrap; color: var(--dim); }
+.agentsview .regkv dt.lower { text-transform: none; letter-spacing: 0; font-size: 11.5px; }
+.agentsview .pill { margin-left: 2px; }
+.serve .endpoint { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font-size: 12px; overflow-wrap: anywhere; }
+.serve .endpoint .method { color: var(--accent); font-weight: 600; font-size: 11px; }
+.serve .routes dt { text-transform: none; letter-spacing: 0; font-size: 11.5px; color: var(--dim); white-space: nowrap; }
+.serve .routes dd { color: var(--dim); }
+.serve .in.err { color: var(--err); }
+.serve .curl { margin: 8px 0 0; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font-size: 11.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg); }
+
+/* The Agents page as an editor: provider cards to start from, a short form, a try button. */
+.provcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+.provcard { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--bg); color: var(--fg); }
+.provcard:hover { border-color: var(--gate); background: color-mix(in srgb, var(--gate) 6%, var(--bg)); }
+.provcard .ms { font-size: 22px; color: var(--gate); }
+.provcard b { font-weight: 600; font-size: 13px; }
+.provcard span { font-size: 12px; color: var(--dim); }
+.provcard small { font-size: 11px; color: var(--faint); }
+.pform .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 720px) { .pform .row2 { grid-template-columns: 1fr; } }
+.pform .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.pform .chip { font-size: 11px; padding: 2px 8px; border: 1px solid var(--line-2); border-radius: 10px; color: var(--dim); font-family: var(--mono); }
+.pform .chip:hover { border-color: var(--dim); color: var(--fg); }
+.pform .chip.on { border-color: var(--gate); color: var(--fg); background: color-mix(in srgb, var(--gate) 12%, transparent); }
+.pform .withstat { position: relative; }
+.pform .withstat .stat { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--faint); pointer-events: none; }
+.pform .withstat .stat.ok { color: var(--ok); } .pform .withstat .stat.bad { color: var(--err); } .pform .withstat .stat.warn { color: var(--warn); }
+.pform .field .fhelp { font-size: 11px; color: var(--faint); margin-top: 4px; }
+.pform .seg { flex-wrap: wrap; }
+.pform textarea { min-height: 64px; }
+.regactions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.tried { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; } .tried .ms { font-size: 15px; }
+.tried.ok { color: var(--ok); } .tried.bad { color: var(--err); }
+.profile.notready { border-color: color-mix(in srgb, var(--err) 30%, var(--line)); }
+.gatemap { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.gaterow { display: grid; grid-template-columns: minmax(120px, 1fr) auto minmax(160px, 1fr) auto; gap: 8px; align-items: center; }
+.gaterow .arrow { color: var(--faint); }
+.gaterow code { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.agentpick { display: inline-flex; align-items: center; gap: 6px; min-width: 160px; }
+.agentpick .selbox { width: auto; min-width: 150px; padding-top: 4px; padding-bottom: 4px; font-size: 11.5px; }
+.agentrow { display: flex; align-items: center; gap: 8px; }
+.welcome p { margin: 0 0 4px; color: var(--dim); }
+.btn.danger { border-color: color-mix(in srgb, var(--err) 50%, var(--line-2)); }
+
+/* ---- endpoints: method chips, the routes list, the route editor */
+.mchip { display: inline-block; min-width: 46px; text-align: center; font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 6px; border-radius: 5px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.mchip.GET { border-color: color-mix(in srgb, var(--ok) 45%, transparent); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.mchip.DELETE { border-color: color-mix(in srgb, var(--err) 45%, transparent); color: var(--err); background: color-mix(in srgb, var(--err) 10%, transparent); }
+.mchip.PUT, .mchip.PATCH { border-color: color-mix(in srgb, var(--warn) 45%, transparent); color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.serveline .in { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; }
+.serveline .composed.inline { display: inline-flex; margin: 0 0 0 6px; padding: 3px 8px; }
+.endpointsview .problem { color: var(--err); font-size: 12px; padding: 3px 0; }
+.epcard h3 .name { font: inherit; font-weight: 600; color: var(--fg); }
+.epcard h3 .name:hover { color: var(--accent); text-decoration: none; }
+.epcard .desc { padding-top: 0; }
+.epcard .routes { border-top: 1px solid var(--line); }
+.epcard .route + .route { border-top: 1px solid var(--line); }
+.epcard .routehead { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; width: 100%; padding: 8px 12px; text-align: left; color: var(--fg); }
+.epcard .routehead:hover { background: var(--panel-2); }
+.epcard .route.open .routehead { background: var(--panel-2); }
+.epcard .routehead .path { font-size: 12.5px; overflow-wrap: anywhere; }
+.epcard .routehead .flags { display: inline-flex; gap: 4px; }
+.epcard .routehead .ans { grid-column: 2 / -1; font-size: 11.5px; }
+.epcard .routebody { padding: 0 12px 10px; }
+.epcard .routebody .curl { margin-top: 4px; }
+.endpointsview .curl, .side .curl { margin: 8px 0 0; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font-size: 11.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg); }
+.cands { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-top: 10px; }
+.cand { display: grid; grid-template-columns: 18px 1fr; gap: 2px 8px; align-items: center; text-align: left; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.cand:hover { border-color: var(--accent); }
+.cand .ms { font-size: 17px; color: var(--dim); grid-row: 1 / 3; }
+.cand b { font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cand small { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.serve .declared + .declared { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.serve .endpoint .path { overflow-wrap: anywhere; }
+.serve .expose { padding: 8px 10px; border: 1px dashed var(--line-2); border-radius: 6px; }
+.serve .expose .hint.mono { font-family: var(--mono); font-size: 11px; }
+.serve h5 { display: flex; align-items: center; }
+.routeeditor .erow { padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--bg); }
+.routeeditor .erow + .erow { margin-top: 8px; }
+.routeeditor .erow.bad { border-color: color-mix(in srgb, var(--err) 50%, var(--line-2)); }
+.routeeditor .line { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.routeeditor .line .selbox { padding-top: 5px; padding-bottom: 5px; font-weight: 600; }
+.routeeditor .line input { width: 100%; padding: 6px 9px; font-size: 12px; }
+.routeeditor .opts { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; }
+.routeeditor .opts .check { margin: 4px 0 0; font-size: 11.5px; color: var(--dim); }
+.routeeditor .ferr { color: var(--err); font-size: 11.5px; margin-top: 4px; }
+.snippet { position: relative; margin-top: 4px; }
+.snippet .hlcode { margin: 0; padding: 10px 12px; padding-right: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font-size: 11.5px; line-height: 1.55; overflow-wrap: anywhere; }
+.snippet .btn { position: absolute; top: 6px; right: 6px; }
+.runrow .origin { margin-left: 6px; font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: .4px; }

@@ -73,14 +73,17 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   {
     name: 'serve',
     syntax: 'fw serve [directory] [options]',
-    description: 'Start HTTP server exposing workflows as endpoints',
+    description: 'Serve the workflows as HTTP endpoints; gated runs pause, resume and stream over the same API',
     options: [
       { flags: '-p, --port', arg: '<port>', description: 'Server port', defaultValue: '3000' },
-      { flags: '-H, --host', arg: '<host>', description: 'Server host', defaultValue: '0.0.0.0' },
+      { flags: '-H, --host', arg: '<host>', description: 'Server host; beyond loopback needs --token or --insecure', defaultValue: '127.0.0.1' },
+      { flags: '--token', arg: '<token>', description: 'Bearer token every request must carry (also FW_SERVE_TOKEN)' },
+      { flags: '--no-agents', description: 'Do not answer agent gates from .flowweaver/agents.yaml' },
+      { flags: '--trace', description: 'Keep a step trace for every run and stream it on /runs/:id/events' },
+      { flags: '--dev', description: 'Error stacks in responses; mocks accepted when starting a run' },
+      { flags: '--insecure', description: 'Listen beyond loopback without a token' },
       { flags: '--no-watch', description: 'Disable file watching for hot reload' },
-      { flags: '--production', description: 'Production mode (no trace events)' },
-      { flags: '--precompile', description: 'Precompile all workflows on startup' },
-      { flags: '--cors', arg: '<origin>', description: 'CORS origin', defaultValue: '*' },
+      { flags: '--cors', arg: '<origin>', description: 'Send CORS headers for this origin' },
       { flags: '--swagger', description: 'Enable Swagger UI at /docs' },
     ],
   },
@@ -273,7 +276,7 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
   {
     name: 'openapi',
     syntax: 'fw openapi <directory> [options]',
-    description: 'Generate OpenAPI specification from workflows',
+    description: 'Generate the OpenAPI specification fw serve publishes: declared @http routes, run resources, run endpoints',
     options: [
       { flags: '-o, --output', arg: '<path>', description: 'Output file path' },
       { flags: '--title', arg: '<title>', description: 'API title', defaultValue: 'Flow Weaver API' },
@@ -281,6 +284,8 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
       { flags: '--description', arg: '<desc>', description: 'API description' },
       { flags: '-f, --format', arg: 'json|yaml', description: 'Output format', defaultValue: 'json' },
       { flags: '--server', arg: '<url>', description: 'Server URL' },
+      { flags: '--no-auth', description: 'Leave out the bearer scheme, for a server without a token' },
+      { flags: '--no-legacy', description: 'Leave out POST /workflows/<name>; declared @http routes only' },
     ],
   },
   {

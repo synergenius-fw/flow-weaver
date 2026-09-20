@@ -46,17 +46,17 @@ describe('run store: mocks, the failed step, removal', () => {
     const done = await coordinator.start({ filePath: agent, params: { path: 'a.ts', text: 'x' }, mocks });
     expect(done.status).toBe('completed');
     expect(done.result).toMatchObject({ report: expect.stringContaining('risk: low') });
-    expect(coordinator.record(done.runId)?.mocks).toEqual(mocks);
+    expect((await coordinator.record(done.runId))?.mocks).toEqual(mocks);
     // Without them the same run waits for the agent.
     const waiting = await coordinator.start({ filePath: agent, params: { path: 'a.ts', text: 'x' } });
     expect(waiting.status).toBe('waiting');
-    expect(coordinator.record(waiting.runId)?.mocks).toBeUndefined();
+    expect((await coordinator.record(waiting.runId))?.mocks).toBeUndefined();
   }, 60000);
 
   it('answers an authored gate from `gates`, keyed by node, as a person would have', async () => {
     const coordinator = createLocalCoordinator({ rootDir });
     const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
-    const out = coordinator.record(paused.runId)!.gate!.outputs;
+    const out = (await coordinator.record(paused.runId))!.gate!.outputs;
     expect(out).toHaveLength(1);
     const done = await coordinator.start({ filePath: approval, params: { value: 4 }, mocks: { gates: { approval: { [out[0]]: 8 } } } });
     expect(done.status).toBe('completed');
@@ -68,7 +68,7 @@ describe('run store: mocks, the failed step, removal', () => {
     fs.writeFileSync(file, THROWING);
     const coordinator = createLocalCoordinator({ rootDir });
     await expect(coordinator.start({ filePath: file, params: { v: 1 } }, { trace: true })).rejects.toThrow(/boom 1/);
-    const rec = coordinator.list({ filePath: file }).map((s) => coordinator.record(s.runId)!)[0];
+    const rec = (await coordinator.record((await coordinator.list({ filePath: file }))[0].runId))!;
     expect(rec.status).toBe('failed');
     expect(rec.failedNode).toBe('b');
     expect(rec.error).toContain('boom 1');
@@ -77,11 +77,11 @@ describe('run store: mocks, the failed step, removal', () => {
   it('forgets a finished run, but not one waiting at a gate', async () => {
     const coordinator = createLocalCoordinator({ rootDir });
     const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
-    expect(() => coordinator.remove(paused.runId)).toThrow(RunNotWaitingError);
-    coordinator.cancel(paused.runId);
-    coordinator.remove(paused.runId);
-    expect(coordinator.get(paused.runId)).toBeUndefined();
+    await expect(coordinator.remove(paused.runId)).rejects.toBeInstanceOf(RunNotWaitingError);
+    await coordinator.cancel(paused.runId);
+    await coordinator.remove(paused.runId);
+    expect(await coordinator.get(paused.runId)).toBeUndefined();
     expect(fs.existsSync(path.join(rootDir, paused.runId))).toBe(false);
-    expect(() => coordinator.remove('nope')).toThrow(RunNotFoundError);
+    await expect(coordinator.remove('nope')).rejects.toBeInstanceOf(RunNotFoundError);
   }, 60000);
 });

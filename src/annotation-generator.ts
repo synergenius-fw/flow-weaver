@@ -1,4 +1,4 @@
-import type { TNodeTypeAST, TNodeInstanceAST, TPortDefinition, TWorkflowAST, TDataType, TConnectionAST, TWorkflowMacro } from "./ast";
+import type { TNodeTypeAST, TNodeInstanceAST, TPortDefinition, TWorkflowAST, TDataType, TConnectionAST, TWorkflowMacro, THttpRoute } from "./ast";
 import { mapToTypeScript } from "./type-mappings";
 import { isExecutePort, isSuccessPort, isFailurePort, isControlFlowPort } from "./constants";
 import { shouldUseStepTag } from "./utils/port-tag-utils";
@@ -24,6 +24,11 @@ export function formatJSDocDescription(description: string): string[] {
   return description
     .split('\n')
     .map((line) => (line.trim().length === 0 ? ' *' : ` * ${line}`));
+}
+
+/** An `@http` route as its tag text, the exact form the parser reads back. */
+export function httpRouteText(r: THttpRoute): string {
+  return `${r.method} ${r.path}${r.mode === 'async' ? ' mode=async' : ''}${r.auth === 'none' ? ' auth=none' : ''}${r.callback ? ' callback' : ''}`;
 }
 
 /** Labels the parser gives the mandatory STEP ports when the author gave none. */
@@ -321,6 +326,8 @@ export class AnnotationGenerator {
       if (t.cron) parts.push(`cron="${t.cron}"`);
       if (parts.length > 0) lines.push(` * @trigger ${parts.join(' ')}`);
     }
+    // @http round-trip
+    for (const r of workflow.options?.http ?? []) lines.push(` * @http ${httpRouteText(r)}`);
     // @cancelOn round-trip
     if (workflow.options?.cancelOn) {
       const c = workflow.options.cancelOn;

@@ -139,6 +139,18 @@ export const JSDOC_ANNOTATIONS: AnnotationCompletion[] = [
     blockTypes: ['workflow'],
   },
   {
+    label: '@http',
+    detail: 'Serve the workflow on an HTTP route',
+    documentation:
+      'Makes the workflow an endpoint of fw serve and the embeddable server. Path :params bind to workflow params by name; GET reads the query string, other methods the JSON body; the return ports are the response.\n' +
+      'Formats:\n  @http POST /reviews\n  @http GET /reviews/:id\n  @http POST /reviews mode=async callback\n  @http POST /hooks/github auth=none',
+    insertText: '@http ${1|POST,GET,PUT,PATCH,DELETE|} /${2:path}',
+    insertTextFormat: 'snippet',
+    kind: 'annotation',
+    sortOrder: 15,
+    blockTypes: ['workflow'],
+  },
+  {
     label: '@cancelOn',
     detail: 'Cancel on external event',
     documentation:

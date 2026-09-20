@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
-import { workflows, wf, project, selectWorkflow, openProject, ui, loading, opening, guide, view, openDoc, packs, openPack, openMarket, packProject, openAuthor, openStatus, type WorkflowSummary } from '../state';
+import { workflows, wf, project, selectWorkflow, openProject, ui, loading, opening, guide, view, openDoc, packs, openPack, openMarket, packProject, openAuthor, openStatus, openAgents, openEndpoints, type WorkflowSummary } from '../state';
 import { get, store } from '../api';
 import { buildTree, pathTo, type TreeNode } from '../tree';
 import { Tip, Keys } from './Tip';
@@ -345,6 +345,16 @@ export function Rail() {
           </Tip>
         ))}
         <span class="sp" />
+        <Tip label="Endpoints · workflows over HTTP">
+          <button class={view.value.kind === 'endpoints' ? 'on' : ''} aria-label="Endpoints" onClick={openEndpoints}>
+            <span class="ms">api</span>
+          </button>
+        </Tip>
+        <Tip label="Agents · what answers an agent gate">
+          <button class={view.value.kind === 'agents' ? 'on' : ''} aria-label="Agents" onClick={openAgents}>
+            <span class="ms">smart_toy</span>
+          </button>
+        </Tip>
         <Tip label="Status · services, MCP, environment">
           <button class={view.value.kind === 'status' ? 'on' : ''} aria-label="Status" onClick={openStatus}>
             <span class="ms">monitor_heart</span>

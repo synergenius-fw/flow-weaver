@@ -433,6 +433,26 @@ export type TTypeCompatibility = {
  * with `cicd?: TCICDOptions`). Core carries only generic options plus the
  * `deploy` escape hatch; vendor/domain vocabularies live in their packs.
  */
+/**
+ * One HTTP route a workflow answers on, from `@http METHOD /path [mode=…] [auth=…] [callback]`.
+ *
+ * The route is the workflow's own declaration that it is an endpoint: `fw serve`
+ * and the embeddable server mount exactly these, with the workflow's `params`
+ * as the request contract (path params by name, then the query string for
+ * GET, the JSON body otherwise) and its return ports as the response.
+ */
+export interface THttpRoute {
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** Absolute, may carry `:name` segments that bind to params of that name. */
+  path: string;
+  /** `sync` (default) answers when the first segment ends; `async` answers at once with the run. */
+  mode?: 'sync' | 'async';
+  /** `bearer` (default) needs the server's token; `none` is public. */
+  auth?: 'bearer' | 'none';
+  /** Accept a `callbackUrl` and POST the final response there when the run ends. */
+  callback?: boolean;
+}
+
 export interface TWorkflowOptions {
   /** When true, type incompatibilities are errors instead of warnings */
   strictTypes?: boolean;
@@ -440,6 +460,8 @@ export interface TWorkflowOptions {
   autoConnect?: boolean;
   /** Trigger configuration (event name and/or cron schedule) */
   trigger?: { event?: string; cron?: string };
+  /** The HTTP routes this workflow is served on (`@http`), in declaration order */
+  http?: THttpRoute[];
   /** Cancellation configuration — cancel on matching external event */
   cancelOn?: { event: string; match?: string; timeout?: string };
   /** Number of retries on failure */

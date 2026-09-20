@@ -1,5 +1,5 @@
 /**
- * Serve command - start HTTP server exposing workflows as endpoints
+ * Serve command - the project's workflows as HTTP endpoints, runs as resources.
  */
 
 import * as path from 'path';
@@ -7,83 +7,81 @@ import * as fs from 'fs';
 import { WebhookServer } from '../../server/webhook-server.js';
 import { logger } from '../utils/logger.js';
 import { announceService } from '../../service-registry.js';
+import { defaultRunsDir } from '../../coordinator/index.js';
+import { loadAgentProfiles, readiness } from '../../agent/profiles.js';
 
 export interface ServeOptions {
-  /** Server port */
+  /** Server port. Default 3000. */
   port?: number;
-  /** Server host */
+  /** Server host. Default 127.0.0.1; anything else needs a token or --insecure. */
   host?: string;
-  /** Enable file watching for hot reload */
+  /** Re-discover workflows when files change. Default true. */
   watch?: boolean;
-  /** Production mode (no trace events) */
+  /** Deprecated alias for `trace: false`. */
   production?: boolean;
-  /** Precompile all workflows on startup */
+  /** Accepted for compatibility; has no effect. */
   precompile?: boolean;
-  /** CORS origin */
+  /** CORS origin; unset sends no CORS headers. */
   cors?: string;
-  /** Enable Swagger UI at /docs */
+  /** Swagger UI at /docs. */
   swagger?: boolean;
+  /** Bearer token; also read from FW_SERVE_TOKEN. */
+  token?: string;
+  /** Answer agent gates from .flowweaver/agents.yaml. Default true. */
+  agents?: boolean;
+  /** Keep and stream a step trace per run. */
+  trace?: boolean;
+  /** Error stacks in responses; mocks accepted in a start body. */
+  dev?: boolean;
+  /** Listen beyond loopback without a token. */
+  insecure?: boolean;
 }
 
+const isLoopback = (host: string) => ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host);
+
 /**
- * Start a webhook server exposing workflows as HTTP endpoints.
- *
- * @param dir - Directory containing workflow files (defaults to current directory)
- * @param options - Server options
+ * Start the HTTP server.
  *
  * @example
  * ```bash
- * # Start server with current directory
- * fw serve
- *
- * # Specify workflow directory
- * fw serve ./workflows
- *
- * # Custom port
- * fw serve --port 8080
- *
- * # Production mode
- * fw serve --production --precompile
- *
- * # Disable hot reload
- * fw serve --no-watch
+ * fw serve                              # this directory, on 127.0.0.1:3000
+ * fw serve ./workflows --port 8080
+ * fw serve --host 0.0.0.0 --token $FW_SERVE_TOKEN   # reachable, guarded
+ * fw serve --trace --dev                # streams every step; stacks in errors
+ * fw serve --no-agents                  # agent gates wait for a person
  * ```
  */
 export async function serveCommand(dir: string | undefined, options: ServeOptions): Promise<void> {
-  // Check fastify is installed before proceeding
-  try {
-    await import('fastify');
-  } catch {
-    logger.error('The serve command requires fastify. Install it with:');
-    logger.newline();
-    logger.log('  npm install fastify');
-    logger.newline();
-    process.exit(1);
-  }
-
   const workflowDir = path.resolve(dir || '.');
 
-  // Validate directory exists
-  if (!fs.existsSync(workflowDir)) {
-    throw new Error(`Directory not found: ${workflowDir}`);
-  }
-
-  if (!fs.statSync(workflowDir).isDirectory()) {
-    throw new Error(`Not a directory: ${workflowDir}`);
-  }
+  if (!fs.existsSync(workflowDir)) throw new Error(`Directory not found: ${workflowDir}`);
+  if (!fs.statSync(workflowDir).isDirectory()) throw new Error(`Not a directory: ${workflowDir}`);
 
   const port = options.port ?? 3000;
-  const host = options.host ?? '0.0.0.0';
-
-  logger.section('Flow Weaver Webhook Server');
-  logger.info(`Workflow directory: ${workflowDir}`);
-  logger.info(`Server: http://${host}:${port}`);
-  announceService({ kind: 'serve', transport: 'http', url: `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}`, project: path.resolve(dir ?? '.') });
-  logger.info(`File watching: ${options.watch !== false ? 'enabled' : 'disabled'}`);
-  logger.info(`Production mode: ${options.production ? 'yes' : 'no'}`);
-  if (options.swagger) {
-    logger.info(`Swagger UI: http://${host}:${port}/docs`);
+  const host = options.host ?? '127.0.0.1';
+  const token = options.token ?? process.env.FW_SERVE_TOKEN ?? undefined;
+  if (!isLoopback(host) && !token && !options.insecure) {
+    throw new Error(`Refusing to listen on ${host} without a token: anyone who can reach the port could run your workflows. Pass --token <secret> (or set FW_SERVE_TOKEN), or --insecure to expose the API unauthenticated.`);
   }
+  const agents = options.agents !== false;
+  const trace = options.trace === true;
+
+  logger.section('Flow Weaver Server');
+  logger.info(`Workflows: ${workflowDir}`);
+  logger.info(`Auth: ${token ? 'bearer token' : 'open'}${!token && !isLoopback(host) ? ' (insecure)' : ''}`);
+  logger.info(`Runs: ${defaultRunsDir()} (shared with fw console and fw_run)`);
+  logger.info(`Trace: ${trace ? 'kept per run' : 'off (--trace to keep)'}`);
+  logger.info(`Callbacks: ${options.dev ? 'any host, including localhost (--dev)' : 'public hosts only'}`);
+  if (agents) {
+    const profiles = loadAgentProfiles(workflowDir);
+    const ready = Object.values(profiles.agents).filter((p) => readiness(p).ready).length;
+    logger.info(profiles.exists
+      ? `Agents: ${Object.keys(profiles.agents).length} profile(s), ${ready} ready${profiles.default ? `, default ${profiles.default}` : ''}${profiles.errors.length ? ` — ${profiles.errors.length} problem(s) in ${profiles.file}` : ''}`
+      : 'Agents: no .flowweaver/agents.yaml; agent gates wait for a person');
+  } else {
+    logger.info('Agents: off; agent gates wait for a person');
+  }
+  logger.info(`File watching: ${options.watch !== false ? 'enabled' : 'disabled'}`);
   logger.newline();
 
   const server = new WebhookServer({
@@ -93,18 +91,24 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
     watchEnabled: options.watch !== false,
     production: options.production ?? false,
     precompile: options.precompile ?? false,
-    corsOrigin: options.cors ?? '*',
+    corsOrigin: options.cors,
     swaggerEnabled: options.swagger ?? false,
+    token,
+    agents,
+    trace,
+    dev: options.dev ?? false,
+    // Callbacks to localhost are what testing a callback locally needs;
+    // in production they are the classic request-forgery hole.
+    callbacks: options.dev ? { allowPrivate: true } : undefined,
+    onCallback: (o) => { if (!o.ok) logger.warn(`callback for run ${o.runId} → ${o.url}: ${o.error ?? o.status}${o.gaveUp ? ' (gave up)' : ` (attempt ${o.attempt})`}`); },
   });
 
-  // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
     logger.newline();
     logger.info(`Received ${signal}, shutting down...`);
     await server.stop();
     process.exit(0);
   };
-
   process.on('SIGINT', () => shutdown('SIGINT'));
   if (process.platform !== 'win32') process.on('SIGTERM', () => shutdown('SIGTERM'));
 
@@ -116,4 +120,10 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
     }
     throw error;
   }
+  const url = server.url || `http://${host}:${port}`;
+  const endpoints = server.getServerInfo?.().endpoints;
+  logger.info(`Listening: ${url}${endpoints !== undefined ? `  (${endpoints} workflow endpoint${endpoints === 1 ? '' : 's'})` : ''}`);
+  logger.info(`OpenAPI: ${url}/openapi.json`);
+  if (options.swagger) logger.info(`Swagger UI: ${url}/docs`);
+  announceService({ kind: 'serve', transport: 'http', url, project: workflowDir });
 }

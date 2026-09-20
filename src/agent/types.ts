@@ -203,6 +203,12 @@ export interface ClaudeCliProviderOptions {
   timeout?: number;
   /** Disable specific built-in tools (e.g. ['Read', 'Edit', 'Write', 'Bash'] to force MCP tools). */
   disallowedTools?: string[];
+  /**
+   * The only tools the CLI may use, as `--allowed-tools`. An empty list
+   * switches every built-in tool off, leaving just the bridged ones -- the
+   * lockdown an unattended run needs (see `cli-spawn-config.ts`).
+   */
+  allowedTools?: string[];
 }
 
 // ---------------------------------------------------------------------------

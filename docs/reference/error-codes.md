@@ -564,6 +564,15 @@ function fetchData(execute: boolean, url: string, apiKey: string) { ... }
 | Common Causes | Defining a return type that includes a property but never connecting anything to the corresponding Exit port. A connection to this Exit port was removed. |
 | Fix           | Connect a node output to this Exit port, or remove the port from the workflow's return type if it is not needed.                                          |
 
+#### HTTP_PARAM_UNKNOWN (error)
+
+| Field         | Value                                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Severity      | Error                                                                                                                                                  |
+| Meaning       | An `@http` route has a `:param` segment that names no parameter of the workflow, so a request to it could not bind that part of the path to anything. |
+| Common Causes | A typo in the segment; a parameter renamed after the route was written; a route copied from another workflow.                                          |
+| Fix           | Name the segment after one of the workflow's `@param`s, or take the segment out of the path.                                                          |
+
 #### MULTIPLE_EXIT_CONNECTIONS (warning)
 
 | Field         | Value                                                                                                                                                                                      |
@@ -737,6 +746,7 @@ These rules detect common workflow design problems that compile fine but indicat
 | MISSING_REQUIRED_INPUT | Required input has no connection/default/expression |
 | CYCLE_DETECTED | Graph contains a loop |
 | INVALID_EXIT_PORT_TYPE | Exit onSuccess/onFailure is not STEP type |
+| HTTP_PARAM_UNKNOWN | An @http route has a :param segment that names no parameter of the workflow |
 | SCOPE_MISSING_REQUIRED_INPUT | Required input port on a scoped child has no connection |
 | SCOPE_WRONG_SCOPE_NAME | Connection uses a scope name not defined on the node |
 | SCOPE_CONNECTION_OUTSIDE | Scoped connection references a node outside the scope |

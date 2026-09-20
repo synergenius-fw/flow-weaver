@@ -110,6 +110,10 @@
     "./coordinator": {
       "types": "./dist/coordinator/index.d.ts",
       "default": "./dist/coordinator/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "default": "./dist/server/index.js"
     }
   },
   "bin": {

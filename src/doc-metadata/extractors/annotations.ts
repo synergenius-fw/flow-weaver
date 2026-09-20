@@ -327,6 +327,23 @@ targetType     ::= "string" | "number" | "boolean" | "json" | "object"`,
     contexts: ['workflow'],
   },
   {
+    name: '@http',
+    category: 'workflow',
+    syntax: '@http METHOD /path [mode=sync|async] [auth=bearer|none] [callback]',
+    description:
+      'Serves the workflow on an HTTP route with fw serve and the embeddable server. Path :params bind to workflow params by name; GET reads the query string, other methods the JSON body; the return ports are the response, onSuccess as 200 and onFailure as 422. A workflow that pauses at a gate answers 202 with a run id. Several tags give several routes.',
+    insertText: '@http POST /${1:path}',
+    insertTextFormat: 'snippet',
+    ebnf: 'httpTag        ::= "@http" METHOD PATH { "mode=" ("sync"|"async") | "auth=" ("bearer"|"none") | "callback" }',
+    examples: [
+      '@http POST /reviews',
+      '@http GET /reviews/:path',
+      '@http POST /reviews mode=async callback',
+      '@http POST /hooks/github auth=none',
+    ],
+    contexts: ['workflow'],
+  },
+  {
     name: '@cancelOn',
     category: 'workflow',
     syntax: '@cancelOn event="name" [match="field"] [timeout="duration"]',

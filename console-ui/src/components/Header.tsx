@@ -77,6 +77,24 @@ export function Header() {
     );
   }
 
+  if (view.value.kind === 'agents') {
+    return (
+      <div class="head docbar">
+        <div class="grow"><div class="meta">{menu}<span class="here">Agents</span></div></div>
+        <div class="actions">{w && <button class="btn sm" onClick={closeDoc}>← {w.name}</button>}</div>
+      </div>
+    );
+  }
+
+  if (view.value.kind === 'endpoints') {
+    return (
+      <div class="head docbar">
+        <div class="grow"><div class="meta">{menu}<span class="here">Endpoints</span></div></div>
+        <div class="actions">{w && <button class="btn sm" onClick={closeDoc}>← {w.name}</button>}</div>
+      </div>
+    );
+  }
+
   if (view.value.kind === 'author') {
     return (
       <div class="head docbar">

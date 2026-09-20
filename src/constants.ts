@@ -181,7 +181,7 @@ export const KNOWN_NODETYPE_TAGS = new Set([
 export const KNOWN_WORKFLOW_TAGS = new Set([
   'flowWeaver', 'name', 'fwImport', 'description', 'strictTypes', 'autoConnect',
   'node', 'connect', 'scope', 'map', 'path', 'fanOut', 'fanIn',
-  'coerce', 'trigger', 'cancelOn', 'retries', 'timeout', 'throttle', 'param',
+  'coerce', 'trigger', 'http', 'cancelOn', 'retries', 'timeout', 'throttle', 'param',
   'return', 'returns',
   // Async is auto-detected from the TS signature but accepted as an explicit annotation
   'async',

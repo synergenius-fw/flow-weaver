@@ -100,11 +100,45 @@ run.result;   // the workflow's return value
 ```
 
 - `start` takes the **source** file. The coordinator compiles a private copy and runs it, so the file does not have to be compiled in place, and the bundle digest it records is what protects a paused run from a changed file.
-- A run that pauses is written to `<rootDir>/<runId>/` (`run.json`, `continuation.json`), so `resume` can happen in another process, or tomorrow. `FW_RUNS_DIR` moves the default directory. The console and the MCP tools read the same directory: a gate your service reaches can be answered by a person in `fw console`, and the other way round.
+- A run that pauses is written to its store — by default `<rootDir>/<runId>/` (`run.json`, `continuation.json`) — so `resume` can happen in another process, or tomorrow. `FW_RUNS_DIR` moves the default directory. The console and the MCP tools read the same store: a gate your service reaches can be answered by a person in `fw console`, and the other way round.
 - `input` follows the answer rules in [Durable Gates](durable-gates): one data output → `answer` is the value; several → an object with every one; none → `null`.
-- `runs.get(runId)`, `runs.list({ filePath? })`, `runs.record(runId)` (everything persisted), `runs.trace(runId)` (the kept step trace), `runs.cancel(runId)`.
+- `await runs.get(runId)`, `runs.list({ filePath? })`, `runs.record(runId)` (everything persisted), `runs.trace(runId)` (the kept step trace), `runs.cancel(runId)`, `runs.remove(runId)`, `runs.keep(runId, name, data)` / `runs.kept(runId, name)` for a document of your own beside the run. Every method returns a promise, because a store may be remote.
 - The second argument to `start`/`resume` watches the run: `{ onEvent(event) {…}, trace: true, abortSignal }`. `trace: true` keeps the step trace beside the record so a later reader has it — the console asks for it; an assistant over MCP does not.
-- Errors are classes you can `instanceof`: `ParseError`, `AmbiguousWorkflowError`, `RunNotFoundError`, `RunNotWaitingError`, `BundleChangedError`, `MissingOutputsError`, `InvalidAnswerError`.
+- While a segment runs, the run is **claimed** in the store; a second coordinator resuming or cancelling the same run gets `RunBusyError` until the claim is released, or lapses (`claimTtlMs`, one hour by default). Two processes on one store never drive the same run at once.
+- Errors are classes you can `instanceof`: `ParseError`, `AmbiguousWorkflowError`, `RunNotFoundError`, `RunNotWaitingError`, `RunBusyError`, `BundleChangedError`, `MissingOutputsError`, `InvalidAnswerError`.
+
+### Run stores
+
+Everything the coordinator keeps goes through a `RunStore`. Two come with the package: the file store (the default, `createFileRunStore(rootDir)`) and a memory store for tests (`createMemoryRunStore()`). Past one machine — several API instances behind a balancer, a container with no disk — you give the coordinator a store of your own, and `fw serve`, the console and the MCP tools all work on it unchanged.
+
+```typescript
+import { createLocalCoordinator, type RunStore } from '@synergenius/flow-weaver/coordinator';
+
+const runs = createLocalCoordinator({ store: myStore, claimTtlMs: 10 * 60_000 });
+```
+
+A store is nine methods over three kinds of thing — a run's record, named JSON documents beside it, and a claim while a process drives it:
+
+| Method | Contract |
+|--------|----------|
+| `get(runId)`, `put(record)`, `remove(runId)` | `put` is all or nothing: a concurrent `get` sees the old record or the new one, never a mix. `get` returns a copy. `remove` takes the documents and the claim too. |
+| `list({ filePath? })` | Every record, newest first by `updatedAt`; only one file's when asked. |
+| `getDoc`, `putDoc`, `deleteDoc(runId, name)` | JSON documents under a slug name: `continuation`, `trace`, `effect-<sha>` receipts, and whatever a driver keeps (`agent-*` transcripts, `http`). A document may precede its record. |
+| `claim(runId, owner, ttlMs)`, `release(runId, owner)` | Atomic: of two claimers at once, one gets `true`. The holder may claim again. A claim lapses after `ttlMs`, or when released by its owner. A store that can tell the owner's process is gone may lapse it sooner, as the file store does on one host. |
+
+In SQL that is a `runs` table with the record as JSON, a `run_docs` table keyed by run and name, and a `run_claims` table where `claim` is one conditional insert-or-update. Before relying on a store, run the contract against it:
+
+```typescript
+import { checkRunStore } from '@synergenius/flow-weaver/testing';
+
+it('keeps the run store contract', () => checkRunStore(() => createMyStore(url)));
+```
+
+It throws on the first thing that is wrong and names it. Both built-in stores pass it in this package's own tests, so what it checks is what the coordinator relies on. The memory store (`src/coordinator/memory-store.ts`, forty lines) is the reference implementation to read first; a database store is the same nine methods with a table behind each `Map`.
+
+The console follows the store too. `fw console` on the command line uses the directory, since a store is code; from code, `createConsoleServer({ projectDir, store })` from `@synergenius/flow-weaver/console` puts the console on your store, so the person answering gates sees the runs your API instances made. It polls the store every few seconds for changes made elsewhere, where the directory is watched.
+
+The store holds runs, not code. Every instance parses the project's workflow files from its own disk, and a waiting run resumes on the code the instance has, checked against the digest recorded when the run started; a file that changed since is `BundleChangedError`, whichever store the run is in.
 
 If you are writing your own coordinator — persisting continuations in your own store, vouching for the bundle yourself — the engine's contract is described in [Durable Gates](durable-gates) under *Driving a run as a coordinator*.
 
@@ -143,8 +177,9 @@ Beside it:
 
 - `@synergenius/flow-weaver/diagram` — `workflowToSVG(ast)` (the console's spine as an image), `workflowToASCII(ast, { format })`, `buildProcessModel(ast)` (steps in run order, pauses, arms), `buildLanes(model)` (the lane layout)
 - `@synergenius/flow-weaver/docs` — `listTopics()`, `readTopic(slug)`, `searchDocs(query)`: this guide, from code
-- `@synergenius/flow-weaver/console` — `createConsoleServer({ projectDir, port? })`: the server behind `fw console`, to embed or to run on a port of your own
-- `@synergenius/flow-weaver/testing` — `createMockLlmProvider`, `createMockApprovalProvider`, recorders and replayers for the agent templates' adapters
+- `@synergenius/flow-weaver/console` — `createConsoleServer({ projectDir, port?, store? })`: the server behind `fw console`, to embed or to run on a port of your own; with `store`, it shows and drives the runs in a store of yours
+- `@synergenius/flow-weaver/server` — `createWorkflowApi({ dir, token? })`: the workflows' declared `@http` routes and run resources as a handler with `node()`, `express()` and `fetch()` adapters, the same one `fw serve` runs. See [Embedding the API](deployment#embedding-the-api)
+- `@synergenius/flow-weaver/testing` — `createMockLlmProvider`, `createMockApprovalProvider`, recorders and replayers for the agent templates' adapters, and `checkRunStore` for a run store of your own
 
 ## Entry points
 
@@ -153,7 +188,8 @@ Beside it:
 | `@synergenius/flow-weaver` | `createWorkflowRuntime`, the AST types, and everything `./api` exports |
 | `…/api` | Parse, validate, compile, generate, query, modify |
 | `…/runtime` | `createWorkflowRuntime`, `DebugController`, `CancellationError`, `DurableGateYield`, the runtime types |
-| `…/coordinator` | `createLocalCoordinator` and its request, view and error types |
+| `…/coordinator` | `createLocalCoordinator`, the `RunStore` interface with `createFileRunStore` and `createMemoryRunStore`, and the request, view and error types |
+| `…/server` | `createWorkflowApi`, `WebhookServer`, `planRoutes`, the request and response types |
 | `…/diagram`, `…/docs`, `…/console`, `…/diff`, `…/testing` | As above |
 | `…/marketplace`, `…/deployment`, `…/built-in-nodes`, `…/compiler`, `…/generator`, `…/agent` | What packs and export targets build on — see [Marketplace](marketplace) and [Deployment](deployment) |
 | `…/cli`, `…/context`, `…/editor`, `…/doc-metadata`, `…/describe`, `…/ast`, `…/constants`, `…/version`, `…/browser`, `…/npm-packages`, `…/generated-branding` | Tooling surfaces used by the CLI, the MCP server and editor integrations |

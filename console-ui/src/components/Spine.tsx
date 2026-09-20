@@ -5,6 +5,7 @@ import { ms, colorVar } from '../format';
 import { Icon, kindIcon } from './Icon';
 import { Value } from './Value';
 import { GateCard } from './GateCard';
+import { AgentPanel } from './AgentPanel';
 
 /** Tile size, so a tile centres on its lane. */
 const TILE = 22;
@@ -101,7 +102,10 @@ function StepRow({ row, gutter, laneX, w, nodes, mark, slot }: { row: GRow<Step>
           {issues.length > 0 && <span class={`mark ${worst}`} title={issues.map((i) => i.message).join('\n')} />}
           <span class="sp" />{status}
         </div>
-        {st === 'WAITING' && r?.gate && <GateCard gate={r.gate} />}
+        {/* An agent profile at work on this gate streams in above the form;
+            once it has answered, or could not, one line stays. */}
+        {r?.agent?.node === s.id && (st === 'WAITING' || st === 'SUCCEEDED' || st === 'RUNNING') && <AgentPanel note={r.agent} log={r.agentLog} compact={st !== 'WAITING'} />}
+        {st === 'WAITING' && r?.gate && !(r.agent?.node === s.id && r.agent.status === 'answering') && <GateCard gate={r.gate} />}
       </div>
     </div>
   );

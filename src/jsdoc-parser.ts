@@ -12,6 +12,7 @@ import type {
   TMergeStrategy,
   TNodeTagAST,
   TSerializableValue,
+  THttpRoute,
 } from './ast/types';
 import {
   isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort,
@@ -237,6 +238,9 @@ export interface JSDocNodeTypeConfig {
  * `position: x y` as it was written on @node lines: a bracket of its own,
  * or first, last or between other attributes in a shared bracket.
  */
+/** The methods an `@http` route may declare. */
+const HTTP_METHODS: ReadonlySet<string> = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+
 const POSITION_ATTR = /\s*\[position:\s*-?\d+\s+-?\d+\]|,\s*position:\s*-?\d+\s+-?\d+(?=\s*[,\]])|(?<=\[)\s*position:\s*-?\d+\s+-?\d+\s*,\s*/g;
 const positionGone = (where: string): string =>
   `${where}: node positions are no longer part of the grammar and this was ignored. Remove it, or run \`fw compile\` / \`fw migrate\` to rewrite the block without it.`;
@@ -328,6 +332,8 @@ export interface JSDocWorkflowConfig {
   }>;
   /** @trigger annotation — event name and/or cron schedule */
   trigger?: { event?: string; cron?: string };
+  /** @http annotations — the routes the workflow is served on */
+  http?: THttpRoute[];
   /** @cancelOn annotation — cancel on matching external event */
   cancelOn?: { event: string; match?: string; timeout?: string };
   /** @retries annotation — retry count */
@@ -657,6 +663,10 @@ export class JSDocParser {
 
         case 'trigger':
           this.parseTriggerTag(tag, config, warnings, tagRegistry);
+          break;
+
+        case 'http':
+          this.parseHttpTag(tag, config, warnings);
           break;
 
         case 'cancelOn':
@@ -1582,6 +1592,46 @@ export class JSDocParser {
       return;
     }
     config.throttle = result;
+  }
+
+  /**
+   * Parse @http tag: the route a workflow is served on.
+   * Format: @http METHOD /path [mode=sync|async] [auth=bearer|none] [callback]
+   *
+   * Examples:
+   *   @http POST /reviews
+   *   @http GET /reviews/:path
+   *   @http POST /reviews mode=async callback
+   *
+   * Several @http tags give several routes. A bad line is a warning and the
+   * route is dropped; the workflow still parses.
+   */
+  private parseHttpTag(tag: JSDocTag, config: { http?: THttpRoute[] }, warnings: string[]): void {
+    const text = (tag.getCommentText() || '').trim();
+    const parts = text.split(/\s+/).filter(Boolean);
+    const fail = (why: string) => { warnings.push(`Invalid @http: "${text}". ${why} Format: @http METHOD /path [mode=sync|async] [auth=bearer|none] [callback]`); };
+    if (parts.length < 2) return fail('Give a method and a path.');
+    const method = parts[0].toUpperCase();
+    if (!HTTP_METHODS.has(method)) return fail(`"${parts[0]}" is not one of GET, POST, PUT, PATCH, DELETE.`);
+    const routePath = parts[1];
+    if (!/^\/(?:[A-Za-z0-9_\-.~%]+|:[A-Za-z_][A-Za-z0-9_]*)(?:\/(?:[A-Za-z0-9_\-.~%]+|:[A-Za-z_][A-Za-z0-9_]*))*\/?$|^\/$/.test(routePath)) {
+      return fail(`"${routePath}" is not a path: it starts with / and its segments are words or :params.`);
+    }
+    const route: THttpRoute = { method: method as THttpRoute['method'], path: routePath.length > 1 ? routePath.replace(/\/$/, '') : routePath };
+    for (const opt of parts.slice(2)) {
+      const [key, raw] = opt.includes('=') ? opt.split('=', 2) : [opt, undefined];
+      const value = raw?.replace(/^["']|["']$/g, '');
+      if (key === 'mode' && (value === 'sync' || value === 'async')) { if (value === 'async') route.mode = 'async'; }
+      else if (key === 'auth' && (value === 'bearer' || value === 'none')) { if (value === 'none') route.auth = 'none'; }
+      else if (key === 'callback' && (value === undefined || value === 'true' || value === 'false')) { if (value !== 'false') route.callback = true; }
+      else return fail(`"${opt}" is not an option.`);
+    }
+    config.http = config.http || [];
+    if (config.http.some((r) => r.method === route.method && r.path === route.path)) {
+      warnings.push(`Duplicate @http route ${route.method} ${route.path}; the first one stands.`);
+      return;
+    }
+    config.http.push(route);
   }
 
   /**

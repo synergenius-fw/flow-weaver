@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { sel, ui, stageCli, openDoc, type ParsedWorkflow, type Step } from '../state';
 import { editorLink, packNs } from '../format';
+import { routeText } from '../http';
 import { Code } from './Code';
 import { Expr, PortRef } from './Expr';
 
@@ -29,12 +30,14 @@ export function ReferencePane({ w }: { w: ParsedWorkflow }) {
   const [about, setAbout] = useState(false);
   const r = w.reference;
   const steps = flatten(w.model.steps);
-  const opts = Object.entries(r.options).filter(([, v]) => v !== undefined && v !== false && v !== null);
+  const opts = Object.entries(r.options).filter(([k, v]) => k !== 'http' && v !== undefined && v !== false && v !== null);
   const optText = (k: string, v: unknown): string => {
     if (v === true) return `@${k}`;
     if (typeof v === 'object' && v) return `@${k} ${Object.entries(v as Record<string, unknown>).map(([a, b]) => `${a}=${JSON.stringify(b)}`).join(' ')}`;
     return `@${k} ${String(v)}`;
   };
+  // Each @http line is its own chip, as written.
+  const routeChips = (w.http ?? []).map((route) => [`http ${routeText(route)}`, `@http ${routeText(route)}`] as const);
   const sig = (ports: Array<{ name: string; tsType: string; optional: boolean }>) =>
     ports.length ? ports.map((p) => `${p.name}${p.optional ? '?' : ''}: ${p.tsType}`).join(', ') : '';
   return (
@@ -50,9 +53,9 @@ export function ReferencePane({ w }: { w: ParsedWorkflow }) {
             <div class={`desc about ${about ? 'open' : ''}`} onClick={() => setAbout(!about)}>{w.description}</div>
           )}
         </div>
-        {opts.length > 0 && (
+        {(opts.length > 0 || routeChips.length > 0) && (
           <div class="in"><h5>Options</h5>
-            <div class="chips">{opts.map(([k, v]) => <code key={k} title={k}>{optText(k, v)}</code>)}</div>
+            <div class="chips">{opts.map(([k, v]) => <code key={k} title={k}>{optText(k, v)}</code>)}{routeChips.map(([k, text]) => <code key={k} title="The route this workflow is served on">{text}</code>)}</div>
           </div>
         )}
         <div class="in"><div class="kv">

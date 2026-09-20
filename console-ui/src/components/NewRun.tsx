@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from 'preact/hooks';
-import { startRun, breakpoints, toggleBreakpoint, errorCount, toast, flatSteps, type ParsedWorkflow, type FieldSchema, type Node, type Step } from '../state';
+import { startRun, breakpoints, toggleBreakpoint, errorCount, toast, flatSteps, agents, loadAgents, profileForStep, openAgents, type ParsedWorkflow, type FieldSchema, type Node, type Step } from '../state';
 import { store } from '../api';
 import { quoteArg } from '../shell';
 import { SchemaForm, validateFields, blank, type Errors } from './SchemaForm';
 import { Keys } from './Tip';
 import { Select } from './Select';
+import { AgentPick } from './AgentPick';
 
 /**
  * The New run card: what the workflow is given, who answers its gates while
@@ -72,13 +73,17 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
   const [preset, setPreset] = useState('');
   const [naming, setNaming] = useState<string | null>(null);
   const [mocksOpen, setMocksOpen] = useState(true);
+  // Whether the agent gates of this run go to a profile or wait for a person.
+  const [autoAgents, setAutoAgents] = useState<boolean>(() => store.get(`agents:${key}`, true));
 
   useEffect(() => {
     setValue(store.get(`params:${key}`, blank({ type: 'object', fields }) as Record<string, unknown>) ?? {}); setErrors({});
     setMode(store.get(`debug:${key}`, false) ? 'debug' : 'run'); setRunTo(store.get(`runTo:${key}`, 'first'));
     setMocking(store.get(`mocks:${key}`, { on: {}, answers: {}, fast: true })); setMockErrors({});
     setPresets(store.get(`presets:${key}`, [])); setPreset(''); setNaming(null);
+    setAutoAgents(store.get(`agents:${key}`, true));
   }, [key]);
+  useEffect(() => { if (!agents.value) void loadAgents().catch(() => undefined); }, []);
 
   const { gates, calls, delays } = useMemo(() => mockable(w), [w]);
   const standIns = [...gates, ...calls];
@@ -103,8 +108,12 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
   const go = async () => {
     if (!check()) return;
     setFailure('');
-    try { await startRun(value, { debug: mode === 'debug', runTo, mocks: buildMocks(w, mocking) }); } catch (e) { setFailure((e as Error).message); }
+    try { await startRun(value, { debug: mode === 'debug', runTo, mocks: buildMocks(w, mocking), agents: autoAgents ? 'auto' : 'manual' }); } catch (e) { setFailure((e as Error).message); }
   };
+  const pickAgents = (on: boolean) => { setAutoAgents(on); store.set(`agents:${key}`, on); };
+  // The agent gates that are not mocked: the ones a profile would be asked about.
+  const agentGates = gates.filter((s) => s.gate === 'agent' && !mocking.on[s.id]);
+  const profiles = agents.value;
 
   /** The same run as a command line, for a script or a message to a colleague. */
   const asCli = (): string => {
@@ -190,6 +199,28 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {agentGates.length > 0 && (
+        <div class="in">
+          <h5>Agents<span class="hint" style="margin-left:8px;text-transform:none;letter-spacing:0">{profiles?.exists ? `${profiles.agents.filter((p) => p.ready).length} of ${profiles.agents.length} profile${profiles.agents.length === 1 ? '' : 's'} ready` : 'no profiles in this project'}</span></h5>
+          <label class="check">
+            <input type="checkbox" checked={autoAgents} onChange={(e) => pickAgents((e.target as HTMLInputElement).checked)} />
+            <span>Let a profile answer the agent gates</span>
+          </label>
+          <div class="agentgates">
+            {agentGates.map((s) => (
+              <div class="agentgate" key={s.id}>
+                <span class="ms">smart_toy</span>
+                <span>{s.label}</span>
+                <span class="to">answered by</span>
+                {profiles?.agents.length
+                  ? <AgentPick workflow={w.name} node={s.id} disabled={!autoAgents} />
+                  : <button class="linkish" onClick={openAgents}>no profile yet — add one</button>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

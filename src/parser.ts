@@ -56,7 +56,7 @@ import {
  * promoting `deploy[namespace]` to a top-level `options.<namespace>` mirror.
  */
 const RESERVED_OPTION_KEYS = new Set([
-  'strictTypes', 'autoConnect', 'trigger', 'cancelOn', 'retries', 'timeout',
+  'strictTypes', 'autoConnect', 'trigger', 'http', 'cancelOn', 'retries', 'timeout',
   'throttle', 'deploy',
 ]);
 
@@ -1589,12 +1589,13 @@ export class AnnotationParser {
         availableFunctionNames: allFunctionNames,
         ...(macros.length > 0 && { macros }),
         ...((config.strictTypes !== undefined || config.autoConnect ||
-             config.trigger || config.cancelOn || config.retries !== undefined ||
+             config.trigger || config.http || config.cancelOn || config.retries !== undefined ||
              config.timeout || config.throttle || config.deploy) && {
           options: {
             ...(config.strictTypes !== undefined && { strictTypes: config.strictTypes }),
             ...(config.autoConnect && { autoConnect: true }),
             ...(config.trigger && { trigger: config.trigger }),
+            ...(config.http && config.http.length > 0 && { http: config.http }),
             ...(config.cancelOn && { cancelOn: config.cancelOn }),
             ...(config.retries !== undefined && { retries: config.retries }),
             ...(config.timeout && { timeout: config.timeout }),

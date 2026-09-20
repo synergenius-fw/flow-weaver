@@ -468,14 +468,18 @@ program
 // Serve command
 program
   .command('serve [directory]')
-  .description('Start HTTP server exposing workflows as endpoints')
+  .description('Serve the workflows as HTTP endpoints; gated runs pause, resume and stream over the same API')
   .option('-p, --port <port>', 'Server port', '3000')
-  .option('-H, --host <host>', 'Server host', '0.0.0.0')
+  .option('-H, --host <host>', 'Server host; beyond loopback needs --token or --insecure', '127.0.0.1')
+  .option('--token <token>', 'Bearer token every request must carry (also FW_SERVE_TOKEN)')
+  .option('--no-agents', 'Do not answer agent gates from .flowweaver/agents.yaml')
+  .option('--trace', 'Keep a step trace for every run and stream it on /runs/:id/events', false)
+  .option('--dev', 'Error stacks in responses; mocks accepted when starting a run', false)
+  .option('--insecure', 'Listen beyond loopback without a token', false)
   .option('--no-watch', 'Disable file watching for hot reload')
-  .option('--production', 'Production mode (no trace events)', false)
-  .option('--precompile', 'Precompile all workflows on startup', false)
-  .option('--cors <origin>', 'CORS origin', '*')
+  .option('--cors <origin>', 'Send CORS headers for this origin')
   .option('--swagger', 'Enable Swagger UI at /docs', false)
+  .option('--production', 'Deprecated: the same as leaving --trace off', false)
   .action(wrapAction(async (directory: string | undefined, options) => {
       const { serveCommand } = await import('./commands/serve.js');
       await serveCommand(directory, {
@@ -483,9 +487,13 @@ program
         host: options.host,
         watch: options.watch,
         production: options.production,
-        precompile: options.precompile,
         cors: options.cors,
         swagger: options.swagger,
+        token: options.token,
+        agents: options.agents,
+        trace: options.trace,
+        dev: options.dev,
+        insecure: options.insecure,
       });
   }));
 
@@ -536,6 +544,8 @@ program
   .option('--description <desc>', 'API description')
   .option('-f, --format <format>', 'Output format: json, yaml', 'json')
   .option('--server <url>', 'Server URL')
+  .option('--no-auth', 'Leave out the bearer scheme, for a server without a token')
+  .option('--no-legacy', 'Leave out POST /workflows/<name>; declared @http routes only')
   .action(wrapAction(async (directory: string, options) => {
       const { openapiCommand } = await import('./commands/openapi.js');
       await openapiCommand(directory, options);

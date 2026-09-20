@@ -384,6 +384,25 @@ Declares an event or cron trigger for a deployment target. Can specify event, cr
 @trigger event="agent/request" cron="0 9 * * *"
 ```
 
+## @http (workflow-level)
+
+```
+httpTag        ::= "@http" METHOD PATH { "mode=" ("sync"|"async") | "auth=" ("bearer"|"none") | "callback" }
+METHOD         ::= "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
+PATH           ::= "/" { segment "/" }            (* a segment is a word or ":param" *)
+```
+
+Declares that the workflow is an HTTP endpoint. `fw serve` and the embeddable server ([Deployment](deployment#http-serve-mode)) mount exactly these routes. A `:param` segment binds to the workflow parameter of that name; `GET` reads the remaining parameters from the query string, the other methods from the JSON body. The workflow's return ports are the response body: `onSuccess` answers `200`, `onFailure` answers `422`. A workflow that pauses at a gate answers `202` with a run id to follow. `mode=async` answers `202` at once; `auth=none` makes the route public on a server that has a token; `callback` lets the caller pass a `callbackUrl` that receives the final response. Several tags give several routes; a workflow without one is not an endpoint.
+
+**Examples:**
+
+```
+@http POST /reviews
+@http GET /reviews/:path
+@http POST /reviews mode=async callback
+@http POST /hooks/github auth=none
+```
+
 ## @cancelOn (workflow-level)
 
 ```

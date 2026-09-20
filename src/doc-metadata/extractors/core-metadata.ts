@@ -103,4 +103,5 @@ export const PACKAGE_EXPORTS = [
   { subpath: './agent', description: 'Provider-agnostic agent tooling' },
   { subpath: './console', description: 'The local operator console server' },
   { subpath: './coordinator', description: 'Local run coordinator: start, resume and watch gated workflows from code' },
+  { subpath: './server', description: 'Workflows as HTTP endpoints: createWorkflowApi with Node, Express and fetch adapters, the handler behind fw serve' },
 ] as const;

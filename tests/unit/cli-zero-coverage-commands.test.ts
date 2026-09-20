@@ -118,6 +118,8 @@ vi.mock('../../src/server/webhook-server.js', () => {
   const Ctor = vi.fn(function (this: any) {
     this.start = mockWebhookServerStart;
     this.stop = mockWebhookServerStop;
+    this.url = 'http://127.0.0.1:3000';
+    this.getServerInfo = () => ({ port: 3000, host: '127.0.0.1', endpoints: 0, url: this.url });
   });
   return { WebhookServer: Ctor };
 });
@@ -321,15 +323,26 @@ describe('serveCommand', () => {
     expect(WebhookServer).toHaveBeenCalledWith(
       expect.objectContaining({
         port: 3000,
-        host: '0.0.0.0',
+        host: '127.0.0.1',
         watchEnabled: true,
         production: false,
         precompile: false,
-        corsOrigin: '*',
+        corsOrigin: undefined,
         swaggerEnabled: false,
+        agents: true,
+        trace: false,
+        dev: false,
       }),
     );
     expect(mockWebhookServerStart).toHaveBeenCalled();
+  });
+
+  it('refuses to listen beyond loopback without a token, and allows it with one or with --insecure', async () => {
+    await expect(serveCommand(undefined, { host: '0.0.0.0' })).rejects.toThrow(/without a token/);
+    await serveCommand(undefined, { host: '0.0.0.0', token: 's3cret' });
+    expect(WebhookServer).toHaveBeenLastCalledWith(expect.objectContaining({ host: '0.0.0.0', token: 's3cret' }));
+    await serveCommand(undefined, { host: '0.0.0.0', insecure: true });
+    expect(WebhookServer).toHaveBeenLastCalledWith(expect.objectContaining({ host: '0.0.0.0', token: undefined }));
   });
 
   it('passes custom options through', async () => {

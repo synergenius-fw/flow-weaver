@@ -59,3 +59,21 @@ export { buildSafeEnv, buildSafeSpawnOpts, MINIMAL_PATH, ENV_ALLOWLIST } from '.
 // Stream parser (for custom providers)
 export { StreamJsonParser } from './streaming.js';
 
+// Agent profiles (.flowweaver/agents.yaml) and answering a durable agent gate
+export {
+  loadAgentProfiles,
+  saveAgentProfiles,
+  validateProfile,
+  profileForGate,
+  readiness,
+  keyEnvOf,
+  agentsFile,
+  STARTER_AGENTS_YAML,
+  DEFAULT_MODEL,
+  DEFAULT_MAX_ITERATIONS,
+  SUGGESTED_MODELS,
+} from './profiles.js';
+export type { AgentProfile, AgentProfiles, AgentProviderKind, Readiness } from './profiles.js';
+export { answerGate, tryProfile, providerFor, answerTool, fieldToJsonSchema, systemPromptFor, userMessageFor, answerFromText, SUBMIT_TOOL, REJECT_TOOL } from './gate.js';
+export type { GateToAnswer, GateWorkflow, GateOutcome, GateUsage, AgentGateEvent, GateAgentResult, AnswerGateOptions, TryResult } from './gate.js';
+

@@ -1,11 +1,15 @@
 /**
- * OpenAPI command - generate OpenAPI specification from workflow files
+ * OpenAPI command - the document `fw serve` publishes at /openapi.json,
+ * written to a file: the declared `@http` routes, the run resource of every
+ * workflow, and the run endpoints.
  */
 
 import * as path from 'path';
 import * as fs from 'fs';
+import yaml from 'js-yaml';
 import { WorkflowRegistry } from '../../server/workflow-registry.js';
-import { generateOpenAPIJson, generateOpenAPIYaml } from '../../deployment/openapi/generator.js';
+import { planRoutes } from '../../server/api.js';
+import { buildOpenApi } from '../../server/openapi.js';
 import { logger } from '../utils/logger.js';
 import { safeWriteFile } from '../utils/safe-write.js';
 
@@ -22,75 +26,69 @@ export interface OpenAPIOptions {
   format?: 'json' | 'yaml';
   /** Server URL */
   server?: string;
+  /** Describe the bearer scheme, as a server with a token has. Default true. */
+  auth?: boolean;
+  /** Include `POST /workflows/<name>` for every workflow. Default true. */
+  legacy?: boolean;
 }
 
 /**
- * Generate OpenAPI specification from workflows in a directory.
- *
- * @param dir - Directory containing workflow files
- * @param options - Generation options
+ * Generate the OpenAPI specification for the workflows in a directory.
  *
  * @example
  * ```bash
- * # Generate JSON spec to stdout
  * fw openapi ./workflows
- *
- * # Generate YAML spec to file
  * fw openapi ./workflows --format yaml --output api-spec.yaml
- *
- * # With custom title and version
- * fw openapi ./workflows --title "My API" --version "2.0.0"
+ * fw openapi ./workflows --server https://api.example.com/api --title "Orders API"
  * ```
  */
 export async function openapiCommand(dir: string, options: OpenAPIOptions): Promise<void> {
   const workflowDir = path.resolve(dir);
 
-  // Validate directory exists
   if (!fs.existsSync(workflowDir)) {
     throw new Error(`Directory not found: ${workflowDir}`);
   }
-
   if (!fs.statSync(workflowDir).isDirectory()) {
     throw new Error(`Not a directory: ${workflowDir}`);
   }
 
-  // Initialize registry to discover workflows
   const registry = new WorkflowRegistry(workflowDir);
   await registry.initialize();
-
   const endpoints = registry.getAllEndpoints();
-
   if (endpoints.length === 0) {
     throw new Error(`No workflows found in ${workflowDir}`);
   }
 
-  // Only print info when writing to file (not stdout) to avoid contaminating JSON/YAML output
+  const plan = planRoutes(endpoints.map((endpoint) => ({ name: endpoint.name, routes: endpoint.routes ?? [], endpoint })));
+  const mounted = plan.mounted.map(({ owner, route }) => ({
+    endpoint: owner.endpoint,
+    route,
+    keys: [...route.path.matchAll(/:([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]),
+  }));
+
+  // Only speak when writing to a file, so stdout stays a clean document.
   if (options.output) {
-    logger.info(`Found ${endpoints.length} workflow(s)`);
+    logger.info(`Found ${endpoints.length} workflow(s), ${mounted.length} declared route(s)`);
+    for (const problem of plan.problems) logger.warn(problem);
   }
 
-  // Generate options
-  const generatorOptions = {
-    title: options.title || 'Flow Weaver API',
-    version: options.version || '1.0.0',
-    description: options.description || 'API generated from Flow Weaver workflows',
-    servers: options.server ? [{ url: options.server }] : undefined,
-  };
+  const doc = buildOpenApi({
+    endpoints,
+    mounted,
+    legacy: options.legacy !== false,
+    secured: options.auth !== false,
+    serverUrl: options.server,
+    info: { title: options.title, version: options.version, description: options.description },
+  });
 
-  // Generate spec
   const format = options.format || 'json';
-  const spec =
-    format === 'yaml'
-      ? generateOpenAPIYaml(endpoints, generatorOptions)
-      : generateOpenAPIJson(endpoints, generatorOptions);
+  const spec = format === 'yaml' ? yaml.dump(doc, { lineWidth: 120, noRefs: true }) : JSON.stringify(doc, null, 2);
 
-  // Output
   if (options.output) {
     const outputPath = path.resolve(options.output);
     safeWriteFile(outputPath, spec);
     logger.success(`OpenAPI specification written to ${outputPath}`);
   } else {
-    // Output to stdout
     process.stdout.write(spec + '\n');
   }
 }

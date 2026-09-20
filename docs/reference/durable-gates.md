@@ -355,6 +355,39 @@ Error codes: `PARSE_ERROR`, `AMBIGUOUS_WORKFLOW` (file has several workflows; pa
 
 Results carry no trace events, progress, or continuation. A waiting result for a three-node workflow is under 400 bytes.
 
+## Agent profiles
+
+An agent gate can be answered by a model called from inside the process, so a gated workflow runs from start to finish with nobody watching. Which model, and what it is told, is a **profile** in the project at `.flowweaver/agents.yaml`:
+
+```yaml
+default: reviewer
+agents:
+  reviewer:
+    provider: anthropic          # anthropic | openai | claude-cli
+    model: claude-sonnet-5
+    apiKeyEnv: ANTHROPIC_API_KEY # the variable the key is read from, never the key
+    system: |
+      You review files for risk. Be terse.
+    maxIterations: 8             # model turns before the attempt is given up
+  local:
+    provider: openai             # any OpenAI-compatible server: Ollama, vLLM, Groq…
+    baseUrl: http://localhost:11434/v1
+    model: llama3
+gates:
+  review: reviewer               # a gate's agentId → profile
+  figmaToPage/plan: local        # or one step: workflow/node → profile
+```
+
+A paused gate is matched by `workflow/node` first, then by its `agentId` input, then the `default`. With no match it waits for a person, as it always did.
+
+**What the model is given.** The gate's inputs as JSON — `agentId`, `context`, `prompt` — and a `submit_answer` tool whose input schema is the gate's output type, derived from the workflow's TypeScript the way the console's answer form is. When the gate has an `onFailure` port it also gets a `reject` tool. It has no other tools: it cannot read files, run commands, or reach the network on its own; what it needs must be in `context` (paths and excerpts, not whole files — the continuation envelope is capped at 1 MiB). It is asked to do the task and call the tool once; the tool's arguments become the answer, exactly as `fw_resume`'s `answer` would.
+
+**What is kept.** The run records `agent: { profile, status, usage, toolCalls }` — `answering` while the model works, then `answered`, `rejected` or `failed` — and the transcript is kept beside the run (`~/.fw/runs/<runId>/agent-<gate>.json`). The console shows the words as they stream and the line that remains; `fw serve` streams them on `/runs/:id/events` and returns the transcript on `/runs/:id/agent`.
+
+**When it cannot.** A profile whose key is not set, a model that never submits, or an answer that does not fit the gate's outputs leaves the run **waiting** with the reason on `agent.error`. Nothing is lost: a person answers the gate in the console, or asks the agent again. The gate is a coordination boundary, not a trust boundary — validate the answer downstream as described above; a profile does not change that.
+
+**Where it applies.** Runs started from the console (unless the New run card's *Let a profile answer the agent gates* is off) and runs started over `fw serve` (unless `--no-agents`). A run driven by an assistant over MCP is the assistant's to answer. Keys are read from the environment the console or server was started in; `provider: claude-cli` uses the `claude` command and its own login, with every built-in tool switched off.
+
 ## Driving a run as a coordinator
 
 Most code does not need to be a coordinator: `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` starts and resumes runs from code, persists them under `~/.fw/runs`, and shares them with the console and the MCP tools — see [Using the library](library).

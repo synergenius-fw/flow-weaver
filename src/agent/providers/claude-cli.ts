@@ -30,6 +30,7 @@ export class ClaudeCliProvider implements AgentProvider {
   private timeout: number;
 
   private disallowedTools: string[];
+  private allowedTools: string[] | undefined;
 
   constructor(options: ClaudeCliProviderOptions = {}) {
     this.binPath = options.binPath ?? 'claude';
@@ -38,6 +39,7 @@ export class ClaudeCliProvider implements AgentProvider {
     this.model = options.model;
     this.mcpConfigPath = options.mcpConfigPath;
     this.disallowedTools = options.disallowedTools ?? [];
+    this.allowedTools = options.allowedTools;
     this.spawnFn = options.spawnFn ?? ((cmd: string, args: string[], opts: { cwd: string; stdio: string[]; env: NodeJS.ProcessEnv }) =>
       nodeSpawn(cmd, args, { ...opts, stdio: opts.stdio as ('pipe' | 'inherit' | 'ignore')[] }) as ChildProcess);
     this.timeout = options.timeout ?? 600_000;
@@ -86,6 +88,7 @@ export class ClaudeCliProvider implements AgentProvider {
       ...(systemPrompt ? ['--system-prompt', systemPrompt] : []),
       ...(mcpConfigPath ? ['--mcp-config', mcpConfigPath, '--strict-mcp-config'] : []),
       ...(this.disallowedTools.length > 0 ? ['--disallowed-tools', this.disallowedTools.join(' ')] : []),
+      ...(this.allowedTools ? ['--allowed-tools', this.allowedTools.join(' ')] : []),
       ...(model ? ['--model', model] : []),
     ];
 

@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from 'node:crypto';
-import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { parseWorkflow } from '../api/index.js';
@@ -11,20 +10,24 @@ import { executeWorkflow, type ExecutionTraceEvent, type WorkflowExecutionOutcom
 import { computeBundleDigest } from './bundle-digest.js';
 import { labelGate } from './gate-labeling.js';
 import { buildGateResolution, type ResolveInput } from './gate-resolution.js';
+import { checkDocName, EFFECT_DOC_PREFIX, RESERVED_DOCS, RunBusyError, type RunStore } from './store.js';
+import { createFileRunStore } from './file-store.js';
 
 /**
- * A local, single-machine durable-run coordinator.
+ * The local durable-run coordinator.
  *
  * The engine returns a terminal `yielded` outcome and keeps nothing
  * (`docs/stitch-a2-continuation.md`, "Coordinator"). Somebody has to hold
  * the continuation between the yield and the resume, own run identity, vouch
- * for the bundle, and record effect receipts. Stitch's distributed
- * coordinator is not part of this repository; this one is the smallest thing
- * that meets the same obligations for one developer on one machine, so an
- * assistant driving a workflow over MCP sees `{ runId, gate }` instead of a
- * multi-kilobyte envelope it would have to carry and hand back verbatim.
+ * for the bundle, and record effect receipts. This is that somebody, for a
+ * driver in the same process: an assistant over MCP sees `{ runId, gate }`
+ * instead of a multi-kilobyte envelope, the console sees each step, and
+ * `fw serve` answers a request with a run id.
  *
- * It knows nothing about MCP. `src/mcp/tools-run.ts` is the only caller.
+ * Everything it keeps goes through a `RunStore` (`store.ts`): a directory
+ * under `~/.fw/runs` by default, memory in tests, a database of yours in
+ * production. While a segment runs, the run is claimed in the store, so two
+ * processes on one store never drive the same run at once.
  */
 
 export interface StartRequest {
@@ -45,6 +48,37 @@ export interface StartRequest {
    * the background; an assistant over MCP waits and is told afterwards.
    */
   runId?: string;
+  /**
+   * Whether an agent gate may be answered by a configured agent profile
+   * (`auto`, the default) or must wait for a person (`manual`). Kept with
+   * the record so every later gate of the run is treated the same way.
+   */
+  agents?: 'auto' | 'manual';
+  /** Who started the run -- `console`, `http`, `mcp`, or a name of the driver's own -- for a list to say so. */
+  origin?: string;
+}
+
+/**
+ * What an agent profile did about the run's latest agent gate. Written by
+ * the driver before the model is called and again when it is done, so a
+ * reader opening the run sees an answer in progress, one that was given, or
+ * why one was not.
+ */
+export interface AgentNote {
+  gateId: string;
+  node: string;
+  profile: string;
+  provider: string;
+  model?: string;
+  status: 'answering' | 'answered' | 'rejected' | 'failed';
+  startedAt: string;
+  endedAt?: string;
+  usage?: { promptTokens: number; completionTokens: number; costUsd?: number };
+  toolCalls?: number;
+  /** Why it failed, or the reason it gave for rejecting. */
+  error?: string;
+  /** The process doing the answering, so a crash mid-answer can be told from an answer in progress. */
+  owner?: { pid: number; host: string };
 }
 
 /** One entry of a kept step trace: the event and when it happened. */
@@ -100,6 +134,10 @@ export interface RunSummary {
   failedNode?: string;
   mocks?: FwMockConfig;
   source?: { commit?: string; dirty?: boolean };
+  agents?: 'auto' | 'manual';
+  /** The latest agent activity, enough for a list row. */
+  agent?: Pick<AgentNote, 'status' | 'profile' | 'node'>;
+  origin?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -108,18 +146,26 @@ export interface LocalCoordinator {
   start(request: StartRequest, options?: DriveOptions): Promise<RunView>;
   resume(request: ResumeRequest, options?: DriveOptions): Promise<RunView>;
   /** Give up on a run waiting at a gate: the continuation is dropped and the run recorded as cancelled. */
-  cancel(runId: string): RunView;
-  get(runId: string): RunView | undefined;
-  list(filter?: { filePath?: string }): RunSummary[];
+  cancel(runId: string): Promise<RunView>;
+  get(runId: string): Promise<RunView | undefined>;
+  list(filter?: { filePath?: string }): Promise<RunSummary[]>;
   /** Everything persisted about a run, for a driver that shows more than the minimum. */
-  record(runId: string): RunRecord | undefined;
+  record(runId: string): Promise<RunRecord | undefined>;
   /** The kept step trace, in order across every segment; empty when none was kept. */
-  trace(runId: string): TraceEntry[];
+  trace(runId: string): Promise<TraceEntry[]>;
   /** Forget a finished run: its record, trace and receipts. A waiting run must be cancelled first. */
-  remove(runId: string): void;
+  remove(runId: string): Promise<void>;
+  /** Record what an agent profile is doing, or did, about the run's current gate. */
+  setAgent(runId: string, note: AgentNote | undefined): Promise<RunRecord>;
+  /** Keep a named JSON document beside the run -- an agent transcript, say. The name is a plain slug. */
+  keep(runId: string, name: string, data: unknown): Promise<void>;
+  /** Read a document kept with `keep`, or undefined. */
+  kept<T = unknown>(runId: string, name: string): Promise<T | undefined>;
+  /** The store behind it. */
+  readonly store: RunStore;
 }
 
-/** Everything persisted about one run. `continuation.json` sits beside it. */
+/** Everything persisted about one run. The continuation is a document beside it. */
 export interface RunRecord {
   formatVersion: 1;
   runId: string;
@@ -143,12 +189,18 @@ export interface RunRecord {
   error?: string;
   /** The step that threw, when the trace said which; a failed run is opened there. */
   failedNode?: string;
-  /** True when every segment kept its step trace in `trace.json`; false when any did not. */
+  /** True when every segment kept its step trace; false when any did not. */
   traced?: boolean;
   /** The mocks the run was started with; every segment uses the same. */
   mocks?: FwMockConfig;
   /** Where the file stood when the run started, when the driver said. */
   source?: { commit?: string; dirty?: boolean };
+  /** Whether agent gates may be answered by a profile; absent means `auto`. */
+  agents?: 'auto' | 'manual';
+  /** What an agent profile did about the latest agent gate, if one was asked. */
+  agent?: AgentNote;
+  /** Who started the run, when the driver said. */
+  origin?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -185,33 +237,46 @@ export function defaultRunsDir(): string {
   return process.env.FW_RUNS_DIR ?? path.join(os.homedir(), '.fw', 'runs');
 }
 
-export function createLocalCoordinator(options: { rootDir?: string } = {}): LocalCoordinator {
-  const rootDir = options.rootDir ?? defaultRunsDir();
-  const runDir = (runId: string) => path.join(rootDir, runId);
-  const recordFile = (runId: string) => path.join(runDir(runId), 'run.json');
-  const continuationFile = (runId: string) => path.join(runDir(runId), 'continuation.json');
-  const traceFile = (runId: string) => path.join(runDir(runId), 'trace.json');
+export interface LocalCoordinatorOptions {
+  /** The store runs live in. Default: the file store under `rootDir`. */
+  store?: RunStore;
+  /** The file store's directory when no `store` is given. Default `~/.fw/runs`, or `FW_RUNS_DIR`. */
+  rootDir?: string;
+  /**
+   * How long a claim on a run lasts while a segment is driven. A segment
+   * that runs longer than this may be taken over by another process; a
+   * process that dies leaves its claim to lapse after it. Default one hour.
+   */
+  claimTtlMs?: number;
+}
 
-  function readRecord(runId: string): RunRecord | undefined {
-    const file = recordFile(runId);
-    if (!fs.existsSync(file)) return undefined;
-    return JSON.parse(fs.readFileSync(file, 'utf8')) as RunRecord;
+/** The document holding effect receipts for an operation key. */
+const effectDoc = (operationKey: string) => `${EFFECT_DOC_PREFIX}${createHash('sha256').update(operationKey).digest('hex')}`;
+
+export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): LocalCoordinator {
+  const store = options.store ?? createFileRunStore(options.rootDir ?? defaultRunsDir());
+  const claimTtl = options.claimTtlMs ?? 60 * 60 * 1000;
+  // One owner per coordinator instance: a claim is this process's, not this call's.
+  const owner = `${os.hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`;
+
+  async function claimed<T>(runId: string, work: () => Promise<T>): Promise<T> {
+    if (!(await store.claim(runId, owner, claimTtl))) throw new RunBusyError(runId);
+    try { return await work(); }
+    finally { await store.release(runId, owner); }
   }
 
   /**
-   * Commit an outcome. `continuation.json` lands first, then `run.json`;
-   * the rename of `run.json` is the atomic commit point. A run directory
-   * without `run.json` is an unacknowledged yield and is ignored everywhere.
+   * Commit an outcome. The continuation lands first, then the record; the
+   * record is the commit point. A run with documents and no record is an
+   * unacknowledged yield and is ignored everywhere.
    */
-  function commit(record: RunRecord, outcome: WorkflowExecutionOutcome, ast: TWorkflowAST, kept?: TraceEntry[]): RunRecord {
+  async function commit(record: RunRecord, outcome: WorkflowExecutionOutcome, ast: TWorkflowAST, kept?: TraceEntry[]): Promise<RunRecord> {
     const now = new Date().toISOString();
-    const dir = runDir(record.runId);
-    fs.mkdirSync(dir, { recursive: true });
-    const traced = appendTrace(record, kept);
+    const traced = await appendTrace(record, kept);
 
     if (outcome.kind === 'yielded') {
       const labeled = labelGate(outcome.gate, ast);
-      writeAtomic(continuationFile(record.runId), JSON.stringify(outcome.continuation));
+      await store.putDoc(record.runId, 'continuation', outcome.continuation);
       const next: RunRecord = {
         ...record,
         traced,
@@ -227,7 +292,7 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
         error: undefined,
         updatedAt: now,
       };
-      writeAtomic(recordFile(record.runId), JSON.stringify(next));
+      await store.put(next);
       return next;
     }
 
@@ -240,8 +305,8 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
       error: undefined,
       updatedAt: now,
     };
-    writeAtomic(recordFile(record.runId), JSON.stringify(next));
-    fs.rmSync(continuationFile(record.runId), { force: true });
+    await store.put(next);
+    await store.deleteDoc(record.runId, 'continuation');
     return next;
   }
 
@@ -250,26 +315,21 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
    * is `cancelled`, which is not a failure and is not shown as one; anything
    * else is `failed` with the error.
    */
-  function fail(record: RunRecord, error: unknown, options: DriveOptions | undefined, kept?: TraceEntry[]): void {
-    const dir = runDir(record.runId);
-    fs.mkdirSync(dir, { recursive: true });
-    const traced = appendTrace(record, kept);
+  async function fail(record: RunRecord, error: unknown, options: DriveOptions | undefined, kept?: TraceEntry[]): Promise<void> {
+    const traced = await appendTrace(record, kept);
     const message = error instanceof Error ? error.message : String(error);
     const cancelled = options?.abortSignal?.aborted === true;
-    writeAtomic(
-      recordFile(record.runId),
-      JSON.stringify({
-        ...record,
-        traced,
-        status: cancelled ? 'cancelled' : 'failed',
-        gate: undefined,
-        result: undefined,
-        error: cancelled ? undefined : message,
-        failedNode: cancelled ? undefined : failedNodeIn(kept),
-        updatedAt: new Date().toISOString(),
-      } satisfies RunRecord),
-    );
-    fs.rmSync(continuationFile(record.runId), { force: true });
+    await store.put({
+      ...record,
+      traced,
+      status: cancelled ? 'cancelled' : 'failed',
+      gate: undefined,
+      result: undefined,
+      error: cancelled ? undefined : message,
+      failedNode: cancelled ? undefined : failedNodeIn(kept),
+      updatedAt: new Date().toISOString(),
+    } satisfies RunRecord);
+    await store.deleteDoc(record.runId, 'continuation');
   }
 
   /** The step whose error the trace recorded last, if it recorded one. */
@@ -288,21 +348,16 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
    * traced end to end: one segment driven without a trace -- resumed by an
    * assistant, say -- leaves a gap, and a reader must not fill it in.
    */
-  function appendTrace(record: RunRecord, kept: TraceEntry[] | undefined): boolean {
+  async function appendTrace(record: RunRecord, kept: TraceEntry[] | undefined): Promise<boolean> {
     if (!kept) return false;
-    const previous = readTrace(record.runId);
-    writeAtomic(traceFile(record.runId), JSON.stringify([...previous, ...kept]));
+    const previous = await readTrace(record.runId);
+    await store.putDoc(record.runId, 'trace', [...previous, ...kept]);
     return true;
   }
 
-  function readTrace(runId: string): TraceEntry[] {
-    const file = traceFile(runId);
-    if (!fs.existsSync(file)) return [];
-    try {
-      return JSON.parse(fs.readFileSync(file, 'utf8')) as TraceEntry[];
-    } catch {
-      return [];
-    }
+  async function readTrace(runId: string): Promise<TraceEntry[]> {
+    const doc = await store.getDoc(runId, 'trace');
+    return Array.isArray(doc) ? (doc as TraceEntry[]) : [];
   }
 
   /**
@@ -347,7 +402,13 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
     return { ast: second.ast, workflowName };
   }
 
+  async function readRecord(runId: string): Promise<RunRecord | undefined> {
+    return store.get(runId);
+  }
+
   return {
+    store,
+
     async start(request, options) {
       const filePath = path.resolve(request.filePath);
       const { ast, workflowName } = await parseSelected(filePath, request.workflowName);
@@ -363,33 +424,37 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
         status: 'waiting',
         ...(request.mocks ? { mocks: request.mocks } : {}),
         ...(request.source ? { source: request.source } : {}),
+        ...(request.agents ? { agents: request.agents } : {}),
+        ...(request.origin ? { origin: request.origin } : {}),
         createdAt: now,
         updatedAt: now,
       };
 
-      const { kept, request: observed } = observe(options);
-      let outcome: WorkflowExecutionOutcome;
-      try {
-        outcome = await executeWorkflow({
-          runId: record.runId,
-          bundleDigest,
-          filePath,
-          params: record.params,
-          workflowName,
-          mocks: record.mocks,
-          ...observed,
-          abortSignal: options?.abortSignal,
-          effectAdapter: createFileEffectAdapter(runDir(record.runId)),
-        });
-      } catch (error) {
-        fail(record, error, options, kept);
-        throw error;
-      }
-      return toView(commit(record, outcome, ast, kept));
+      return claimed(record.runId, async () => {
+        const { kept, request: observed } = observe(options);
+        let outcome: WorkflowExecutionOutcome;
+        try {
+          outcome = await executeWorkflow({
+            runId: record.runId,
+            bundleDigest,
+            filePath,
+            params: record.params,
+            workflowName,
+            mocks: record.mocks,
+            ...observed,
+            abortSignal: options?.abortSignal,
+            effectAdapter: createStoreEffectAdapter(store, record.runId),
+          });
+        } catch (error) {
+          await fail(record, error, options, kept);
+          throw error;
+        }
+        return toView(await commit(record, outcome, ast, kept));
+      });
     },
 
     async resume(request, options) {
-      const record = readRecord(request.runId);
+      const record = await readRecord(request.runId);
       if (!record) throw new RunNotFoundError(request.runId);
       if (record.status !== 'waiting' || !record.gate) throw new RunNotWaitingError(record.status);
 
@@ -398,57 +463,65 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
       if (digest !== record.bundleDigest) throw new BundleChangedError();
 
       const resolution = buildGateResolution(record.gate, record.gate.id, request.input);
-      const continuation = JSON.parse(
-        fs.readFileSync(continuationFile(record.runId), 'utf8'),
-      ) as ContinuationEnvelope;
-      const { ast } = await parseSelected(record.filePath, record.workflowName);
 
-      // If this process dies after the engine returns but before `commit`
-      // writes, the old `run.json` and `continuation.json` are still intact.
-      // A second resume with the same answer re-applies the same resolution,
-      // re-runs pure nodes (allowed by definition), and recovers every effect
-      // after the gate from `effects/` instead of re-executing it. The
-      // outcome converges, so no claim file is needed for one process.
-      const { kept, request: observed } = observe(options);
-      let outcome: WorkflowExecutionOutcome;
-      try {
-        outcome = await executeWorkflow({
-          runId: record.runId,
-          bundleDigest: record.bundleDigest,
-          filePath: record.filePath,
-          params: record.params,
-          workflowName: record.workflowName,
-          mocks: record.mocks,
-          ...observed,
-          abortSignal: options?.abortSignal,
-          continuation,
-          resolution,
-          effectAdapter: createFileEffectAdapter(runDir(record.runId)),
-        });
-      } catch (error) {
-        fail(record, error, options, kept);
-        throw error;
-      }
-      return toView(commit(record, outcome, ast, kept));
+      return claimed(record.runId, async () => {
+        // Read again under the claim: another process may have finished it
+        // between the check above and now.
+        const current = await readRecord(record.runId);
+        if (!current || current.status !== 'waiting') throw new RunNotWaitingError(current?.status ?? 'cancelled');
+        const continuation = (await store.getDoc(record.runId, 'continuation')) as ContinuationEnvelope | undefined;
+        if (!continuation) throw new RunNotWaitingError(current.status);
+        const { ast } = await parseSelected(record.filePath, record.workflowName);
+
+        // If this process dies after the engine returns but before `commit`
+        // writes, the old record and continuation are still intact. A second
+        // resume with the same answer re-applies the same resolution, re-runs
+        // pure nodes (allowed by definition), and recovers every effect after
+        // the gate from its receipt instead of re-executing it. The outcome
+        // converges; the claim only keeps two processes from trying at once.
+        const { kept, request: observed } = observe(options);
+        let outcome: WorkflowExecutionOutcome;
+        try {
+          outcome = await executeWorkflow({
+            runId: record.runId,
+            bundleDigest: record.bundleDigest,
+            filePath: record.filePath,
+            params: record.params,
+            workflowName: record.workflowName,
+            mocks: record.mocks,
+            ...observed,
+            abortSignal: options?.abortSignal,
+            continuation,
+            resolution,
+            effectAdapter: createStoreEffectAdapter(store, record.runId),
+          });
+        } catch (error) {
+          await fail(record, error, options, kept);
+          throw error;
+        }
+        return toView(await commit(record, outcome, ast, kept));
+      });
     },
 
-    cancel(runId) {
-      const record = readRecord(runId);
+    async cancel(runId) {
+      const record = await readRecord(runId);
       if (!record) throw new RunNotFoundError(runId);
       if (record.status !== 'waiting') throw new RunNotWaitingError(record.status);
-      const next: RunRecord = {
-        ...record,
-        status: 'cancelled',
-        gate: undefined,
-        updatedAt: new Date().toISOString(),
-      };
-      writeAtomic(recordFile(runId), JSON.stringify(next));
-      fs.rmSync(continuationFile(runId), { force: true });
-      return toView(next);
+      return claimed(runId, async () => {
+        const next: RunRecord = {
+          ...record,
+          status: 'cancelled',
+          gate: undefined,
+          updatedAt: new Date().toISOString(),
+        };
+        await store.put(next);
+        await store.deleteDoc(runId, 'continuation');
+        return toView(next);
+      });
     },
 
-    get(runId) {
-      const record = readRecord(runId);
+    async get(runId) {
+      const record = await readRecord(runId);
       return record ? toView(record) : undefined;
     },
 
@@ -456,36 +529,52 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
 
     trace: readTrace,
 
-    remove(runId) {
-      const record = readRecord(runId);
+    async remove(runId) {
+      const record = await readRecord(runId);
       if (!record) throw new RunNotFoundError(runId);
       if (record.status === 'waiting') throw new RunNotWaitingError(record.status);
-      fs.rmSync(runDir(runId), { recursive: true, force: true });
+      await store.remove(runId);
     },
 
-    list(filter = {}) {
-      if (!fs.existsSync(rootDir)) return [];
-      const wanted = filter.filePath ? path.resolve(filter.filePath) : undefined;
-      const summaries: RunSummary[] = [];
-      for (const entry of fs.readdirSync(rootDir)) {
-        const record = readRecord(entry);
-        if (!record) continue;
-        if (wanted && record.filePath !== wanted) continue;
-        summaries.push({
-          status: record.status,
-          runId: record.runId,
-          workflowName: record.workflowName,
-          filePath: record.filePath,
-          gate: record.gate ? { kind: record.gate.kind, node: record.gate.node } : undefined,
-          params: record.params,
-          failedNode: record.failedNode,
-          mocks: record.mocks,
-          source: record.source,
-          createdAt: record.createdAt,
-          updatedAt: record.updatedAt,
-        });
-      }
-      return summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    async setAgent(runId, note) {
+      const record = await readRecord(runId);
+      if (!record) throw new RunNotFoundError(runId);
+      const next: RunRecord = { ...record, agent: note, updatedAt: new Date().toISOString() };
+      if (note === undefined) delete next.agent;
+      await store.put(next);
+      return next;
+    },
+
+    async keep(runId, name, data) {
+      checkDocName(name);
+      if ((RESERVED_DOCS as readonly string[]).includes(name) || name.startsWith(EFFECT_DOC_PREFIX)) throw new Error(`${name} is a document the coordinator keeps itself`);
+      if (!(await readRecord(runId))) throw new RunNotFoundError(runId);
+      await store.putDoc(runId, name, data);
+    },
+
+    async kept<T = unknown>(runId: string, name: string) {
+      checkDocName(name);
+      return (await store.getDoc(runId, name)) as T | undefined;
+    },
+
+    async list(filter = {}) {
+      const records = await store.list(filter.filePath ? { filePath: path.resolve(filter.filePath) } : {});
+      return records.map((record) => ({
+        status: record.status,
+        runId: record.runId,
+        workflowName: record.workflowName,
+        filePath: record.filePath,
+        gate: record.gate ? { kind: record.gate.kind, node: record.gate.node } : undefined,
+        params: record.params,
+        failedNode: record.failedNode,
+        mocks: record.mocks,
+        source: record.source,
+        agents: record.agents,
+        agent: record.agent ? { status: record.agent.status, profile: record.agent.profile, node: record.agent.node } : undefined,
+        origin: record.origin,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      }));
     },
   };
 }
@@ -510,47 +599,31 @@ function toView(record: RunRecord): RunView {
 }
 
 /**
- * Effect receipts on disk, one file per operation key, so a resume can
- * prove an effect already committed instead of running it again.
+ * Effect receipts as documents of the run, one per operation key, so a
+ * resume can prove an effect already committed instead of running it again.
  */
-export function createFileEffectAdapter(runDir: string): EffectAdapter {
-  const dir = path.join(runDir, 'effects');
-  const fileFor = (operationKey: string) =>
-    path.join(dir, createHash('sha256').update(operationKey).digest('hex') + '.json');
-
+export function createStoreEffectAdapter(store: RunStore, runId: string): EffectAdapter {
   return {
     async recover(operationKey) {
-      const file = fileFor(operationKey);
-      if (!fs.existsSync(file)) return { kind: 'not-committed' };
-      try {
-        const record = JSON.parse(fs.readFileSync(file, 'utf8')) as {
-          receipt: unknown;
-          result: unknown;
-        };
-        return {
-          kind: 'committed',
-          receipt: record.receipt as never,
-          result: record.result as never,
-        };
-      } catch {
+      let doc: unknown;
+      try { doc = await store.getDoc(runId, effectDoc(operationKey)); }
+      catch {
         // A receipt we cannot read is evidence something happened that we
         // cannot describe. Fail closed; never re-run the effect.
         return { kind: 'ambiguous' };
       }
+      if (doc === undefined) return { kind: 'not-committed' };
+      if (typeof doc !== 'object' || doc === null || !('receipt' in doc)) return { kind: 'ambiguous' };
+      const record = doc as { receipt: unknown; result: unknown };
+      return { kind: 'committed', receipt: record.receipt as never, result: record.result as never };
     },
     async commit(operationKey, address, execution) {
-      fs.mkdirSync(dir, { recursive: true });
-      writeAtomic(
-        fileFor(operationKey),
-        JSON.stringify({ operationKey, address, result: execution.result, receipt: execution.receipt }),
-      );
+      await store.putDoc(runId, effectDoc(operationKey), { operationKey, address, result: execution.result, receipt: execution.receipt });
     },
   };
 }
 
-/** Write via a sibling temp file and rename, so a reader never sees a partial file. */
-function writeAtomic(file: string, data: string): void {
-  const tmp = `${file}.tmp-${randomUUID()}`;
-  fs.writeFileSync(tmp, data);
-  fs.renameSync(tmp, file);
+/** Effect receipts under `<runDir>/effects/`, as the file store keeps them. Kept for callers of the old name. */
+export function createFileEffectAdapter(runDir: string): EffectAdapter {
+  return createStoreEffectAdapter(createFileRunStore(path.dirname(runDir)), path.basename(runDir));
 }

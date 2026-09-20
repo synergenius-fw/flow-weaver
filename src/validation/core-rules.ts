@@ -737,6 +737,23 @@ export function validateDataFlow(ctx: ValidationContext, workflow: TWorkflowAST,
       });
     }
   });
+
+  // An @http route's :params bind to workflow params by name; one that names
+  // no param would be dropped on the floor at request time.
+  const paramNames = new Set(Object.keys(workflow.startPorts).filter((p) => p !== 'execute'));
+  for (const route of workflow.options?.http ?? []) {
+    for (const seg of route.path.split('/')) {
+      if (!seg.startsWith(':')) continue;
+      const name = seg.slice(1);
+      if (!paramNames.has(name)) {
+        ctx.errors.push({
+          type: 'error',
+          code: 'HTTP_PARAM_UNKNOWN',
+          message: `@http ${route.method} ${route.path}: ":${name}" is not a parameter of this workflow${paramNames.size ? ` (parameters: ${[...paramNames].join(', ')})` : ''}.`,
+        });
+      }
+    }
+  }
 }
 
 /**

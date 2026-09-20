@@ -3,8 +3,9 @@
  */
 
 import * as fs from 'fs';
+import * as path from 'path';
 import { glob } from 'glob';
-import { AnnotationParser } from '../parser.js';
+import { parseWorkflow } from '../api/parse.js';
 import type { WorkflowEndpoint } from './types.js';
 import type { TDataType, TWorkflowAST } from '../ast/types.js';
 
@@ -17,7 +18,6 @@ export class WorkflowRegistry {
   private endpoints: Map<string, WorkflowEndpoint> = new Map();
   private watcher: FSWatcher | null = null;
   private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
-  private parser = new AnnotationParser();
   private startTime = Date.now();
 
   constructor(
@@ -58,8 +58,16 @@ export class WorkflowRegistry {
           continue;
         }
 
-        const result = this.parser.parse(file);
-        for (const workflow of result.workflows) {
+        // The same parse the console and the coordinator do, so built-in
+        // gates and imported node types resolve the same way here. A file
+        // with several workflows refuses a nameless parse; naming one gives
+        // all of them.
+        let result = await parseWorkflow(file, { projectDir: path.dirname(file) });
+        if (result.errors.length && result.availableWorkflows.length > 1) {
+          result = await parseWorkflow(file, { projectDir: path.dirname(file), workflowName: result.availableWorkflows[0] });
+        }
+        if (result.errors.length) continue;
+        for (const workflow of result.allWorkflows) {
           const endpoint: WorkflowEndpoint = {
             name: workflow.name,
             functionName: workflow.functionName,
@@ -69,6 +77,8 @@ export class WorkflowRegistry {
             inputSchema: this.extractInputSchema(workflow),
             outputSchema: this.extractOutputSchema(workflow),
             description: workflow.description,
+            gates: workflow.instances.filter((i) => workflow.nodeTypes.find((n) => n.name === i.nodeType || n.functionName === i.nodeType)?.durableGate !== undefined).length,
+            routes: workflow.options?.http ?? [],
           };
           this.endpoints.set(workflow.name, endpoint);
         }
@@ -94,7 +104,7 @@ export class WorkflowRegistry {
       if (portName === 'execute') continue;
 
       (schema.properties as Record<string, unknown>)[portName] = {
-        type: this.dataTypeToJsonSchema(port.dataType),
+        ...this.dataTypeToJsonSchema(port.dataType),
         ...(port.label && { description: port.label }),
       };
 
@@ -124,7 +134,7 @@ export class WorkflowRegistry {
       if (portName === 'onSuccess' || portName === 'onFailure') continue;
 
       (schema.properties as Record<string, unknown>)[portName] = {
-        type: this.dataTypeToJsonSchema(port.dataType),
+        ...this.dataTypeToJsonSchema(port.dataType),
         ...(port.label && { description: port.label }),
       };
     }
@@ -133,19 +143,20 @@ export class WorkflowRegistry {
   }
 
   /**
-   * Convert Flow Weaver data type to JSON Schema type
+   * A Flow Weaver data type as a JSON Schema fragment. `ANY` has no JSON
+   * Schema type: it is the empty schema, which admits anything.
    */
-  private dataTypeToJsonSchema(dataType: TDataType): string {
+  private dataTypeToJsonSchema(dataType: TDataType): Record<string, unknown> {
     const mapping: Record<string, string> = {
       STRING: 'string',
       NUMBER: 'number',
       BOOLEAN: 'boolean',
       OBJECT: 'object',
       ARRAY: 'array',
-      ANY: 'any',
       STEP: 'boolean',
     };
-    return mapping[dataType] || 'any';
+    const type = mapping[dataType];
+    return type ? { type } : {};
   }
 
   /**

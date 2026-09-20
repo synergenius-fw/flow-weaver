@@ -67,7 +67,7 @@ describe('driving a run through the coordinator', () => {
     const run = await runs.start({ filePath: path.join(root, 'use-cases', 'hello-world.ts'), params: { firstName: 'Grace', lastName: 'Hopper' } });
     expect(run.status).toBe('completed');
     expect((run.result as { message: string }).message).toContain('Grace Hopper');
-    expect(runs.list().map((r) => r.runId)).toContain(run.runId);
+    expect((await runs.list()).map((r) => r.runId)).toContain(run.runId);
   }, 60000);
 });
 

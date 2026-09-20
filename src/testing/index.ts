@@ -41,6 +41,8 @@ export type { RecordingLlmProvider, LlmRecording, LlmRecordingStep } from './rec
 export { createReplayProvider, loadRecording } from './replayer';
 export type { ReplayOptions } from './replayer';
 
+export { checkRunStore } from './run-store-check';
+
 export { createMockApprovalProvider } from './mock-approval';
 export type {
   MockApprovalProvider,

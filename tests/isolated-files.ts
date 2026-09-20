@@ -77,6 +77,4 @@ export const isolatedTestFiles: readonly string[] = [
   'tests/unit/pack-commands.test.ts',
   'tests/unit/pack-tools.test.ts',
   'tests/unit/server-registry-coverage.test.ts',
-  'tests/unit/server-webhook-coverage.test.ts',
-  'tests/unit/server/webhook-server.test.ts',
 ];

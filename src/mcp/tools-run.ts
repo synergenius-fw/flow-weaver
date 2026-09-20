@@ -35,7 +35,7 @@ export function registerRunTools(
     },
     async (args: { filePath: string; workflowName?: string; params?: Record<string, unknown> }) => {
       try {
-        return makeToolResult(await coordinator.start(args));
+        return makeToolResult(await coordinator.start({ ...args, origin: 'mcp' }));
       } catch (error) {
         return toErrorResult(error, 'EXECUTION_ERROR');
       }
@@ -77,10 +77,10 @@ export function registerRunTools(
     },
     async (args: { runId?: string; filePath?: string }) => {
       if (args.runId) {
-        const view = coordinator.get(args.runId);
+        const view = await coordinator.get(args.runId);
         return view ? makeToolResult(view) : makeErrorResult('RUN_NOT_FOUND', `no run with id ${args.runId}`);
       }
-      return makeToolResult(coordinator.list({ filePath: args.filePath }));
+      return makeToolResult(await coordinator.list({ filePath: args.filePath }));
     },
   );
 }
@@ -101,6 +101,8 @@ function toErrorResult(error: unknown, fallback: string) {
             ? 'RUN_NOT_WAITING'
             : name === 'BundleChangedError'
               ? 'BUNDLE_CHANGED'
+              : name === 'RunBusyError'
+                ? 'RUN_BUSY'
               : name === 'MissingOutputsError'
                 ? 'MISSING_OUTPUTS'
                 : name === 'InvalidAnswerError'
