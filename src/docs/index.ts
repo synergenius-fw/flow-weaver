@@ -254,11 +254,20 @@ export function readTopicStructured(slug: string): DocStructured | null {
  * Search across all documentation topics.
  * Returns matching sections with context.
  */
+/** Words that carry no meaning in a search and would otherwise match every section. */
+const STOP_WORDS = new Set(['a', 'an', 'the', 'as', 'to', 'of', 'in', 'on', 'for', 'and', 'or', 'with', 'how', 'do', 'i', 'my', 'is', 'it', 'be', 'can', 'from', 'that', 'this', 'add', 'use', 'using']);
+
 export function searchDocs(query: string): SearchResult[] {
   const topics = listTopics();
   const docsDir = getDocsDir();
-  const queryLower = query.toLowerCase();
-  const queryTerms = queryLower.split(/\s+/).filter(Boolean);
+  const queryLower = query.toLowerCase().trim();
+  const allTerms = queryLower.split(/\s+/).filter(Boolean);
+  // Drop the filler unless that would drop everything ("how to" is still a search).
+  const meaningful = allTerms.filter((t) => !STOP_WORDS.has(t));
+  const queryTerms = meaningful.length ? meaningful : allTerms;
+  // With several terms, a section that has only one of them is noise: it must
+  // cover at least half. One term matches wherever it appears, as before.
+  const needed = Math.max(1, Math.ceil(queryTerms.length / 2));
   const results: SearchResult[] = [];
 
   for (const topic of topics) {
@@ -282,20 +291,31 @@ export function searchDocs(query: string): SearchResult[] {
 
       // Calculate relevance
       let relevance = 0;
+      const topicLower = `${topic.name} ${topic.slug}`.toLowerCase();
 
       // Exact phrase match in content
       if (sectionLower.includes(queryLower)) {
         relevance += 10;
       }
 
-      // Individual term matches
+      // Individual term matches: a heading that names the thing outranks a
+      // body that mentions it; the topic's own name counts too.
+      let matched = 0;
       for (const term of queryTerms) {
-        if (headingLower.includes(term)) relevance += 5;
-        if (sectionLower.includes(term)) relevance += 2;
+        const inHeading = headingLower.includes(term);
+        const inBody = sectionLower.includes(term);
+        if (inHeading) relevance += 6;
+        if (inBody) relevance += 2;
+        if (topicLower.includes(term)) relevance += 2;
+        if (inHeading || inBody) matched++;
       }
 
       // Keyword bonus
       if (keywordMatch) relevance += 3;
+
+      // Sections covering more of the query come first; too little coverage is left out.
+      if (matched < needed) relevance = 0;
+      else if (queryTerms.length > 1) relevance = Math.round(relevance * (0.5 + matched / (2 * queryTerms.length)));
 
       if (relevance > 0) {
         // Build excerpt: find matching lines

@@ -11,6 +11,7 @@ import { computeBundleDigest } from './bundle-digest.js';
 import { labelGate } from './gate-labeling.js';
 import { buildGateResolution, type ResolveInput } from './gate-resolution.js';
 import { checkDocName, EFFECT_DOC_PREFIX, RESERVED_DOCS, RunBusyError, type RunStore } from './store.js';
+import { missingParams, MissingParamsError } from './params.js';
 import { createFileRunStore } from './file-store.js';
 
 /**
@@ -412,6 +413,8 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
     async start(request, options) {
       const filePath = path.resolve(request.filePath);
       const { ast, workflowName } = await parseSelected(filePath, request.workflowName);
+      const missing = missingParams(ast, request.params);
+      if (missing.length) throw new MissingParamsError(workflowName, missing);
       const bundleDigest = await computeBundleDigest(filePath, workflowName);
       const now = new Date().toISOString();
       const record: RunRecord = {

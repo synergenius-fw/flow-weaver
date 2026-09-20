@@ -37,7 +37,7 @@ const program = new Command();
 
 program
   .name('fw')
-  .description('Flow Weaver Annotations - Compile and validate workflow files')
+  .description('Flow Weaver: workflows as annotated TypeScript, compiled, validated, run, served and paused at gates')
   .option('-v, --version', 'Output the current version')
   .option('--no-color', 'Disable colors')
   .option('--color', 'Force colors')
@@ -218,8 +218,6 @@ program
   .option('--no-install', 'Skip npm install')
   .option('--git', 'Initialize a git repository')
   .option('--no-git', 'Skip git init')
-  .option('--with-weaver', 'Install Weaver AI assistant')
-  .option('--no-weaver', 'Skip Weaver installation')
   .option('--force', 'Overwrite existing files', false)
   .action(wrapAction(async (directory: string | undefined, options) => {
       const { initCommand } = await import('./commands/init.js');

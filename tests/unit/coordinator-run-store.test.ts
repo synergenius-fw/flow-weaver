@@ -122,6 +122,13 @@ describe('local coordinator run store', () => {
     );
   });
 
+  it('refuses to start without a required parameter, naming it', async () => {
+    const coordinator = createLocalCoordinator({ rootDir });
+    await expect(coordinator.start({ filePath: approval })).rejects.toMatchObject({ name: 'MissingParamsError', missing: ['value'] });
+    await expect(coordinator.start({ filePath: approval, params: { other: 1 } })).rejects.toThrow(/needs a parameter it was not given: value/);
+    expect(await coordinator.list()).toEqual([]);
+  });
+
   it('refuses an unknown run id', async () => {
     const coordinator = createLocalCoordinator({ rootDir });
     await expect(coordinator.resume({ runId: 'nope', input: { answer: 1 } })).rejects.toBeInstanceOf(

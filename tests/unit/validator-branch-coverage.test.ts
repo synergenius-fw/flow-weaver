@@ -667,7 +667,7 @@ describe('validator branch coverage', () => {
     });
     const r = validator.validate(wf);
     const err = r.errors.find(e => e.code === 'UNKNOWN_NODE_TYPE');
-    expect(err?.docUrl).toContain('docs.flowweaver.dev');
+    expect(err?.docUrl).toContain('github.com/synergenius-fw/flow-weaver/blob/main/docs/reference/concepts.md');
   });
 
   // 42. nodeType registered by name (npm-style) and functionName differ

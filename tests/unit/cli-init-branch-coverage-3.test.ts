@@ -116,8 +116,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('expert');
     // template select (expert interactive)
     mockSelect.mockResolvedValueOnce('sequential');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // install confirm
     mockConfirm.mockResolvedValueOnce(false);
     // git confirm
@@ -138,8 +136,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('vibecoder');
     // use-case select
     mockSelect.mockResolvedValueOnce('data');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // MCP confirm (vibecoder gets prompted)
     mockConfirm.mockResolvedValueOnce(false);
     // install auto-yes for non-expert
@@ -158,8 +154,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('nocode');
     // use-case select
     mockSelect.mockResolvedValueOnce('ai');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // MCP confirm
     mockConfirm.mockResolvedValueOnce(false);
 
@@ -176,8 +170,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('expert');
     // template select
     mockSelect.mockResolvedValueOnce('conditional');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // install confirm
     mockConfirm.mockResolvedValueOnce(true);
     // git confirm
@@ -198,8 +190,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('vibecoder');
     // use-case select
     mockSelect.mockResolvedValueOnce('automation');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // MCP confirm
     mockConfirm.mockResolvedValueOnce(false);
 
@@ -218,8 +208,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('data');
     // template sub-select
     mockSelect.mockResolvedValueOnce('foreach');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // MCP confirm
     mockConfirm.mockResolvedValueOnce(false);
 
@@ -238,8 +226,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('minimal');
     // description input
     mockInput.mockResolvedValueOnce('I want to build a chatbot');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // MCP confirm
     mockConfirm.mockResolvedValueOnce(false);
 
@@ -258,8 +244,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('minimal');
     // description input -> empty
     mockInput.mockResolvedValueOnce('   ');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // MCP confirm
     mockConfirm.mockResolvedValueOnce(false);
 
@@ -275,8 +259,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('minimal');
     // empty string
     mockInput.mockResolvedValueOnce('');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // MCP confirm
     mockConfirm.mockResolvedValueOnce(false);
 
@@ -292,8 +274,6 @@ describe('resolveInitConfig interactive prompts', () => {
     mockSelect.mockResolvedValueOnce('lowcode');
     // use-case select -> api (single template, no sub-select)
     mockSelect.mockResolvedValueOnce('api');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // MCP confirm -> yes
     mockConfirm.mockResolvedValueOnce(true);
 
@@ -307,8 +287,6 @@ describe('resolveInitConfig interactive prompts', () => {
 
     mockSelect.mockResolvedValueOnce('expert');
     mockSelect.mockResolvedValueOnce('sequential');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // install confirm -> false
     mockConfirm.mockResolvedValueOnce(false);
     // git confirm
@@ -326,8 +304,6 @@ describe('resolveInitConfig interactive prompts', () => {
 
     mockSelect.mockResolvedValueOnce('expert');
     mockSelect.mockResolvedValueOnce('sequential');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // install confirm
     mockConfirm.mockResolvedValueOnce(true);
     // git confirm -> false
@@ -345,8 +321,6 @@ describe('resolveInitConfig interactive prompts', () => {
 
     mockSelect.mockResolvedValueOnce('expert');
     mockSelect.mockResolvedValueOnce('sequential');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     mockConfirm.mockResolvedValueOnce(true);
     mockConfirm.mockResolvedValueOnce(true);
     // format select -> cjs
@@ -465,8 +439,6 @@ describe('initCommand ExitPromptError handling', () => {
     (process.stdin as any).isTTY = true;
 
     mockDetectCliTools.mockResolvedValue(['claude']);
-    // Weaver opt-in confirm (during resolveInitConfig)
-    mockConfirm.mockResolvedValueOnce(false);
     // Agent handoff confirm throws ExitPromptError
     mockConfirm.mockRejectedValue(new ExitPromptError());
 
@@ -619,8 +591,6 @@ describe('initCommand agent launched early return', () => {
     (process.stdin as any).isTTY = true;
 
     mockDetectCliTools.mockResolvedValue(['claude']);
-    // Weaver opt-in confirm (during resolveInitConfig)
-    mockConfirm.mockResolvedValueOnce(false);
     // Agent handoff confirm -> yes (launch)
     mockConfirm.mockResolvedValueOnce(true);
     const fakeChild = { on: vi.fn() };
@@ -651,8 +621,6 @@ describe('initCommand detectCliTools failure', () => {
     const targetDir = path.join(TEMP_DIR, 'detect-fail');
 
     (process.stdin as any).isTTY = true;
-    // Weaver opt-in confirm (during resolveInitConfig)
-    mockConfirm.mockResolvedValueOnce(false);
     mockDetectCliTools.mockRejectedValue(new Error('detect failed'));
 
     await initCommand(targetDir, {
@@ -681,8 +649,6 @@ describe('resolveInitConfig expert mcp else branch', () => {
     // persona -> expert (via preset, skip persona prompt)
     // template select
     mockSelect.mockResolvedValueOnce('sequential');
-    // Weaver opt-in confirm
-    mockConfirm.mockResolvedValueOnce(false);
     // install confirm
     mockConfirm.mockResolvedValueOnce(false);
     // git confirm

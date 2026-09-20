@@ -292,6 +292,7 @@ export function generateReadme(projectName: string, persona: PersonaId, _templat
   lines.push(
     '## Learn more',
     '',
+    '- `fw console --open` to see the workflow as a process, run it and watch it from the browser',
     '- `fw docs` to browse reference documentation',
     '- `fw mcp-setup` to connect AI editors',
     '',
@@ -416,6 +417,7 @@ export function printNextSteps(opts: PrintNextStepsOptions): void {
   } else {
     logger.log('    npm run dev');
   }
+  logger.log(`    npx fw console --open${' '.repeat(2)}${logger.dim('See it as a process; run it and watch it from the browser')}`);
 
   // Persona-specific guidance (skip if agent was launched, it handles this)
   if (!agentLaunched) {

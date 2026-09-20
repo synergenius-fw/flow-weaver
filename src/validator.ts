@@ -33,23 +33,26 @@ import {
 // Re-export TValidationError for convenience
 export type { TValidationError } from './ast/types';
 
-const DOCS_BASE = 'https://docs.flowweaver.dev/reference';
+// The reference as published with the source; the same pages `fw docs`
+// prints and the console shows.
+const DOCS_BASE = 'https://github.com/synergenius-fw/flow-weaver/blob/main/docs/reference';
+const doc = (topic: string, anchor?: string) => `${DOCS_BASE}/${topic}.md${anchor ? `#${anchor}` : ''}`;
 
 /** Map error codes to the documentation page that explains how to fix them. */
 const ERROR_DOC_URLS: Record<string, string> = {
-  UNKNOWN_NODE_TYPE: `${DOCS_BASE}/concepts#node-registration`,
-  UNKNOWN_SOURCE_PORT: `${DOCS_BASE}/concepts#port-architecture`,
-  UNKNOWN_TARGET_PORT: `${DOCS_BASE}/concepts#port-architecture`,
-  TYPE_MISMATCH: `${DOCS_BASE}/compilation#type-compatibility`,
-  UNREACHABLE_NODE: `${DOCS_BASE}/concepts#graph-structure`,
-  MISSING_START_CONNECTION: `${DOCS_BASE}/concepts#start-and-exit`,
-  MISSING_EXIT_CONNECTION: `${DOCS_BASE}/concepts#start-and-exit`,
-  INFERRED_NODE_TYPE: `${DOCS_BASE}/node-conversion`,
-  DUPLICATE_CONNECTION: `${DOCS_BASE}/concepts#connections`,
-  STUB_NODE: `${DOCS_BASE}/model-driven#stub-nodes`,
-  COERCE_TYPE_MISMATCH: `${DOCS_BASE}/compilation#type-coercion`,
-  REDUNDANT_COERCE: `${DOCS_BASE}/compilation#type-coercion`,
-  COERCE_ON_FUNCTION_PORT: `${DOCS_BASE}/compilation#type-coercion`,
+  UNKNOWN_NODE_TYPE: doc('concepts', 'node-registration'),
+  UNKNOWN_SOURCE_PORT: doc('error-codes'),
+  UNKNOWN_TARGET_PORT: doc('error-codes'),
+  TYPE_MISMATCH: doc('error-codes'),
+  UNREACHABLE_NODE: doc('error-codes'),
+  MISSING_START_CONNECTION: doc('error-codes'),
+  MISSING_EXIT_CONNECTION: doc('error-codes'),
+  INFERRED_NODE_TYPE: doc('node-conversion'),
+  DUPLICATE_CONNECTION: doc('error-codes'),
+  STUB_NODE: doc('scaffold'),
+  COERCE_TYPE_MISMATCH: doc('compilation'),
+  REDUNDANT_COERCE: doc('compilation'),
+  COERCE_ON_FUNCTION_PORT: doc('compilation'),
 };
 
 export class WorkflowValidator {

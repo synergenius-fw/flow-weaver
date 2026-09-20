@@ -16,6 +16,7 @@ import { getFriendlyError } from '../../friendly-errors.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
 import { parseWorkflow } from '../../api/index.js';
+import { missingParams, MissingParamsError } from '../../coordinator/params.js';
 
 /** Show path relative to cwd for cleaner output */
 function displayPath(filePath: string): string {
@@ -177,11 +178,10 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
 
     if (useDebug) {
       // Get execution order for the controller
-      let executionOrder: string[];
-      const source = fs.readFileSync(filePath, 'utf8');
-      const parsed = await parseWorkflow(source, { workflowName: options.workflow, projectDir: path.dirname(filePath) });
-      executionOrder =
-        parsed.errors.length === 0 ? getTopologicalOrder(parsed.ast) : [];
+      // parseWorkflow takes the path; handed the file's text it found no such
+      // file, and the debugger stepped with an empty execution order.
+      const parsed = await parseWorkflow(filePath, { workflowName: options.workflow, projectDir: path.dirname(filePath) });
+      const executionOrder = parsed.errors.length === 0 ? getTopologicalOrder(parsed.ast) : [];
 
       debugController = new DebugController({
         debug: options.debug ?? false,
@@ -216,6 +216,16 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
           }
         }
       : undefined;
+
+    // A run without a required parameter would run and return nothing for
+    // it, which reads as success. Refuse it here, naming what is missing.
+    {
+      const parsed = await parseWorkflow(filePath, { workflowName: options.workflow, projectDir: path.dirname(filePath) });
+      if (parsed.errors.length === 0) {
+        const missing = missingParams(parsed.ast, params);
+        if (missing.length) throw new MissingParamsError(parsed.ast.functionName, missing);
+      }
+    }
 
     const runId = randomUUID();
     const execPromise = executeWorkflow({
@@ -317,7 +327,15 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
     // Common pattern: "Validation error [CODE]: message" or errors with a .code property
     const errorObj = error as { code?: string; errors?: Array<{ code: string; message: string; node?: string }> };
 
-    if (errorObj.errors && Array.isArray(errorObj.errors)) {
+    if (error instanceof MissingParamsError) {
+      logger.error(`Workflow execution failed: ${errorMsg}`);
+      logger.warn(`  Pass ${error.missing.length === 1 ? 'it' : 'them'} with --params '${JSON.stringify(Object.fromEntries(error.missing.map((k) => [k, '…'])))}' or --params-file <file>. \`fw describe <file>\` lists the parameters and their types.`);
+    } else if (/durable gates? requires coordinator-verified/.test(errorMsg)) {
+      // The engine's refusal is precise and unhelpful: what the person needs
+      // is where a gated workflow can be run from.
+      logger.error('Workflow execution failed: this workflow has durable gates, and `fw run` has nowhere to keep a run between one gate and the next.');
+      logger.warn('  Run it where runs are kept: `fw console` (answer gates on the page), `fw serve` (over HTTP), or the `fw_run` MCP tool from an assistant. From code, `createLocalCoordinator()` -- see `fw docs library`.');
+    } else if (errorObj.errors && Array.isArray(errorObj.errors)) {
       // Structured validation errors (from compileWorkflow)
       logger.error(`Workflow execution failed:`);
       for (const err of errorObj.errors) {

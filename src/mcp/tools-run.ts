@@ -70,17 +70,24 @@ export function registerRunTools(
 
   mcp.tool(
     'fw_runs',
-    'List runs, or inspect one. With runId returns the full gate so you can re-read a pause without resuming.',
+    'List runs (newest first, 20 by default), or inspect one. With runId returns the full gate so you can re-read a pause without resuming.',
     {
       runId: z.string().optional(),
       filePath: z.string().optional().describe('Only runs of this workflow file'),
+      status: z.enum(['waiting', 'completed', 'failed', 'cancelled']).optional().describe('Only runs in this state; waiting is the one that needs you'),
+      limit: z.number().int().min(1).max(200).optional().describe('How many, newest first. Default 20'),
     },
-    async (args: { runId?: string; filePath?: string }) => {
+    async (args: { runId?: string; filePath?: string; status?: 'waiting' | 'completed' | 'failed' | 'cancelled'; limit?: number }) => {
       if (args.runId) {
         const view = await coordinator.get(args.runId);
         return view ? makeToolResult(view) : makeErrorResult('RUN_NOT_FOUND', `no run with id ${args.runId}`);
       }
-      return makeToolResult(await coordinator.list({ filePath: args.filePath }));
+      // The store holds every run ever made on this machine; an assistant
+      // asking "what is there" wants the recent ones, not a history dump.
+      const all = (await coordinator.list({ filePath: args.filePath })).filter((r) => !args.status || r.status === args.status);
+      const limit = args.limit ?? 20;
+      const runs = all.slice(0, limit);
+      return makeToolResult(all.length > limit ? { runs, total: all.length, note: `${all.length - limit} older run(s) not shown; pass limit, status or filePath to narrow` } : runs);
     },
   );
 }
@@ -103,6 +110,8 @@ function toErrorResult(error: unknown, fallback: string) {
               ? 'BUNDLE_CHANGED'
               : name === 'RunBusyError'
                 ? 'RUN_BUSY'
+              : name === 'MissingParamsError'
+                ? 'MISSING_PARAMS'
               : name === 'MissingOutputsError'
                 ? 'MISSING_OUTPUTS'
                 : name === 'InvalidAnswerError'

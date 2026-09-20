@@ -50,8 +50,6 @@ export interface InitOptions {
   useCase?: string;
   mcp?: boolean;
   agent?: boolean;
-  withWeaver?: boolean;
-  weaver?: boolean;
 }
 
 export interface InitConfig {
@@ -67,7 +65,6 @@ export interface InitConfig {
   /** Free-text description when user picked "Something else" */
   useCaseDescription?: string;
   mcp: boolean;
-  installWeaver: boolean;
 }
 
 export interface InitReport {
@@ -257,21 +254,6 @@ export async function resolveInitConfig(
     if (!useCaseDescription) useCaseDescription = undefined;
   }
 
-  // 3c. Weaver AI assistant opt-in
-  let installWeaver: boolean;
-  if (options.withWeaver) {
-    installWeaver = true;
-  } else if (options.weaver === false) {
-    installWeaver = false;
-  } else if (skipPrompts) {
-    installWeaver = true;
-  } else {
-    installWeaver = await confirm({
-      message: 'Install Weaver AI assistant? (Recommended)\n  Weaver helps you create, modify, and manage workflows with AI.',
-      default: true,
-    });
-  }
-
   // 4. MCP setup (nocode, vibecoder, lowcode: prompt; expert: skip unless --mcp)
   let mcp: boolean;
   if (options.mcp !== undefined) {
@@ -339,7 +321,6 @@ export async function resolveInitConfig(
     useCase,
     useCaseDescription,
     mcp,
-    installWeaver,
   };
 }
 
@@ -350,7 +331,6 @@ export function generateProjectFiles(
   template: string,
   format: TModuleFormat = 'esm',
   persona: PersonaId = 'expert',
-  installWeaver: boolean = false
 ): Record<string, string> {
   const workflowName = toWorkflowName(projectName);
   const workflowFile = `${projectName}-workflow.ts`;
@@ -360,12 +340,7 @@ export function generateProjectFiles(
     throw new Error(`Unknown template "${template}"`);
   }
 
-  let workflowCode = tmpl.generate({ workflowName });
-
-  // Add onboarding comment when weaver is installed
-  if (installWeaver) {
-    workflowCode = `// This is a Flow Weaver workflow. The JSDoc annotations define the DAG.\n// Don't worry about the syntax — use 'weaver assistant' to modify it.\n// Run: npx flow-weaver weaver assistant\n\n${workflowCode}`;
-  }
+  const workflowCode = tmpl.generate({ workflowName });
 
   // Package.json
   const scripts: Record<string, string> = {
@@ -387,7 +362,6 @@ export function generateProjectFiles(
     scripts,
     dependencies: {
       '@synergenius/flow-weaver': 'latest',
-      ...(installWeaver ? { '@synergenius/flow-weaver-pack-weaver': 'latest' } : {}),
     },
     devDependencies: {
       typescript: '^5.3.0',
@@ -420,66 +394,42 @@ export function generateProjectFiles(
 
   const tsconfigJson = JSON.stringify(tsconfigContent, null, 2);
 
-  // main.ts
+  // main.ts. The compiled workflow imports nothing from the package; the
+  // caller builds the runtime it takes as its third argument.
   const workflowJsFile = workflowFile.replace(/\.ts$/, '.js');
-  let mainTs: string;
-  if (format === 'esm') {
-    mainTs = [
-      '/**',
-      ` * ${projectName} — workflow runner`,
-      ' *',
-      ' * Usage:',
-      ' *   npm run dev      compile workflow + run this file',
-      ' *   npm start        run without recompiling',
-      ' *   npm run compile  compile only',
-      ' */',
-      '',
-      `import { ${workflowName} } from './${workflowJsFile}';`,
-      '',
-      'async function main() {',
-      `  const result = await ${workflowName}(true, { data: { message: 'hello world' } });`,
-      '  console.log(JSON.stringify(result, null, 2));',
-      '}',
-      '',
-      'main().catch((e) => {',
-      "  if (e instanceof Error && e.message.startsWith('Compile with:')) {",
-      "    console.error('Workflow not compiled yet. Run: npm run dev');",
-      '    process.exit(1);',
-      '  }',
-      '  console.error(e);',
-      '  process.exit(1);',
-      '});',
-      '',
-    ].join('\n');
-  } else {
-    mainTs = [
-      '/**',
-      ` * ${projectName} — workflow runner`,
-      ' *',
-      ' * Usage:',
-      ' *   npm run dev      compile workflow + run this file',
-      ' *   npm start        run without recompiling',
-      ' *   npm run compile  compile only',
-      ' */',
-      '',
-      `const { ${workflowName} } = require('./${workflowJsFile}');`,
-      '',
-      'async function main() {',
-      `  const result = await ${workflowName}(true, { data: { message: 'hello world' } });`,
-      '  console.log(JSON.stringify(result, null, 2));',
-      '}',
-      '',
-      'main().catch((e) => {',
-      "  if (e instanceof Error && e.message.startsWith('Compile with:')) {",
-      "    console.error('Workflow not compiled yet. Run: npm run dev');",
-      '    process.exit(1);',
-      '  }',
-      '  console.error(e);',
-      '  process.exit(1);',
-      '});',
-      '',
-    ].join('\n');
-  }
+  const imports = format === 'esm'
+    ? [`import { createWorkflowRuntime } from '@synergenius/flow-weaver';`, `import { ${workflowName} } from './${workflowJsFile}';`]
+    : [`const { createWorkflowRuntime } = require('@synergenius/flow-weaver');`, `const { ${workflowName} } = require('./${workflowJsFile}');`];
+  const mainTs = [
+    '/**',
+    ` * ${projectName} — workflow runner`,
+    ' *',
+    ' * Usage:',
+    ' *   npm run dev      compile workflow + run this file',
+    ' *   npm start        run without recompiling',
+    ' *   npm run compile  compile only',
+    ' */',
+    '',
+    ...imports,
+    '',
+    'async function main() {',
+    '  // The runtime names the run and carries the services the generated code',
+    '  // reads (mocks, a debugger, an abort signal). See: fw docs library',
+    `  const runtime = createWorkflowRuntime({ runId: \`run-\${Date.now()}\`, workflowId: '${workflowName}' });`,
+    `  const result = await ${workflowName}(true, { data: { message: 'hello world' } }, runtime);`,
+    '  console.log(JSON.stringify(result, null, 2));',
+    '}',
+    '',
+    'main().catch((e) => {',
+    "  if (e instanceof Error && /generated body was not installed/.test(e.message)) {",
+    "    console.error('Workflow not compiled yet. Run: npm run dev');",
+    '    process.exit(1);',
+    '  }',
+    '  console.error(e);',
+    '  process.exit(1);',
+    '});',
+    '',
+  ].join('\n');
 
   const gitignore = `node_modules/\ndist/\n.tsbuildinfo\n`;
   const configYaml = `defaultFileType: ts\n`;
@@ -499,12 +449,6 @@ export function generateProjectFiles(
   // Add example workflow for lowcode persona
   if (persona === 'lowcode') {
     files['examples/example-workflow.ts'] = generateExampleWorkflow(projectName);
-  }
-
-  // Add Weaver config + getting started guide if opted in
-  if (installWeaver) {
-    files['.weaver.json'] = JSON.stringify({ provider: 'auto', approval: 'auto' }, null, 2) + '\n';
-    files['GETTING_STARTED.md'] = generateGettingStarted(projectName, workflowFile);
   }
 
   return files;
@@ -671,7 +615,7 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
     }
 
     // Generate and scaffold
-    const files = generateProjectFiles(config.projectName, config.template, config.format, config.persona, config.installWeaver);
+    const files = generateProjectFiles(config.projectName, config.template, config.format, config.persona);
     const { filesCreated, filesSkipped } = scaffoldProject(config.targetDir, files, {
       force: config.force,
     });
@@ -797,16 +741,6 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
       }
     }
 
-    if (config.installWeaver) {
-      logger.success('Weaver AI assistant installed');
-      logger.newline();
-      logger.log('  Weaver installed. Try:');
-      logger.log('    flow-weaver weaver assistant      # AI assistant');
-      logger.log('    flow-weaver weaver bot "..."      # create workflows with AI');
-      logger.log('    flow-weaver weaver examples       # see what\'s possible');
-      logger.newline();
-    }
-
     // Read the workflow code for preview
     const workflowCode = files[`src/${workflowFile}`] ?? null;
 
@@ -873,49 +807,4 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
     }
     throw err;
   }
-}
-
-// ── Getting Started guide (generated when Weaver is installed) ───────────────
-
-function generateGettingStarted(projectName: string, workflowFile: string): string {
-  return `# Getting Started with ${projectName}
-
-Your project has Flow Weaver + Weaver AI assistant installed.
-
-## Quick Start
-
-    npx flow-weaver weaver assistant     # Ask the AI anything about your project
-    npx flow-weaver weaver examples      # See what you can do
-    npx flow-weaver weaver doctor        # Check your setup
-
-## Your First Workflow
-
-Open \`src/${workflowFile}\` — that's your workflow file.
-
-Don't worry about the annotations. Ask the assistant:
-
-    npx flow-weaver weaver assistant
-    > explain my workflow
-    > add error handling to it
-    > show me a diagram
-
-The AI writes the annotations for you. You focus on what you want, not how to write it.
-
-## Useful Commands
-
-    npx flow-weaver validate src/        # check for errors
-    npx flow-weaver compile src/         # compile to standalone
-    npx flow-weaver diagram src/         # visual diagram
-
-## Autonomous Mode
-
-    npx flow-weaver weaver session --continuous    # process task queue
-    npx flow-weaver weaver queue add "Fix all validation errors"
-
-## Learn More
-
-    npx flow-weaver weaver examples      # concrete task examples
-    npx flow-weaver docs concepts        # core concepts
-    npx flow-weaver docs jsdoc-grammar   # annotation reference
-`;
 }

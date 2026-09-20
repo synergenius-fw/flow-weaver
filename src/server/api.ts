@@ -43,6 +43,7 @@ import {
   isAnswering,
   reclaimStaleAgentAnswers,
   RunBusyError,
+  MissingParamsError,
   type LocalCoordinator,
   type RunStore,
   type RunRecord,
@@ -199,6 +200,7 @@ export function errorToHttp(err: unknown): HttpError {
   if (err instanceof MissingOutputsError) return new HttpError(400, 'MISSING_OUTPUTS', err.message);
   if (err instanceof InvalidAnswerError) return new HttpError(400, 'INVALID_INPUT', err.message);
   if (err instanceof RunBusyError) return new HttpError(409, 'RUN_IN_FLIGHT', err.message, undefined, { 'Retry-After': '2' });
+  if (err instanceof MissingParamsError) return new HttpError(400, 'VALIDATION_ERROR', err.message, err.missing.map((k) => ({ path: k, message: 'required' })));
   const name = (err as { name?: string })?.name;
   if (name === 'ContinuationRefusalError') return new HttpError(409, 'CONTINUATION_REFUSED', err instanceof Error ? err.message : String(err));
   return new HttpError(500, 'EXECUTION_ERROR', err instanceof Error ? err.message : String(err));

@@ -347,7 +347,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
           },
           {
             "code": "UNKNOWN_SOURCE_PORT",
-            "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+            "docUrl": "https://github.com/synergenius-fw/flow-weaver/blob/main/docs/reference/error-codes.md",
             "message": "Node "triple" does not have output port "wrongPort"",
             "node": "triple",
             "type": "error",
@@ -390,7 +390,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
           },
           {
             "code": "UNKNOWN_SOURCE_PORT",
-            "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+            "docUrl": "https://github.com/synergenius-fw/flow-weaver/blob/main/docs/reference/error-codes.md",
             "message": "Node "triple" does not have output port "wrongPort"",
             "node": "triple",
             "type": "error",
@@ -571,14 +571,14 @@ exports[`WorkflowValidator scope-topology golden (debt #3) > scope diagnostics a
   "errors": [
     {
       "code": "UNKNOWN_TARGET_PORT",
-      "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+      "docUrl": "https://github.com/synergenius-fw/flow-weaver/blob/main/docs/reference/error-codes.md",
       "message": "Node "loop" does not have input port "items"",
       "node": "loop",
       "type": "error",
     },
     {
       "code": "UNKNOWN_SOURCE_PORT",
-      "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+      "docUrl": "https://github.com/synergenius-fw/flow-weaver/blob/main/docs/reference/error-codes.md",
       "message": "Node "loop" does not have output port "nonExistentPort"",
       "node": "loop",
       "type": "error",
@@ -601,7 +601,7 @@ exports[`WorkflowValidator scope-topology golden (debt #3) > scope diagnostics a
   "errors": [
     {
       "code": "UNKNOWN_TARGET_PORT",
-      "docUrl": "https://docs.flowweaver.dev/reference/concepts#port-architecture",
+      "docUrl": "https://github.com/synergenius-fw/flow-weaver/blob/main/docs/reference/error-codes.md",
       "message": "Node "loop" does not have input port "items"",
       "node": "loop",
       "type": "error",

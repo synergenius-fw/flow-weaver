@@ -284,7 +284,7 @@ describe('Validator docUrl', () => {
 
     const unknownErr = result.errors.find((e) => e.code === 'UNKNOWN_NODE_TYPE');
     expect(unknownErr).toBeDefined();
-    expect(unknownErr!.docUrl).toContain('concepts');
+    expect(unknownErr!.docUrl).toContain('docs/reference/');
   });
 
   it('should attach docUrl to UNKNOWN_SOURCE_PORT errors', () => {
@@ -309,7 +309,7 @@ describe('Validator docUrl', () => {
 
     const portErr = result.errors.find((e) => e.code === 'UNKNOWN_SOURCE_PORT');
     expect(portErr).toBeDefined();
-    expect(portErr!.docUrl).toContain('concepts');
+    expect(portErr!.docUrl).toContain('docs/reference/');
   });
 
   it('should not attach docUrl to unmapped error codes', () => {

@@ -40,5 +40,6 @@ export {
 } from './gate-resolution.js';
 export { computeBundleDigest } from './bundle-digest.js';
 export { RunBusyError, DOC_NAME, RESERVED_DOCS, EFFECT_DOC_PREFIX, checkDocName, type RunStore } from './store.js';
+export { missingParams, MissingParamsError } from './params.js';
 export { createFileRunStore } from './file-store.js';
 export { createMemoryRunStore } from './memory-store.js';
