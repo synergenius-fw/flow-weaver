@@ -25,8 +25,12 @@ async function build() {
     target: 'node18',
     format: 'esm',
     outfile,
-    minify: false, // Keep readable for debugging
-    sourcemap: true,
+    // The published CLI ships minified: the proprietary licence forbids
+    // redistributing readable source, and no sourcemap goes out (package.json
+    // `files` already excludes dist/**/*.map).
+    minify: true,
+    sourcemap: false,
+    legalComments: 'none',
     external: [
       // Keep these external - they're native/problematic to bundle
       'typescript',
