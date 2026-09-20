@@ -74,17 +74,20 @@ export function StatusView() {
             <h3>Running now<span class="sp" /><span class="hint">{r.services.length}</span></h3>
             <div class="in">
               {r.services.length ? (
-                <div class="tablewrap"><table class="statustable">
-                  <thead><tr><th>Service</th><th>Where</th><th>Install</th><th>Activity</th></tr></thead>
-                  <tbody>{r.services.map((s) => (
-                    <tr key={`${s.kind}-${s.pid}`}>
-                      <td><b>{s.kind}</b><div class="hint">pid {s.pid} · up {since(s.startedAt).replace(' ago', '')}{s.client ? ` · for ${s.client}` : ''}</div></td>
-                      <td class="mono">{s.url ?? s.transport ?? ''}{s.project ? <div class="hint">{s.project}</div> : null}</td>
-                      <td><Dot ok warn={s.install !== r.console.install} /> <span class="mono">{s.install === r.console.install ? 'this install' : s.install}</span><div class="hint">v{s.version}</div></td>
-                      <td>{s.activity ? <><code>{s.activity}</code> <span class="hint">{since(s.lastActivityAt)} · {s.activityCount} call{s.activityCount === 1 ? '' : 's'}</span></> : <span class="hint">started {since(s.startedAt)}</span>}</td>
-                    </tr>
-                  ))}</tbody>
-                </table></div>
+                <div class="reglist">{r.services.map((s) => (
+                  <div class="reg" key={`${s.kind}-${s.pid}`}>
+                    <div class="reghead">
+                      <b>{s.kind}</b>
+                      <span class="regruns"><Dot ok warn={s.install !== r.console.install} /> {s.install === r.console.install ? 'this install' : `v${s.version}`}</span>
+                    </div>
+                    <dl class="regkv">
+                      <dt>where</dt><dd class="mono break">{s.url ?? s.transport ?? '—'}{s.project ? <span class="opt-ns"> · {s.project}</span> : null}</dd>
+                      <dt>process</dt><dd>pid {s.pid} · up {since(s.startedAt).replace(' ago', '')}{s.client ? ` · for ${s.client}` : ''}</dd>
+                      <dt>install</dt><dd class="mono break">{s.install === r.console.install ? `this install · v${s.version}` : <>{s.install} <span class="opt-ns">· v{s.version}</span></>}</dd>
+                      <dt>activity</dt><dd>{s.activity ? <><code>{s.activity}</code> <span class="opt-ns">{since(s.lastActivityAt)} · {s.activityCount} call{s.activityCount === 1 ? '' : 's'}</span></> : <span class="hint">started {since(s.startedAt)}</span>}</dd>
+                    </dl>
+                  </div>
+                ))}</div>
               ) : <div class="hint">No fw process has announced itself. An MCP server started by an editor appears here once it is running this version.</div>}
             </div>
           </div>
@@ -94,20 +97,20 @@ export function StatusView() {
             <div class="in">
               <h5>Registered with editors</h5>
               {r.mcp.registrations.length ? (
-                <div class="tablewrap"><table class="statustable">
-                  <thead><tr><th>Editor</th><th>Runs</th><th>Command</th></tr></thead>
-                  <tbody>{r.mcp.registrations.map((g) => (
-                    <tr key={g.tool + g.file}>
-                      <td><b>{g.tool}</b><div class="hint mono">{g.file}</div></td>
-                      <td>
-                        <Dot ok={g.runs !== 'other install'} warn={g.runs !== 'this install'} />{' '}
-                        {g.runs === 'npm latest' ? <span title="npx resolves the newest published version each start; edits in a checkout do not reach it">npm latest</span> : g.runs}
-                        {g.install && g.runs === 'other install' && <div class="hint mono">{g.install}</div>}
-                      </td>
-                      <td class="mono">{g.command} {g.args.join(' ')}</td>
-                    </tr>
-                  ))}</tbody>
-                </table></div>
+                <div class="reglist">{r.mcp.registrations.map((g) => (
+                  <div class="reg" key={g.tool + g.file}>
+                    <div class="reghead">
+                      <b>{g.tool}</b>
+                      <span class="regruns"><Dot ok={g.runs !== 'other install'} warn={g.runs !== 'this install'} />{' '}
+                        {g.runs === 'npm latest' ? <span title="npx resolves the newest published version each start; edits in a checkout do not reach it">npm latest</span> : g.runs}</span>
+                    </div>
+                    <dl class="regkv">
+                      <dt>config</dt><dd class="mono break">{g.file}</dd>
+                      <dt>command</dt><dd class="mono break">{g.command} {g.args.join(' ')}</dd>
+                      {g.install && g.runs === 'other install' && <><dt>install</dt><dd class="mono break">{g.install}</dd></>}
+                    </dl>
+                  </div>
+                ))}</div>
               ) : <div class="hint">No editor has the Flow Weaver MCP server registered for this project. <button class="linkish" onClick={() => stageCli('fw mcp-setup')}>▶ fw mcp-setup</button> registers it.</div>}
               <div class="hint" style="margin-top:8px">A server speaks stdio to the editor that started it, so what is known about a running one is what it reports about itself, above.</div>
             </div>

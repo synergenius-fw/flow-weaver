@@ -4,6 +4,7 @@ import { store } from '../api';
 import { packNs, quoteArgForCli } from '../format';
 import { Value } from './Value';
 import { Highlight } from './Code';
+import { Select } from './Select';
 
 /**
  * Exporting the open workflow through one of the project's targets.
@@ -44,9 +45,11 @@ export function ExportPane({ w }: { w: ParsedWorkflow }) {
         <h3>Export<span class="sp" /><button class="linkish" title="The same as a command" onClick={() => stageCli(cli)}>▶ as a command</button></h3>
         <div class="in">
           <div class="field"><label><span>target</span></label>
-            <select value={target} onChange={(e) => { const v = (e.target as HTMLSelectElement).value; setTarget(v); store.set(key, v); }}>
-              {list.map((x) => <option key={x.name} value={x.name}>{x.name}{x.pack ? ` · ${packNs(x.pack)}` : ''}</option>)}
-            </select>
+            <Select
+              value={target}
+              options={list.map((x) => ({ value: x.name, text: `${x.name}${x.pack ? ` ${packNs(x.pack)}` : ''}`, label: <>{x.name}{x.pack ? <span class="opt-ns"> · {packNs(x.pack)}</span> : null}</> }))}
+              onChange={(v) => { setTarget(v); store.set(key, v); }}
+            />
           </div>
           {t && <div class="hint" style="margin:-4px 0 10px">{t.description}{t.pack && <> · from <button class="linkish" onClick={() => openPack(t.pack!)}>{packNs(t.pack)}</button></>}</div>}
           <div class="field"><label><span>output</span></label>

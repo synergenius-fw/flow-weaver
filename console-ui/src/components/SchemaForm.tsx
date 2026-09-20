@@ -1,5 +1,7 @@
 import { useState } from 'preact/hooks';
 import type { FieldSchema } from '../state';
+import { Select } from './Select';
+import { JsonEditor } from './JsonEditor';
 
 export type Errors = Record<string, string>;
 
@@ -79,10 +81,12 @@ function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps
       );
     case 'enum':
       return wrap(
-        <select value={value === undefined ? '' : String(value)} onChange={(e) => { const s = (e.target as HTMLSelectElement).value; const v = schema.values!.find((x) => String(x) === s); onChange(v); }}>
-          <option value="">choose…</option>
-          {schema.values!.map((v) => <option value={String(v)} key={String(v)}>{String(v)}</option>)}
-        </select>,
+        <Select
+          value={value === undefined ? '' : String(value)}
+          placeholder="choose…"
+          options={schema.values!.map((v) => ({ value: String(v), label: String(v) }))}
+          onChange={(s) => { const v = schema.values!.find((x) => String(x) === s); onChange(v); }}
+        />,
       );
     case 'array':
       if (isPrimitiveList(schema)) {
@@ -112,10 +116,94 @@ function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps
           </div>
         );
       }
-      return wrap(<JsonField value={value} onChange={onChange} />);
+      // An open object (Record<string, unknown>): no fixed fields, but still
+      // structured. Edit it as named properties, not a bare JSON blob.
+      return wrap(<KeyValueField value={value} onChange={onChange} typeName={schema.text} />);
     default:
       return wrap(<JsonField value={value} onChange={onChange} />);
   }
+}
+
+/**
+ * An open map edited as named property rows, with JSON as the escape hatch.
+ *
+ * A `Record<string, unknown>` has no fixed fields to lay out, but a raw JSON
+ * textarea makes the caller write braces and quotes and get the commas right.
+ * This shows one row per key — the name, then the value — so adding a property
+ * is naming it and typing a value. Each value is read as JSON when it can be
+ * (so `true`, `42`, `["a"]` keep their type) and as a plain string otherwise,
+ * which is what someone typing a word expects.
+ */
+function KeyValueField({ value, onChange, typeName }: { value: unknown; onChange: (v: unknown) => void; typeName?: string }) {
+  const obj = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  const [raw, setRaw] = useState(false);
+  // Row order is kept locally so a freshly added, still-empty key does not
+  // vanish on the next keystroke (an empty key cannot live in the object yet).
+  const [rows, setRows] = useState<Array<[string, unknown]>>(() => Object.entries(obj));
+  const commit = (next: Array<[string, unknown]>) => {
+    setRows(next);
+    const clean = next.filter(([k]) => k.trim() !== '');
+    onChange(clean.length ? Object.fromEntries(clean) : undefined);
+  };
+  const setKey = (i: number, k: string) => commit(rows.map((r, j) => (j === i ? [k, r[1]] : r)));
+  const setVal = (i: number, v: unknown) => commit(rows.map((r, j) => (j === i ? [r[0], v] : r)));
+  const add = () => setRows([...rows, ['', '']]);
+  const remove = (i: number) => commit(rows.filter((_, j) => j !== i));
+
+  const toggle = (
+    <div class="kv-toolbar">
+      <span class="hint">{typeName ?? 'object'}</span>
+      <span class="sp" />
+      <div class="seg sm">
+        <button type="button" class={raw ? '' : 'on'} onClick={() => { setRows(Object.entries(obj)); setRaw(false); }}>Fields</button>
+        <button type="button" class={raw ? 'on' : ''} onClick={() => setRaw(true)}>JSON</button>
+      </div>
+    </div>
+  );
+
+  if (raw) {
+    return (
+      <div class="kv-open">
+        {toggle}
+        <JsonField value={value} onChange={onChange} />
+      </div>
+    );
+  }
+  return (
+    <div class="kv-open">
+      {toggle}
+      {rows.length > 0 && (
+        <div class="kv-rows">
+          {rows.map(([k, v], i) => (
+            <div class="kv-row" key={i}>
+              <input class="kv-key" type="text" value={k} placeholder="key" onInput={(e) => setKey(i, (e.target as HTMLInputElement).value)} />
+              <KeyValueValue value={v} onChange={(nv) => setVal(i, nv)} />
+              <button type="button" class="kv-del" title="Remove" onClick={() => remove(i)}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <button type="button" class="add" onClick={add}>+ add property</button>
+    </div>
+  );
+}
+
+/** One value cell of an open map: JSON when it parses, a plain string otherwise. */
+function KeyValueValue({ value, onChange }: { value: unknown; onChange: (v: unknown) => void }) {
+  const asText = value === undefined || value === null ? '' : typeof value === 'string' ? value : JSON.stringify(value);
+  return (
+    <input
+      class="kv-val mono"
+      type="text"
+      value={asText}
+      placeholder="value"
+      onInput={(e) => {
+        const raw = (e.target as HTMLInputElement).value;
+        if (raw === '') { onChange(''); return; }
+        try { onChange(JSON.parse(raw)); } catch { onChange(raw); }
+      }}
+    />
+  );
 }
 
 /** Rows of a list, each edited as its own form, with add and remove. */
@@ -136,15 +224,15 @@ function ListField({ path, schema, value, errors, onChange }: { path: string; sc
   );
 }
 
-/** Free-form JSON with live parse feedback; the value is committed only when it parses. */
+/** Free-form JSON, syntax-coloured, with live parse feedback; the value is committed only when it parses. */
 function JsonField({ value, onChange, rows = 4, placeholder }: { value: unknown; onChange: (v: unknown) => void; rows?: number; placeholder?: string }) {
   const [text, setText] = useState(value === undefined ? '' : JSON.stringify(value, null, 2));
   const [bad, setBad] = useState(false);
   const tidy = () => { try { setText(JSON.stringify(JSON.parse(text), null, 2)); setBad(false); } catch { setBad(true); } };
   return (
     <div class="jsonfield">
-      <textarea rows={rows} value={text} placeholder={placeholder ?? '{ "key": "value" } — any JSON'} style={bad ? 'border-color:var(--err)' : ''} onInput={(e) => {
-        const raw = (e.target as HTMLTextAreaElement).value; setText(raw);
+      <JsonEditor rows={rows} value={text} placeholder={placeholder ?? '{ "key": "value" } — any JSON'} invalid={bad} onInput={(raw) => {
+        setText(raw);
         if (!raw.trim()) { setBad(false); onChange(undefined); return; }
         try { onChange(JSON.parse(raw)); setBad(false); } catch { setBad(true); }
       }} />
@@ -160,6 +248,8 @@ export interface SchemaFormProps {
   onChange: (v: Record<string, unknown>) => void;
   /** No form/JSON switch, no reset: for a small embedded form. */
   plain?: boolean;
+  /** A heading to sit on the same row as the Fields/JSON switch. */
+  title?: string;
 }
 
 /** A form for a record of fields, with a switch to edit the whole thing as JSON and a way back to empty. */
@@ -168,15 +258,19 @@ const isEmpty = (v: unknown): boolean => v === undefined || v === null || v === 
   || (Array.isArray(v) && v.length === 0)
   || (typeof v === 'object' && !Array.isArray(v) && Object.values(v as object).every(isEmpty));
 
-export function SchemaForm({ fields, value, errors, onChange, plain }: SchemaFormProps) {
+export function SchemaForm({ fields, value, errors, onChange, plain, title }: SchemaFormProps) {
   const [raw, setRaw] = useState(false);
   const empty = isEmpty(value);
   return (
     <div>
       {!plain && (
-        <div class="formhead">
-          {!empty && <button type="button" onClick={() => onChange((blank({ type: 'object', fields }) as Record<string, unknown>) ?? {})}>clear</button>}
-          <button type="button" onClick={() => setRaw(!raw)}>{raw ? 'form' : 'JSON'}</button>
+        <div class={`formhead ${title ? 'titled' : ''}`}>
+          {title && <h5>{title}</h5>}
+          {!empty && <button type="button" class="formclear" onClick={() => onChange((blank({ type: 'object', fields }) as Record<string, unknown>) ?? {})}>clear</button>}
+          <div class="seg sm">
+            <button type="button" class={raw ? '' : 'on'} onClick={() => setRaw(false)}>Fields</button>
+            <button type="button" class={raw ? 'on' : ''} onClick={() => setRaw(true)}>JSON</button>
+          </div>
         </div>
       )}
       {raw

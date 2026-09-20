@@ -3,7 +3,7 @@
  * names in code; tags, declared names and backticked code in doc comments.
  */
 import { describe, it, expect } from 'vitest';
-import { tokenizeLines } from '../../../console-ui/src/tokens';
+import { tokenizeLines, tokenizeJson } from '../../../console-ui/src/tokens';
 
 const kinds = (line: string) => tokenizeLines(line)[0].filter((t) => t.t).map((t) => `${t.t}:${t.c}`);
 
@@ -44,5 +44,35 @@ describe('tokenizeLines', () => {
     expect(k(4)).toEqual(['c: * ', 't:@input', 'c: ', 'i:invoices', 'c: - Invoices to rate']);
     expect(k(5)).toEqual(['c: * ', 't:@node', 'c: ', 'i:parse', 'c: parseFigmaLink']);
     expect(k(7)).toEqual(['k:const', 'n:1']);
+  });
+});
+
+describe('tokenizeJson', () => {
+  const jkinds = (s: string) => tokenizeJson(s).filter((t) => t.t).map((t) => `${t.t}:${t.c}`);
+
+  it('tells a key from a string and colours each scalar kind', () => {
+    expect(jkinds('{ "goal": "ship it", "count": 42, "ok": true, "note": null }')).toEqual([
+      'key:"goal"', 'str:"ship it"', 'key:"count"', 'num:42', 'key:"ok"', 'bool:true', 'key:"note"', 'null:null',
+    ]);
+  });
+
+  it('treats a key as a key even with space before the colon', () => {
+    expect(jkinds('{ "a" : 1 }')).toEqual(['key:"a"', 'num:1']);
+  });
+
+  it('handles negative and exponent numbers', () => {
+    expect(jkinds('[-3, 1.5e3, -2.0]')).toEqual(['num:-3', 'num:1.5e3', 'num:-2.0']);
+  });
+
+  it('never throws and keeps every character on incomplete input', () => {
+    for (const s of ['{ "a":', '"unterminated', '{ "x": tru', '', '[1,2,']) {
+      const toks = tokenizeJson(s);
+      expect(toks.map((t) => t.c).join('')).toBe(s);
+    }
+  });
+
+  it('colours a value being typed before it is valid', () => {
+    expect(jkinds('{ "x": tru')).toEqual(['key:"x"']); // "tru" is not yet a literal
+    expect(jkinds('{ "x": "hi')).toEqual(['key:"x"', 'str:"hi']); // unterminated string still a string
   });
 });

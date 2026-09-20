@@ -124,6 +124,16 @@ describe('detectProjectModuleFormat', () => {
     expect(result.source).toBe('tsconfig');
   });
 
+  it('should read the tsconfig module setting through "extends"', () => {
+    const dir = makeFixture('detect-tsconfig-extends', {
+      'tsconfig.base.json': JSON.stringify({ compilerOptions: { module: 'esnext' } }),
+      'tsconfig.json': JSON.stringify({ extends: './tsconfig.base.json' }),
+    });
+    const result = detectProjectModuleFormat(dir);
+    expect(result.format).toBe('esm');
+    expect(result.source).toBe('tsconfig');
+  });
+
   it('should default to ESM when no config files exist', () => {
     const dir = makeFixture('detect-default', {});
     const result = detectProjectModuleFormat(dir);
@@ -256,6 +266,43 @@ describe('checkTsconfigModule', () => {
     const result = checkTsconfigModule(dir);
     expect(result.status).toBe('pass');
   });
+
+  it('should follow "extends" to a base config for the module setting', () => {
+    const dir = makeFixture('tsconfig-extends', {
+      'package.json': JSON.stringify({ type: 'module' }),
+      'tsconfig.base.json': JSON.stringify({ compilerOptions: { module: 'esnext' } }),
+      'tsconfig.json': JSON.stringify({ extends: './tsconfig.base.json' }),
+    });
+    const result = checkTsconfigModule(dir);
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('ESM');
+  });
+
+  it('should let the child override the base', () => {
+    const dir = makeFixture('tsconfig-extends-override', {
+      'package.json': JSON.stringify({ name: 'test' }), // CJS
+      'tsconfig.base.json': JSON.stringify({ compilerOptions: { module: 'esnext' } }),
+      'tsconfig.json': JSON.stringify({
+        extends: './tsconfig.base.json',
+        compilerOptions: { module: 'commonjs' },
+      }),
+    });
+    const result = checkTsconfigModule(dir);
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('CJS');
+  });
+
+  it('should tolerate an unreachable base and judge on the file itself', () => {
+    const dir = makeFixture('tsconfig-extends-missing-base', {
+      'package.json': JSON.stringify({ type: 'module' }),
+      'tsconfig.json': JSON.stringify({
+        extends: '@tsconfig/does-not-exist',
+        compilerOptions: { module: 'nodenext' },
+      }),
+    });
+    const result = checkTsconfigModule(dir);
+    expect(result.status).toBe('pass');
+  });
 });
 
 describe('checkTsconfigModuleResolution', () => {
@@ -270,6 +317,15 @@ describe('checkTsconfigModuleResolution', () => {
   it('should pass for bundler', () => {
     const dir = makeFixture('modres-bundler', {
       'tsconfig.json': JSON.stringify({ compilerOptions: { moduleResolution: 'bundler' } }),
+    });
+    const result = checkTsconfigModuleResolution(dir);
+    expect(result.status).toBe('pass');
+  });
+
+  it('should follow "extends" to a base config for moduleResolution', () => {
+    const dir = makeFixture('modres-extends', {
+      'tsconfig.base.json': JSON.stringify({ compilerOptions: { moduleResolution: 'bundler' } }),
+      'tsconfig.json': JSON.stringify({ extends: './tsconfig.base.json' }),
     });
     const result = checkTsconfigModuleResolution(dir);
     expect(result.status).toBe('pass');
@@ -309,6 +365,15 @@ describe('checkFlowWeaverInstalled', () => {
     const result = checkFlowWeaverInstalled(dir);
     expect(result.status).toBe('fail');
     expect(result.fix).toBeDefined();
+  });
+
+  it('should pass inside the Flow Weaver source checkout itself', () => {
+    const dir = makeFixture('fw-self', {
+      'package.json': JSON.stringify({ name: '@synergenius/flow-weaver', version: '9.9.9' }),
+    });
+    const result = checkFlowWeaverInstalled(dir);
+    expect(result.status).toBe('pass');
+    expect(result.message).toContain('source checkout');
   });
 });
 

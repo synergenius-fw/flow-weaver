@@ -87,3 +87,57 @@ export function tokenizeLines(src: string): Tok[][] {
   }
   return out;
 }
+
+/**
+ * Colouring for editable JSON text.
+ *
+ * The Code tokenizer is for TypeScript; a value being typed into a field is
+ * JSON, and it is often mid-edit — a half-typed string, a trailing comma, not
+ * yet valid. So this scans the raw text token by token, tolerating anything,
+ * and tags each piece with the same `j-*` classes the read-only Json view
+ * uses: a key (a string immediately before a colon) is told apart from a
+ * plain string, and numbers, booleans and null each get their own colour.
+ * Whitespace and punctuation pass through unclassed. It never throws and never
+ * drops a character, so the highlighted mirror always matches the textarea.
+ */
+export type JsonTok = { c: string; t?: 'str' | 'key' | 'num' | 'bool' | 'null' };
+
+export function tokenizeJson(src: string): JsonTok[] {
+  const out: JsonTok[] = [];
+  let i = 0;
+  const n = src.length;
+  while (i < n) {
+    const ch = src[i];
+    // A string, possibly unterminated (still being typed).
+    if (ch === '"') {
+      let j = i + 1;
+      while (j < n && src[j] !== '"') {
+        if (src[j] === '\\') j++;
+        j++;
+      }
+      j = Math.min(j + 1, n); // include closing quote if present
+      const text = src.slice(i, j);
+      // A string that the next non-space character follows with a colon is a key.
+      let k = j;
+      while (k < n && (src[k] === ' ' || src[k] === '\t')) k++;
+      out.push({ c: text, t: src[k] === ':' ? 'key' : 'str' });
+      i = j;
+      continue;
+    }
+    // A number.
+    if (ch === '-' || (ch >= '0' && ch <= '9')) {
+      const m = /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(src.slice(i));
+      if (m) { out.push({ c: m[0], t: 'num' }); i += m[0].length; continue; }
+    }
+    // A keyword literal.
+    if (ch === 't' || ch === 'f' || ch === 'n') {
+      const rest = src.slice(i);
+      const kw = rest.startsWith('true') ? 'true' : rest.startsWith('false') ? 'false' : rest.startsWith('null') ? 'null' : '';
+      if (kw) { out.push({ c: kw, t: kw === 'null' ? 'null' : 'bool' }); i += kw.length; continue; }
+    }
+    // Anything else — whitespace, braces, commas, colons — passes through.
+    out.push({ c: ch });
+    i++;
+  }
+  return out;
+}

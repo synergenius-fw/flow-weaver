@@ -2,6 +2,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { sel, ui, diffView, diffMode, diffRequest, type ParsedWorkflow, type FileHistory, type DiffView, type DiffMode } from '../state';
 import { get, q } from '../api';
 import { ago } from '../format';
+import { Select, type Opt } from './Select';
 
 /**
  * The Changes pane: what differs between two versions of the open
@@ -72,14 +73,14 @@ export function ChangesPane({ w }: { w: ParsedWorkflow }) {
   }, []);
 
   const pick = (id: string) => { sel.value = id; };
-  const options = (current: string, worktree: boolean) => (
-    <>
-      {worktree && <option value="worktree">working tree{history?.dirty ? ' · uncommitted changes' : ''}</option>}
-      <option value="HEAD">HEAD{history?.head ? ` · ${history.head}` : ''}</option>
-      {history?.commits.map((c) => <option key={c.sha} value={c.sha}>{c.short} · {c.subject.slice(0, 48)}</option>)}
-      {![...(history?.commits ?? []).map((c) => c.sha), 'HEAD', 'worktree'].includes(current) && <option value={current}>{current}</option>}
-    </>
-  );
+  const options = (current: string, worktree: boolean): Opt[] => {
+    const opts: Opt[] = [];
+    if (worktree) opts.push({ value: 'worktree', label: <>working tree{history?.dirty ? <span class="opt-ns"> · uncommitted changes</span> : null}</>, text: 'working tree' });
+    opts.push({ value: 'HEAD', label: <>HEAD{history?.head ? <span class="opt-ns"> · {history.head}</span> : null}</>, text: 'HEAD' });
+    for (const c of history?.commits ?? []) opts.push({ value: c.sha, label: <><span class="opt-sha">{c.short}</span> <span class="opt-ns">{c.subject.slice(0, 48)}</span></>, text: `${c.short} ${c.subject}` });
+    if (![...(history?.commits ?? []).map((c) => c.sha), 'HEAD', 'worktree'].includes(current)) opts.push({ value: current, label: current });
+    return opts;
+  };
 
   if (history && !history.repo) {
     return <div class="card"><h3>Changes</h3><div class="in hint">This file is not under git, so there is no earlier version to compare it with.</div></div>;
@@ -92,9 +93,9 @@ export function ChangesPane({ w }: { w: ParsedWorkflow }) {
           <div class="seg sm">{MODES.map(([m, t]) => <button key={m} class={diffMode.value === m ? 'on' : ''} disabled={!view?.model} title={`key ${m[0]}`} onClick={() => { diffMode.value = m; }}>{t}</button>)}</div>
         </h3>
         <div class="in refs">
-          <label><span>from</span><select value={from} onChange={(e) => setFrom((e.target as HTMLSelectElement).value)}>{options(from, false)}</select></label>
+          <label><span>from</span><Select value={from} options={options(from, false)} onChange={setFrom} /></label>
           <span class="arrow">→</span>
-          <label><span>to</span><select value={to} onChange={(e) => setTo((e.target as HTMLSelectElement).value)}>{options(to, true)}</select></label>
+          <label><span>to</span><Select value={to} options={options(to, true)} onChange={setTo} /></label>
         </div>
         {error && <div class="in"><div class="verdict err">{error}</div></div>}
         {!error && view && (

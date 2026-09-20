@@ -3,13 +3,16 @@
   --bg: #0e1014; --panel: #14171d; --panel-2: #1b1f27; --panel-3: #222733; --line: #232834; --line-2: #313847;
   --fg: #e7e9ee; --dim: #8a90a0; --faint: #5c6270;
   --accent: #6ea8fe; --ok: #3ecf8e; --warn: #f2b545; --err: #f0636a; --gate: #c79bff; --loop: #5fd4d9; --pull: #f2c94c;
+  /* Foreground for anything filled with the accent. The dark theme's accent is a
+     light blue, so white on it is unreadable; near-black reads. */
+  --on-accent: #0b0d11;
   --c-blue: #6ea8fe; --c-purple: #b48cff; --c-cyan: #4fd1e0; --c-orange: #ff9f5a; --c-pink: #ff7ab6; --c-green: #3ecf8e; --c-red: #f0636a; --c-yellow: #f2c94c; --c-teal: #2fc7b0;
   --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
   --sans: -apple-system, BlinkMacSystemFont, Inter, "Segoe UI", Roboto, sans-serif;
   --r: 8px;
 }
 @media (prefers-color-scheme: light) {
-  :root { color-scheme: light; --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f1f3f6; --panel-3: #e8ebf0; --line: #e3e6eb; --line-2: #cfd4dc; --fg: #1a1d24; --dim: #667085; --faint: #98a2b3; --accent: #2f6fed; --c-blue: #2f6fed; --c-purple: #7c4dff; --c-cyan: #0891b2; --c-orange: #ea7a1d; --c-pink: #db2777; --c-green: #15a06a; --c-red: #dc2626; --c-yellow: #b7860b; --c-teal: #0d9488; }
+  :root { color-scheme: light; --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f1f3f6; --panel-3: #e8ebf0; --line: #e3e6eb; --line-2: #cfd4dc; --fg: #1a1d24; --dim: #667085; --faint: #98a2b3; --accent: #2f6fed; --on-accent: #ffffff; --c-blue: #2f6fed; --c-purple: #7c4dff; --c-cyan: #0891b2; --c-orange: #ea7a1d; --c-pink: #db2777; --c-green: #15a06a; --c-red: #dc2626; --c-yellow: #b7860b; --c-teal: #0d9488; }
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
@@ -170,7 +173,7 @@ a { color: var(--accent); text-decoration: none; }
 .row.slot { min-height: 40px; } .row.slot > .body > .line1 { min-height: 30px; margin: 5px -8px; border: 1px dashed color-mix(in srgb, var(--fg) 14%, transparent); border-radius: 6px; cursor: default; }
 .row.slot > .body > .line1:hover { background: none; }
 /* The Changes pane. */
-.changes .refs { display: flex; align-items: center; gap: 8px; } .changes .refs label { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; font-size: 11px; color: var(--faint); } .changes .refs select { width: 100%; font-size: 12px; } .changes .arrow { color: var(--faint); padding-top: 14px; }
+.changes .refs { display: flex; align-items: center; gap: 8px; } .changes .refs label { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; font-size: 11px; color: var(--faint); } .changes .refs .selbox { width: 100%; font-size: 12px; } .changes .arrow { color: var(--faint); padding-top: 14px; }
 .verdict { font-size: 12.5px; padding: 8px 10px; border-radius: 7px; } .verdict b { font-weight: 600; } .verdict ul { margin: 6px 0 0; padding-left: 16px; } .verdict li { margin: 2px 0; }
 .verdict.err { background: color-mix(in srgb, var(--err) 12%, transparent); color: var(--err); } .verdict.warn { background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); } .verdict.ok { background: color-mix(in srgb, var(--ok) 10%, transparent); color: var(--ok); }
 ul.chg { list-style: none; margin: 0; padding: 0; font-size: 12.5px; } ul.chg li { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; } ul.chg li i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; flex: none; align-self: center; }
@@ -185,7 +188,7 @@ ul.chg li.added i { background: var(--ok); } ul.chg li.removed i { background: v
 .passes .seg button.bad { color: var(--err); }
 /* The New run card. */
 .newrun h3 .presets { display: flex; align-items: center; gap: 6px; }
-.newrun h3 select, .newrun h3 input { font-size: 11.5px; padding: 3px 24px 3px 8px; max-width: 150px; } .newrun h3 input { padding-right: 8px; width: 130px; }
+.newrun h3 .selbox, .newrun h3 input { font-size: 11.5px; padding: 3px 24px 3px 8px; max-width: 150px; } .newrun h3 input { padding-right: 8px; width: 130px; }
 h5.fold { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; } h5.fold .hint { text-transform: none; letter-spacing: 0; } h5.fold .ms { font-size: 16px; color: var(--faint); }
 .mock { border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; margin-bottom: 6px; background: color-mix(in srgb, var(--panel-2) 50%, transparent); }
 .mock.on { border-color: color-mix(in srgb, var(--gate) 35%, var(--line)); }
@@ -200,6 +203,30 @@ h5.fold { display: flex; align-items: center; gap: 8px; cursor: pointer; user-se
 .list .itemhead { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--faint); margin-bottom: 2px; } .list .itemhead button { color: var(--faint); padding: 0 4px; } .list .itemhead button:hover { color: var(--err); }
 .list .add { font-size: 12px; color: var(--accent); padding: 2px 0 4px; }
 .jsonfield .jsontools { display: flex; justify-content: space-between; align-items: center; min-height: 16px; } .jsonfield .jsontools button { font-size: 11px; color: var(--faint); } .jsonfield .jsontools button:hover { color: var(--fg); }
+/* Syntax-coloured JSON input: a highlighted mirror under a transparent textarea.
+   The two must share every metric that places a glyph — font, padding, border,
+   wrapping — so the caret sits on the colour. */
+.jsoned { position: relative; }
+.jsoned-mirror, .jsoned-input { margin: 0; width: 100%; box-sizing: border-box; border: 1px solid transparent; border-radius: 6px; padding: 7px 9px; font: 12px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word; }
+/* The mirror is the bottom layer: it draws the field's background, its border
+   and the coloured text. The textarea sits on top, its own background and text
+   made transparent so the mirror shows through, contributing only the caret,
+   the selection and the focus/hover border. */
+.jsoned-mirror { position: absolute; inset: 0; overflow: hidden; pointer-events: none; background: var(--bg); border-color: var(--line-2); color: var(--fg); }
+.jsoned-mirror .jsoned-ph { color: var(--faint); }
+.jsoned-input { position: relative; display: block; background: transparent; color: transparent; caret-color: var(--fg); resize: vertical; -webkit-text-fill-color: transparent; }
+.jsoned-input::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); -webkit-text-fill-color: transparent; }
+.jsoned-input:focus { outline: none; border-color: var(--accent); }
+.jsoned-input:hover:not(:focus) { border-color: color-mix(in srgb, var(--dim) 60%, var(--line-2)); }
+.jsoned.bad .jsoned-mirror { border-color: var(--err); }
+.jsoned.bad .jsoned-input:focus { border-color: var(--err); }
+/* An open Record edited as named rows: a key, a value, and a way to drop the row. */
+.kv-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; } .kv-toolbar .hint { font-family: var(--mono); font-size: 11px; }
+.kv-rows { display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px; }
+.kv-row { display: grid; grid-template-columns: minmax(70px, 0.5fr) 1fr auto; gap: 6px; align-items: center; }
+.kv-row .kv-key { font-family: var(--mono); }
+.kv-del { color: var(--faint); padding: 0 6px; font-size: 15px; line-height: 1; flex: none; } .kv-del:hover { color: var(--err); }
+.kv-open .add { font-size: 12px; color: var(--accent); padding: 2px 0 0; }
 .empty { color: var(--faint); padding: 6px 9px; font-size: 12px; }
 .rdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .rdot.running { border: 2px solid var(--accent); border-right-color: transparent; animation: spin 1s linear infinite; }
@@ -221,7 +248,7 @@ h5.fold { display: flex; align-items: center; gap: 8px; cursor: pointer; user-se
 .pill.run { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
 .btn { padding: 7px 14px; border-radius: 7px; background: var(--panel-2); border: 1px solid var(--line-2); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
 .btn:hover { border-color: var(--faint); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.danger { color: var(--err); }
 .btn.sm { padding: 4px 10px; font-size: 12px; }
@@ -327,16 +354,39 @@ h5.fold { display: flex; align-items: center; gap: 8px; cursor: pointer; user-se
 .field > label { display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; color: var(--dim); margin-bottom: 4px; font-family: var(--mono); }
 .field > label i { font-style: normal; color: var(--faint); font-family: var(--sans); font-size: 11px; }
 .field .ferr { color: var(--err); font-size: 11.5px; margin-top: 3px; }
-.field.bad input, .field.bad textarea, .field.bad select { border-color: var(--err); }
+.field.bad input, .field.bad textarea, .field.bad select, .field.bad .selbox { border-color: var(--err); }
 input[type=text], input[type=number], textarea, select { width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--line-2); border-radius: 6px; padding: 7px 9px; font: 12px/1.5 var(--mono); }
 input::placeholder, textarea::placeholder { color: var(--faint); opacity: 1; }
 textarea { resize: vertical; }
 input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
 input:hover:not(:focus), textarea:hover:not(:focus), select:hover:not(:focus) { border-color: color-mix(in srgb, var(--dim) 60%, var(--line-2)); }
-/* A select is drawn like every other field: no platform bevel, our own chevron, room for it on the right. */
+/* The stray native select left anywhere is drawn like our fields: no platform bevel, our own chevron. */
 select { appearance: none; -webkit-appearance: none; padding-right: 30px; cursor: pointer; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238a90a0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
 select:disabled { opacity: .5; cursor: default; }
 select option { background: var(--panel); color: var(--fg); }
+
+/* ------------------------------------------------------------- select (custom)
+   The box mimics a field; the list is ours (Select.tsx), so it looks and
+   behaves the same on every OS instead of dropping to the native popup. */
+.selbox { width: 100%; display: flex; align-items: center; text-align: left; background: var(--bg); color: var(--fg); border: 1px solid var(--line-2); border-radius: 6px; padding: 7px 30px 7px 9px; font: 12px/1.5 var(--mono); cursor: pointer; position: relative;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238a90a0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
+.selbox:hover:not(:disabled) { border-color: color-mix(in srgb, var(--dim) 60%, var(--line-2)); }
+.selbox:focus-visible { outline: none; border-color: var(--accent); }
+.selbox.open { border-color: var(--accent); }
+.selbox:disabled { opacity: .5; cursor: default; }
+.selval { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selval.ph { color: var(--faint); }
+.selpanel { position: fixed; z-index: 60; max-height: 280px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line-2); border-radius: 7px; box-shadow: 0 8px 28px rgba(0,0,0,.35); padding: 4px; margin-top: 4px; font: 12px/1.5 var(--mono); box-sizing: border-box; }
+.selpanel.above { margin-top: 0; margin-bottom: 4px; }
+.opt { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 5px; cursor: pointer; color: var(--dim); white-space: nowrap; overflow: hidden; }
+.opt .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt.active { background: var(--panel-3); color: var(--fg); }
+.opt.on { color: var(--fg); }
+.opt.on .tick { margin-left: auto; color: var(--accent); font-size: 15px; }
+.opt.off { color: var(--faint); cursor: default; }
+.opt-ns { color: var(--faint); }
+.opt.active .opt-ns { color: var(--dim); }
+.opt-sha { color: var(--accent); }
 /* A number field without the platform's spin buttons; the arrow keys still step it. */
 input[type=number] { appearance: textfield; -moz-appearance: textfield; }
 input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -345,9 +395,12 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .toggle button { padding: 5px 12px; font-size: 12px; color: var(--dim); }
 .toggle button.on { background: var(--panel-3); color: var(--fg); }
 .toggle button + button { border-left: 1px solid var(--line-2); }
-.formhead { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 6px; }
-.formhead button { font-size: 11px; color: var(--faint); }
-.formhead button:hover { color: var(--fg); }
+.formhead { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 6px; }
+.formhead.titled { justify-content: flex-start; }
+.formhead.titled h5 { margin: 0; }
+.formhead.titled .seg { margin-left: auto; }
+.formhead .formclear { font-size: 11px; color: var(--faint); }
+.formhead .formclear:hover { color: var(--fg); }
 
 /* ------------------------------------------------------------- inspector */
 .card { border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 12px; overflow: hidden; background: var(--panel); }
@@ -651,9 +704,17 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 input[type=checkbox] { appearance: none; -webkit-appearance: none; width: 15px; height: 15px; margin: 0; border: 1.5px solid var(--line-2); border-radius: 4px; background: var(--bg); display: inline-grid; place-items: center; cursor: pointer; vertical-align: middle; flex: none; transition: background .12s, border-color .12s; }
 input[type=checkbox]:hover { border-color: var(--dim); }
 input[type=checkbox]:checked { background: var(--accent); border-color: var(--accent); }
-input[type=checkbox]:checked::after { content: ""; width: 8px; height: 4px; border: 2px solid #fff; border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+input[type=checkbox]:checked::after { content: ""; width: 8px; height: 4px; border: 2px solid var(--on-accent); border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
 input[type=checkbox]:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 1px; }
 input[type=checkbox]:disabled { opacity: .5; cursor: default; }
+
+/* ------------------------------------------------------------- radio */
+input[type=radio] { appearance: none; -webkit-appearance: none; width: 15px; height: 15px; margin: 0; border: 1.5px solid var(--line-2); border-radius: 50%; background: var(--bg); display: inline-grid; place-items: center; cursor: pointer; vertical-align: middle; flex: none; transition: border-color .12s; }
+input[type=radio]:hover { border-color: var(--dim); }
+input[type=radio]:checked { border-color: var(--accent); }
+input[type=radio]:checked::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+input[type=radio]:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 1px; }
+input[type=radio]:disabled { opacity: .5; cursor: default; }
 
 
 /* ------------------------------------------------------------- search */
@@ -683,18 +744,24 @@ input[type=checkbox]:disabled { opacity: .5; cursor: default; }
 /* ------------------------------------------------------------- status */
 .sdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--line-2); vertical-align: middle; margin-right: 2px; }
 .sdot.ok { background: var(--ok); } .sdot.warn { background: var(--warn); } .sdot.bad { background: var(--err); }
-.statustable { table-layout: fixed; width: 100%; }
-.statustable th:nth-child(1) { width: 20%; } .statustable th:nth-child(3) { width: 17%; } .statustable th:nth-child(4) { width: 24%; }
-.statustable td { vertical-align: top; overflow-wrap: anywhere; }
-.statustable td .hint { font-size: 11px; }
-/* A project path is long and has no spaces; it wraps at any character rather than pushing the other columns into a crush. */
-.statustable td.mono .hint { word-break: break-all; }
-.statustable td .mono { white-space: nowrap; }
 .check-row { display: grid; grid-template-columns: 12px 1fr; gap: 8px; align-items: baseline; padding: 6px 0; }
 .check-row + .check-row { border-top: 1px solid var(--line); }
 .check-row b { font-weight: 500; }
 .check-row .fix { margin-top: 3px; font-size: 12px; color: var(--warn); }
 .statusview .kv .mono { font-size: 11.5px; }
+/* An editor registration is one thing with a few labelled properties, not a
+   row in a grid: a heading with its run status, then key/value lines whose
+   long, space-less values (a config path, the launch command) wrap freely
+   instead of being crushed into a narrow column. */
+.reglist { display: flex; flex-direction: column; gap: 10px; }
+.reg { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg); }
+.reghead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.reghead b { font-weight: 500; font-size: 13px; }
+.regruns { margin-left: auto; font-size: 12px; color: var(--dim); white-space: nowrap; }
+.regkv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+.regkv dt { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; padding-top: 1px; }
+.regkv dd { margin: 0; font-size: 12px; min-width: 0; }
+.regkv dd.break { word-break: break-all; }
 
 
 /* ------------------------------------------------------------- pane tabs */

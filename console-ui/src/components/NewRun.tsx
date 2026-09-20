@@ -4,6 +4,7 @@ import { store } from '../api';
 import { quoteArg } from '../shell';
 import { SchemaForm, validateFields, blank, type Errors } from './SchemaForm';
 import { Keys } from './Tip';
+import { Select } from './Select';
 
 /**
  * The New run card: what the workflow is given, who answers its gates while
@@ -136,7 +137,7 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
       <h3>New run<span class="sp" />
         {naming === null
           ? <div class="presets">
-            {presets.length > 0 && <select value={preset} onChange={(e) => loadPreset((e.target as HTMLSelectElement).value)}><option value="">presets…</option>{presets.map((p) => <option value={p.name} key={p.name}>{p.name}</option>)}</select>}
+            {presets.length > 0 && <Select value={preset} placeholder="presets…" onChange={loadPreset} options={presets.map((p) => ({ value: p.name, label: p.name }))} />}
             {preset && <button class="btn ghost sm" title="Forget this preset" onClick={dropPreset}>delete</button>}
             <button class="btn ghost sm" title="Keep these parameters under a name" onClick={() => setNaming(preset)}>save</button>
           </div>
@@ -148,8 +149,9 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
       </h3>
 
       <div class="in">
-        <h5>Parameters</h5>
-        {Object.keys(fields).length ? <SchemaForm fields={fields} value={value} errors={errors} onChange={setValue} /> : <div class="hint">This workflow takes none.</div>}
+        {Object.keys(fields).length
+          ? <SchemaForm title="Parameters" fields={fields} value={value} errors={errors} onChange={setValue} />
+          : <><h5>Parameters</h5><div class="hint">This workflow takes none.</div></>}
       </div>
 
       {standIns.length + (delays ? 1 : 0) > 0 && (
@@ -208,7 +210,8 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
       </div>
 
       <div class="in formfoot">
-        <button class="btn primary sm" disabled={errorCount.value > 0} title={errorCount.value > 0 ? 'Fix the errors first' : undefined} onClick={go}>{mode === 'debug' ? 'Debug' : 'Run'}<Keys combo="mod+enter" /></button>
+        <button class="btn primary sm" disabled={errorCount.value > 0} title={errorCount.value > 0 ? 'Fix the errors first' : undefined} onClick={go}>{mode === 'debug' ? 'Debug' : 'Run'}</button>
+        <span class="shortcut-hint"><Keys combo="mod+enter" /></span>
         <button class="btn ghost sm" title="Copy this run as an fw run command" onClick={copy}>copy as CLI</button>
         <span class="err">{failure}</span>
       </div>

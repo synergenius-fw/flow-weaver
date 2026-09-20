@@ -15,6 +15,7 @@ import { ExportPane } from './Export';
 import { PaneTab } from './PaneTab';
 import { ReferencePane } from './ReferencePane';
 import { Keys } from './Tip';
+import { Select } from './Select';
 import { kindIcon } from './Icon';
 import { colorVar } from '../format';
 
@@ -328,7 +329,7 @@ function StepCard({ id, w }: { id: string; w: ParsedWorkflow }) {
             <span class="hint">ran {passes.length} times · pass</span>
             {passes.length <= 12
               ? <div class="seg sm">{passes.map((p) => <button key={p.index} class={`${pass === p.index ? 'on' : ''} ${p.error || p.status === 'FAILED' ? 'bad' : ''}`} title={p.error ?? p.status.toLowerCase()} onClick={() => setPicked(p.index)}>{p.index + 1}</button>)}</div>
-              : <select value={String(pass)} onChange={(e) => setPicked(Number((e.target as HTMLSelectElement).value))}>{passes.map((p) => <option key={p.index} value={String(p.index)}>{p.index + 1}{p.error || p.status === 'FAILED' ? ' · failed' : ''}</option>)}</select>}
+              : <Select value={String(pass)} onChange={(v) => setPicked(Number(v))} options={passes.map((p) => ({ value: String(p.index), label: <>{p.index + 1}{p.error || p.status === 'FAILED' ? <span class="opt-ns"> · failed</span> : null}</>, text: `${p.index + 1}` }))} />}
             {current?.start != null && current.end != null && <span class="hint">{ms(current.end - current.start)}</span>}
           </div>
         )}

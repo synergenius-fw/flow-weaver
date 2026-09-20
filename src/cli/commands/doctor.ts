@@ -121,30 +121,22 @@ export function detectProjectModuleFormat(cwd: string): ModuleFormatDetection {
     }
   }
 
-  // Check tsconfig.json "module" setting
-  const tsconfigPath = path.join(cwd, 'tsconfig.json');
-  if (fs.existsSync(tsconfigPath)) {
-    try {
-      const raw = fs.readFileSync(tsconfigPath, 'utf8');
-      const parsed = JSON.parse(stripJsonComments(raw));
-      const compilerOptions = (parsed.compilerOptions ?? {}) as Record<string, unknown>;
-      const mod =
-        typeof compilerOptions.module === 'string'
-          ? compilerOptions.module.toLowerCase()
-          : undefined;
+  // Check the tsconfig.json "module" setting, following `extends`.
+  const { parsed } = readTsconfig(cwd);
+  if (parsed) {
+    const compilerOptions = (parsed.compilerOptions ?? {}) as Record<string, unknown>;
+    const mod =
+      typeof compilerOptions.module === 'string' ? compilerOptions.module.toLowerCase() : undefined;
 
-      if (mod === 'commonjs') {
-        return { format: 'cjs', source: 'tsconfig', details: '"module": "commonjs"' };
-      }
-      if (mod && ['es2015', 'es2020', 'es2022', 'esnext', 'nodenext', 'node16'].includes(mod)) {
-        return {
-          format: 'esm',
-          source: 'tsconfig',
-          details: `"module": "${compilerOptions.module}"`,
-        };
-      }
-    } catch {
-      // Fall through to default
+    if (mod === 'commonjs') {
+      return { format: 'cjs', source: 'tsconfig', details: '"module": "commonjs"' };
+    }
+    if (mod && ['es2015', 'es2020', 'es2022', 'esnext', 'nodenext', 'node16'].includes(mod)) {
+      return {
+        format: 'esm',
+        source: 'tsconfig',
+        details: `"module": "${compilerOptions.module}"`,
+      };
     }
   }
 
@@ -326,18 +318,62 @@ export function checkPackageJsonType(cwd: string): CheckResult {
   }
 }
 
+/**
+ * Read a tsconfig at an exact path and merge in whatever it `extends`, so a
+ * project that keeps its real settings in a base config (`extends:
+ * "./tsconfig.base.json"`, or a package like `@tsconfig/node20`) is judged on
+ * the settings it actually compiles with, not on the thin file that only adds
+ * `extends`. Child options win over the base; `extends` can be a string or, in
+ * TS 5.0+, an array applied left to right. Depth is capped so a cycle cannot
+ * loop. A base that cannot be found (an unresolved package, say) is skipped
+ * rather than failing the whole read.
+ */
+function readTsconfigAt(
+  tsconfigPath: string,
+  compilerOptions: Record<string, unknown>,
+  depth: number,
+): void {
+  if (depth > 10 || !fs.existsSync(tsconfigPath)) return;
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(stripJsonComments(fs.readFileSync(tsconfigPath, 'utf8')));
+  } catch {
+    return;
+  }
+  const base = parsed.extends;
+  const bases = typeof base === 'string' ? [base] : Array.isArray(base) ? base : [];
+  for (const b of bases) {
+    if (typeof b !== 'string') continue;
+    readTsconfigAt(resolveExtends(b, path.dirname(tsconfigPath)), compilerOptions, depth + 1);
+  }
+  const own = (parsed.compilerOptions ?? {}) as Record<string, unknown>;
+  Object.assign(compilerOptions, own);
+}
+
+/** Turn an `extends` value into a file path: a relative one against the base dir, else a package's tsconfig. */
+function resolveExtends(ref: string, fromDir: string): string {
+  if (ref.startsWith('.') || ref.startsWith('/')) {
+    return ref.endsWith('.json') ? path.resolve(fromDir, ref) : path.resolve(fromDir, `${ref}.json`);
+  }
+  // A package reference: "@scope/name" or "@scope/name/tsconfig.json".
+  const withExt = ref.endsWith('.json') ? ref : `${ref}/tsconfig.json`;
+  return path.join(fromDir, 'node_modules', withExt);
+}
+
 function readTsconfig(cwd: string): { parsed: Record<string, unknown> | null; error?: string } {
   const tsconfigPath = path.join(cwd, 'tsconfig.json');
   if (!fs.existsSync(tsconfigPath)) {
     return { parsed: null, error: 'No tsconfig.json found' };
   }
   try {
-    const raw = fs.readFileSync(tsconfigPath, 'utf8');
-    const parsed = JSON.parse(stripJsonComments(raw));
-    return { parsed };
+    // The file must parse on its own; a base it cannot reach is tolerated.
+    JSON.parse(stripJsonComments(fs.readFileSync(tsconfigPath, 'utf8')));
   } catch {
     return { parsed: null, error: 'Could not parse tsconfig.json' };
   }
+  const compilerOptions: Record<string, unknown> = {};
+  readTsconfigAt(tsconfigPath, compilerOptions, 0);
+  return { parsed: { compilerOptions } };
 }
 
 export function checkTsconfigModule(cwd: string): CheckResult {
@@ -449,6 +485,15 @@ export function checkTsconfigModuleResolution(cwd: string): CheckResult {
 }
 
 export function checkFlowWeaverInstalled(cwd: string): CheckResult {
+  // Running inside the Flow Weaver checkout itself: the package is the repo,
+  // not a dependency, so there is nothing to install and nothing to warn about.
+  if (isFlowWeaverPackageRoot(realpathOr(path.resolve(cwd)))) {
+    return {
+      name: '@synergenius/flow-weaver installed',
+      status: 'pass',
+      message: 'This is the Flow Weaver source checkout (not a dependency)',
+    };
+  }
   const pkgPath = path.join(cwd, 'node_modules', '@synergenius', 'flow-weaver', 'package.json');
   if (fs.existsSync(pkgPath)) {
     try {
