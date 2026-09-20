@@ -35,7 +35,7 @@ Complete reference for all `fw` CLI commands.
 | `grammar` | Output JSDoc annotation grammar (@input, @output, @connect, @node, @scope) as HTML railroad diagrams or EBNF text |
 | `pattern` | Work with reusable workflow patterns |
 | `run` | Execute a workflow file directly |
-| `serve` | Serve the workflows as HTTP endpoints; gated runs pause, resume and stream over the same API |
+| `serve` | Serve the workflows as HTTP endpoints. Gated runs pause, resume and stream over the same API |
 | `console` | Open the local operator console: workflows as processes, issues, code, live runs and gates |
 | `export` | Export workflow as serverless function |
 | `openapi` | Generate OpenAPI specification from workflows |

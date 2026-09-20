@@ -752,14 +752,14 @@ These rules detect common workflow design problems that compile fine but indicat
 | SCOPE_CONNECTION_OUTSIDE | Scoped connection references a node outside the scope |
 | SCOPE_UNKNOWN_PORT | Connection references a port that is not a scoped port of the specified scope |
 | AGENT_LLM_MISSING_ERROR_HANDLER | LLM node's onFailure port is unconnected |
-| DUPLICATE_INSTANCE_ID | Two @node declarations in one workflow use the same ID; each instance ID must be unique |
-| STUB_NODE | An instance uses a node type that has no implementation; implement it, or validate in draft mode to check structure only |
+| DUPLICATE_INSTANCE_ID | Two @node declarations in one workflow use the same ID. Each instance ID must be unique |
+| STUB_NODE | An instance uses a node type that has no implementation. Implement it, or validate in draft mode to check structure only |
 | DUPLICATE_CONNECTION | The same from-port to to-port connection is declared more than once |
-| CROSS_SCOPE_CONNECTION | A connection links nodes that live in different scopes; nodes in different scopes cannot connect directly |
-| SCOPE_INCONSISTENT | An instance is listed in more than one scope; a node can belong to only one scope |
-| COERCE_ON_FUNCTION_PORT | An `as` coercion is applied to a FUNCTION port; function values cannot be meaningfully coerced |
-| EXPRESSION_SYNTAX | An [expr:] binding or an Expression: default does not parse as a JavaScript expression (text needs quotes inside the attribute: timeout="'24h'"); it would otherwise fail only when the generated file is transpiled |
-| DURABLE_CLOSURE_INVALID | A workflow with a durable gate breaks a durability rule (a gate/effect in more than one branch region or taking data from outside it, pull/lazy execution, an unclassified node, or a bad effect contract). Surfaced at author time; the coordinator would otherwise reject it only at run time. |
+| CROSS_SCOPE_CONNECTION | A connection links nodes that live in different scopes. Nodes in different scopes cannot connect directly |
+| SCOPE_INCONSISTENT | An instance is listed in more than one scope. A node can belong to only one scope |
+| COERCE_ON_FUNCTION_PORT | An `as` coercion is applied to a FUNCTION port. Function values cannot be meaningfully coerced |
+| EXPRESSION_SYNTAX | An [expr:] binding or an Expression: default does not parse as a JavaScript expression (text needs quotes inside the attribute: timeout="'24h'"). It would otherwise fail only when the generated file is transpiled |
+| DURABLE_CLOSURE_INVALID | A workflow with a durable gate breaks a durability rule (a gate/effect in more than one branch region or taking data from outside it, pull/lazy execution, an unclassified node, or a bad effect contract). Surfaced at author time. The coordinator would otherwise reject it only at run time. |
 <!-- AUTO:END error_summary_table -->
 
 ### Warnings (should review)
@@ -796,12 +796,12 @@ These rules detect common workflow design problems that compile fine but indicat
 | DESIGN_PULL_CANDIDATE | Node has no step trigger but its outputs are consumed downstream |
 | DESIGN_PULL_UNUSED | Pull-execution node has no downstream consumers |
 | SCOPE_EMPTY | A scope declared on a node has no child nodes |
-| COERCE_TYPE_MISMATCH | An `as` coercion produces a type the target port does not expect; use the coercion that matches the target |
+| COERCE_TYPE_MISMATCH | An `as` coercion produces a type the target port does not expect. Use the coercion that matches the target |
 | REDUNDANT_COERCE | An `as` coercion converts between identical source and target types and does nothing |
 | INVALID_PORT_TYPE | A port declares a dataType that is not a recognised Flow Weaver type |
-| INVALID_COLOR | A node type uses an @color value that is not in the palette; see the visual-reference topic for valid colors |
-| INVALID_ICON | A node type uses an @icon value that is not a Material Symbols name (snake_case or camelCase); see the visual-reference topic |
+| INVALID_COLOR | A node type uses an @color value that is not in the palette. See the visual-reference topic for valid colors |
+| INVALID_ICON | A node type uses an @icon value that is not a Material Symbols name (snake_case or camelCase). See the visual-reference topic |
 | INVALID_EXECUTE_WHEN | A node type declares an @executeWhen value that is not a recognised execution strategy |
 | INVALID_PORT_CONFIG_REF | An instance configures a port (portOrder, portLabel, expr) that does not exist on its node type |
-| SUPPRESS_UNKNOWN_CODE | A [suppress: ...] entry cannot be a validation code, so it suppresses nothing; codes are separate string literals, e.g. [suppress: "A", "B"], not [suppress: "A,B"] |
+| SUPPRESS_UNKNOWN_CODE | A [suppress: ...] entry cannot be a validation code, so it suppresses nothing. Codes are separate string literals, e.g. [suppress: "A", "B"], not [suppress: "A,B"] |
 <!-- AUTO:END warning_summary_table -->
