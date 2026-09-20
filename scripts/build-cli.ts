@@ -33,6 +33,10 @@ async function build() {
       'ts-morph',
       'chokidar',
       'fsevents',
+      // esbuild's lib/main.js reads __filename/__dirname to locate its native
+      // binary, which does not exist in an ESM bundle. It is a runtime
+      // dependency, so consumers always have it installed.
+      'esbuild',
       // Optional dependencies - dynamically imported at runtime
       'fastify',
       '@fastify/cors',
