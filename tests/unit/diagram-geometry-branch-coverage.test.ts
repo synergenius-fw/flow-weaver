@@ -489,13 +489,6 @@ describe('buildDiagramGraph', () => {
     expect(exit!.inputs.find(p => p.name === 'onFailure')).toBeUndefined();
   });
 
-  it('handles custom padding option', () => {
-    const ast = minimalAST();
-    const graph = buildDiagramGraph(ast, { padding: 100 });
-    expect(graph.bounds.width).toBeGreaterThan(0);
-    expect(graph.bounds.height).toBeGreaterThan(0);
-  });
-
   it('builds connections with stubs for long-distance connections', () => {
     const nodeType: TNodeTypeAST = {
       name: 'LongNode',

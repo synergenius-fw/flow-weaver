@@ -241,7 +241,7 @@ describe('applyPattern', () => {
   it('includes position declarations for nodes with coordinates', () => {
     const pattern = makePattern({
       instances: [
-        { type: 'NodeInstance', id: 'a', nodeType: 'process', config: { x: 100, y: 200 } },
+        { type: 'NodeInstance', id: 'a', nodeType: 'process', config: {} },
         { type: 'NodeInstance', id: 'b', nodeType: 'transform', config: {} },
       ],
     });
@@ -252,7 +252,7 @@ describe('applyPattern', () => {
       targetNodeTypes: new Set(),
     });
 
-    expect(result.modifiedContent).toContain('@node a process [position: 100 200]');
+    expect(result.modifiedContent).toContain('@node a process');
   });
 
   it('WU10: produces wiringOperations as fw_modify_batch operations', () => {
@@ -659,7 +659,7 @@ describe('extractPattern', () => {
   it('includes positions for nodes that have them', () => {
     const workflow = makeWorkflowAST({
       instances: [
-        { type: 'NodeInstance', id: 'a', nodeType: 'process', config: { x: 100, y: 200 } },
+        { type: 'NodeInstance', id: 'a', nodeType: 'process', config: {} },
         { type: 'NodeInstance', id: 'b', nodeType: 'transform', config: {} },
       ] as TNodeInstanceAST[],
     });
@@ -670,7 +670,7 @@ describe('extractPattern', () => {
       nodeIds: ['a', 'b'],
     });
 
-    expect(result.patternCode).toContain('@node a process [position: 100 200]');
+    expect(result.patternCode).toContain('@node a process');
   });
 
   it('generates valid pattern annotation block', () => {

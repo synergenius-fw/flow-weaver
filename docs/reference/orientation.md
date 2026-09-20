@@ -15,7 +15,7 @@ Flow Weaver compiles workflows you describe with JSDoc annotations into plain Ty
 - Inside a workflow, `@node <id> <nodeType>` declares an instance and `@path Start -> a -> b -> Exit` wires the route: control flow between the steps, and every data port to the nearest earlier step with an output of the same name, `Exit` included. `@connect a.port -> b.port` wires one port explicitly, for the cases where names differ; an explicit connection always wins.
 - The workflow's function body is a stub. The compiler generates it from the annotations and only ever rewrites the marker sections, so hand-written code around them survives.
 - Built-in node types need no import: `delay`, `invokeWorkflow`, `waitForEvent`, `waitForAgent`. The last two are **durable gates** — the run pauses, hands back a continuation, and resumes later. In a workflow with a gate, an `@expression` node is pure automatically; only a normal-mode pure node needs `@durablePure`, and gates and effects need `@durableGate`/`@durableEffect`.
-- The compiled output has no runtime dependency on Flow Weaver.
+- The compiled file imports nothing from Flow Weaver. The code that calls it hands it a runtime built with `createWorkflowRuntime` (see `library`).
 - Nodes take direct parameters; workflows take a `params` object. That is the mistake made most often.
 
 ## The loop
@@ -26,7 +26,7 @@ Flow Weaver compiles workflows you describe with JSDoc annotations into plain Ty
 | Answer one question about structure | `fw_query` with one `query` type | ~300 B |
 | See everything about a file | `fw_describe` | Larger; prefer `fw_query` |
 | Show the graph in chat | `fw_diagram` with `format: "ascii-compact"` | The default `svg` is not readable |
-| Show a person the process | `fw_diagram` with `format: "process"` and an `outputPath` | Steps in run order, pauses, failure arms; playable in a browser |
+| Show a person the workflow | `fw_diagram` with `format: "svg"` and an `outputPath` | The spine: steps in run order, pauses, failure arms, as a vector image |
 | Create a workflow | Write the file: one `@flowWeaver nodeType` function per step, then the `@flowWeaver workflow` stub | `tutorial` walks through it; `fw_scaffold` starts from a template |
 | Change structure | `fw_modify_batch` (several edits) or `fw_modify` (one) | Rewrites annotations only; re-validate afterwards |
 | Run a workflow | `fw_run`, then `fw_resume` if it pauses at a gate | `fw run` on the CLI refuses gated workflows |
@@ -54,6 +54,7 @@ Flow Weaver compiles workflows you describe with JSDoc annotations into plain Ty
 | Step through execution | `debugging` |
 | Cancel a run | `cancellation` |
 | Walk from an empty file to a running workflow | `tutorial` |
+| Call a compiled workflow from your own code, or drive one that pauses from a service | `library` |
 | Read the long-form reference behind this page | `concepts` |
 
 ## Rules of thumb

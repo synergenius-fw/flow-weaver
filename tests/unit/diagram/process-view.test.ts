@@ -1,12 +1,12 @@
 /**
- * The process view: a workflow read as steps, pauses and arms rather than
- * boxes and arrows. The model must come from the same facts the engine
- * uses -- topological order, control edges, gate classification -- so what
- * the page shows is what would run.
+ * The process model: a workflow read as steps, pauses and arms rather than
+ * boxes and arrows. It must come from the same facts the engine uses --
+ * topological order, control edges, gate classification -- so what is
+ * shown is what would run.
  */
 import { describe, it, expect } from 'vitest';
 import { parser } from '../../../src/parser';
-import { buildProcessModel, renderProcessHTML } from '../../../src/diagram/process-view';
+import { buildProcessModel } from '../../../src/diagram/process-view';
 
 const GATED = `
 /** @flowWeaver nodeType @expression */
@@ -135,23 +135,5 @@ describe('buildProcessModel', () => {
     const approve = modelOf(GATED).steps.find((s) => s.id === 'approve')!;
     expect(approve.gateInputs).toEqual(['value']);
     expect(approve.gateOutputs).toEqual(['value']);
-  });
-});
-
-describe('renderProcessHTML', () => {
-  it('is a self-contained page carrying the model and the step labels', () => {
-    const parsed = parser.parseFromString(GATED);
-    const html = renderProcessHTML(parsed.workflows[0]);
-    expect(html.startsWith('<!doctype html>')).toBe(true);
-    // The page builds its DOM from the embedded model, so the model is what
-    // the static file must carry -- and nothing fetched from anywhere.
-    const embedded = /const MODELS = (\[.*?\]);\n/s.exec(html);
-    expect(embedded).not.toBeNull();
-    const [model] = JSON.parse(embedded![1]);
-    expect(model.steps.map((s: { id: string }) => s.id)).toEqual(['prep', 'check', 'approve', 'report']);
-    expect(model.steps.find((s: { id: string }) => s.id === 'approve').gate).toBe('approval');
-    expect(html).not.toMatch(/https?:\/\//);
-    expect(html).toContain('fail here');
-    expect(html).toContain('<title>gated</title>');
   });
 });

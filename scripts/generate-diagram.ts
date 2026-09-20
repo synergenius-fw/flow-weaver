@@ -1,19 +1,13 @@
-import { fileToHTML, fileToSVG } from '../src/diagram/index.js';
+import { fileToSVG } from '../src/diagram/index.js';
 import { writeFileSync } from 'fs';
 
 const file = process.argv[2];
-const out = process.argv[3] || '/tmp/diagram.html';
+const out = process.argv[3] || '/tmp/diagram.svg';
 
 if (!file) {
-  console.error('Usage: npm run diagram <input-file> [output-file]');
+  console.error('Usage: npm run diagram <input-file> [output-file.svg]');
   process.exit(1);
 }
 
-if (out.endsWith('.svg')) {
-  const svg = fileToSVG(file);
-  writeFileSync(out, svg);
-} else {
-  const html = fileToHTML(file);
-  writeFileSync(out, html);
-}
+writeFileSync(out, fileToSVG(file));
 console.log(`Written to ${out}`);

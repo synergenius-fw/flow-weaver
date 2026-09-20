@@ -1,123 +1,38 @@
 import type { TWorkflowAST } from '../ast/types';
 import { parser } from '../parser';
 import { buildDiagramGraph } from './geometry';
-import { renderSVG } from './renderer';
-import { wrapSVGInHTML } from './html-viewer';
 import { renderASCII, renderASCIICompact, renderText } from './ascii-renderer';
-import { renderProcessHTML } from './process-view';
+import { renderSpineSVG } from './spine';
 import type { DiagramOptions } from './types';
 
 export type { DiagramOptions } from './types';
 export { renderASCII, renderASCIICompact, renderText } from './ascii-renderer';
-export { buildProcessModel, renderProcessHTML, renderProcessPage } from './process-view';
-export type { ProcessModel, ProcessStep, ProcessKind, ProcessViewOptions } from './process-view';
+export { buildProcessModel } from './process-view';
+export type { ProcessModel, ProcessStep, ProcessKind } from './process-view';
+export { renderSpineSVG } from './spine';
+export type { SpineOptions } from './spine';
+export { buildLanes, edgePath } from './lanes';
+export type { LaneGraph, LaneRow, LaneEdge, LaneStep, LaneModel, EdgeKind } from './lanes';
+export { stepLabel } from './labels';
 
 /**
- * Render a workflow AST as a process page: steps in execution order, pauses
- * at gates, failure arms beside the spine, parallel steps as lanes.
- */
-export function workflowToProcessHTML(ast: TWorkflowAST, options: DiagramOptions = {}): string {
-  return renderProcessHTML(ast, { title: options.workflowName ?? ast.name, theme: options.theme });
-}
-
-/** Parse source and render the first (or named) workflow as a process page. */
-export function sourceToProcessHTML(code: string, options: DiagramOptions = {}): string {
-  const result = parser.parseFromString(code);
-  return workflowToProcessHTML(pickWorkflow(result.workflows, options), options);
-}
-
-/** Parse a workflow file and render the first (or named) workflow as a process page. */
-export function fileToProcessHTML(filePath: string, options: DiagramOptions = {}): string {
-  const result = parser.parse(filePath);
-  return workflowToProcessHTML(pickWorkflow(result.workflows, options), options);
-}
-
-/**
- * Render a workflow AST to an SVG string.
+ * Render a workflow AST as an SVG: the spine the console draws -- steps in
+ * run order with the control flow as lanes beside them -- made still.
  */
 export function workflowToSVG(ast: TWorkflowAST, options: DiagramOptions = {}): string {
-  const graph = buildDiagramGraph(ast, options);
-  return renderSVG(graph, options);
+  return renderSpineSVG(ast, { theme: options.theme, title: options.title, subtitle: options.subtitle });
 }
 
-/**
- * Parse TypeScript source code and render the first (or named) workflow to SVG.
- */
+/** Parse TypeScript source and render the first (or named) workflow as an SVG. */
 export function sourceToSVG(code: string, options: DiagramOptions = {}): string {
   const result = parser.parseFromString(code);
-  return pickAndRender(result.workflows, options);
+  return workflowToSVG(pickWorkflow(result.workflows, options), options);
 }
 
-/**
- * Parse a workflow file (resolves imports) and render the first (or named) workflow to SVG.
- */
+/** Parse a workflow file (resolving imports) and render the first (or named) workflow as an SVG. */
 export function fileToSVG(filePath: string, options: DiagramOptions = {}): string {
   const result = parser.parse(filePath);
-  return pickAndRender(result.workflows, options);
-}
-
-/**
- * Render a workflow AST to a self-contained interactive HTML page.
- */
-export function workflowToHTML(ast: TWorkflowAST, options: DiagramOptions = {}): string {
-  const svg = workflowToSVG(ast, options);
-  return wrapSVGInHTML(svg, { title: options.workflowName ?? ast.name, theme: options.theme, nodeSources: buildNodeSourceMap(ast) });
-}
-
-/**
- * Parse TypeScript source code and render the first (or named) workflow to interactive HTML.
- */
-export function sourceToHTML(code: string, options: DiagramOptions = {}): string {
-  const result = parser.parseFromString(code);
-  const ast = pickWorkflow(result.workflows, options);
-  const svg = workflowToSVG(ast, options);
-  return wrapSVGInHTML(svg, { title: options.workflowName ?? ast.name, theme: options.theme, nodeSources: buildNodeSourceMap(ast) });
-}
-
-/**
- * Parse a workflow file and render the first (or named) workflow to interactive HTML.
- */
-export function fileToHTML(filePath: string, options: DiagramOptions = {}): string {
-  const result = parser.parse(filePath);
-  const ast = pickWorkflow(result.workflows, options);
-  const svg = workflowToSVG(ast, options);
-  return wrapSVGInHTML(svg, { title: options.workflowName ?? ast.name, theme: options.theme, nodeSources: buildNodeSourceMap(ast) });
-}
-
-type PortInfo = { type: string; tsType?: string };
-type NodeSourceInfo = { description?: string; source?: string; ports?: Record<string, PortInfo> };
-
-function buildNodeSourceMap(ast: TWorkflowAST): Record<string, NodeSourceInfo> {
-  const typeMap = new Map(ast.nodeTypes.map(nt => [nt.functionName, nt]));
-  const map: Record<string, NodeSourceInfo> = {};
-  for (const inst of ast.instances) {
-    const nt = typeMap.get(inst.nodeType);
-    if (!nt) continue;
-    const ports: Record<string, PortInfo> = {};
-    for (const [name, def] of Object.entries(nt.inputs ?? {})) {
-      ports[name] = { type: def.dataType, tsType: def.tsType };
-    }
-    for (const [name, def] of Object.entries(nt.outputs ?? {})) {
-      ports[name] = { type: def.dataType, tsType: def.tsType };
-    }
-    map[inst.id] = { description: nt.description, source: nt.functionText, ports };
-  }
-  // Virtual Start/Exit nodes get their port types from the workflow definition
-  const startPorts: Record<string, PortInfo> = {};
-  for (const [name, def] of Object.entries(ast.startPorts ?? {})) {
-    startPorts[name] = { type: def.dataType, tsType: def.tsType };
-  }
-  if (Object.keys(startPorts).length) {
-    map['Start'] = { description: ast.description, ports: startPorts };
-  }
-  const exitPorts: Record<string, PortInfo> = {};
-  for (const [name, def] of Object.entries(ast.exitPorts ?? {})) {
-    exitPorts[name] = { type: def.dataType, tsType: def.tsType };
-  }
-  if (Object.keys(exitPorts).length) {
-    map['Exit'] = { ports: exitPorts };
-  }
-  return map;
+  return workflowToSVG(pickWorkflow(result.workflows, options), options);
 }
 
 function pickWorkflow(workflows: TWorkflowAST[], options: DiagramOptions): TWorkflowAST {
@@ -132,10 +47,6 @@ function pickWorkflow(workflows: TWorkflowAST[], options: DiagramOptions): TWork
     return found;
   }
   return workflows[0];
-}
-
-function pickAndRender(workflows: TWorkflowAST[], options: DiagramOptions): string {
-  return workflowToSVG(pickWorkflow(workflows, options), options);
 }
 
 // ── ASCII / Text convenience functions ───────────────────────────────────────

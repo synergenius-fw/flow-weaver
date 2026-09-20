@@ -25,7 +25,7 @@ Only reveal TypeScript when the user explicitly asks: "show me the code", "let m
 
 ## Tool usage patterns
 
-- fw_modify / fw_modify_batch: Add/remove nodes and connections, rename nodes, reposition.
+- fw_modify / fw_modify_batch: Add/remove nodes and connections, rename nodes, set labels.
 - fw_validate: Always run after changes. Fix what you can, report what you cannot.
 - fw_describe: Inspect workflow structure. Use format "text" for human-readable, "json" for programmatic.
 - fw_diagram: Generate visual representation. Prefer format "ascii-compact" for chat.

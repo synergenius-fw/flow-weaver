@@ -480,7 +480,7 @@ describe('NodeInstanceBuilder', () => {
 
   it('supports a full chained build', () => {
     const inst = new NodeInstanceBuilder('proc1', 'Processor')
-      .config({ label: 'My Processor', x: 100, y: 200 })
+      .config({ label: 'My Processor', color: 'blue' })
       .parentScope('loop1.iteration')
       .metadata('custom', true)
       .metadata('priority', 5)
@@ -489,7 +489,7 @@ describe('NodeInstanceBuilder', () => {
     expect(inst.type).toBe('NodeInstance');
     expect(inst.id).toBe('proc1');
     expect(inst.nodeType).toBe('Processor');
-    expect(inst.config).toEqual({ label: 'My Processor', x: 100, y: 200 });
+    expect(inst.config).toEqual({ label: 'My Processor', color: 'blue' });
     expect(inst.parent).toEqual({ id: 'loop1', scope: 'iteration' });
     expect(inst.metadata).toEqual({ custom: true, priority: 5 });
   });

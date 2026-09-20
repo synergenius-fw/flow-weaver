@@ -31,7 +31,6 @@ export async function grammarCommand(options: GrammarOptions = {}): Promise<void
         ...grammars.port,
         ...grammars.node,
         ...grammars.connect,
-        ...grammars.position,
         ...grammars.scope,
       ];
       content = serializedToEBNF(allProductions);

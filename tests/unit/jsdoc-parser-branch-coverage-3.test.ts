@@ -808,23 +808,10 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
   // ── @position: deprecation warning for non-virtual nodes ──
 
   describe('@position deprecation', () => {
-    it('emits deprecation warning for non-virtual node positions', () => {
-      const { warnings } = parseWorkflow(`
-/**
- * @flowWeaver workflow
- * @node myInst TypeA
- * @position myInst 100 200
- */
-export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
-`);
-      expect(warnings.some(w => w.includes('Deprecated: @position myInst'))).toBe(true);
-    });
-
     it('does not emit deprecation for Start virtual node', () => {
       const { warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow
- * @position Start 100 200
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
@@ -835,7 +822,6 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
       const { warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow
- * @position Exit 100 200
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
@@ -846,26 +832,11 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
   // ── Pattern: positions applied to instances ──
 
   describe('pattern position application', () => {
-    it('applies positions to instances that match', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @node instA TypeA
- * @position instA 100 200
- */
-function myPattern() {}
-`);
-      expect(config!.instances![0].config).toBeDefined();
-      expect(config!.instances![0].config!.x).toBe(100);
-      expect(config!.instances![0].config!.y).toBe(200);
-    });
-
     it('does not apply positions to non-matching instances', () => {
       const { config } = parsePattern(`
 /**
  * @flowWeaver pattern
  * @node instA TypeA
- * @position instB 100 200
  */
 function myPattern() {}
 `);

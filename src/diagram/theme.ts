@@ -1,5 +1,4 @@
 import type { TDataType } from '../ast/types';
-import type { ThemePalette } from './types';
 
 // ---- Port colors derived from token system ----
 // Dark: X-dark-shade-1 (= base color from dark palette)
@@ -48,54 +47,10 @@ export const NODE_VARIANT_COLORS: Record<string, { border: string; darkBorder: s
   yellow: { border: '#e3a82b', darkBorder: '#ffbd30', icon: '#bf8c21', darkIcon: '#d49e28' },   // yellow-shade-2 / yellow-dark-shade-1
 };
 
-// ---- Theme palettes (exact values from token system) ----
-
-const DARK_PALETTE: ThemePalette = {
-  background: '#202139',       // color-brand-subtle-bg = primary-dark-extended-shade-95
-  nodeFill: '#1a1a2e',         // color-surface-main = dark-shade-100
-  nodeStroke: '#767682',       // color-border-default = dark-shade-60
-  labelColor: '#a4beff',       // secondary-dark-base (node label text)
-  sublabelColor: '#babac0',    // color-text-subtle = dark-shade-30
-  connectionColor: '#5f5f6d',  // color-border-subtle = dark-shade-70
-  dotColor: '#7b8cd9',         // color-background-dots-secondary = primary-dark-tint-2
-  labelBadgeFill: '#252538',   // color-surface-low = dark-shade-95
-  labelBadgeBorder: '#313143', // color-surface-lowest = dark-shade-90
-  nodeIconColor: '#8e9eff',    // color-brand-main = primary-dark-tint-1
-  scopeAreaStroke: '#5f5f6d',  // color-border-subtle = dark-shade-70
-  nodeShadowOpacity: 0,
-  dotOpacity: 0.4,
-};
-
-const LIGHT_PALETTE: ThemePalette = {
-  background: '#f6f7ff',       // color-brand-subtle-bg = primary-extended-tint-95
-  nodeFill: '#ffffff',         // color-surface-main = white
-  nodeStroke: '#cccccc',       // color-border-default ≈ shade-20
-  labelColor: '#223354',       // secondary-base (light)
-  sublabelColor: '#808080',    // shade-50
-  connectionColor: '#b3b3b3',  // shade-30
-  dotColor: '#4a5ce0',         // color-background-dots-secondary = primary-shade-2
-  labelBadgeFill: '#ffffff',   // surface-main — 80% opacity applied in renderer
-  labelBadgeBorder: '#e6e6e6', // shade-10
-  nodeIconColor: '#5468ff',    // color-brand-main = primary-base
-  scopeAreaStroke: '#cccccc',  // color-border-default
-  nodeShadowOpacity: 0,
-  dotOpacity: 0.4,
-};
-
-export function getTheme(name: 'dark' | 'light'): ThemePalette {
-  return name === 'light' ? LIGHT_PALETTE : DARK_PALETTE;
-}
-
 export function getPortColor(dataType: TDataType, isFailure: boolean, theme: 'dark' | 'light' = 'dark'): string {
   if (isFailure) return theme === 'dark' ? DARK_FAILURE_COLOR : LIGHT_FAILURE_COLOR;
   const colors = theme === 'dark' ? DARK_PORT_COLORS : LIGHT_PORT_COLORS;
   return colors[dataType] ?? colors.ANY;
-}
-
-/** Darker tinted version of the port color for the outer ring */
-export function getPortRingColor(dataType: TDataType, isFailure: boolean, theme: 'dark' | 'light' = 'dark'): string {
-  const color = getPortColor(dataType, isFailure, theme);
-  return darkenHex(color, 0.4);
 }
 
 /** Map data types to short abbreviations for port labels */
@@ -124,6 +79,7 @@ export const NODE_ICON_PATHS: Record<string, string> = {
   // ---- Default / structural ----
   code: 'M317.37-236.26 71.39-482l247.98-247.98 48.98 48.74-199 199 197 197-48.98 48.98Zm323.26 2.24-48.74-48.74 199-199-197-197 48.74-48.98L888.61-482 640.63-234.02Z',
   flow: 'M115.93-115.93v-188.14h157.83l173.61-173.6v-143.74q-35.74-12.79-58.59-42.23-22.85-29.43-22.85-66.36 0-47.53 33.31-80.8 33.3-33.27 80.88-33.27 47.57 0 80.76 33.27 33.19 33.27 33.19 80.8 0 36.93-22.85 66.36-22.85 29.44-58.59 42.23v143.74l173.85 173.6h157.59v188.14H655.93v-121.5L480-413.37 304.07-237.43v121.5H115.93Z',
+  flag: 'M200-120v-680h360l16 80h224v400H520l-16-80H280v280h-80Zm300-440Zm86 160h134v-240H510l-16-80H280v240h290l16 80Z',
 
   // ---- AI & ML ----
   psychology: 'M234.74-74.74v-174.87q-57-52.72-88.5-122.93-31.5-70.22-31.5-147.46 0-152.29 106.5-258.9 106.5-106.6 258.65-106.6 126.78 0 224.72 74.82 97.93 74.81 127.65 194.48l55.24 219.44q4.48 16.15-5.7 29.09-10.17 12.93-27.13 12.93H765.5v131.87q0 28.35-19.96 48.24t-48.41 19.89H605.5v80h-68.37v-148.13h160v-200h113.28l-44.04-176.41q-24-95.81-104.28-156.83-80.29-61.02-181.98-61.02-123.86 0-210.55 85.74-86.69 85.75-86.69 208.98 0 63.62 26.08 121.25 26.09 57.63 73.96 102.01l19.96 18.92v205.49h-68.13Zm262.02-371.19ZM449-374h60l3-44q12-2 22.5-8.46 10.49-6.46 18.52-14.54l41.74 14L623-475l-30-24q5-14 5-29t-5-29l30-24-28.24-48-41.71 14q-8.3-7.69-19.15-13.85-10.86-6.15-21.88-9.15L509-682h-60l-3 44q-11 3-21.83 9.15-10.84 6.16-19.12 13.85l-41.57-14L335-581l30 24q-5 14-5 29t5 29l-30 24 28.48 48 41.57-14q8.01 8.08 18.48 14.54Q434-420 446-418l3 44Zm30.12-84q-29.12 0-49.62-20.38-20.5-20.38-20.5-49.5t20.38-49.62q20.38-20.5 49.5-20.5t49.62 20.38q20.5 20.38 20.5 49.5t-20.38 49.62q-20.38 20.5-49.5 20.5Z',
@@ -305,15 +261,3 @@ export const NODE_ICON_PATHS: Record<string, string> = {
 
 /** All valid icon names (keys of NODE_ICON_PATHS) */
 export const VALID_NODE_ICONS = Object.keys(NODE_ICON_PATHS) as ReadonlyArray<string>;
-
-// ---- Helpers ----
-
-function darkenHex(hex: string, amount: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const nr = Math.round(r * (1 - amount));
-  const ng = Math.round(g * (1 - amount));
-  const nb = Math.round(b * (1 - amount));
-  return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`;
-}

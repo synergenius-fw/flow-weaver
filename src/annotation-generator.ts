@@ -437,19 +437,6 @@ export class AnnotationGenerator {
       }
     }
 
-    // Add node positions (if they exist)
-    // Start with Start node position if present
-    if (workflow.ui?.startNode?.x !== undefined && workflow.ui?.startNode?.y !== undefined) {
-      lines.push(` * @position Start ${Math.round(workflow.ui.startNode.x)} ${Math.round(workflow.ui.startNode.y)}`);
-    }
-
-    // Instance positions are now emitted as [position: x y] on @node lines
-
-    // Add Exit node position if present
-    if (workflow.ui?.exitNode?.x !== undefined && workflow.ui?.exitNode?.y !== undefined) {
-      lines.push(` * @position Exit ${Math.round(workflow.ui.exitNode.x)} ${Math.round(workflow.ui.exitNode.y)}`);
-    }
-
     // Add connections — skip connections covered by macros and dropped coerce connections
     if (!workflow.options?.autoConnect) {
       authoredConnections.forEach((conn) => {
@@ -621,7 +608,7 @@ export function generateJSDocPortTag(
  * Check if a connection is covered by a macro (and should not be written as @connect).
  * Handles both @map and @path macros.
  */
-function isConnectionCoveredByMacroStatic(conn: TConnectionAST, macros: TWorkflowMacro[]): boolean {
+export function isConnectionCoveredByMacroStatic(conn: TConnectionAST, macros: TWorkflowMacro[]): boolean {
   for (const macro of macros) {
     if (macro.type === 'map') {
       const [sourceNode, sourcePort] = macro.sourcePort.split('.');
@@ -823,12 +810,6 @@ export function generateNodeInstanceTag(instance: TNodeInstanceAST): string {
     sizeAttr = ` [size: ${Math.round(instance.config.width)} ${Math.round(instance.config.height)}]`;
   }
 
-  // Generate [position: x y] attribute if present
-  let positionAttr = '';
-  if (instance.config?.x !== undefined && instance.config?.y !== undefined) {
-    positionAttr = ` [position: ${Math.round(instance.config.x)} ${Math.round(instance.config.y)}]`;
-  }
-
   // Generate [job: "name"] attribute if present (CI/CD job group)
   let jobAttr = '';
   if (instance.job) {
@@ -841,7 +822,7 @@ export function generateNodeInstanceTag(instance: TNodeInstanceAST): string {
     environmentAttr = ` [environment: "${instance.environment}"]`;
   }
 
-  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${suppressAttr}${sizeAttr}${positionAttr}${jobAttr}${environmentAttr}`;
+  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${suppressAttr}${sizeAttr}${jobAttr}${environmentAttr}`;
 }
 
 /**

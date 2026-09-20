@@ -85,11 +85,9 @@ function aggregateResults(results: any[]): { successCount: number; failedCount: 
 
 /**
  * @flowWeaver workflow
- * @node iterator forEachItem [position: -90 0] [color: "purple"] [icon: "repeat"] [suppress: "DESIGN_SCOPE_NO_FAILURE_EXIT"]
+ * @node iterator forEachItem [color: "purple"] [icon: "repeat"] [suppress: "DESIGN_SCOPE_NO_FAILURE_EXIT"]
  * @node processor processItem iterator.processItem [color: "blue"] [icon: "settings"]
- * @node aggregator aggregateResults [position: 270 0] [color: "teal"] [icon: "inventory"]
- * @position Start -450 0
- * @position Exit 450 0
+ * @node aggregator aggregateResults [color: "teal"] [icon: "inventory"]
  * @path Start -> iterator -> aggregator -> Exit
  * @connect iterator.start:processItem -> processor.execute
  * @connect iterator.item:processItem -> processor.item

@@ -13,6 +13,7 @@ export default defineConfig({
     "npm-packages": "src/npm-packages.ts",
     "deployment/index": "src/deployment/index.ts",
     "server/index": "src/server/index.ts",
+    "console/index": "src/console/index.ts",
     "plugin/index": "src/plugin/index.ts",
     "doc-metadata/index": "src/doc-metadata/index.ts",
     "cli/commands/describe": "src/cli/commands/describe.ts",

@@ -87,8 +87,6 @@ export type TWorkflowAST = {
   ui?: {
     disablePan?: boolean;
     disableZoom?: boolean;
-    startNode?: { x?: number; y?: number };
-    exitNode?: { x?: number; y?: number };
     instances?: TNodeUI[];
     nodeTypes?: TNodeTypeUI[];
     /** In-memory only: stage transformation matrix (not persisted to file) */
@@ -261,10 +259,6 @@ export type TNodeTypeAST = {
   label?: string;
   /** Description from JSDoc */
   description?: string;
-  /** X position hint */
-  x?: number;
-  /** Y position hint */
-  y?: number;
   /** Source code location */
   sourceLocation?: TSourceLocation;
   /** Original function source text (main function only) */
@@ -362,8 +356,6 @@ export type TNodeInstanceConfig = {
   portConfigs?: TPortConfig[];
 
   // UI properties
-  x?: number;
-  y?: number;
   color?: string;
   icon?: string;
   tags?: TNodeTagAST[];

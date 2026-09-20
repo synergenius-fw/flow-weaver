@@ -58,7 +58,6 @@ const mockManipRemoveNode = vi.fn();
 const mockManipRenameNode = vi.fn();
 const mockManipAddConnection = vi.fn();
 const mockManipRemoveConnection = vi.fn();
-const mockManipSetNodePosition = vi.fn();
 const mockManipSetNodeLabel = vi.fn();
 
 vi.mock('../../../src/api/manipulation/index.js', () => ({
@@ -67,7 +66,6 @@ vi.mock('../../../src/api/manipulation/index.js', () => ({
   renameNode: (...args: unknown[]) => mockManipRenameNode(...args),
   addConnection: (...args: unknown[]) => mockManipAddConnection(...args),
   removeConnection: (...args: unknown[]) => mockManipRemoveConnection(...args),
-  setNodePosition: (...args: unknown[]) => mockManipSetNodePosition(...args),
   setNodeLabel: (...args: unknown[]) => mockManipSetNodeLabel(...args),
 }));
 
@@ -452,7 +450,7 @@ describe('tools-pattern', () => {
           },
         ],
         instances: [
-          { id: 'step1', nodeType: 'TypeA', config: { x: 100, y: 50 } },
+          { id: 'step1', nodeType: 'TypeA', config: {} },
         ],
         connections: [
           { from: { node: 'Start', port: 'execute' }, to: { node: 'step1', port: 'execute' } },
@@ -489,7 +487,7 @@ describe('tools-pattern', () => {
         await callModify({
           filePath: wfFile,
           operation: 'addNode',
-          params: { nodeId: 'step2', nodeType: 'TypeA', x: 200, y: 100 },
+          params: { nodeId: 'step2', nodeType: 'TypeA', },
         }),
       );
 
@@ -498,26 +496,6 @@ describe('tools-pattern', () => {
       expect(data.hasChanges).toBe(true);
       expect(data.operation).toBe('addNode');
       expect(fs.readFileSync(wfFile, 'utf-8')).toBe('// updated');
-    });
-
-    it('addNode: auto-positions to the right of rightmost node', async () => {
-      const { wfFile, ast } = setupModifyMocks();
-      mockManipAddNode.mockReturnValue(ast);
-      mockGenerateInPlace.mockReturnValue({ hasChanges: true, code: '// out' });
-
-      await callModify({
-        filePath: wfFile,
-        operation: 'addNode',
-        params: { nodeId: 'step2', nodeType: 'TypeA' },
-      });
-
-      // step1 is at x=100, so new node should be at x=280 (100+180)
-      expect(mockManipAddNode).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          config: expect.objectContaining({ x: 280, y: 0 }),
-        }),
-      );
     });
 
     it('addNode: warns when nodeType is not defined', async () => {
@@ -684,23 +662,6 @@ describe('tools-pattern', () => {
       expect(result.success).toBe(true);
       const data = result.data as { newlyIsolatedNodes?: string[] };
       expect(data.newlyIsolatedNodes).toEqual(['step1']);
-    });
-
-    it('setNodePosition: updates node position', async () => {
-      const { wfFile, ast } = setupModifyMocks();
-      mockManipSetNodePosition.mockReturnValue(ast);
-      mockGenerateInPlace.mockReturnValue({ hasChanges: true, code: '// positioned' });
-
-      const result = parseResult(
-        await callModify({
-          filePath: wfFile,
-          operation: 'setNodePosition',
-          params: { nodeId: 'step1', x: 300, y: 200 },
-        }),
-      );
-
-      expect(result.success).toBe(true);
-      expect(mockManipSetNodePosition).toHaveBeenCalledWith(expect.anything(), 'step1', 300, 200);
     });
 
     it('setNodeLabel: updates node label', async () => {
@@ -901,7 +862,7 @@ describe('tools-pattern', () => {
           },
         ],
         instances: [
-          { id: 'step1', nodeType: 'TypeA', config: { x: 100, y: 50 } },
+          { id: 'step1', nodeType: 'TypeA', config: {} },
         ],
         connections: [],
         options: {},
@@ -1346,7 +1307,7 @@ describe('tools-pattern', () => {
           },
         ],
         instances: [
-          { id: 'step1', nodeType: 'TypeA', config: { x: 100, y: 50 } },
+          { id: 'step1', nodeType: 'TypeA', config: {} },
         ],
         connections: [
           { from: { node: 'Start', port: 'execute' }, to: { node: 'step1', port: 'execute' } },
@@ -1372,7 +1333,7 @@ describe('tools-pattern', () => {
 
       const astWithNewNode = {
         ...ast,
-        instances: [...ast.instances, { id: 'step2', nodeType: 'TypeA', config: { x: 280, y: 0 } }],
+        instances: [...ast.instances, { id: 'step2', nodeType: 'TypeA', config: {} }],
       };
       const astWithConnection = {
         ...astWithNewNode,
@@ -1433,28 +1394,6 @@ describe('tools-pattern', () => {
       expect(result.success).toBe(true);
       const data = result.data as { operationsApplied: number };
       expect(data.operationsApplied).toBe(2);
-    });
-
-    it('setNodePosition then setNodeLabel in sequence', async () => {
-      const { wfFile, ast } = setupMultiOpMocks();
-
-      mockManipSetNodePosition.mockReturnValue(ast);
-      mockManipSetNodeLabel.mockReturnValue(ast);
-      mockGenerateInPlace.mockReturnValue({ hasChanges: true, code: '// result' });
-
-      const result = parseResult(
-        await callBatch({
-          filePath: wfFile,
-          operations: [
-            { operation: 'setNodePosition', params: { nodeId: 'step1', x: 200, y: 100 } },
-            { operation: 'setNodeLabel', params: { nodeId: 'step1', label: 'My Step' } },
-          ],
-        }),
-      );
-
-      expect(result.success).toBe(true);
-      expect(mockManipSetNodePosition).toHaveBeenCalledTimes(1);
-      expect(mockManipSetNodeLabel).toHaveBeenCalledTimes(1);
     });
 
     it('collects warnings from multiple operations', async () => {
@@ -1682,7 +1621,7 @@ describe('tools-pattern', () => {
         await callBatch({
           filePath: wfFile,
           operations: [
-            { operation: 'setNodePosition', params: { nodeId: 'a', x: 0, y: 0 } },
+            { operation: 'setNodeLabel', params: { nodeId: 'a', label: 'A' } },
             { operation: 'renameNode', params: {} }, // missing oldId and newId
           ],
         }),
@@ -1692,7 +1631,7 @@ describe('tools-pattern', () => {
       expect((result.error as { code: string }).code).toBe('INVALID_PARAMS');
       expect((result.error as { message: string }).message).toContain('Operation 1');
       // No manipulations should have been called
-      expect(mockManipSetNodePosition).not.toHaveBeenCalled();
+      expect(mockManipSetNodeLabel).not.toHaveBeenCalled();
     });
 
     it('rejects unknown operation in batch pre-validation', async () => {

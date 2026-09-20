@@ -65,10 +65,8 @@ function handler(
  * connect to handler.execute.
  *
  * @flowWeaver workflow
- * @node a brancher [position: -100 0]
- * @node b handler [position: 200 0]
- * @position Start -300 0
- * @position Exit 400 0
+ * @node a brancher
+ * @node b handler
  * @connect Start.execute -> a.execute
  * @connect Start.data -> a.data
  * @connect a.onSuccess -> b.execute

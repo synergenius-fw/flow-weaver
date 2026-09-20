@@ -611,7 +611,6 @@ describe('ASSERTION GROUP 6: Node Positioning', () => {
        * @node n testNode
        * @connect Start.input -> n.value
        * @connect n.result -> Exit.output
-       * @position n 180 0
        * @param input - Input
        * @returns output - Output
        */

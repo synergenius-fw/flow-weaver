@@ -19,6 +19,7 @@ import { registerResourceTools } from './tools-resources.js';
 import { registerPrompts } from './prompts.js';
 import { registerPackMcpTools } from './pack-tools.js';
 import { loadPackDocTopics } from '../docs/pack-topics.js';
+import { announceService } from '../service-registry.js';
 
 export async function startMcpServer(options: McpServerOptions): Promise<void> {
   // Create MCP server
@@ -26,6 +27,30 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
     name: 'flow-weaver',
     version: '1.0.0',
   });
+
+  // Every tool registered from here on reports its calls: the server speaks
+  // stdio to one editor, and this is the only way anything else learns
+  // what it is doing.
+  if (options.onToolCall && typeof mcp.tool === 'function') {
+    const report = options.onToolCall;
+    const register = mcp.tool.bind(mcp) as (...args: unknown[]) => unknown;
+    (mcp as unknown as { tool: (...args: unknown[]) => unknown }).tool = (...args: unknown[]) => {
+      const name = String(args[0]);
+      const last = args.length - 1;
+      const handler = args[last];
+      if (typeof handler === 'function') {
+        args[last] = (...callArgs: unknown[]) => { report(name); return (handler as (...a: unknown[]) => unknown)(...callArgs); };
+      }
+      return register(...args);
+    };
+  }
+  if (options.onClient && mcp.server) {
+    const tell = options.onClient;
+    mcp.server.oninitialized = () => {
+      const c = mcp.server.getClientVersion();
+      if (c) tell(`${c.name} ${c.version}`.trim());
+    };
+  }
 
   // Pack doc topics feed fw_docs and fw_context; load them before any tool
   // can be called, from the same working directory pack tools are read from.
@@ -66,7 +91,14 @@ export async function mcpServerCommand(options: McpServerOptions): Promise<void>
     log('Starting MCP server...');
   }
 
-  await startMcpServer(options);
+  // Say we are here, and keep saying what we are doing, for fw doctor and
+  // the console to read.
+  const announced = announceService({ kind: 'mcp-server', transport: options.stdio ? 'stdio' : 'http' });
+  await startMcpServer({
+    ...options,
+    onToolCall: (name) => { announced.touch(name); options.onToolCall?.(name); },
+    onClient: (client) => { announced.update({ client }); options.onClient?.(client); },
+  });
 
   if (!options.stdio) {
     log('MCP server running. Waiting for connections...');

@@ -128,7 +128,7 @@ export function withMinimalValidation<T extends TWorkflowAST>(
  * ```typescript
  * const newAst = withoutValidation(ast, draft => {
  *   const node = draft.instances.find(n => n.id === nodeId);
- *   if (node) node.x = 100;
+ *   if (node) node.config = { ...node.config, label: 'Main' };
  * });
  * ```
  */

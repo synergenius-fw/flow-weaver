@@ -22,7 +22,6 @@ import {
   addNodes,
   removeNodes,
   setNodeConfig,
-  setNodePosition,
   setNodeMinimized,
   setNodeSize,
   setNodeLabel,
@@ -347,11 +346,10 @@ describe('Manipulation API - Node Instance Operations', () => {
       const workflow = createTestWorkflow();
 
       const result = updateNode(workflow, 'node1', {
-        config: { x: 100, y: 200, label: 'Main Node' },
+        config: { label: 'Main Node', color: 'blue' },
       });
 
-      expect(result.instances[0].config?.x).toBe(100);
-      expect(result.instances[0].config?.y).toBe(200);
+      expect(result.instances[0].config?.color).toBe('blue');
       expect(result.instances[0].config?.label).toBe('Main Node');
       expect(workflow.instances[0].config).toBeUndefined(); // Original unchanged
     });
@@ -415,7 +413,7 @@ describe('Manipulation API - Node Instance Operations', () => {
   describe('setNodeConfig', () => {
     it('should set node configuration', () => {
       const workflow = createTestWorkflow();
-      const config = { x: 150, y: 250, label: 'Test' };
+      const config = { label: 'Test' };
 
       const result = setNodeConfig(workflow, 'node1', config);
 
@@ -423,26 +421,6 @@ describe('Manipulation API - Node Instance Operations', () => {
     });
   });
 
-  describe('setNodePosition', () => {
-    it('should set node position', () => {
-      const workflow = createTestWorkflow();
-
-      const result = setNodePosition(workflow, 'node1', 300, 400);
-
-      expect(result.instances[0].config?.x).toBe(300);
-      expect(result.instances[0].config?.y).toBe(400);
-    });
-
-    it('should preserve existing config properties', () => {
-      let workflow = createTestWorkflow();
-      workflow = setNodeConfig(workflow, 'node1', { label: 'Test' });
-
-      const result = setNodePosition(workflow, 'node1', 100, 200);
-
-      expect(result.instances[0].config?.label).toBe('Test');
-      expect(result.instances[0].config?.x).toBe(100);
-    });
-  });
 
   describe('setNodeMinimized', () => {
     it('should set minimized to true', () => {
@@ -520,13 +498,15 @@ describe('Manipulation API - Node Instance Operations', () => {
     });
 
     it('should preserve existing config properties', () => {
-      let workflow = createTestWorkflow();
-      workflow = setNodePosition(workflow, 'node1', 100, 200);
+      const base = createTestWorkflow();
+      const workflow = {
+        ...base,
+        instances: base.instances.map((i) => (i.id === 'node1' ? { ...i, config: { ...i.config, color: 'blue' } } : i)),
+      };
 
       const result = setNodeLabel(workflow, 'node1', 'Labeled Node');
 
-      expect(result.instances[0].config?.x).toBe(100);
-      expect(result.instances[0].config?.y).toBe(200);
+      expect(result.instances[0].config?.color).toBe('blue');
       expect(result.instances[0].config?.label).toBe('Labeled Node');
     });
 

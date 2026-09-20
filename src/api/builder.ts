@@ -147,7 +147,7 @@ export class WorkflowBuilder {
    * @example
    * ```typescript
    * builder.addNode('processor1', 'process');
-   * builder.addNode('processor2', 'process', { x: 100, y: 200, label: 'Main' });
+   * builder.addNode('processor2', 'process', { label: 'Main' });
    * ```
    */
   addNode(

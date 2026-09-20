@@ -10,7 +10,7 @@ import * as os from 'os';
 // Mock dependencies before importing the command
 vi.mock('../../src/diagram/index.js', () => ({
   fileToSVG: vi.fn().mockReturnValue('<svg>mock</svg>'),
-  fileToHTML: vi.fn().mockReturnValue('<html>mock</html>'),
+  fileToASCII: vi.fn().mockReturnValue('ascii mock'),
 }));
 
 vi.mock('../../src/cli/utils/logger.js', () => ({
@@ -35,7 +35,7 @@ vi.mock('../../src/cli/utils/logger.js', () => ({
 }));
 
 import { diagramCommand } from '../../src/cli/commands/diagram';
-import { fileToSVG, fileToHTML } from '../../src/diagram/index.js';
+import { fileToSVG, fileToASCII } from '../../src/diagram/index.js';
 import { logger } from '../../src/cli/utils/logger.js';
 
 const DIAGRAM_TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-diagram-test-${process.pid}`);
@@ -84,14 +84,14 @@ describe('diagramCommand', () => {
     expect(stdoutChunks.join('')).toContain('<svg>mock</svg>');
   });
 
-  it('should generate HTML when format is html', async () => {
+  it('should generate text when format is ascii-compact', async () => {
     const inputFile = path.join(DIAGRAM_TEMP_DIR, 'workflow.ts');
     fs.writeFileSync(inputFile, '// workflow');
 
-    await diagramCommand(inputFile, { format: 'html' });
+    await diagramCommand(inputFile, { format: 'ascii-compact' });
 
-    expect(fileToHTML).toHaveBeenCalledWith(inputFile, { format: 'html' });
-    expect(stdoutChunks.join('')).toContain('<html>mock</html>');
+    expect(fileToASCII).toHaveBeenCalledWith(inputFile, { format: 'ascii-compact' });
+    expect(stdoutChunks.join('')).toContain('ascii mock');
   });
 
   it('should write to output file when output option is provided', async () => {
@@ -106,36 +106,13 @@ describe('diagramCommand', () => {
     expect(logger.success).toHaveBeenCalledWith(expect.stringContaining(outputFile));
   });
 
-  it('should write HTML to output file when format is html', async () => {
-    const inputFile = path.join(DIAGRAM_TEMP_DIR, 'workflow.ts');
-    const outputFile = path.join(DIAGRAM_TEMP_DIR, 'output.html');
-    fs.writeFileSync(inputFile, '// workflow');
-
-    await diagramCommand(inputFile, { format: 'html', output: outputFile });
-
-    expect(fs.existsSync(outputFile)).toBe(true);
-    expect(fs.readFileSync(outputFile, 'utf-8')).toBe('<html>mock</html>');
-  });
-
-  it('should pass diagram options (theme, width, etc.) through to generator', async () => {
+  it('should pass diagram options (theme, workflow) through to generator', async () => {
     const inputFile = path.join(DIAGRAM_TEMP_DIR, 'workflow.ts');
     fs.writeFileSync(inputFile, '// workflow');
 
-    await diagramCommand(inputFile, {
-      theme: 'dark',
-      width: 800,
-      padding: 20,
-      showPortLabels: true,
-      workflowName: 'MyWorkflow',
-    });
+    await diagramCommand(inputFile, { theme: 'dark', workflowName: 'MyWorkflow' });
 
-    expect(fileToSVG).toHaveBeenCalledWith(inputFile, {
-      theme: 'dark',
-      width: 800,
-      padding: 20,
-      showPortLabels: true,
-      workflowName: 'MyWorkflow',
-    });
+    expect(fileToSVG).toHaveBeenCalledWith(inputFile, { theme: 'dark', workflowName: 'MyWorkflow' });
   });
 
   it('should propagate errors from the diagram generator', async () => {

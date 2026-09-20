@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Mock marketplace module ───────────────────────────────────────────────────
 const mockSearchPackages = vi.fn();
+const mockSearchAllRegistries = vi.fn();
 const mockListInstalledPackages = vi.fn();
 const mockGetInstalledPackageManifest = vi.fn();
 
 vi.mock('../../../src/marketplace/index.js', () => ({
   searchPackages: (...args: unknown[]) => mockSearchPackages(...args),
+  searchAllRegistries: (...args: unknown[]) => mockSearchAllRegistries(...args),
   listInstalledPackages: (...args: unknown[]) => mockListInstalledPackages(...args),
   getInstalledPackageManifest: (...args: unknown[]) => mockGetInstalledPackageManifest(...args),
 }));
@@ -65,33 +67,37 @@ describe('tools-marketplace', () => {
       return handler(args);
     }
 
-    it('returns matching packages', async () => {
-      mockSearchPackages.mockResolvedValue([
-        {
-          name: 'flow-weaver-pack-openai',
-          version: '1.2.0',
-          description: 'OpenAI node types',
-          official: true,
-          publisher: 'synergenius',
-        },
-      ]);
+    it('returns matching packages from every configured registry, saying which had them', async () => {
+      mockSearchAllRegistries.mockResolvedValue({
+        results: [
+          { name: 'flow-weaver-pack-openai', version: '1.2.0', description: 'OpenAI node types', official: true, publisher: 'synergenius', registry: 'registry.npmjs.org' },
+          { name: '@acme/flow-weaver-pack-audio', version: '0.3.0', official: false, registry: 'npm.acme.dev' },
+        ],
+        searched: [
+          { url: 'https://registry.npmjs.org/', scopes: [], authenticated: false, ok: true, count: 1 },
+          { url: 'https://npm.acme.dev/', scopes: ['@acme'], authenticated: true, ok: true, count: 1 },
+        ],
+      });
 
       const result = parseResult(await callSearch({ query: 'openai' }));
       expect(result.success).toBe(true);
-      const data = result.data as { count: number; packages: unknown[]; hint: string };
-      expect(data.count).toBe(1);
-      expect(data.packages).toHaveLength(1);
+      const data = result.data as { count: number; packages: Array<{ registry: string }>; searched: Array<{ url: string; ok: boolean }>; hint: string };
+      expect(data.count).toBe(2);
+      expect(data.packages[1].registry).toBe('npm.acme.dev');
+      expect(data.searched.map((s) => s.url)).toEqual(['https://registry.npmjs.org/', 'https://npm.acme.dev/']);
       expect(data.hint).toContain('fw_market_install');
+      expect(mockSearchAllRegistries).toHaveBeenCalledWith({ query: 'openai', limit: undefined, projectDir: process.cwd() });
+      expect(mockSearchPackages).not.toHaveBeenCalled();
     });
 
     it('returns empty results with helpful hint', async () => {
-      mockSearchPackages.mockResolvedValue([]);
+      mockSearchAllRegistries.mockResolvedValue({ results: [], searched: [] });
 
       const result = parseResult(await callSearch({ query: 'nonexistent' }));
       expect(result.success).toBe(true);
       const data = result.data as { count: number; hint: string };
       expect(data.count).toBe(0);
-      expect(data.hint).toContain('No packages found');
+      expect(data.hint).toContain('No packs found');
     });
 
     it('passes limit and registryUrl through to searchPackages', async () => {
@@ -106,21 +112,18 @@ describe('tools-marketplace', () => {
     });
 
     it('searches with no query to browse all packages', async () => {
-      mockSearchPackages.mockResolvedValue([
-        { name: 'flow-weaver-pack-a', version: '1.0.0', description: 'A', official: false, publisher: 'user' },
-      ]);
+      mockSearchAllRegistries.mockResolvedValue({
+        results: [{ name: 'flow-weaver-pack-a', version: '1.0.0', description: 'A', official: false, publisher: 'user', registry: 'registry.npmjs.org' }],
+        searched: [],
+      });
 
       const result = parseResult(await callSearch({}));
       expect(result.success).toBe(true);
-      expect(mockSearchPackages).toHaveBeenCalledWith({
-        query: undefined,
-        limit: undefined,
-        registryUrl: undefined,
-      });
+      expect(mockSearchAllRegistries).toHaveBeenCalledWith({ query: undefined, limit: undefined, projectDir: process.cwd() });
     });
 
     it('handles search failures', async () => {
-      mockSearchPackages.mockRejectedValue(new Error('network timeout'));
+      mockSearchAllRegistries.mockRejectedValue(new Error('network timeout'));
 
       const result = parseResult(await callSearch({ query: 'test' }));
       expect(result.success).toBe(false);

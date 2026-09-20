@@ -94,12 +94,12 @@ describe('WorkflowDiffer', () => {
       expect(diff.identical).toBe(true);
     });
 
-    it('should ignore visual fields (x, y, label, description)', () => {
+    it('should ignore visual fields (label, description)', () => {
       const before = createWorkflow({
-        nodeTypes: [createNodeType('Process', { x: 100, y: 200, label: 'Old', description: 'Old desc' })],
+        nodeTypes: [createNodeType('Process', { label: 'Old', description: 'Old desc' })],
       });
       const after = createWorkflow({
-        nodeTypes: [createNodeType('Process', { x: 500, y: 600, label: 'New', description: 'New desc' })],
+        nodeTypes: [createNodeType('Process', { label: 'New', description: 'New desc' })],
       });
 
       const diff = WorkflowDiffer.compare(before, after);

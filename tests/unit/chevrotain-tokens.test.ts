@@ -5,7 +5,7 @@
  * TDD: Verify tokens before building parser.
  */
 
-import { JSDocLexer, InputTag, OutputTag, Identifier, ScopePrefix, Integer, StringLiteral, LBracket, RBracket, OrderPrefix, PlacementPrefix, TopKeyword, BottomKeyword, Dash, Arrow, Dot, Colon, NodeTag, ConnectTag, PositionTag, ExprPrefix, Equals } from "../../src/chevrotain-parser/tokens";
+import { JSDocLexer, InputTag, OutputTag, Identifier, ScopePrefix, Integer, StringLiteral, LBracket, RBracket, OrderPrefix, PlacementPrefix, TopKeyword, BottomKeyword, Dash, Arrow, Dot, Colon, NodeTag, ConnectTag, ExprPrefix, Equals } from "../../src/chevrotain-parser/tokens";
 
 describe("Chevrotain JSDoc Tokens", () => {
   describe("Basic tokenization", () => {
@@ -135,23 +135,6 @@ describe("Chevrotain JSDoc Tokens", () => {
     });
   });
 
-  describe("@position tokenization", () => {
-    it("should tokenize @position", () => {
-      const result = JSDocLexer.tokenize("@position adder1 100 200");
-      expect(result.errors).toHaveLength(0);
-      expect(result.tokens[0].tokenType).toBe(PositionTag);
-      expect(result.tokens[1].tokenType).toBe(Identifier);
-      expect(result.tokens[2].tokenType).toBe(Integer);
-      expect(result.tokens[3].tokenType).toBe(Integer);
-    });
-
-    it("should tokenize @position with negative coordinates", () => {
-      const result = JSDocLexer.tokenize("@position node1 -50 -100");
-      expect(result.errors).toHaveLength(0);
-      expect(result.tokens[2].image).toBe("-50");
-      expect(result.tokens[3].image).toBe("-100");
-    });
-  });
 
   describe("String literals", () => {
     it("should tokenize simple string", () => {

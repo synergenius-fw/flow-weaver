@@ -205,30 +205,6 @@ describe('cli/index.ts coverage', () => {
   });
 
   describe('command option transformations', () => {
-    it('converts width string to number for diagram command', () => {
-      const options: any = { width: '800' };
-      if (options.width) options.width = Number(options.width);
-      expect(options.width).toBe(800);
-    });
-
-    it('converts padding string to number for diagram command', () => {
-      const options: any = { padding: '40' };
-      if (options.padding) options.padding = Number(options.padding);
-      expect(options.padding).toBe(40);
-    });
-
-    it('skips width conversion when not provided', () => {
-      const options: any = {};
-      if (options.width) options.width = Number(options.width);
-      expect(options.width).toBeUndefined();
-    });
-
-    it('maps portLabels to showPortLabels', () => {
-      const options: any = { portLabels: true };
-      options.showPortLabels = options.portLabels;
-      expect(options.showPortLabels).toBe(true);
-    });
-
     it('maps workflow to workflowName for various commands', () => {
       const options: any = { workflow: 'myWf' };
       if (options.workflow) options.workflowName = options.workflow;

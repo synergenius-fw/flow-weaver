@@ -197,26 +197,6 @@ function placeholder() {}
     });
   });
 
-  describe("pattern positions", () => {
-    it("should parse @position for pattern nodes", () => {
-      const code = `
-/**
- * @flowWeaver pattern
- * @name testPattern
- * @node v validateInput
- * @position v 0 0
- */
-function placeholder() {}
-
-function validateInput(execute: boolean, data: any) {
-  return { onSuccess: true, onFailure: false };
-}
-`;
-      const result = parser.parseFromString(code, "test.ts");
-
-      expect(result.patterns[0].instances[0].config).toEqual({ x: 0, y: 0 });
-    });
-  });
 
   describe("pattern node types", () => {
     it("should collect inline node types used by pattern", () => {
@@ -261,8 +241,6 @@ function validateInput(execute: boolean, data: any) {
  * @port IN.data - Raw input data
  * @port OUT.result - Transformed data
  * @port OUT.error - Validation errors
- * @position v -90 0
- * @position t 90 0
  */
 function patternPlaceholder() {}
 

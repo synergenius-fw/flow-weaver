@@ -106,7 +106,7 @@ export async function testWorkflow(execute: boolean, params: {}): Promise<{ onSu
       type: 'NodeInstance',
       id: 'npm_node_1',
       nodeType: 'npm/autoprefixer/autoprefixer',
-      config: { x: 100, y: 100 },
+      config: {},
     };
 
     workflow = addNode(workflow, nodeInstance);

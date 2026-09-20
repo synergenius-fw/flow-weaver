@@ -8,7 +8,6 @@ import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } fr
 import { parsePortLine } from '../../src/chevrotain-parser/port-parser';
 import { parseConnectLine } from '../../src/chevrotain-parser/connect-parser';
 import { parseNodeLine } from '../../src/chevrotain-parser/node-parser';
-import { parsePositionLine } from '../../src/chevrotain-parser/position-parser';
 import { parseScopeLine } from '../../src/chevrotain-parser/scope-parser';
 
 describe('Chevrotain Parser Warnings', () => {
@@ -71,33 +70,6 @@ describe('Chevrotain Parser Warnings', () => {
     it('should leave warnings empty for valid node', () => {
       const warnings: string[] = [];
       const result = parseNodeLine('@node n1 MyType', warnings);
-      expect(result).not.toBeNull();
-      expect(warnings).toEqual([]);
-    });
-  });
-
-  describe('position-parser', () => {
-    it('should push warning on non-numeric coords, not console.warn', () => {
-      const warnings: string[] = [];
-      const result = parsePositionLine('@position n1 abc def', warnings);
-      expect(result).toBeNull();
-      expect(warnings.length).toBeGreaterThan(0);
-      expect(warnings[0]).toContain('Failed to parse position line');
-      expect(warnSpy).not.toHaveBeenCalled();
-    });
-
-    it('should push warning on missing coordinates', () => {
-      const warnings: string[] = [];
-      const result = parsePositionLine('@position n1', warnings);
-      expect(result).toBeNull();
-      expect(warnings.length).toBeGreaterThan(0);
-      expect(warnings[0]).toContain('Failed to parse position line');
-      expect(warnSpy).not.toHaveBeenCalled();
-    });
-
-    it('should leave warnings empty for valid position', () => {
-      const warnings: string[] = [];
-      const result = parsePositionLine('@position n1 100 200', warnings);
       expect(result).not.toBeNull();
       expect(warnings).toEqual([]);
     });

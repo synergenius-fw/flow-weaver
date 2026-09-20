@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { WebhookServer } from '../../server/webhook-server.js';
 import { logger } from '../utils/logger.js';
+import { announceService } from '../../service-registry.js';
 
 export interface ServeOptions {
   /** Server port */
@@ -77,6 +78,7 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
   logger.section('Flow Weaver Webhook Server');
   logger.info(`Workflow directory: ${workflowDir}`);
   logger.info(`Server: http://${host}:${port}`);
+  announceService({ kind: 'serve', transport: 'http', url: `http://${host === '0.0.0.0' ? '127.0.0.1' : host}:${port}`, project: path.resolve(dir ?? '.') });
   logger.info(`File watching: ${options.watch !== false ? 'enabled' : 'disabled'}`);
   logger.info(`Production mode: ${options.production ? 'yes' : 'no'}`);
   if (options.swagger) {

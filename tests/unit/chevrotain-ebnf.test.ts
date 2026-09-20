@@ -7,7 +7,6 @@ import {
   getPortGrammar,
   getNodeGrammar,
   getConnectGrammar,
-  getPositionGrammar,
   getScopeGrammar,
   getAllGrammars,
   generateGrammarDiagrams,
@@ -21,14 +20,12 @@ describe("EBNF Generation", () => {
       expect(grammars.port).toBeDefined();
       expect(grammars.node).toBeDefined();
       expect(grammars.connect).toBeDefined();
-      expect(grammars.position).toBeDefined();
       expect(grammars.scope).toBeDefined();
 
       // Each should have rules
       expect(grammars.port.length).toBeGreaterThan(0);
       expect(grammars.node.length).toBeGreaterThan(0);
       expect(grammars.connect.length).toBeGreaterThan(0);
-      expect(grammars.position.length).toBeGreaterThan(0);
       expect(grammars.scope.length).toBeGreaterThan(0);
     });
   });
@@ -106,13 +103,6 @@ describe("EBNF Generation", () => {
     });
   });
 
-  describe("Position Grammar Rules", () => {
-    it("should have positionLine as entry rule", () => {
-      const grammar = getPositionGrammar();
-      const positionLine = grammar.find((r: any) => r.name === "positionLine");
-      expect(positionLine).toBeDefined();
-    });
-  });
 
   describe("Scope Grammar Rules", () => {
     it("should have scopeLine as entry rule", () => {
@@ -184,10 +174,6 @@ describe("EBNF Generation", () => {
 
       it("should contain @connect terminal", () => {
         expect(html).toContain('"@connect"');
-      });
-
-      it("should contain @position terminal", () => {
-        expect(html).toContain('"@position"');
       });
 
       it("should contain @scope terminal", () => {

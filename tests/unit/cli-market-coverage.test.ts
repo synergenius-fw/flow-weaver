@@ -25,7 +25,7 @@ describe('marketSearchCommand coverage', () => {
     const { marketSearchCommand } = await import('../../src/cli/commands/market');
     const registry = await import('../../src/marketplace/registry');
 
-    vi.spyOn(registry, 'searchPackages').mockResolvedValue([]);
+    vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ results: [], searched: [] });
 
     await marketSearchCommand('nonexistent-query', { json: false });
   });
@@ -34,7 +34,7 @@ describe('marketSearchCommand coverage', () => {
     const { marketSearchCommand } = await import('../../src/cli/commands/market');
     const registry = await import('../../src/marketplace/registry');
 
-    vi.spyOn(registry, 'searchPackages').mockResolvedValue([]);
+    vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ results: [], searched: [] });
 
     await marketSearchCommand(undefined, { json: false });
   });
@@ -43,7 +43,7 @@ describe('marketSearchCommand coverage', () => {
     const { marketSearchCommand } = await import('../../src/cli/commands/market');
     const registry = await import('../../src/marketplace/registry');
 
-    vi.spyOn(registry, 'searchPackages').mockResolvedValue([
+    vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ searched: [], results: [
       {
         name: 'flow-weaver-pack-test',
         version: '1.0.0',
@@ -61,7 +61,7 @@ describe('marketSearchCommand coverage', () => {
         version: '0.1.0',
         official: false,
       },
-    ]);
+    ] });
 
     await marketSearchCommand('pack', { json: false });
   });
@@ -70,7 +70,7 @@ describe('marketSearchCommand coverage', () => {
     const { marketSearchCommand } = await import('../../src/cli/commands/market');
     const registry = await import('../../src/marketplace/registry');
 
-    vi.spyOn(registry, 'searchPackages').mockResolvedValue([
+    vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ searched: [], results: [
       {
         name: 'flow-weaver-pack-alpha',
         version: '1.0.0',
@@ -83,7 +83,7 @@ describe('marketSearchCommand coverage', () => {
         description: 'Beta pack',
         official: false,
       },
-    ]);
+    ] });
 
     // Only "alpha" should match
     await marketSearchCommand('alpha', { json: false });
@@ -93,7 +93,7 @@ describe('marketSearchCommand coverage', () => {
     const { marketSearchCommand } = await import('../../src/cli/commands/market');
     const registry = await import('../../src/marketplace/registry');
 
-    vi.spyOn(registry, 'searchPackages').mockRejectedValue(
+    vi.spyOn(registry, 'searchAllRegistries').mockRejectedValue(
       new Error('Network error')
     );
 
@@ -106,7 +106,7 @@ describe('marketSearchCommand coverage', () => {
     const { marketSearchCommand } = await import('../../src/cli/commands/market');
     const registry = await import('../../src/marketplace/registry');
 
-    vi.spyOn(registry, 'searchPackages').mockRejectedValue(
+    vi.spyOn(registry, 'searchAllRegistries').mockRejectedValue(
       new Error('Timeout')
     );
 
@@ -119,14 +119,14 @@ describe('marketSearchCommand coverage', () => {
     const { marketSearchCommand } = await import('../../src/cli/commands/market');
     const registry = await import('../../src/marketplace/registry');
 
-    vi.spyOn(registry, 'searchPackages').mockResolvedValue([
+    vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ searched: [], results: [
       {
         name: 'flow-weaver-pack-json',
         version: '1.0.0',
         description: 'JSON output test',
         official: false,
       },
-    ]);
+    ] });
 
     await marketSearchCommand(undefined, { json: true });
   });

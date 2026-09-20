@@ -802,8 +802,8 @@ const errorMappers: Record<string, ErrorMapper> = {
     const icon = quoted[1] || quoted[0] || 'unknown';
     return {
       title: 'Invalid Icon',
-      explanation: `Icon '${icon}' is not a recognized node icon. Check the spelling.`,
-      fix: `Use a valid icon name from the icon set (e.g., database, code, flow, psychology, send).`,
+      explanation: `Icon '${icon}' is not a Material Symbols name. Check the spelling.`,
+      fix: `Use a Material Symbols name (fonts.google.com/icons), in snake_case or camelCase: flag, database, swap_horiz, smart_toy.`,
       code: error.code,
     };
   },

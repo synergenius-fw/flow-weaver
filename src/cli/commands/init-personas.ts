@@ -337,10 +337,8 @@ function uppercase(text: string): { result: string } {
 
 /**
  * @flowWeaver workflow
- * @node greeter greet [position: -200 0]
- * @node upper uppercase [position: 100 0]
- * @position Start -500 0
- * @position Exit 400 0
+ * @node greeter greet
+ * @node upper uppercase
  * @path Start -> greeter -> upper -> Exit
  * @connect greeter.greeting -> upper.text
  * @param execute [order:0] - Execute

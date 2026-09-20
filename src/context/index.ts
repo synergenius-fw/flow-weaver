@@ -65,6 +65,7 @@ export const PRESETS: Record<ContextPreset, string[]> = {
   ],
   ops: [
     'orientation',
+    'library',
     'cli-reference',
     'mcp-tools',
     'compilation',
@@ -77,6 +78,7 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'orientation',
     'concepts',
     'tutorial',
+    'library',
     'jsdoc-grammar',
     'advanced-annotations',
     'built-in-nodes',
@@ -157,7 +159,6 @@ function buildGrammarSection(): string {
     ...grammars.port,
     ...grammars.node,
     ...grammars.connect,
-    ...grammars.position,
     ...grammars.scope,
   ];
   const ebnf = serializedToEBNF(allProductions);

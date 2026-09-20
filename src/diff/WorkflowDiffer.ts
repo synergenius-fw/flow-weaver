@@ -193,19 +193,6 @@ function compareInstanceUI(
     hasUIChanges = true;
   }
 
-  const beforeX = beforeUI?.x ?? 0;
-  const beforeY = beforeUI?.y ?? 0;
-  const afterX = afterUI?.x ?? 0;
-  const afterY = afterUI?.y ?? 0;
-  if (beforeX !== afterX || beforeY !== afterY) {
-    uiChanges.position = {
-      type: 'MODIFIED',
-      before: { x: beforeX, y: beforeY },
-      after: { x: afterX, y: afterY },
-    };
-    hasUIChanges = true;
-  }
-
   const beforeWidth = beforeUI?.width ?? 0;
   const beforeHeight = beforeUI?.height ?? 0;
   const afterWidth = afterUI?.width ?? 0;

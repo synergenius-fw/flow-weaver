@@ -63,7 +63,7 @@ export interface ParsedNodeType {
 /**
  * Per-instance configuration for a node within a workflow.
  * Overrides the node type's default config with instance-specific
- * settings such as position, label, and execution behavior.
+ * settings such as label and execution behavior.
  */
 export interface ParsedTNodeInstanceConfig {
   pullExecution?: {

@@ -30,6 +30,7 @@ import { parseFunctionSignature } from '../jsdoc-port-sync/signature-parser.js';
 import { checkTypeCompatibilityFromStrings } from '../type-checker.js';
 import { isValidPortType } from '../type-mappings.js';
 import { VALID_NODE_ICONS } from '../diagram/theme.js';
+import { MATERIAL_SYMBOLS, isMaterialSymbol } from '../diagram/material-symbols.js';
 import {
   getInstanceLocation as getInstanceLocationHelper,
   getConnectionLocation as getConnectionLocationHelper,
@@ -1411,7 +1412,12 @@ export function validateVisualAnnotations(
   instanceMap: Map<string, TNodeTypeAST>
 ): void {
   const validColors = VALID_NODE_COLORS as readonly string[];
-  const validIcons = VALID_NODE_ICONS as readonly string[];
+  // An icon is any Material Symbol, in the font's snake_case or in camelCase:
+  // that is what the console draws with. The SVG renderer's own path table
+  // (`VALID_NODE_ICONS`) is a subset; an icon outside it is still valid and
+  // is drawn as a dot in the SVG. Suggestions come from both.
+  const validIcons = { includes: (icon: string) => isMaterialSymbol(icon) || VALID_NODE_ICONS.includes(icon) };
+  const iconNames = [...VALID_NODE_ICONS, ...MATERIAL_SYMBOLS];
 
   // Check node type colors and icons (stored in visuals)
   for (const nodeType of workflow.nodeTypes) {
@@ -1429,12 +1435,12 @@ export function validateVisualAnnotations(
       });
     }
     if (icon && !validIcons.includes(icon)) {
-      const suggestions = findClosestMatches(icon, [...validIcons]);
+      const suggestions = findClosestMatches(icon, iconNames);
       const hint = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
       ctx.warnings.push({
         type: 'warning',
         code: 'INVALID_ICON',
-        message: `Node type "${nodeType.functionName}" has invalid icon "${icon}".${hint}`,
+        message: `Node type "${nodeType.functionName}" has invalid icon "${icon}".${hint} Icons are Material Symbols names, as flag or swap_horiz (swapHoriz works too).`,
         node: nodeType.functionName,
         location: nodeType.sourceLocation,
       });
@@ -1455,12 +1461,12 @@ export function validateVisualAnnotations(
       });
     }
     if (instance.config?.icon && !validIcons.includes(instance.config.icon)) {
-      const suggestions = findClosestMatches(instance.config.icon, [...validIcons]);
+      const suggestions = findClosestMatches(instance.config.icon, iconNames);
       const hint = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
       ctx.warnings.push({
         type: 'warning',
         code: 'INVALID_ICON',
-        message: `Instance "${instance.id}" has invalid icon "${instance.config.icon}".${hint}`,
+        message: `Instance "${instance.id}" has invalid icon "${instance.config.icon}".${hint} Icons are Material Symbols names, as flag or swap_horiz (swapHoriz works too).`,
         node: instance.id,
         location: instance.sourceLocation,
       });

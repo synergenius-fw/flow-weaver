@@ -39,7 +39,7 @@ On instance declarations:
 
 ## Icons
 
-All icons use [Material Symbols](https://fonts.google.com/icons) (Outlined, weight 500). Names are **camelCase**.
+Any [Material Symbols](https://fonts.google.com/icons) name is a valid `@icon`, written in the font's `snake_case` or in `camelCase` (`swap_horiz` and `swapHoriz` are the same icon); `fw validate` flags a name the font does not have. The console draws every icon from the font. The SVG artifacts (`fw artifact --kind svg`, the brief, the PDF) draw the icons below with a path and any other as a dot, so prefer one of these when the picture is going on a slide.
 
 ### AI & Machine Learning
 

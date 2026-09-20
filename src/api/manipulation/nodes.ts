@@ -214,7 +214,7 @@ export function renameNode(
  * @example
  * ```typescript
  * const ast = updateNode(workflow, 'processor1', {
- *   config: { x: 100, y: 200, label: 'Main Processor' }
+ *   config: { label: 'Main Processor' }
  * });
  * ```
  */
@@ -318,57 +318,6 @@ export function setNodeConfig(
   config: TNodeInstanceConfig,
 ): TWorkflowAST {
   return updateNode(ast, nodeId, { config });
-}
-
-/**
- * Set node position (UI coordinates)
- *
- * @param ast - Workflow to modify
- * @param nodeId - ID of node to position (including virtual nodes "Start" and "Exit")
- * @param x - X coordinate
- * @param y - Y coordinate
- * @returns Modified workflow
- */
-export function setNodePosition(
-  ast: TWorkflowAST,
-  nodeId: string,
-  x: number,
-  y: number,
-): TWorkflowAST {
-  // Validate before mutation to avoid type instantiation issues inside callback
-  if (nodeId !== "Start" && nodeId !== "Exit") {
-    assertNodeExists(ast, nodeId);
-  }
-
-  return withoutValidation(
-    ast,
-    (draft) => {
-      // Handle Start/Exit virtual nodes
-      if (nodeId === "Start" || nodeId === "Exit") {
-        const uiField = nodeId === "Start" ? "startNode" : "exitNode";
-        draft.ui = {
-          ...draft.ui,
-          [uiField]: {
-            ...draft.ui?.[uiField],
-            x,
-            y,
-          },
-        };
-        return;
-      }
-
-      // Regular nodes - find and update
-      const node = draft.instances.find((n) => n.id === nodeId);
-      if (!node) return; // Already validated above
-
-      if (!node.config) {
-        node.config = {};
-      }
-
-      node.config.x = x;
-      node.config.y = y;
-    },
-  );
 }
 
 /**

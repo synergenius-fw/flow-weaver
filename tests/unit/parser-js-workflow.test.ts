@@ -31,14 +31,12 @@ describe('Parsing .js workflow files', () => {
  *
  * @flowWeaver workflow
  *
- * @node a testNode [position: 0 0]
+ * @node a testNode
  *
  * @path Start -> a -> Exit
  *
  * @connect a.result -> Exit.output
  *
- * @position Start -200 0
- * @position Exit 200 0
  *
  * @param execute [order:-1] - Execute
  * @param data [order:0] - Input data
@@ -117,10 +115,8 @@ function processor(execute, value) {
     const jsSource = `
 /**
  * @flowWeaver workflow
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
- * @position Start -200 0
- * @position Exit 200 0
  * @returns output [order:0] - Output
  */
 export function badWorkflow(execute, data) {

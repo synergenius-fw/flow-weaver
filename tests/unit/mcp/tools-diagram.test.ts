@@ -5,11 +5,9 @@ import * as path from 'path';
 
 // ── Mock diagram module ───────────────────────────────────────────────────────
 const mockFileToSVG = vi.fn();
-const mockFileToHTML = vi.fn();
 
 vi.mock('../../../src/diagram/index.js', () => ({
   fileToSVG: (...args: unknown[]) => mockFileToSVG(...args),
-  fileToHTML: (...args: unknown[]) => mockFileToHTML(...args),
 }));
 
 // ── Mock MCP SDK ──────────────────────────────────────────────────────────────
@@ -92,7 +90,7 @@ describe('tools-diagram (fw_diagram)', () => {
     expect(onDisk).toBe('<svg>written</svg>');
   });
 
-  it('passes workflowName, theme, and showPortLabels to the generator', async () => {
+  it('passes workflowName and theme to the generator', async () => {
     const workflowFile = path.join(tmpDir, 'wf.ts');
     fs.writeFileSync(workflowFile, '// stub');
     mockFileToSVG.mockReturnValue('<svg/>');
@@ -101,46 +99,13 @@ describe('tools-diagram (fw_diagram)', () => {
       filePath: workflowFile,
       workflowName: 'myWorkflow',
       theme: 'light',
-      showPortLabels: false,
     });
 
     expect(mockFileToSVG).toHaveBeenCalledWith(workflowFile, {
       workflowName: 'myWorkflow',
       theme: 'light',
-      showPortLabels: false,
       format: 'svg',
     });
-  });
-
-  it('uses fileToHTML when format="html"', async () => {
-    const workflowFile = path.join(tmpDir, 'wf.ts');
-    fs.writeFileSync(workflowFile, '// stub');
-    mockFileToHTML.mockReturnValue('<html>interactive</html>');
-
-    const result = parseResult(
-      await callDiagram({ filePath: workflowFile, format: 'html' }),
-    );
-    expect(result.success).toBe(true);
-    expect(result.data).toBe('<html>interactive</html>');
-    expect(mockFileToHTML).toHaveBeenCalled();
-    expect(mockFileToSVG).not.toHaveBeenCalled();
-  });
-
-  it('writes HTML to output path when format="html" and outputPath is set', async () => {
-    const workflowFile = path.join(tmpDir, 'wf.ts');
-    const outputFile = path.join(tmpDir, 'out.html');
-    fs.writeFileSync(workflowFile, '// stub');
-    mockFileToHTML.mockReturnValue('<html>viewer</html>');
-
-    const result = parseResult(
-      await callDiagram({
-        filePath: workflowFile,
-        format: 'html',
-        outputPath: outputFile,
-      }),
-    );
-    expect(result.success).toBe(true);
-    expect(fs.readFileSync(outputFile, 'utf-8')).toBe('<html>viewer</html>');
   });
 
   it('uses fileToSVG when format="svg" (explicit)', async () => {
@@ -150,7 +115,6 @@ describe('tools-diagram (fw_diagram)', () => {
 
     await callDiagram({ filePath: workflowFile, format: 'svg' });
     expect(mockFileToSVG).toHaveBeenCalled();
-    expect(mockFileToHTML).not.toHaveBeenCalled();
   });
 
   it('catches generator errors and returns DIAGRAM_ERROR', async () => {

@@ -47,11 +47,9 @@ function processData(
 
 /**
  * @flowWeaver workflow
- * @node loader loadConfig [position: 200 200]
- * @node proc processData [position: 400 200]
+ * @node loader loadConfig
+ * @node proc processData
  * @path Start -> loader -> proc -> Exit
- * @position Start 0 0
- * @position Exit 810 0
  * @connect proc.result -> Exit.result
  * @param execute [order:-1] - Execute
  * @param raw [order:0] - Raw config string

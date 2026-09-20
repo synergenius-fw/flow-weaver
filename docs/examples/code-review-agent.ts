@@ -48,13 +48,11 @@ interface ReviewResult {
  * @flowWeaver workflow
  * @param pr - PR data
  * @returns review - Result
- * @node analyze     analyzeDiff     [color: "purple"]  [icon: "psychology"]  [position: 320 0]
- * @node classify    classifySeverity [color: "cyan"]   [icon: "filterAlt"]   [position: 640 0]
- * @node route       routeReview     [color: "orange"]  [icon: "callSplit"]   [position: 960 0]
- * @node approve     approveClean    [color: "green"]   [icon: "checkCircle"] [position: 1280 -80]
- * @node request     requestChanges  [color: "red"]     [icon: "warning"]     [position: 1280 80]
- * @position Start 0 0
- * @position Exit 1600 0
+ * @node analyze     analyzeDiff     [color: "purple"]  [icon: "psychology"]
+ * @node classify    classifySeverity [color: "cyan"]   [icon: "filterAlt"]
+ * @node route       routeReview     [color: "orange"]  [icon: "callSplit"]
+ * @node approve     approveClean    [color: "green"]   [icon: "checkCircle"]
+ * @node request     requestChanges  [color: "red"]     [icon: "warning"]
  * @path Start -> analyze -> classify -> route:ok -> approve -> Exit
  * @path route:fail -> request -> Exit
  * @connect Start.pr            -> analyze.pr

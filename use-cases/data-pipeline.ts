@@ -86,15 +86,13 @@ function formatRecord(email: string, name: string): { record: string } {
 
 /**
  * @flowWeaver workflow
- * @node val validateContact [position: 250 0]
- * @node norm normalizeContact [position: 500 0]
- * @node fmt formatRecord [position: 750 0]
+ * @node val validateContact
+ * @node norm normalizeContact
+ * @node fmt formatRecord
  * @path Start -> val -> norm -> fmt -> Exit
  * @connect fmt.record -> Exit.record
  * @connect val.onFailure -> Exit.onFailure
  * @connect val.reason -> Exit.reason
- * @position Start 0 0
- * @position Exit 1000 0
  * @param execute [order:0] - Execute
  * @param email [order:1] - Contact email address
  * @param name [order:2] - Contact full name

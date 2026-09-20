@@ -1,12 +1,12 @@
 ---
 name: Marketplace
 description: Create, publish, install, and manage Flow Weaver marketplace packages and external plugins
-keywords: [marketplace, market, package, pack, publish, install, search, npm, flow-weaver-pack, plugin, init, manifest, manifestVersion, node types, patterns, workflows, cliEntrypoint, cliCommands, mcpEntrypoint, mcpTools, exportTargets, tagHandlers, validationRuleSets, docs, engineVersion, component, area, sandbox]
+keywords: [marketplace, market, package, pack, publish, install, search, npm, flow-weaver-pack, plugin, init, manifest, manifestVersion, node types, patterns, workflows, cliEntrypoint, cliCommands, mcpEntrypoint, mcpTools, exportTargets, tagHandlers, serializerExport, validationRuleSets, initContributions, docs, engineVersion, authoring, extend, grammar, custom tags, deploy namespace, component, area, sandbox]
 ---
 
 # Marketplace
 
-The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node types, workflows, and patterns. Packages follow the `flow-weaver-pack-*` naming convention and are discoverable via npm search.
+The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node types, workflows, and patterns. A pack is an npm package that carries a `flowweaver.manifest.json` and the `flow-weaver-marketplace-pack` keyword — that is how one is recognised, installed or on a registry. By convention packs are named `flow-weaver-pack-*` (or `@scope/flow-weaver-pack-*`), which makes them easy to find; a pack named otherwise, as an organisation's policy may require, works the same and is found the same way.
 
 ## Overview
 
@@ -16,12 +16,14 @@ The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node 
 | **Workflows** | Complete `@flowWeaver workflow` exports | Generated from source |
 | **Patterns** | Reusable `@flowWeaver pattern` fragments | Generated from source |
 | **Export targets** | Deployment targets for `fw export` | `exportTargets` in the manifest |
-| **Tag handlers** | Custom JSDoc annotations | `tagHandlers` |
+| **Tag handlers** | New JSDoc tags, parsed into a namespace of the workflow's deploy data — see [Extending the grammar](#extending-the-grammar-with-a-pack) | `tagHandlers` |
 | **CLI commands** | `fw <pack> <command>` | `cliEntrypoint` + `cliCommands` |
 | **MCP tools** | Tools added to `fw mcp-server` | `mcpEntrypoint` + `mcpTools` |
-| **Validation rules, docs, init templates, device handlers** | See [Pack Contributions](#pack-contributions) | `validationRuleSets`, `docs`, `initContributions`, `deviceHandlers` |
+| **Validation rules, docs, init templates** | See [Pack Contributions](#pack-contributions) | `validationRuleSets`, `docs`, `initContributions` |
 
 A single package can contain any combination of these.
+
+`fw console` shows the packs installed in a project and everything each one contributes, exports a workflow through a pack's target, searches the marketplace, and — when the open project is itself a pack — runs the `market pack` validation and shows the manifest it would write. See [Console](console).
 
 ## Export Target Packs
 
@@ -35,7 +37,7 @@ Without a target pack installed, `fw export` and `fw_export` return `INVALID_TAR
 
 ### Search
 
-Find packages on npm:
+Find packs on every registry your npm uses:
 
 ```bash
 fw market search openai
@@ -43,10 +45,12 @@ fw market search            # Browse all packages
 fw market search llm --limit 5
 ```
 
-For private registries:
+The search reads `.npmrc` the way `npm install` does — the user's file, then the project's — and asks the default registry and every scoped one (`@acme:registry=https://npm.internal.com/`), each with its own token (`//npm.internal.com/:_authToken=…`). A private pack is found wherever an install would find it; the output names each registry searched and whether it answered. `fw_market_search` and the console's marketplace page do the same.
+
+A registry that is not in `.npmrc` can be asked directly, by its search URL:
 
 ```bash
-fw market search openai --registry https://npm.internal.com
+fw market search openai --registry https://npm.internal.com/-/v1/search
 ```
 
 ### Install
@@ -66,67 +70,94 @@ After installation, the package's node types, workflows, and patterns are availa
 fw market list
 ```
 
-Shows all installed `flow-weaver-pack-*` packages with their available node types, workflows, and patterns.
+Shows every installed pack — any package under `node_modules` with a `flowweaver.manifest.json` — with its node types, workflows, and patterns.
 
 ---
 
 ## Creating Packages
 
-### Scaffold
+A pack is written like any project that uses Flow Weaver, plus a manifest. The loop is: scaffold, write node types, build, `fw market pack`, try it from a project, publish.
 
-Create a new marketplace package:
+### Scaffold
 
 ```bash
 fw market init openai
-```
-
-This creates a `flow-weaver-pack-openai/` directory with:
-- `package.json` — Configured with `flow-weaver-marketplace-pack` keyword
-- `src/` — Source directory for node types, workflows, and patterns
-- `tsconfig.json` — TypeScript configuration
-
-Options:
-
-```bash
 fw market init openai --description "OpenAI nodes for Flow Weaver" --author "Your Name"
 fw market init openai -y  # Skip prompts
 ```
 
-### Package Structure
+This creates `flow-weaver-pack-openai/` (the prefix is added when missing):
 
 ```
 flow-weaver-pack-openai/
   src/
-    nodes/
-      chat-completion.ts    # @flowWeaver nodeType functions
-      embeddings.ts
-    workflows/
-      rag-pipeline.ts       # @flowWeaver workflow functions
-    patterns/
-      retry-with-backoff.ts # @flowWeaver pattern functions
-  package.json
-  tsconfig.json
+    index.ts                # barrel: re-exports node-types, workflows, patterns
+    node-types/
+      index.ts
+      sample.ts             # one @flowWeaver nodeType to start from
+    workflows/index.ts
+    patterns/index.ts
+  package.json              # keyword flow-weaver-marketplace-pack, flowWeaver.engineVersion,
+                            # peerDependency on @synergenius/flow-weaver, scripts build / pack / prepublishOnly
+  tsconfig.json             # ESM, declarations, src → dist
+  README.md
+  .gitignore
 ```
+
+Everything the manifest points at is a **compiled** file under `dist/`, so `npm run build` (`tsc`) comes before `fw market pack`; `prepublishOnly` runs both.
+
+### Write node types
+
+A node type in a pack is exactly a node type anywhere else — see [Concepts](concepts). Two things matter more in a pack:
+
+- Every `@flowWeaver nodeType` function under `src/` becomes an entry in the manifest, named after its function. Helpers a node calls must not carry the annotation, and two node types may not share a name (`UNIT-002`).
+- Give each one `@description`, and a `@color`, `@icon` or `@tag`; a workflow author sees these in the console and in `fw market list`, and `fw market pack` warns when they are missing (`PKG-008`, `PKG-009`).
+
+```typescript
+/**
+ * @flowWeaver nodeType
+ * @expression
+ * @label Chat Completion
+ * @description One turn against a chat model
+ * @color purple
+ * @icon smartToy
+ * @tag openai
+ */
+export async function chatCompletion(prompt: string, model: string): Promise<{ text: string }> {
+  // ...
+}
+```
+
+A workflow uses it with `@fwImport chatCompletion chatCompletion from "flow-weaver-pack-openai"` and then `@node ask chatCompletion`; ports come from the function's signature, read from the pack's `.d.ts`.
 
 ### Validate & Pack
 
-Validate your package and generate the manifest:
-
 ```bash
+npm run build
 fw market pack
 fw market pack --verbose  # Show parse warnings
 ```
 
-This:
-1. Scans all TypeScript files for `@flowWeaver` annotations
-2. Validates against 12 marketplace-specific rules
-3. Generates `flowweaver.manifest.json` with metadata about all exports
+This scans `src/**/*.ts` for `@flowWeaver` annotations, validates the package against the [marketplace rules](#marketplace-validation-rules), and writes `flowweaver.manifest.json`.
 
 Only `nodeTypes`, `workflows` and `patterns` are derived from source. Every other manifest field is hand-written and carried over unchanged from the existing `flowweaver.manifest.json` each time `market pack` runs; `name`, `version` and `description` come from `package.json`, and `engineVersion` and `categories` from its `flowWeaver` block.
 
-### Publish
+`fw console` opened on the pack's directory does the same without writing: the *This pack* page shows the manifest it would produce, the rules over it, and what writing it would change.
 
-Publish to npm:
+### Try it from a project
+
+Before publishing, install the pack into a project the way a user will, and use it:
+
+```bash
+cd ../my-project
+npm install ../flow-weaver-pack-openai     # or: npm link flow-weaver-pack-openai
+fw market list                             # the pack, its node types and what it contributes
+fw console                                 # Packs → the pack's page; its node types in the Step pane
+```
+
+The manifest's `file` paths are resolved inside `node_modules/<pack>/`, so a handler, rule set or target only loads when `dist/` was built and is in `files`.
+
+### Publish
 
 ```bash
 fw market publish
@@ -134,19 +165,31 @@ fw market publish --dry-run  # Preview without publishing
 fw market publish --tag beta # Publish with dist-tag
 ```
 
+`fw market publish` runs the pack validation first and refuses on an error-level issue. A private registry works as it does for `npm publish`: `publishConfig.registry` in `package.json`, or the scope's registry in `.npmrc`.
+
 ---
 
 ## Marketplace Validation Rules
 
-The `market pack` command validates packages against additional rules beyond standard workflow validation:
+`fw market pack` and `fw market publish` check the package beyond ordinary workflow validation. An error blocks publishing; a warning is reported.
 
-- Package name must start with `flow-weaver-pack-`
-- Must include `flow-weaver-marketplace-pack` keyword in `package.json`
-- All exported node types must have proper annotations
-- All exported workflows must validate successfully
-- No conflicting node type names
-- Proper TypeScript compilation
-- Manifest generation succeeds
+| Code | Severity | Says |
+|------|----------|------|
+| `PKG-001` | error | `package.json` keywords must include `flow-weaver-marketplace-pack` — this is what identifies a pack on a registry |
+| `PKG-002` | error | `flowWeaver.engineVersion` must be set in `package.json` |
+| `PKG-003` | error | `peerDependencies` must include `@synergenius/flow-weaver` |
+| `PKG-004` | error | The package must not be `private` |
+| `PKG-005` | warning | The name should follow `flow-weaver-pack-*` — the convention that makes a pack easy to find; a pack named otherwise still packs, installs and loads |
+| `PKG-006` | error | At least one node type, workflow, pattern or export target |
+| `PKG-007` | warning | `README.md` should exist |
+| `PKG-008` | warning | A node type should have a description |
+| `PKG-009` | warning | A node type should have visuals (`@color`, `@icon` or `@tag`) |
+| `UNIT-001` | error | Every workflow in the pack must validate |
+| `UNIT-002` | error | Node type names must be unique within the pack |
+| `UNIT-003` | error | A pattern must have at least one `IN` or `OUT` port |
+| `TGT-001` / `TGT-002` | error | An export target needs `name` and `file`; names are unique |
+| `HND-001` | warning | A tag handler has no `serializerExport`: its tags are dropped whenever annotations are regenerated — see [Extending the grammar](#extending-the-grammar-with-a-pack) |
+| `HND-002` | error | A tag handler must declare `tags`, `namespace` and `file` |
 
 ---
 
@@ -161,8 +204,7 @@ Beyond node types, a pack extends Flow Weaver through hand-written fields in `fl
 | `exportTargets` | `fw export` / `fw_export` | Per call; an unknown target name lists the installed ones |
 | `cliEntrypoint` + `cliCommands` | The CLI | At startup; commands appear as `fw <namespace> <command>` |
 | `mcpEntrypoint` + `mcpTools` | `fw mcp-server` | At server start, after the core tools |
-| `initContributions` | `fw init` | Use cases and templates offered during project setup |
-| `deviceHandlers` | `fw connect` | Device connection handlers |
+| `initContributions` | `fw init` | Use cases and templates offered during project setup; see [Init contributions](#init-contributions) |
 | `docs` | `fw docs`, `fw_docs`, `fw context`, `fw_context` | At command or server start; topics list, read and search like core topics |
 | `engineVersion` | CLI and MCP loaders | A pack requiring a newer Flow Weaver still loads, with a warning on stderr |
 
@@ -261,23 +303,44 @@ Both generators return artifacts of the shape `{ files, target, workflowName, en
 - The topic appears in `fw docs`, `fw_docs list`/`read`/`search` and, for each preset named in `presets`, in `fw context` and `fw_context`
 - A slug that collides with a core topic is ignored; a `file` that does not exist is skipped with a note on stderr
 
+### Init contributions
+
+```json
+{
+  "initContributions": {
+    "useCase": { "id": "audio", "name": "Audio pipelines", "description": "Record, trim and publish audio" },
+    "templates": ["audio-record", "audio-publish"]
+  }
+}
+```
+
+`fw init` offers the use case among its prompts and, when it is picked, the listed templates. The templates themselves are read from a `templates.js` beside the manifest (`<pack>/templates.js`), which exports `workflowTemplates: WorkflowTemplate[]` — the same shape as the core templates listed in [Scaffold](scaffold); only the ids named in `templates` are taken.
+
 ---
 
-## Custom Tag Handlers
+## Extending the grammar with a pack
 
-Tag handlers let packs extend the parser with custom JSDoc annotations. When the parser encounters a tag it doesn't recognize natively, it delegates to registered pack handlers before emitting "Unknown annotation" warnings.
+A pack can teach the parser new JSDoc tags. That is the whole of what it can add to the grammar, and it is enough for a platform's vocabulary — `@secret`, `@runner`, `@matrix` in a CI/CD pack — because the data a tag carries is meant for the pack's own consumers: its export target, its validation rules, its CLI. What a pack cannot add: new bracket attributes on `@node`, new structural tags like `@path`, or new port syntax; those stay in core so every tool reads a workflow the same way.
 
-A pack that introduces platform- or pipeline-specific annotations registers a handler for each tag it owns; the parsed data lands in the pack's deploy namespace, where the pack's export target reads it.
+The pieces, all declared under `tagHandlers` in the manifest and resolved from one compiled file:
+
+| Piece | Direction | Required |
+|-------|-----------|----------|
+| handler (`TTagHandlerFn`) | tag line → data in `deploy.<namespace>` | yes |
+| serializer (`TTagSerializerFn`) | `deploy.<namespace>` → tag lines | in practice yes: without it, regeneration drops the tags (`HND-001`) |
+| validation rule set | rules that run when `detect(ast)` says the workflow uses the namespace | when the tags have rules |
+
+### Where the data goes
+
+A handled tag writes into the deploy map under the handler's namespace. In the AST that is `workflow.options.deploy[namespace]` for a workflow block and `nodeType.deploy[namespace]` for a node type block; the parser also mirrors each namespace to `options.<namespace>` (`options.cicd`) so a pack's own code can read it with a typed name. Everything else reads it from there: the console shows it on the step card as *pack tags*, an export target receives it as `deploy`, and the pack's rules see it in `ast`.
 
 ### Writing a handler
-
-A tag handler is a function matching the `TTagHandlerFn` signature:
 
 ```typescript
 import type { TTagHandlerFn } from '@synergenius/flow-weaver/api';
 
-export const myHandler: TTagHandlerFn = (tagName, comment, ctx) => {
-  // tagName: the tag without '@', e.g. "secret"
+export const audioTagHandler: TTagHandlerFn = (tagName, comment, ctx) => {
+  // tagName: the tag without '@', e.g. "region"
   // comment: everything after the tag on that line
   // ctx.deploy: the deploy map for your namespace (mutate it directly)
   // ctx.warnings: push parser warnings here
@@ -287,18 +350,32 @@ export const myHandler: TTagHandlerFn = (tagName, comment, ctx) => {
     ctx.warnings.push(`Empty @${tagName} tag`);
     return;
   }
-
-  const items = (ctx.deploy['items'] as string[]) ?? [];
-  items.push(value);
-  ctx.deploy['items'] = items;
+  if (tagName === 'region') ctx.deploy['region'] = value;
+  if (tagName === 'memory') ctx.deploy['memory'] = Number(value);
 };
 ```
 
-The handler receives one call per tag occurrence. Parsed data goes into `ctx.deploy`, which maps to `workflow.deploy[namespace]` or `nodeType.deploy[namespace]` in the final AST.
+The handler receives one call per tag occurrence, in source order, and may be called for several tags (`tags` in the manifest). Push a warning rather than throwing: a warning reaches `fw validate` and the console; a throw aborts the parse of that file.
+
+### Writing the serializer
+
+The compiler regenerates a workflow's JSDoc block from the AST on `fw compile` and after every `fw_modify`. Core knows how to write its own tags; for a namespace it does not know, it calls the pack's serializer with the namespace's data and writes whatever lines come back. A pack without one loses its tags the first time the block is regenerated — silently, until the export target notices its data is gone.
+
+```typescript
+import type { TTagSerializerFn } from '@synergenius/flow-weaver/api';
+
+// The inverse of the handler: every line the handler understands, emitted from the data it produced.
+export const audioSerializer: TTagSerializerFn = (deploy) => {
+  const lines: string[] = [];
+  if (typeof deploy.region === 'string') lines.push(` * @region ${deploy.region}`);
+  if (typeof deploy.memory === 'number') lines.push(` * @memory ${deploy.memory}`);
+  return lines;
+};
+```
+
+Each returned string is a whole comment line including the leading ` * `. Emit in a stable order so a regenerated file diffs cleanly. The round trip — parse, regenerate, parse again, equal — is worth a test in the pack.
 
 ### Declaring handlers in the manifest
-
-Add a `tagHandlers` entry to your `flowweaver.manifest.json`:
 
 ```json
 {
@@ -309,31 +386,61 @@ Add a `tagHandlers` entry to your `flowweaver.manifest.json`:
       "namespace": "audio",
       "scope": "both",
       "file": "dist/tag-handler.js",
-      "exportName": "audioTagHandler"
+      "exportName": "audioTagHandler",
+      "serializerExport": "audioSerializer"
     }
   ]
 }
 ```
 
-Fields:
-
 | Field | Description |
 |-------|-------------|
 | `tags` | Tag names this handler processes (without the `@` prefix) |
-| `namespace` | Key in the deploy map where parsed data is stored |
+| `namespace` | Key in the deploy map where parsed data is stored; also the `options.<namespace>` mirror |
 | `scope` | `workflow` for workflow-level tags, `nodeType` for node type tags, `both` for either |
-| `file` | Relative path to the compiled JS file exporting the handler |
-| `exportName` | Named export from the file (omit for `default` export) |
+| `file` | Relative path to the compiled JS file exporting the handler (and the serializer) |
+| `exportName` | Named export of the handler (omit for `default`) |
+| `serializerExport` | Named export of the serializer, from the same `file` |
 
-### Handler scope
+A handler scoped to `workflow` only runs for tags inside `@flowWeaver workflow` blocks; `nodeType` only inside `@flowWeaver nodeType` blocks. A tag in the wrong scope is consumed with a warning and not handled.
 
-A handler scoped to `workflow` only runs for tags inside `@flowWeaver workflow` blocks. A handler scoped to `nodeType` only runs inside `@flowWeaver nodeType` blocks. Use `both` when your tags are valid in either context.
+### Validation rules for the tags
 
-If a tag appears in the wrong scope, the parser emits a warning and skips the handler call.
+Rules that only make sense when the namespace is in use — a declared secret nobody reads, a job name used twice — are a rule set: a `detect` predicate and a lazy `getRules`, from one compiled file.
+
+```typescript
+import type { TValidationRule, TWorkflowAST } from '@synergenius/flow-weaver/ast';
+
+export function detect(ast: TWorkflowAST): boolean {
+  return ast.options?.deploy?.audio !== undefined;
+}
+
+export function getRules(): TValidationRule[] {
+  return [{
+    name: 'AUDIO_REGION_UNKNOWN',
+    validate(ast) {
+      const region = ast.options?.deploy?.audio?.region;
+      return typeof region === 'string' && !['eu', 'us'].includes(region)
+        ? [{ type: 'error', code: 'AUDIO_REGION_UNKNOWN', message: `Unknown region "${region}"; use eu or us` }]
+        : [];
+    },
+  }];
+}
+```
+
+```json
+{
+  "validationRuleSets": [
+    { "name": "Audio rules", "namespace": "audio", "file": "dist/rules.js", "detectExport": "detect", "rulesExport": "getRules" }
+  ]
+}
+```
+
+A rule returns `TValidationError`s: `type` (`error` | `warning`), a `code` prefixed with the pack's namespace so it never collides with core's, a `message` that says what to change, and optionally `node`. They run inside `fw validate`, `fw_validate` and the console's Issues pane exactly like core rules, and an `error` blocks `fw compile`. Document each code in one of the pack's [documentation topics](#documentation-topics) so `fw_docs` can explain it.
 
 ### How discovery works
 
-When `parseWorkflow()` is called with a `projectDir` option (or when the CLI runs from a project directory), the parser scans `node_modules` for installed packs with a `flowweaver.manifest.json`. It reads the `tagHandlers` array from each manifest, dynamically imports the handler files, and registers them in the `TagHandlerRegistry`. This scan runs once per project directory and is cached for subsequent parse calls.
+When `parseWorkflow()` is called with a `projectDir` (the CLI and the console always pass one), the parser scans `node_modules` for packs with a `flowweaver.manifest.json`, imports each handler `file`, and registers the handler, the serializer and the rule sets. The scan runs once per project directory per process. A `file` that fails to import — most often because the pack was not built — is skipped without an error: if a pack's tags come back as `Unknown annotation` warnings, check that its `dist/` exists.
 
 ---
 

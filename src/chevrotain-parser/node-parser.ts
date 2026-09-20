@@ -18,7 +18,6 @@ import {
   MinimizedKeyword,
   PullExecutionPrefix,
   SizePrefix,
-  PositionPrefix,
   ColorPrefix,
   IconPrefix,
   JobPrefix,
@@ -54,7 +53,6 @@ export interface NodeParseResult {
   minimized?: boolean;
   pullExecution?: string; // triggerPort name, not boolean
   size?: { width: number; height: number };
-  position?: { x: number; y: number };
   color?: string;
   icon?: string;
   tags?: Array<{ label: string; tooltip?: string }>;
@@ -113,7 +111,6 @@ class NodeParser extends CstParser {
           { ALT: () => this.SUBRULE(this.minimizedAttr) },
           { ALT: () => this.SUBRULE(this.pullExecutionAttr) },
           { ALT: () => this.SUBRULE(this.sizeAttr) },
-          { ALT: () => this.SUBRULE(this.positionAttr) },
           { ALT: () => this.SUBRULE(this.colorAttr) },
           { ALT: () => this.SUBRULE(this.iconAttr) },
           { ALT: () => this.SUBRULE(this.jobAttr) },
@@ -219,13 +216,6 @@ class NodeParser extends CstParser {
     this.CONSUME2(Integer, { LABEL: 'heightValue' });
   });
 
-  // position: x y
-  private positionAttr = this.RULE('positionAttr', () => {
-    this.CONSUME(PositionPrefix);
-    this.CONSUME(Integer, { LABEL: 'xValue' });
-    this.CONSUME2(Integer, { LABEL: 'yValue' });
-  });
-
   // color: "value"
   private colorAttr = this.RULE('colorAttr', () => {
     this.CONSUME(ColorPrefix);
@@ -318,7 +308,6 @@ interface AttributeBracketContext {
   minimizedAttr?: CstNode[];
   pullExecutionAttr?: CstNode[];
   sizeAttr?: CstNode[];
-  positionAttr?: CstNode[];
   colorAttr?: CstNode[];
   iconAttr?: CstNode[];
   jobAttr?: CstNode[];
@@ -377,11 +366,6 @@ interface SizeAttrContext {
   heightValue: CstNodeWithImage[];
 }
 
-interface PositionAttrContext {
-  xValue: CstNodeWithImage[];
-  yValue: CstNodeWithImage[];
-}
-
 interface ColorAttrContext {
   colorValue: CstNodeWithImage[];
 }
@@ -425,7 +409,6 @@ class NodeVisitor extends BaseVisitor {
     let minimized: boolean | undefined;
     let pullExecution: string | undefined;
     let size: { width: number; height: number } | undefined;
-    let position: { x: number; y: number } | undefined;
     let color: string | undefined;
     let icon: string | undefined;
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
@@ -447,7 +430,6 @@ class NodeVisitor extends BaseVisitor {
         if (attrs.minimized) minimized = attrs.minimized;
         if (attrs.pullExecution) pullExecution = attrs.pullExecution;
         if (attrs.size) size = attrs.size;
-        if (attrs.position) position = attrs.position;
         if (attrs.color) color = attrs.color;
         if (attrs.icon) icon = attrs.icon;
         if (attrs.tags) tags = [...(tags || []), ...attrs.tags];
@@ -468,7 +450,6 @@ class NodeVisitor extends BaseVisitor {
       ...(minimized && { minimized }),
       ...(pullExecution && { pullExecution }),
       ...(size && { size }),
-      ...(position && { position }),
       ...(color && { color }),
       ...(icon && { icon }),
       ...(tags && { tags }),
@@ -492,8 +473,7 @@ class NodeVisitor extends BaseVisitor {
     minimized?: boolean;
     pullExecution?: string;
     size?: { width: number; height: number };
-    position?: { x: number; y: number };
-    color?: string;
+      color?: string;
     icon?: string;
     tags?: Array<{ label: string; tooltip?: string }>;
     job?: string;
@@ -507,7 +487,6 @@ class NodeVisitor extends BaseVisitor {
     let minimized: boolean | undefined;
     let pullExecution: string | undefined;
     let size: { width: number; height: number } | undefined;
-    let position: { x: number; y: number } | undefined;
     let color: string | undefined;
     let icon: string | undefined;
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
@@ -558,12 +537,6 @@ class NodeVisitor extends BaseVisitor {
       }
     }
 
-    if (ctx.positionAttr) {
-      for (const attr of ctx.positionAttr) {
-        position = this.visit(attr);
-      }
-    }
-
     if (ctx.colorAttr) {
       for (const attr of ctx.colorAttr) {
         color = this.visit(attr);
@@ -610,7 +583,6 @@ class NodeVisitor extends BaseVisitor {
       minimized,
       pullExecution,
       size,
-      position,
       color,
       icon,
       tags,
@@ -707,12 +679,6 @@ class NodeVisitor extends BaseVisitor {
     return { width, height };
   }
 
-  positionAttr(ctx: PositionAttrContext): { x: number; y: number } {
-    const x = parseInt(ctx.xValue[0].image, 10);
-    const y = parseInt(ctx.yValue[0].image, 10);
-    return { x, y };
-  }
-
   colorAttr(ctx: ColorAttrContext): string {
     return this.unescapeString(ctx.colorValue[0].image);
   }
@@ -764,6 +730,47 @@ const visitorInstance = new NodeVisitor();
 // =============================================================================
 
 /**
+ * Every `@node` attribute takes a quoted value: `[color: "blue"]`,
+ * `[expr: timeout="24h"]`. When the quotes are missing the grammar reports
+ * only that it expected a `StringLiteral`, which names neither the attribute
+ * nor the quoting -- and because a failed `@node` line is a warning, the
+ * author's actual error ends up being `node "g" not found` on a `@path` line
+ * that is correct.
+ *
+ * This recovers the attribute and value from the raw text and says what to
+ * write instead. `[expr:]` is a special case twice over: its value is
+ * JavaScript, so text needs quotes *inside* the attribute (`timeout="'24h'"`),
+ * while an upstream port reference is already an expression and needs only
+ * the attribute's own quotes (`agentId="prep.agentId"`).
+ *
+ * @param input - The full `@node ...` line as written.
+ * @returns A message naming the fix, or null when the failure is something else.
+ */
+function unquotedValueHint(input: string): string | null {
+  // The first attribute whose value is not quoted, e.g. `[color: blue]` or
+  // `[expr: timeout=24h]`. A quoted value is left alone.
+  const attribute = /\[\s*([A-Za-z][A-Za-z0-9]*)\s*:\s*([^\]"]+?)\s*\]/.exec(input);
+  if (!attribute) return null;
+
+  const [, name, rawValue] = attribute;
+  if (name === 'expr') {
+    const binding = /^([A-Za-z_$][\w$]*)\s*=\s*(.+)$/.exec(rawValue);
+    if (!binding) return null;
+    const [, port, value] = binding;
+    // `prep.agentId` is a port reference and already an expression; `24h` is
+    // text that has to survive as a JavaScript string literal.
+    const isReference = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)+$/.test(value);
+    const quoted = isReference ? `${port}="${value}"` : `${port}="'${value}'"`;
+    return (
+      `the [expr:] value for "${port}" is not quoted. ` +
+      `An [expr:] value is JavaScript and the attribute itself takes a quoted string, so write [expr: ${quoted}].`
+    );
+  }
+
+  return `the [${name}:] value is not quoted. Write [${name}: "${rawValue}"].`;
+}
+
+/**
  * Parse a @node line and return structured result.
  * Returns null if the line is not a node declaration.
  */
@@ -796,9 +803,10 @@ export function parseNodeLine(input: string, warnings: string[]): NodeParseResul
   if (parserInstance.errors.length > 0) {
     const firstError = parserInstance.errors[0];
     const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
+    const hint = unquotedValueHint(input);
     warnings.push(
       `Failed to parse node line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
+        `  Error: ${hint ?? firstError.message}\n` +
         `  Expected format: @node instanceId NodeType`
     );
     return null;

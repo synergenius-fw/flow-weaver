@@ -140,4 +140,77 @@ describe('local coordinator run store', () => {
     expect(all[0]).toMatchObject({ status: 'waiting', gate: { kind: 'approval', node: 'first' } });
     expect(coordinator.list({ filePath: approval }).map((run) => run.runId)).toEqual([a.runId]);
   });
+
+  it('streams the trace to an observer and keeps it beside the record', async () => {
+    // The console drives a run this way: each step as it happens, and the
+    // same trace again when the run is opened later. Each segment appends.
+    const coordinator = createLocalCoordinator({ rootDir });
+    const seen: string[] = [];
+    const paused = await coordinator.start(
+      { filePath: approval, params: { value: 4 } },
+      { onEvent: (event) => { seen.push(event.type); } },
+    );
+    expect(seen).toContain('STATUS_CHANGED');
+    expect(coordinator.record(paused.runId)?.traced).toBe(true);
+    const firstSegment = coordinator.trace(paused.runId).length;
+    expect(firstSegment).toBeGreaterThan(0);
+    expect(fs.existsSync(path.join(rootDir, paused.runId, 'trace.json'))).toBe(true);
+
+    await coordinator.resume({ runId: paused.runId, input: { answer: 8 } }, { trace: true });
+    expect(coordinator.trace(paused.runId).length).toBeGreaterThan(firstSegment);
+  });
+
+  it('is no longer traced end to end once a segment ran without one', async () => {
+    // The console started it and watched; an assistant resumed it blind.
+    // The first segment's trace is still there, but the run has a gap.
+    const coordinator = createLocalCoordinator({ rootDir });
+    const paused = await coordinator.start({ filePath: approval, params: { value: 4 } }, { trace: true });
+    const kept = coordinator.trace(paused.runId).length;
+    await coordinator.resume({ runId: paused.runId, input: { answer: 8 } });
+    expect(coordinator.record(paused.runId)?.traced).toBe(false);
+    expect(coordinator.trace(paused.runId).length).toBe(kept);
+  });
+
+  it('keeps no trace unless asked', async () => {
+    // An assistant over MCP never asks; fewer bytes on disk and in its answer.
+    const coordinator = createLocalCoordinator({ rootDir });
+    const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
+    expect(coordinator.trace(paused.runId)).toEqual([]);
+    expect(coordinator.record(paused.runId)?.traced).toBeFalsy();
+    expect(fs.existsSync(path.join(rootDir, paused.runId, 'trace.json'))).toBe(false);
+  });
+
+  it('uses the run id the driver brings', async () => {
+    const coordinator = createLocalCoordinator({ rootDir });
+    const view = await coordinator.start({ filePath: approval, params: { value: 4 }, runId: 'console-1' });
+    expect(view.runId).toBe('console-1');
+    expect(coordinator.record('console-1')).toMatchObject({ params: { value: 4 }, status: 'waiting' });
+    expect(coordinator.list()[0]).toMatchObject({ runId: 'console-1' });
+    expect(typeof coordinator.list()[0].createdAt).toBe('string');
+  });
+
+  it('cancels a waiting run, dropping its continuation', async () => {
+    const coordinator = createLocalCoordinator({ rootDir });
+    const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
+    const cancelled = coordinator.cancel(paused.runId);
+    expect(cancelled.status).toBe('cancelled');
+    expect(cancelled.error).toBeUndefined();
+    expect(fs.existsSync(path.join(rootDir, paused.runId, 'continuation.json'))).toBe(false);
+    await expect(coordinator.resume({ runId: paused.runId, input: { answer: 8 } })).rejects.toMatchObject({
+      name: 'RunNotWaitingError',
+      status: 'cancelled',
+    });
+    expect(() => coordinator.cancel(paused.runId)).toThrow(RunNotWaitingError);
+  });
+
+  it('records a run stopped by its signal as cancelled, not failed', async () => {
+    const coordinator = createLocalCoordinator({ rootDir });
+    const abort = new AbortController();
+    abort.abort();
+    await expect(
+      coordinator.start({ filePath: approval, params: { value: 4 }, runId: 'stopped' }, { abortSignal: abort.signal }),
+    ).rejects.toThrow();
+    expect(coordinator.get('stopped')).toMatchObject({ status: 'cancelled' });
+    expect(coordinator.get('stopped')?.error).toBeUndefined();
+  });
 });

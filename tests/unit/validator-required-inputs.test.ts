@@ -48,7 +48,7 @@ describe("Validator Required Inputs", () => {
     });
 
     const workflow = createWorkflow(
-      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: { x: 0, y: 0 } }],
+      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: {} }],
       [], // No connections
       [nodeType]
     );
@@ -69,7 +69,7 @@ describe("Validator Required Inputs", () => {
     });
 
     const workflow = createWorkflow(
-      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: { x: 0, y: 0 } }],
+      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: {} }],
       [],
       [nodeType]
     );
@@ -89,7 +89,7 @@ describe("Validator Required Inputs", () => {
     });
 
     const workflow = createWorkflow(
-      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: { x: 0, y: 0 } }],
+      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: {} }],
       [{ type: "Connection", from: { node: "Start", port: "value" }, to: { node: "node1", port: "value" } }],
       [nodeType]
     );
@@ -109,7 +109,7 @@ describe("Validator Required Inputs", () => {
     });
 
     const workflow = createWorkflow(
-      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: { x: 0, y: 0 } }],
+      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: {} }],
       [],
       [nodeType]
     );
@@ -129,7 +129,7 @@ describe("Validator Required Inputs", () => {
     });
 
     const workflow = createWorkflow(
-      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: { x: 0, y: 0 } }],
+      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: {} }],
       [],
       [nodeType]
     );
@@ -149,7 +149,7 @@ describe("Validator Required Inputs", () => {
     });
 
     const workflow = createWorkflow(
-      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: { x: 0, y: 0 } }],
+      [{ type: "NodeInstance", id: "node1", nodeType: "testNode", config: {} }],
       [],
       [nodeType]
     );
@@ -174,8 +174,6 @@ describe("Validator Required Inputs", () => {
         id: "node1",
         nodeType: "testNode",
         config: {
-          x: 0,
-          y: 0,
           portConfigs: [{
             portName: "value",
             direction: "INPUT",
@@ -208,8 +206,6 @@ describe("Validator Required Inputs", () => {
         id: "node1",
         nodeType: "testNode",
         config: {
-          x: 0,
-          y: 0,
           portConfigs: [{
             portName: "value",
             direction: "INPUT",

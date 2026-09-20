@@ -8,7 +8,6 @@ import {
   modifyAddConnectionCommand,
   modifyRemoveConnectionCommand,
   modifyRenameNodeCommand,
-  modifySetPositionCommand,
   modifySetLabelCommand,
 } from '../../../src/cli/commands/modify';
 import { applyModifyOperation, validateModifyParams } from '../../../src/api/modify-operation';
@@ -40,8 +39,8 @@ export function formatter(value: number): { formatted: string } {
 /**
  * @flowWeaver workflow
  *
- * @node a processor [position: 200 100]
- * @node b formatter [position: 400 100]
+ * @node a processor
+ * @node b formatter
  *
  * @connect Start.execute -> a.execute
  * @connect a.result -> b.value
@@ -54,8 +53,6 @@ export function formatter(value: number): { formatted: string } {
  * @returns onFailure [order:-1] [hidden] - On Failure
  * @returns formatted [order:0] - Formatted result
  *
- * @position Start 0 100
- * @position Exit 600 100
  */
 export function testWorkflow(
   execute: boolean,
@@ -207,17 +204,6 @@ describe('modify renameNode', () => {
   });
 });
 
-describe('modify setPosition', () => {
-  it('sets node position', async () => {
-    await modifySetPositionCommand(workflowFile, { nodeId: 'a', x: '500', y: '300' });
-
-    const result = parseFile();
-    const wf = result.workflows[0];
-    const inst = wf.instances.find((i) => i.id === 'a');
-    expect(inst?.config?.x).toBe(500);
-    expect(inst?.config?.y).toBe(300);
-  });
-});
 
 describe('modify setLabel', () => {
   it('sets node label', async () => {

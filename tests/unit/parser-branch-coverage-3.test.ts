@@ -953,7 +953,7 @@ describe('parser branch coverage 3', () => {
       }
     });
 
-    it('parses instance with size, position, suppress', () => {
+    it('parses instance with size, suppress', () => {
       const parser = freshParser();
       const result = parser.parseFromString(`
         /**
@@ -963,7 +963,7 @@ describe('parser branch coverage 3', () => {
 
         /**
          * @flowWeaver workflow
-         * @node a step [size: 200 100, position: 50 60, suppress: "W001"]
+         * @node a step [size: 200 100, suppress: "W001"]
          */
         function wf(execute: boolean): { onSuccess: boolean } {
           return { onSuccess: true };
@@ -975,8 +975,6 @@ describe('parser branch coverage 3', () => {
       if (instA) {
         expect(instA.config!.width).toBe(200);
         expect(instA.config!.height).toBe(100);
-        expect(instA.config!.x).toBe(50);
-        expect(instA.config!.y).toBe(60);
       }
     });
 
@@ -1298,36 +1296,6 @@ describe('parser branch coverage 3', () => {
         }
       `);
       expect(result.workflows[0].userSpecifiedAsync).toBe(true);
-    });
-  });
-
-  // ── Workflow positions for Start/Exit ──
-
-  describe('workflow positions', () => {
-    it('extracts Start/Exit positions', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver workflow
-         * @position Start 100 200
-         * @position Exit 300 400
-         */
-        function wf(execute: boolean): Promise<{ onSuccess: boolean }> {
-          return Promise.resolve({ onSuccess: true });
-        }
-      `);
-      expect(result.workflows).toHaveLength(1);
-      const ui = result.workflows[0].ui;
-      if (ui) {
-        if (ui.startNode) {
-          expect(ui.startNode.x).toBe(100);
-          expect(ui.startNode.y).toBe(200);
-        }
-        if (ui.exitNode) {
-          expect(ui.exitNode.x).toBe(300);
-          expect(ui.exitNode.y).toBe(400);
-        }
-      }
     });
   });
 
@@ -2778,33 +2746,6 @@ describe('parser branch coverage 3', () => {
 
   // ── Workflow with @position for Start and Exit ──
 
-  describe('workflow UI positions for nodes', () => {
-    it('extracts @position for arbitrary nodes', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver nodeType
-         */
-        function step(execute: boolean) {}
-
-        /**
-         * @flowWeaver workflow
-         * @node A step
-         * @position A 100 200
-         */
-        function posWf(execute: boolean): { onSuccess: boolean } {
-          return { onSuccess: true };
-        }
-      `);
-      const wf = result.workflows[0];
-      const instA = wf.instances.find((i) => i.id === 'A');
-      expect(instA).toBeDefined();
-      if (instA) {
-        expect(instA.config!.x).toBe(100);
-        expect(instA.config!.y).toBe(200);
-      }
-    });
-  });
 
   // ── parseFromString called twice with same virtualPath ──
 

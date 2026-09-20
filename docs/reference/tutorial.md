@@ -150,7 +150,7 @@ fw validate my-workflow.ts
 
 # Step 3: Wire the Workflow
 
-Below the node type functions, add the workflow export. The `@flowWeaver workflow` JSDoc block declares node instances with `@node` (including optional `[position: x y]` bracket attributes), and declares the route with `@path`.
+Below the node type functions, add the workflow export. The `@flowWeaver workflow` JSDoc block declares node instances with `@node`, and declares the route with `@path`.
 
 ```typescript
 /**
@@ -159,9 +159,9 @@ Below the node type functions, add the workflow export. The `@flowWeaver workflo
  * @param record - Raw input record
  * @returns score - Computed score
  * @returns summary - Human-readable summary
- * @node validator validateRecord [position: -180 0]
- * @node enricher enrichRecord [position: 0 0]
- * @node scorer scoreRecord [position: 180 0]
+ * @node validator validateRecord
+ * @node enricher enrichRecord
+ * @node scorer scoreRecord
  * @path Start -> validator -> enricher -> scorer -> Exit
  */
 export function processRecord(
@@ -174,7 +174,7 @@ export function processRecord(
 
 Key points:
 
-- `@node validator validateRecord [position: -180 0]` creates an instance named `validator` of node type `validateRecord`, positioned at (-180, 0).
+- `@node validator validateRecord` creates an instance named `validator` of node type `validateRecord`.
 - `@path Start -> validator -> enricher -> scorer -> Exit` declares the control flow: each step runs when the previous one succeeds, and the last step's success reaches `Exit`. The compiler writes the STEP connections (`execute`, `onSuccess`, `onFailure`) for you.
 - `@path` also wires the data ports by name. Every input of a step resolves to the nearest earlier step that has an output of the same name: `validator.record` comes from `Start.record`, `enricher.record` from `validator.record`, `scorer.record` from `enricher.record`, and `Exit.score` / `Exit.summary` from the scorer. That is why the node types in Step 2 share the port name `record`.
 - `@connect from.port -> to.port` is still available for ports whose names differ, and an explicit `@connect` always wins over the name resolution. A linear pipeline with consistent names needs none.
@@ -226,14 +226,16 @@ fw compile my-workflow.ts --production
 
 # Step 6: Run
 
-Import and call the generated function from any TypeScript or JavaScript file:
+Import the generated function from any TypeScript or JavaScript file and hand it a runtime — the third parameter the compiler added to its signature:
 
 ```typescript
+import { createWorkflowRuntime } from '@synergenius/flow-weaver';
 import { processRecord } from './my-workflow';
 
-const result = processRecord(true, {
+const runtime = createWorkflowRuntime({ runId: 'demo-1', workflowId: 'processRecord' });
+const result = await processRecord(true, {
   record: { name: 'Alice Smith', age: 30, email: 'alice@university.edu' },
-});
+}, runtime);
 
 console.log(result);
 // {
@@ -244,7 +246,7 @@ console.log(result);
 // }
 ```
 
-The first argument (`execute: boolean`) controls whether the workflow actually runs. Pass `true` for normal execution.
+The first argument (`execute: boolean`) is the `Start.execute` signal — pass `true`. The runtime names the run (`runId` is any string of yours) and carries optional services: mocks, a cancellation signal, a debugger. [Using the library](library) lists them.
 
 Test edge cases:
 
@@ -252,7 +254,7 @@ Test edge cases:
 // Invalid record -- the validator throws, so the enricher and scorer never run
 // and the error propagates out of processRecord
 try {
-  processRecord(true, { record: { name: '', age: -5, email: '' } });
+  await processRecord(true, { record: { name: '', age: -5, email: '' } }, runtime);
 } catch (err) {
   console.log((err as Error).message); // "Invalid record: missing fields or age out of range"
 }
@@ -383,9 +385,9 @@ function scoreRecord(record: {
  * @param record - Raw input record
  * @returns score - Computed score
  * @returns summary - Human-readable summary
- * @node validator validateRecord [position: -180 0]
- * @node enricher enrichRecord [position: 0 0]
- * @node scorer scoreRecord [position: 180 0]
+ * @node validator validateRecord
+ * @node enricher enrichRecord
+ * @node scorer scoreRecord
  * @path Start -> validator -> enricher -> scorer -> Exit
  */
 export function processRecord(
@@ -450,4 +452,4 @@ Now that you have a working workflow, explore these topics to go further:
 - **Node conversion** (`fw docs node-conversion`) -- Turn existing functions into expression nodes, and when to fall back to normal mode
 - **Scaffolding templates** (`fw docs scaffold`) -- Generate workflows from templates like `sequential`, `foreach`, `conditional`, and more
 - **Debugging** (`fw docs debugging`) -- WebSocket debugger, validation diagnostics, and error resolution
-- **JSDoc grammar** (`fw docs jsdoc-grammar`) -- Full annotation syntax reference including metadata brackets, scope clauses, and positioning
+- **JSDoc grammar** (`fw docs jsdoc-grammar`) -- Full annotation syntax reference including metadata brackets and scope clauses

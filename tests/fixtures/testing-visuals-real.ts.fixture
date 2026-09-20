@@ -23,11 +23,9 @@ function shout(text: string): { result: string } {
 
 /**
  * @flowWeaver workflow
- * @node g greet [position: -216 -48]
- * @node s shout [position: 128 -48]
+ * @node g greet
+ * @node s shout
  * @path Start -> g -> s -> Exit
- * @position Start -544 -48
- * @position Exit 448 -48
  * @connect g.greeting -> s.text
  * @connect s.result -> Exit.message
  * @param execute [order:-1] - Execute

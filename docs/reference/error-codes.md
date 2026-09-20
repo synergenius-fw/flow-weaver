@@ -790,7 +790,7 @@ These rules detect common workflow design problems that compile fine but indicat
 | REDUNDANT_COERCE | An `as` coercion converts between identical source and target types and does nothing |
 | INVALID_PORT_TYPE | A port declares a dataType that is not a recognised Flow Weaver type |
 | INVALID_COLOR | A node type uses an @color value that is not in the palette; see the visual-reference topic for valid colors |
-| INVALID_ICON | A node type uses an @icon value that is not a known icon; see the visual-reference topic for valid icons |
+| INVALID_ICON | A node type uses an @icon value that is not a Material Symbols name (snake_case or camelCase); see the visual-reference topic |
 | INVALID_EXECUTE_WHEN | A node type declares an @executeWhen value that is not a recognised execution strategy |
 | INVALID_PORT_CONFIG_REF | An instance configures a port (portOrder, portLabel, expr) that does not exist on its node type |
 | SUPPRESS_UNKNOWN_CODE | A [suppress: ...] entry cannot be a validation code, so it suppresses nothing; codes are separate string literals, e.g. [suppress: "A", "B"], not [suppress: "A,B"] |

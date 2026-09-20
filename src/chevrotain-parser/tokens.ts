@@ -57,11 +57,6 @@ export const ConnectTag = createToken({
   pattern: /@connect\b/,
 });
 
-export const PositionTag = createToken({
-  name: 'PositionTag',
-  pattern: /@position\b/,
-});
-
 export const ScopeTag = createToken({
   name: 'ScopeTag',
   pattern: /@scope\b/,
@@ -219,11 +214,6 @@ export const HiddenKeyword = createToken({
 export const SizePrefix = createToken({
   name: 'SizePrefix',
   pattern: /size:/,
-});
-
-export const PositionPrefix = createToken({
-  name: 'PositionPrefix',
-  pattern: /position:/,
 });
 
 export const ColorPrefix = createToken({
@@ -434,7 +424,6 @@ export const allTokens = [
   StepTag,
   NodeTag,
   ConnectTag,
-  PositionTag,
   ScopeTag,
   MapTag,
   PathTag,
@@ -464,7 +453,6 @@ export const allTokens = [
   MergeStrategyPrefix,
   PullExecutionPrefix,
   SizePrefix,
-  PositionPrefix,
   ColorPrefix,
   IconPrefix,
   JobPrefix,

@@ -1,9 +1,7 @@
 vi.mock('../../src/diagram/index', () => ({
   fileToSVG: vi.fn().mockReturnValue('<svg>file</svg>'),
-  fileToHTML: vi.fn().mockReturnValue('<html>file</html>'),
   fileToASCII: vi.fn().mockReturnValue('ASCII file diagram'),
   sourceToSVG: vi.fn().mockReturnValue('<svg>source</svg>'),
-  sourceToHTML: vi.fn().mockReturnValue('<html>source</html>'),
   sourceToASCII: vi.fn().mockReturnValue('ASCII source diagram'),
 }));
 
@@ -19,7 +17,7 @@ vi.mock('fs', async () => {
 import * as fs from 'fs';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerDiagramTools } from '../../src/mcp/tools-diagram';
-import { sourceToSVG, sourceToHTML, sourceToASCII, fileToSVG, fileToHTML, fileToASCII } from '../../src/diagram/index';
+import { sourceToSVG, sourceToASCII, fileToSVG, fileToASCII } from '../../src/diagram/index';
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }>;
 
@@ -58,13 +56,6 @@ describe('fw_diagram tool', () => {
     expect(sourceToSVG).toHaveBeenCalled();
   });
 
-  it('generates HTML from source', async () => {
-    const result = await toolHandler({ source: 'workflow code', format: 'html' });
-    const parsed = parseResult(result);
-    expect(parsed.success).toBe(true);
-    expect(sourceToHTML).toHaveBeenCalled();
-  });
-
   it('generates ASCII from source with ascii format', async () => {
     const result = await toolHandler({ source: 'workflow code', format: 'ascii' });
     const parsed = parseResult(result);
@@ -95,13 +86,6 @@ describe('fw_diagram tool', () => {
     const parsed = parseResult(result);
     expect(parsed.success).toBe(true);
     expect(fileToSVG).toHaveBeenCalled();
-  });
-
-  it('generates HTML from file', async () => {
-    const result = await toolHandler({ filePath: '/test/workflow.ts', format: 'html' });
-    const parsed = parseResult(result);
-    expect(parsed.success).toBe(true);
-    expect(fileToHTML).toHaveBeenCalled();
   });
 
   it('generates ASCII from file', async () => {
@@ -151,14 +135,12 @@ describe('fw_diagram tool', () => {
       source: 'code',
       workflowName: 'myWorkflow',
       theme: 'light',
-      showPortLabels: false,
       format: 'svg',
     });
 
     expect(sourceToSVG).toHaveBeenCalledWith('code', {
       workflowName: 'myWorkflow',
       theme: 'light',
-      showPortLabels: false,
       format: 'svg',
     });
   });

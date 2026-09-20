@@ -32,8 +32,8 @@ fw pattern extract <source-file> --nodes a,b,c -o <output-file> [--name n] [--pr
  * @flowWeaver pattern
  * @name validateTransform
  * @description Validates input then transforms it
- * @node v inputValidator [position: -90 0]
- * @node t dataTransformer [position: 90 0]
+ * @node v inputValidator
+ * @node t dataTransformer
  * @connect IN.data -> v.input
  * @connect v.valid -> t.input
  * @connect t.output -> OUT.result
@@ -148,9 +148,8 @@ When a pattern node type already exists in target:
 
 1. **Name patterns descriptively** - The `@name` should describe what the pattern does
 2. **Document ports** - Use `@port` descriptions for clarity
-3. **Use relative positions** - Patterns maintain relative positions when applied
-4. **Keep patterns focused** - One pattern = one reusable concept
-5. **Include node types inline** - Makes patterns self-contained
+3. **Keep patterns focused** - One pattern = one reusable concept
+4. **Include node types inline** - Makes patterns self-contained
 
 ## Related Topics
 

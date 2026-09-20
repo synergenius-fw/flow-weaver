@@ -478,7 +478,7 @@ export const VALIDATION_CODES: TValidationCodeDoc[] = [
     code: 'INVALID_ICON',
     severity: 'warning',
     title: 'Invalid Icon',
-    description: 'A node type uses an @icon value that is not a known icon; see the visual-reference topic for valid icons',
+    description: 'A node type uses an @icon value that is not a Material Symbols name (snake_case or camelCase); see the visual-reference topic',
     category: 'structural',
   },
   {

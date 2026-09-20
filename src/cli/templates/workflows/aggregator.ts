@@ -72,11 +72,9 @@ function combineData(dataA: any, dataB: any): { aggregated: any } {
 
 /**
  * @flowWeaver workflow
- * @node sourceA fetchSourceA [position: -180 -90] [color: "blue"] [icon: "download"]
- * @node sourceB fetchSourceB [position: -180 90] [color: "blue"] [icon: "download"]
- * @node combiner combineData [position: 90 0] [color: "purple"] [icon: "callMerge"]
- * @position Start -450 0
- * @position Exit 360 0
+ * @node sourceA fetchSourceA [color: "blue"] [icon: "download"]
+ * @node sourceB fetchSourceB [color: "blue"] [icon: "download"]
+ * @node combiner combineData [color: "purple"] [icon: "callMerge"]
  * @connect Start.execute -> sourceA.execute
  * @connect Start.execute -> sourceB.execute
  * @connect Start.query -> sourceA.query

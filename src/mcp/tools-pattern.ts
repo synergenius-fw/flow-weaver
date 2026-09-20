@@ -16,7 +16,6 @@ import {
   renameNode as manipRenameNode,
   addConnection as manipAddConnection,
   removeConnection as manipRemoveConnection,
-  setNodePosition as manipSetNodePosition,
   setNodeLabel as manipSetNodeLabel,
 } from '../api/manipulation/index.js';
 import { findIsolatedNodes } from '../api/query.js';
@@ -154,7 +153,7 @@ export function registerPatternTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_modify',
-    'Modify a workflow file: add/remove/rename nodes, add/remove connections, set positions/labels. Parses the file, applies the mutation, and rewrites only the JSDoc annotations. A file that was already compiled in place is recompiled so its generated body stays consistent; an uncompiled file stays uncompiled. Returns auto-validation results and a text description of the updated workflow. For addNode: if x/y are omitted, the node is placed to the right of the rightmost existing node.',
+    'Modify a workflow file: add/remove/rename nodes, add/remove connections, set labels. Parses the file, applies the mutation, and rewrites only the JSDoc annotations. A file that was already compiled in place is recompiled so its generated body stays consistent; an uncompiled file stays uncompiled. Returns auto-validation results and a text description of the updated workflow.',
     {
       filePath: z.string().describe('Path to the workflow file'),
       workflowName: z.string().optional().describe('Specific workflow if file has multiple'),
@@ -165,7 +164,6 @@ export function registerPatternTools(mcp: McpServer): void {
           'renameNode',
           'addConnection',
           'removeConnection',
-          'setNodePosition',
           'setNodeLabel',
         ])
         .describe('The mutation to perform'),
@@ -173,12 +171,11 @@ export function registerPatternTools(mcp: McpServer): void {
         .record(z.string(), z.unknown())
         .describe(
           'Operation-specific parameters. ' +
-            'addNode: {nodeId, nodeType, x?, y?}. ' +
+            'addNode: {nodeId, nodeType}. ' +
             'removeNode: {nodeId}. ' +
             'renameNode: {oldId, newId}. ' +
             'addConnection: {from, to} ("node.port" format). ' +
             'removeConnection: {from, to} ("node.port" format). ' +
-            'setNodePosition: {nodeId, x, y}. ' +
             'setNodeLabel: {nodeId, label}.'
         ),
       preview: z.boolean().optional().describe('Preview without writing (default: false)'),
@@ -230,34 +227,10 @@ export function registerPatternTools(mcp: McpServer): void {
               );
             }
 
-            // Auto-position: if x/y not provided, place to the right of the rightmost node
-            let autoX = typeof p.x === 'number' ? p.x : undefined;
-            let autoY = typeof p.y === 'number' ? p.y : undefined;
-            if (autoX === undefined || autoY === undefined) {
-              const positions = parseResult.ast.instances
-                .map((inst: { config?: { x?: number; y?: number } }) => inst.config)
-                .filter(
-                  (c): c is { x: number; y: number } =>
-                    c !== undefined && typeof c.x === 'number' && typeof c.y === 'number'
-                );
-              if (positions.length > 0) {
-                const maxX = Math.max(...positions.map((pos) => pos.x));
-                if (autoX === undefined) autoX = maxX + 180;
-                if (autoY === undefined) autoY = 0;
-              } else {
-                if (autoX === undefined) autoX = 0;
-                if (autoY === undefined) autoY = 0;
-              }
-            }
-
             modifiedAST = manipAddNode(modifiedAST, {
               type: 'NodeInstance',
               id: nodeId,
               nodeType,
-              config: {
-                x: autoX,
-                y: autoY,
-              },
             });
             break;
           }
@@ -391,19 +364,6 @@ export function registerPatternTools(mcp: McpServer): void {
             }
             break;
           }
-          case 'setNodePosition': {
-            const nodeId = p.nodeId as string;
-            const x = p.x as number;
-            const y = p.y as number;
-            if (!nodeId || typeof x !== 'number' || typeof y !== 'number') {
-              return makeErrorResult(
-                'INVALID_PARAMS',
-                'setNodePosition requires params: nodeId, x, y'
-              );
-            }
-            modifiedAST = manipSetNodePosition(modifiedAST, nodeId, x, y);
-            break;
-          }
           case 'setNodeLabel': {
             const nodeId = p.nodeId as string;
             const label = p.label as string;
@@ -534,7 +494,6 @@ export function registerPatternTools(mcp: McpServer): void {
               'renameNode',
               'addConnection',
               'removeConnection',
-              'setNodePosition',
               'setNodeLabel',
             ]),
             params: z.record(z.string(), z.unknown()),

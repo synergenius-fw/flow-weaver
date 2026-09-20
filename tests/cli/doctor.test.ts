@@ -394,11 +394,11 @@ beforeAll(() => {
 // ── runDoctorChecks orchestrator ─────────────────────────────────────────────
 
 describe('runDoctorChecks', () => {
-  it('should run all 13 checks, leading with the running install', () => {
+  it('should run all 14 checks, leading with the running install', () => {
     const report = runDoctorChecks(emptyDir);
-    expect(report.checks).toHaveLength(13);
+    expect(report.checks).toHaveLength(14);
     expect(report.checks[0].name).toBe('Running install');
-    expect(report.summary.pass + report.summary.warn + report.summary.fail).toBe(13);
+    expect(report.summary.pass + report.summary.warn + report.summary.fail).toBe(14);
   });
 
   it('should report ok=false when failures exist (missing TypeScript)', () => {
@@ -461,7 +461,7 @@ describe('doctorCommand --json', () => {
     expect(report).toHaveProperty('server');
     expect(typeof report.server.installPath).toBe('string');
     expect(Array.isArray(report.checks)).toBe(true);
-    expect(report.checks).toHaveLength(13);
+    expect(report.checks).toHaveLength(14);
     expect(typeof report.summary.pass).toBe('number');
     expect(typeof report.summary.warn).toBe('number');
     expect(typeof report.summary.fail).toBe('number');

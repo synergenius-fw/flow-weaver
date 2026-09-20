@@ -13,6 +13,7 @@ import {
   searchPackages,
   listInstalledPackages,
   getInstalledPackageManifest,
+  searchAllRegistries,
 } from '../marketplace/index.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
 
@@ -21,7 +22,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_market_search',
-    'Search npm for Flow Weaver marketplace packages (node types, workflows, patterns). Returns package name, version, and description.',
+    'Search for Flow Weaver packs on every registry the project\'s npm uses (.npmrc: the default and each scoped registry, with its token), or on one registryUrl. Returns name, version, description and which registry had it.',
     {
       query: z.string().optional().describe('Search query text (optional — omit to browse all)'),
       limit: z
@@ -35,24 +36,22 @@ export function registerMarketplaceTools(mcp: McpServer): void {
     },
     async (args: { query?: string; limit?: number; registryUrl?: string }) => {
       try {
-        const results = await searchPackages({
-          query: args.query,
-          limit: args.limit,
-          registryUrl: args.registryUrl,
-        });
-
+        if (args.registryUrl) {
+          const results = await searchPackages({ query: args.query, limit: args.limit, registryUrl: args.registryUrl });
+          return makeToolResult({
+            count: results.length,
+            packages: results.map((pkg) => ({ name: pkg.name, version: pkg.version, description: pkg.description, official: pkg.official, publisher: pkg.publisher })),
+            hint: results.length > 0 ? 'Use fw_market_install to install a package' : 'No packages found — try a different query or browse all with no query',
+          });
+        }
+        const multi = await searchAllRegistries({ query: args.query, limit: args.limit, projectDir: process.cwd() });
         return makeToolResult({
-          count: results.length,
-          packages: results.map((pkg) => ({
-            name: pkg.name,
-            version: pkg.version,
-            description: pkg.description,
-            official: pkg.official,
-            publisher: pkg.publisher,
-          })),
-          hint: results.length > 0
+          count: multi.results.length,
+          packages: multi.results.map((pkg) => ({ name: pkg.name, version: pkg.version, description: pkg.description, official: pkg.official, publisher: pkg.publisher, registry: pkg.registry })),
+          searched: multi.searched.map((s) => ({ url: s.url, scopes: s.scopes, ok: s.ok, count: s.count, ...(s.error ? { error: s.error } : {}) })),
+          hint: multi.results.length > 0
             ? 'Use fw_market_install to install a package'
-            : 'No packages found — try a different query or browse all with no query',
+            : 'No packs found on the configured registries; a registry not in .npmrc can be given as registryUrl',
         });
       } catch (err) {
         return makeErrorResult(

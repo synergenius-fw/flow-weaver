@@ -65,12 +65,10 @@ function formatOutput(execute: boolean, result: string): {
 
 /**
  * @flowWeaver workflow
- * @node validator validateInput [position: 270 0]
- * @node transformer transformData [position: 540 0]
- * @node outputter formatOutput [position: 810 0]
+ * @node validator validateInput
+ * @node transformer transformData
+ * @node outputter formatOutput
  * @path Start -> validator -> transformer -> outputter -> Exit
- * @position Start 0 0
- * @position Exit 1080 0
  * @param execute [order:0] - Execute
  * @param data [order:1] - Data
  * @returns onSuccess [order:0] - On Success

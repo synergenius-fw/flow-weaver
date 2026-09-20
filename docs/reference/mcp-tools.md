@@ -44,7 +44,7 @@ See [Durable Gates](durable-gates) for what a gate is and the `answer` rules.
 | `fw_validate` | `filePath`, `workflowName?`, `draft?` | `{ valid, errors, warnings }` | Cheapest check. Each item is `{ message, severity, code, nodeId? }` plus one of `hint` (a tool call to make next) or `fix`. `draft` suppresses `STUB_NODE` errors for unimplemented nodes |
 | `fw_query` | `filePath`, `query`, `nodeId?`, `workflowName?` | Depends on `query` | `nodes`, `connections`, `deps`, `dependents`, `data-deps`, `execution-order`, `isolated`, `dead-ends`, `disconnected-outputs`, `node-types`. Ask one question, get one answer |
 | `fw_describe` | `filePath`, `format?`, `node?`, `workflowName?` | Full structure + validation | `json` (default), `text`, `mermaid`, `paths`, `ascii`, `ascii-compact`. Everything at once; ~2 KB+ |
-| `fw_diagram` | `filePath` or `source`, `format?`, `theme?`, `outputPath?` | Diagram | `svg` (default), `html` (graph viewer), `process` (the workflow as a process: steps in execution order, pauses at gates, failure arms, playable, with failure simulation — write it with `outputPath` and open it), `ascii` (~2 KB), `ascii-compact` (~240 B), `text`. Use `ascii-compact` in chat |
+| `fw_diagram` | `filePath` or `source`, `format?`, `theme?`, `outputPath?` | Diagram | `svg` (default; the spine the console shows, as a vector image — write it with `outputPath`), `ascii` (~2 KB), `ascii-compact` (~240 B), `text`. Use `ascii-compact` in chat |
 | `fw_diff` | `file1`, `file2`, `format?`, `workflowName?` | Semantic diff | `text` (default, ~3 KB box drawing) or `json` |
 | `fw_find_workflows` | `directory`, `pattern?` | Files with `@flowWeaver workflow` and their metadata | Glob, default `**/*.ts`; ~500 ms per directory tree |
 
@@ -52,7 +52,7 @@ See [Durable Gates](durable-gates) for what a gate is and the `answer` rules.
 
 | Tool | Arguments | Returns | Notes |
 |------|-----------|---------|-------|
-| `fw_modify` | `filePath`, `operation`, `params`, `workflowName?`, `preview?` | Updated file + validation | `addNode`, `removeNode`, `renameNode`, `addConnection`, `removeConnection`, `setNodePosition`, `setNodeLabel`. Rewrites the JSDoc annotations only; a file that was already compiled in place is recompiled so its body stays consistent |
+| `fw_modify` | `filePath`, `operation`, `params`, `workflowName?`, `preview?` | Updated file + validation | `addNode`, `removeNode`, `renameNode`, `addConnection`, `removeConnection`, `setNodeLabel`. Rewrites the JSDoc annotations only; a file that was already compiled in place is recompiled so its body stays consistent |
 | `fw_modify_batch` | `filePath`, `operations`, `workflowName?`, `preview?` | Same | One parse/write/validate cycle for many operations. An `addConnection` that already exists is skipped with a warning, not an error |
 | `fw_scaffold` | `template`, `filePath`, `name?`, `config?`, `preview?` | New workflow or node from a template | Templates are listed in [Scaffold](scaffold) |
 | `fw_list_templates` | `type?` | Template catalogue (~4 KB) | Same content as the Scaffold topic |

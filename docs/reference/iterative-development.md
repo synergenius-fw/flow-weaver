@@ -134,7 +134,7 @@ Add node instances with `@node` and declare the route with `@path`:
  * @param a - First number
  * @param b - Second number
  * @returns result - Sum
- * @node adder addNumbers [position: 180 0]
+ * @node adder addNumbers
  * @path Start -> adder -> Exit
  */
 ```
@@ -153,8 +153,7 @@ After everything is connected:
 
 1. Run multiple test scenarios
 2. If not returning values, check return type
-3. Verify node positioning with `[position: x y]` on `@node` lines (in pixels)
-4. Inspect the compiled source file for errors (compilation modifies the file in-place)
+3. Inspect the compiled source file for errors (compilation modifies the file in-place)
 
 Final validation:
 

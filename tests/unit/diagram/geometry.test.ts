@@ -11,7 +11,7 @@ import {
 } from '../../../src/diagram/geometry';
 import { NODE_DEFAULT_COLOR } from '../../../src/diagram/theme';
 import type { DiagramNode, DiagramPort } from '../../../src/diagram/types';
-import { createSimpleWorkflow, createParallelWorkflow, createScopedWorkflow, createPositionedWorkflow } from '../../helpers/test-fixtures';
+import { createSimpleWorkflow, createParallelWorkflow, createScopedWorkflow } from '../../helpers/test-fixtures';
 
 function makePort(name: string, direction: 'INPUT' | 'OUTPUT'): DiagramPort {
   return { name, label: name, dataType: 'NUMBER', direction, isControlFlow: false, isFailure: false, cx: 0, cy: 0 };
@@ -214,40 +214,9 @@ describe('buildDiagramGraph', () => {
   });
 });
 
-describe('buildDiagramGraph — explicit positions', () => {
-  it('respects explicit positions when all nodes are positioned', () => {
-    const ast = createPositionedWorkflow();
-    const graph = buildDiagramGraph(ast);
-
-    const start = graph.nodes.find(n => n.id === 'Start')!;
-    const node1 = graph.nodes.find(n => n.id === 'node1')!;
-    const exit = graph.nodes.find(n => n.id === 'Exit')!;
-
-    // After normalization, relative positions should be preserved:
-    // Start(-600,0), node1(0,0), Exit(600,0) → 600px spacing
-    expect(node1.x - start.x).toBeCloseTo(600, 0);
-    expect(exit.x - node1.x).toBeCloseTo(600, 0);
-  });
-
-  it('preserves vertical alignment when all nodes share same y', () => {
-    const ast = createPositionedWorkflow();
-    const graph = buildDiagramGraph(ast);
-
-    const start = graph.nodes.find(n => n.id === 'Start')!;
-    const node1 = graph.nodes.find(n => n.id === 'node1')!;
-    const exit = graph.nodes.find(n => n.id === 'Exit')!;
-
-    // All nodes at y=0 → same y after normalization
-    expect(node1.y).toBe(start.y);
-    expect(exit.y).toBe(start.y);
-  });
-
-  it('uses auto-layout for unpositioned nodes in mixed mode', () => {
+describe('buildDiagramGraph — layout', () => {
+  it('normalises the auto-layout into positive coordinates', () => {
     const ast = createSimpleWorkflow();
-    // Position only Start, leave node1 and Exit unpositioned
-    ast.ui = {
-      startNode: { x: 0, y: 0 },
-    };
     const graph = buildDiagramGraph(ast);
 
     // All nodes should have positive coordinates after normalization
@@ -434,16 +403,11 @@ describe('[size: W H] annotation', () => {
 
   it('pushes downstream nodes rightward when scope box overlaps them', () => {
     const ast = createScopedWorkflow();
-    // Give all nodes explicit positions. Place Exit too close — inside
-    // the scope box which expands far beyond the forEach1 explicit x.
-    // Scope computed width: SCOPE_PORT_COLUMN(50) + SCOPE_PADDING_X(140) +
-    //   child(90) + SCOPE_PADDING_X(140) + SCOPE_PORT_COLUMN(50) = 470
-    ast.ui = {
-      startNode: { x: 0, y: 0 },
-      exitNode: { x: 400, y: 0 },  // 200 + 470 = 670, so 400 is inside the scope box
-    };
+    // The scope box expands far beyond the width the layer layout assumes:
+    // SCOPE_PORT_COLUMN(50) + SCOPE_PADDING_X(140) + child(90) +
+    // SCOPE_PADDING_X(140) + SCOPE_PORT_COLUMN(50) = 470. Whatever follows
+    // the scope must be pushed clear of it.
     const forEachInst = ast.instances.find(i => i.nodeType === 'forEach');
-    forEachInst!.config = { ...forEachInst!.config, x: 200, y: 0 };
 
     const graph = buildDiagramGraph(ast);
     const scopeNode = graph.nodes.find(n => n.id === forEachInst!.id);

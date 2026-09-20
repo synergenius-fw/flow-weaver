@@ -321,7 +321,7 @@ The adapter answers one question per effect — *did this already happen?*
 
 ## Driving a run from an AI assistant
 
-The MCP server exposes a local coordinator so an assistant only ever sees a run id and a labeled gate — not the continuation. Runs are stored under `~/.fw/runs/<runId>/` (override with `FW_RUNS_DIR`).
+The MCP server exposes a local coordinator so an assistant only ever sees a run id and a labeled gate — not the continuation. Runs are stored under `~/.fw/runs/<runId>/` (override with `FW_RUNS_DIR`). `fw console` drives the same store, so a gate reached from either side can be answered from the other, and a person can watch or take over a run an assistant started.
 
 | Tool | Arguments | Returns |
 |------|-----------|---------|
@@ -356,6 +356,8 @@ Error codes: `PARSE_ERROR`, `AMBIGUOUS_WORKFLOW` (file has several workflows; pa
 Results carry no trace events, progress, or continuation. A waiting result for a three-node workflow is under 400 bytes.
 
 ## Driving a run as a coordinator
+
+Most code does not need to be a coordinator: `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` starts and resumes runs from code, persists them under `~/.fw/runs`, and shares them with the console and the MCP tools — see [Using the library](library).
 
 A coordinator is any caller that persists continuations itself and vouches for the bundle. The engine's continuation boundary is `executeWorkflow` (`src/mcp/workflow-executor.ts`); it is not in the package's export map, so the supported way to reach it from outside the CLI is the stateless MCP tool pair:
 

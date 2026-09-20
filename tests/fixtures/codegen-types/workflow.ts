@@ -484,11 +484,9 @@ class GeneratedExecutionContext {
 
 /**
  * @flowWeaver workflow
- * @node parser parseConfig [position: 200 200]
- * @node runner runTask [position: 400 200]
+ * @node parser parseConfig
+ * @node runner runTask
  * @path Start -> parser -> runner -> Exit
- * @position Start 0 0
- * @position Exit 810 0
  * @connect runner.result -> Exit.output
  * @param execute [order:-1] - Execute
  * @param raw [order:0] - Raw config JSON

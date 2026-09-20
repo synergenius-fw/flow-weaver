@@ -55,8 +55,8 @@ describe('Validator Unknown Node Type', () => {
 
     const workflow = createWorkflow(
       [
-        { type: 'NodeInstance', id: 'good', nodeType: 'knownType', config: { x: 0, y: 0 } },
-        { type: 'NodeInstance', id: 'bad', nodeType: 'consoleLog', config: { x: 100, y: 0 } },
+        { type: 'NodeInstance', id: 'good', nodeType: 'knownType', config: {} },
+        { type: 'NodeInstance', id: 'bad', nodeType: 'consoleLog', config: {} },
       ],
       [
         {
@@ -87,8 +87,8 @@ describe('Validator Unknown Node Type', () => {
 
     const workflow = createWorkflow(
       [
-        { type: 'NodeInstance', id: 'a', nodeType: 'typeA', config: { x: 0, y: 0 } },
-        { type: 'NodeInstance', id: 'b', nodeType: 'typeB', config: { x: 100, y: 0 } },
+        { type: 'NodeInstance', id: 'a', nodeType: 'typeA', config: {} },
+        { type: 'NodeInstance', id: 'b', nodeType: 'typeB', config: {} },
       ],
       [
         {
@@ -109,8 +109,8 @@ describe('Validator Unknown Node Type', () => {
   it('should report error for each instance with an unknown node type', () => {
     const workflow = createWorkflow(
       [
-        { type: 'NodeInstance', id: 'a', nodeType: 'missingA', config: { x: 0, y: 0 } },
-        { type: 'NodeInstance', id: 'b', nodeType: 'missingB', config: { x: 100, y: 0 } },
+        { type: 'NodeInstance', id: 'a', nodeType: 'missingA', config: {} },
+        { type: 'NodeInstance', id: 'b', nodeType: 'missingB', config: {} },
       ],
       [],
       [] // No node types defined at all

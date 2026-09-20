@@ -124,14 +124,8 @@ export function applyPattern(options: ApplyPatternOptions): ApplyPatternResult {
     }
   }
 
-  // ── Build @node declarations (with inline [position:] when present) ──
-  const nodeDeclarations = pattern.instances.map((inst) => {
-    const posAttr =
-      inst.config?.x !== undefined && inst.config?.y !== undefined
-        ? ` [position: ${inst.config.x} ${inst.config.y}]`
-        : '';
-    return ` * @node ${nodePrefix}${inst.id} ${inst.nodeType}${posAttr}`;
-  });
+  // ── Build @node declarations ──
+  const nodeDeclarations = pattern.instances.map((inst) => ` * @node ${nodePrefix}${inst.id} ${inst.nodeType}`);
 
   // ── Build @connect declarations + wiring instructions ───────────────
   const connectDeclarations: string[] = [];
@@ -374,13 +368,9 @@ export function extractPattern(options: ExtractPatternOptions): ExtractPatternRe
   lines.push(` * @flowWeaver pattern`);
   lines.push(` * @name ${patternName}`);
 
-  // Node declarations (with inline [position:] when present)
+  // Node declarations
   for (const inst of extractedInstances) {
-    const posAttr =
-      inst.config?.x !== undefined && inst.config?.y !== undefined
-        ? ` [position: ${inst.config.x} ${inst.config.y}]`
-        : '';
-    lines.push(` * @node ${inst.id} ${inst.nodeType}${posAttr}`);
+    lines.push(` * @node ${inst.id} ${inst.nodeType}`);
   }
 
   // Internal connections

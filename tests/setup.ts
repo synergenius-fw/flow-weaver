@@ -17,6 +17,11 @@ import {
   type WorkflowRuntimeServices,
 } from '../src/runtime/durable-execution';
 
+// A test that starts an fw service (the MCP server, the console) must not
+// announce itself in the real ~/.fw/services; every test file gets its own
+// directory, which the OS cleans up.
+process.env.FW_SERVICES_DIR ??= fs.mkdtempSync(path.join(os.tmpdir(), 'fw-services-test-'));
+
 // Warm the ts-morph checker for callback-type inference. The FIRST complex
 // inference on a COLD checker is non-deterministic: ts-morph (notably v28)
 // can return `undefined` for a callback parameter/return type until the

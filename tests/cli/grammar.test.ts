@@ -17,7 +17,6 @@ describe('grammar command', () => {
         ...grammars.port,
         ...grammars.node,
         ...grammars.connect,
-        ...grammars.position,
         ...grammars.scope,
       ];
       const ebnf = serializedToEBNF(allProductions);
@@ -34,7 +33,6 @@ describe('grammar command', () => {
         ...grammars.port,
         ...grammars.node,
         ...grammars.connect,
-        ...grammars.position,
         ...grammars.scope,
       ];
       const ebnf = serializedToEBNF(allProductions);
@@ -75,7 +73,7 @@ describe('grammar command', () => {
   });
 
   describe('individual grammars', () => {
-    it('should have all five grammar sections', () => {
+    it('should have the grammar sections', () => {
       const grammars = getAllGrammars();
 
       expect(grammars.port).toBeDefined();
@@ -84,8 +82,6 @@ describe('grammar command', () => {
       expect(grammars.node.length).toBeGreaterThan(0);
       expect(grammars.connect).toBeDefined();
       expect(grammars.connect.length).toBeGreaterThan(0);
-      expect(grammars.position).toBeDefined();
-      expect(grammars.position.length).toBeGreaterThan(0);
       expect(grammars.scope).toBeDefined();
       expect(grammars.scope.length).toBeGreaterThan(0);
     });

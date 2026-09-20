@@ -18,7 +18,8 @@ Complete reference for all `fw` CLI commands.
 | `compile` | Compile workflow files to TypeScript |
 | `strip` | Remove generated code from compiled workflow files |
 | `describe` | Output workflow structure in LLM-friendly formats (JSON, text, mermaid) |
-| `diagram` | Generate SVG or interactive HTML diagram of a workflow |
+| `diagram` | Draw a workflow: its spine as an SVG, or text for a terminal |
+| `artifact` | Hand a workflow to a person: the brief as a page or a PDF, or the spine as an SVG |
 | `diff` | Compare two workflow files semantically |
 | `validate` | Validate workflow files without compiling |
 | `doctor` | Check project environment and configuration for flow-weaver compatibility |
@@ -34,6 +35,7 @@ Complete reference for all `fw` CLI commands.
 | `pattern` | Work with reusable workflow patterns |
 | `run` | Execute a workflow file directly |
 | `serve` | Start HTTP server exposing workflows as endpoints |
+| `console` | Open the local operator console: workflows as processes, issues, code, live runs and gates |
 | `export` | Export workflow as serverless function |
 | `openapi` | Generate OpenAPI specification from workflows |
 | `plugin` | Scaffold and manage external plugins |
@@ -43,18 +45,6 @@ Complete reference for all `fw` CLI commands.
 | `docs` | Browse reference documentation |
 | `context` | Generate LLM context bundle from documentation and grammar |
 | `market` | Discover, install, and publish marketplace packages |
-| `login` | Log in to Flow Weaver platform |
-| `logout` | Log out from Flow Weaver platform |
-| `auth` | Show authentication status |
-| `apikey` | Manage platform API keys |
-| `ai` | Manage AI provider credentials |
-| `account` | Show account details and plan usage |
-| `org` | Manage organizations |
-| `deploy` | Deploy a workflow to the platform |
-| `undeploy` | Remove a deployed workflow |
-| `cloud-status` | Show cloud deployments and usage |
-| `connect` | Connect this device to the Flow Weaver platform |
-| `weaver` | AI assistant for Flow Weaver workflows |
 <!-- AUTO:END cli_quick_reference -->
 
 ---
@@ -247,7 +237,7 @@ fw run <input> [options]
 | `-s, --stream` | Stream trace events in real time | `false` |
 | `--json` | Output result as JSON | `false` |
 | `--timeout <ms>` | Execution timeout in milliseconds | — |
-| `--mocks <json>` | Mock config for built-in nodes as JSON | — |
+| `--mocks <json>` | Mock config as JSON: `gates` (answers by node id), `events`, `agents`, `invocations`, `fast` | — |
 | `--mocks-file <path>` | Path to JSON file with mock config | — |
 | `-d, --debug` | Start in step-through debug mode | `false` |
 | `-b, --breakpoint <nodeIds...>` | Set initial breakpoints (repeatable) | — |
@@ -362,11 +352,38 @@ fw serve --production --precompile --no-watch
 
 ---
 
+### console
+
+Open the local operator console: every workflow in the project as a process, its validation issues on the steps that carry them, the code behind each step, and runs live — including answering a durable gate from the page.
+
+```bash
+fw console [directory] [options]
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-p, --port <port>` | Port | `4311` |
+| `-H, --host <host>` | Host to bind | `127.0.0.1` |
+| `--open` | Open the browser once listening | `false` |
+| `--no-watch` | Do not reload when project files change | watch enabled |
+
+**Examples:**
+```bash
+fw console
+fw console ./workflows --open
+```
+
+Runs started here stream real execution events, so the process lights up step by step and a paused gate offers a form built from the port's TypeScript type. Runs live in the same store as `fw_run` and `fw_resume` (`~/.fw/runs`, or `FW_RUNS_DIR`): a gate reached in the console can be answered by an assistant over MCP and the other way round, a run waiting at a gate survives a restart of the console, and effects get receipts. The step trace is kept beside the record, so a run opened later still shows what each step did; a segment resumed over MCP keeps no trace, and the console says so rather than guessing. The console binds to localhost and re-reads a file as you save it.
+
+> See also: [Durable Gates](durable-gates) for what pauses a run and how it resumes.
+
+---
+
 ## Visualization
 
 ### diagram
 
-Generate an SVG, interactive HTML, or terminal diagram of a workflow.
+Draw a workflow. `svg` is the spine the console shows — steps in run order, the control flow as lanes beside them (failure arms, loop bodies, steps read on demand) — as a vector image for a slide or a document. The text formats are for a terminal or a chat.
 
 ```bash
 fw diagram <input> [options]
@@ -375,20 +392,43 @@ fw diagram <input> [options]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-t, --theme <theme>` | `dark` or `light` | `dark` |
-| `--width <pixels>` | SVG width in pixels | auto |
-| `-p, --padding <pixels>` | Canvas padding in pixels | auto |
-| `--no-port-labels` | Hide data type labels on ports | shown |
-| `-w, --workflow <name>` | Specific workflow | all |
-| `-f, --format <format>` | `svg`, `html`, `process` (the workflow as a process: steps in run order, pauses, failure arms, playable), `ascii`, `ascii-compact`, `text` | `svg` |
+| `-w, --workflow <name>` | Specific workflow | first |
+| `-f, --format <format>` | `svg` (the spine as a vector image), `ascii`, `ascii-compact`, `text` | `svg` |
 | `-o, --output <file>` | Write output to file | stdout |
 
 **Examples:**
 ```bash
 fw diagram workflow.ts
 fw diagram workflow.ts --theme light -o diagram.svg
-fw diagram workflow.ts --format html -o diagram.html
-fw diagram workflow.ts --format ascii
-fw diagram workflow.ts --no-port-labels --width 1200
+fw diagram workflow.ts --format ascii-compact
+```
+
+---
+
+### artifact
+
+Hand a workflow to a person who will not open the code.
+
+```bash
+fw artifact <input> [options]
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-k, --kind <kind>` | `brief` — the brief as a page: the graph first, large, each step clickable for what it does, what it reads and where its failure goes, then what goes in, what comes out and where a person or an agent is needed; `pdf` — a one-page overview (the graph beside what goes in, what comes out, the pauses and the failure arms) followed by every step in detail; `svg` — the spine as a vector image | `brief` |
+| `-t, --theme <theme>` | `light` or `dark` | `light` |
+| `-w, --workflow <name>` | Specific workflow | first |
+| `--subtitle <text>` | Shown under the title | the folder name |
+| `--browser <path>` | Browser to print the PDF with | the one found, or `FW_BROWSER` |
+| `-o, --output <file>` | Write to a file; the brief and the SVG go to stdout otherwise | a PDF is written beside the workflow |
+
+The PDF is printed by a Chromium-family browser already on the machine — Chrome, Chromium, Edge or Brave, found where the platform installs them, or named with `FW_BROWSER`. Without one the command says so; the HTML brief prints to PDF from any browser's print dialog. `fw console`'s Share menu produces the same three files.
+
+**Examples:**
+```bash
+fw artifact workflow.ts -o workflow.brief.html
+fw artifact workflow.ts --kind pdf
+fw artifact workflow.ts --kind svg --theme dark -o workflow.svg
 ```
 
 ---
@@ -443,6 +483,8 @@ fw diff old.ts new.ts --exit-zero  # for CI pipelines
 ### doctor
 
 Check project environment and configuration for Flow Weaver compatibility.
+
+Also reports **Running services**: the `fw` processes alive on this machine (`mcp-server`, `serve`, `console`), each with its install, its client and its last activity, from the records they keep in `~/.fw/services/`. An MCP server running from a different install than the one checked is a warning. `fw_doctor` returns the same under `services`.
 
 ```bash
 fw doctor [options]
@@ -551,7 +593,7 @@ Modify workflow structure programmatically. Parses the file, applies the operati
 fw modify addNode --file <path> --nodeId <id> --nodeType <type>
 ```
 
-Adds a new node instance to the workflow. Auto-positions to the right of the rightmost existing node. Warns if the node type isn't defined in the file.
+Adds a new node instance to the workflow. Warns if the node type isn't defined in the file.
 
 #### modify removeNode
 
@@ -585,14 +627,6 @@ fw modify renameNode --file <path> --oldId <id> --newId <id>
 
 Renames a node instance and updates all connections that reference it.
 
-#### modify setPosition
-
-```bash
-fw modify setPosition --file <path> --nodeId <id> --x <number> --y <number>
-```
-
-Sets the canvas position of a node instance.
-
 #### modify setLabel
 
 ```bash
@@ -609,7 +643,6 @@ fw modify addConnection --file workflow.ts --from Start.data --to validator.inpu
 fw modify removeNode --file workflow.ts --nodeId oldStep
 fw modify removeConnection --file workflow.ts --from a.output --to b.input
 fw modify renameNode --file workflow.ts --oldId step1 --newId validateStep
-fw modify setPosition --file workflow.ts --nodeId step1 --x 200 --y 100
 fw modify setLabel --file workflow.ts --nodeId step1 --label "Validate Input"
 ```
 
@@ -759,7 +792,7 @@ fw export workflow.ts --target <name> --output dist/ --durable-steps
 fw export workflow.ts --target <name> --output dist/ --dry-run
 ```
 
-> Available targets depend on installed `flow-weaver-pack-*` packages (the package names stay as-is). See [Deployment](deployment) for installation instructions and target-specific details.
+> Available targets depend on the installed packs (any package with a `flowweaver.manifest.json`; the package names stay as-is). See [Deployment](deployment) for installation instructions and target-specific details.
 
 ---
 

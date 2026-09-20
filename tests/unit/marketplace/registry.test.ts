@@ -237,6 +237,23 @@ describe('searchPackages', () => {
   });
 });
 
+describe('searchPackages identity', () => {
+  it('keeps a result that carries the marketplace keyword whatever its name, and drops one with neither', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeNpmSearchResponse([
+        { name: '@acme/pipelines', version: '1.0.0', keywords: ['flow-weaver-marketplace-pack'] },
+        { name: 'flow-weaver-pack-legacy', version: '0.1.0' },
+        { name: 'some-other-thing', version: '3.0.0', keywords: ['pipelines'] },
+      ])),
+    });
+    globalThis.fetch = mockFetch;
+
+    const results = await searchPackages({ query: 'pipelines' });
+    expect(results.map((r) => r.name)).toEqual(['@acme/pipelines', 'flow-weaver-pack-legacy']);
+  });
+});
+
 // ─── listInstalledPackages ───────────────────────────────────────────────────
 
 describe('listInstalledPackages', () => {
@@ -249,17 +266,52 @@ describe('listInstalledPackages', () => {
     expect(mockGlob).not.toHaveBeenCalled();
   });
 
-  it('scans both unscoped and scoped package patterns', async () => {
+  it('looks for a manifest in every package, scoped or not, whatever its name', async () => {
     (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
     mockGlob.mockResolvedValue([]);
 
     await listInstalledPackages('/project');
 
-    // Called once per pattern (unscoped and scoped)
+    // Called once per pattern (unscoped and scoped); the manifest is the identity.
     expect(mockGlob).toHaveBeenCalledTimes(2);
     const patterns = mockGlob.mock.calls.map((c: unknown[]) => c[0] as string);
-    expect(patterns.some((p: string) => p.includes('flow-weaver-pack-*') && !p.includes('@*'))).toBe(true);
-    expect(patterns.some((p: string) => p.includes('@*') && p.includes('flow-weaver-pack-*'))).toBe(true);
+    expect(patterns).toContain('/project/node_modules/*/flowweaver.manifest.json');
+    expect(patterns).toContain('/project/node_modules/@*/*/flowweaver.manifest.json');
+    expect(patterns.some((p: string) => p.includes('flow-weaver-pack-'))).toBe(false);
+  });
+
+  it('lists a pack once when it is reachable under two directories', async () => {
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    const manifest = makeManifest({ name: 'flow-weaver-pack-twice', version: '1.0.0' });
+    const a = '/project/node_modules/flow-weaver-pack-twice/flowweaver.manifest.json';
+    const b = '/project/node_modules/@acme/alias/flowweaver.manifest.json';
+    mockGlob.mockResolvedValueOnce([a]).mockResolvedValueOnce([b]);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockImplementation((p: string) => {
+      if (p === a || p === b) return JSON.stringify(manifest);
+      if (p.endsWith('package.json')) return JSON.stringify({ version: '1.0.0' });
+      throw new Error(`ENOENT: ${p}`);
+    });
+
+    const results = await listInstalledPackages('/project');
+    expect(results.map((r) => r.path)).toEqual(['/project/node_modules/flow-weaver-pack-twice']);
+  });
+
+  it('finds a pack under a name of its own, by its manifest', async () => {
+    // An organisation's naming policy is not Flow Weaver's business: a
+    // package with a manifest is a pack.
+    (fs.existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    const manifest = makeManifest({ name: '@acme/pipelines', version: '2.0.0' });
+    const manifestPath = '/project/node_modules/@acme/pipelines/flowweaver.manifest.json';
+    mockGlob.mockResolvedValueOnce([]).mockResolvedValueOnce([manifestPath]);
+    (fs.readFileSync as ReturnType<typeof vi.fn>).mockImplementation((p: string) => {
+      if (p === manifestPath) return JSON.stringify(manifest);
+      if (p.endsWith('package.json')) return JSON.stringify({ version: '2.0.0' });
+      throw new Error(`ENOENT: ${p}`);
+    });
+
+    const results = await listInstalledPackages('/project');
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ name: '@acme/pipelines', path: '/project/node_modules/@acme/pipelines' });
   });
 
   it('returns installed packages with manifest and version from package.json', async () => {

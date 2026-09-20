@@ -109,8 +109,8 @@ import { ExportTargetRegistry } from './targets/base.js';
 /**
  * Create an export target registry via marketplace discovery.
  *
- * Scans `node_modules/` for installed `flow-weaver-pack-*` packages that
- * declare `exportTargets` in their `flowweaver.manifest.json`.
+ * Scans `node_modules/` for installed packs -- any package with a
+ * `flowweaver.manifest.json` -- that declare `exportTargets` in it.
  * Each target class is eagerly imported (to resolve the async import) but
  * lazily instantiated — the constructor only runs when `registry.get()` is called.
  *

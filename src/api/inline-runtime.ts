@@ -112,10 +112,16 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
     lines.push('  sessionId?: string;');
     lines.push('};');
     lines.push('');
-    // Debug controller type for live step-through debugging only.
+    // Debug controller type for live step-through debugging only. The
+    // context parameter is deliberately loose: the compiled file declares
+    // its own GeneratedExecutionContext, and a caller hands in the package's
+    // runtime, whose controller is typed against the package's class. Two
+    // classes with private members are never assignable to each other, so
+    // naming the class here would reject every runtime built with
+    // createWorkflowRuntime().
     lines.push('type TDebugController = {');
-    lines.push('  beforeNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;');
-    lines.push('  afterNode(nodeId: string, ctx: GeneratedExecutionContext): Promise<void> | void;');
+    lines.push('  beforeNode(nodeId: string, ctx: unknown): Promise<void> | void;');
+    lines.push('  afterNode(nodeId: string, ctx: unknown): Promise<void> | void;');
     lines.push('};');
     lines.push('');
   }

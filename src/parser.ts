@@ -1391,7 +1391,6 @@ export class AnnotationParser {
           );
         }
 
-        const position = config.positions?.[inst.id];
         // Convert parentScope string "nodeName.scope" to parent object
         let parent: { id: string; scope: string } | undefined;
         if (inst.parentScope) {
@@ -1415,8 +1414,6 @@ export class AnnotationParser {
           ...(parent && { parent }),
           config: {
             ...(inst.label && { label: inst.label }),
-            ...(inst.x !== undefined && inst.y !== undefined && { x: inst.x, y: inst.y }),
-            ...(position && { x: position.x, y: position.y }),
             ...(portConfigs && portConfigs.length > 0 && { portConfigs }),
             ...(inst.pullExecution && { pullExecution: inst.pullExecution }),
             ...(inst.minimized && { minimized: inst.minimized }),
@@ -1575,17 +1572,6 @@ export class AnnotationParser {
         }
       }
 
-      // Extract Start/Exit positions from config.positions
-      const ui: { startNode?: { x: number; y: number }; exitNode?: { x: number; y: number } } = {};
-      const startPosition = config.positions?.['Start'];
-      if (startPosition) {
-        ui.startNode = { x: startPosition.x, y: startPosition.y };
-      }
-      const exitPosition = config.positions?.['Exit'];
-      if (exitPosition) {
-        ui.exitNode = { x: exitPosition.x, y: exitPosition.y };
-      }
-
       workflows.push({
         type: 'Workflow',
         sourceFile: filePath,
@@ -1602,7 +1588,6 @@ export class AnnotationParser {
         userSpecifiedAsync,
         availableFunctionNames: allFunctionNames,
         ...(macros.length > 0 && { macros }),
-        ...(Object.keys(ui).length > 0 && { ui }),
         ...((config.strictTypes !== undefined || config.autoConnect ||
              config.trigger || config.cancelOn || config.retries !== undefined ||
              config.timeout || config.throttle || config.deploy) && {
@@ -1700,7 +1685,7 @@ export class AnnotationParser {
         type: 'NodeInstance' as const,
         id: inst.id,
         nodeType: inst.nodeType,
-        config: inst.config || {},
+        config: {},
       }));
 
       patterns.push({

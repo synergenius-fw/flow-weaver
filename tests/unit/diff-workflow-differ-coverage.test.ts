@@ -42,39 +42,11 @@ function createWorkflow(overrides: Partial<TWorkflowAST> = {}): TWorkflowAST {
 }
 
 describe('WorkflowDiffer UI instance comparison (lines 288-289, 422, 425)', () => {
-  it('detects UI changes when instance position changes', () => {
-    const before = createWorkflow({
-      ui: {
-        instances: [
-          { name: 'node1', x: 0, y: 0 } as any,
-        ],
-      },
-    });
-
-    const after = createWorkflow({
-      ui: {
-        instances: [
-          { name: 'node1', x: 100, y: 200 } as any,
-        ],
-      },
-    });
-
-    const diff = WorkflowDiffer.compare(before, after);
-    // Should detect UI modification
-    expect(diff.identical).toBe(false);
-    expect(diff.summary.instancesUIModified).toBe(1);
-
-    const modifiedInst = diff.instances.find(i => i.id === 'node1');
-    expect(modifiedInst).toBeDefined();
-    expect(modifiedInst!.changes.ui).toBeDefined();
-    expect(modifiedInst!.changes.ui!.position).toBeDefined();
-  });
-
   it('detects UI label change', () => {
     const before = createWorkflow({
       ui: {
         instances: [
-          { name: 'node1', x: 0, y: 0, label: 'Old Label' } as any,
+          { name: 'node1', label: 'Old Label' } as any,
         ],
       },
     });
@@ -82,7 +54,7 @@ describe('WorkflowDiffer UI instance comparison (lines 288-289, 422, 425)', () =
     const after = createWorkflow({
       ui: {
         instances: [
-          { name: 'node1', x: 0, y: 0, label: 'New Label' } as any,
+          { name: 'node1', label: 'New Label' } as any,
         ],
       },
     });
@@ -107,20 +79,20 @@ describe('WorkflowDiffer UI instance comparison (lines 288-289, 422, 425)', () =
     const after = createWorkflow({
       ui: {
         instances: [
-          { name: 'node1', x: 50, y: 50 } as any,
+          { name: 'node1', label: 'Labelled' } as any,
         ],
       },
     });
 
     const diff = WorkflowDiffer.compare(before, after);
-    // UI change from undefined to defined position
+    // UI change from no label to a label
     expect(diff.identical).toBe(false);
   });
 
   it('detects no changes when UI data is identical', () => {
     const ui = {
       instances: [
-        { name: 'node1', x: 10, y: 20 } as any,
+        { name: 'node1', } as any,
       ],
     };
     const before = createWorkflow({ ui });

@@ -43,7 +43,6 @@ describe('generateManifest preserves hand-written extension fields', () => {
       cliCommands: [{ name: 'hello', description: 'Say hello' }],
       mcpEntrypoint: 'dist/mcp.js',
       mcpTools: [{ name: 'fw_example_hello', description: 'Say hello over MCP' }],
-      deviceHandlers: 'dist/devices.js',
     };
     fs.writeFileSync(path.join(dir, 'flowweaver.manifest.json'), JSON.stringify(declared));
 
@@ -60,7 +59,6 @@ describe('generateManifest preserves hand-written extension fields', () => {
       'cliCommands',
       'mcpEntrypoint',
       'mcpTools',
-      'deviceHandlers',
     ] as const) {
       expect(manifest[field]).toEqual(declared[field]);
     }

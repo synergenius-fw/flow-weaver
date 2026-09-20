@@ -62,8 +62,8 @@ describe("Validator Structural Type Mismatch", () => {
 
     const workflow = createWorkflow(
       [
-        { type: "NodeInstance", id: "validator", nodeType: "validateLead", config: { x: 0, y: 0 } },
-        { type: "NodeInstance", id: "enricher", nodeType: "enrichLead", config: { x: 200, y: 0 } },
+        { type: "NodeInstance", id: "validator", nodeType: "validateLead", config: {} },
+        { type: "NodeInstance", id: "enricher", nodeType: "enrichLead", config: {} },
       ],
       [
         // This is the problematic connection: ValidationResult -> RawLead
@@ -108,8 +108,8 @@ describe("Validator Structural Type Mismatch", () => {
 
     const workflow = createWorkflow(
       [
-        { type: "NodeInstance", id: "producer", nodeType: "producer", config: { x: 0, y: 0 } },
-        { type: "NodeInstance", id: "consumer", nodeType: "consumer", config: { x: 200, y: 0 } },
+        { type: "NodeInstance", id: "producer", nodeType: "producer", config: {} },
+        { type: "NodeInstance", id: "consumer", nodeType: "consumer", config: {} },
       ],
       [
         {
@@ -145,8 +145,8 @@ describe("Validator Structural Type Mismatch", () => {
 
     const workflow = createWorkflow(
       [
-        { type: "NodeInstance", id: "producer", nodeType: "producer", config: { x: 0, y: 0 } },
-        { type: "NodeInstance", id: "consumer", nodeType: "consumer", config: { x: 200, y: 0 } },
+        { type: "NodeInstance", id: "producer", nodeType: "producer", config: {} },
+        { type: "NodeInstance", id: "consumer", nodeType: "consumer", config: {} },
       ],
       [
         {

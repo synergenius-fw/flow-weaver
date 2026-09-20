@@ -1,7 +1,6 @@
 /**
- * Coverage for src/diagram/index.ts uncovered lines:
- * - lines 32-41: fileToSVG, workflowToHTML
- * - lines 121-144: renderByFormat, workflowToASCII, sourceToASCII, fileToASCII
+ * The diagram entry points: which renderer each format reaches, and how a
+ * workflow is picked out of a file with several.
  */
 import { describe, it, expect, vi } from 'vitest';
 
@@ -23,14 +22,8 @@ vi.mock('../../src/diagram/geometry.js', () => ({
   })),
 }));
 
-vi.mock('../../src/diagram/renderer.js', () => ({
-  renderSVG: vi.fn(() => '<svg></svg>'),
-}));
-
-vi.mock('../../src/diagram/html-viewer.js', () => ({
-  wrapSVGInHTML: vi.fn(
-    (svg: string, opts: any) => `<html>${svg}</html>`,
-  ),
+vi.mock('../../src/diagram/spine.js', () => ({
+  renderSpineSVG: vi.fn(() => '<svg></svg>'),
 }));
 
 vi.mock('../../src/diagram/ascii-renderer.js', () => ({
@@ -41,19 +34,16 @@ vi.mock('../../src/diagram/ascii-renderer.js', () => ({
 
 import { parser } from '../../src/parser.js';
 import { buildDiagramGraph } from '../../src/diagram/geometry.js';
-import { renderSVG } from '../../src/diagram/renderer.js';
-import { wrapSVGInHTML } from '../../src/diagram/html-viewer.js';
-import { renderASCII, renderASCIICompact, renderText } from '../../src/diagram/ascii-renderer.js';
+import { renderSpineSVG } from '../../src/diagram/spine.js';
+import { renderASCIICompact, renderText } from '../../src/diagram/ascii-renderer.js';
 
 import {
   fileToSVG,
-  workflowToHTML,
-  sourceToHTML,
-  fileToHTML,
+  sourceToSVG,
+  workflowToSVG,
   workflowToASCII,
   sourceToASCII,
   fileToASCII,
-  sourceToSVG,
 } from '../../src/diagram/index.js';
 
 import type { TWorkflowAST } from '../../src/ast/types.js';
@@ -87,75 +77,52 @@ function makeAST(name = 'TestWorkflow'): TWorkflowAST {
   };
 }
 
+describe('workflowToSVG', () => {
+  it('draws the spine, passing the title options through', () => {
+    const ast = makeAST('MyFlow');
+    expect(workflowToSVG(ast, { theme: 'dark', title: false, subtitle: 'proj' })).toBe('<svg></svg>');
+    expect(renderSpineSVG).toHaveBeenCalledWith(ast, { theme: 'dark', title: false, subtitle: 'proj' });
+  });
+});
+
 describe('fileToSVG', () => {
-  it('parses a file and renders SVG', () => {
+  it('parses a file and draws the spine', () => {
     const ast = makeAST();
     mockedParse.mockReturnValueOnce({ workflows: [ast] } as any);
 
     const result = fileToSVG('/path/to/workflow.ts');
     expect(result).toBe('<svg></svg>');
     expect(mockedParse).toHaveBeenCalledWith('/path/to/workflow.ts');
-    expect(buildDiagramGraph).toHaveBeenCalled();
-    expect(renderSVG).toHaveBeenCalled();
+    expect(renderSpineSVG).toHaveBeenCalledWith(ast, expect.anything());
   });
 });
 
-describe('workflowToHTML', () => {
-  it('renders AST to HTML with node source map', () => {
-    const ast = makeAST('MyFlow');
-    const result = workflowToHTML(ast);
-    expect(result).toContain('<html>');
-    expect(wrapSVGInHTML).toHaveBeenCalledWith(
-      '<svg></svg>',
-      expect.objectContaining({ title: 'MyFlow' }),
-    );
-  });
+describe('sourceToSVG', () => {
+  it('picks the named workflow', () => {
+    const ast1 = makeAST('Alpha');
+    const ast2 = makeAST('Beta');
+    mockedParseFromString.mockReturnValueOnce({ workflows: [ast1, ast2] } as any);
 
-  it('uses workflowName option for title when provided', () => {
-    const ast = makeAST('MyFlow');
-    workflowToHTML(ast, { workflowName: 'CustomTitle' });
-    expect(wrapSVGInHTML).toHaveBeenCalledWith(
-      '<svg></svg>',
-      expect.objectContaining({ title: 'CustomTitle' }),
-    );
-  });
-});
-
-describe('sourceToHTML', () => {
-  it('parses source and renders HTML', () => {
-    const ast = makeAST();
-    mockedParseFromString.mockReturnValueOnce({ workflows: [ast] } as any);
-
-    const result = sourceToHTML('const x = 1;');
-    expect(result).toContain('<html>');
+    sourceToSVG('code', { workflowName: 'Beta' });
+    expect(renderSpineSVG).toHaveBeenLastCalledWith(ast2, expect.anything());
   });
 
   it('throws when workflow not found by name', () => {
     const ast = makeAST('Alpha');
     mockedParseFromString.mockReturnValueOnce({ workflows: [ast] } as any);
 
-    expect(() => sourceToHTML('code', { workflowName: 'Beta' })).toThrow(
+    expect(() => sourceToSVG('code', { workflowName: 'Beta' })).toThrow(
       'Workflow "Beta" not found',
     );
   });
 
   it('throws when no workflows in source', () => {
     mockedParseFromString.mockReturnValueOnce({ workflows: [] } as any);
-    expect(() => sourceToHTML('code')).toThrow('No workflows found');
+    expect(() => sourceToSVG('code')).toThrow('No workflows found');
   });
 });
 
-describe('fileToHTML', () => {
-  it('parses a file and renders HTML', () => {
-    const ast = makeAST();
-    mockedParse.mockReturnValueOnce({ workflows: [ast] } as any);
-
-    const result = fileToHTML('/path.ts');
-    expect(result).toContain('<html>');
-  });
-});
-
-// ── ASCII / Text convenience functions (lines 120-145) ──
+// ── ASCII / Text convenience functions ──
 
 describe('workflowToASCII', () => {
   it('renders ASCII by default', () => {
@@ -207,44 +174,5 @@ describe('fileToASCII', () => {
     const result = fileToASCII('/path.ts');
     expect(typeof result).toBe('string');
     expect(mockedParse).toHaveBeenCalledWith('/path.ts');
-  });
-});
-
-// ── buildNodeSourceMap coverage (lines 67-98) ──
-
-describe('workflowToHTML node source map', () => {
-  it('builds port info for instances with matching node types', () => {
-    const ast = makeAST();
-    workflowToHTML(ast);
-
-    const lastCall = vi.mocked(wrapSVGInHTML).mock.calls.at(-1)!;
-    const opts = lastCall[1] as any;
-    expect(opts.nodeSources).toBeDefined();
-    // Should have entries for myNode1, Start, Exit
-    expect(opts.nodeSources['myNode1']).toBeDefined();
-    expect(opts.nodeSources['Start']).toBeDefined();
-    expect(opts.nodeSources['Exit']).toBeDefined();
-  });
-
-  it('omits Start/Exit when no start/exit ports', () => {
-    const ast = makeAST();
-    ast.startPorts = {};
-    ast.exitPorts = {};
-    workflowToHTML(ast);
-
-    const lastCall = vi.mocked(wrapSVGInHTML).mock.calls.at(-1)!;
-    const opts = lastCall[1] as any;
-    expect(opts.nodeSources['Start']).toBeUndefined();
-    expect(opts.nodeSources['Exit']).toBeUndefined();
-  });
-
-  it('skips instances with unknown node types', () => {
-    const ast = makeAST();
-    ast.instances = [{ id: 'orphan1', nodeType: 'nonExistent' } as any];
-    workflowToHTML(ast);
-
-    const lastCall = vi.mocked(wrapSVGInHTML).mock.calls.at(-1)!;
-    const opts = lastCall[1] as any;
-    expect(opts.nodeSources['orphan1']).toBeUndefined();
   });
 });

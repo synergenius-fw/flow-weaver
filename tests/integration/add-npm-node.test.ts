@@ -1,10 +1,10 @@
 /**
  * Integration test for adding npm package node types and instances.
- * Tests the full flow: addNodeType -> addNode -> setNodePosition
+ * Tests the full flow: addNodeType -> addNode
  * Also tests code generation and parsing roundtrip.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { addNodeType, addNode, setNodePosition } from '../../src/api/manipulation';
+import { addNodeType, addNode } from '../../src/api/manipulation';
 import { generateInPlace } from '../../src/api/generate-in-place';
 import { parser } from '../../src/parser';
 import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST } from '../../src/ast/types';
@@ -103,7 +103,7 @@ describe('Add NPM Node Integration', () => {
         type: 'NodeInstance',
         id: 'npm/autoprefixer/autoprefixerc234b6abd08c',
         nodeType: 'npm/autoprefixer/autoprefixer',
-        config: { x: 100, y: 200 },
+        config: {},
         metadata: {},
       };
 
@@ -118,7 +118,7 @@ describe('Add NPM Node Integration', () => {
         type: 'NodeInstance',
         id: 'testNode1',
         nodeType: 'someType',
-        config: { x: 0, y: 0 },
+        config: {},
         metadata: {},
       };
 
@@ -131,47 +131,6 @@ describe('Add NPM Node Integration', () => {
     });
   });
 
-  describe('setNodePosition after addNode', () => {
-    it('should set position on newly added node', () => {
-      const npmNodeType: TNodeTypeAST = {
-        type: 'NodeType',
-        name: 'npm/autoprefixer/autoprefixer',
-        functionName: 'autoprefixer',
-        importSource: 'autoprefixer',
-        variant: 'FUNCTION',
-        inputs: {},
-        outputs: {},
-        hasSuccessPort: true,
-        hasFailurePort: true,
-        isAsync: false,
-        executeWhen: 'CONJUNCTION',
-      };
-
-      const nodeInstance: TNodeInstanceAST = {
-        type: 'NodeInstance',
-        id: 'npm/autoprefixer/autoprefixerABC123',
-        nodeType: 'npm/autoprefixer/autoprefixer',
-        config: { x: 100, y: 200 },
-        metadata: {},
-      };
-
-      // Add type, then node
-      let workflow = addNodeType(baseWorkflow, npmNodeType);
-      workflow = addNode(workflow, nodeInstance);
-
-      // Set position should work
-      const result = setNodePosition(workflow, 'npm/autoprefixer/autoprefixerABC123', 300, 400);
-
-      expect(result.instances[0].config?.x).toBe(300);
-      expect(result.instances[0].config?.y).toBe(400);
-    });
-
-    it('should throw when setting position on non-existent node', () => {
-      expect(() => setNodePosition(baseWorkflow, 'nonExistentNode', 100, 200)).toThrow(
-        'Node "nonExistentNode" not found'
-      );
-    });
-  });
 
   describe('full npm node workflow', () => {
     it('should support complete npm node lifecycle', () => {
@@ -198,7 +157,7 @@ describe('Add NPM Node Integration', () => {
         type: 'NodeInstance',
         id: 'formatDate123',
         nodeType: 'npm/date-fns/format',
-        config: { x: 50, y: 100, label: 'Format Date' },
+        config: { label: 'Format Date' },
         metadata: {},
       };
 
@@ -213,11 +172,6 @@ describe('Add NPM Node Integration', () => {
       // 2. Add node instance
       workflow = addNode(workflow, nodeInstance);
       expect(workflow.instances).toHaveLength(1);
-
-      // 3. Move node (setPosition)
-      workflow = setNodePosition(workflow, 'formatDate123', 200, 300);
-      expect(workflow.instances[0].config?.x).toBe(200);
-      expect(workflow.instances[0].config?.y).toBe(300);
 
       // Verify node type is still intact
       expect(workflow.nodeTypes[0].name).toBe('npm/date-fns/format');
@@ -248,7 +202,7 @@ describe('Add NPM Node Integration', () => {
         type: 'NodeInstance',
         id: 'npm/autoprefixer/autoprefixerc234b6abd08c',
         nodeType: 'npm/autoprefixer/autoprefixer',
-        config: { x: 100, y: 200, label: 'autoprefixer' },
+        config: { label: 'autoprefixer' },
         metadata: {},
       };
 
@@ -264,11 +218,6 @@ describe('Add NPM Node Integration', () => {
       workflow = addNode(workflow, autoprefixerInstance);
       expect(workflow.instances).toHaveLength(1);
       expect(workflow.instances[0].id).toBe('npm/autoprefixer/autoprefixerc234b6abd08c');
-
-      // Step 3: Set position (this was failing with "Node not found")
-      workflow = setNodePosition(workflow, 'npm/autoprefixer/autoprefixerc234b6abd08c', 300, 400);
-      expect(workflow.instances[0].config?.x).toBe(300);
-      expect(workflow.instances[0].config?.y).toBe(400);
 
       // Verify everything is intact
       expect(workflow.nodeTypes).toHaveLength(1);
@@ -307,7 +256,7 @@ describe('Add NPM Node Integration', () => {
         type: 'NodeInstance',
         id: 'npm/autoprefixer/autoprefixerAAA111',
         nodeType: 'npm/autoprefixer/autoprefixer',
-        config: { x: 100, y: 100 },
+        config: {},
         metadata: {},
       };
 
@@ -315,7 +264,7 @@ describe('Add NPM Node Integration', () => {
         type: 'NodeInstance',
         id: 'npm/autoprefixer/autoprefixerBBB222',
         nodeType: 'npm/autoprefixer/autoprefixer',
-        config: { x: 200, y: 200 },
+        config: {},
         metadata: {},
       };
 
@@ -361,7 +310,7 @@ export async function testWorkflow(execute: boolean, params: {}) {
         type: 'NodeInstance',
         id: 'npm/autoprefixer/autoprefixerc234b6abd08c',
         nodeType: 'npm/autoprefixer/autoprefixer',
-        config: { x: 100, y: 200, label: 'Autoprefixer' },
+        config: { label: 'Autoprefixer' },
         metadata: {},
       };
 

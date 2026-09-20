@@ -10087,7 +10087,7 @@ function double(execute: boolean, value: number) {
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/fixtures/advanced/example-foreach.ts",
-            "line": 86,
+            "line": 84,
           },
           "to": {
             "node": "processItem",
@@ -10104,7 +10104,7 @@ function double(execute: boolean, value: number) {
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/fixtures/advanced/example-foreach.ts",
-            "line": 87,
+            "line": 85,
           },
           "to": {
             "node": "processItem",
@@ -10120,7 +10120,7 @@ function double(execute: boolean, value: number) {
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/fixtures/advanced/example-foreach.ts",
-            "line": 88,
+            "line": 86,
           },
           "to": {
             "node": "double",
@@ -10136,7 +10136,7 @@ function double(execute: boolean, value: number) {
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/fixtures/advanced/example-foreach.ts",
-            "line": 89,
+            "line": 87,
           },
           "to": {
             "node": "double",
@@ -10152,7 +10152,7 @@ function double(execute: boolean, value: number) {
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/fixtures/advanced/example-foreach.ts",
-            "line": 90,
+            "line": 88,
           },
           "to": {
             "node": "forEach",
@@ -10169,7 +10169,7 @@ function double(execute: boolean, value: number) {
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/fixtures/advanced/example-foreach.ts",
-            "line": 91,
+            "line": 89,
           },
           "to": {
             "node": "forEach",
@@ -10186,7 +10186,7 @@ function double(execute: boolean, value: number) {
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/fixtures/advanced/example-foreach.ts",
-            "line": 92,
+            "line": 90,
           },
           "to": {
             "node": "forEach",
@@ -10203,7 +10203,7 @@ function double(execute: boolean, value: number) {
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/fixtures/advanced/example-foreach.ts",
-            "line": 93,
+            "line": 91,
           },
           "to": {
             "node": "Exit",
@@ -10288,10 +10288,7 @@ function double(execute: boolean, value: number) {
       "imports": [],
       "instances": [
         {
-          "config": {
-            "x": 270,
-            "y": 0,
-          },
+          "config": {},
           "id": "forEach",
           "nodeType": "forEach",
           "sourceLocation": {
@@ -10302,10 +10299,7 @@ function double(execute: boolean, value: number) {
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 540,
-            "y": 0,
-          },
+          "config": {},
           "id": "processItem",
           "nodeType": "processItem",
           "parent": {
@@ -10320,10 +10314,7 @@ function double(execute: boolean, value: number) {
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 810,
-            "y": 0,
-          },
+          "config": {},
           "id": "double",
           "nodeType": "double",
           "parent": {
@@ -10782,16 +10773,6 @@ function double(execute: boolean, value: number) {
         },
       },
       "type": "Workflow",
-      "ui": {
-        "exitNode": {
-          "x": 1250,
-          "y": 0,
-        },
-        "startNode": {
-          "x": 0,
-          "y": 0,
-        },
-      },
       "userSpecifiedAsync": true,
     },
   ],
@@ -20393,10 +20374,7 @@ function getLength(text: string): number {
       "imports": [],
       "instances": [
         {
-          "config": {
-            "x": 180,
-            "y": 0,
-          },
+          "config": {},
           "id": "upper",
           "nodeType": "toUpperCase",
           "sourceLocation": {
@@ -20407,10 +20385,7 @@ function getLength(text: string): number {
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 360,
-            "y": 0,
-          },
+          "config": {},
           "id": "concat",
           "nodeType": "concatenate",
           "sourceLocation": {
@@ -20421,10 +20396,7 @@ function getLength(text: string): number {
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 360,
-            "y": 150,
-          },
+          "config": {},
           "id": "len",
           "nodeType": "getLength",
           "sourceLocation": {
@@ -22032,10 +22004,7 @@ function formatOutput(execute: boolean, result: string): {
       "imports": [],
       "instances": [
         {
-          "config": {
-            "x": 270,
-            "y": 0,
-          },
+          "config": {},
           "id": "validator",
           "nodeType": "validateInput",
           "sourceLocation": {
@@ -22046,10 +22015,7 @@ function formatOutput(execute: boolean, result: string): {
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 540,
-            "y": 0,
-          },
+          "config": {},
           "id": "transformer",
           "nodeType": "transformData",
           "sourceLocation": {
@@ -22060,10 +22026,7 @@ function formatOutput(execute: boolean, result: string): {
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 810,
-            "y": 0,
-          },
+          "config": {},
           "id": "outputter",
           "nodeType": "formatOutput",
           "sourceLocation": {
@@ -22454,16 +22417,6 @@ function formatOutput(execute: boolean, result: string): {
         },
       },
       "type": "Workflow",
-      "ui": {
-        "exitNode": {
-          "x": 1080,
-          "y": 0,
-        },
-        "startNode": {
-          "x": 0,
-          "y": 0,
-        },
-      },
       "userSpecifiedAsync": false,
     },
   ],
@@ -24428,10 +24381,7 @@ function formatRecord(email: string, name: string): { record: string } {
       "imports": [],
       "instances": [
         {
-          "config": {
-            "x": 250,
-            "y": 0,
-          },
+          "config": {},
           "id": "val",
           "nodeType": "validateContact",
           "sourceLocation": {
@@ -24442,10 +24392,7 @@ function formatRecord(email: string, name: string): { record: string } {
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 500,
-            "y": 0,
-          },
+          "config": {},
           "id": "norm",
           "nodeType": "normalizeContact",
           "sourceLocation": {
@@ -24456,10 +24403,7 @@ function formatRecord(email: string, name: string): { record: string } {
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 750,
-            "y": 0,
-          },
+          "config": {},
           "id": "fmt",
           "nodeType": "formatRecord",
           "sourceLocation": {
@@ -24926,16 +24870,6 @@ function formatRecord(email: string, name: string): { record: string } {
         },
       },
       "type": "Workflow",
-      "ui": {
-        "exitNode": {
-          "x": 1000,
-          "y": 0,
-        },
-        "startNode": {
-          "x": 0,
-          "y": 0,
-        },
-      },
       "userSpecifiedAsync": false,
     },
   ],
@@ -26908,10 +26842,7 @@ prompt until the reviewer provides valid input, then finalizes the outcome.",
       "imports": [],
       "instances": [
         {
-          "config": {
-            "x": -250,
-            "y": 0,
-          },
+          "config": {},
           "id": "val",
           "nodeType": "validateRequest",
           "sourceLocation": {
@@ -26929,8 +26860,6 @@ prompt until the reviewer provides valid input, then finalizes the outcome.",
                 "portName": "maxAttempts",
               },
             ],
-            "x": 0,
-            "y": 0,
           },
           "id": "retry",
           "nodeType": "retryUntilValid",
@@ -26942,10 +26871,7 @@ prompt until the reviewer provides valid input, then finalizes the outcome.",
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 0,
-            "y": 0,
-          },
+          "config": {},
           "id": "prompt",
           "nodeType": "promptReviewer",
           "parent": {
@@ -26960,10 +26886,7 @@ prompt until the reviewer provides valid input, then finalizes the outcome.",
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 250,
-            "y": 0,
-          },
+          "config": {},
           "id": "fin",
           "nodeType": "finalizeDecision",
           "sourceLocation": {
@@ -27838,16 +27761,6 @@ prompt until the reviewer provides valid input, then finalizes the outcome.",
         },
       },
       "type": "Workflow",
-      "ui": {
-        "exitNode": {
-          "x": 500,
-          "y": 0,
-        },
-        "startNode": {
-          "x": -500,
-          "y": 0,
-        },
-      },
       "userSpecifiedAsync": false,
     },
   ],
@@ -28503,7 +28416,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 200,
+            "line": 198,
           },
           "to": {
             "node": "sent",
@@ -28519,7 +28432,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 201,
+            "line": 199,
           },
           "to": {
             "node": "read",
@@ -28535,7 +28448,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 202,
+            "line": 200,
           },
           "to": {
             "node": "kw",
@@ -28551,7 +28464,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 203,
+            "line": 201,
           },
           "to": {
             "node": "sent",
@@ -28567,7 +28480,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 204,
+            "line": 202,
           },
           "to": {
             "node": "read",
@@ -28583,7 +28496,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 205,
+            "line": 203,
           },
           "to": {
             "node": "kw",
@@ -28599,7 +28512,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 206,
+            "line": 204,
           },
           "to": {
             "node": "merge",
@@ -28615,7 +28528,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 207,
+            "line": 205,
           },
           "to": {
             "node": "merge",
@@ -28631,7 +28544,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 208,
+            "line": 206,
           },
           "to": {
             "node": "merge",
@@ -28647,7 +28560,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 209,
+            "line": 207,
           },
           "to": {
             "node": "scorer",
@@ -28663,7 +28576,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 210,
+            "line": 208,
           },
           "to": {
             "node": "scorer",
@@ -28679,39 +28592,39 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
+            "line": 209,
+          },
+          "to": {
+            "node": "merge",
+            "port": "execute",
+          },
+          "type": "Connection",
+        },
+        {
+          "from": {
+            "node": "merge",
+            "port": "onSuccess",
+          },
+          "sourceLocation": {
+            "column": 0,
+            "file": "<ROOT>/use-cases/parallel-enrichment.ts",
+            "line": 210,
+          },
+          "to": {
+            "node": "scorer",
+            "port": "execute",
+          },
+          "type": "Connection",
+        },
+        {
+          "from": {
+            "node": "scorer",
+            "port": "onSuccess",
+          },
+          "sourceLocation": {
+            "column": 0,
+            "file": "<ROOT>/use-cases/parallel-enrichment.ts",
             "line": 211,
-          },
-          "to": {
-            "node": "merge",
-            "port": "execute",
-          },
-          "type": "Connection",
-        },
-        {
-          "from": {
-            "node": "merge",
-            "port": "onSuccess",
-          },
-          "sourceLocation": {
-            "column": 0,
-            "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 212,
-          },
-          "to": {
-            "node": "scorer",
-            "port": "execute",
-          },
-          "type": "Connection",
-        },
-        {
-          "from": {
-            "node": "scorer",
-            "port": "onSuccess",
-          },
-          "sourceLocation": {
-            "column": 0,
-            "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 213,
           },
           "to": {
             "node": "Exit",
@@ -28727,7 +28640,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 214,
+            "line": 212,
           },
           "to": {
             "node": "Exit",
@@ -28743,7 +28656,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 215,
+            "line": 213,
           },
           "to": {
             "node": "Exit",
@@ -28759,7 +28672,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 216,
+            "line": 214,
           },
           "to": {
             "node": "Exit",
@@ -28814,10 +28727,7 @@ function scoreContent(
       "imports": [],
       "instances": [
         {
-          "config": {
-            "x": -150,
-            "y": -150,
-          },
+          "config": {},
           "id": "sent",
           "nodeType": "analyzeSentiment",
           "sourceLocation": {
@@ -28828,10 +28738,7 @@ function scoreContent(
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": -150,
-            "y": 0,
-          },
+          "config": {},
           "id": "read",
           "nodeType": "analyzeReadability",
           "sourceLocation": {
@@ -28842,10 +28749,7 @@ function scoreContent(
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": -150,
-            "y": 150,
-          },
+          "config": {},
           "id": "kw",
           "nodeType": "extractKeywords",
           "sourceLocation": {
@@ -28856,10 +28760,7 @@ function scoreContent(
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 100,
-            "y": 0,
-          },
+          "config": {},
           "id": "merge",
           "nodeType": "mergeResults",
           "sourceLocation": {
@@ -28870,10 +28771,7 @@ function scoreContent(
           "type": "NodeInstance",
         },
         {
-          "config": {
-            "x": 300,
-            "y": 0,
-          },
+          "config": {},
           "id": "scorer",
           "nodeType": "scoreContent",
           "sourceLocation": {
@@ -29531,16 +29429,6 @@ function scoreContent(
         },
       },
       "type": "Workflow",
-      "ui": {
-        "exitNode": {
-          "x": 500,
-          "y": 0,
-        },
-        "startNode": {
-          "x": -400,
-          "y": 0,
-        },
-      },
       "userSpecifiedAsync": false,
     },
   ],

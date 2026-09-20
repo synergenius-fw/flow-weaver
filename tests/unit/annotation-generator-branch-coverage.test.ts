@@ -335,27 +335,6 @@ describe('generateWorkflowAnnotation branches', () => {
     expect(result).not.toContain('@description');
   });
 
-  it('should generate @position for Start and Exit nodes', () => {
-    const wf = makeWorkflow({
-      ui: {
-        startNode: { x: 100.4, y: 200.6 },
-        exitNode: { x: 500.1, y: 300.9 },
-      },
-    });
-    const result = gen.generate(wf);
-    expect(result).toContain('@position Start 100 201');
-    expect(result).toContain('@position Exit 500 301');
-  });
-
-  it('should skip Start position when x is undefined', () => {
-    const wf = makeWorkflow({
-      ui: { startNode: { y: 200 }, exitNode: { x: 500, y: 300 } },
-    });
-    const result = gen.generate(wf);
-    expect(result).not.toContain('@position Start');
-    expect(result).toContain('@position Exit');
-  });
-
   it('should generate connections with scope', () => {
     const wf = makeWorkflow({
       connections: [{
@@ -684,15 +663,6 @@ describe('generateNodeInstanceTag branches', () => {
     };
     const result = generateNodeInstanceTag(inst);
     expect(result).toContain('[suppress: "UNUSED_PORT", "MISSING_CONNECTION"]');
-  });
-
-  it('should generate [position: x y]', () => {
-    const inst: TNodeInstanceAST = {
-      type: 'NodeInstance', id: 'n1', nodeType: 'NT',
-      config: { x: 123.7, y: 456.2 },
-    };
-    const result = generateNodeInstanceTag(inst);
-    expect(result).toContain('[position: 124 456]');
   });
 });
 

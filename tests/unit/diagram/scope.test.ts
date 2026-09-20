@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { sourceToSVG } from '../../../src/diagram/index';
 import { buildDiagramGraph } from '../../../src/diagram/geometry';
 import { parser } from '../../../src/parser';
 import * as fs from 'fs';
@@ -80,15 +79,5 @@ describe('scoped diagram — scope ports', () => {
     expect(scopeConns.some(c => c.fromNode === 'double' && c.fromPort === 'onSuccess' && c.toNode === 'forEach' && c.toPort === 'success')).toBe(true);
     // last child (double).onFailure → scope.failure
     expect(scopeConns.some(c => c.fromNode === 'double' && c.fromPort === 'onFailure' && c.toNode === 'forEach' && c.toPort === 'failure')).toBe(true);
-  });
-
-  it('renders all connections as SVG paths', () => {
-    const code = fs.readFileSync(forEachFile, 'utf-8');
-    const svg = sourceToSVG(code);
-    // Should have paths for: Start→forEach.items, forEach.results→Exit,
-    // scope connections (item→processItem, processItem→double, double→result),
-    // plus auto-connected start/success/failure
-    const pathCount = (svg.match(/<path /g) ?? []).length;
-    expect(pathCount).toBeGreaterThanOrEqual(5);
   });
 });

@@ -72,9 +72,9 @@ describe('Validator Branch Exclusivity', () => {
 
     const workflow = createWorkflow(
       [
-        { type: 'NodeInstance', id: 'branch', nodeType: 'brancher', config: { x: 0, y: 0 } },
-        { type: 'NodeInstance', id: 'onOk', nodeType: 'successHandler', config: { x: 200, y: 0 } },
-        { type: 'NodeInstance', id: 'onFail', nodeType: 'failureHandler', config: { x: 200, y: 100 } },
+        { type: 'NodeInstance', id: 'branch', nodeType: 'brancher', config: {} },
+        { type: 'NodeInstance', id: 'onOk', nodeType: 'successHandler', config: {} },
+        { type: 'NodeInstance', id: 'onFail', nodeType: 'failureHandler', config: {} },
       ],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'branch', port: 'execute' } },
@@ -103,9 +103,9 @@ describe('Validator Branch Exclusivity', () => {
 
     const workflow = createWorkflow(
       [
-        { type: 'NodeInstance', id: 'branch', nodeType: 'brancher', config: { x: 0, y: 0 } },
-        { type: 'NodeInstance', id: 'nodeA', nodeType: 'handlerA', config: { x: 200, y: 0 } },
-        { type: 'NodeInstance', id: 'nodeB', nodeType: 'handlerB', config: { x: 200, y: 100 } },
+        { type: 'NodeInstance', id: 'branch', nodeType: 'brancher', config: {} },
+        { type: 'NodeInstance', id: 'nodeA', nodeType: 'handlerA', config: {} },
+        { type: 'NodeInstance', id: 'nodeB', nodeType: 'handlerB', config: {} },
       ],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'branch', port: 'execute' } },
@@ -133,8 +133,8 @@ describe('Validator Branch Exclusivity', () => {
 
     const workflow = createWorkflow(
       [
-        { type: 'NodeInstance', id: 'nodeA', nodeType: 'handlerA', config: { x: 0, y: 0 } },
-        { type: 'NodeInstance', id: 'nodeB', nodeType: 'handlerB', config: { x: 200, y: 0 } },
+        { type: 'NodeInstance', id: 'nodeA', nodeType: 'handlerA', config: {} },
+        { type: 'NodeInstance', id: 'nodeB', nodeType: 'handlerB', config: {} },
       ],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'nodeA', port: 'execute' } },
@@ -162,8 +162,8 @@ describe('Validator Branch Exclusivity', () => {
 
     const workflow = createWorkflow(
       [
-        { type: 'NodeInstance', id: 'notifySlack', nodeType: 'notifySlack', config: { x: 0, y: 0 } },
-        { type: 'NodeInstance', id: 'updateCRM', nodeType: 'updateCRM', config: { x: 0, y: 100 } },
+        { type: 'NodeInstance', id: 'notifySlack', nodeType: 'notifySlack', config: {} },
+        { type: 'NodeInstance', id: 'updateCRM', nodeType: 'updateCRM', config: {} },
       ],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'notifySlack', port: 'execute' } },
@@ -190,8 +190,8 @@ describe('Validator Branch Exclusivity', () => {
 
     const workflow = createWorkflow(
       [
-        { type: 'NodeInstance', id: 'nodeA', nodeType: 'handlerA', config: { x: 0, y: 0 } },
-        { type: 'NodeInstance', id: 'nodeB', nodeType: 'handlerB', config: { x: 0, y: 100 } },
+        { type: 'NodeInstance', id: 'nodeA', nodeType: 'handlerA', config: {} },
+        { type: 'NodeInstance', id: 'nodeB', nodeType: 'handlerB', config: {} },
       ],
       [
         { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'nodeA', port: 'execute' } },

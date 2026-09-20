@@ -3,6 +3,7 @@
  * Doctor command - validates project environment and configuration for flow-weaver compatibility
  */
 
+import { listServices, type ServiceRecord } from '../../service-registry.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -49,6 +50,8 @@ export interface DoctorReport {
   summary: { pass: number; warn: number; fail: number };
   moduleFormat: ModuleFormatDetection;
   server: ServerInstallInfo;
+  /** The fw processes alive on this machine, as they announced themselves. */
+  services: ServiceRecord[];
 }
 
 // ── Utility ──────────────────────────────────────────────────────────────────
@@ -809,9 +812,34 @@ export function checkDeploymentProfiles(cwd: string): CheckResult {
 
 // ── Orchestrator ─────────────────────────────────────────────────────────────
 
+/**
+ * Which fw processes are running, from the records they keep. Never a
+ * failure: an MCP server answering from another install is reported as a
+ * warning, since edits here do not reach it.
+ */
+export function checkRunningServices(services: ServiceRecord[] = listServices()): CheckResult {
+  if (!services.length) return { name: 'Running services', status: 'pass', message: 'none' };
+  const here = serverInstallInfo().installPath;
+  const lines = services.map((s) => {
+    const ago = Math.max(0, Math.round((Date.now() - Date.parse(s.lastActivityAt)) / 1000));
+    const where = s.url ?? s.transport ?? '';
+    const client = s.client ? ` for ${s.client}` : '';
+    const last = s.activity ? `, last ${s.activity} ${ago}s ago` : '';
+    return `${s.kind} (pid ${s.pid}${where ? `, ${where}` : ''}${client}) from ${s.install}${last}`;
+  });
+  const elsewhere = services.filter((s) => s.kind === 'mcp-server' && realpathOr(s.install) !== realpathOr(here));
+  return {
+    name: 'Running services',
+    status: elsewhere.length ? 'warn' : 'pass',
+    message: lines.join('; '),
+    ...(elsewhere.length ? { fix: `An MCP server runs from ${elsewhere[0].install}, not from here; restart it from this install if this is the one you are changing.` } : {}),
+  };
+}
+
 export function runDoctorChecks(cwd: string): DoctorReport {
   const moduleFormat = detectProjectModuleFormat(cwd);
   const server = serverInstallInfo();
+  const services = listServices();
 
   const checks: CheckResult[] = [
     checkServerInstall(cwd),
@@ -827,6 +855,7 @@ export function runDoctorChecks(cwd: string): DoctorReport {
     checkProjectConfig(cwd),
     checkDeploymentManifest(cwd),
     checkDeploymentProfiles(cwd),
+    checkRunningServices(services),
   ];
 
   const summary = { pass: 0, warn: 0, fail: 0 };
@@ -840,6 +869,7 @@ export function runDoctorChecks(cwd: string): DoctorReport {
     summary,
     moduleFormat,
     server,
+    services,
   };
 }
 

@@ -48,7 +48,7 @@ describe('workflow-level @deploy parsing', () => {
 /**
  * @flowWeaver workflow
  * @deploy inngest
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -68,7 +68,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy github-actions runner="ubuntu-latest"
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -87,7 +87,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy inngest durableSteps=true serve=false
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -107,7 +107,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy lambda memory=256 timeout=30
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -127,7 +127,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy vercel regions="iad1,sfo1,lhr1"
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -148,7 +148,7 @@ function testNode(): {} { return {}; }
  * @deploy inngest durableSteps=true
  * @deploy lambda memory=512
  * @deploy vercel maxDuration=120
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -169,7 +169,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy inngest framework="next"
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -188,7 +188,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy github-actions script="echo \\"hello\\""
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -207,7 +207,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy github-actions cmd="echo 'hello world'"
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -226,7 +226,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy gitlab-ci branches="main,develop,staging"
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -245,7 +245,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy gitlab-ci script="npm ci"
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -264,7 +264,7 @@ function testNode(): {} { return {}; }
 /**
  * @flowWeaver workflow
  * @deploy lambda runtime=nodejs20.x
- * @node a testNode [position: 0 0]
+ * @node a testNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -289,7 +289,7 @@ describe('nodeType-level @deploy parsing', () => {
     const result = parseWorkflowSource(`
 /**
  * @flowWeaver workflow
- * @node a checkout [position: 0 0]
+ * @node a checkout
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -311,7 +311,7 @@ function checkout(): { repo: string } { return { repo: 'main' }; }
     const result = parseWorkflowSource(`
 /**
  * @flowWeaver workflow
- * @node a setupNode [position: 0 0]
+ * @node a setupNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -333,7 +333,7 @@ function setupNode(): {} { return {}; }
     const result = parseWorkflowSource(`
 /**
  * @flowWeaver workflow
- * @node a setupNode [position: 0 0]
+ * @node a setupNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}
@@ -355,7 +355,7 @@ function setupNode(): {} { return {}; }
     const result = parseWorkflowSource(`
 /**
  * @flowWeaver workflow
- * @node a plainNode [position: 0 0]
+ * @node a plainNode
  * @path Start -> a -> Exit
  */
 export function myWorkflow() {}

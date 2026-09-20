@@ -41,7 +41,7 @@ describe('In-Place Generation', () => {
     description: 'Test workflow',
     sourceFile: 'test.ts',
     nodeTypes: [createMultiInputNodeType('add', 'add')],
-    instances: [createNodeInstance('adder', 'add', { x: 200, y: 100 })],
+    instances: [createNodeInstance('adder', 'add', { })],
     connections: [
       {
         type: 'Connection',
@@ -69,8 +69,6 @@ describe('In-Place Generation', () => {
     },
     imports: [],
     ui: {
-      startNode: { x: 0, y: 100 },
-      exitNode: { x: 400, y: 100 },
     },
   });
 
@@ -134,7 +132,6 @@ export async function calculate(execute: boolean, params: { a: number; b: number
       expect(result.hasChanges).toBe(true);
       expect(result.code).toContain('@node adder add');
       expect(result.code).toContain('@connect Start.a -> adder.a');
-      expect(result.code).toContain('@position Start 0 100');
     });
 
     it('should replace content between existing markers', () => {
@@ -447,9 +444,7 @@ export async function myWorkflow(execute: boolean) {
             nodeType: 'double',
             config: {
               label: 'My Custom Label',
-              x: 100,
-              y: 100,
-            },
+              },
           },
           {
             type: 'NodeInstance',
@@ -457,18 +452,13 @@ export async function myWorkflow(execute: boolean) {
             nodeType: 'double',
             config: {
               label: 'Label with "quotes"',
-              x: 200,
-              y: 100,
-            },
+              },
           },
           {
             type: 'NodeInstance',
             id: 'doubler3', // No label - should NOT have [label: ...]
             nodeType: 'double',
-            config: {
-              x: 300,
-              y: 100,
-            },
+            config: {},
           },
         ],
         connections: [],
@@ -510,8 +500,6 @@ export async function myWorkflow(execute: boolean) {
             id: 'myNode',
             nodeType: 'MyType',
             config: {
-              x: 100,
-              y: 100,
               portConfigs: [
                 {
                   portName: 'input',
@@ -562,8 +550,6 @@ export async function myWorkflow(execute: boolean) {
             id: 'calc',
             nodeType: 'double',
             config: {
-              x: 100,
-              y: 100,
               portConfigs: [
                 {
                   portName: 'value',
@@ -578,8 +564,6 @@ export async function myWorkflow(execute: boolean) {
             id: 'calc2',
             nodeType: 'double',
             config: {
-              x: 200,
-              y: 100,
               portConfigs: [
                 {
                   portName: 'x',
@@ -628,8 +612,6 @@ function myWorkflow(execute: boolean) {
             id: 'calc',
             nodeType: 'double',
             config: {
-              x: 100,
-              y: 100,
               portConfigs: [
                 {
                   portName: 'value',
@@ -684,8 +666,6 @@ export function myWorkflow(execute: boolean) {
             id: 'calc',
             nodeType: 'double',
             config: {
-              x: 100,
-              y: 100,
               portConfigs: [
                 {
                   portName: 'banana',
@@ -752,7 +732,7 @@ function myWorkflow(execute: boolean) {
             type: 'NodeInstance',
             id: 'calc',
             nodeType: 'double',
-            config: { x: 100, y: 100 },
+            config: {},
           },
         ],
         connections: [],
@@ -815,7 +795,7 @@ async function myAsyncWorkflow(execute: boolean) {
             type: 'NodeInstance',
             id: 'calc',
             nodeType: 'double',
-            config: { x: 100, y: 100 },
+            config: {},
           },
         ],
         connections: [],
@@ -859,8 +839,6 @@ export async function myWorkflow(execute: boolean) {
             id: 'calc',
             nodeType: 'double',
             config: {
-              x: 100,
-              y: 100,
               portConfigs: [
                 {
                   portName: 'value', // Invalid - this port doesn't exist on nodeType!
@@ -1218,8 +1196,6 @@ function double(execute: boolean, value: number) {
 
 /**
  * @flowWeaver workflow
- * @position Start -150 -250
- * @position Exit 350 -250
  */
 export function scopedDemo(execute: boolean): { onSuccess: boolean; onFailure: boolean } {
   // @flow-weaver-body-start
@@ -1357,8 +1333,6 @@ function myNode(
 // @flow-weaver-runtime-end
 /**
  * @flowWeaver workflow
- * @position Start 0 0
- * @position Exit 300 0
  */
 export function myWorkflow(execute: boolean): { onSuccess: boolean } {
   // @flow-weaver-body-start
@@ -1402,7 +1376,7 @@ export function myWorkflow(execute: boolean): { onSuccess: boolean } {
         startPorts: {},
         exitPorts: { onSuccess: { dataType: 'BOOLEAN' } },
         imports: [],
-        ui: { startNode: { x: 0, y: 0 }, exitNode: { x: 300, y: 0 } },
+        ui: { },
       };
 
       // Step 1: Generate code with the nodeType
@@ -1480,7 +1454,7 @@ function myNode(execute: boolean, value: number): { onSuccess: boolean; result: 
         startPorts: {},
         exitPorts: { onSuccess: { dataType: 'BOOLEAN' } },
         imports: [],
-        ui: { startNode: { x: 0, y: 0 }, exitNode: { x: 300, y: 0 } },
+        ui: { },
       };
 
       const result = generateInPlace(sourceCodeWithRuntime, ast);
@@ -3103,7 +3077,7 @@ export function myPipeline(execute: boolean, params: { input: string }): { resul
       description: 'Test workflow',
       sourceFile: path.join(tempDir, 'test.ts'),
       nodeTypes: [createMultiInputNodeType('add', 'add')],
-      instances: [createNodeInstance('adder', 'add', { x: 200, y: 100 })],
+      instances: [createNodeInstance('adder', 'add', { })],
       connections: [
         {
           type: 'Connection',
@@ -3125,7 +3099,7 @@ export function myPipeline(execute: boolean, params: { input: string }): { resul
       startPorts: { a: { dataType: 'NUMBER' }, b: { dataType: 'NUMBER' } },
       exitPorts: { result: { dataType: 'NUMBER' } },
       imports: [],
-      ui: { startNode: { x: 0, y: 100 }, exitNode: { x: 400, y: 100 } },
+      ui: { },
     });
 
     it('should inline execution-scoped debugger services in dev mode', () => {
@@ -3207,9 +3181,7 @@ function add(a: number, b: number): { result: number } {
 
 /**
  * @flowWeaver workflow
- * @node adder add [position: 100 50]
- * @position Start 0 0
- * @position Exit 300 0
+ * @node adder add
  */
 export function calculate(execute: boolean, params: { a: number; b: number }) {
   throw new Error('Not compiled');
@@ -3217,9 +3189,7 @@ export function calculate(execute: boolean, params: { a: number; b: number }) {
 
 /**
  * @flowWeaver workflow
- * @node adder add [position: 100 50]
- * @position Start 0 0
- * @position Exit 300 0
+ * @node adder add
  */
 export function calculate(execute: boolean, params: { a: number; b: number }) {
   throw new Error('Duplicate');
@@ -3233,7 +3203,7 @@ export function calculate(execute: boolean, params: { a: number; b: number }) {
         description: '',
         sourceFile: 'test.ts',
         nodeTypes: [createMultiInputNodeType('add', 'add')],
-        instances: [createNodeInstance('adder', 'add', { x: 500, y: 200 })],
+        instances: [createNodeInstance('adder', 'add', { })],
         connections: [
           {
             type: 'Connection',
@@ -3256,8 +3226,6 @@ export function calculate(execute: boolean, params: { a: number; b: number }) {
         exitPorts: { result: { dataType: 'NUMBER' } },
         imports: [],
         ui: {
-          startNode: { x: -100, y: 0 },
-          exitNode: { x: 700, y: 0 },
         },
       };
 
@@ -3270,19 +3238,12 @@ export function calculate(execute: boolean, params: { a: number; b: number }) {
       );
       expect(firstWorkflowJSDocMatch).toBeTruthy();
       const firstJSDoc = firstWorkflowJSDocMatch![0];
-
-      // Positions should reflect the AST (500, 200), not original (100, 50)
-      expect(firstJSDoc).toContain('[position: 500 200]');
-      expect(firstJSDoc).toContain('@position Start -100 0');
-      expect(firstJSDoc).toContain('@position Exit 700 0');
+      expect(firstJSDoc).toContain('@flowWeaver workflow');
 
       // The SECOND workflow's JSDoc should be unchanged.
       // Split at "throw new Error('Not compiled')" to isolate the second half of the file.
       const secondHalf = result.code.split("throw new Error('Not compiled')")[1];
       expect(secondHalf).toBeDefined();
-      // Second workflow should still have original positions, not the first workflow's updated ones
-      expect(secondHalf).toContain('[position: 100 50]');
-      expect(secondHalf).not.toContain('[position: 500 200]');
     });
   });
 });

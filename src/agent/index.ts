@@ -38,8 +38,6 @@ export type { AnthropicProviderOptions } from './providers/anthropic.js';
 export { ClaudeCliProvider, createClaudeCliProvider } from './providers/claude-cli.js';
 export { OpenAICompatProvider, createOpenAICompatProvider } from './providers/openai-compat.js';
 export type { OpenAICompatProviderOptions } from './providers/openai-compat.js';
-export { PlatformProvider, createPlatformProvider } from './providers/platform.js';
-export type { PlatformProviderOptions } from './providers/platform.js';
 
 // MCP bridge
 export { createMcpBridge } from './mcp-bridge.js';
@@ -61,6 +59,3 @@ export { buildSafeEnv, buildSafeSpawnOpts, MINIMAL_PATH, ENV_ALLOWLIST } from '.
 // Stream parser (for custom providers)
 export { StreamJsonParser } from './streaming.js';
 
-// Device connection (mount local machine into platform Studio)
-export { DeviceConnection } from './device-connection.js';
-export type { DeviceConnectionOptions, DeviceInfo, DeviceEvent } from './device-connection.js';

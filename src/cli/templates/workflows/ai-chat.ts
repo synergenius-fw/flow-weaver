@@ -137,11 +137,9 @@ async function chat(
  * Stateful chat with conversation memory
  *
  * @flowWeaver workflow
- * @node mem memory [position: -150 0] [color: "teal"] [icon: "database"]
- * @node respond chat [position: 50 0] [color: "purple"] [icon: "campaign"] [suppress: "AGENT_LLM_NO_FALLBACK"]
- * @node saveMem memory [position: 250 0] [color: "teal"] [icon: "database"] [suppress: "UNUSED_OUTPUT_PORT"]
- * @position Start -350 0
- * @position Exit 450 0
+ * @node mem memory [color: "teal"] [icon: "database"]
+ * @node respond chat [color: "purple"] [icon: "campaign"] [suppress: "AGENT_LLM_NO_FALLBACK"]
+ * @node saveMem memory [color: "teal"] [icon: "database"] [suppress: "UNUSED_OUTPUT_PORT"]
  * @connect Start.execute -> mem.execute
  * @connect Start.conversationId -> mem.conversationId
  * @connect Start.userMessage -> mem.newMessage

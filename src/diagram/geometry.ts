@@ -547,33 +547,6 @@ function portsColumnHeight(count: number): number {
   return PORT_PADDING_Y + count * PORT_SIZE + (count - 1) * PORT_GAP + PORT_PADDING_Y;
 }
 
-// ---- Position extraction ----
-
-/**
- * Extract explicit positions from AST metadata.
- * Returns a map of node ID → {x, y} for nodes that have both x and y defined.
- * Sources: ast.ui.startNode, ast.ui.exitNode, instance.config.x/y
- */
-function extractExplicitPositions(ast: TWorkflowAST): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-
-  if (ast.ui?.startNode?.x != null && ast.ui.startNode.y != null) {
-    positions.set('Start', { x: ast.ui.startNode.x, y: ast.ui.startNode.y });
-  }
-
-  if (ast.ui?.exitNode?.x != null && ast.ui.exitNode.y != null) {
-    positions.set('Exit', { x: ast.ui.exitNode.x, y: ast.ui.exitNode.y });
-  }
-
-  for (const inst of ast.instances) {
-    if (inst.config?.x != null && inst.config.y != null) {
-      positions.set(inst.id, { x: inst.config.x, y: inst.config.y });
-    }
-  }
-
-  return positions;
-}
-
 /**
  * Compute the maximum right-side overhang for a layer (external output port labels only).
  * Scope inner-edge port labels face inward and don't extend past the node boundary.
@@ -656,102 +629,8 @@ function assignLayerCoordinates(
 }
 
 /**
- * Hybrid positioning: apply explicit positions to positioned nodes,
- * then auto-layout only the remaining unpositioned nodes.
- */
-function assignUnpositionedNodes(
-  layers: string[][],
-  diagramNodes: Map<string, DiagramNode>,
-  explicitPositions: Map<string, { x: number; y: number }>,
-): void {
-  // Apply explicit positions first
-  for (const [id, pos] of explicitPositions) {
-    const node = diagramNodes.get(id);
-    if (node) {
-      node.x = pos.x;
-      node.y = pos.y;
-    }
-  }
-
-  // Auto-layout only unpositioned nodes using the same layer-based algorithm
-  const filtered: string[][] = layers.map(l => l.filter(id => diagramNodes.has(id)));
-
-  let currentX = 0;
-  for (let i = 0; i < filtered.length; i++) {
-    const layerNodes = filtered[i];
-    if (layerNodes.length === 0) {
-      currentX += LAYER_GAP_X;
-      continue;
-    }
-
-    const unpositioned = layerNodes.filter(id => !explicitPositions.has(id));
-    const maxWidth = Math.max(...layerNodes.map(id => diagramNodes.get(id)!.width));
-
-    if (unpositioned.length > 0) {
-      const gapY = adaptiveGapY(unpositioned.length);
-      const totalHeight = unpositioned.reduce((sum, id) => {
-        const n = diagramNodes.get(id)!;
-        return sum + n.height + LABEL_HEIGHT + LABEL_GAP;
-      }, 0) + (unpositioned.length - 1) * gapY;
-
-      let currentY = -totalHeight / 2;
-      for (const id of unpositioned) {
-        const node = diagramNodes.get(id)!;
-        currentY += LABEL_HEIGHT + LABEL_GAP;
-        node.x = currentX + (maxWidth - node.width) / 2;
-        node.y = currentY;
-        currentY += node.height + gapY;
-      }
-    }
-
-    // Label-aware edge gap
-    const nextLayerNodes = filtered[i + 1];
-    if (nextLayerNodes && nextLayerNodes.length > 0) {
-      const outputOverhang = layerOutputExtent(layerNodes, diagramNodes);
-      const inputOverhang = layerInputExtent(nextLayerNodes, diagramNodes);
-      const labelMinGap = outputOverhang + LABEL_CLEARANCE + inputOverhang;
-      const edgeGap = Math.max(labelMinGap, LAYER_GAP_X - maxWidth, MIN_EDGE_GAP);
-      currentX += maxWidth + edgeGap;
-    } else {
-      currentX += maxWidth + LAYER_GAP_X;
-    }
-  }
-}
-
-/**
- * After applying explicit positions, ensure no nodes overlap horizontally.
- * Sorts nodes by x, then pushes any node whose left edge (minus its input
- * label extent) intrudes into the previous node's right edge (plus its
- * output label extent and clearance).
- */
-function resolveHorizontalOverlaps(
-  diagramNodes: Map<string, DiagramNode>,
-  explicitPositions: Map<string, { x: number; y: number }>,
-): void {
-  const nodes = [...diagramNodes.values()].sort((a, b) => a.x - b.x);
-  for (let i = 1; i < nodes.length; i++) {
-    const prev = nodes[i - 1];
-    const curr = nodes[i];
-    if (explicitPositions.has(curr.id)) continue; // respect author-set positions
-
-    // Only external port labels overhang the node boundary.
-    // Scope inner-edge port labels face inward and don't extend past the node box.
-    const prevRightExtent = maxPortLabelExtent(prev.outputs);
-    const currLeftExtent = maxPortLabelExtent(curr.inputs);
-
-    const minGap = Math.max(prevRightExtent + LABEL_CLEARANCE + currLeftExtent, MIN_EDGE_GAP);
-    const actualGap = curr.x - (prev.x + prev.width);
-
-    if (actualGap < minGap) {
-      curr.x = prev.x + prev.width + minGap;
-    }
-  }
-}
-
-/**
- * After all positioning, resolve overlaps caused by expanded scope boxes.
- * Only checks nodes immediately after a scope parent — regular node spacing
- * is left to the user's explicit positions. When a node falls inside the
+ * After layout, resolve overlaps caused by expanded scope boxes. Only checks
+ * nodes immediately after a scope parent. When a node falls inside the
  * expanded scope box, shift it and all further-right nodes to clear.
  */
 function resolvePostLayoutOverlaps(diagramNodes: Map<string, DiagramNode>): void {
@@ -920,35 +799,13 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     if (inst.config?.height != null) node.height = inst.config.height;
   }
 
-  // Layout — use explicit positions when available, auto-layout otherwise
-  const explicitPositions = extractExplicitPositions(ast);
-  const allPositioned = [...diagramNodes.keys()].every(id => explicitPositions.has(id));
-  const nonePositioned = ![...diagramNodes.keys()].some(id => explicitPositions.has(id));
+  // Layout: layers left to right from the control flow.
+  const { layers } = layoutWorkflow(ast);
+  assignLayerCoordinates(layers, diagramNodes);
 
-  if (allPositioned) {
-    // All nodes have explicit positions — apply them as-is
-    for (const [id, pos] of explicitPositions) {
-      const node = diagramNodes.get(id);
-      if (node) {
-        node.x = pos.x;
-        node.y = pos.y;
-      }
-    }
-  } else if (nonePositioned) {
-    // No positions — full auto-layout (original behavior)
-    const { layers } = layoutWorkflow(ast);
-    assignLayerCoordinates(layers, diagramNodes);
-  } else {
-    // Mixed — explicit positions + auto-layout for remaining nodes
-    const { layers } = layoutWorkflow(ast);
-    assignUnpositionedNodes(layers, diagramNodes, explicitPositions);
-    resolveHorizontalOverlaps(diagramNodes, explicitPositions);
-  }
-
-  // Resolve overlaps caused by expanded scope boxes. When all positions are
-  // explicit, resolveHorizontalOverlaps is never called (or skips all nodes).
-  // Scope parents can be far wider than the user anticipates, so we cascade
-  // a rightward shift to all downstream nodes that fall inside the expanded box.
+  // Resolve overlaps caused by expanded scope boxes. Scope parents can be far
+  // wider than the layer layout assumes, so cascade a rightward shift to all
+  // downstream nodes that fall inside the expanded box.
   resolvePostLayoutOverlaps(diagramNodes);
 
   // Compute external port positions
@@ -1035,7 +892,7 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     maxY = Math.max(maxY, node.y + node.height);
   }
 
-  const padding = options.padding ?? 40;
+  const padding = 40;
   const offsetX = -minX + padding;
   const offsetY = -minY + padding;
 
@@ -1161,12 +1018,10 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
       dashed,
     };
 
-    // For static SVG, offset path endpoints past port labels so connections
-    // aren't hidden behind opaque label badges. HTML viewer has interactive
-    // labels (show/hide on hover), so paths start at port center there.
-    const isStaticSvg = options.format !== 'html';
-    const pathSx = isStaticSvg ? sx + srcLabelEnd : sx;
-    const pathTx = isStaticSvg ? tx - tgtLabelEnd : tx;
+    // Path endpoints sit past the port labels, so a connection is never
+    // hidden behind a label badge.
+    const pathSx = sx + srcLabelEnd;
+    const pathTx = tx - tgtLabelEnd;
 
     let path: string;
     if (xDistance > STUB_DISTANCE_THRESHOLD) {

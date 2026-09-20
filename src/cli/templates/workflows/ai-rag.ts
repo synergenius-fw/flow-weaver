@@ -155,10 +155,8 @@ Answer:\`;
  * RAG Pipeline for knowledge-based Q&A
  *
  * @flowWeaver workflow
- * @node retriever retrieve [position: -50 0] [color: "teal"] [icon: "search"] [suppress: "UNUSED_OUTPUT_PORT", "DESIGN_ASYNC_NO_ERROR_PATH"]
- * @node generator generate [position: 200 0] [color: "purple"] [icon: "autoAwesome"]
- * @position Start -300 0
- * @position Exit 400 0
+ * @node retriever retrieve [color: "teal"] [icon: "search"] [suppress: "UNUSED_OUTPUT_PORT", "DESIGN_ASYNC_NO_ERROR_PATH"]
+ * @node generator generate [color: "purple"] [icon: "autoAwesome"]
  * @connect Start.execute -> retriever.execute
  * @connect Start.question -> retriever.query
  * @connect Start.topK -> retriever.topK

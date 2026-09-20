@@ -763,18 +763,18 @@ export function report(
  * @param request - What the caller wants built
  * @returns status - How the run ended
  * @returns outcome - The human-readable account
- * @node ask askForLink [position: -960 0]
- * @node link waitForEvent [expr: eventName="ask.eventName", match="ask.match", timeout="'24h'"] [position: -780 0]
- * @node parse parseFigmaLink [position: -600 0]
- * @node extract extractDesign [position: -420 0]
- * @node match matchLibrary [position: -240 0]
- * @node digest buildDigest [position: -60 0]
- * @node plan waitForAgent [expr: agentId="digest.agentId", context="digest.digest", prompt="digest.prompt"] [position: 120 0]
- * @node check checkPlan [position: 300 0]
- * @node approve approvePlan [position: 480 0]
- * @node spec aggregateBuildSpec [position: 660 0]
- * @node build waitForAgent [expr: agentId="spec.agentId", context="spec.spec", prompt="spec.prompt"] [position: 840 0]
- * @node finish report [position: 1040 0]
+ * @node ask askForLink
+ * @node link waitForEvent [expr: eventName="ask.eventName", match="ask.match", timeout="'24h'"]
+ * @node parse parseFigmaLink
+ * @node extract extractDesign
+ * @node match matchLibrary
+ * @node digest buildDigest
+ * @node plan waitForAgent [expr: agentId="digest.agentId", context="digest.digest", prompt="digest.prompt"]
+ * @node check checkPlan
+ * @node approve approvePlan
+ * @node spec aggregateBuildSpec
+ * @node build waitForAgent [expr: agentId="spec.agentId", context="spec.spec", prompt="spec.prompt"]
+ * @node finish report
  * @path Start -> ask -> link -> parse -> extract -> match -> digest -> plan -> check -> approve -> spec -> build -> Exit
  * @path parse:fail -> finish -> Exit
  * @path check:fail -> finish
@@ -788,8 +788,6 @@ export function report(
  * @connect build.agentResult -> finish.buildResult
  * @connect finish.status -> Exit.status
  * @connect finish.outcome -> Exit.outcome
- * @position Start -1140 0
- * @position Exit 1240 0
  */
 export async function figmaToPage(
   execute: boolean,

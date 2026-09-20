@@ -46,10 +46,9 @@ export interface TInstanceConfigChange {
   portConfigs?: TChange<TPortConfig[] | undefined>;
 }
 
-/** Instance UI change (position, label, etc.) */
+/** Instance UI change (label, size, etc.) */
 export interface TInstanceUIChange {
   label?: TChange<string>;
-  position?: TChange<{ x: number; y: number }>;
   size?: TChange<{ width: number; height: number }>;
   minimized?: TChange<boolean>;
 }

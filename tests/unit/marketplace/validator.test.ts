@@ -128,20 +128,24 @@ describe('validatePackage', () => {
       expect(codes).not.toContain('PKG-005');
     });
 
-    it('rejects old flowweaver-pack-* naming (no backwards compat)', async () => {
+    it('warns about old flowweaver-pack-* naming (no backwards compat)', async () => {
       setupFs(makePackageJson({ name: 'flowweaver-pack-openai' }));
       const result = await validatePackage(DIR, makeManifest());
 
-      expect(result.issues.find((i) => i.code === 'PKG-005')).toBeDefined();
+      expect(result.issues.find((i) => i.code === 'PKG-005')?.severity).toBe('warning');
     });
 
-    it('rejects names that do not match the pattern', async () => {
+    it('warns, but does not fail, a name outside the convention', async () => {
+      // The manifest and the keyword identify a pack; the name is how it is
+      // found on a registry, so a pack an organisation had to call
+      // something else is still a valid pack.
       setupFs(makePackageJson({ name: 'my-cool-package' }));
       const result = await validatePackage(DIR, makeManifest());
 
       const pkg005 = result.issues.find((i) => i.code === 'PKG-005');
       expect(pkg005).toBeDefined();
-      expect(pkg005!.severity).toBe('error');
+      expect(pkg005!.severity).toBe('warning');
+      expect(result.issues.filter((i) => i.severity === 'error').map((i) => i.code)).not.toContain('PKG-005');
     });
 
     it('rejects missing name', async () => {
@@ -398,6 +402,38 @@ describe('validatePackage', () => {
       expect(issue).toBeDefined();
       expect(issue!.severity).toBe('warning');
       expect(issue!.message).toContain('bare');
+    });
+  });
+
+  // ── HND-001 / HND-002: tag handlers ─────────────────────────────────────
+
+  describe('HND-001 / HND-002: tag handlers', () => {
+    const handler = { tags: ['secret', 'runner'], namespace: 'cicd', scope: 'workflow' as const, file: 'dist/tag-handler.js', exportName: 'cicdTagHandler' };
+
+    it('warns when a handler has no serializer, naming the tags that would be lost', async () => {
+      setupFs(makePackageJson());
+      const result = await validatePackage(DIR, makeManifest({ tagHandlers: [handler] }));
+      const issue = result.issues.find((i) => i.code === 'HND-001');
+      expect(issue).toBeDefined();
+      expect(issue!.severity).toBe('warning');
+      expect(issue!.message).toContain('@secret, @runner');
+      expect(issue!.message).toContain('fw compile');
+      expect(result.valid).toBe(true);
+    });
+
+    it('is quiet when the handler names its serializer', async () => {
+      setupFs(makePackageJson());
+      const result = await validatePackage(DIR, makeManifest({ tagHandlers: [{ ...handler, serializerExport: 'cicdSerializer' }] }));
+      expect(result.issues.find((i) => i.code.startsWith('HND-'))).toBeUndefined();
+    });
+
+    it('rejects a handler entry missing tags, namespace or file', async () => {
+      setupFs(makePackageJson());
+      const result = await validatePackage(DIR, makeManifest({ tagHandlers: [{ ...handler, file: '' }] }));
+      const issue = result.issues.find((i) => i.code === 'HND-002');
+      expect(issue).toBeDefined();
+      expect(issue!.severity).toBe('error');
+      expect(result.valid).toBe(false);
     });
   });
 
@@ -730,7 +766,9 @@ describe('validatePackage', () => {
     });
 
     it('returns valid=false when any error exists', async () => {
-      setupFs(makePackageJson({ name: 'bad-name' }));
+      // The keyword is what identifies a pack, so its absence is an error;
+      // a name outside the convention is only a warning.
+      setupFs(makePackageJson({ keywords: [] }));
       const result = await validatePackage(DIR, makeManifest());
 
       expect(result.valid).toBe(false);

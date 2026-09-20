@@ -1,7 +1,7 @@
 ---
 name: Flow Weaver JSDoc Grammar
 description: Formal syntax grammar for @flowWeaver JSDoc annotations parsed by Chevrotain
-keywords: [grammar, syntax, JSDoc, annotations, input, output, connect, node, Chevrotain, EBNF, scope, position, durablePure, durableGate, durableEffect]
+keywords: [grammar, syntax, JSDoc, annotations, input, output, connect, node, Chevrotain, EBNF, scope, durablePure, durableGate, durableEffect]
 ---
 
 # JSDoc Block Structure
@@ -157,7 +157,6 @@ workflowBlock  ::= "@flowWeaver workflow"
                    { connectTag }
                    { pathTag }
                    { mapTag }
-                   { positionTag }
                    { scopeTag }
 ```
 
@@ -229,7 +228,7 @@ attributeBracket ::= "[" nodeAttr { "," nodeAttr } "]"
 nodeAttr       ::= labelAttr | exprAttr | portOrderAttr | portLabelAttr
                  | minimizedAttr | pullExecutionAttr | sizeAttr
                  | colorAttr | iconAttr | tagsAttr | suppressAttr
-                 | positionAttr | jobAttr | environmentAttr
+                 | jobAttr | environmentAttr
 
 labelAttr      ::= "label:" STRING
 exprAttr       ::= "expr:" IDENTIFIER "=" STRING { "," IDENTIFIER "=" STRING }
@@ -242,7 +241,6 @@ colorAttr      ::= "color:" STRING
 iconAttr       ::= "icon:" STRING
 tagsAttr       ::= "tags:" tagEntry { "," tagEntry }
 tagEntry       ::= STRING [ STRING ]
-positionAttr   ::= "position:" INTEGER INTEGER
 jobAttr        ::= "job:" STRING
 environmentAttr ::= "environment:" STRING
 suppressAttr   ::= "suppress:" STRING { "," STRING }
@@ -264,8 +262,7 @@ Multiple attribute brackets are allowed (zero or more). Attributes can be split 
 @node myAdd Add [size: 200 150]
 @node myAdd Add [color: "red", icon: "database"]
 @node myAdd Add [tags: "math" "Math operation", "transform"]
-@node myAdd Add [position: 180 0]
-@node myAdd Add [label: "hi"] [color: "#f00"] [position: 360 0]
+@node myAdd Add [label: "hi"] [color: "#f00"]
 @node build npmBuild [job: "build"]
 @node deploy deploySsh [job: "deploy"] [environment: "production"]
 @node fetch fetchData [suppress: "UNUSED_OUTPUT_PORT"]
@@ -325,21 +322,6 @@ Comma-separated (equivalent to two `@path` tags):
 - Multiple `@path` lines can coexist; overlapping prefixes are deduplicated
 - Comma-separated paths within a single `@path` are expanded to separate paths
 - Manual `@connect` lines can supplement for cross-named ports
-
-## @position
-
-Standalone `@position` is reserved for Start and Exit virtual nodes, which have no `@node` line. For instance nodes, use the `[position: x y]` bracket attribute on `@node` instead.
-
-```
-positionTag    ::= "@position" IDENTIFIER INTEGER INTEGER
-```
-
-**Examples:**
-
-```
-@position Start -450 0
-@position Exit 450 0
-```
 
 ## @scope
 
@@ -474,7 +456,6 @@ patternBlock   ::= "@flowWeaver pattern"
                    [ "@name" TEXT ]
                    [ "@description" TEXT ]
                    { nodeTag }
-                   { positionTag }
                    { connectTag }
                    { portTag }
 

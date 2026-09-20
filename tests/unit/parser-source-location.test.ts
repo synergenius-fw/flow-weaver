@@ -39,7 +39,6 @@ function double(execute: boolean, value: number) {
 /**
  * @flowWeaver workflow
  * @node myNode double
- * @position myNode 100 100
  */
 export function myWorkflow(execute: boolean) {
   return { onSuccess: true };
@@ -82,9 +81,6 @@ function double(execute: boolean, value: number) {
  * @node node1 double
  * @node node2 double
  * @node node3 double
- * @position node1 100 100
- * @position node2 200 100
- * @position node3 300 100
  */
 export function myWorkflow(execute: boolean) {
   return { onSuccess: true };
@@ -133,8 +129,6 @@ function double(execute: boolean, value: number) {
  * @node node1 double
  * @node node2 double
  * @connect node1.onSuccess -> node2.execute
- * @position node1 100 100
- * @position node2 200 100
  */
 export function myWorkflow(execute: boolean) {
   return { onSuccess: true };
@@ -179,9 +173,6 @@ function double(execute: boolean, value: number) {
  * @connect node1.onSuccess -> node2.execute
  * @connect node2.onSuccess -> node3.execute
  * @connect node1.result -> node2.value
- * @position node1 100 100
- * @position node2 200 100
- * @position node3 300 100
  */
 export function myWorkflow(execute: boolean) {
   return { onSuccess: true };
@@ -236,7 +227,6 @@ function double(execute: boolean, value: number) {
  * @flowWeaver workflow
  * @node myNode double
  * @connect Start.execute -> myNode.execute
- * @position myNode 100 100
  */
 export function myWorkflow(execute: boolean) {
   return { onSuccess: true };

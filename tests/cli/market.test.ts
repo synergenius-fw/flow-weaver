@@ -98,6 +98,20 @@ describe('marketInitCommand', () => {
         'utf8'
       );
       expect(sampleContent).toContain('@flowWeaver nodeType');
+      // The sample is the shape a new author copies: it must parse clean and
+      // carry the visuals fw market pack asks for.
+      const { parser } = await import('../../src/parser');
+      const parsed = parser.parseFromString(sampleContent);
+      expect(parsed.warnings).toEqual([]);
+      expect(parsed.errors).toEqual([]);
+      expect(parsed.nodeTypes[0].expression).toBe(true);
+      expect(parsed.nodeTypes[0].visuals?.color).toBe('blue');
+      expect(parsed.nodeTypes[0].visuals?.icon).toBe('inventory');
+      // Ports come from the signature; the parser adds the execute signal itself.
+      expect(Object.keys(parsed.nodeTypes[0].inputs)).toContain('data');
+      // And the engine constraints track this release, not a stale floor.
+      expect(pkgJson.flowWeaver.engineVersion).toMatch(/^>=\d+\.\d+\.\d+$/);
+      expect(pkgJson.flowWeaver.engineVersion).not.toBe('>=0.1.0');
 
       // Verify README
       expect(fs.existsSync(path.join(targetDir, 'README.md'))).toBe(true);

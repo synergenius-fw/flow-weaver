@@ -4,11 +4,12 @@ import type { TDataType } from '../ast/types';
 
 export interface DiagramOptions {
   theme?: 'dark' | 'light';
-  width?: number;
-  padding?: number;
-  showPortLabels?: boolean;
   workflowName?: string;
-  format?: 'svg' | 'html' | 'process' | 'ascii' | 'ascii-compact' | 'text';
+  format?: 'svg' | 'ascii' | 'ascii-compact' | 'text';
+  /** For `svg`: the name and a line of facts above the spine (default on). */
+  title?: boolean;
+  /** For `svg`: shown under the title in place of the file name. */
+  subtitle?: string;
 }
 
 // ---- Internal layout types ----
@@ -69,22 +70,4 @@ export interface DiagramGraph {
   connections: DiagramConnection[];
   bounds: { width: number; height: number; originX?: number; originY?: number };
   workflowName: string;
-}
-
-// ---- Theme ----
-
-export interface ThemePalette {
-  background: string;
-  nodeFill: string;
-  nodeStroke: string;
-  labelColor: string;
-  sublabelColor: string;
-  connectionColor: string;
-  dotColor: string;
-  labelBadgeFill: string;
-  labelBadgeBorder: string;
-  nodeIconColor: string;
-  scopeAreaStroke: string;
-  nodeShadowOpacity: number;
-  dotOpacity: number;
 }

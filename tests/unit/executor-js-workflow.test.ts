@@ -72,11 +72,9 @@ import { upper } from '../node-types/upper.js';
 
 /**
  * @flowWeaver workflow
- * @node u upper [position: 0 0]
+ * @node u upper
  * @path Start -> u -> Exit
  * @connect u.result -> Exit.output
- * @position Start -200 0
- * @position Exit 200 0
  * @param execute [order:-1] - Execute
  * @param text [order:0] - Text to uppercase
  * @returns onSuccess [order:-2] - On Success

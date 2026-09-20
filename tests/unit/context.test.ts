@@ -92,7 +92,7 @@ describe('buildContext', () => {
 
   it('includes all topics for full preset', () => {
     const result = buildContext({ preset: 'full' });
-    expect(result.topicCount).toBe(20);
+    expect(result.topicCount).toBe(21);
   });
 
   it('respects explicit topics', () => {
@@ -150,8 +150,8 @@ describe('PRESETS', () => {
     expect(PRESET_NAMES).toContain('full');
   });
 
-  it('full preset includes all 20 topics', () => {
-    expect(PRESETS.full.length).toBe(20);
+  it('full preset includes all 21 topics', () => {
+    expect(PRESETS.full.length).toBe(21);
   });
 
   it('core preset is a subset of full', () => {

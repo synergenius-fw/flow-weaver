@@ -76,13 +76,11 @@ function decide(
  * @param {string} [question="Approve this test run?"] - The question shown to the approver.
  * @returns outcome - The resolved approval outcome
  *
- * @position Start 0 150
  *
- * @node prepare preparePrompt [position: 250 150]
- * @node approver waitForApproval [position: 550 150] [expr: approverId="'testkit-approver'"]
- * @node decide decide [position: 850 150]
+ * @node prepare preparePrompt
+ * @node approver waitForApproval [expr: approverId="'testkit-approver'"]
+ * @node decide decide
  *
- * @position Exit 1150 150
  *
  * @path Start -> prepare -> approver -> decide -> Exit
  * @path approver:fail -> decide

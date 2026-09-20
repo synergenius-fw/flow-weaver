@@ -586,7 +586,7 @@ Named colors adapt to the diagram theme (dark/light). You can also pass any hex 
 
 ## Available Icons
 
-Icons render inside the node body in SVG diagrams. Names correspond to Material Symbols (outlined, weight 500).
+Any [Material Symbols](https://fonts.google.com/icons) name is valid, in the font's `snake_case` or in `camelCase` (`swap_horiz` and `swapHoriz` are the same icon). The console draws the icon from the font; the SVG artifacts draw the icons in the visual-reference table with a path and any other as a dot.
 
 **AI & ML:** `psychology` · `smartToy` · `autoAwesome` · `modelTraining` · `science` · `biotech`
 

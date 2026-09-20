@@ -6,7 +6,8 @@ import { parseWorkflow } from '../api/index.js';
 import type { TWorkflowAST } from '../ast/types.js';
 import type { ContinuationEnvelope, DurableGateKind } from '../runtime/continuation.js';
 import type { EffectAdapter } from '../runtime/durable-execution.js';
-import { executeWorkflow, type WorkflowExecutionOutcome } from '../mcp/workflow-executor.js';
+import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
+import { executeWorkflow, type ExecutionTraceEvent, type WorkflowExecutionOutcome } from '../mcp/workflow-executor.js';
 import { computeBundleDigest } from './bundle-digest.js';
 import { labelGate } from './gate-labeling.js';
 import { buildGateResolution, type ResolveInput } from './gate-resolution.js';
@@ -30,6 +31,42 @@ export interface StartRequest {
   filePath: string;
   workflowName?: string;
   params?: Record<string, unknown>;
+  /**
+   * Answers for the built-in gates and calls (`waitForEvent`, `waitForAgent`,
+   * `invokeWorkflow`, `delay`), so a run can go through them unattended.
+   * Kept with the record, so a later segment is mocked the same way.
+   */
+  mocks?: FwMockConfig;
+  /** Where the file stood when the run started -- a commit, and whether it had uncommitted changes -- as the driver knows it. */
+  source?: { commit?: string; dirty?: boolean };
+  /**
+   * The run's identity, when the driver needs it before the run ends. The
+   * console answers `POST /api/runs` with the id while the run goes on in
+   * the background; an assistant over MCP waits and is told afterwards.
+   */
+  runId?: string;
+}
+
+/** One entry of a kept step trace: the event and when it happened. */
+export interface TraceEntry {
+  t: number;
+  e: unknown;
+}
+
+/**
+ * How a driver watches a run it is driving.
+ *
+ * An assistant over MCP wants none of this: fewer tokens is the point. A
+ * person at the console wants all of it: each step as it runs, and the
+ * same trace again when the run is opened tomorrow.
+ */
+export interface DriveOptions {
+  /** Every trace event as it happens. Implies `trace`. */
+  onEvent?: (event: ExecutionTraceEvent) => void;
+  /** Keep the step trace beside the record, so a later reader has it too. */
+  trace?: boolean;
+  /** Cooperative cancellation. A run stopped this way is recorded as `cancelled`. */
+  abortSignal?: AbortSignal;
 }
 
 export interface ResumeRequest {
@@ -39,7 +76,7 @@ export interface ResumeRequest {
 
 /** What a driver is shown. Deliberately the minimum. */
 export interface RunView {
-  status: 'waiting' | 'completed' | 'failed';
+  status: 'waiting' | 'completed' | 'failed' | 'cancelled';
   runId: string;
   workflowName: string;
   gate?: {
@@ -58,18 +95,32 @@ export interface RunSummary {
   workflowName: string;
   filePath: string;
   gate?: { kind: DurableGateKind; node: string };
+  /** What the run was given, so a list can tell two runs apart. */
+  params: Record<string, unknown>;
+  failedNode?: string;
+  mocks?: FwMockConfig;
+  source?: { commit?: string; dirty?: boolean };
+  createdAt: string;
   updatedAt: string;
 }
 
 export interface LocalCoordinator {
-  start(request: StartRequest): Promise<RunView>;
-  resume(request: ResumeRequest): Promise<RunView>;
+  start(request: StartRequest, options?: DriveOptions): Promise<RunView>;
+  resume(request: ResumeRequest, options?: DriveOptions): Promise<RunView>;
+  /** Give up on a run waiting at a gate: the continuation is dropped and the run recorded as cancelled. */
+  cancel(runId: string): RunView;
   get(runId: string): RunView | undefined;
   list(filter?: { filePath?: string }): RunSummary[];
+  /** Everything persisted about a run, for a driver that shows more than the minimum. */
+  record(runId: string): RunRecord | undefined;
+  /** The kept step trace, in order across every segment; empty when none was kept. */
+  trace(runId: string): TraceEntry[];
+  /** Forget a finished run: its record, trace and receipts. A waiting run must be cancelled first. */
+  remove(runId: string): void;
 }
 
 /** Everything persisted about one run. `continuation.json` sits beside it. */
-interface RunRecord {
+export interface RunRecord {
   formatVersion: 1;
   runId: string;
   filePath: string;
@@ -90,6 +141,14 @@ interface RunRecord {
   };
   result?: unknown;
   error?: string;
+  /** The step that threw, when the trace said which; a failed run is opened there. */
+  failedNode?: string;
+  /** True when every segment kept its step trace in `trace.json`; false when any did not. */
+  traced?: boolean;
+  /** The mocks the run was started with; every segment uses the same. */
+  mocks?: FwMockConfig;
+  /** Where the file stood when the run started, when the driver said. */
+  source?: { commit?: string; dirty?: boolean };
   createdAt: string;
   updatedAt: string;
 }
@@ -131,6 +190,7 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
   const runDir = (runId: string) => path.join(rootDir, runId);
   const recordFile = (runId: string) => path.join(runDir(runId), 'run.json');
   const continuationFile = (runId: string) => path.join(runDir(runId), 'continuation.json');
+  const traceFile = (runId: string) => path.join(runDir(runId), 'trace.json');
 
   function readRecord(runId: string): RunRecord | undefined {
     const file = recordFile(runId);
@@ -143,16 +203,18 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
    * the rename of `run.json` is the atomic commit point. A run directory
    * without `run.json` is an unacknowledged yield and is ignored everywhere.
    */
-  function commit(record: RunRecord, outcome: WorkflowExecutionOutcome, ast: TWorkflowAST): RunRecord {
+  function commit(record: RunRecord, outcome: WorkflowExecutionOutcome, ast: TWorkflowAST, kept?: TraceEntry[]): RunRecord {
     const now = new Date().toISOString();
     const dir = runDir(record.runId);
     fs.mkdirSync(dir, { recursive: true });
+    const traced = appendTrace(record, kept);
 
     if (outcome.kind === 'yielded') {
       const labeled = labelGate(outcome.gate, ast);
       writeAtomic(continuationFile(record.runId), JSON.stringify(outcome.continuation));
       const next: RunRecord = {
         ...record,
+        traced,
         status: 'waiting',
         gate: {
           id: outcome.gate.id,
@@ -171,6 +233,7 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
 
     const next: RunRecord = {
       ...record,
+      traced,
       status: 'completed',
       gate: undefined,
       result: outcome.result,
@@ -182,21 +245,80 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
     return next;
   }
 
-  function fail(record: RunRecord, error: unknown): void {
+  /**
+   * A run that did not reach an outcome. Stopped by its driver's signal it
+   * is `cancelled`, which is not a failure and is not shown as one; anything
+   * else is `failed` with the error.
+   */
+  function fail(record: RunRecord, error: unknown, options: DriveOptions | undefined, kept?: TraceEntry[]): void {
     const dir = runDir(record.runId);
     fs.mkdirSync(dir, { recursive: true });
+    const traced = appendTrace(record, kept);
     const message = error instanceof Error ? error.message : String(error);
+    const cancelled = options?.abortSignal?.aborted === true;
     writeAtomic(
       recordFile(record.runId),
       JSON.stringify({
         ...record,
-        status: 'failed',
+        traced,
+        status: cancelled ? 'cancelled' : 'failed',
         gate: undefined,
         result: undefined,
-        error: message,
+        error: cancelled ? undefined : message,
+        failedNode: cancelled ? undefined : failedNodeIn(kept),
         updatedAt: new Date().toISOString(),
       } satisfies RunRecord),
     );
+    fs.rmSync(continuationFile(record.runId), { force: true });
+  }
+
+  /** The step whose error the trace recorded last, if it recorded one. */
+  function failedNodeIn(kept: TraceEntry[] | undefined): string | undefined {
+    if (!kept) return undefined;
+    for (let i = kept.length - 1; i >= 0; i--) {
+      const e = kept[i].e as { type?: string; id?: string; status?: string } | undefined;
+      if (e?.type === 'LOG_ERROR' && e.id) return e.id;
+      if (e?.type === 'STATUS_CHANGED' && e.status === 'FAILED' && e.id) return e.id;
+    }
+    return undefined;
+  }
+
+  /**
+   * Add a segment's events to the kept trace. Returns whether the run is
+   * traced end to end: one segment driven without a trace -- resumed by an
+   * assistant, say -- leaves a gap, and a reader must not fill it in.
+   */
+  function appendTrace(record: RunRecord, kept: TraceEntry[] | undefined): boolean {
+    if (!kept) return false;
+    const previous = readTrace(record.runId);
+    writeAtomic(traceFile(record.runId), JSON.stringify([...previous, ...kept]));
+    return true;
+  }
+
+  function readTrace(runId: string): TraceEntry[] {
+    const file = traceFile(runId);
+    if (!fs.existsSync(file)) return [];
+    try {
+      return JSON.parse(fs.readFileSync(file, 'utf8')) as TraceEntry[];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * What one segment of execution is given: the driver's observer wrapped so
+   * the events are also kept, when asked. Tracing needs the debug build of
+   * the workflow, which is where the events come from.
+   */
+  function observe(options: DriveOptions | undefined) {
+    const tracing = options?.trace === true || options?.onEvent !== undefined;
+    if (!tracing) return { kept: undefined, request: { includeTrace: false as const, production: true } };
+    const kept: TraceEntry[] = [];
+    const onEvent = (event: ExecutionTraceEvent) => {
+      kept.push({ t: event.timestamp, e: event.data ?? event });
+      options?.onEvent?.(event);
+    };
+    return { kept, request: { includeTrace: true as const, production: false, onEvent } };
   }
 
   async function parseSelected(
@@ -226,23 +348,26 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
   }
 
   return {
-    async start(request) {
+    async start(request, options) {
       const filePath = path.resolve(request.filePath);
       const { ast, workflowName } = await parseSelected(filePath, request.workflowName);
       const bundleDigest = await computeBundleDigest(filePath, workflowName);
       const now = new Date().toISOString();
       const record: RunRecord = {
         formatVersion: 1,
-        runId: randomUUID(),
+        runId: request.runId ?? randomUUID(),
         filePath,
         workflowName,
         params: request.params ?? {},
         bundleDigest,
         status: 'waiting',
+        ...(request.mocks ? { mocks: request.mocks } : {}),
+        ...(request.source ? { source: request.source } : {}),
         createdAt: now,
         updatedAt: now,
       };
 
+      const { kept, request: observed } = observe(options);
       let outcome: WorkflowExecutionOutcome;
       try {
         outcome = await executeWorkflow({
@@ -251,18 +376,19 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
           filePath,
           params: record.params,
           workflowName,
-          includeTrace: false,
-          production: true,
+          mocks: record.mocks,
+          ...observed,
+          abortSignal: options?.abortSignal,
           effectAdapter: createFileEffectAdapter(runDir(record.runId)),
         });
       } catch (error) {
-        fail(record, error);
+        fail(record, error, options, kept);
         throw error;
       }
-      return toView(commit(record, outcome, ast));
+      return toView(commit(record, outcome, ast, kept));
     },
 
-    async resume(request) {
+    async resume(request, options) {
       const record = readRecord(request.runId);
       if (!record) throw new RunNotFoundError(request.runId);
       if (record.status !== 'waiting' || !record.gate) throw new RunNotWaitingError(record.status);
@@ -283,6 +409,7 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
       // re-runs pure nodes (allowed by definition), and recovers every effect
       // after the gate from `effects/` instead of re-executing it. The
       // outcome converges, so no claim file is needed for one process.
+      const { kept, request: observed } = observe(options);
       let outcome: WorkflowExecutionOutcome;
       try {
         outcome = await executeWorkflow({
@@ -291,22 +418,49 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
           filePath: record.filePath,
           params: record.params,
           workflowName: record.workflowName,
-          includeTrace: false,
-          production: true,
+          mocks: record.mocks,
+          ...observed,
+          abortSignal: options?.abortSignal,
           continuation,
           resolution,
           effectAdapter: createFileEffectAdapter(runDir(record.runId)),
         });
       } catch (error) {
-        fail(record, error);
+        fail(record, error, options, kept);
         throw error;
       }
-      return toView(commit(record, outcome, ast));
+      return toView(commit(record, outcome, ast, kept));
+    },
+
+    cancel(runId) {
+      const record = readRecord(runId);
+      if (!record) throw new RunNotFoundError(runId);
+      if (record.status !== 'waiting') throw new RunNotWaitingError(record.status);
+      const next: RunRecord = {
+        ...record,
+        status: 'cancelled',
+        gate: undefined,
+        updatedAt: new Date().toISOString(),
+      };
+      writeAtomic(recordFile(runId), JSON.stringify(next));
+      fs.rmSync(continuationFile(runId), { force: true });
+      return toView(next);
     },
 
     get(runId) {
       const record = readRecord(runId);
       return record ? toView(record) : undefined;
+    },
+
+    record: readRecord,
+
+    trace: readTrace,
+
+    remove(runId) {
+      const record = readRecord(runId);
+      if (!record) throw new RunNotFoundError(runId);
+      if (record.status === 'waiting') throw new RunNotWaitingError(record.status);
+      fs.rmSync(runDir(runId), { recursive: true, force: true });
     },
 
     list(filter = {}) {
@@ -323,6 +477,11 @@ export function createLocalCoordinator(options: { rootDir?: string } = {}): Loca
           workflowName: record.workflowName,
           filePath: record.filePath,
           gate: record.gate ? { kind: record.gate.kind, node: record.gate.node } : undefined,
+          params: record.params,
+          failedNode: record.failedNode,
+          mocks: record.mocks,
+          source: record.source,
+          createdAt: record.createdAt,
           updatedAt: record.updatedAt,
         });
       }

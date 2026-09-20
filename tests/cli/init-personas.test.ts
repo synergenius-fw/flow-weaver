@@ -176,8 +176,8 @@ describe('extractWorkflowPreview', () => {
     const code = `
 /**
  * @flowWeaver workflow
- * @node validator validateData [position: -300 0]
- * @node transformer transformData [position: 0 0]
+ * @node validator validateData
+ * @node transformer transformData
  * @path Start -> validator -> transformer -> Exit
  */
 `;
@@ -203,8 +203,8 @@ function transformData() {}
 
 /**
  * @flowWeaver workflow
- * @node validator validateData [position: -300 0]
- * @node transformer transformData [position: 0 0]
+ * @node validator validateData
+ * @node transformer transformData
  * @path Start -> validator -> transformer -> Exit
  */
 `;
@@ -217,8 +217,8 @@ function transformData() {}
     const code = `
 /**
  * @flowWeaver workflow
- * @node loop agentLoop [position: 0 0]
- * @node llm callLLM [position: 100 0]
+ * @node loop agentLoop
+ * @node llm callLLM
  * @connect Start.execute -> loop.execute
  */
 `;

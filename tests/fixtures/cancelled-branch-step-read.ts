@@ -65,10 +65,10 @@ function mergeNode(
  * @param ctx - Input context
  * @returns result - Output
  *
- * @node route  routeNode  [position: 200 200]
- * @node main   mainPath   [position: 400 100]
- * @node alt    altPath    [position: 400 300]
- * @node merge  mergeNode  [position: 600 200]
+ * @node route  routeNode
+ * @node main   mainPath
+ * @node alt    altPath
+ * @node merge  mergeNode
  *
  * @path Start -> route -> main -> merge -> Exit
  * @path route:fail -> alt

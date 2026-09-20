@@ -47,13 +47,11 @@ function greet(name: string): { greeting: string } {
 
 /**
  * @flowWeaver workflow
- * @node s shout [position: 128 0]
- * @node g greet [position: -128 0]
+ * @node s shout
+ * @node g greet
  * @path Start -> g -> s -> Exit
  * @connect g.greeting -> s.text
  * @connect s.result -> Exit.message
- * @position Start -400 0
- * @position Exit 400 0
  */
 export function helloWorld(
   execute: boolean,

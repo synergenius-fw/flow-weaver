@@ -44,6 +44,12 @@ export interface ExportOptions {
   includeDocs?: boolean;
   /** Use deep generator with per-node durable steps (target-specific) */
   durableSteps?: boolean;
+  /**
+   * The project whose installed packs provide the targets. Defaults to the
+   * working directory, which is right for the CLI and wrong for a long-lived
+   * process such as the console once it has opened another project.
+   */
+  projectDir?: string;
 }
 
 /**
@@ -75,7 +81,7 @@ export interface ExportResult {
  */
 export async function exportWorkflow(options: ExportOptions): Promise<ExportResult> {
   const { createTargetRegistry } = await import('../deployment/index.js');
-  const registry = await createTargetRegistry(process.cwd());
+  const registry = await createTargetRegistry(options.projectDir ?? process.cwd());
   const target = registry.get(options.target);
 
   if (!target) {

@@ -661,25 +661,10 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
       expect(config!.scopes!['a.inner']).toEqual(['child1', 'child2']);
     });
 
-    it('parses @position tag and emits deprecation warning for non-virtual nodes', () => {
-      const { config, warnings } = parseWorkflow(`
-/**
- * @flowWeaver workflow
- * @node myNode TypeA
- * @position myNode 100 200
- */
-export async function a(execute: boolean, params: {}) { return { onSuccess: true }; }
-`);
-      expect(config!.positions!['myNode']).toEqual({ x: 100, y: 200 });
-      expect(warnings.some(w => w.includes('Deprecated: @position myNode'))).toBe(true);
-    });
-
     it('does not warn for @position Start/Exit (virtual nodes)', () => {
       const { warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow
- * @position Start 0 0
- * @position Exit 500 500
  */
 export async function a(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
@@ -946,18 +931,6 @@ function myPattern() {}
       expect(config!.instances).toHaveLength(1);
       expect(config!.instances![0].id).toBe('inst1');
       expect(config!.instances![0].nodeType).toBe('NodeTypeA');
-    });
-
-    it('parses @position and applies to instances', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @node inst1 NodeTypeA
- * @position inst1 100 200
- */
-function myPattern() {}
-`);
-      expect(config!.instances![0].config).toEqual({ x: 100, y: 200 });
     });
 
     it('parses @connect in pattern', () => {

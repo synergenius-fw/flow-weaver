@@ -5,12 +5,18 @@
 import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 export interface FwMockConfig {
-  /** Mock event data keyed by event name. Used by waitForEvent. */
+  /** Mock event data keyed by event name. Used by waitForEvent; answers the gate without pausing. */
   events?: Record<string, object>;
   /** Mock invocation results keyed by functionId. Used by invokeWorkflow. */
   invocations?: Record<string, object>;
-  /** Mock agent results keyed by agentId. Used by waitForAgent. */
+  /** Mock agent results keyed by agentId. Used by waitForAgent; answers the gate without pausing. */
   agents?: Record<string, object>;
+  /**
+   * An answer for any durable gate, keyed by the node's instance id: the
+   * gate's data outputs as an object (`{ decision: { approved: true } }`).
+   * The run goes through the gate as if a person had answered that.
+   */
+  gates?: Record<string, object>;
   /** When true, delay nodes skip the real sleep (1ms instead of full duration). */
   fast?: boolean;
 }
@@ -25,8 +31,9 @@ export function getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | un
 /**
  * Look up a mock value from a section, supporting instance-qualified keys.
  *
- * Checks "instanceId:key" first (for per-node targeting), then falls back
- * to plain "key".
+ * Checks "instanceId:key" first (for per-node targeting), then
+ * "instanceId:*" (whatever key this node asks for), then falls back to
+ * plain "key".
  *
  * @example
  * ```json
@@ -34,11 +41,16 @@ export function getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | un
  *   "invocations": {
  *     "retryCall:api/process": { "status": "ok" },
  *     "api/process": { "status": "default" }
+ *   },
+ *   "events": {
+ *     "link:*": { "url": "https://figma.com/file/abc" }
  *   }
  * }
  * ```
  * When the node "retryCall" invokes "api/process", it gets `{ status: "ok" }`.
- * Any other node invoking "api/process" gets `{ status: "default" }`.
+ * Any other node invoking "api/process" gets `{ status: "default" }`. The
+ * node "link" gets its event whatever name it waits for -- the name is
+ * often computed at run time, and the console mocks by node, not by name.
  */
 export function lookupMock<T>(
   section: Record<string, T> | undefined,
@@ -51,6 +63,8 @@ export function lookupMock<T>(
   if (nodeId) {
     const qualified = section[`${nodeId}:${key}`];
     if (qualified !== undefined) return qualified;
+    const any = section[`${nodeId}:*`];
+    if (any !== undefined) return any;
   }
 
   return section[key];

@@ -26,14 +26,17 @@ function validatePackageJson(
 ): TValidationIssue[] {
   const issues: TValidationIssue[] = [];
 
-  // PKG-005: Name must match flow-weaver-pack-* or @*/flow-weaver-pack-*
+  // PKG-005: the naming convention. A pack is identified by its manifest
+  // and the marketplace keyword, so a name an organisation's policy
+  // dictates does not stop it being one; the convention only helps people
+  // find it on a registry.
   const name = pkg.name as string | undefined;
   if (!name || !PACK_NAME_RE.test(name)) {
     issues.push(
       issue(
         'PKG-005',
-        'error',
-        `Package name must match "flow-weaver-pack-*" or "@<scope>/flow-weaver-pack-*", got "${name ?? ''}"`,
+        'warning',
+        `Package name "${name ?? ''}" does not follow the "flow-weaver-pack-*" (or "@<scope>/flow-weaver-pack-*") convention; the pack still works, but is harder to find on a registry`,
       )
     );
   }
@@ -153,6 +156,28 @@ function validateManifestContents(manifest: TMarketplaceManifest): TValidationIs
     if (!nt.visuals || (!nt.visuals.color && !nt.visuals.icon && !nt.visuals.tags)) {
       issues.push(
         issue('PKG-009', 'warning', `Node type "${nt.name}" should have visuals (color, icon, or tags)`)
+      );
+    }
+  }
+
+  // HND-001 / HND-002: a tag handler teaches the parser new tags. Without a
+  // serializer the generator has nothing to write them back with, so the
+  // first fw compile or fw_modify on a workflow drops every one of them.
+  for (const th of manifest.tagHandlers ?? []) {
+    const label = th.namespace || th.tags?.join(', ') || '(unnamed)';
+    if (!th.tags?.length || !th.namespace || !th.file) {
+      issues.push(
+        issue('HND-002', 'error', `Tag handler "${label}" must declare "tags", "namespace" and "file"`)
+      );
+      continue;
+    }
+    if (!th.serializerExport) {
+      issues.push(
+        issue(
+          'HND-001',
+          'warning',
+          `Tag handler "${th.namespace}" has no "serializerExport": its tags (${th.tags.map((t) => `@${t}`).join(', ')}) are dropped whenever annotations are regenerated (fw compile, fw_modify). Export a TTagSerializerFn from ${th.file} and name it here`,
+        )
       );
     }
   }

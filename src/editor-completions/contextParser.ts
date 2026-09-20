@@ -39,8 +39,6 @@ const COLOR_VALUE_PATTERN = /@color\s+(\w*)$/;
 // Sugar annotation patterns — node ID completions
 // @path ... -> | (after arrow in path chain)
 const PATH_NODE_PATTERN = /@path\s+(?:\w+(?::\w+)?\s*->\s*)+(\w*)$/;
-// @position |
-const POSITION_NODE_PATTERN = /@position\s+(\w*)$/;
 // @scope name [... , | (node IDs inside brackets)
 const SCOPE_NODE_PATTERN = /@scope\s+\w+\s*\[(?:\w+\s*,\s*)*(\w*)$/;
 // @map id type over node.| (output port on source)
@@ -172,18 +170,6 @@ export function parseCompletionContext(
 
   // 0e. Check for @path node: @path ... -> |
   match = textBeforeCursor.match(PATH_NODE_PATTERN);
-  if (match) {
-    return {
-      type: 'nodeId',
-      lineText,
-      cursorOffset,
-      prefix: match[1],
-      blockType,
-    };
-  }
-
-  // 0h. Check for @position node: @position |
-  match = textBeforeCursor.match(POSITION_NODE_PATTERN);
   if (match) {
     return {
       type: 'nodeId',

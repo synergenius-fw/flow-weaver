@@ -324,6 +324,10 @@ You can set breakpoints at startup with `--breakpoint`:
 fw run workflow.ts --debug --breakpoint processData --breakpoint formatOutput
 ```
 
+### In the console
+
+`fw console` drives the same controller from the browser: tick **Step through** on the run form, set breakpoints by clicking a step's tile, and use Step (`F10`), Continue (`F5`) and To breakpoint (`⇧F5`). The step it is paused at is marked in the process, and a paused step's outputs are editable in its Step card — the equivalent of `set <node>.<port> <json>`. See [Console](console).
+
 ### MCP Debug Tools
 
 For LLM-driven debugging via MCP, use these tools:

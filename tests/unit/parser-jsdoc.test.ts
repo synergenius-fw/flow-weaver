@@ -170,9 +170,6 @@ function double(execute: boolean, value: number) {
  * @node doubler1 double [label: "My Custom Label"]
  * @node doubler2 double [label: "Label with \\"quotes\\""]
  * @node doubler3 double
- * @position doubler1 100 100
- * @position doubler2 200 100
- * @position doubler3 300 100
  */
 export function myWorkflow(execute: boolean) {
   return { onSuccess: true };
@@ -226,9 +223,6 @@ function double(execute: boolean, value: number) {
  * @node calc1 double [expr: value="5"]
  * @node calc2 double [expr: x="(ctx) => ctx.a + \\"test\\""]
  * @node calc3 double
- * @position calc1 100 100
- * @position calc2 200 100
- * @position calc3 300 100
  */
 export function myWorkflow(execute: boolean) {
   return { onSuccess: true };
@@ -366,7 +360,6 @@ function unusedNode(execute: boolean, x: number) {
 /**
  * @flowWeaver workflow
  * @node instance1 usedNode
- * @position instance1 100 100
  */
 export function myWorkflow(execute: boolean) {
   return { onSuccess: true };

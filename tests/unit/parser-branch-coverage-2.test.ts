@@ -997,41 +997,6 @@ describe('parser branch coverage 2', () => {
     });
   });
 
-  // ─── workflow with positions ────────────────────────────────────────
-
-  describe('workflow UI positions', () => {
-    it('parses Start and Exit positions from @position tags', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver nodeType
-         * @input value NUMBER
-         */
-        function step(value: number) {}
-
-        /**
-         * @flowWeaver workflow
-         * @node A step
-         * @position Start 100 200
-         * @position Exit 500 600
-         * @position A 300 400
-         */
-        function posWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
-      `);
-      const wf = result.workflows[0];
-      if (wf.ui) {
-        if (wf.ui.startNode) {
-          expect(wf.ui.startNode.x).toBe(100);
-          expect(wf.ui.startNode.y).toBe(200);
-        }
-        if (wf.ui.exitNode) {
-          expect(wf.ui.exitNode.x).toBe(500);
-          expect(wf.ui.exitNode.y).toBe(600);
-        }
-      }
-    });
-  });
-
   // ─── workflow with IN/OUT pseudo-nodes ──────────────────────────────
 
   describe('IN/OUT pseudo-node validation in workflows', () => {

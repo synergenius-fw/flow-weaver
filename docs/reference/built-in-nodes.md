@@ -200,7 +200,7 @@ async function invokeWorkflow(execute: boolean, functionId: string, payload: obj
 
 ## Mock System
 
-Mocks let a workflow run locally without real delays or external invocations. They apply to `delay` and `invokeWorkflow`. They do not resolve gates.
+Mocks let a workflow run locally without real delays, external invocations or anyone at its gates. `delay` skips its sleep, `invokeWorkflow` returns the canned result, and a gate — a built-in one or one you declared with `@durableGate` — is answered on the spot instead of pausing the run. The console's New run card builds this config from a form; `fw run` takes it as JSON.
 
 ### FwMockConfig
 
@@ -210,14 +210,16 @@ interface FwMockConfig {
   fast?: boolean;
   /** Mock invocation results keyed by functionId. Used by invokeWorkflow. */
   invocations?: Record<string, object>;
-  /** Accepted and validated, but a compiled waitForEvent yields instead of reading this. */
+  /** Event payloads keyed by event name; a waitForEvent gate returns one as eventData without pausing. */
   events?: Record<string, object>;
-  /** Accepted and validated, but a compiled waitForAgent yields instead of reading this. */
+  /** Agent results keyed by agentId; a waitForAgent gate returns one as agentResult without pausing. */
   agents?: Record<string, object>;
+  /** An answer for any gate, keyed by the node's instance id: its data outputs as an object. */
+  gates?: Record<string, object>;
 }
 ```
 
-Keys may be instance-qualified — `"sub:my-service/x"` targets only the node with id `sub`.
+Keys may be instance-qualified — `"sub:my-service/x"` targets only the node with id `sub` — and `"sub:*"` answers node `sub` whatever key it asks with, which is what you want when the event name or agent id is computed at run time. `gates` is keyed by node alone: `{ "gates": { "approve": { "decision": { "approved": true } } } }` sends the run through `approve` as if a person had answered that. A gate that has no mock still pauses.
 
 ### CLI Usage
 
@@ -230,20 +232,25 @@ fw run workflow.ts --mocks-file mocks.json
 
 ### Programmatic Usage
 
-Mocks are a CLI feature. There is no `globalThis` hook — the `__fw_mocks__` global was removed — and the public command runner does not take them:
+Mocks travel in the runtime a caller hands a compiled workflow. There is no `globalThis` hook — the `__fw_mocks__` global was removed:
 
 ```typescript
-import { runCommand } from '@synergenius/flow-weaver/api';
+import { createWorkflowRuntime } from '@synergenius/flow-weaver';
+import { syncCatalog } from './sync-catalog';
 
-// Accepts file, params, workflow. No mocks option; a gated workflow throws here.
-const { data } = await runCommand('run', { file: 'workflow.ts', params: { amount: 500 } });
+const runtime = createWorkflowRuntime({
+  runId: 'test-1',
+  workflowId: 'syncCatalog',
+  services: { mocks: { fast: true, invocations: { 'my-service/x': { ok: true } } } },
+});
+await syncCatalog(true, { amount: 500 }, runtime);
 ```
 
-To run with mocks from code, spawn the CLI (`fw run … --mocks-file mocks.json --json`) and parse its output.
+The public command runner (`runCommand('run', …)` from `./api`) takes no mocks option and refuses a gated workflow. See [Using the library](library) for the rest of what the runtime carries.
 
 ### Testing a gated workflow
 
-Drive the gate instead of mocking it — through the MCP tools, or inside this repository's test suite via `executeWorkflow`. See [Durable Gates](durable-gates) for the resolution shape.
+Two ways. Mock the gate with `gates` (or `events` / `agents`) and the run goes straight through it — the quickest way to exercise everything after the gate, from the console's New run card or `fw run --mocks`. Or drive the gate for real, through the MCP tools or `executeWorkflow` in a test, when the pause itself is what you are testing. See [Durable Gates](durable-gates) for the resolution shape.
 
 - Success path: `fw_resume { runId, answer: { status: 'approved' } }`
 - Failure path: `fw_resume { runId, reject: 'declined' }` — the run continues along `onFailure` and reports `completed`

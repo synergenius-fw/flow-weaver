@@ -12,7 +12,7 @@
  * |-------------|-----------|
  * | Workflow    | `cloneWorkflow`, `renameWorkflow`, `setWorkflowPorts` |
  * | Node Types  | `addNodeType`, `removeNodeType`, `updateNodeType` |
- * | Nodes       | `addNode`, `removeNode`, `renameNode`, `setNodePosition` |
+ * | Nodes       | `addNode`, `removeNode`, `renameNode`, `setNodeLabel` |
  * | Connections | `addConnection`, `removeConnection`, `reconnect` |
  * | Ports       | `swapPortOrder`, `swapNodeInstancePortOrder` |
  * | Scopes      | `createScope`, `removeScope`, `addToScope` |
@@ -70,7 +70,6 @@ export {
   addNodes,
   removeNodes,
   setNodeConfig,
-  setNodePosition,
   setNodeMinimized,
   setNodeSize,
   setNodeLabel,

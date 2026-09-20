@@ -44,7 +44,6 @@ export {
   discoverValidationRuleSets,
   discoverDocTopics,
   discoverInitContributions,
-  discoverDeviceHandlers,
   type SearchOptions,
   type TDiscoveredTagHandler,
   type TDiscoveredValidationRuleSet,
@@ -52,3 +51,6 @@ export {
   type TDiscoveredInitContribution,
   type TDiscoveredDeviceHandler,
 } from './registry.js';
+
+export { searchAllRegistries, type MultiRegistrySearch, type RegistrySearched } from './registry.js';
+export { resolveRegistries, readNpmConfig, parseNpmrc, nerfDart, PUBLIC_REGISTRY, type Registry } from './npmrc.js';

@@ -25,7 +25,6 @@ import {
   parsePortLine,
   parseNodeLine,
   parseConnectLine,
-  parsePositionLine,
   parseScopeLine,
   parseMapLine,
   parsePathLine,
@@ -234,6 +233,14 @@ export interface JSDocNodeTypeConfig {
   deploy?: Record<string, Record<string, unknown>>;
 }
 
+/**
+ * `position: x y` as it was written on @node lines: a bracket of its own,
+ * or first, last or between other attributes in a shared bracket.
+ */
+const POSITION_ATTR = /\s*\[position:\s*-?\d+\s+-?\d+\]|,\s*position:\s*-?\d+\s+-?\d+(?=\s*[,\]])|(?<=\[)\s*position:\s*-?\d+\s+-?\d+\s*,\s*/g;
+const positionGone = (where: string): string =>
+  `${where}: node positions are no longer part of the grammar and this was ignored. Remove it, or run \`fw compile\` / \`fw migrate\` to rewrite the block without it.`;
+
 export interface JSDocWorkflowConfig {
   name?: string;
   description?: string;
@@ -287,7 +294,6 @@ export interface JSDocWorkflowConfig {
     string,
     { dataType: TDataType; label?: string; metadata?: { order?: number } }
   >;
-  positions?: Record<string, { x: number; y: number }>;
   /** When true, auto-wire linear connections between nodes in declaration order */
   autoConnect?: boolean;
   /** @map sugar macros that expand to full scope patterns */
@@ -339,10 +345,9 @@ export interface JSDocWorkflowConfig {
 export interface JSDocPatternConfig {
   name?: string;
   description?: string;
-  instances?: Array<{ id: string; nodeType: string; config?: { x?: number; y?: number } }>;
+  instances?: Array<{ id: string; nodeType: string }>;
   connections?: Array<{ from: { node: string; port: string }; to: { node: string; port: string } }>;
   ports?: Array<{ direction: 'IN' | 'OUT'; name: string; description?: string }>;
-  positions?: Record<string, { x: number; y: number }>;
 }
 
 /**
@@ -569,7 +574,6 @@ export class JSDocParser {
       instances: [],
       connections: [],
       scopes: {},
-      positions: {},
     };
 
     // The free text above the tags is the workflow's description, exactly as
@@ -619,7 +623,8 @@ export class JSDocParser {
           break;
 
         case 'position':
-          this.parsePositionTag(tag, config, warnings);
+          // Positions left the grammar; a file that still carries the line parses, minus the line.
+          warnings.push(positionGone(`@position ${comment.trim()}`));
           break;
 
         case 'connect':
@@ -747,7 +752,6 @@ export class JSDocParser {
       instances: [],
       connections: [],
       ports: [],
-      positions: {},
     };
 
     // Parse tags
@@ -769,7 +773,8 @@ export class JSDocParser {
           break;
 
         case 'position':
-          this.parsePatternPositionTag(tag, config, warnings);
+          // Positions left the grammar; a file that still carries the line parses, minus the line.
+          warnings.push(positionGone(`@position ${comment.trim()}`));
           break;
 
         case 'connect':
@@ -789,18 +794,6 @@ export class JSDocParser {
           break;
       }
     });
-
-    // Apply positions to instances
-    if (config.positions && config.instances) {
-      for (const instance of config.instances) {
-        const pos = config.positions[instance.id];
-        if (pos) {
-          instance.config = instance.config || {};
-          instance.config.x = pos.x;
-          instance.config.y = pos.y;
-        }
-      }
-    }
 
     return config;
   }
@@ -824,27 +817,6 @@ export class JSDocParser {
       id: instanceId,
       nodeType: nodeType,
     });
-  }
-
-  /**
-   * Parse @position tag for patterns.
-   * Format: @position nodeId x y
-   */
-  private parsePatternPositionTag(
-    tag: JSDocTag,
-    config: JSDocPatternConfig,
-    warnings: string[]
-  ): void {
-    const comment = tag.getCommentText() || '';
-
-    const result = parsePositionLine(`@position ${comment}`, warnings);
-    if (!result) {
-      warnings.push(`Invalid @position tag format in pattern: ${comment}`);
-      return;
-    }
-
-    const { nodeId, x, y } = result;
-    config.positions![nodeId] = { x, y };
   }
 
   /**
@@ -1305,7 +1277,16 @@ export class JSDocParser {
    * Supports: @node instanceId nodeType [parentScope] [label: "..."] [portOrder: port=N] [portLabel: port="label"] [expr: port="val"] [minimized] [pullExecution: triggerPort]
    */
   private parseNodeTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    const comment = tag.getCommentText() || '';
+    let comment = tag.getCommentText() || '';
+
+    // Positions left the grammar. A file that still carries `[position: x y]`
+    // parses as if it were not there, and says so once per line.
+    if (POSITION_ATTR.test(comment)) {
+      POSITION_ATTR.lastIndex = 0;
+      comment = comment.replace(POSITION_ATTR, '');
+      warnings.push(positionGone(`@node ${comment.trim().split(/\s+/)[0]} [position:]`));
+    }
+    POSITION_ATTR.lastIndex = 0;
 
     // Use Chevrotain to parse the node line
     const result = parseNodeLine(`@node ${comment}`, warnings);
@@ -1324,7 +1305,6 @@ export class JSDocParser {
       minimized,
       pullExecution,
       size,
-      position,
       color,
       icon,
       tags,
@@ -1382,37 +1362,11 @@ export class JSDocParser {
       ...(icon && { icon }),
       ...(tags && tags.length > 0 && { tags }),
       ...(size && { width: size.width, height: size.height }),
-      ...(position && { x: position.x, y: position.y }),
       ...(job && { job }),
       ...(environment && { environment }),
       ...(suppress && suppress.length > 0 && { suppressWarnings: suppress }),
       sourceLocation: { line, column: 0 },
     });
-  }
-
-  /**
-   * Parse @position tag using Chevrotain parser.
-   * Supports: @position nodeId x y
-   */
-  private parsePositionTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
-    const comment = tag.getCommentText() || '';
-
-    // Use Chevrotain to parse the position line
-    const result = parsePositionLine(`@position ${comment}`, warnings);
-    if (!result) {
-      warnings.push(`Invalid @position tag format: ${comment}`);
-      return;
-    }
-
-    const { nodeId, x, y } = result;
-    config.positions![nodeId] = { x, y };
-
-    // Emit deprecation warning for non-virtual nodes
-    if (nodeId !== 'Start' && nodeId !== 'Exit') {
-      warnings.push(
-        `Deprecated: @position ${nodeId} — use [position: ${x} ${y}] on the @node declaration instead.`
-      );
-    }
   }
 
   /**

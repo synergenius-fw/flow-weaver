@@ -243,11 +243,11 @@ export function recordOutcome(
  * @param incident - Incident
  * @returns outcome - Outcome
  * @returns status - Status
- * @node frame frameIncident [position: -250 0]
- * @node plan waitForAgent [expr: agentId="frame.task.agentId", context="frame.task.context", prompt="frame.task.prompt"] [position: -60 0]
- * @node check checkPlan [position: 130 0]
- * @node signoff signOff [position: 320 0]
- * @node record recordOutcome [position: 520 0]
+ * @node frame frameIncident
+ * @node plan waitForAgent [expr: agentId="frame.task.agentId", context="frame.task.context", prompt="frame.task.prompt"]
+ * @node check checkPlan
+ * @node signoff signOff
+ * @node record recordOutcome
  * @path Start -> frame -> plan -> check -> signoff -> Exit
  * @connect plan.agentResult -> check.agentResult
  * @connect check.ticket -> record.ticket
@@ -255,8 +255,6 @@ export function recordOutcome(
  * @connect signoff.decision -> record.decision
  * @connect record.outcome -> Exit.outcome
  * @connect record.status -> Exit.status
- * @position Start -450 0
- * @position Exit 720 0
  */
 export async function incidentTriage(
   execute: boolean,

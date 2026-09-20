@@ -25,8 +25,6 @@ const VALIDATION_PATTERN = `
  * @port IN.data - Input data to validate
  * @port OUT.result - Processed result
  * @port OUT.error - Validation errors
- * @position val -90 0
- * @position proc 90 0
  */
 function patternPlaceholder() {}
 
@@ -84,9 +82,6 @@ const EXTRACTABLE_WORKFLOW = `
  * @connect formatter.output -> Exit.result
  * @param url - URL to fetch
  * @returns result - Formatted result
- * @position fetcher -180 0
- * @position parser 0 0
- * @position formatter 180 0
  */
 export function fetchAndFormat(
   execute: boolean,
@@ -182,21 +177,6 @@ describe("Pattern Integration - Pure Function Tests", () => {
       expect(pattern.connections.some(c => c.from.node === "val" && c.to.node === "proc")).toBe(true);
     });
 
-    it("should parse pattern positions", () => {
-      const testFile = path.join(tempDir, "pattern-pos.ts");
-      fs.writeFileSync(testFile, VALIDATION_PATTERN);
-
-      const result = parser.parse(testFile);
-      const pattern = result.patterns[0];
-
-      const val = pattern.instances.find(i => i.id === "val");
-      const proc = pattern.instances.find(i => i.id === "proc");
-
-      expect(val?.config?.x).toBe(-90);
-      expect(val?.config?.y).toBe(0);
-      expect(proc?.config?.x).toBe(90);
-      expect(proc?.config?.y).toBe(0);
-    });
   });
 
   describe("Workflow parsing for extraction", () => {

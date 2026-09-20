@@ -40,12 +40,10 @@ declare function routeNode(context: string): void;
 
 /**
  * @flowWeaver workflow
- * @node classify classifyNode [position: 0 0]
- * @node route routeNode [position: 270 0]
+ * @node classify classifyNode
+ * @node route routeNode
  * @path Start -> classify -> route -> Exit
  * ${extra}
- * @position Start -270 0
- * @position Exit 540 0
  * @param execute [order:-1] - Execute
  * @param params [order:0] - Params
  * @returns onSuccess [order:-2] - On Success
@@ -96,12 +94,10 @@ declare function nodeC(data: string): void;
 
 /**
  * @flowWeaver workflow
- * @node a nodeA [position: 0 0]
- * @node b nodeB [position: 270 0]
- * @node c nodeC [position: 540 0]
+ * @node a nodeA
+ * @node b nodeB
+ * @node c nodeC
  * @path Start -> a -> b -> c -> Exit
- * @position Start -270 0
- * @position Exit 810 0
  */
 export function threeNodeWorkflow(
   execute: boolean,
@@ -140,11 +136,9 @@ declare function consumer(data: string, metadata: string, status: string): void;
 
 /**
  * @flowWeaver workflow
- * @node prod producer [position: 0 0]
- * @node cons consumer [position: 270 0]
+ * @node prod producer
+ * @node cons consumer
  * @path Start -> prod -> cons -> Exit
- * @position Start -270 0
- * @position Exit 540 0
  */
 export function multiPortWorkflow(
   execute: boolean,
@@ -189,12 +183,10 @@ declare function publish(token: string, data: string): void;
 
 /**
  * @flowWeaver workflow
- * @node auth auth [position: 0 0]
- * @node transform transform [position: 270 0]
- * @node publish publish [position: 540 0]
+ * @node auth auth
+ * @node transform transform
+ * @node publish publish
  * @path Start -> auth -> transform -> publish -> Exit
- * @position Start -270 0
- * @position Exit 810 0
  */
 export function scopeWalkWorkflow(
   execute: boolean,
@@ -425,16 +417,14 @@ declare function consumerB(data: string): void;
 
 /**
  * @flowWeaver workflow
- * @node prod producer [position: 0 0]
- * @node a consumerA [position: 270 -100]
- * @node b consumerB [position: 270 100]
+ * @node prod producer
+ * @node a consumerA
+ * @node b consumerB
  * @fanOut prod.data -> a, b
  * @connect Start.execute -> prod.execute
  * @connect prod.onSuccess -> a.execute
  * @connect prod.onSuccess -> b.execute
  * @connect a.onSuccess -> Exit.onSuccess
- * @position Start -270 0
- * @position Exit 540 0
  */
 export function fanOutWorkflow(
   execute: boolean,
@@ -479,16 +469,14 @@ declare function aggregator(result: string): void;
 
 /**
  * @flowWeaver workflow
- * @node wa workerA [position: 0 -100]
- * @node wb workerB [position: 0 100]
- * @node agg aggregator [position: 270 0]
+ * @node wa workerA
+ * @node wb workerB
+ * @node agg aggregator
  * @fanIn wa, wb -> agg.result
  * @connect Start.execute -> wa.execute
  * @connect Start.execute -> wb.execute
  * @connect wa.onSuccess -> agg.execute
  * @connect agg.onSuccess -> Exit.onSuccess
- * @position Start -270 0
- * @position Exit 540 0
  */
 export function fanInWorkflow(
   execute: boolean,
@@ -602,14 +590,12 @@ declare function consumer(count: string): void;
 
 /**
  * @flowWeaver workflow
- * @node prod producer [position: 0 0]
- * @node cons consumer [position: 540 0]
+ * @node prod producer
+ * @node cons consumer
  * @coerce coerceCount prod.count -> cons.count as string
  * @connect Start.execute -> prod.execute
  * @connect prod.onSuccess -> cons.execute
  * @connect cons.onSuccess -> Exit.onSuccess
- * @position Start -270 0
- * @position Exit 810 0
  */
 export function coerceWorkflow(
   execute: boolean,

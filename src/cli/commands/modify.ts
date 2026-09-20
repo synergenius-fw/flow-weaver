@@ -74,18 +74,6 @@ export async function modifyRenameNodeCommand(
   logger.success(`Renamed node "${opts.oldId}" to "${opts.newId}" in ${file}`);
 }
 
-export async function modifySetPositionCommand(
-  file: string,
-  opts: { nodeId: string; x: string; y: string },
-): Promise<void> {
-  await readParseModifyWrite(file, 'setNodePosition', {
-    nodeId: opts.nodeId,
-    x: Number(opts.x),
-    y: Number(opts.y),
-  });
-  logger.success(`Set position of "${opts.nodeId}" to (${opts.x}, ${opts.y}) in ${file}`);
-}
-
 export async function modifySetLabelCommand(
   file: string,
   opts: { nodeId: string; label: string },

@@ -123,11 +123,10 @@ describe("Builder API - WorkflowBuilder", () => {
     it("should add node with config", () => {
       const workflow = new WorkflowBuilder("test")
         .addNodeType(sampleNodeType)
-        .addNode("node1", "process", { x: 100, y: 200, label: "Main" })
+        .addNode("node1", "process", { label: "Main", color: "blue" })
         .getWorkflow();
 
-      expect(workflow.instances[0].config?.x).toBe(100);
-      expect(workflow.instances[0].config?.y).toBe(200);
+      expect(workflow.instances[0].config?.color).toBe("blue");
       expect(workflow.instances[0].config?.label).toBe("Main");
     });
 
@@ -311,9 +310,9 @@ describe("Builder API - WorkflowBuilder", () => {
           isAsync: false,
           executeWhen: "CONJUNCTION",
         })
-        .addNode("double1", "double", { x: 100, y: 100 })
-        .addNode("double2", "double", { x: 200, y: 100 })
-        .addNode("adder1", "add", { x: 150, y: 200 })
+        .addNode("double1", "double")
+        .addNode("double2", "double")
+        .addNode("adder1", "add")
         .connect("Start.input", "double1.x")
         .connect("Start.input", "double2.x")
         .connect("double1.result", "adder1.a")

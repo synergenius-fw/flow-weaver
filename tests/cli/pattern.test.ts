@@ -26,8 +26,6 @@ const TEST_PATTERN = `
  * @port IN.data - Raw input data
  * @port OUT.result - Transformed data
  * @port OUT.error - Validation errors
- * @position v -90 0
- * @position t 90 0
  */
 function patternPlaceholder() {}
 
@@ -189,18 +187,6 @@ describe('Pattern parsing', () => {
     expect(pattern.connections.length).toBeGreaterThan(0);
     expect(pattern.connections.some((c) => c.from.node === 'IN')).toBe(true);
     expect(pattern.connections.some((c) => c.to.node === 'OUT')).toBe(true);
-  });
-
-  it('should extract positions', () => {
-    const testFile = path.join(tempDir, 'parse-pos.ts');
-    fs.writeFileSync(testFile, TEST_PATTERN);
-
-    const result = parser.parse(testFile);
-    const pattern = result.patterns[0];
-
-    const nodeV = pattern.instances.find((i) => i.id === 'v');
-    expect(nodeV?.config?.x).toBe(-90);
-    expect(nodeV?.config?.y).toBe(0);
   });
 
   it('should report no patterns when none exist', () => {

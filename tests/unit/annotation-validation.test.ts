@@ -355,8 +355,8 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 100, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -375,7 +375,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -397,7 +397,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -418,7 +418,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -434,7 +434,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0, color: 'invalidcolor' } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { color: 'invalidcolor' } },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -455,7 +455,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -476,7 +476,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -500,7 +500,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -529,7 +529,6 @@ describe('Annotation Validation — Validator', () => {
             id: 'a',
             nodeType: 'myType',
             config: {
-              x: 0, y: 0,
               portConfigs: [{ portName: 'nonexistent', order: 0 }],
             },
           },
@@ -555,7 +554,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -573,7 +572,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },
@@ -602,7 +601,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'parent', nodeType: 'scopedType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'parent', nodeType: 'scopedType', config: {} },
           // No children declared with parent scope
         ],
         connections: [
@@ -622,7 +621,7 @@ describe('Annotation Validation — Validator', () => {
       const workflow = createWorkflow({
         nodeTypes: [nodeType],
         instances: [
-          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: { x: 0, y: 0 } },
+          { type: 'NodeInstance', id: 'a', nodeType: 'myType', config: {} },
         ],
         connections: [
           { type: 'Connection', from: { node: 'Start', port: 'execute' }, to: { node: 'a', port: 'execute' } },

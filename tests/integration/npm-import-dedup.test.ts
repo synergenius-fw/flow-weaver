@@ -155,7 +155,7 @@ export async function testWorkflow(execute: boolean, params: {}): Promise<{ onSu
       type: 'NodeInstance',
       id: 'npm_node_1',
       nodeType: 'npm/acorn/parseExpressionAt',
-      config: { x: 100, y: 100 },
+      config: {},
     };
 
     const { writtenCode } = simulateMutateWorkflowFile(
@@ -178,7 +178,7 @@ export async function testWorkflow(execute: boolean, params: {}): Promise<{ onSu
       type: 'NodeInstance',
       id: 'npm_node_1',
       nodeType: 'npm/acorn/parseExpressionAt',
-      config: { x: 100, y: 100 },
+      config: {},
     };
 
     simulateMutateWorkflowFile(
@@ -191,7 +191,7 @@ export async function testWorkflow(execute: boolean, params: {}): Promise<{ onSu
       type: 'NodeInstance',
       id: 'npm_node_2',
       nodeType: 'npm/acorn/parseExpressionAt',
-      config: { x: 200, y: 200 },
+      config: {},
     };
 
     const { writtenCode } = simulateMutateWorkflowFile(
@@ -219,7 +219,7 @@ export async function testWorkflow(execute: boolean, params: {}): Promise<{ onSu
       type: 'NodeInstance',
       id: 'npm_node_1',
       nodeType: 'npm/acorn/parseExpressionAt',
-      config: { x: 100, y: 100 },
+      config: {},
     };
 
     // Parse the file again to see what the parser produces
@@ -237,7 +237,7 @@ export async function testWorkflow(execute: boolean, params: {}): Promise<{ onSu
       type: 'NodeInstance',
       id: 'npm_node_2',
       nodeType: 'npm/acorn/parseExpressionAt',
-      config: { x: 200, y: 200 },
+      config: {},
     };
 
     // Parse again

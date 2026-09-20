@@ -101,4 +101,6 @@ export const PACKAGE_EXPORTS = [
   { subpath: './version', description: 'Package version metadata' },
   { subpath: './context', description: 'LLM context generation' },
   { subpath: './agent', description: 'Provider-agnostic agent tooling' },
+  { subpath: './console', description: 'The local operator console server' },
+  { subpath: './coordinator', description: 'Local run coordinator: start, resume and watch gated workflows from code' },
 ] as const;

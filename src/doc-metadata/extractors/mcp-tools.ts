@@ -270,7 +270,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_diagram',
     description:
-      'Generate a diagram of a workflow. Formats: svg/html produce visual markup, process produces an interactive page of the workflow as a process (steps in execution order, pauses at gates, failure arms, playable), ascii/ascii-compact/text produce plain text readable in terminal. Provide either filePath (workflow .ts file) or source (inline code).',
+      'Generate a diagram of a workflow. Formats: svg draws the spine (steps in run order, control flow as lanes: failure arms, loop bodies, pulled steps) as a vector image; ascii/ascii-compact/text produce plain text readable in terminal. Provide either filePath (workflow .ts file) or source (inline code).',
     category: 'query',
     params: [
       {
@@ -305,17 +305,11 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         enum: ['dark', 'light'],
       },
       {
-        name: 'showPortLabels',
-        type: 'boolean',
-        description: 'Show port labels on diagram (default: true)',
-        required: false,
-      },
-      {
         name: 'format',
         type: 'string',
-        description: 'Output format: svg (default), html (interactive graph viewer), process (interactive page: steps in execution order, pauses at gates, failure arms, playable), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)',
+        description: 'Output format: svg (default; the spine as a vector image), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)',
         required: false,
-        enum: ['svg', 'html', 'process', 'ascii', 'ascii-compact', 'text'],
+        enum: ['svg', 'ascii', 'ascii-compact', 'text'],
       },
     ],
   },
@@ -410,7 +404,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_modify',
     description:
-      'Modify a workflow file: add/remove/rename nodes, add/remove connections, set positions/labels. Parses the file, applies the mutation, and regenerates annotations in-place. Returns auto-validation results and a text description of the updated workflow. For addNode: if x/y are omitted, the node is placed to the right of the rightmost existing node.',
+      'Modify a workflow file: add/remove/rename nodes, add/remove connections, set labels. Parses the file, applies the mutation, and regenerates annotations in-place. Returns auto-validation results and a text description of the updated workflow.',
     category: 'modify',
     params: [
       {
@@ -430,12 +424,12 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         type: 'string',
         description: 'The mutation to perform',
         required: true,
-        enum: ['addNode', 'removeNode', 'renameNode', 'addConnection', 'removeConnection', 'setNodePosition', 'setNodeLabel'],
+        enum: ['addNode', 'removeNode', 'renameNode', 'addConnection', 'removeConnection', 'setNodeLabel'],
       },
       {
         name: 'params',
         type: 'object',
-        description: 'Operation-specific parameters. addNode: {nodeId, nodeType, x?, y?}. removeNode: {nodeId}. renameNode: {oldId, newId}. addConnection: {from, to} ("node.port" format). removeConnection: {from, to} ("node.port" format). setNodePosition: {nodeId, x, y}. setNodeLabel: {nodeId, label}.',
+        description: 'Operation-specific parameters. addNode: {nodeId, nodeType}. removeNode: {nodeId}. renameNode: {oldId, newId}. addConnection: {from, to} ("node.port" format). removeConnection: {from, to} ("node.port" format). setNodeLabel: {nodeId, label}.',
         required: true,
       },
       {

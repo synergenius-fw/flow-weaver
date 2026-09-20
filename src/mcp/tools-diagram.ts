@@ -1,15 +1,14 @@
 /**
  * MCP Diagram Tool - fw_diagram
  *
- * Generates diagrams from workflow files or inline source code.
- * Supports SVG, interactive HTML, and ASCII text formats.
+ * The workflow as an SVG of its spine, or as text for a chat.
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileToSVG, fileToHTML, fileToASCII, fileToProcessHTML, sourceToSVG, sourceToHTML, sourceToASCII, sourceToProcessHTML } from '../diagram/index.js';
+import { fileToSVG, fileToASCII, sourceToSVG, sourceToASCII } from '../diagram/index.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
 
 const ASCII_FORMATS = new Set(['ascii', 'ascii-compact', 'text']);
@@ -17,7 +16,7 @@ const ASCII_FORMATS = new Set(['ascii', 'ascii-compact', 'text']);
 export function registerDiagramTools(mcp: McpServer): void {
   mcp.tool(
     'fw_diagram',
-    'Generate a diagram of a workflow. Formats: svg/html produce visual markup, process produces an interactive page of the workflow as a process (steps in execution order, pauses at gates, failure arms, playable), ascii/ascii-compact/text produce plain text readable in terminal. ' +
+    'Generate a diagram of a workflow. Formats: svg draws the spine (steps in run order, control flow as lanes: failure arms, loop bodies, pulled steps) as a vector image; ascii/ascii-compact/text produce plain text readable in terminal. ' +
       'Provide either filePath (workflow .ts file) or source (inline code).',
     {
       filePath: z
@@ -40,14 +39,10 @@ export function registerDiagramTools(mcp: McpServer): void {
         .enum(['dark', 'light'])
         .optional()
         .describe('Color theme (default: dark)'),
-      showPortLabels: z
-        .boolean()
-        .optional()
-        .describe('Show port labels on diagram (default: true)'),
       format: z
-        .enum(['svg', 'html', 'process', 'ascii', 'ascii-compact', 'text'])
+        .enum(['svg', 'ascii', 'ascii-compact', 'text'])
         .optional()
-        .describe('Output format: svg (default), html (interactive graph viewer), process (interactive page: steps in execution order, pauses at gates, failure arms, playable), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)'),
+        .describe('Output format: svg (default; the spine as a vector image), ascii (port-level detail), ascii-compact (compact boxes), text (structured list)'),
     },
     async (args: {
       filePath?: string;
@@ -55,8 +50,7 @@ export function registerDiagramTools(mcp: McpServer): void {
       outputPath?: string;
       workflowName?: string;
       theme?: 'dark' | 'light';
-      showPortLabels?: boolean;
-      format?: 'svg' | 'html' | 'process' | 'ascii' | 'ascii-compact' | 'text';
+      format?: 'svg' | 'ascii' | 'ascii-compact' | 'text';
     }) => {
       try {
         if (!args.filePath && !args.source) {
@@ -67,7 +61,6 @@ export function registerDiagramTools(mcp: McpServer): void {
         const diagramOptions = {
           workflowName: args.workflowName,
           theme: args.theme,
-          showPortLabels: args.showPortLabels,
           format,
         };
 
@@ -77,10 +70,6 @@ export function registerDiagramTools(mcp: McpServer): void {
           // Inline source code
           if (ASCII_FORMATS.has(format)) {
             result = sourceToASCII(args.source, diagramOptions);
-          } else if (format === 'html') {
-            result = sourceToHTML(args.source, diagramOptions);
-          } else if (format === 'process') {
-            result = sourceToProcessHTML(args.source, diagramOptions);
           } else {
             result = sourceToSVG(args.source, diagramOptions);
           }
@@ -93,10 +82,6 @@ export function registerDiagramTools(mcp: McpServer): void {
 
           if (ASCII_FORMATS.has(format)) {
             result = fileToASCII(resolvedPath, diagramOptions);
-          } else if (format === 'html') {
-            result = fileToHTML(resolvedPath, diagramOptions);
-          } else if (format === 'process') {
-            result = fileToProcessHTML(resolvedPath, diagramOptions);
           } else {
             result = fileToSVG(resolvedPath, diagramOptions);
           }

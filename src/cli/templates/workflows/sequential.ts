@@ -95,11 +95,9 @@ function outputResult(data: any): { result: any } {
 
 /**
  * @flowWeaver workflow
- * @node validator validateData [position: -300 0] [color: "green"] [icon: "verified"] [suppress: "UNUSED_OUTPUT_PORT"]
- * @node transformer transformData [position: 0 0] [color: "blue"] [icon: "sync"]
- * @node outputter outputResult [position: 300 0] [color: "cyan"] [icon: "inventory"]
- * @position Start -600 0
- * @position Exit 600 0
+ * @node validator validateData [color: "green"] [icon: "verified"] [suppress: "UNUSED_OUTPUT_PORT"]
+ * @node transformer transformData [color: "blue"] [icon: "sync"]
+ * @node outputter outputResult [color: "cyan"] [icon: "inventory"]
  * @path Start -> validator -> transformer -> outputter -> Exit
  * @path Start -> validator:fail -> Exit
  * @param execute [order:0] - Execute
@@ -149,18 +147,11 @@ function ${name}(${inputPortName}: any): { ${outputPortName}: any } {
   });
 
   // Generate workflow annotations
-  const spacing = 300;
-  const startX = -(nodeNames.length * (spacing / 2) + spacing / 2);
   const stepColors = ['green', 'blue', 'cyan', 'orange', 'purple', 'teal', 'pink', 'yellow'];
   const nodeAnnotations = nodeNames.map((name, i) => {
-    const x = startX + (i + 1) * spacing;
     const color = stepColors[i % stepColors.length];
-    return ` * @node step${i} ${name} [position: ${x} 0] [color: "${color}"] [icon: "settings"]`;
+    return ` * @node step${i} ${name} [color: "${color}"] [icon: "settings"]`;
   }).join('\n');
-  const positionAnnotations = [
-    ` * @position Start ${startX} 0`,
-    ` * @position Exit ${startX + (nodeNames.length + 1) * spacing} 0`,
-  ].join('\n');
 
   // Build connections using @path sugar: the main route, and the first
   // step's failure straight to Exit
@@ -174,7 +165,6 @@ function ${name}(${inputPortName}: any): { ${outputPortName}: any } {
 /**
  * @flowWeaver workflow
 ${nodeAnnotations}
-${positionAnnotations}
 ${connections.join('\n')}
  * @param execute [order:0] - Execute
  * @param ${inputPort} [order:1] - Input data

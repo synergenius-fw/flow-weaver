@@ -6,17 +6,20 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
+import type { TMarketplacePackageInfo } from '../../marketplace/types.js';
 import { logger } from '../utils/logger.js';
 import {
   generateManifest,
   writeManifest,
   readManifest,
   validatePackage,
+  searchAllRegistries,
   searchPackages,
   listInstalledPackages,
 } from '../../marketplace/index.js';
 import type { TMarketplaceManifest, TInstalledPackage } from '../../marketplace/types.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
+import { VERSION } from '../../generated-version.js';
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
@@ -80,7 +83,7 @@ export async function marketInitCommand(name: string, options: MarketInitOptions
     keywords: ['flow-weaver-marketplace-pack', 'flow-weaver', shortName],
     flowWeaver: {
       type: 'marketplace-pack',
-      engineVersion: '>=0.1.0',
+      engineVersion: `>=${VERSION}`,
     },
     scripts: {
       build: 'tsc',
@@ -90,10 +93,10 @@ export async function marketInitCommand(name: string, options: MarketInitOptions
     ...(options.author && { author: options.author }),
     license: 'MIT',
     peerDependencies: {
-      '@synergenius/flow-weaver': '>=0.1.0',
+      '@synergenius/flow-weaver': `>=${VERSION}`,
     },
     devDependencies: {
-      '@synergenius/flow-weaver': '^0.1.0',
+      '@synergenius/flow-weaver': `^${VERSION}`,
       typescript: '^5.3.0',
     },
     files: ['dist', 'flowweaver.manifest.json', 'README.md', 'LICENSE'],
@@ -126,19 +129,18 @@ export async function marketInitCommand(name: string, options: MarketInitOptions
     JSON.stringify(tsconfig, null, 2) + '\n'
   );
 
-  // Sample node type
+  // Sample node type: an expression node, the shape to start from. Ports
+  // come from the signature; the annotations add what a user sees.
   const sampleNodeType = `/**
  * @flowWeaver nodeType
- * @name Sample
+ * @expression
+ * @label Sample
  * @description A sample node type for your marketplace pack
- * @input data - Input data
- * @output result - Processed result
- * @visual color blue
- * @visual icon box
- * @visual tag ${shortName}
+ * @color blue
+ * @icon inventory
+ * @tag ${shortName}
  */
-export function sample(execute: () => void, data: string): { result: string } {
-  execute();
+export function sample(data: string): { result: string } {
   return { result: data.toUpperCase() };
 }
 `;
@@ -183,7 +185,7 @@ fw market install ${name}
 
 ### Node Types
 
-- **Sample** — A sample node type
+- **Sample** — A sample node type in src/node-types/sample.ts; add yours beside it and re-export them from src/index.ts
 
 ## Development
 
@@ -420,7 +422,23 @@ export async function marketSearchCommand(query?: string, options: MarketSearchO
   }
 
   try {
-    let results = await searchPackages({ query, limit, registryUrl: registry });
+    // One registry when named; otherwise every one the project's npm uses,
+    // which is how a private pack is found without knowing its URL.
+    let results: TMarketplacePackageInfo[];
+    if (registry) {
+      results = await searchPackages({ query, limit, registryUrl: registry });
+    } else {
+      const multi = await searchAllRegistries({ query, limit, projectDir: process.cwd() });
+      results = multi.results;
+      if (!json) {
+        for (const s of multi.searched) {
+          const scopes = s.scopes.length ? ` (${s.scopes.join(', ')})` : '';
+          if (s.ok) logger.info(`Searched ${s.url}${scopes}: ${s.count} pack(s)`);
+          else logger.warn(`Could not search ${s.url}${scopes}: ${s.error}`);
+        }
+        logger.newline();
+      }
+    }
 
     // Client-side filtering: npm search may return broad results, narrow to query match
     if (query) {

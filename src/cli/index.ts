@@ -136,21 +136,31 @@ program
 // Diagram command
 program
   .command('diagram <input>')
-  .description('Generate SVG or interactive HTML diagram of a workflow')
+  .description('Draw a workflow: its spine as an SVG, or text for a terminal')
   .addOption(new Option('-t, --theme <theme>', 'Color theme').choices(['dark', 'light']).default('dark'))
-  .option('--width <pixels>', 'SVG width in pixels')
-  .option('-p, --padding <pixels>', 'Canvas padding in pixels')
-  .option('--no-port-labels', 'Hide data type labels on ports')
   .option('-w, --workflow <name>', 'Specific workflow to render')
-  .addOption(new Option('-f, --format <format>', 'Output format').choices(['svg', 'html', 'process', 'ascii', 'ascii-compact', 'text']).default('svg'))
+  .addOption(new Option('-f, --format <format>', 'Output format').choices(['svg', 'ascii', 'ascii-compact', 'text']).default('svg'))
   .option('-o, --output <file>', 'Write output to file instead of stdout')
   .action(wrapAction(async (input: string, options) => {
-      if (options.width) options.width = Number(options.width);
-      if (options.padding) options.padding = Number(options.padding);
-      options.showPortLabels = options.portLabels;
       if (options.workflow) options.workflowName = options.workflow;
       const { diagramCommand } = await import('./commands/diagram.js');
       await diagramCommand(input, options);
+  }));
+
+// Artifact command
+program
+  .command('artifact <input>')
+  .description('Hand a workflow to a person: the brief as a page or a PDF, or the spine as an SVG')
+  .addOption(new Option('-k, --kind <kind>', 'What to produce').choices(['brief', 'pdf', 'svg']).default('brief'))
+  .addOption(new Option('-t, --theme <theme>', 'Color theme').choices(['light', 'dark']).default('light'))
+  .option('-w, --workflow <name>', 'Specific workflow to render')
+  .option('--subtitle <text>', 'Shown under the title (default: the folder name)')
+  .option('--browser <path>', 'Browser to print the PDF with (default: the one found on this machine, or FW_BROWSER)')
+  .option('-o, --output <file>', 'Write to a file (a PDF is always written, beside the workflow when omitted)')
+  .action(wrapAction(async (input: string, options) => {
+      if (options.workflow) options.workflowName = options.workflow;
+      const { artifactCommand } = await import('./commands/artifact.js');
+      await artifactCommand(input, options);
   }));
 
 // Diff command
@@ -245,7 +255,7 @@ program
   .option('--once', 'Run once then exit', false)
   .option('--json', 'Output result as JSON', false)
   .option('--target <target>', 'Compilation target (default: typescript)')
-  .option('--mocks <json>', 'Mock config for built-in nodes (events, invocations, agents, fast) as JSON')
+  .option('--mocks <json>', 'Mock config as JSON: gates (answers by node id), events, agents, invocations, fast')
   .option('--mocks-file <path>', 'Path to JSON file with mock config for built-in nodes')
   .action(wrapAction(async (input: string, options) => {
       const { devCommand } = await import('./commands/dev.js');
@@ -366,18 +376,6 @@ modifyCmd
   }));
 
 modifyCmd
-  .command('setPosition')
-  .description('Set position of a node instance')
-  .requiredOption('--file <path>', 'Workflow file')
-  .requiredOption('--nodeId <id>', 'Node instance ID')
-  .requiredOption('--x <number>', 'X coordinate')
-  .requiredOption('--y <number>', 'Y coordinate')
-  .action(wrapAction(async (options) => {
-    const { modifySetPositionCommand } = await import('./commands/modify.js');
-    await modifySetPositionCommand(options.file, options);
-  }));
-
-modifyCmd
   .command('setLabel')
   .description('Set display label for a node instance')
   .requiredOption('--file <path>', 'Workflow file')
@@ -458,7 +456,7 @@ program
   .option('-s, --stream', 'Stream trace events in real-time')
   .option('--json', 'Output result as JSON', false)
   .option('--timeout <ms>', 'Execution timeout in milliseconds', parseIntStrict)
-  .option('--mocks <json>', 'Mock config for built-in nodes (events, invocations, agents, fast) as JSON')
+  .option('--mocks <json>', 'Mock config as JSON: gates (answers by node id), events, agents, invocations, fast')
   .option('--mocks-file <path>', 'Path to JSON file with mock config for built-in nodes')
   .option('-d, --debug', 'Start in step-through debug mode')
   .option('-b, --breakpoint <nodeIds...>', 'Set initial breakpoints (repeatable)')
@@ -488,6 +486,24 @@ program
         precompile: options.precompile,
         cors: options.cors,
         swagger: options.swagger,
+      });
+  }));
+
+// Console command
+program
+  .command('console [directory]')
+  .description('Open the local operator console: workflows as processes, issues, code, live runs and gates')
+  .option('-p, --port <port>', 'Port', '4311')
+  .option('-H, --host <host>', 'Host to bind (local by default)', '127.0.0.1')
+  .option('--open', 'Open the browser once listening', false)
+  .option('--no-watch', 'Do not reload when project files change')
+  .action(wrapAction(async (directory: string | undefined, options) => {
+      const { consoleCommand } = await import('./commands/console.js');
+      await consoleCommand(directory, {
+        port: parseIntStrict(options.port),
+        host: options.host,
+        open: options.open,
+        watch: options.watch,
       });
   }));
 
@@ -739,215 +755,6 @@ if (!process.env['VITEST']) {
   (async () => {
     const { registerPackCommands } = await import('./pack-commands.js');
     await registerPackCommands(program);
-
-    // Auth commands (login, logout, status)
-    program
-      .command('login')
-      .description('Log in to Flow Weaver platform')
-      .option('-e, --email <email>', 'Email address')
-      .option('-p, --password <password>', 'Password (for non-interactive login with --email)')
-      .option('-k, --api-key <key>', 'Use API key instead of email/password')
-      .option('--platform-url <url>', 'Platform URL')
-      .action(async (options) => {
-        const { loginCommand } = await import('./commands/auth.js');
-        await loginCommand(options);
-      });
-
-    program
-      .command('logout')
-      .description('Log out from Flow Weaver platform')
-      .action(async () => {
-        const { logoutCommand } = await import('./commands/auth.js');
-        await logoutCommand();
-      });
-
-    program
-      .command('auth')
-      .description('Show authentication status')
-      .action(async () => {
-        const { authStatusCommand } = await import('./commands/auth.js');
-        await authStatusCommand();
-      });
-
-    // API key management
-    const apikeyCmd = program
-      .command('apikey')
-      .description('Manage platform API keys');
-
-    apikeyCmd
-      .command('create <name>')
-      .description('Create a new API key')
-      .action(async (name: string) => {
-        const { apiKeyCreateCommand } = await import('./commands/apikey.js');
-        await apiKeyCreateCommand(name);
-      });
-
-    apikeyCmd
-      .command('list')
-      .description('List all active API keys')
-      .action(async () => {
-        const { apiKeyListCommand } = await import('./commands/apikey.js');
-        await apiKeyListCommand();
-      });
-
-    apikeyCmd
-      .command('revoke <id>')
-      .description('Revoke an API key by ID or prefix')
-      .action(async (id: string) => {
-        const { apiKeyRevokeCommand } = await import('./commands/apikey.js');
-        await apiKeyRevokeCommand(id);
-      });
-
-    // AI credential management
-    const aiCmd = program
-      .command('ai')
-      .description('Manage AI provider credentials');
-
-    aiCmd
-      .command('add <provider>')
-      .description('Add an AI provider credential (anthropic or openai)')
-      .option('-k, --key <key>', 'API key (omit to enter interactively)')
-      .option('-l, --label <label>', 'Display name for the credential')
-      .option('-m, --model <model>', 'Default model to use')
-      .option('-d, --default', 'Set as default credential')
-      .action(async (provider: string, options: { key?: string; label?: string; model?: string; default?: boolean }) => {
-        const { aiAddCommand } = await import('./commands/ai-credentials.js');
-        await aiAddCommand(provider, options);
-      });
-
-    aiCmd
-      .command('list')
-      .description('List all AI credentials')
-      .action(async () => {
-        const { aiListCommand } = await import('./commands/ai-credentials.js');
-        await aiListCommand();
-      });
-
-    aiCmd
-      .command('revoke <id>')
-      .description('Revoke an AI credential')
-      .option('-f, --force', 'Skip confirmation prompt')
-      .action(async (id: string, options: { force?: boolean }) => {
-        const { aiRevokeCommand } = await import('./commands/ai-credentials.js');
-        await aiRevokeCommand(id, options);
-      });
-
-    aiCmd
-      .command('test <id>')
-      .description('Test an AI credential')
-      .action(async (id: string) => {
-        const { aiTestCommand } = await import('./commands/ai-credentials.js');
-        await aiTestCommand(id);
-      });
-
-    // Account (includes usage)
-    program
-      .command('account')
-      .description('Show account details and plan usage')
-      .action(async () => {
-        const { accountCommand } = await import('./commands/account.js');
-        await accountCommand();
-      });
-
-    // Organization management
-    const orgCmd = program
-      .command('org')
-      .description('Manage organizations');
-
-    orgCmd
-      .command('list')
-      .description('List your organizations')
-      .action(async () => {
-        const { orgListCommand } = await import('./commands/org.js');
-        await orgListCommand();
-      });
-
-    orgCmd
-      .command('create <name>')
-      .description('Create a new organization')
-      .action(async (name: string) => {
-        const { orgCreateCommand } = await import('./commands/org.js');
-        await orgCreateCommand(name);
-      });
-
-    orgCmd
-      .command('members <org>')
-      .description('List members of an organization (accepts slug, name, or ID)')
-      .action(async (org: string) => {
-        const { orgMembersCommand } = await import('./commands/org.js');
-        await orgMembersCommand(org);
-      });
-
-    orgCmd
-      .command('invite <org> <email>')
-      .description('Invite a member (org accepts slug, name, or ID)')
-      .option('-r, --role <role>', 'Role: editor or viewer (default: editor)')
-      .action(async (org: string, email: string, options: { role?: string }) => {
-        const { orgInviteCommand } = await import('./commands/org.js');
-        await orgInviteCommand(org, email, options);
-      });
-
-    orgCmd
-      .command('remove <org> <user>')
-      .description('Remove a member (org accepts slug; user accepts email or ID)')
-      .action(async (org: string, user: string) => {
-        const { orgRemoveCommand } = await import('./commands/org.js');
-        await orgRemoveCommand(org, user);
-      });
-
-    // Deploy commands (push + deploy to cloud)
-    program
-      .command('deploy <file>')
-      .description('Deploy a workflow to the platform')
-      .option('-n, --name <name>', 'Workflow name (defaults to filename)')
-      .action(async (file: string, options: { name?: string }) => {
-        const { deployCommand } = await import('./commands/deploy.js');
-        await deployCommand(file, options);
-      });
-
-    program
-      .command('undeploy <slug>')
-      .description('Remove a deployed workflow')
-      .action(async (slug: string) => {
-        const { undeployCommand } = await import('./commands/deploy.js');
-        await undeployCommand(slug);
-      });
-
-    program
-      .command('cloud-status')
-      .description('Show cloud deployments and usage')
-      .action(async () => {
-        const { cloudStatusCommand } = await import('./commands/deploy.js');
-        await cloudStatusCommand();
-      });
-
-    // Connect command — connect this device to the platform
-    program
-      .command('connect [dir]')
-      .description('Connect this device to the Flow Weaver platform')
-      .action(async (dir?: string) => {
-        const { handleConnect } = await import('./commands/connect.js');
-        await handleConnect(path.resolve(dir ?? '.'));
-      });
-
-    // Fallback weaver shim if pack not installed
-    if (!program.commands.some(c => c.name() === 'weaver')) {
-      program
-        .command('weaver')
-        .description('AI assistant for Flow Weaver workflows')
-        .allowUnknownOption(true)
-        .action(async () => {
-          console.log('');
-          console.log('  Weaver is not installed.');
-          console.log('');
-          console.log('  Install it:');
-          console.log('    npm install @synergenius/flow-weaver-pack-weaver');
-          console.log('');
-          console.log('  Or during project init:');
-          console.log('    flow-weaver init    (select "Yes" when asked about Weaver)');
-          console.log('');
-        });
-    }
 
     program.parse(process.argv);
   })();

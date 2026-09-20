@@ -2,12 +2,10 @@
  * Coverage tests for src/api/manipulation/nodes.ts
  * Targets uncovered lines:
  *   298-299: removeNodes with scopes
- *   348-357: setNodePosition for Start/Exit virtual nodes
  */
 
 import {
   removeNodes,
-  setNodePosition,
 } from '../../src/api/manipulation/nodes';
 import type { TWorkflowAST } from '../../src/ast/types';
 import {
@@ -114,60 +112,3 @@ describe('removeNodes - scope cleanup', () => {
   });
 });
 
-describe('setNodePosition - virtual nodes', () => {
-  it('should set position on Start virtual node', () => {
-    const workflow = createSimpleWorkflow();
-    const result = setNodePosition(workflow, 'Start', 100, 200);
-
-    expect(result.ui?.startNode?.x).toBe(100);
-    expect(result.ui?.startNode?.y).toBe(200);
-  });
-
-  it('should set position on Exit virtual node', () => {
-    const workflow = createSimpleWorkflow();
-    const result = setNodePosition(workflow, 'Exit', 300, 400);
-
-    expect(result.ui?.exitNode?.x).toBe(300);
-    expect(result.ui?.exitNode?.y).toBe(400);
-  });
-
-  it('should preserve existing ui properties when setting Start position', () => {
-    const workflow = createSimpleWorkflow();
-    (workflow as any).ui = { disablePan: true, exitNode: { x: 50, y: 50 } };
-
-    const result = setNodePosition(workflow, 'Start', 10, 20);
-
-    expect(result.ui?.startNode?.x).toBe(10);
-    expect(result.ui?.startNode?.y).toBe(20);
-    // exitNode should remain
-    expect(result.ui?.exitNode?.x).toBe(50);
-  });
-
-  it('should preserve existing ui properties when setting Exit position', () => {
-    const workflow = createSimpleWorkflow();
-    (workflow as any).ui = { startNode: { x: 10, y: 20 } };
-
-    const result = setNodePosition(workflow, 'Exit', 99, 88);
-
-    expect(result.ui?.exitNode?.x).toBe(99);
-    expect(result.ui?.exitNode?.y).toBe(88);
-    expect(result.ui?.startNode?.x).toBe(10);
-  });
-
-  it('should set position on Start when ui is undefined', () => {
-    const workflow = createSimpleWorkflow();
-    delete (workflow as any).ui;
-
-    const result = setNodePosition(workflow, 'Start', 5, 15);
-
-    expect(result.ui?.startNode?.x).toBe(5);
-    expect(result.ui?.startNode?.y).toBe(15);
-  });
-
-  it('should not modify the original workflow', () => {
-    const workflow = createSimpleWorkflow();
-    setNodePosition(workflow, 'Start', 100, 200);
-
-    expect(workflow.ui?.startNode).toBeUndefined();
-  });
-});

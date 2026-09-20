@@ -6,7 +6,6 @@ import {
   renameNode as manipRenameNode,
   addConnection as manipAddConnection,
   removeConnection as manipRemoveConnection,
-  setNodePosition as manipSetNodePosition,
   setNodeLabel as manipSetNodeLabel,
 } from './manipulation/index.js';
 import { findIsolatedNodes } from './query.js';
@@ -19,8 +18,6 @@ export const modifyParamsSchemas: Record<string, z.ZodType> = {
   addNode: z.object({
     nodeId: z.string({ error: 'nodeId is required' }),
     nodeType: z.string({ error: 'nodeType is required' }),
-    x: z.number().optional(),
-    y: z.number().optional(),
   }),
   removeNode: z.object({
     nodeId: z.string({ error: 'nodeId is required' }),
@@ -36,11 +33,6 @@ export const modifyParamsSchemas: Record<string, z.ZodType> = {
   removeConnection: z.object({
     from: z.string({ error: 'from is required (format: "node.port")' }),
     to: z.string({ error: 'to is required (format: "node.port")' }),
-  }),
-  setNodePosition: z.object({
-    nodeId: z.string({ error: 'nodeId is required' }),
-    x: z.number({ error: 'x is required (must be a number)' }),
-    y: z.number({ error: 'y is required (must be a number)' }),
   }),
   setNodeLabel: z.object({
     nodeId: z.string({ error: 'nodeId is required' }),
@@ -90,33 +82,10 @@ export function applyModifyOperation(
         );
       }
 
-      let autoX = typeof p.x === 'number' ? p.x : undefined;
-      let autoY = typeof p.y === 'number' ? p.y : undefined;
-      if (autoX === undefined || autoY === undefined) {
-        const positions = modifiedAST.instances
-          .map((inst: { config?: { x?: number; y?: number } }) => inst.config)
-          .filter(
-            (c: unknown): c is { x: number; y: number } =>
-              c !== undefined &&
-              c !== null &&
-              typeof (c as Record<string, unknown>).x === 'number' &&
-              typeof (c as Record<string, unknown>).y === 'number'
-          );
-        if (positions.length > 0) {
-          const maxX = Math.max(...positions.map((pos: { x: number }) => pos.x));
-          if (autoX === undefined) autoX = maxX + 180;
-          if (autoY === undefined) autoY = 0;
-        } else {
-          if (autoX === undefined) autoX = 0;
-          if (autoY === undefined) autoY = 0;
-        }
-      }
-
       modifiedAST = manipAddNode(modifiedAST, {
         type: 'NodeInstance',
         id: nodeId,
         nodeType,
-        config: { x: autoX, y: autoY },
       });
       break;
     }
@@ -223,15 +192,6 @@ export function applyModifyOperation(
       if (newlyIsolated.length > 0) {
         extraData.newlyIsolatedNodes = newlyIsolated;
       }
-      break;
-    }
-    case 'setNodePosition': {
-      modifiedAST = manipSetNodePosition(
-        modifiedAST,
-        p.nodeId as string,
-        p.x as number,
-        p.y as number
-      );
       break;
     }
     case 'setNodeLabel': {

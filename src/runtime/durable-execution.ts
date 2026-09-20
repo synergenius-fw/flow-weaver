@@ -100,6 +100,45 @@ export interface GateBoundary {
   readonly payload: WireValue;
 }
 
+/**
+ * A gate answered from the mocks, or undefined to yield for real.
+ *
+ * Any gate is answered by its node id through `gates`, with its data outputs
+ * as the object. The built-in agent and event gates are also answered from
+ * their own sections, keyed by what the node was given as its first input
+ * (the agent id, the event name), by `node:key`, or by `node:*`. The answer
+ * becomes the gate's whole output envelope, control ports filled in, which
+ * is exactly what a person's answer becomes in `buildGateResolution`.
+ */
+function mockedGate(mocks: FwMockConfig | undefined, boundary: GateBoundary): WireValue | undefined {
+  if (!mocks) return undefined;
+  const { nodeId, nodeType } = boundary;
+  const pick = (section: Record<string, object> | undefined, key: string | undefined): object | undefined => {
+    if (!section) return undefined;
+    if (key !== undefined && section[`${nodeId}:${key}`] !== undefined) return section[`${nodeId}:${key}`];
+    if (section[`${nodeId}:*`] !== undefined) return section[`${nodeId}:*`];
+    return key !== undefined ? section[key] : undefined;
+  };
+  const firstInput = (): string | undefined => {
+    const p = boundary.payload as { arguments?: Array<{ value?: unknown; absent?: boolean }> } | null;
+    const v = p?.arguments?.[0]?.value;
+    return v === undefined || v === null ? undefined : String(v);
+  };
+  let data: object | undefined = mocks.gates?.[nodeId];
+  if (data === undefined && nodeType === 'waitForAgent') {
+    const v = pick(mocks.agents, firstInput());
+    if (v !== undefined) data = { agentResult: v };
+  }
+  if (data === undefined && nodeType === 'waitForEvent') {
+    const v = pick(mocks.events, firstInput());
+    if (v !== undefined) data = { eventData: v };
+  }
+  if (data === undefined || typeof data !== 'object') return undefined;
+  const value = { onSuccess: true, onFailure: false, ...(data as Record<string, unknown>) };
+  validateWireValue(value);
+  return value as WireValue;
+}
+
 export interface EffectBoundary {
   readonly nodeId: string;
   readonly nodeType: string;
@@ -349,6 +388,10 @@ export class DurableExecution {
 
   resolveGate(runtime: WorkflowRuntime, boundary: GateBoundary): WireValue {
     validateWireValue(boundary.payload);
+    // A mocked gate is answered here, on the first run and on every replay
+    // alike, so it never pauses and never enters the resume bookkeeping below.
+    const mocked = mockedGate(runtime.services.mocks, boundary);
+    if (mocked !== undefined) return mocked;
     const address = this.address(runtime, boundary.nodeId, boundary.nodeType, boundary.executionIndex);
     const id = durableGateId(this.runId, boundary.kind, address);
 

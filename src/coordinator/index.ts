@@ -10,6 +10,9 @@ export {
   type LocalCoordinator,
   type StartRequest,
   type ResumeRequest,
+  type DriveOptions,
+  type TraceEntry,
+  type RunRecord,
   type RunView,
   type RunSummary,
 } from './run-store.js';

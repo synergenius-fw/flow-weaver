@@ -231,18 +231,6 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
       expect(config!.instances![0].height).toBe(100);
     });
 
-    it('parses @node with position', () => {
-      const { config } = parseWorkflow(`
-/**
- * @flowWeaver workflow
- * @node myInst TypeA [position: 300 400]
- */
-export async function a(execute: boolean, params: {}) { return { onSuccess: true }; }
-`);
-      expect(config!.instances![0].x).toBe(300);
-      expect(config!.instances![0].y).toBe(400);
-    });
-
     it('parses @node with color', () => {
       const { config } = parseWorkflow(`
 /**
@@ -733,36 +721,6 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
 
   // ── Pattern position not matching an instance ───────────────
 
-  describe('pattern position edge cases', () => {
-    it('applies position to matching instance in pattern', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @node a TypeA
- * @node b TypeB
- * @position a 50 60
- * @position b 150 160
- */
-function myPattern() {}
-`);
-      expect(config!.instances![0].config).toEqual({ x: 50, y: 60 });
-      expect(config!.instances![1].config).toEqual({ x: 150, y: 160 });
-    });
-
-    it('stores position for non-matching instance without crashing', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @node a TypeA
- * @position nonexistent 100 200
- */
-function myPattern() {}
-`);
-      // The position is stored but not applied to any instance
-      expect(config!.positions!['nonexistent']).toEqual({ x: 100, y: 200 });
-      expect(config!.instances![0].config).toBeUndefined();
-    });
-  });
 
   // ── @flowWeaver tag value edge cases ────────────────────────
 

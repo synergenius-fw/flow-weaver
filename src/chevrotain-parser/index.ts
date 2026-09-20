@@ -2,7 +2,7 @@
  * @module chevrotain-parser
  *
  * Chevrotain-based parsers for JSDoc annotations.
- * Provides structured parsing for @input, @output, @node, @connect, and @position.
+ * Provides structured parsing for @input, @output, @node, @connect and the sugar tags.
  */
 
 // Token exports (for advanced use cases)
@@ -13,7 +13,6 @@ export {
   OutputTag,
   NodeTag,
   ConnectTag,
-  PositionTag,
   ScopeTag,
   MapTag,
   PathTag,
@@ -38,10 +37,6 @@ export type { NodeParseResult } from './node-parser';
 // Connect parser
 export { parseConnectLine, getConnectGrammar } from './connect-parser';
 export type { ConnectParseResult, PortReference } from './connect-parser';
-
-// Position parser
-export { parsePositionLine, getPositionGrammar } from './position-parser';
-export type { PositionParseResult } from './position-parser';
 
 // Scope parser
 export { parseScopeLine, getScopeGrammar } from './scope-parser';

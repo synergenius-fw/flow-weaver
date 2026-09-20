@@ -739,29 +739,6 @@ export function myWorkflow(): { onSuccess: boolean } {
     });
   });
 
-  describe('workflow ui positions', () => {
-    it('emits @position for Start and Exit when ui positions are set', () => {
-      const source = makeSourceWithNodeType();
-      const ast = makeMinimalAST({
-        ui: {
-          startNode: { x: 100, y: 200 },
-          exitNode: { x: 500, y: 200 },
-        },
-      });
-      const result = generateInPlace(source, ast);
-      expect(result.code).toContain('@position Start 100 200');
-      expect(result.code).toContain('@position Exit 500 200');
-    });
-
-    it('auto-positions when no ui positions are provided', () => {
-      const source = makeSourceWithNodeType();
-      const ast = makeMinimalAST();
-      // No ui set, positions are auto-computed
-      const result = generateInPlace(source, ast);
-      expect(result.code).toContain('@position Start');
-      expect(result.code).toContain('@position Exit');
-    });
-  });
 
   describe('stale duplicate JSDoc removal', () => {
     it('removes stale duplicate @flowWeaver JSDoc blocks before a nodeType function', () => {
@@ -876,28 +853,6 @@ export function myWorkflow(
     });
   });
 
-  describe('computeAutoPositions with all nodes positioned', () => {
-    it('does not compute auto positions when all nodes have explicit positions', () => {
-      const source = makeSourceWithNodeType();
-      const ast = makeMinimalAST({
-        ui: {
-          startNode: { x: 0, y: 0 },
-          exitNode: { x: 540, y: 0 },
-        },
-        instances: [
-          {
-            type: 'NodeInstance',
-            id: 'a',
-            nodeType: 'nodeA',
-            config: { x: 270, y: 0 },
-          },
-        ],
-      });
-      const result = generateInPlace(source, ast);
-      expect(result.code).toContain('@position Start 0 0');
-      expect(result.code).toContain('@position Exit 540 0');
-    });
-  });
 
   describe('topological sort with no connections', () => {
     it('uses declaration order when there are no connections', () => {
@@ -933,9 +888,9 @@ export function myWorkflow(): { onSuccess: boolean; onFailure: boolean } {
         connections: [],
       });
       const result = generateInPlace(source, ast);
-      // Both nodes should get auto positions
-      expect(result.code).toContain('@position Start');
-      expect(result.code).toContain('@position Exit');
+      // Both nodes are declared, in order
+      expect(result.code.indexOf('@node a nodeA')).toBeGreaterThan(-1);
+      expect(result.code.indexOf('@node b nodeB')).toBeGreaterThan(result.code.indexOf('@node a nodeA'));
     });
   });
 

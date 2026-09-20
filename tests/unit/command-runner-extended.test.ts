@@ -1,7 +1,7 @@
 /**
  * Tests for extended runCommand commands:
  * status, market-search, market-list, migrate,
- * login, account, deploy, undeploy, cloud-status, openapi
+ * openapi
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
@@ -139,13 +139,8 @@ beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join('/tmp', 'fw-cmd-test-'));
 });
 
-afterEach(async () => {
+afterEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  // Always clean up credentials
-  try {
-    const { clearCredentials } = await import('../../src/cli/config/credentials.js');
-    clearCredentials();
-  } catch { /* ignore */ }
 });
 
 describe('runCommand - extended commands', () => {
@@ -536,117 +531,13 @@ function testNode(x: number): { y: number } { return { y: x * 2 }; }
     });
   });
 
-  // ─── login ────────────────────────────────────────────────────────
-  describe('login', () => {
-    it('should save credentials with API key', async () => {
-      const result = await runCommand('login', { apiKey: 'test-key-12345' });
-      const data = result.data as { authenticated: boolean; method: string };
-      expect(data.authenticated).toBe(true);
-      expect(data.method).toBe('apiKey');
-    });
-
-    it('should return not-authenticated when no key and no existing session', async () => {
-      const result = await runCommand('login', {});
-      const data = result.data as { authenticated: boolean; message?: string };
-      // Could be authenticated if previous test left creds, or not
-      expect(data).toHaveProperty('authenticated');
-    });
-
-    it('should detect existing credentials after login', async () => {
-      await runCommand('login', { apiKey: 'persist-test-key' });
-      const result = await runCommand('login', {});
-      const data = result.data as { authenticated: boolean; method: string };
-      expect(data.authenticated).toBe(true);
-      expect(data.method).toBe('existing');
-    });
-  });
-
-  // ─── account ──────────────────────────────────────────────────────
-  describe('account', () => {
-    it('should return not-authenticated when not logged in', async () => {
-      const result = await runCommand('account', {});
-      const data = result.data as { authenticated: boolean; message?: string };
-      expect(data.authenticated).toBe(false);
-      expect(data.message).toBeDefined();
-    });
-
-    it('should always return authenticated field', async () => {
-      const result = await runCommand('account', {});
-      const data = result.data as Record<string, unknown>;
-      expect(data).toHaveProperty('authenticated');
-      expect(typeof data.authenticated).toBe('boolean');
-    });
-  });
-
-  // ─── deploy ───────────────────────────────────────────────────────
-  describe('deploy', () => {
-    it('should return not-authenticated when not logged in', async () => {
-      const filePath = createTempWorkflow(tmpDir, 'deploy.ts', VALID_WORKFLOW);
-      const result = await runCommand('deploy', { file: filePath });
-      const data = result.data as { authenticated: boolean };
-      expect(data.authenticated).toBe(false);
-    });
-
-    it('should include message explaining why it failed', async () => {
-      const filePath = createTempWorkflow(tmpDir, 'deploy2.ts', VALID_WORKFLOW);
-      const result = await runCommand('deploy', { file: filePath });
-      const data = result.data as { authenticated: boolean; message: string };
-      expect(data.message).toBeDefined();
-      expect(data.message.length).toBeGreaterThan(0);
-    });
-
-    it('should accept optional name parameter', async () => {
-      const filePath = createTempWorkflow(tmpDir, 'deploy-named.ts', VALID_WORKFLOW);
-      // Should not throw even with extra params
-      const result = await runCommand('deploy', { file: filePath, name: 'my-workflow' });
-      expect(result.data).toBeDefined();
-    });
-  });
-
-  // ─── undeploy ─────────────────────────────────────────────────────
-  describe('undeploy', () => {
-    it('should return not-authenticated when not logged in', async () => {
-      const result = await runCommand('undeploy', { slug: 'test-slug' });
-      const data = result.data as { authenticated: boolean };
-      expect(data.authenticated).toBe(false);
-    });
-
-    it('should include message in response', async () => {
-      const result = await runCommand('undeploy', { slug: 'nonexistent-slug' });
-      const data = result.data as { authenticated: boolean; message?: string };
-      expect(data).toHaveProperty('authenticated');
-    });
-  });
-
-  // ─── cloud-status ─────────────────────────────────────────────────
-  describe('cloud-status', () => {
-    it('should return not-authenticated when not logged in', async () => {
-      const result = await runCommand('cloud-status', {});
-      const data = result.data as { authenticated: boolean };
-      expect(data.authenticated).toBe(false);
-    });
-
-    it('should include message explaining auth requirement', async () => {
-      const result = await runCommand('cloud-status', {});
-      const data = result.data as { authenticated: boolean; message: string };
-      expect(data.message).toContain('login');
-    });
-
-    it('should always return authenticated field', async () => {
-      const result = await runCommand('cloud-status', {});
-      const data = result.data as Record<string, unknown>;
-      expect(typeof data.authenticated).toBe('boolean');
-    });
-  });
-
   // ─── getAvailableCommands ─────────────────────────────────────────
   describe('getAvailableCommands', () => {
     it('should include all extended commands', () => {
       const commands = getAvailableCommands();
       const expected = [
         'status', 'market-search', 'market-list',
-        'migrate', 'openapi', 'login', 'account',
-        'deploy', 'undeploy', 'cloud-status',
+        'migrate', 'openapi',
       ];
       for (const cmd of expected) {
         expect(commands).toContain(cmd);
@@ -721,46 +612,6 @@ function testNode(x: number): { y: number } { return { y: x * 2 }; }
     });
   });
 
-  // ─── apikey ───────────────────────────────────────────────────────
-  describe('apikey', () => {
-    it('should list API keys (empty when not logged in)', async () => {
-      const result = await runCommand('apikey', { action: 'list' });
-      expect(result.data).toBeDefined();
-      const data = result.data as Record<string, unknown>;
-      expect(data).toHaveProperty('authenticated');
-    });
-  });
-
-  // ─── ai ───────────────────────────────────────────────────────────
-  describe('ai', () => {
-    it('should list AI providers', async () => {
-      const result = await runCommand('ai', { action: 'list' });
-      expect(result.data).toBeDefined();
-      const data = result.data as Record<string, unknown>;
-      expect(data).toHaveProperty('providers');
-    });
-  });
-
-  // ─── org ──────────────────────────────────────────────────────────
-  describe('org', () => {
-    it('should return auth error when not logged in', async () => {
-      const result = await runCommand('org', { action: 'list' });
-      expect(result.data).toBeDefined();
-      const data = result.data as Record<string, unknown>;
-      expect(data).toHaveProperty('authenticated');
-    });
-  });
-
-  // ─── connect ──────────────────────────────────────────────────────
-  describe('connect', () => {
-    it('should return auth error or connection status', async () => {
-      const result = await runCommand('connect', { directory: tmpDir });
-      expect(result.data).toBeDefined();
-      const data = result.data as Record<string, unknown>;
-      expect(data).toHaveProperty('authenticated');
-    });
-  });
-
   // ─── export ──────────────────────────────────────────────────────
   describe('export', () => {
     it('should be a registered command', () => {
@@ -783,9 +634,9 @@ function testNode(x: number): { y: number } { return { y: x * 2 }; }
 
   // ─── getAvailableCommands includes new commands ───────────────────
   describe('getAvailableCommands - round 2', () => {
-    it('should include doctor, init, grammar, apikey, ai, org, connect, export', () => {
+    it('should include doctor, init, grammar, export', () => {
       const commands = getAvailableCommands();
-      for (const cmd of ['doctor', 'init', 'grammar', 'apikey', 'ai', 'org', 'connect', 'export']) {
+      for (const cmd of ['doctor', 'init', 'grammar', 'export']) {
         expect(commands).toContain(cmd);
       }
     });

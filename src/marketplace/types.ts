@@ -1,8 +1,8 @@
 /**
  * Marketplace types for Flow Weaver package distribution.
  *
- * Packages follow the naming convention `flow-weaver-pack-*` and use
- * npm as the distribution backbone. The manifest is auto-generated
+ * A pack is a package carrying a `flowweaver.manifest.json`; by convention
+ * it is named `flow-weaver-pack-*`. npm is the distribution backbone. The manifest is auto-generated
  * from source annotations via the parser.
  */
 
@@ -48,8 +48,6 @@ export type TMarketplaceManifest = {
   mcpEntrypoint?: string;
   /** MCP tools contributed by this pack */
   mcpTools?: TManifestMcpTool[];
-  /** Entry point for device connection handler registration */
-  deviceHandlers?: string;
   /** External dependency information */
   dependencies?: {
     /** Flow Weaver peer dependency constraints */

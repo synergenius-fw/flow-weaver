@@ -1686,31 +1686,12 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
     lines.push(` * @fwImport ${npmType.name} ${actualFunctionName} from "${npmType.importSource}"`);
   }
 
-  // Auto-position: compute default positions for nodes without explicit positions.
-  // Must happen before instance tags are generated so [position:] can be emitted.
-  const autoPositions = computeAutoPositions(ast);
-
   // Add node instances — skip synthetic MAP_ITERATOR/COERCION instances, strip parent from macro children.
-  // Merge auto-computed positions into instance config (without mutating the AST).
   for (const instance of ast.instances) {
     if (macroInstanceIds.has(instance.id)) continue;
     if (allCoerceInstanceIds.has(instance.id)) continue;
 
-    // Merge auto-position into config if not already set
-    let inst = instance;
-    if (inst.config?.x === undefined || inst.config?.y === undefined) {
-      const autoPos = autoPositions.get(inst.id);
-      if (autoPos) {
-        inst = {
-          ...inst,
-          config: {
-            ...inst.config,
-            x: inst.config?.x ?? autoPos.x,
-            y: inst.config?.y ?? autoPos.y,
-          },
-        };
-      }
-    }
+    const inst = instance;
 
     if (macroChildIds.has(inst.id) && inst.parent) {
       // Write child @node without parent scope — @map handles it
@@ -1786,20 +1767,6 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
     }
   }
 
-  // Add positions - Start node (virtual, standalone @position)
-  const startX = ast.ui?.startNode?.x ?? autoPositions.get('Start')?.x;
-  const startY = ast.ui?.startNode?.y ?? autoPositions.get('Start')?.y;
-  if (startX !== undefined && startY !== undefined) {
-    lines.push(` * @position Start ${Math.round(startX)} ${Math.round(startY)}`);
-  }
-
-  // Add positions - Exit node (virtual, standalone @position)
-  const exitX = ast.ui?.exitNode?.x ?? autoPositions.get('Exit')?.x;
-  const exitY = ast.ui?.exitNode?.y ?? autoPositions.get('Exit')?.y;
-  if (exitX !== undefined && exitY !== undefined) {
-    lines.push(` * @position Exit ${Math.round(exitX)} ${Math.round(exitY)}`);
-  }
-
   // Add connections (with scope suffix when present)
   // Skip connections covered by macros, autoConnect-generated connections, and dropped coerce connections
   if (!ast.options?.autoConnect) {
@@ -1843,75 +1810,6 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
   lines.push(' */');
 
   return lines.join('\n');
-}
-
-/**
- * Compute auto-layout positions for nodes that don't have explicit positions.
- * Uses topological order (from connections) for left-to-right layout.
- * Only computes positions for nodes that are missing them.
- *
- * Layout strategy:
- * - Start node at x=0, y=0
- * - Each subsequent node gets x += 270 (standard node width + gap)
- * - Exit node placed after the last instance
- * - Uses topological order when connections are available
- * - Falls back to declaration order otherwise
- *
- * @returns Map of nodeId -> {x, y} for nodes that need auto-positioned
- */
-function computeAutoPositions(ast: TWorkflowAST): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-  const SPACING_X = 270; // Standard horizontal spacing between nodes
-
-  // Determine which nodes need positions
-  const needsPosition = (nodeId: string): boolean => {
-    if (nodeId === 'Start') {
-      return ast.ui?.startNode?.x === undefined || ast.ui?.startNode?.y === undefined;
-    }
-    if (nodeId === 'Exit') {
-      return ast.ui?.exitNode?.x === undefined || ast.ui?.exitNode?.y === undefined;
-    }
-    const instance = ast.instances.find((inst) => inst.id === nodeId);
-    return !instance || instance.config?.x === undefined || instance.config?.y === undefined;
-  };
-
-  // Check if any nodes need auto-positioning
-  const startNeedsPosition = needsPosition('Start');
-  const exitNeedsPosition = needsPosition('Exit');
-  const instancesNeedingPosition = ast.instances.filter((inst) => needsPosition(inst.id));
-
-  // If nothing needs positioning, return empty map
-  if (!startNeedsPosition && !exitNeedsPosition && instancesNeedingPosition.length === 0) {
-    return positions;
-  }
-
-  // Compute topological order from connections, or fall back to declaration order
-  const orderedIds = computeTopologicalOrder(ast);
-
-  // Assign positions left-to-right
-  let currentX = 0;
-  const y = 0;
-
-  // Start node
-  if (startNeedsPosition) {
-    positions.set('Start', { x: currentX, y });
-  }
-  currentX += SPACING_X;
-
-  // Instance nodes in topological/declaration order
-  for (const instanceId of orderedIds) {
-    if (needsPosition(instanceId)) {
-      positions.set(instanceId, { x: currentX, y });
-    }
-    currentX += SPACING_X;
-  }
-
-  // Exit node
-  if (exitNeedsPosition) {
-    positions.set('Exit', { x: currentX, y });
-  }
-
-  return positions;
 }
 
 /**

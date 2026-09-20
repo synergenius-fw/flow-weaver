@@ -207,7 +207,6 @@ export async function generateManifest(
     if (existing.cliCommands) v2Fields.cliCommands = existing.cliCommands;
     if (existing.mcpEntrypoint) v2Fields.mcpEntrypoint = existing.mcpEntrypoint;
     if (existing.mcpTools) v2Fields.mcpTools = existing.mcpTools;
-    if (existing.deviceHandlers) v2Fields.deviceHandlers = existing.deviceHandlers;
   }
 
   const manifest: TMarketplaceManifest = {

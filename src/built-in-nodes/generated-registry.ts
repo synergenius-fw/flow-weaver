@@ -42,6 +42,9 @@ function __fw_lookupMock(section, key, runtime) {
         const qualified = section[\`\${nodeId}:\${key}\`];
         if (qualified !== undefined)
             return qualified;
+        const any = section[\`\${nodeId}:*\`];
+        if (any !== undefined)
+            return any;
     }
     return section[key];
 }
@@ -174,6 +177,9 @@ function __fw_lookupMock(section, key, runtime) {
         const qualified = section[\`\${nodeId}:\${key}\`];
         if (qualified !== undefined)
             return qualified;
+        const any = section[\`\${nodeId}:*\`];
+        if (any !== undefined)
+            return any;
     }
     return section[key];
 }
@@ -238,6 +244,9 @@ function __fw_lookupMock(section, key, runtime) {
         const qualified = section[\`\${nodeId}:\${key}\`];
         if (qualified !== undefined)
             return qualified;
+        const any = section[\`\${nodeId}:*\`];
+        if (any !== undefined)
+            return any;
     }
     return section[key];
 }
@@ -350,6 +359,9 @@ function __fw_lookupMock(section, key, runtime) {
         const qualified = section[\`\${nodeId}:\${key}\`];
         if (qualified !== undefined)
             return qualified;
+        const any = section[\`\${nodeId}:*\`];
+        if (any !== undefined)
+            return any;
     }
     return section[key];
 }

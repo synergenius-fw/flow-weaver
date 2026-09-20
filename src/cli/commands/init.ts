@@ -906,18 +906,11 @@ The AI writes the annotations for you. You focus on what you want, not how to wr
     npx flow-weaver validate src/        # check for errors
     npx flow-weaver compile src/         # compile to standalone
     npx flow-weaver diagram src/         # visual diagram
-    npx fw deploy src/${workflowFile}    # deploy to cloud (requires fw login)
 
 ## Autonomous Mode
 
     npx flow-weaver weaver session --continuous    # process task queue
     npx flow-weaver weaver queue add "Fix all validation errors"
-
-## Cloud Features
-
-    npx fw login                         # connect to Flow Weaver platform
-    npx fw deploy src/${workflowFile}    # deploy workflow
-    npx fw cloud-status                  # see deployments + usage
 
 ## Learn More
 

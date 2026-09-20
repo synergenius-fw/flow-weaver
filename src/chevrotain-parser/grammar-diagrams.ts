@@ -8,7 +8,6 @@ import { createSyntaxDiagramsCode, ISerializedGast } from 'chevrotain';
 import { getPortGrammar } from './port-parser';
 import { getNodeGrammar } from './node-parser';
 import { getConnectGrammar } from './connect-parser';
-import { getPositionGrammar } from './position-parser';
 import { getScopeGrammar } from './scope-parser';
 import { getPathGrammar } from './path-parser';
 import { getMapGrammar } from './map-parser';
@@ -148,7 +147,6 @@ export interface GrammarCollection {
   port: ISerializedGast[];
   node: ISerializedGast[];
   connect: ISerializedGast[];
-  position: ISerializedGast[];
   scope: ISerializedGast[];
   path: ISerializedGast[];
   map: ISerializedGast[];
@@ -168,7 +166,6 @@ export function getAllGrammars(): GrammarCollection {
     port: getPortGrammar(),
     node: getNodeGrammar(),
     connect: getConnectGrammar(),
-    position: getPositionGrammar(),
     scope: getScopeGrammar(),
     path: getPathGrammar(),
     map: getMapGrammar(),
@@ -189,7 +186,6 @@ export function generateGrammarDiagrams(): string {
     ...grammars.port,
     ...grammars.node,
     ...grammars.connect,
-    ...grammars.position,
     ...grammars.scope,
     ...grammars.path,
     ...grammars.map,

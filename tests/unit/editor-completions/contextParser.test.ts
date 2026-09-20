@@ -216,29 +216,6 @@ describe('parseCompletionContext', () => {
     });
   });
 
-  describe('@position context', () => {
-    it('should detect nodeId after @position', () => {
-      const result = parseCompletionContext(' * @position ', 13, true);
-      expect(result).toEqual({
-        type: 'nodeId',
-        lineText: ' * @position ',
-        cursorOffset: 13,
-        prefix: '',
-        blockType: null,
-      });
-    });
-
-    it('should detect partial nodeId after @position', () => {
-      const result = parseCompletionContext(' * @position my', 15, true);
-      expect(result).toEqual({
-        type: 'nodeId',
-        lineText: ' * @position my',
-        cursorOffset: 15,
-        prefix: 'my',
-        blockType: null,
-      });
-    });
-  });
 
   describe('@scope context', () => {
     it('should detect nodeId inside @scope brackets', () => {

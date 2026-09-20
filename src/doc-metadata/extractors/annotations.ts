@@ -133,7 +133,7 @@ parentScopeRef ::= IDENTIFIER "." IDENTIFIER
 attributeBracket ::= "[" nodeAttr { "," nodeAttr } "]"
 
 nodeAttr       ::= labelAttr | exprAttr | portOrderAttr | portLabelAttr
-                 | minimizedAttr | pullExecutionAttr | sizeAttr | positionAttr
+                 | minimizedAttr | pullExecutionAttr | sizeAttr
                  | colorAttr | iconAttr | tagsAttr
 
 labelAttr      ::= "label:" STRING
@@ -143,7 +143,6 @@ portLabelAttr  ::= "portLabel:" IDENTIFIER "=" STRING { "," IDENTIFIER "=" STRIN
 minimizedAttr  ::= "minimized"
 pullExecutionAttr ::= "pullExecution:" IDENTIFIER
 sizeAttr       ::= "size:" INTEGER INTEGER
-positionAttr   ::= "position:" INTEGER INTEGER
 colorAttr      ::= "color:" STRING
 iconAttr       ::= "icon:" STRING
 tagsAttr       ::= "tags:" tagEntry { "," tagEntry }
@@ -158,7 +157,6 @@ tagEntry       ::= STRING [ STRING ]`,
       '@node myAdd Add [minimized, label: "Compact"]',
       '@node myAdd Add [pullExecution: trigger]',
       '@node myAdd Add [size: 200 150]',
-      '@node myAdd Add [position: 270 0]',
       '@node myAdd Add [color: "#ff0000", icon: "math-plus"]',
       '@node myAdd Add [tags: "math" "Math operation", "transform"]',
       '@node myAdd Add [label: "hi"] [color: "#f00"]',
@@ -179,19 +177,6 @@ portRef        ::= IDENTIFIER "." IDENTIFIER [ ":" IDENTIFIER ]`,
       '@connect myAdd.result -> myLog.message',
       '@connect loop.item -> process.input:loopScope',
     ],
-    contexts: ['workflow', 'pattern'],
-  },
-  {
-    name: '@position',
-    category: 'workflow',
-    syntax: '@position Start|Exit x y',
-    description:
-      'Sets the visual position of the Start or Exit virtual node. ' +
-      'For regular node instances, use [position: x y] on the @node declaration instead.',
-    insertText: '@position ${1|Start,Exit|} ${2:x} ${3:y}',
-    insertTextFormat: 'snippet',
-    ebnf: 'positionTag    ::= "@position" ("Start" | "Exit") INTEGER INTEGER',
-    examples: ['@position Start 0 0', '@position Exit 1080 0'],
     contexts: ['workflow', 'pattern'],
   },
   {

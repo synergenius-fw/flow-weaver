@@ -41,8 +41,8 @@ function prepare(execute: boolean): { onSuccess: boolean; onFailure: boolean; pr
  * @flowWeaver workflow
  * @summary Uses a foreign approval node.
  *
- * @node prep prepare [position: 100 0]
- * @node gate foreignApproval [position: 300 0]
+ * @node prep prepare
+ * @node gate foreignApproval
  * @path Start -> prep -> gate -> Exit
  * @connect prep.prompt -> gate.prompt
  */
