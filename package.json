@@ -128,7 +128,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "prebuild": "tsx scripts/generate-version.ts && tsx scripts/generate-built-in-registry.ts",
+    "prebuild": "tsx scripts/generate-version.ts && tsx scripts/generate-inline-engine.ts && tsx scripts/generate-built-in-registry.ts",
+    "generate:engine": "tsx scripts/generate-inline-engine.ts",
+    "generate:engine:check": "tsx scripts/generate-inline-engine.ts --check",
     "generate:registry": "tsx scripts/generate-built-in-registry.ts",
     "generate:registry:check": "tsx scripts/generate-built-in-registry.ts --check",
     "build": "rimraf dist .tsbuildinfo && tsc -p tsconfig.build.json && npm run build:cli && npm run build:console",

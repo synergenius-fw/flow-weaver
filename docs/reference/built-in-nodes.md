@@ -235,8 +235,7 @@ fw run workflow.ts --mocks-file mocks.json
 Mocks travel in the runtime a caller hands a compiled workflow. There is no `globalThis` hook — the `__fw_mocks__` global was removed:
 
 ```typescript
-import { createWorkflowRuntime } from '@synergenius/flow-weaver';
-import { syncCatalog } from './sync-catalog';
+import { syncCatalog, createWorkflowRuntime } from './sync-catalog';
 
 const runtime = createWorkflowRuntime({
   runId: 'test-1',

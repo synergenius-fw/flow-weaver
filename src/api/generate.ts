@@ -10,7 +10,8 @@ import { extractExitPorts, extractStartPorts, hasBranching } from '../ast/workfl
 import { isExecutePort } from '../constants';
 import { mapToTypeScript } from '../type-mappings';
 import { SourceMapGenerator } from 'source-map';
-import { generateInlineRuntime, stripTypeScript } from './inline-runtime';
+import { generateInlineRuntime, stripTypeScript, INLINE_ENGINE_EXPORTS } from './inline-runtime';
+import { graphIdentity } from './graph-identity';
 import type { TOutputFormat } from './inline-runtime';
 import { validateWorkflowAsync } from '../generator/async-detection';
 import { extractTypeDeclarationsFromFile } from './extract-types';
@@ -148,6 +149,9 @@ export function generateCode(
     ast,
     allWorkflows,
   ).hasDurableGate;
+  const identity = durableSequential
+    ? { graphFingerprint: graphIdentity(ast, allWorkflows).graphFingerprint }
+    : undefined;
 
   // Check for stub nodes — refuse to generate unless explicitly allowed
   const stubNodeTypes = ast.nodeTypes.filter((nt) => nt.variant === 'STUB');
@@ -203,6 +207,7 @@ export function generateCode(
     production,
     bundleMode,
     durableSequential,
+    identity,
   );
 
   // Build the complete module
@@ -215,7 +220,7 @@ export function generateCode(
 
   // Include inline runtime (always inlined — zero runtime dependencies)
   {
-    const inlineRuntime = generateInlineRuntime(production);
+    const inlineRuntime = generateInlineRuntime(production, false, 'typescript', moduleFormat);
     const runtimeLines = inlineRuntime.split('\n');
     runtimeLines.forEach((line) => {
       lines.push(line);
@@ -589,11 +594,12 @@ export function generateCode(
   lines.push('}');
   addLine();
 
-  // For CJS format, add module.exports at the end
+  // For CJS format, add module.exports at the end: the workflow, and the
+  // engine helpers an ESM file exports from its runtime section.
   if (moduleFormat === 'cjs') {
     lines.push('');
     addLine();
-    lines.push(generateModuleExports([ast.functionName]));
+    lines.push(generateModuleExports([ast.functionName, ...INLINE_ENGINE_EXPORTS]));
     addLine();
   }
 
@@ -670,7 +676,9 @@ function generateWorkflowFunction(
   // Determine if workflow should be async
   const { shouldBeAsync } = validateWorkflowAsync(workflow, workflow.nodeTypes);
 
-  // Generate function body (local dependencies always use non-bundle mode)
+  // Generate function body (local dependencies always use non-bundle mode).
+  // A nested workflow's bind is ignored by the engine below the root frame,
+  // but it is the root when called directly, so it carries its own identity.
   const functionBody = bodyGenerator.generateWithExecutionContext(
     workflow,
     workflow.nodeTypes,
@@ -678,6 +686,7 @@ function generateWorkflowFunction(
     production,
     false, // bundleMode - local deps use positional args
     durableSequential,
+    durableSequential ? { graphFingerprint: graphIdentity(workflow, allWorkflows).graphFingerprint } : undefined,
   );
 
   // Generate function signature

@@ -187,7 +187,7 @@ On first execution:
 1. Every predecessor and its outputs are committed to engine state
 2. The gate's inputs are evaluated and tagged positionally as `{ value: … }` or `{ absent: true }` — an omitted optional input never becomes `undefined`
 3. The gate body is **not** called; no successor starts
-4. The executor returns `{ kind: 'yielded', gate, continuation }` and retains nothing
+4. The body throws `DurableGateYield` with the gate and the continuation; the executor returns `{ kind: 'yielded', gate, continuation }` and retains nothing
 
 The `continuation` is a closed, bounded wire value — run id, gate id, bundle digest, graph fingerprint, engine version, exact execution address, committed variables, effect receipts, checksum. Limits: 1 MiB encoded, nesting 32, 10,000 entries, 256 KiB per string. Keep gate inputs small; pass a file path, not a file body.
 
@@ -392,7 +392,7 @@ A paused gate is matched by `workflow/node` first, then by its `agentId` input, 
 
 Most code does not need to be a coordinator: `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` starts and resumes runs from code, persists them under `~/.fw/runs`, and shares them with the console and the MCP tools — see [Using the library](library).
 
-A coordinator is any caller that persists continuations itself and vouches for the bundle. The engine's continuation boundary is `executeWorkflow` (`src/mcp/workflow-executor.ts`); it is not in the package's export map, so the supported way to reach it from outside the CLI is the stateless MCP tool pair:
+A coordinator is any caller that persists continuations itself and vouches for the bundle. The smallest one is a host with the compiled file and nothing else: the file exports `createWorkflowRuntime`, throws `DurableGateYield` with the continuation at a gate, and exports `acceptContinuation` to take it back — see [A host of your own](library#a-host-of-your-own). The engine's continuation boundary inside the package is `executeWorkflow` (`src/mcp/workflow-executor.ts`); it is not in the package's export map, so the supported way to reach it from outside the CLI is the stateless MCP tool pair:
 
 | Tool | Arguments | Returns |
 |------|-----------|---------|
@@ -413,7 +413,8 @@ The request shape is the engine's:
 // → { kind: 'completed', result }
 ```
 
-- `bundleDigest` must be `sha256:<64 hex>`; the engine format-checks and records it but deliberately never derives it from the source file, because imports can change independently
+- `bundleDigest` must be `sha256:<64 hex>`; the engine format-checks and records it but deliberately never derives it from the source file, because imports can change independently. A host that gives none gets one derived from the workflow's graph identity and the engine version, which tells a recompiled graph apart but not a changed node body under the same graph
+- Every gated body declares its graph fingerprint to the engine before its first node (`ctx.bindWorkflow(...)` in the generated code), so a continuation from a workflow whose graph has changed is refused at once, by the coordinator and by a host alike
 - The `./api` command runner (`runCommand('run', …)`) refuses a yielded outcome; it is not a coordinator either
 - The local coordinator behind `fw_run` (`src/coordinator/`) is a reference implementation of these obligations for one machine
 

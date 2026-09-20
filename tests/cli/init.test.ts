@@ -562,16 +562,20 @@ describe('generateProjectFiles with format option', () => {
   it('should generate ESM main.ts with import syntax by default', () => {
     const files = cachedGenerateProjectFiles('test-app', 'sequential');
     const main = files['src/main.ts'];
-    expect(main).toContain('import { testAppWorkflow }');
+    // The runner takes the workflow and the runtime helper from the compiled
+    // file; nothing is imported from the package at run time.
+    expect(main).toContain('import { testAppWorkflow, createWorkflowRuntime }');
     expect(main).toContain("from './test-app-workflow.js'");
+    expect(main).not.toContain("from '@synergenius/flow-weaver'");
     expect(main).not.toContain('require(');
   });
 
   it('should generate CJS main.ts with require syntax', () => {
     const files = cachedGenerateProjectFiles('test-app', 'sequential', 'cjs');
     const main = files['src/main.ts'];
-    expect(main).toContain('const { testAppWorkflow }');
+    expect(main).toContain('const { testAppWorkflow, createWorkflowRuntime }');
     expect(main).toContain("= require('./test-app-workflow.js')");
+    expect(main).not.toContain("require('@synergenius/flow-weaver')");
     expect(main).not.toContain('import {');
   });
 });

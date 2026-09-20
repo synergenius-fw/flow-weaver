@@ -12,7 +12,7 @@ keywords: [library, programmatic, API, import, call, invoke, createWorkflowRunti
 npm install @synergenius/flow-weaver
 ```
 
-The compiled workflow file imports nothing from the package; it carries its own runtime section. The code that *calls* the workflow is what needs the package, for one object: the runtime it hands in.
+The compiled workflow file imports nothing from the package; it carries its own runtime section, the durable engine included, and exports the helper that builds the one object the workflow takes: the runtime. Calling a compiled workflow needs nothing from the package. The package is for compiling, and for the coordinator, the server and the console when you want them.
 
 ## Calling a compiled workflow
 
@@ -26,11 +26,10 @@ export async function processRecord(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; score: number; summary: string }>
 ```
 
-`execute` is the `Start.execute` signal — pass `true`. `params` is one object with a field per `@param`. The third argument is the runtime: it carries the run's identity and the services the generated code reads. Build it with `createWorkflowRuntime`:
+`execute` is the `Start.execute` signal — pass `true`. `params` is one object with a field per `@param`. The third argument is the runtime: it carries the run's identity and the services the generated code reads. Build it with `createWorkflowRuntime`, which the compiled file exports beside the workflow (the package exports the same function, from the same source, for code that already depends on it):
 
 ```typescript
-import { createWorkflowRuntime } from '@synergenius/flow-weaver';
-import { processRecord } from './my-workflow';
+import { processRecord, createWorkflowRuntime } from './my-workflow';
 
 const runtime = createWorkflowRuntime({ runId: 'order-4711', workflowId: 'processRecord' });
 const result = await processRecord(true, { record: { name: 'Alice', age: 30, email: 'a@x.io' } }, runtime);
@@ -72,7 +71,7 @@ const runtime = createWorkflowRuntime({
 
 ### A workflow with a gate
 
-A workflow that contains a durable gate (`waitForEvent`, `waitForAgent`, or a `@durableGate` node) cannot be called this way to completion: at the first gate the call throws `DurableGateYield` — the run has to be persisted and resumed later, by something that owns the continuation. That is what the coordinator is for.
+A workflow that contains a durable gate (`waitForEvent`, `waitForAgent`, or a `@durableGate` node) cannot be called this way to completion: at the first gate the call throws `DurableGateYield` — the run has to be persisted and resumed later, by something that owns the continuation. The coordinator below does that for you, with a store, a console and an HTTP API around it. A host of your own can do it with the compiled file alone; see [A host of your own](#a-host-of-your-own).
 
 ## Driving a workflow that pauses
 
@@ -140,7 +139,40 @@ The console follows the store too. `fw console` on the command line uses the dir
 
 The store holds runs, not code. Every instance parses the project's workflow files from its own disk, and a waiting run resumes on the code the instance has, checked against the digest recorded when the run started; a file that changed since is `BundleChangedError`, whichever store the run is in.
 
-If you are writing your own coordinator — persisting continuations in your own store, vouching for the bundle yourself — the engine's contract is described in [Durable Gates](durable-gates) under *Driving a run as a coordinator*.
+## A host of your own
+
+Everything a gated run needs at run time is in the compiled file: the engine that records progress by execution address, the yield that carries the continuation, and the check that takes a continuation back. A host that keeps the continuation somewhere and brings it back with the answer is a coordinator, and it needs no package to be one.
+
+```typescript
+import { approveSpend, createWorkflowRuntime, isDurableGateYield, acceptContinuation } from './approve';
+
+// First segment: run until the gate.
+try {
+  return await approveSpend(true, params, createWorkflowRuntime({ runId, workflowId: 'approveSpend' }));
+} catch (error) {
+  if (!isDurableGateYield(error)) throw error;
+  await db.save(runId, { gate: error.gate, continuation: error.continuation, params });   // any JSON store
+}
+
+// Later, in any process: the answer arrives.
+const { gate, continuation, params } = await db.load(runId);
+const decoded = acceptContinuation(continuation, { runId, workflowId: 'approveSpend', gateId: gate.id });
+if (!decoded.accepted) throw new Error(`${decoded.reason}: ${decoded.message}`);
+const runtime = createWorkflowRuntime({
+  runId, workflowId: 'approveSpend',
+  continuation: decoded.envelope,
+  resolution: { gateId: gate.id, value: { onSuccess: true, onFailure: false, note: 'fine by me' } },
+});
+const result = await approveSpend(true, params, runtime);   // completes, or throws the next DurableGateYield
+runtime.durable.assertResumeResolutionConsumed();
+```
+
+- `error.gate` is what to show whoever answers: its kind, the node, and the inputs it was given (`payload.arguments`, positional, each `{ value }` or `{ absent: true }`). `error.continuation` is a closed JSON value — under 1 MiB, checksummed — and is all the host has to keep; `params` are yours to keep beside it, since a resume replays the body from the start with completed nodes skipped.
+- The resolution `value` is the gate node's whole output envelope, control ports included: `{ onSuccess: true, onFailure: false, ...outputs }` to continue, `{ onSuccess: false, onFailure: true }` to take the failure path. The answer rules in [Durable Gates](durable-gates#what-happens-at-a-gate) apply.
+- `acceptContinuation(json, { runId, workflowId, gateId? })` returns `{ accepted: true, envelope }` or `{ accepted: false, reason, message }` with the reasons in the [refusal table](durable-gates#what-happens-at-a-gate): a tampered or truncated envelope, one from another run, workflow or gate, one written by another engine version. Only an accepted envelope is taken by `createWorkflowRuntime`; a raw one throws. The graph check happens when the body starts: a continuation from a workflow whose graph has since changed is refused with `continuation belongs to another workflow graph` before any node runs.
+- `bundleDigest` is optional. Give `createWorkflowRuntime` your build's digest (`sha256:<64 hex>` over the artifact you deploy) on both segments and a continuation from another build is refused. Without it the engine derives one from the workflow's graph and the engine version, which tells a recompiled graph apart but not a changed node body under the same graph.
+- Two engines, one source: the package's coordinator runs the same code, so a continuation is the same format on both sides. A continuation the coordinator wrote resumes in your host when you pass its `bundleDigest` from the run record; one your host wrote is refused by the coordinator, which cannot vouch for a bundle it did not hash.
+- What the compiled file does not do: keep anything between segments, answer agent gates, or check a continuation against the compiled graph structure the way the coordinator's decoder does. That decoder, and the store, the claims, the console and `fw serve`, are the package's part.
 
 ## The tooling API
 
@@ -185,9 +217,10 @@ Beside it:
 
 | Import from | For |
 |-------------|-----|
-| `@synergenius/flow-weaver` | `createWorkflowRuntime`, the AST types, and everything `./api` exports |
+| the compiled file itself | `createWorkflowRuntime`, `acceptContinuation`, `isDurableGateYield`, `DurableGateYield`, `CancellationError`, `createContinuationEnvelope`, `ENGINE_VERSION`, and the `WorkflowRuntime`, `ContinuationEnvelope`, `DurableGate` and `GateResolution` types — everything a host needs, with no package installed |
+| `@synergenius/flow-weaver` | The same names, plus the AST types and everything `./api` exports |
 | `…/api` | Parse, validate, compile, generate, query, modify |
-| `…/runtime` | `createWorkflowRuntime`, `DebugController`, `CancellationError`, `DurableGateYield`, the runtime types |
+| `…/runtime` | `createWorkflowRuntime`, `acceptContinuation`, `decodeContinuation`, `DebugController`, `CancellationError`, `DurableGateYield`, the runtime types |
 | `…/coordinator` | `createLocalCoordinator`, the `RunStore` interface with `createFileRunStore` and `createMemoryRunStore`, and the request, view and error types |
 | `…/server` | `createWorkflowApi`, `WebhookServer`, `planRoutes`, the request and response types |
 | `…/diagram`, `…/docs`, `…/console`, `…/diff`, `…/testing` | As above |

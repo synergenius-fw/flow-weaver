@@ -15,4 +15,8 @@ export function setup() {
   if (!fs.existsSync(versionFile)) {
     execSync('npx tsx scripts/generate-version.ts', { cwd: root, stdio: 'pipe' });
   }
+  // The inlined durable engine is the runtime's own source as text. It is
+  // regenerated on every test run, so an edit to the engine is what compiled
+  // files get, without a build in between.
+  execSync('npx tsx scripts/generate-inline-engine.ts', { cwd: root, stdio: 'pipe' });
 }

@@ -395,12 +395,13 @@ export function generateProjectFiles(
 
   const tsconfigJson = JSON.stringify(tsconfigContent, null, 2);
 
-  // main.ts. The compiled workflow imports nothing from the package; the
-  // caller builds the runtime it takes as its third argument.
+  // main.ts. The compiled workflow imports nothing from the package, and it
+  // exports the helper that builds the runtime it takes as its third
+  // argument, so the runner needs nothing from the package either.
   const workflowJsFile = workflowFile.replace(/\.ts$/, '.js');
   const imports = format === 'esm'
-    ? [`import { createWorkflowRuntime } from '@synergenius/flow-weaver';`, `import { ${workflowName} } from './${workflowJsFile}';`]
-    : [`const { createWorkflowRuntime } = require('@synergenius/flow-weaver');`, `const { ${workflowName} } = require('./${workflowJsFile}');`];
+    ? [`import { ${workflowName}, createWorkflowRuntime } from './${workflowJsFile}';`]
+    : [`const { ${workflowName}, createWorkflowRuntime } = require('./${workflowJsFile}');`];
   const mainTs = [
     '/**',
     ` * ${projectName} — workflow runner`,

@@ -5,16 +5,12 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { createHash } from 'crypto';
 import { pathToFileURL } from 'url';
 import ts from 'typescript';
 import { compileWorkflow, parseWorkflow } from '../api/index.js';
-import {
-  durableBranchPaths,
-  validateDurableClosure,
-} from '../api/durable-validation.js';
+import { validateDurableClosure } from '../api/durable-validation.js';
+import { graphIdentity } from '../api/graph-identity.js';
 import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
-import { getTopologicalOrder } from '../api/query.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import type { TExternalNodeType } from '../parser.js';
 import type { DebugController } from '../runtime/debug-controller.js';
@@ -26,7 +22,6 @@ import {
   type AcceptedContinuationEnvelope,
   type ContinuationRefusal,
   type DurableGate,
-  type WireValue,
   canonicalWireValue,
 } from '../runtime/continuation.js';
 import {
@@ -222,18 +217,10 @@ export async function executeWorkflow(
     if (parsed.errors.length > 0) {
       throw new Error(`Cannot fingerprint invalid workflow: ${parsed.errors.join('; ')}`);
     }
-    const workflowsByName = new Map(
-      parsed.allWorkflows.map((workflow) => [workflow.functionName, workflow]),
-    );
-    const durableAnalysis = validateDurableClosure(
+    const { capabilities, graphFingerprint, continuationGraph } = graphIdentity(
       parsed.ast,
       parsed.allWorkflows,
-      { enforce: false },
     );
-    const capabilities = {
-      gate: durableAnalysis.hasDurableGate,
-      effect: durableAnalysis.hasDurableEffect,
-    };
     if (capabilities.gate && bundleDigest === undefined) {
       throw new ContinuationRefusalError({
         accepted: false,
@@ -251,129 +238,6 @@ export async function executeWorkflow(
       });
     }
     validateDurableClosure(parsed.ast, parsed.allWorkflows);
-    const reachableClosure = [...durableAnalysis.reachable]
-      .sort((left, right) => left.functionName.localeCompare(right.functionName));
-    const graphManifest = JSON.parse(
-      JSON.stringify(
-        reachableClosure.map((workflow) => ({
-          functionName: workflow.functionName,
-          instances: workflow.instances,
-          connections: workflow.connections,
-          scopes: workflow.scopes,
-          startPorts: workflow.startPorts,
-          exitPorts: workflow.exitPorts,
-          nodeTypes: workflow.nodeTypes.map((nodeType) => ({
-            name: nodeType.name,
-            functionName: nodeType.functionName,
-            inputs: nodeType.inputs,
-            outputs: nodeType.outputs,
-            expression: nodeType.expression,
-            scope: nodeType.scope,
-            durableGate: nodeType.durableGate,
-            durableEffect: nodeType.durableEffect,
-            durablePure: nodeType.durablePure,
-          })),
-        })),
-      ),
-    ) as WireValue;
-    const graphFingerprint = createHash('sha256')
-      .update(canonicalWireValue(graphManifest))
-      .digest('hex');
-    const continuationGraph = {
-      nodes: reachableClosure.flatMap((workflow) => {
-        const executionOrder = getTopologicalOrder(workflow, {
-          includeScopedChildren: true,
-        });
-        const branchPaths = durableBranchPaths(workflow);
-        return [
-          {
-            workflowId: workflow.functionName,
-            nodeId: 'Start',
-            nodeType: 'Start',
-            executionOrder: -1,
-            inputPorts: [],
-            outputPorts: Object.keys(workflow.startPorts),
-            scopeNames: [],
-            invokedWorkflows: [],
-            branchArms: [],
-            branchPath: [],
-            predecessors: [],
-          },
-          ...workflow.instances.map((instance) => {
-          const nodeType = workflow.nodeTypes.find(
-            (candidate) =>
-              candidate.name === instance.nodeType ||
-              candidate.functionName === instance.nodeType,
-          );
-          const instanceOrder = executionOrder.indexOf(instance.id);
-          const instanceBranchPath = branchPaths.get(instance.id) ?? [];
-          const invokedWorkflows =
-            instance.nodeType === 'invokeWorkflow'
-              ? reachableClosure.map((candidate) => candidate.functionName)
-              : workflowsByName.has(instance.nodeType)
-                ? [instance.nodeType]
-                : [];
-          return {
-            workflowId: workflow.functionName,
-            nodeId: instance.id,
-            nodeType: nodeType?.functionName ?? instance.nodeType,
-            executionOrder: instanceOrder,
-            inputPorts: Object.keys(nodeType?.inputs ?? {}),
-            outputPorts: Object.keys(nodeType?.outputs ?? {}),
-            scopeNames: [
-              ...(nodeType?.scope === undefined ? [] : [nodeType.scope]),
-              ...(nodeType?.scopes ?? []),
-              ...Object.values(nodeType?.inputs ?? {})
-                .map((port) => port.scope)
-                .filter((scope): scope is string => scope !== undefined),
-              ...Object.values(nodeType?.outputs ?? {})
-                .map((port) => port.scope)
-                .filter((scope): scope is string => scope !== undefined),
-            ].filter((scope, index, scopes) => scopes.indexOf(scope) === index),
-            invokedWorkflows,
-            ...(instance.parent !== undefined &&
-              instance.parent !== null && {
-                parentScope: {
-                  parentNodeId: instance.parent.id,
-                  scopeName: instance.parent.scope,
-                },
-              }),
-            branchArms: [
-              ...(Object.hasOwn(nodeType?.outputs ?? {}, 'onSuccess')
-                ? ['success']
-                : []),
-              ...(Object.hasOwn(nodeType?.outputs ?? {}, 'onFailure')
-                ? ['failure']
-                : []),
-            ],
-            branchPath: instanceBranchPath,
-            predecessors: [
-              { nodeId: 'Start', branchPath: [] },
-              ...executionOrder
-                .slice(0, instanceOrder)
-                .map((nodeId) => ({
-                  nodeId,
-                  branchPath: branchPaths.get(nodeId) ?? [],
-                }))
-                .filter((predecessor) =>
-                  predecessor.branchPath.every((requirement) =>
-                    instanceBranchPath.some(
-                      (active) =>
-                        active.nodeId === requirement.nodeId &&
-                        active.arm === requirement.arm,
-                    ),
-                  ),
-                ),
-            ],
-            ...(nodeType?.durableGate !== undefined && {
-              durableGate: nodeType.durableGate,
-            }),
-            ...(nodeType?.durableEffect === true && { durableEffect: true as const }),
-          };
-          }),
-        ];
-      }),
-    };
     let acceptedContinuation: AcceptedContinuationEnvelope | undefined;
     if (continuation !== undefined) {
       if (bundleDigest === undefined) {
@@ -561,10 +425,13 @@ export async function executeWorkflow(
       services,
       continuation: acceptedContinuation,
       resolution: acceptedResolution,
+      bundleDigest,
     });
 
-    // Find the target exported function
-    const exportedFn = findExportedFunction(mod, workflowName);
+    // Find the target exported function. The compiled module also exports the
+    // engine's helpers (createWorkflowRuntime and friends), so the lookup is
+    // always by the selected workflow's name, never "the first function".
+    const exportedFn = findExportedFunction(mod, effectiveWorkflowId);
     if (!exportedFn) {
       const available = Object.entries(mod)
         .filter(([k, v]) => k !== '__esModule' && typeof v === 'function')

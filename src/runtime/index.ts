@@ -13,6 +13,7 @@ export type {
   WorkflowRuntime,
   WorkflowRuntimeServices,
   CreateWorkflowRuntimeOptions,
+  DurableEngine,
   GateResolution,
   EffectAdapter,
   EffectRecovery,

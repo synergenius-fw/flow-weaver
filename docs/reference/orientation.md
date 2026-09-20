@@ -15,7 +15,7 @@ Flow Weaver compiles workflows you describe with JSDoc annotations into plain Ty
 - Inside a workflow, `@node <id> <nodeType>` declares an instance and `@path Start -> a -> b -> Exit` wires the route: control flow between the steps, and every data port to the nearest earlier step with an output of the same name, `Exit` included. `@connect a.port -> b.port` wires one port explicitly, for the cases where names differ; an explicit connection always wins.
 - The workflow's function body is a stub. The compiler generates it from the annotations and only ever rewrites the marker sections, so hand-written code around them survives.
 - Built-in node types need no import: `delay`, `invokeWorkflow`, `waitForEvent`, `waitForAgent`. The last two are **durable gates** — the run pauses, hands back a continuation, and resumes later. In a workflow with a gate, an `@expression` node is pure automatically; only a normal-mode pure node needs `@durablePure`, and gates and effects need `@durableGate`/`@durableEffect`.
-- The compiled file imports nothing from Flow Weaver. The code that calls it hands it a runtime built with `createWorkflowRuntime` (see `library`).
+- The compiled file imports nothing from Flow Weaver. The code that calls it hands it a runtime built with `createWorkflowRuntime`, which the compiled file itself exports (see `library`).
 - Nodes take direct parameters; workflows take a `params` object. That is the mistake made most often.
 
 ## The loop

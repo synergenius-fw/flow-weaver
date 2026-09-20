@@ -7,7 +7,7 @@
 
 **A deterministic TypeScript workflow compiler. You describe a workflow with JSDoc annotations; it compiles to a standalone TypeScript function you own.**
 
-Flow Weaver turns annotated functions into an execution graph and generates the workflow body in place. The compiled file imports nothing from Flow Weaver: it is plain TypeScript you can read, review and keep, and it is yours under any licence you like. The code that calls it hands it one small object, the runtime, built with a helper from the package or by a coordinator of your own.
+Flow Weaver turns annotated functions into an execution graph and generates the workflow body in place. The compiled file imports nothing from Flow Weaver: it is plain TypeScript you can read, review and keep, and it is yours under any licence you like. The code that calls it hands it one small object, the runtime, and the compiled file exports the helper that builds it. Running what the compiler produced needs nothing from the package, gates included.
 
 Workflows are plain `.ts` files, so everything you already do with code applies: Git, code review, tests, linting, CI. Build them by hand the way you write JSDoc, or drive the whole compiler through MCP tools from Claude Code, Cursor, VS Code, Windsurf, or any MCP-compatible editor.
 
@@ -108,7 +108,7 @@ fw mcp-server    # or start it manually
 
 A **gate** is a node where the run stops and hands control to something outside it: a person approving (`@durableGate approval`), an external system answering (`waitForEvent`), or an AI agent doing a task (`waitForAgent`). The run returns a continuation and the process is free to exit; later, any process resumes from exactly that node with the answer. `fw create workflow approval <file>` writes one to start from.
 
-Paused runs live in a store — a directory under `~/.fw/runs` by default, or a store of your own behind a nine-method interface. `fw console`, `fw serve`, the MCP tools and your own code through `createLocalCoordinator` all drive the same runs, so a gate reached anywhere is answered anywhere. (`fw run` is for workflows without gates; it has nowhere to keep a run between one gate and the next.)
+Paused runs live in a store — a directory under `~/.fw/runs` by default, or a store of your own behind a nine-method interface. `fw console`, `fw serve`, the MCP tools and your own code through `createLocalCoordinator` all drive the same runs, so a gate reached anywhere is answered anywhere. (`fw run` is for workflows without gates; it has nowhere to keep a run between one gate and the next.) A host with no package at all works too: the compiled file throws a `DurableGateYield` carrying the continuation, and exports `acceptContinuation` to take it back later — see `fw docs library`.
 
 An agent gate can be answered without anyone watching: a **profile** in `.flowweaver/agents.yaml` names a model — Anthropic, any OpenAI-compatible server including a local one, or the Claude Code CLI — and the environment variable that holds its key. The model gets the gate's inputs and one tool shaped from the gate's output type, and the run resumes with what it returns. `fw agents --init` writes the starter file; the console's Agents page edits it with a form.
 
@@ -141,18 +141,17 @@ app.use('/api', api.express());
 
 ## Using it as a library
 
-The compiled file imports nothing from the package. The code that *calls* it needs one object — the runtime — which the package builds:
+The compiled file imports nothing from the package. The code that *calls* it needs one object — the runtime — and the compiled file exports the helper that builds it:
 
 ```typescript
-import { createWorkflowRuntime } from '@synergenius/flow-weaver';
-import { greeting } from './my-workflow';
+import { greeting, createWorkflowRuntime } from './my-workflow';
 
 const runtime = createWorkflowRuntime({ runId: 'run-1', workflowId: 'greeting' });
 const result = await greeting(true, { name: 'Alice' }, runtime);
 // result.result === 'HELLO, ALICE!'
 ```
 
-Parse, validate, compile, query, and diff are all available programmatically from `@synergenius/flow-weaver/api`; `@synergenius/flow-weaver/coordinator` starts and resumes gated runs from code and takes a run store of your own; `@synergenius/flow-weaver/server` is the HTTP handler behind `fw serve`. See `fw docs library` for the full surface and entry points.
+The package exports the same `createWorkflowRuntime`, built from the same source, for code that already depends on it. Parse, validate, compile, query, and diff are all available programmatically from `@synergenius/flow-weaver/api`; `@synergenius/flow-weaver/coordinator` starts and resumes gated runs from code and takes a run store of your own; `@synergenius/flow-weaver/server` is the HTTP handler behind `fw serve`. See `fw docs library` for the full surface and entry points.
 
 ## CLI reference
 
@@ -214,6 +213,6 @@ Flow Weaver is source-available under the [Business Source License 1.1](./LICENS
 - **Free for everyone:** evaluation, development, testing, and CI — including compiling, validating, and generating workflows — at any organization size. Everything the compiler produces is yours: compiled workflows, generated code, diagrams, and artifacts are not covered by the license and can be used, modified, and sublicensed without restriction.
 - **Free in production** for organizations with fewer than 100 people (employees and contractors, including affiliates).
 - **Commercial license required** for production use by organizations of 100 or more people, and for offering Flow Weaver — or a product whose primary value is its functionality — to third parties as a hosted or managed service.
-- **What counts as production use** is running workflows through the package itself: its runtime helper, the coordinator, `fw serve` or the console, in the operation of a business. The compiled files are output, not the licensed work, whoever runs them.
+- **What counts as production use** is running the package itself in the operation of a business: the coordinator, `fw serve` or the console. The compiled files are output, not the licensed work, whoever runs them — and they carry everything they need to run, so a program that only calls compiled workflows does not use the package at all.
 
 Commercial licensing, support, and enterprise agreements: support@synergenius.pt.

@@ -360,6 +360,11 @@ export class GeneratedExecutionContext {
     runtime.durable.commitNode(runtime.durable.address(runtime, nodeId, nodeType, executionIndex));
   }
 
+  /** The first thing a gated body does: name its workflow and graph to the engine. */
+  bindWorkflow(workflowId: string, graphFingerprint: string): void {
+    this.runtime.durable.bind(this.runtime, workflowId, graphFingerprint);
+  }
+
   resolveGate(
     kind: DurableGateKind,
     nodeId: string,

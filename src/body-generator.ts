@@ -1,5 +1,5 @@
 import type { TNodeTypeAST, TWorkflowAST } from "./ast";
-import { generateControlFlowWithExecutionContext } from "./generator/unified";
+import { generateControlFlowWithExecutionContext, type GraphIdentityStamp } from "./generator/unified";
 
 /**
  * Generates executable function body code from workflow ASTs.
@@ -15,6 +15,8 @@ export class BodyGenerator {
    * @param isAsync - Whether to generate async code. Defaults to true.
    * @param production - If true, omits debug event emissions. Defaults to false.
    * @param bundleMode - If true, generates code suitable for bundled deployment. Defaults to false.
+   * @param durableSequential - If true, the graph has a durable gate and runs strictly in order.
+   * @param identity - The graph identity a gated body declares to the engine before it runs.
    * @returns The generated function body as a string.
    */
   generateWithExecutionContext(
@@ -24,6 +26,7 @@ export class BodyGenerator {
     production: boolean = false,
     bundleMode: boolean = false,
     durableSequential: boolean = false,
+    identity?: GraphIdentityStamp,
   ): string {
     return generateControlFlowWithExecutionContext(
       workflow,
@@ -32,6 +35,7 @@ export class BodyGenerator {
       production,
       bundleMode,
       durableSequential,
+      identity,
     );
   }
   /**

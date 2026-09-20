@@ -226,11 +226,10 @@ fw compile my-workflow.ts --production
 
 # Step 6: Run
 
-Import the generated function from any TypeScript or JavaScript file and hand it a runtime — the third parameter the compiler added to its signature:
+Import the generated function from any TypeScript or JavaScript file and hand it a runtime — the third parameter the compiler added to its signature. The compiled file exports the helper that builds one, so nothing is imported from the package:
 
 ```typescript
-import { createWorkflowRuntime } from '@synergenius/flow-weaver';
-import { processRecord } from './my-workflow';
+import { processRecord, createWorkflowRuntime } from './my-workflow';
 
 const runtime = createWorkflowRuntime({ runId: 'demo-1', workflowId: 'processRecord' });
 const result = await processRecord(true, {

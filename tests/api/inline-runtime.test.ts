@@ -121,6 +121,16 @@ describe('Inline Runtime API', () => {
         expect(code).toContain('constructor(isAsync: boolean = true, runtime: WorkflowRuntime)');
         expect(code).not.toContain('flowWeaverDebugger');
       });
+
+      it('carries the durable engine, with its debugger types erased', () => {
+        const code = generateInlineRuntime(true);
+
+        expect(code).toContain('class DurableExecution implements DurableEngine');
+        expect(code).toContain('interface WorkflowRuntime');
+        expect(code).toContain('function createWorkflowRuntime(');
+        expect(code).toContain('export { createWorkflowRuntime, acceptContinuation');
+        expect(code).not.toContain('DebugController');
+      });
     });
 
     describe('development mode (production=false)', () => {
@@ -173,6 +183,14 @@ describe('Inline Runtime API', () => {
         expect(code).toContain('if (this.flowWeaverDebugger)');
         expect(code).toContain('this.flowWeaverDebugger.sendEvent');
         expect(code).toContain('innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation');
+      });
+
+      it('types the engine services against the debug types it declares', () => {
+        const code = generateInlineRuntime(false);
+
+        expect(code).toContain('type DebugController = TDebugController;');
+        expect(code).toContain('readonly debugger?: TDebugger;');
+        expect(code).toContain('class DurableExecution implements DurableEngine');
       });
     });
 

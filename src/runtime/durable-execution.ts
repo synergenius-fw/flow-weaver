@@ -1,13 +1,29 @@
+/**
+ * The durable engine: what a generated body talks to through its execution
+ * context, and what a coordinator or a host of its own constructs around a
+ * run. Node completion, variables, gates and effects are recorded by exact
+ * execution address, so a run can stop at a gate and be replayed later by
+ * any process from a continuation.
+ *
+ * This module is written to be inlined: `fw compile` copies its text into
+ * every compiled file after `continuation-core.ts` (see
+ * `src/api/inline-runtime.ts`). It imports values only from that module,
+ * and its type imports are aliased by the inliner. No Node API, nothing
+ * past ES2020.
+ */
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import type { DebugController } from './debug-controller.js';
 import type { TDebugger } from './events.js';
 import {
+  ENGINE_VERSION,
   operationKey,
   durableGateId,
   canonicalWireValue,
   cloneAndFreezeWireValue,
+  createContinuationEnvelope,
   executionAddressKey,
   assertAcceptedContinuation,
+  sha256Hex,
   type AcceptedContinuationEnvelope,
   validateWireValue,
   type ContinuationEnvelope,
@@ -21,7 +37,7 @@ import {
   type ScopeAddress,
   type WireValue,
   type WorkflowFrameAddress,
-} from './continuation.js';
+} from './continuation-core.js';
 
 export interface GateResolution {
   readonly gateId: string;
@@ -66,11 +82,39 @@ export interface WorkflowRuntimeServices {
   readonly effectAdapter?: EffectAdapter;
 }
 
+/**
+ * The engine as a generated body sees it. It is an interface, not the class,
+ * so a runtime built by the package and one built by a compiled file's own
+ * copy of the engine are interchangeable to the type checker: two classes
+ * with private members never are.
+ */
+export interface DurableEngine {
+  address(
+    runtime: Pick<WorkflowRuntime, 'frames' | 'scopes' | 'branches'>,
+    nodeId: string,
+    nodeType: string,
+    executionIndex: number,
+  ): ExecutionAddress;
+  /** Called once at the top of a root body: the workflow's name and graph identity. */
+  bind(runtime: Pick<WorkflowRuntime, 'frames'>, workflowId: string, graphFingerprint: string): void;
+  shouldExecute(address: ExecutionAddress): boolean;
+  commitNode(address: ExecutionAddress): void;
+  setVariable(address: ExecutionAddress, portName: string, value: unknown): void;
+  getVariable(address: ExecutionAddress, portName: string, allowAncestorLookup?: boolean): unknown;
+  resolveGate(runtime: WorkflowRuntime, boundary: GateBoundary): WireValue;
+  executeEffect<T extends WireValue>(
+    runtime: WorkflowRuntime,
+    boundary: EffectBoundary,
+    execute: (operationKey: string) => Promise<EffectExecution<T>>,
+  ): Promise<T>;
+  assertResumeResolutionConsumed(): void;
+}
+
 export interface WorkflowRuntime {
   readonly runId: string;
   readonly abortSignal?: AbortSignal;
   readonly services: WorkflowRuntimeServices;
-  readonly durable: DurableExecution;
+  readonly durable: DurableEngine;
   readonly frames: readonly WorkflowFrameAddress[];
   readonly scopes: readonly ScopeAddress[];
   readonly branches: readonly BranchAddress[];
@@ -90,6 +134,15 @@ export interface CreateWorkflowRuntimeOptions {
   readonly services?: WorkflowRuntimeServices;
   readonly continuation?: AcceptedContinuationEnvelope;
   readonly resolution?: GateResolution;
+  /**
+   * The identity of the compiled artifact this run executes, `sha256:<hex>`.
+   * A coordinator that hashes the artifact passes it; a continuation is
+   * refused on resume when it names another. Left out, the engine derives one
+   * from the workflow's own graph identity, so a host that keeps a
+   * continuation and brings it back to the same compiled file needs nothing
+   * more.
+   */
+  readonly bundleDigest?: string;
 }
 
 export interface GateBoundary {
@@ -110,7 +163,7 @@ export interface GateBoundary {
  * becomes the gate's whole output envelope, control ports filled in, which
  * is exactly what a person's answer becomes in `buildGateResolution`.
  */
-function mockedGate(mocks: FwMockConfig | undefined, boundary: GateBoundary): WireValue | undefined {
+function mockedGateAnswer(mocks: FwMockConfig | undefined, boundary: GateBoundary): WireValue | undefined {
   if (!mocks) return undefined;
   const { nodeId, nodeType } = boundary;
   const pick = (section: Record<string, object> | undefined, key: string | undefined): object | undefined => {
@@ -150,6 +203,13 @@ export interface EffectExecution<T extends WireValue> {
   readonly receipt: WireValue;
 }
 
+/**
+ * Thrown out of a generated body when a gate has to wait for the outside.
+ * It carries everything a host needs to keep: the gate to answer, and the
+ * continuation to bring back with the answer. `continuation` is present when
+ * the body declared its identity (every body compiled by this version does);
+ * a coordinator may also build its own from `state` and `receipts`.
+ */
 export class DurableGateYield extends Error {
   readonly code = 'FLOW_WEAVER_DURABLE_GATE_YIELD';
 
@@ -157,6 +217,7 @@ export class DurableGateYield extends Error {
     readonly gate: DurableGate,
     readonly state: ContinuationState,
     readonly receipts: readonly EffectReceipt[],
+    readonly continuation?: ContinuationEnvelope,
   ) {
     super(`Workflow yielded at ${gate.kind} gate "${gate.id}"`);
     this.name = 'DurableGateYield';
@@ -175,15 +236,15 @@ export class AmbiguousEffectError extends Error {
   }
 }
 
-function addressKey(address: ExecutionAddress): string {
+function durableAddressKey(address: ExecutionAddress): string {
   return executionAddressKey(address);
 }
 
-function variableKey(address: ExecutionAddress, portName: string): string {
+function durableVariableKey(address: ExecutionAddress, portName: string): string {
   return `${executionAddressKey(address)}\0${portName}`;
 }
 
-function cloneAddress(address: ExecutionAddress): ExecutionAddress {
+function cloneExecutionAddress(address: ExecutionAddress): ExecutionAddress {
   return {
     frames: address.frames.map((frame) => ({ ...frame })),
     scopes: address.scopes.map((scope) => ({ ...scope })),
@@ -222,8 +283,8 @@ export function requireEffectRecovery(value: unknown, key: string, address: Exec
   if (
     kind === 'committed' &&
     Object.keys(record).length === 3 &&
-    Object.hasOwn(record, 'receipt') &&
-    Object.hasOwn(record, 'result')
+    Object.prototype.hasOwnProperty.call(record, 'receipt') &&
+    Object.prototype.hasOwnProperty.call(record, 'result')
   ) {
     return {
       kind,
@@ -248,7 +309,11 @@ function requireEffectExecution<T extends WireValue>(
     throw new AmbiguousEffectError(key, address);
   }
   const record = value as Record<string, unknown>;
-  if (Object.keys(record).length !== 2 || !Object.hasOwn(record, 'result') || !Object.hasOwn(record, 'receipt')) {
+  if (
+    Object.keys(record).length !== 2 ||
+    !Object.prototype.hasOwnProperty.call(record, 'result') ||
+    !Object.prototype.hasOwnProperty.call(record, 'receipt')
+  ) {
     throw new AmbiguousEffectError(key, address);
   }
   return {
@@ -257,12 +322,14 @@ function requireEffectExecution<T extends WireValue>(
   };
 }
 
-export class DurableExecution {
+export class DurableExecution implements DurableEngine {
   private readonly completed = new Map<string, ExecutionAddress>();
   private readonly variables = new Map<string, Omit<ContinuationVariable, 'value'> & { readonly value: unknown }>();
   private readonly receipts = new Map<string, EffectReceipt>();
   private readonly resumeEnvelope?: ContinuationEnvelope;
   private readonly resolution?: GateResolution;
+  private readonly givenBundleDigest?: string;
+  private graphFingerprint?: string;
   private resolutionConsumed = false;
 
   constructor(
@@ -270,6 +337,7 @@ export class DurableExecution {
     readonly workflowId: string,
     continuation?: AcceptedContinuationEnvelope,
     resolution?: GateResolution,
+    bundleDigest?: string,
   ) {
     if (continuation !== undefined) {
       assertAcceptedContinuation(continuation);
@@ -280,22 +348,26 @@ export class DurableExecution {
         throw new Error('accepted continuation belongs to another workflow');
       }
     }
+    if (bundleDigest !== undefined && !/^sha256:[0-9a-f]{64}$/.test(bundleDigest)) {
+      throw new Error('bundleDigest must use canonical sha256:<64hex> form');
+    }
+    this.givenBundleDigest = bundleDigest;
     this.resumeEnvelope = continuation;
     this.resolution = acceptGateResolution(resolution);
 
     for (const address of continuation?.state.completed ?? []) {
-      this.completed.set(addressKey(address), cloneAddress(address));
+      this.completed.set(durableAddressKey(address), cloneExecutionAddress(address));
     }
     for (const variable of continuation?.state.variables ?? []) {
-      this.variables.set(variableKey(variable.address, variable.portName), {
-        address: cloneAddress(variable.address),
+      this.variables.set(durableVariableKey(variable.address, variable.portName), {
+        address: cloneExecutionAddress(variable.address),
         portName: variable.portName,
         value: variable.value,
       });
     }
     for (const receipt of continuation?.receipts ?? []) {
-      this.receipts.set(addressKey(receipt.address), {
-        address: cloneAddress(receipt.address),
+      this.receipts.set(durableAddressKey(receipt.address), {
+        address: cloneExecutionAddress(receipt.address),
         operationKey: receipt.operationKey,
         receipt: receipt.receipt,
       });
@@ -318,24 +390,57 @@ export class DurableExecution {
     };
   }
 
+  /**
+   * The artifact identity this run executes under: the one the coordinator
+   * gave, or one derived from the graph identity the body declared. Known
+   * only after `bind`.
+   */
+  bundleDigest(): string | undefined {
+    if (this.givenBundleDigest !== undefined) return this.givenBundleDigest;
+    if (this.graphFingerprint === undefined) return undefined;
+    return `sha256:${sha256Hex(`flow-weaver-inline\0${this.workflowId}\0${this.graphFingerprint}\0${ENGINE_VERSION}`)}`;
+  }
+
+  bind(runtime: Pick<WorkflowRuntime, 'frames'>, workflowId: string, graphFingerprint: string): void {
+    // Nested bodies (a workflow used as a node, `invokeWorkflow`) bind too;
+    // only the root frame names the run's graph.
+    if (runtime.frames.length !== 1) return;
+    if (workflowId !== this.workflowId) {
+      throw new Error(`runtime was created for workflow "${this.workflowId}" but "${workflowId}" is running on it`);
+    }
+    this.graphFingerprint = graphFingerprint;
+    if (this.resumeEnvelope === undefined) return;
+    if (this.resumeEnvelope.graphFingerprint !== graphFingerprint) {
+      const error = new Error('continuation belongs to another workflow graph');
+      error.name = 'ContinuationMismatchError';
+      throw error;
+    }
+    const bundleDigest = this.bundleDigest();
+    if (bundleDigest !== undefined && this.resumeEnvelope.bundleDigest !== bundleDigest) {
+      const error = new Error('continuation belongs to another bundle');
+      error.name = 'ContinuationMismatchError';
+      throw error;
+    }
+  }
+
   shouldExecute(address: ExecutionAddress): boolean {
-    return !this.completed.has(addressKey(address));
+    return !this.completed.has(durableAddressKey(address));
   }
 
   commitNode(address: ExecutionAddress): void {
-    this.completed.set(addressKey(address), cloneAddress(address));
+    this.completed.set(durableAddressKey(address), cloneExecutionAddress(address));
   }
 
   setVariable(address: ExecutionAddress, portName: string, value: unknown): void {
-    this.variables.set(variableKey(address, portName), {
-      address: cloneAddress(address),
+    this.variables.set(durableVariableKey(address, portName), {
+      address: cloneExecutionAddress(address),
       portName,
       value,
     });
   }
 
   getVariable(address: ExecutionAddress, portName: string, allowAncestorLookup = true): unknown {
-    const exact = this.variables.get(variableKey(address, portName));
+    const exact = this.variables.get(durableVariableKey(address, portName));
     if (exact !== undefined) return exact.value;
     if (!allowAncestorLookup) return undefined;
 
@@ -390,14 +495,14 @@ export class DurableExecution {
     validateWireValue(boundary.payload);
     // A mocked gate is answered here, on the first run and on every replay
     // alike, so it never pauses and never enters the resume bookkeeping below.
-    const mocked = mockedGate(runtime.services.mocks, boundary);
+    const mocked = mockedGateAnswer(runtime.services.mocks, boundary);
     if (mocked !== undefined) return mocked;
     const address = this.address(runtime, boundary.nodeId, boundary.nodeType, boundary.executionIndex);
     const id = durableGateId(this.runId, boundary.kind, address);
 
     if (this.resumeEnvelope !== undefined && !this.resolutionConsumed) {
       if (
-        addressKey(this.resumeEnvelope.location) !== addressKey(address) ||
+        durableAddressKey(this.resumeEnvelope.location) !== durableAddressKey(address) ||
         this.resumeEnvelope.gateId !== id ||
         this.resumeEnvelope.gateKind !== boundary.kind ||
         this.resolution === undefined ||
@@ -412,7 +517,7 @@ export class DurableExecution {
       return this.resolution.value;
     }
 
-    if (this.resumeEnvelope !== undefined && addressKey(this.resumeEnvelope.location) === addressKey(address)) {
+    if (this.resumeEnvelope !== undefined && durableAddressKey(this.resumeEnvelope.location) === durableAddressKey(address)) {
       const error = new Error('The consumed resume gate was re-entered');
       error.name = 'StaleGateError';
       throw error;
@@ -424,7 +529,24 @@ export class DurableExecution {
       address,
       payload: boundary.payload,
     };
-    throw new DurableGateYield(gate, this.snapshot(address), [...this.receipts.values()]);
+    const state = this.snapshot(address);
+    const receipts = [...this.receipts.values()];
+    const bundleDigest = this.bundleDigest();
+    const continuation =
+      this.graphFingerprint === undefined || bundleDigest === undefined
+        ? undefined
+        : createContinuationEnvelope({
+            runId: this.runId,
+            gateId: id,
+            gateKind: boundary.kind,
+            workflowId: this.workflowId,
+            bundleDigest,
+            graphFingerprint: this.graphFingerprint,
+            location: address,
+            state,
+            receipts,
+          });
+    throw new DurableGateYield(gate, state, receipts, continuation);
   }
 
   async executeEffect<T extends WireValue>(
@@ -434,7 +556,7 @@ export class DurableExecution {
   ): Promise<T> {
     const address = this.address(runtime, boundary.nodeId, boundary.nodeType, boundary.executionIndex);
     const key = operationKey(this.runId, address);
-    const committed = this.receipts.get(addressKey(address));
+    const committed = this.receipts.get(durableAddressKey(address));
     if (committed !== undefined) {
       throw new Error(`Committed effect "${key}" reached its execution body`);
     }
@@ -451,8 +573,8 @@ export class DurableExecution {
     recovery = requireEffectRecovery(recovery, key, address);
     if (recovery.kind === 'ambiguous') throw new AmbiguousEffectError(key, address);
     if (recovery.kind === 'committed') {
-      this.receipts.set(addressKey(address), {
-        address: cloneAddress(address),
+      this.receipts.set(durableAddressKey(address), {
+        address: cloneExecutionAddress(address),
         operationKey: key,
         receipt: recovery.receipt,
       });
@@ -472,8 +594,8 @@ export class DurableExecution {
       }
       afterFailure = requireEffectRecovery(afterFailure, key, address);
       if (afterFailure.kind === 'committed') {
-        this.receipts.set(addressKey(address), {
-          address: cloneAddress(address),
+        this.receipts.set(durableAddressKey(address), {
+          address: cloneExecutionAddress(address),
           operationKey: key,
           receipt: afterFailure.receipt,
         });
@@ -503,16 +625,16 @@ export class DurableExecution {
           canonicalWireValue(committed.receipt) !== canonicalWireValue(executed.receipt) ||
           canonicalWireValue(committed.result) !== canonicalWireValue(executed.result)
         ) throw new AmbiguousEffectError(key, address);
-        this.receipts.set(addressKey(address), {
-          address: cloneAddress(address),
+        this.receipts.set(durableAddressKey(address), {
+          address: cloneExecutionAddress(address),
           operationKey: key,
           receipt: committed.receipt,
         });
         return committed.result as T;
       }
     }
-    this.receipts.set(addressKey(address), {
-      address: cloneAddress(address),
+    this.receipts.set(durableAddressKey(address), {
+      address: cloneExecutionAddress(address),
       operationKey: key,
       receipt: executed.receipt,
     });
@@ -522,9 +644,9 @@ export class DurableExecution {
   snapshot(nextBoundary: ExecutionAddress): ContinuationState {
     const completedKeys = new Set(this.completed.keys());
     return {
-      completed: [...this.completed.values()].map(cloneAddress),
+      completed: [...this.completed.values()].map(cloneExecutionAddress),
       variables: [...this.variables.values()]
-        .filter((variable) => completedKeys.has(addressKey(variable.address)))
+        .filter((variable) => completedKeys.has(durableAddressKey(variable.address)))
         .map((variable) => {
           try {
             validateWireValue(variable.value);
@@ -534,12 +656,12 @@ export class DurableExecution {
             );
           }
           return {
-            address: cloneAddress(variable.address),
+            address: cloneExecutionAddress(variable.address),
             portName: variable.portName,
             value: variable.value,
           };
         }),
-      nextBoundary: cloneAddress(nextBoundary),
+      nextBoundary: cloneExecutionAddress(nextBoundary),
     };
   }
 
@@ -564,7 +686,13 @@ export function createWorkflowRuntime(options: CreateWorkflowRuntimeOptions): Wo
     runId: options.runId,
     abortSignal: options.abortSignal,
     services: options.services ?? {},
-    durable: new DurableExecution(options.runId, options.workflowId, options.continuation, options.resolution),
+    durable: new DurableExecution(
+      options.runId,
+      options.workflowId,
+      options.continuation,
+      options.resolution,
+      options.bundleDigest,
+    ),
     frames: [rootFrame],
     scopes: [],
     branches: [],

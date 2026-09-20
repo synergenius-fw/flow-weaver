@@ -140,10 +140,13 @@ export {
 export type {
   WorkflowRuntime,
   WorkflowRuntimeServices,
+  CreateWorkflowRuntimeOptions,
+  DurableEngine,
   GateResolution,
   EffectAdapter,
   EffectRecovery,
 } from './runtime/durable-execution';
+export { isDurableGateYield, isAmbiguousEffectError } from './runtime/durable-execution';
 export * from './runtime/continuation';
 
 // Node Types Generator (for generated .node-types files)

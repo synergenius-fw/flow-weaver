@@ -7,7 +7,6 @@
  * closed TypeScript workflow source into one ESM module before it is signed.
  */
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import ts from 'typescript';
@@ -17,14 +16,9 @@ import {
   parseWorkflow,
   parseWorkflowSourceAtPath,
 } from '../api/index.js';
-import { durableBranchPaths, validateDurableClosure } from '../api/durable-validation.js';
-import { getTopologicalOrder } from '../api/query.js';
+import { validateDurableClosure } from '../api/durable-validation.js';
+import { graphIdentity } from '../api/graph-identity.js';
 import type { TExternalNodeType } from '../parser.js';
-import {
-  canonicalWireValue,
-  type ContinuationGraphCompatibility,
-  type WireValue,
-} from '../runtime/continuation.js';
 import {
   EXECUTABLE_WORKFLOW_METADATA_EXPORT,
   EXECUTABLE_WORKFLOW_MODULE_FORMAT,
@@ -168,106 +162,8 @@ async function createExecutableWorkflowMetadata(
   if (durableSourceProof !== undefined) {
     applyDurableSourceProof(durableSourceProof, parsed, flattenedSource);
   }
-  const workflowsByName = new Map(
-    parsed.allWorkflows.map((workflow) => [workflow.functionName, workflow]),
-  );
-  const durableAnalysis = validateDurableClosure(parsed.ast, parsed.allWorkflows, { enforce: false });
   validateDurableClosure(parsed.ast, parsed.allWorkflows);
-  const reachableClosure = [...durableAnalysis.reachable]
-    .sort((left, right) => left.functionName.localeCompare(right.functionName));
-  const graphManifest = JSON.parse(JSON.stringify(reachableClosure.map((workflow) => ({
-    functionName: workflow.functionName,
-    // Source locations are diagnostics, not executable graph identity. The
-    // artifact compiler parses the closed source through a fresh private temp
-    // directory on every invocation, so hashing sourceLocation.file would make
-    // identical source produce a different fingerprint on every build.
-    instances: workflow.instances.map(({ sourceLocation: _sourceLocation, ...instance }) => instance),
-    connections: workflow.connections.map(({ sourceLocation: _sourceLocation, ...connection }) => connection),
-    scopes: workflow.scopes,
-    startPorts: workflow.startPorts,
-    exitPorts: workflow.exitPorts,
-    nodeTypes: workflow.nodeTypes.map((nodeType) => ({
-      name: nodeType.name,
-      functionName: nodeType.functionName,
-      inputs: nodeType.inputs,
-      outputs: nodeType.outputs,
-      expression: nodeType.expression,
-      scope: nodeType.scope,
-      durableGate: nodeType.durableGate,
-      durableEffect: nodeType.durableEffect,
-      durablePure: nodeType.durablePure,
-    })),
-  })))) as WireValue;
-  const graphFingerprint = createHash('sha256')
-    .update(canonicalWireValue(graphManifest))
-    .digest('hex');
-  const continuationGraph: ContinuationGraphCompatibility = {
-    nodes: reachableClosure.flatMap((workflow) => {
-      const executionOrder = getTopologicalOrder(workflow, { includeScopedChildren: true });
-      const branchPaths = durableBranchPaths(workflow);
-      return [
-        {
-          workflowId: workflow.functionName,
-          nodeId: 'Start',
-          nodeType: 'Start',
-          executionOrder: -1,
-          inputPorts: [],
-          outputPorts: Object.keys(workflow.startPorts),
-          scopeNames: [],
-          invokedWorkflows: [],
-          branchArms: [],
-          branchPath: [],
-          predecessors: [],
-        },
-        ...workflow.instances.map((instance) => {
-          const nodeType = workflow.nodeTypes.find(
-            (candidate) => candidate.name === instance.nodeType || candidate.functionName === instance.nodeType,
-          );
-          const instanceOrder = executionOrder.indexOf(instance.id);
-          const instanceBranchPath = branchPaths.get(instance.id) ?? [];
-          const invokedWorkflows = instance.nodeType === 'invokeWorkflow'
-            ? reachableClosure.map((candidate) => candidate.functionName)
-            : workflowsByName.has(instance.nodeType) ? [instance.nodeType] : [];
-          return {
-            workflowId: workflow.functionName,
-            nodeId: instance.id,
-            nodeType: nodeType?.functionName ?? instance.nodeType,
-            executionOrder: instanceOrder,
-            inputPorts: Object.keys(nodeType?.inputs ?? {}),
-            outputPorts: Object.keys(nodeType?.outputs ?? {}),
-            scopeNames: [
-              ...(nodeType?.scope === undefined ? [] : [nodeType.scope]),
-              ...(nodeType?.scopes ?? []),
-              ...Object.values(nodeType?.inputs ?? {}).map((port) => port.scope)
-                .filter((scope): scope is string => scope !== undefined),
-              ...Object.values(nodeType?.outputs ?? {}).map((port) => port.scope)
-                .filter((scope): scope is string => scope !== undefined),
-            ].filter((scope, index, scopes) => scopes.indexOf(scope) === index),
-            invokedWorkflows,
-            ...(instance.parent !== undefined && instance.parent !== null && {
-              parentScope: { parentNodeId: instance.parent.id, scopeName: instance.parent.scope },
-            }),
-            branchArms: [
-              ...(Object.hasOwn(nodeType?.outputs ?? {}, 'onSuccess') ? ['success'] : []),
-              ...(Object.hasOwn(nodeType?.outputs ?? {}, 'onFailure') ? ['failure'] : []),
-            ],
-            branchPath: instanceBranchPath,
-            predecessors: [
-              { nodeId: 'Start', branchPath: [] },
-              ...executionOrder.slice(0, instanceOrder).map((nodeId) => ({
-                nodeId,
-                branchPath: branchPaths.get(nodeId) ?? [],
-              })).filter((predecessor) => predecessor.branchPath.every((requirement) =>
-                instanceBranchPath.some((active) =>
-                  active.nodeId === requirement.nodeId && active.arm === requirement.arm))),
-            ],
-            ...(nodeType?.durableGate !== undefined && { durableGate: nodeType.durableGate }),
-            ...(nodeType?.durableEffect === true && { durableEffect: true as const }),
-          };
-        }),
-      ];
-    }),
-  };
+  const { graphFingerprint, continuationGraph, capabilities } = graphIdentity(parsed.ast, parsed.allWorkflows);
   return Object.freeze({
     formatVersion: EXECUTABLE_WORKFLOW_MODULE_FORMAT,
     generatorAbi: GENERATOR_ABI,
@@ -275,9 +171,6 @@ async function createExecutableWorkflowMetadata(
     workflowNames: parsed.allWorkflows.map((workflow) => workflow.functionName).sort(),
     graphFingerprint,
     continuationGraph,
-    capabilities: {
-      gate: durableAnalysis.hasDurableGate,
-      effect: durableAnalysis.hasDurableEffect,
-    },
+    capabilities,
   });
 }

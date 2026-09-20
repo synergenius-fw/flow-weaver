@@ -1,6 +1,69 @@
 import { getGeneratedBranding } from '../generated-branding.js';
+import { VERSION } from '../generated-version.js';
+import { INLINE_ENGINE_SOURCE } from './inline-engine.generated.js';
+import type { TModuleFormat } from '../ast/types';
 
 export type TOutputFormat = 'typescript' | 'javascript';
+
+/**
+ * What a compiled file exports from its runtime section besides the
+ * workflows: the durable engine's public surface, under the same names the
+ * package exports, so calling code can import them from either.
+ */
+export const INLINE_ENGINE_EXPORTS: readonly string[] = [
+  'createWorkflowRuntime',
+  'acceptContinuation',
+  'createContinuationEnvelope',
+  'isDurableGateYield',
+  'isAmbiguousEffectError',
+  'DurableGateYield',
+  'AmbiguousEffectError',
+  'CancellationError',
+  'ENGINE_VERSION',
+];
+
+/** The types a host of a compiled file needs, exported beside the values. */
+export const INLINE_ENGINE_TYPE_EXPORTS: readonly string[] = [
+  'WorkflowRuntime',
+  'WorkflowRuntimeServices',
+  'CreateWorkflowRuntimeOptions',
+  'ContinuationEnvelope',
+  'DecodedContinuation',
+  'DurableGate',
+  'GateResolution',
+  'EffectAdapter',
+  'WireValue',
+];
+
+/**
+ * The durable engine as it appears in a compiled file: the package's own
+ * source (`continuation-core.ts`, `durable-execution.ts`) with its module
+ * syntax removed, preceded by what its imports provided.
+ */
+function generateInlineEngine(production: boolean): string {
+  const lines: string[] = [];
+  lines.push('// ============================================================================');
+  lines.push('// Durable Engine');
+  lines.push("// The package's own engine, copied here so this file runs without it.");
+  lines.push('// ============================================================================');
+  lines.push('');
+  lines.push(`const VERSION = ${JSON.stringify(VERSION)};`);
+  if (!production) {
+    lines.push('type DebugController = TDebugController;');
+  }
+  lines.push(
+    'type FwMockConfig = { readonly events?: Readonly<Record<string, object>>; readonly invocations?: Readonly<Record<string, object>>; readonly agents?: Readonly<Record<string, object>>; readonly gates?: Readonly<Record<string, object>>; readonly fast?: boolean };',
+  );
+  lines.push('');
+  // Production output carries no debugger types at all; the two the engine
+  // names in its services type are erased to `unknown`, which is what the
+  // production execution context declares for them anyway.
+  const source = production
+    ? INLINE_ENGINE_SOURCE.replace(/\bTDebugger\b/g, 'unknown').replace(/\bDebugController\b/g, 'unknown')
+    : INLINE_ENGINE_SOURCE;
+  lines.push(source);
+  return lines.join('\n');
+}
 
 /**
  * Strip TypeScript type syntax from code using esbuild.
@@ -31,8 +94,15 @@ export function stripTypeScript(code: string): string {
  * @param production - Whether to generate production-optimized code (no debug events)
  * @param exportClasses - Whether to add 'export' keyword to classes (for shared modules)
  * @param outputFormat - Output format: 'typescript' (default) or 'javascript' (strips types)
+ * @param moduleFormat - 'esm' (default) exports the engine's helpers with an `export` statement;
+ *   'cjs' leaves that to the caller's `module.exports` (see `INLINE_ENGINE_EXPORTS`)
  */
-export function generateInlineRuntime(production: boolean, exportClasses: boolean = false, outputFormat: TOutputFormat = 'typescript'): string {
+export function generateInlineRuntime(
+  production: boolean,
+  exportClasses: boolean = false,
+  outputFormat: TOutputFormat = 'typescript',
+  moduleFormat: TModuleFormat = 'esm',
+): string {
   const exportKeyword = exportClasses ? 'export ' : '';
   const lines: string[] = [];
 
@@ -143,35 +213,8 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   lines.push('  scopeName?: string | undefined;');
   lines.push('}');
   lines.push('');
-  lines.push("type DurableGateKind = 'approval' | 'input' | 'agent';");
-  lines.push('type WireValue = null | boolean | number | string | readonly WireValue[] | { readonly [key: string]: WireValue };');
-  lines.push('interface WorkflowFrameAddress { workflowId: string; invocation: number; callerNodeId?: string; callerExecutionIndex?: number; }');
-  lines.push('interface ScopeAddress { parentNodeId: string; parentExecutionIndex: number; scopeName: string; invocation: number; loopIteration?: number; branchArm?: string; }');
-  lines.push('interface BranchAddress { workflowId: string; frameDepth: number; nodeId: string; executionIndex: number; arm: string; }');
-  lines.push('interface ExecutionAddress { frames: readonly WorkflowFrameAddress[]; scopes: readonly ScopeAddress[]; branches: readonly BranchAddress[]; nodeId: string; nodeType: string; executionIndex: number; }');
-  lines.push('interface WorkflowRuntime {');
-  lines.push('  readonly runId: string;');
-  lines.push('  readonly abortSignal?: AbortSignal;');
-  lines.push(
-    production
-      ? '  readonly services: { debugger?: unknown; debugController?: unknown; mocks?: unknown; workflowRegistry?: Readonly<Record<string, (...args: unknown[]) => unknown>>; effectAdapter?: unknown };'
-      : '  readonly services: { debugger?: TDebugger; debugController?: TDebugController; mocks?: unknown; workflowRegistry?: Readonly<Record<string, (...args: unknown[]) => unknown>>; effectAdapter?: unknown };'
-  );
-  lines.push('  readonly frames: readonly WorkflowFrameAddress[];');
-  lines.push('  readonly scopes: readonly ScopeAddress[];');
-  lines.push('  readonly branches: readonly BranchAddress[];');
-  lines.push('  readonly durable: {');
-  lines.push('    address(runtime: WorkflowRuntime, nodeId: string, nodeType: string, executionIndex: number): ExecutionAddress;');
-  lines.push('    shouldExecute(address: ExecutionAddress): boolean;');
-  lines.push('    commitNode(address: ExecutionAddress): void;');
-  lines.push('    setVariable(address: ExecutionAddress, portName: string, value: unknown): void;');
-  lines.push('    getVariable(address: ExecutionAddress, portName: string, allowAncestorLookup?: boolean): unknown;');
-  lines.push('    resolveGate(runtime: WorkflowRuntime, boundary: { kind: DurableGateKind; nodeId: string; nodeType: string; executionIndex: number; payload: WireValue }): WireValue;');
-  lines.push('    executeEffect<T extends WireValue>(runtime: WorkflowRuntime, boundary: { nodeId: string; nodeType: string; executionIndex: number }, execute: (operationKey: string) => Promise<{ result: T; receipt: WireValue }>): Promise<T>;');
-  lines.push('    assertResumeResolutionConsumed(): void;');
-  lines.push('  };');
-  lines.push('}');
-  lines.push('');
+  // The address types, WireValue, DurableGateKind and the WorkflowRuntime
+  // interface come from the inlined engine below.
   lines.push('type VariableValue = unknown | (() => unknown) | (() => Promise<unknown>);');
   lines.push('');
 
@@ -379,6 +422,10 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   lines.push('  commitNode(nodeId: string, nodeType: string, executionIndex: number): void {');
   lines.push('    const runtime = this.getRuntime();');
   lines.push('    runtime.durable.commitNode(runtime.durable.address(runtime, nodeId, nodeType, executionIndex));');
+  lines.push('  }');
+  lines.push('');
+  lines.push('  bindWorkflow(workflowId: string, graphFingerprint: string): void {');
+  lines.push('    this.runtime.durable.bind(this.runtime, workflowId, graphFingerprint);');
   lines.push('  }');
   lines.push('');
   lines.push('  resolveGate(kind: DurableGateKind, nodeId: string, nodeType: string, executionIndex: number, payload: WireValue): WireValue {');
@@ -614,14 +661,22 @@ export function generateInlineRuntime(production: boolean, exportClasses: boolea
   lines.push('}');
   lines.push('');
 
+  lines.push(generateInlineEngine(production));
+  lines.push('');
+  if (moduleFormat === 'esm') {
+    // A shared runtime module already exports its classes by keyword.
+    const values = INLINE_ENGINE_EXPORTS.filter((name) => !exportClasses || name !== 'CancellationError');
+    lines.push(`export { ${values.join(', ')} };`);
+    lines.push(`export type { ${INLINE_ENGINE_TYPE_EXPORTS.join(', ')} };`);
+    lines.push('');
+  }
+
   const output = lines.join('\n');
   if (outputFormat === 'javascript') {
     return stripTypeScript(output);
   }
   return output;
 }
-
-import type { TModuleFormat } from '../ast/types';
 
 /**
  * Generates a standalone runtime module file for multi-workflow bundles.
@@ -642,9 +697,10 @@ export function generateStandaloneRuntimeModule(
   lines.push('// ============================================================================');
   lines.push('');
 
-  // Include the inline runtime (all types and GeneratedExecutionContext class)
-  // Pass exportClasses=true to add 'export' keywords for module use
-  const inlineRuntime = generateInlineRuntime(production, true);
+  // Include the inline runtime (all types, GeneratedExecutionContext and the
+  // durable engine). Pass exportClasses=true to add 'export' keywords for
+  // module use.
+  const inlineRuntime = generateInlineRuntime(production, true, 'typescript', moduleFormat);
   lines.push(inlineRuntime);
   lines.push('');
 
@@ -655,7 +711,7 @@ export function generateStandaloneRuntimeModule(
     lines.push('// Exports');
     lines.push('// ============================================================================');
     lines.push('');
-    const exports = ['GeneratedExecutionContext', 'CancellationError'];
+    const exports = ['GeneratedExecutionContext', ...INLINE_ENGINE_EXPORTS];
     lines.push(`module.exports = { ${exports.join(', ')} };`);
   }
   // For ESM, exports are added via 'export' keyword in the generated code

@@ -19,6 +19,8 @@ import type {
 } from '../ast/types';
 import { bodyGenerator } from '../body-generator';
 import { generateInlineRuntime } from './inline-runtime';
+import { graphIdentity } from './graph-identity';
+import type { GraphIdentityStamp } from '../generator/unified';
 import { isExecutePort, isSuccessPort, isFailurePort, isControlFlowPort } from '../constants';
 import {
   generateJSDocPortTag,
@@ -160,9 +162,12 @@ export function generateInPlace(
         (nt) => !nt.sourceLocation && nt.functionText && nt.helperText != null && usedNodeTypes.has(nt.name)
       );
   if (builtInNodes.length > 0) {
-    // Find insertion point: just before the workflow function's JSDoc
+    // Find insertion point: just before the workflow function's JSDoc. The
+    // comment match must not cross a `*/`, or it would start at the first
+    // doc comment in the file (there are many in the runtime section) and
+    // the built-ins would land inside a section that is regenerated.
     const workflowFnPattern = new RegExp(
-      `(/\\*\\*[\\s\\S]*?@flowWeaver\\s+workflow[\\s\\S]*?\\*/)\\s*\\n\\s*(?:export\\s+)?(?:async\\s+)?function\\s+${ast.functionName}\\b`
+      `(/\\*\\*(?:(?!\\*/)[\\s\\S])*?@flowWeaver\\s+workflow(?:(?!\\*/)[\\s\\S])*?\\*/)\\s*\\n\\s*(?:export\\s+)?(?:async\\s+)?function\\s+${ast.functionName}\\b`
     );
     const match = result.match(workflowFnPattern);
     if (match && match.index !== undefined) {
@@ -310,7 +315,12 @@ export function generateInPlace(
     hasChanges = true;
   }
 
-  const functionBody = generateFunctionBody(ast, production, isAsync, durableSequential);
+  // A gated body declares its graph identity to the engine; a body that can
+  // never yield has no continuation to protect and stays as it was.
+  const identity = durableSequential
+    ? { graphFingerprint: graphIdentity(ast, allWorkflows ?? []).graphFingerprint }
+    : undefined;
+  const functionBody = generateFunctionBody(ast, production, isAsync, durableSequential, identity);
   const bodyResult = replaceWorkflowFunctionBody(result, ast.functionName, functionBody);
   if (bodyResult.changed) {
     result = bodyResult.code;
@@ -634,6 +644,7 @@ function generateFunctionBody(
   production: boolean,
   isAsync: boolean,
   durableSequential: boolean,
+  identity?: GraphIdentityStamp,
 ): string {
   const lines: string[] = [];
 
@@ -651,6 +662,7 @@ function generateFunctionBody(
     production,
     false,
     durableSequential,
+    identity,
   );
 
   // Add proper indentation

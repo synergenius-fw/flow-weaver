@@ -22,6 +22,16 @@ import {
   isFailurePort,
 } from '../constants';
 
+/**
+ * What a gated body declares to the engine before its first node: the
+ * fingerprint of the graph it was compiled from (`graphIdentity`), so the
+ * continuation it yields names the graph and a resume against another one
+ * is refused.
+ */
+export interface GraphIdentityStamp {
+  readonly graphFingerprint: string;
+}
+
 /** A Start value is materialized once before it enters durable state. */
 function startPortValue(portName: string, port: TPortDefinition): string {
   const supplied = `params.${portName}`;
@@ -117,6 +127,7 @@ export function generateControlFlowWithExecutionContext(
   production: boolean = false,
   bundleMode: boolean = false,
   durableSequential: boolean = false,
+  identity?: GraphIdentityStamp,
 ): string {
   const lines: string[] = [];
 
@@ -140,6 +151,12 @@ export function generateControlFlowWithExecutionContext(
 
   const asyncArg = isAsync ? 'true' : 'false';
   lines.push(`  const ctx = new GeneratedExecutionContext(${asyncArg}, __runtime__);`);
+  // A gated body names its workflow and graph to the engine first, so a
+  // continuation it yields carries them and a resume against another graph
+  // is refused before a single node runs.
+  if (identity !== undefined) {
+    lines.push(`  ctx.bindWorkflow('${workflow.functionName}', '${identity.graphFingerprint}');`);
+  }
   lines.push('');
 
   // Debug controller is an execution-scoped live developer tool. It is not a
