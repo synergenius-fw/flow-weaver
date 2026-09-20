@@ -560,7 +560,6 @@ describe('checkProjectConfig', () => {
     const dir = makeFixture('config-valid', {
       '.flowweaver/config.yaml': YAML.dump({
         defaultFileType: 'ts',
-        pluginsDir: './plugins',
       }),
     });
     const result = checkProjectConfig(dir);
@@ -601,15 +600,11 @@ describe('checkProjectConfig', () => {
     expect(result.message).toContain('defaultFileType');
   });
 
-  it('should pass with full config including security settings', () => {
+  it('should pass and ignore unknown config keys', () => {
     const dir = makeFixture('config-full', {
       '.flowweaver/config.yaml': YAML.dump({
         defaultFileType: 'ts',
-        pluginsDir: './plugins',
-        security: {
-          allowUnsignedPlugins: true,
-          allowUnverifiedCapabilities: false,
-        },
+        somethingElse: { nested: true },
       }),
     });
     const result = checkProjectConfig(dir);

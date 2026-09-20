@@ -32,7 +32,6 @@ export const isolatedTestFiles: readonly string[] = [
   'tests/cli/init.test.ts',
   'tests/cli/migrate.test.ts',
   'tests/cli/openapi.test.ts',
-  'tests/cli/plugin.test.ts',
   'tests/continuation/non-coordinator-yield-a2.test.ts',
   'tests/deployment/core/executor.test.ts',
   'tests/unit/api/patterns.test.ts',

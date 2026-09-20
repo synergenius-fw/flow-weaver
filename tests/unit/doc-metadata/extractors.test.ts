@@ -43,14 +43,6 @@ import {
 } from '../../../src/doc-metadata/extractors/cli-commands.js';
 
 import {
-  PLUGIN_DEFINITION_FIELDS,
-  PLUGIN_CAPABILITIES,
-  PLUGIN_COMPONENT_CONFIG_FIELDS,
-  PLUGIN_COMPONENT_AREAS,
-  PLUGIN_UI_KIT_COMPONENTS,
-} from '../../../src/doc-metadata/extractors/plugin-api.js';
-
-import {
   ALL_ANNOTATIONS,
   PORT_MODIFIERS,
   NODE_MODIFIERS,
@@ -234,161 +226,6 @@ describe('CLI Commands extractor', () => {
     for (const entry of templates.list!) {
       expect(entry).toContain(' - ');
     }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Plugin API
-// ---------------------------------------------------------------------------
-
-describe('Plugin API metadata', () => {
-  describe('PLUGIN_DEFINITION_FIELDS', () => {
-    it('is a non-empty array', () => {
-      expect(PLUGIN_DEFINITION_FIELDS.length).toBeGreaterThan(0);
-    });
-
-    it('contains required top-level fields', () => {
-      const names = PLUGIN_DEFINITION_FIELDS.map((f) => f.name);
-      expect(names).toContain('name');
-      expect(names).toContain('version');
-      expect(names).toContain('description');
-      expect(names).toContain('entry');
-      expect(names).toContain('capabilities');
-    });
-
-    it('every field has name, type, required, and description', () => {
-      for (const field of PLUGIN_DEFINITION_FIELDS) {
-        expect(field.name).toBeTruthy();
-        expect(field.type).toBeTruthy();
-        expect(typeof field.required).toBe('boolean');
-        expect(field.description).toBeTruthy();
-      }
-    });
-
-    it('entry field has children', () => {
-      const entry = PLUGIN_DEFINITION_FIELDS.find((f) => f.name === 'entry')!;
-      expect(entry.children).toBeDefined();
-      expect(entry.children!.length).toBeGreaterThan(0);
-      const childNames = entry.children!.map((c) => c.name);
-      expect(childNames).toContain('client');
-      expect(childNames).toContain('system');
-    });
-
-    it('dependencies field has children with plugins and system', () => {
-      const deps = PLUGIN_DEFINITION_FIELDS.find((f) => f.name === 'dependencies')!;
-      expect(deps.required).toBe(false);
-      expect(deps.children).toBeDefined();
-      const childNames = deps.children!.map((c) => c.name);
-      expect(childNames).toContain('plugins');
-      expect(childNames).toContain('system');
-    });
-  });
-
-  describe('PLUGIN_CAPABILITIES', () => {
-    it('defines filesystem, network, process, and interop capabilities', () => {
-      const names = PLUGIN_CAPABILITIES.map((c) => c.name);
-      expect(names).toContain('filesystem');
-      expect(names).toContain('network');
-      expect(names).toContain('process');
-      expect(names).toContain('interop');
-    });
-
-    it('filesystem capability has children with operations enum', () => {
-      const fs = PLUGIN_CAPABILITIES.find((c) => c.name === 'filesystem')!;
-      expect(fs.children).toBeDefined();
-      const operations = fs.children!.find((c) => c.name === 'operations')!;
-      expect(operations.enum).toBeDefined();
-      expect(operations.enum).toContain('read');
-      expect(operations.enum).toContain('write');
-      expect(operations.enum).toContain('delete');
-    });
-
-    it('network capability has protocols enum', () => {
-      const net = PLUGIN_CAPABILITIES.find((c) => c.name === 'network')!;
-      const protocols = net.children!.find((c) => c.name === 'protocols')!;
-      expect(protocols.enum).toContain('http');
-      expect(protocols.enum).toContain('wss');
-    });
-
-    it('all capabilities are optional', () => {
-      for (const cap of PLUGIN_CAPABILITIES) {
-        expect(cap.required).toBe(false);
-      }
-    });
-
-    it('each capability requires an "allowed" boolean child', () => {
-      for (const cap of PLUGIN_CAPABILITIES) {
-        const allowed = cap.children!.find((c) => c.name === 'allowed');
-        expect(allowed).toBeDefined();
-        expect(allowed!.type).toBe('boolean');
-        expect(allowed!.required).toBe(true);
-      }
-    });
-  });
-
-  describe('PLUGIN_COMPONENT_CONFIG_FIELDS', () => {
-    it('contains name, displayName, area as required fields', () => {
-      const required = PLUGIN_COMPONENT_CONFIG_FIELDS.filter((f) => f.required);
-      const names = required.map((f) => f.name);
-      expect(names).toContain('name');
-      expect(names).toContain('displayName');
-      expect(names).toContain('area');
-    });
-
-    it('description and icon are optional', () => {
-      const desc = PLUGIN_COMPONENT_CONFIG_FIELDS.find((f) => f.name === 'description')!;
-      const icon = PLUGIN_COMPONENT_CONFIG_FIELDS.find((f) => f.name === 'icon')!;
-      expect(desc.required).toBe(false);
-      expect(icon.required).toBe(false);
-    });
-  });
-
-  describe('PLUGIN_COMPONENT_AREAS', () => {
-    it('defines all standard areas', () => {
-      expect(Object.keys(PLUGIN_COMPONENT_AREAS)).toEqual(
-        expect.arrayContaining(['sidebar', 'main', 'toolbar', 'modal', 'panel']),
-      );
-    });
-
-    it('every area has a non-empty description', () => {
-      for (const [area, desc] of Object.entries(PLUGIN_COMPONENT_AREAS)) {
-        expect(desc.length).toBeGreaterThan(0);
-      }
-    });
-  });
-
-  describe('PLUGIN_UI_KIT_COMPONENTS', () => {
-    it('defines Display, Feedback, Input, Layout, Navigation, and Hooks categories', () => {
-      const categories = Object.keys(PLUGIN_UI_KIT_COMPONENTS);
-      expect(categories).toContain('Display');
-      expect(categories).toContain('Feedback');
-      expect(categories).toContain('Input');
-      expect(categories).toContain('Layout');
-      expect(categories).toContain('Navigation');
-      expect(categories).toContain('Hooks');
-    });
-
-    it('every category has at least one component', () => {
-      for (const [category, components] of Object.entries(PLUGIN_UI_KIT_COMPONENTS)) {
-        expect(components.length).toBeGreaterThan(0);
-      }
-    });
-
-    it('contains known components', () => {
-      expect(PLUGIN_UI_KIT_COMPONENTS.Display).toContain('Icon');
-      expect(PLUGIN_UI_KIT_COMPONENTS.Display).toContain('CodeBlock');
-      expect(PLUGIN_UI_KIT_COMPONENTS.Input).toContain('Button');
-      expect(PLUGIN_UI_KIT_COMPONENTS.Feedback).toContain('Tooltip');
-      expect(PLUGIN_UI_KIT_COMPONENTS.Layout).toContain('Modal');
-      expect(PLUGIN_UI_KIT_COMPONENTS.Navigation).toContain('Breadcrumbs');
-      expect(PLUGIN_UI_KIT_COMPONENTS.Hooks).toContain('useVerticalResize');
-    });
-
-    it('no duplicate components within a category', () => {
-      for (const [category, components] of Object.entries(PLUGIN_UI_KIT_COMPONENTS)) {
-        expect(new Set(components).size).toBe(components.length);
-      }
-    });
   });
 });
 
@@ -709,15 +546,6 @@ describe('doc-metadata barrel exports', () => {
     const barrel = await import('../../../src/doc-metadata/index.js');
     expect(barrel.extractCliCommands).toBe(extractCliCommands);
     expect(barrel.CLI_COMMANDS).toBe(CLI_COMMANDS);
-  });
-
-  it('re-exports plugin API constants', async () => {
-    const barrel = await import('../../../src/doc-metadata/index.js');
-    expect(barrel.PLUGIN_DEFINITION_FIELDS).toBe(PLUGIN_DEFINITION_FIELDS);
-    expect(barrel.PLUGIN_CAPABILITIES).toBe(PLUGIN_CAPABILITIES);
-    expect(barrel.PLUGIN_COMPONENT_CONFIG_FIELDS).toBe(PLUGIN_COMPONENT_CONFIG_FIELDS);
-    expect(barrel.PLUGIN_COMPONENT_AREAS).toBe(PLUGIN_COMPONENT_AREAS);
-    expect(barrel.PLUGIN_UI_KIT_COMPONENTS).toBe(PLUGIN_UI_KIT_COMPONENTS);
   });
 
   it('re-exports annotation constants', async () => {

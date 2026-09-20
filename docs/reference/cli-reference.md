@@ -1,7 +1,7 @@
 ---
 name: CLI Reference
 description: Complete reference for all Flow Weaver CLI commands, flags, and options
-keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, plugin, grammar, openapi, pattern, create, templates, context, modify, implement, status]
+keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, grammar, openapi, pattern, create, templates, context, modify, implement, status]
 ---
 
 # CLI Reference
@@ -38,7 +38,6 @@ Complete reference for all `fw` CLI commands.
 | `console` | Open the local operator console: workflows as processes, issues, code, live runs and gates |
 | `export` | Export workflow as serverless function |
 | `openapi` | Generate OpenAPI specification from workflows |
-| `plugin` | Scaffold and manage external plugins |
 | `migrate` | Migrate workflow files to current syntax via parse → regenerate round-trip |
 | `status` | Report implementation progress for stub workflows |
 | `implement` | Replace a stub node with a real function skeleton |
@@ -938,31 +937,6 @@ fw market list [options]
 | `--json` | Output as JSON | `false` |
 
 > See also: [Marketplace](marketplace) for the full package lifecycle guide.
-
----
-
-## Plugins
-
-### plugin init
-
-Scaffold a new external plugin with component area and optional system module.
-
-```bash
-fw plugin init <name> [options]
-```
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-a, --area <area>` | `sidebar`, `main`, `toolbar`, `modal`, `panel` | `panel` |
-| `--no-system` | Skip generating a system module | system included |
-| `-p, --preview` | Preview without writing | `false` |
-| `--force` | Overwrite existing files | `false` |
-
-**Examples:**
-```bash
-fw plugin init my-plugin
-fw plugin init my-plugin --area sidebar --no-system
-```
 
 ---
 

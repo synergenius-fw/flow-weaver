@@ -303,20 +303,6 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     ],
   },
 
-  // ── Plugin subcommands ─────────────────────────────────────────
-  {
-    name: 'plugin init',
-    syntax: 'fw plugin init <name> [options]',
-    description: 'Scaffold a new external plugin',
-    group: 'plugin',
-    options: [
-      { flags: '-a, --area', arg: 'sidebar|main|toolbar|modal|panel', description: 'Component area', defaultValue: 'panel' },
-      { flags: '--no-system', description: 'Skip generating a system module' },
-      { flags: '-p, --preview', description: 'Preview generated files without writing' },
-      { flags: '--force', description: 'Overwrite existing files' },
-    ],
-  },
-
   // ── Migration & changelog ──────────────────────────────────────
   {
     name: 'migrate',

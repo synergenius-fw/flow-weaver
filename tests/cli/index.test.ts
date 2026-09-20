@@ -41,7 +41,6 @@ const mockRunCommand = vi.fn();
 const mockServeCommand = vi.fn();
 const mockExportCommand = vi.fn();
 const mockOpenapiCommand = vi.fn();
-const mockPluginInitCommand = vi.fn();
 const mockMigrateCommand = vi.fn();
 const mockStripCommand = vi.fn();
 const mockDocsListCommand = vi.fn();
@@ -76,7 +75,6 @@ vi.mock('../../src/cli/commands/run.js', () => ({ runCommand: mockRunCommand }))
 vi.mock('../../src/cli/commands/serve.js', () => ({ serveCommand: mockServeCommand }));
 vi.mock('../../src/cli/commands/export.js', () => ({ exportCommand: mockExportCommand }));
 vi.mock('../../src/cli/commands/openapi.js', () => ({ openapiCommand: mockOpenapiCommand }));
-vi.mock('../../src/cli/commands/plugin.js', () => ({ pluginInitCommand: mockPluginInitCommand }));
 vi.mock('../../src/cli/commands/migrate.js', () => ({ migrateCommand: mockMigrateCommand }));
 vi.mock('../../src/cli/commands/strip.js', () => ({ stripCommand: mockStripCommand }));
 vi.mock('../../src/cli/commands/docs.js', () => ({ docsListCommand: mockDocsListCommand, docsReadCommand: mockDocsReadCommand, docsSearchCommand: mockDocsSearchCommand }));
@@ -302,10 +300,6 @@ function buildTestProgram(): Command {
   marketCmd.command('install <package>').action(mockMarketInstallCommand);
   marketCmd.command('search [query]').action(mockMarketSearchCommand);
   marketCmd.command('list').action(mockMarketListCommand);
-
-  // plugin group
-  const pluginCmd = program.command('plugin').description('Plugins');
-  pluginCmd.command('init <name>').action(mockPluginInitCommand);
 
   return program;
 }
@@ -672,14 +666,6 @@ describe('CLI command registration and parsing', () => {
     });
   });
 
-  describe('plugin subcommands', () => {
-    it('should invoke plugin init', () => {
-      parseArgs('plugin', 'init', 'my-plugin');
-      expect(mockPluginInitCommand).toHaveBeenCalled();
-      expect(mockPluginInitCommand.mock.calls[0][0]).toBe('my-plugin');
-    });
-  });
-
   describe('version', () => {
     it('should output version when --version is passed', () => {
       program = buildTestProgram();
@@ -731,7 +717,6 @@ describe('CLI command registration and parsing', () => {
       expect(helpText).toContain('create');
       expect(helpText).toContain('pattern');
       expect(helpText).toContain('market');
-      expect(helpText).toContain('plugin');
     });
   });
 

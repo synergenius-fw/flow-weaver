@@ -71,24 +71,6 @@ export interface TMcpToolParam {
 }
 
 /**
- * Documentation for a plugin API field (schema-tied description layer)
- */
-export interface TPluginApiFieldDoc {
-  /** Field name as it appears in the Zod schema */
-  name: string;
-  /** Display type string */
-  type: string;
-  /** Whether the field is required */
-  required: boolean;
-  /** Human-readable description */
-  description: string;
-  /** Enum values if applicable */
-  enum?: string[];
-  /** Nested child fields for object types */
-  children?: TPluginApiFieldDoc[];
-}
-
-/**
  * Documentation for a CLI command option/flag
  */
 export interface TCliOptionDoc {
@@ -120,7 +102,7 @@ export interface TCliCommandDoc {
   options: TCliOptionDoc[];
   /** Pre-computed list items (used verbatim instead of auto-generating from options) */
   list?: string[];
-  /** Parent group for subcommands: "create", "pattern", "ui", "plugin" */
+  /** Parent group for subcommands: "create", "pattern", "ui" */
   group?: string;
   /** Override list style (default: 'cli') */
   listStyle?: string;

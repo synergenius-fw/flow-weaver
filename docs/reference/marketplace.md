@@ -1,7 +1,7 @@
 ---
 name: Marketplace
-description: Create, publish, install, and manage Flow Weaver marketplace packages and external plugins
-keywords: [marketplace, market, package, pack, publish, install, search, npm, flow-weaver-pack, plugin, init, manifest, manifestVersion, node types, patterns, workflows, cliEntrypoint, cliCommands, mcpEntrypoint, mcpTools, exportTargets, tagHandlers, serializerExport, validationRuleSets, initContributions, docs, engineVersion, authoring, extend, grammar, custom tags, deploy namespace, component, area, sandbox]
+description: Create, publish, install, and manage Flow Weaver marketplace packages
+keywords: [marketplace, market, package, pack, publish, install, search, npm, flow-weaver-pack, manifest, manifestVersion, node types, patterns, workflows, cliEntrypoint, cliCommands, mcpEntrypoint, mcpTools, exportTargets, tagHandlers, serializerExport, validationRuleSets, initContributions, docs, engineVersion, authoring, extend, grammar, custom tags, deploy namespace]
 ---
 
 # Marketplace
@@ -444,69 +444,9 @@ When `parseWorkflow()` is called with a `projectDir` (the CLI and the console al
 
 ---
 
-## External Plugins
-
-Plugins extend the Flow Weaver Studio IDE with custom UI components, system logic, and integrations.
-
-### Scaffold a Plugin
-
-```bash
-fw plugin init my-plugin
-```
-
-Options:
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-a, --area <area>` | Component area | `panel` |
-| `--no-system` | Skip system module | included |
-| `-p, --preview` | Preview without writing | `false` |
-| `--force` | Overwrite existing | `false` |
-
-### Component Areas
-
-Plugins register React components in specific areas of the Studio IDE:
-
-| Area | Location |
-|------|----------|
-| `sidebar` | Left sidebar panel |
-| `main` | Main content area |
-| `toolbar` | Top toolbar |
-| `modal` | Modal dialog |
-| `panel` | Bottom or side panel |
-
-### Plugin Structure
-
-```bash
-fw plugin init my-plugin --area sidebar
-```
-
-Generates:
-```
-my-plugin/
-  src/
-    index.ts          # Plugin manifest and registration
-    component.tsx     # React component for the area
-    system.ts         # System module (event handlers, state)
-  package.json
-```
-
-### Capability Sandboxing
-
-Plugins declare required capabilities. The runtime enforces access controls:
-
-| Capability | Allows |
-|------------|--------|
-| `filesystem` | Read/write workflow files |
-| `network` | HTTP requests |
-| `process` | Spawn processes |
-| `interop` | Communicate with other plugins |
-
----
-
 ## Related Topics
 
-- [CLI Reference](cli-reference) — Full marketplace and plugin command flags
+- [CLI Reference](cli-reference) — Full marketplace command flags
 - [Patterns](patterns) — Creating and sharing reusable patterns
 - [Scaffold](scaffold) — Template system for node types and workflows
 - [Concepts](concepts) — Core workflow fundamentals

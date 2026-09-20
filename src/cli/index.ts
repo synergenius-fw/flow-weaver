@@ -542,20 +542,6 @@ program
   }));
 
 // Plugin command group
-const pluginCmd = program.command('plugin').description('Scaffold and manage external plugins');
-
-pluginCmd
-  .command('init <name>')
-  .description('Scaffold a new external plugin')
-  .option('-a, --area <area>', 'Component area: sidebar, main, toolbar, modal, panel', 'panel')
-  .option('--no-system', 'Skip generating a system module')
-  .option('-p, --preview', 'Preview generated files without writing', false)
-  .option('--force', 'Overwrite existing files', false)
-  .action(wrapAction(async (name: string, options) => {
-      const { pluginInitCommand } = await import('./commands/plugin.js');
-      await pluginInitCommand(name, options);
-  }));
-
 // Migrate command
 program
   .command('migrate <glob>')

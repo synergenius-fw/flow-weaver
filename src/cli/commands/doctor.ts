@@ -691,15 +691,6 @@ export function checkProjectConfig(cwd: string): CheckResult {
     };
   }
 
-  if (config.pluginsDir && typeof config.pluginsDir !== 'string') {
-    return {
-      name: 'Project config',
-      status: 'fail',
-      message: 'pluginsDir must be a string',
-      fix: 'Set pluginsDir to a valid directory path',
-    };
-  }
-
   return {
     name: 'Project config',
     status: 'pass',
