@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks';
-import { workflows, wf, project, selectWorkflow, openProject, ui, loading, opening, guide, view, openDoc, packs, openPack, openMarket, packProject, openAuthor, openStatus, openAgents, openEndpoints, type WorkflowSummary } from '../state';
+import { workflows, wf, project, selectWorkflow, openProject, ui, loading, opening, guide, view, openDoc, packs, openPack, openMarket, packProject, openAuthor, openOverview, openAgents, openEndpoints, serviceOf, type WorkflowSummary } from '../state';
 import { get, store } from '../api';
 import { buildTree, pathTo, type TreeNode } from '../tree';
 import { Tip, Keys } from './Tip';
@@ -345,6 +345,14 @@ export function Rail() {
           </Tip>
         ))}
         <span class="sp" />
+        {/* The project as a whole: its server, endpoints, agents, environment.
+            The server's state shows on the glyph from anywhere. */}
+        <Tip label={`Project · server ${serviceOf('serve')?.state === 'running' ? 'up' : serviceOf('serve')?.state === 'starting' ? 'starting' : 'down'}`}>
+          <button class={view.value.kind === 'project' ? 'on' : ''} aria-label="Project" onClick={openOverview}>
+            <span class="ms">space_dashboard</span>
+            {serviceOf('serve')?.state === 'running' && <span class="livedot" />}
+          </button>
+        </Tip>
         <Tip label="Endpoints · workflows over HTTP">
           <button class={view.value.kind === 'endpoints' ? 'on' : ''} aria-label="Endpoints" onClick={openEndpoints}>
             <span class="ms">api</span>
@@ -353,11 +361,6 @@ export function Rail() {
         <Tip label="Agents · what answers an agent gate">
           <button class={view.value.kind === 'agents' ? 'on' : ''} aria-label="Agents" onClick={openAgents}>
             <span class="ms">smart_toy</span>
-          </button>
-        </Tip>
-        <Tip label="Status · services, MCP, environment">
-          <button class={view.value.kind === 'status' ? 'on' : ''} aria-label="Status" onClick={openStatus}>
-            <span class="ms">monitor_heart</span>
           </button>
         </Tip>
         <Tip label="Open another project">

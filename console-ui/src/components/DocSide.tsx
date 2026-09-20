@@ -100,16 +100,11 @@ export function DocSide() {
       <div class="panes">
         <PaneTab icon="toc" label="Contents" on={pane === 'contents'} onClick={() => { ui.docSide.value = 'contents'; }} />
         <PaneTab icon="account_tree" label="In this project" on={pane === 'project'} onClick={() => { ui.docSide.value = 'project'; }} />
-        <PaneTab icon="terminal" label="CLI" on={pane === 'cli'} onClick={() => { ui.docSide.value = 'cli'; }} />
       </div>
       <div class="panebody">
         {pane === 'contents' && <Contents />}
         {pane === 'project' && <InProject />}
-        {pane === 'cli' && <CliPaneLazy />}
       </div>
     </>
   );
 }
-
-import { CliPane } from './Cli';
-function CliPaneLazy() { return <CliPane />; }

@@ -12,9 +12,10 @@ import { PackView, PackSide } from './PackView';
 import { MarketView, MarketSide } from './MarketView';
 import { AuthorView, AuthorSide } from './AuthorView';
 import { Search } from './Search';
-import { StatusView, StatusSide } from './StatusView';
+import { ProjectView, ProjectSide } from './ProjectView';
 import { AgentsView, AgentsSide } from './AgentsView';
 import { EndpointsView, EndpointsSide } from './EndpointsView';
+import { Drawer } from './Drawer';
 
 function Splitter({ side }: { side: 'rail' | 'side' }) {
   const onDown = (e: PointerEvent) => {
@@ -77,7 +78,7 @@ export function App() {
   const browsing = view.value.kind === 'pack';
   const shopping = view.value.kind === 'market';
   const authoring = view.value.kind === 'author';
-  const checking = view.value.kind === 'status';
+  const overview = view.value.kind === 'project';
   const agenting = view.value.kind === 'agents';
   const serving = view.value.kind === 'endpoints';
   // ⌘K / Ctrl+K opens the search from anywhere; the debugger's keys while a session is paused.
@@ -103,7 +104,7 @@ export function App() {
       <Splitter side="rail" />
       <main class="col main">
         <Header />
-        {reading ? <DocView /> : browsing ? <PackView /> : shopping ? <MarketView /> : authoring ? <AuthorView /> : checking ? <StatusView /> : agenting ? <AgentsView /> : serving ? <EndpointsView /> : (
+        {reading ? <DocView /> : browsing ? <PackView /> : shopping ? <MarketView /> : authoring ? <AuthorView /> : overview ? <ProjectView /> : agenting ? <AgentsView /> : serving ? <EndpointsView /> : (
           <>
             {isParsed(wf.value) && <Spine w={wf.value} />}
             {wf.value?.parseErrors && <ParseErrors wf={wf.value} />}
@@ -111,7 +112,8 @@ export function App() {
         )}
       </main>
       <Splitter side="side" />
-      <aside class="col side">{reading ? <DocSide /> : browsing ? <PackSide /> : shopping ? <MarketSide /> : authoring ? <AuthorSide /> : checking ? <StatusSide /> : agenting ? <AgentsSide /> : serving ? <EndpointsSide /> : <Inspector />}</aside>
+      <aside class="col side">{reading ? <DocSide /> : browsing ? <PackSide /> : shopping ? <MarketSide /> : authoring ? <AuthorSide /> : overview ? <ProjectSide /> : agenting ? <AgentsSide /> : serving ? <EndpointsSide /> : <Inspector />}</aside>
+      <Drawer />
       <Search />
       <div class={`toast ${toastMsg.value ? 'show' : ''}`}>{toastMsg.value}</div>
       {mode === 'narrow' && ui.railOpen.value && <div class="scrim" onClick={() => { ui.railOpen.value = false; }} />}

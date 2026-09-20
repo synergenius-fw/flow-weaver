@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { view, agents, loadAgents, openDoc, toast, workflows, saveProfile, deleteProfile, setDefaultProfile, setGateProfile, tryAgentProfile, envIsSet, type AgentProfileView, type ProfileFields, type TryOutcome } from '../state';
 import { editorLink } from '../format';
-import { CliPane } from './Cli';
 import { PaneTab } from './PaneTab';
 import { Select } from './Select';
 
@@ -292,12 +291,11 @@ function GateMap({ gates, profiles }: { gates: Record<string, string>; profiles:
 
 /** The right column beside the Agents page: what to know, and the CLI. */
 export function AgentsSide() {
-  const [pane, setPane] = useState<'about' | 'cli'>('about');
+  const [pane, setPane] = useState<'about'>('about');
   return (
     <>
       <div class="panes">
         <PaneTab icon="info" label="About" on={pane === 'about'} onClick={() => setPane('about')} />
-        <PaneTab icon="terminal" label="CLI" on={pane === 'cli'} onClick={() => setPane('cli')} />
       </div>
       <div class="panebody">
         {pane === 'about' && (
@@ -314,7 +312,6 @@ export function AgentsSide() {
             <div class="in hint">Runs started here and over <code>fw serve</code>, unless a run is started with agents off. A run an assistant drives over MCP is the assistant's to answer.</div>
           </div>
         )}
-        {pane === 'cli' && <CliPane />}
       </div>
     </>
   );

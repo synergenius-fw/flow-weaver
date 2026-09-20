@@ -26,8 +26,17 @@ a { color: var(--accent); text-decoration: none; }
 
 /* ---------------------------------------------------------------- layout */
 #app { height: 100%; }
-.shell { display: grid; height: 100%; grid-template-rows: 100%; }
+.shell { display: grid; height: 100%; grid-template-rows: minmax(0, 1fr) auto; }
 .col { overflow: auto; min-height: 0; }
+/* The rail runs the full height; the drawer sits under the centre and the side. */
+.shell > .col, .shell > .split { grid-row: 1; }
+.shell > .rail { grid-row: 1 / 3; }
+.drawer { grid-row: 2; grid-column: 3 / 6; position: relative; display: flex; flex-direction: column; min-height: 120px; max-height: 70vh; background: var(--panel); border-top: 1px solid var(--line); }
+.shell.stacked { grid-template-rows: minmax(0, 1fr) auto auto; }
+.shell.stacked .rail { grid-row: 1 / 4; }
+.shell.stacked .drawer { grid-row: 3; grid-column: 2; }
+.shell.narrow { grid-template-rows: minmax(0, 1fr) auto auto; }
+.shell.narrow .drawer { grid-row: 3; grid-column: 1; }
 .rail { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: row; overflow: hidden; }
 /* The icon bar: one glyph per view, the list beside it. */
 .bar { flex: none; width: 46px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0; border-right: 1px solid var(--line); background: var(--bg); }
@@ -56,12 +65,12 @@ a { color: var(--accent); text-decoration: none; }
 .panebody { flex: 1; overflow: auto; padding: 12px; min-height: 0; }
 .split { width: 6px; cursor: col-resize; margin: 0 -3px; position: relative; z-index: 5; }
 .split:hover::after, .split.on::after { content: ""; position: absolute; inset: 0 2px; background: var(--accent); opacity: .6; }
-.shell.stacked { grid-template-columns: var(--rail) 1fr !important; grid-template-rows: 1fr auto; }
-.shell.stacked .rail { grid-row: 1 / 3; grid-column: 1; }
+.shell.stacked { grid-template-columns: var(--rail) 1fr !important; }
+.shell.stacked .rail { grid-column: 1; }
 .shell.stacked .main { grid-row: 1; grid-column: 2; }
 .shell.stacked .side { grid-row: 2; grid-column: 2; border-left: 0; border-top: 1px solid var(--line); max-height: 45vh; }
 .shell.stacked .split { display: none; }
-.shell.narrow { grid-template-columns: 1fr !important; grid-template-rows: 1fr auto; }
+.shell.narrow { grid-template-columns: 1fr !important; }
 .shell.narrow .rail { position: fixed; inset: 0 auto 0 0; width: 300px; z-index: 20; transform: translateX(-100%); transition: transform .2s; }
 .shell.narrow .rail.open { transform: none; box-shadow: 0 0 40px rgba(0,0,0,.55); }
 /* Dim what is behind, so the rail reads as something the button opened
@@ -957,4 +966,48 @@ input[type=radio]:disabled { opacity: .5; cursor: default; }
 .snippet { position: relative; margin-top: 4px; }
 .snippet .hlcode { margin: 0; padding: 10px 12px; padding-right: 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font-size: 11.5px; line-height: 1.55; overflow-wrap: anywhere; }
 .snippet .btn { position: absolute; top: 6px; right: 6px; }
+/* ---- the drawer: service output and the command line, under everything */
+.drawergrip { position: absolute; top: -3px; left: 0; right: 0; height: 7px; cursor: row-resize; z-index: 2; }
+.drawergrip:hover, .drawer.dragging .drawergrip { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+.drawer.dragging { user-select: none; }
+.drawertabs { padding-top: 4px; align-items: center; }
+.drawertabs .btn { margin: 0 4px 4px 0; }
+.drawerbody { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.drawerbody > .card, .drawerbody > div:not(.logs) { padding: 12px; }
+.logs { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.logbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 12px; flex: none; }
+.logbody { flex: 1; overflow: auto; padding: 8px 12px; font-size: 11.5px; line-height: 1.5; background: var(--bg); }
+.logbody .ln { white-space: pre-wrap; overflow-wrap: anywhere; }
+.logbody .ln.err { color: var(--err); }
+.logbody .ln .t { color: var(--faint); margin-right: 10px; user-select: none; }
+.bar .livedot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 2px var(--bg); }
+.projectnav { margin-right: 12px; }
+.projectnav button { padding: 4px 12px; font-size: 12px; }
+.panetitle { padding: 7px 12px; font-size: 12px; color: var(--dim); }
+
+/* ---- the Project page */
+.projectview .lede .bad { color: var(--err); }
+.svc h3 .sdot { margin-right: 8px; }
+.svc h3 .hint { margin-left: 8px; }
+.svc h3 .btn { margin-left: 6px; }
+.svc .in.err { color: var(--err); }
+.svcline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
+.svcline a.mono { color: var(--fg); }
+.svcother { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 12px; }
+.svcsettings .row3 { display: grid; grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; }
+.svcsettings .row3 input { width: 100%; padding: 6px 9px; font-size: 12px; }
+.svcsettings .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 16px; margin-top: 4px; }
+.svcsettings .opts .check { margin: 4px 0; font-size: 12px; }
+.check.inline { display: inline-flex; margin: 0 0 0 6px; vertical-align: middle; }
+.cards2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin: 12px 0; }
+.cards2 > .card { margin: 0; }
+.card.summary { text-align: left; color: var(--fg); cursor: pointer; }
+.card.summary:hover { border-color: var(--accent); }
+.card.summary.static { cursor: default; }
+.card.summary.static:hover { border-color: var(--line-2); }
+.card.summary h3 .ms { font-size: 17px; color: var(--dim); margin-right: 8px; }
+.card.summary h3 .ms.go { margin: 0; color: var(--faint); }
+.card.summary .big { font-size: 26px; font-weight: 600; letter-spacing: -.5px; line-height: 1.1; margin-bottom: 4px; }
+.regrow { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
+.regrow .hint { margin-left: auto; }
 .runrow .origin { margin-left: 6px; font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: .4px; }

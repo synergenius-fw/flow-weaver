@@ -22,9 +22,24 @@ It binds to `127.0.0.1:4311` by default and re-reads a file as you save it.
 |-------|------|
 | Left | The project's workflows as a tree, with each one's verdict: a dot for valid, warnings or errors, a count for runs waiting at a gate. Below it, this guide. |
 | Centre | One workflow as a process: steps in run order, failure arms branching, pulled steps beside the step that reads them. A scope body sits in a tinted band under its owner, named `owner · scope` at its corner: the rows inside run once per item, the owner above them once; a body inside a body is a band inside a band. During a run each step lights up as it goes. `Start` and `Exit` open like steps and show the parameters and return values. |
-| Right | Panes for what you are doing: **Run** (start a run, or the one open now), **Step** (the selected step: what it is, its ports, its code), **Issues** (everything the validator said), **Reference** (the workflow's annotations), **Changes** (two git versions on one picture), **Serve** (the workflow as an HTTP endpoint: its routes, and one button to expose it), **CLI** (run an `fw` command here). |
+| Right | Panes for what you are doing: **Run** (start a run, or the one open now), **Step** (the selected step: what it is, its ports, its code), **Issues** (everything the validator said), **Serve** (the workflow as an HTTP endpoint: its routes, one button to expose it, and the server's Start and Stop), and under **More**: **Reference** (the workflow's annotations), **Changes** (two git versions on one picture), **Export** (when a pack provides a target). |
+| Bottom | A drawer, closed until something opens it: the **Server** and **Watch** output as they print it, and the **CLI**. Drag its top edge for height. |
+| Bar | The glyphs at the bottom left: the **Project** page (with a green dot while the server is up), **Endpoints**, **Agents**, and opening another project. |
 
 Click a step to read it; click it again to let go. Click a tile's row while a run is going to see the values that flowed through it.
+
+## The Project page
+
+The front door, and where the console opens when it has nowhere else to go: the project as a whole, with the controls on it.
+
+- **Server** — whether `fw serve` runs for this project, where, since when, how many requests it has answered. **Start** brings it up with the saved settings; **Stop**, **Restart** and **Logs** do what they say. The settings behind the sliders glyph are port, host, whether a token guards it (generated at each start; the card shows it, since anyone who reaches the console can already run every workflow), agent profiles, the step trace, Swagger UI, dev mode, and *start with the console*. Settings are kept per project under your home, never in the project tree. A server someone started from a terminal for the same project is shown too and can be stopped, but not restarted or read: it is not the console's. Services the console started stop with the console.
+- **Endpoints**, **Agents** — the number that matters and the way to the page.
+- **Recompile on save** — `fw watch` as a switch, with its output in the drawer.
+- **Editors** — which editors have the MCP server registered for this project and from which install; `fw mcp-setup` registers it.
+- **Environment** — the checks `fw doctor` runs, with the fix beside each.
+- **Needs you**, on the right — every run waiting at a gate anywhere in the project, and the latest failures; one click opens the run.
+
+Below, the console's own version, install and run store, and whether each registry in `.npmrc` answers with its token. Every long-lived `fw` process — `mcp-server`, `serve`, `console` — announces itself in `~/.fw/services/` when it starts and notes each tool call or request; the page and `fw doctor`'s *Running services* check read that directory, and a record whose process is gone is dropped. An MCP server speaks stdio to the editor that started it, so what is known about a running one is what it reports about itself. A server answering from another install than the one you are editing is called out, since edits do not reach it.
 
 ## Starting a run
 
@@ -70,11 +85,11 @@ The Agents page — the robot glyph on the left bar — is the project's `.floww
 
 ## Serve
 
-The **Serve** pane is the open workflow as an HTTP endpoint. It says whether `fw serve` is running for this project — it looks in the same place `fw doctor` does — and lists the routes the workflow declares with `@http`, each with the request to copy as `curl`, the parameters coming from the run form, and what the route answers with. A workflow with no route has one button, **Expose as endpoint**, which writes `@http POST /<name>` on the workflow; **Edit** opens the same small editor for a workflow that has routes: a method, a path (`:param` binds a parameter), and three switches — answer at once, no token, accept a callback URL. Saving rewrites only the `@http` lines. Under the routes, the run resource every workflow has regardless, and the run URLs to resolve, follow and cancel a run. Runs made over the API are the same runs as the console's, so a gate a caller reached can be answered on this page; a run started elsewhere says so in the run list (`http`, `mcp`). See [Deployment](deployment#workflows-as-endpoints).
+The **Serve** pane is the open workflow as an HTTP endpoint. It says whether the server is running for this project, with **Start** and **Stop** right there (the settings are on the Project page) and **Logs** opening the drawer, and lists the routes the workflow declares with `@http`, each with the request to copy as `curl`, the parameters coming from the run form, and what the route answers with. A workflow with no route has one button, **Expose as endpoint**, which writes `@http POST /<name>` on the workflow; **Edit** opens the same small editor for a workflow that has routes: a method, a path (`:param` binds a parameter), and three switches — answer at once, no token, accept a callback URL. Saving rewrites only the `@http` lines. When this console started the server, *copy request* fills in its token. Under the routes, the run resource every workflow has regardless, and the run URLs to resolve, follow and cancel a run. Runs made over the API are the same runs as the console's, so a gate a caller reached can be answered on this page; a run started elsewhere says so in the run list (`http`, `mcp`). See [Deployment](deployment#workflows-as-endpoints).
 
 ## Endpoints
 
-The Endpoints page — the API glyph on the left bar — is every declared route in the project on one page: method, path, what it answers with, the flags it carries, and the request to copy, grouped by workflow; the routes that could not be mounted and why; and whether `fw serve` is up. A project with no routes yet is told what a route adds over the run resource and shown the workflows to start with. The side has the response contract in short, and the snippets to mount the same API in an Express app or a fetch host. See [Embedding the API](deployment#embedding-the-api).
+The Endpoints page — the API glyph on the left bar — is every declared route in the project on one page: method, path, what it answers with, the flags it carries, and the request to copy, grouped by workflow; the routes that could not be mounted and why; and whether the server is up, with **Start server** when it is not. A project with no routes yet is told what a route adds over the run resource and shown the workflows to start with. The side has the response contract in short, and the snippets to mount the same API in an Express app or a fetch host. See [Embedding the API](deployment#embedding-the-api).
 
 ## Debugging
 
@@ -107,11 +122,11 @@ See [Marketplace](marketplace) for what a pack can contain and how one is made.
 
 The guide you are reading is part of the console. Open a topic from the rail and it takes the centre, with its contents on the right and, where it applies, the workflows in this project the topic is about — the gated ones on *Durable Gates*, the ones with issues on *Error Codes*.
 
-Every `fw` command in a page can be put into the **CLI** pane with one click, with the open workflow's file filled in, and run there. Each page can also be copied in its compact form, the same bytes `fw_docs` gives an assistant, to paste into a conversation.
+Every `fw` command in a page can be put on the **CLI** in the drawer with one click, with the open workflow's file filled in, and run there. Each page can also be copied in its compact form, the same bytes `fw_docs` gives an assistant, to paste into a conversation.
 
 ## The command line
 
-The **CLI** pane runs `fw` commands in the project — as an argument list handed to this install of the CLI, never through a shell, so quoting means the same on every platform. Long-lived commands (`console`, `mcp-server`, `watch`, `dev`, `serve`) are refused with a reason.
+The **CLI** tab of the drawer runs `fw` commands in the project — as an argument list handed to this install of the CLI, never through a shell, so quoting means the same on every platform. Long-lived commands are refused with a reason: `serve` and `watch` belong to the Project page, where they are started and stopped as services; `console`, `mcp-server` and `dev` to a terminal.
 
 - **Type** — `Tab` completes commands, subcommands and flags from the CLI reference and from installed packs' commands; `↑`/`↓` walk the session's history; `Enter` runs.
 - **Build** — *Commands* opens the catalogue as a form: pick a command, fill its arguments (the open workflow's file is filled in for an input) and its options, with each flag's description and default beside it; the line it makes is shown as you go, and examples from the reference can be taken as a starting point. Typing and the form are two views of one line: a typed line opens in the form with what it had, and the form writes back to the line.
@@ -129,12 +144,6 @@ await createConsoleServer({ projectDir: '/srv/workflows', port: 4311, store: myS
 ```
 
 Everything on this page then reads and writes that store: the run list, the gate forms, the agent panel, the Serve pane's run URLs. Changes made by other instances arrive by polling every few seconds rather than at once. Put it behind your own login; the console has none of its own.
-
-## Status
-
-The heart glyph at the bottom of the bar opens Status: the `fw` processes alive on this machine and what they are doing, which editors have the MCP server registered and from which install, the environment as `fw doctor` sees it, and whether each registry in `.npmrc` answers with its token.
-
-An MCP server speaks stdio to the editor that started it, so nothing can connect to it to ask; instead every long-lived `fw` process — `mcp-server`, `serve`, `console` — announces itself in `~/.fw/services/` when it starts and notes each tool call or request. Status, and `fw doctor`'s *Running services* check, read that directory; a record whose process is gone is dropped. A server answering from another install than the one you are editing is called out, since edits do not reach it.
 
 ## Handing a workflow over
 

@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { defaultPass } from '../run-events';
-import { wf, run, runs, sel, ui, now, startRun, openRun, runDuration, stepDuration, passesOf, passValue, toast, isParsed, runActive, cancelRun, leaveRun, deleteRun, flatSteps, openDoc, openPack, openChanges, debugAction, targets, agents, openAgents, type Issue, type Step, type ParsedWorkflow, type Deploy, type RunSnapshot } from '../state';
+import { wf, run, runs, sel, ui, now, startRun, openRun, runDuration, stepDuration, passesOf, passValue, toast, isParsed, runActive, cancelRun, leaveRun, deleteRun, flatSteps, openDoc, openPack, openChanges, debugAction, targets, agents, openAgents, type Issue, type Step, type ParsedWorkflow, type Deploy, type RunSnapshot, type SidePane } from '../state';
 import { get } from '../api';
 import { ago, ms, short, editorLink, packNs } from '../format';
 import { NewRunCard } from './NewRun';
@@ -10,7 +10,6 @@ import { Value } from './Value';
 import { Json } from './Json';
 import { Expr, PortRef } from './Expr';
 import { Code } from './Code';
-import { CliPane } from './Cli';
 import { ExportPane } from './Export';
 import { ServePane } from './ServePane';
 import { PaneTab } from './PaneTab';
@@ -604,6 +603,10 @@ export function Inspector() {
     : selected === 'Start' ? 'play_arrow' : selected === 'Exit' ? 'flag'
     : selNode?.icon ?? kindIcon(selStep?.kind === 'loop' ? 'loop' : selNode?.effect ? 'effect' : selNode?.gate ?? (selStep?.pull ? 'pull' : null)) ?? 'adjust';
   const stepColor = selNode ? (colorVar(selNode.color) ?? (selNode.gate ? 'var(--gate)' : selStep?.kind === 'loop' ? 'var(--loop)' : null)) : null;
+  const folded: SidePane[] = ['reference', 'changes', 'export'];
+  const [showMore, setShowMore] = useState(false);
+  const moreOpen = showMore || folded.includes(pane);
+  useEffect(() => { if (!folded.includes(pane)) setShowMore(false); }, [pane]);
   return (
     <>
       <div class="panes">
@@ -618,12 +621,19 @@ export function Inspector() {
             <span class={`issuecount ${errs > 0 ? 'err' : 'warn'}`}>{allIssues.length}</span>
           </PaneTab>
         )}
-        <PaneTab icon="data_object" label="Reference" on={pane === 'reference'} onClick={() => { ui.side.value = 'reference'; }} />
-        <PaneTab icon="difference" label="Changes" on={pane === 'changes'} onClick={() => { ui.side.value = 'changes'; }} />
-        {/* Only when a pack provides a target: an Export tab with nothing behind it would be a promise. */}
-        {targets.value.length > 0 && <PaneTab icon="output" label="Export" on={pane === 'export'} onClick={() => { ui.side.value = 'export'; }} />}
         <PaneTab icon="dns" label="Serve" on={pane === 'serve'} onClick={() => { ui.side.value = 'serve'; }} />
-        <PaneTab icon="terminal" label="CLI" on={pane === 'cli'} onClick={() => { ui.side.value = 'cli'; }} />
+        {/* The panes read now and then fold behind one button until one is
+            wanted; the one in use stays out. Export only when a pack provides
+            a target: a tab with nothing behind it would be a promise. */}
+        {moreOpen ? (
+          <>
+            <PaneTab icon="data_object" label="Reference" on={pane === 'reference'} onClick={() => { ui.side.value = 'reference'; }} />
+            <PaneTab icon="difference" label="Changes" on={pane === 'changes'} onClick={() => { ui.side.value = 'changes'; }} />
+            {targets.value.length > 0 && <PaneTab icon="output" label="Export" on={pane === 'export'} onClick={() => { ui.side.value = 'export'; }} />}
+          </>
+        ) : (
+          <PaneTab icon="more_horiz" label="More" on={false} onClick={() => setShowMore(true)} />
+        )}
       </div>
       <div class="panebody">
         {pane === 'run' && (
@@ -643,7 +653,6 @@ export function Inspector() {
             <DocsSearch />
           </>
         )}
-        {pane === 'cli' && <CliPane />}
         {pane === 'export' && <ExportPane w={w} />}
         {pane === 'serve' && <ServePane w={w} />}
       </div>

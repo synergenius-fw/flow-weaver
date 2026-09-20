@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
-import { view, endpoints, loadEndpoints, serveInfo, openDoc, openServe, toast, type EndpointWorkflow } from '../state';
+import { view, endpoints, loadEndpoints, serveInfo, openDoc, openServe, toast, startService, stopService, openDrawer, openOverview, type EndpointWorkflow } from '../state';
 import { curlFor, answerLine } from '../http';
 import { ago } from '../format';
-import { CliPane } from './Cli';
 import { PaneTab } from './PaneTab';
 import { Highlight } from './Code';
 
@@ -27,13 +26,22 @@ export function RouteFlags({ r }: { r: { mode?: string; auth?: string; callback?
 
 function ServeLine() {
   const s = serveInfo.value;
-  const cmd = s?.command ?? 'fw serve --trace';
+  const [busy, setBusy] = useState(false);
+  const act = async (fn: () => Promise<void>) => { setBusy(true); try { await fn(); } catch (e) { toast((e as Error).message); } finally { setBusy(false); } };
   return (
     <div class="card serveline">
       <div class="in">
         {s?.running
-          ? <><span class="sdot ok" /> <b>fw serve</b> is up at <code>{s.running.url}</code> · since {ago(Date.parse(s.running.startedAt))}</>
-          : <><span class="sdot" /> <b>fw serve</b> is not running for this project. <span class="composed inline"><code>{cmd}</code><button class="linkish" onClick={() => copy(cmd)}>copy</button></span></>}
+          ? <><span class="sdot ok" /> <b>Server</b> up at <a class="mono" href={s.running.url ?? undefined} target="_blank" rel="noreferrer">{s.running.url}</a> · since {ago(Date.parse(s.running.startedAt))}{!s.running.owned ? ' · started from a terminal' : ''}
+              <span class="sp" />
+              {s.running.owned && <button class="btn ghost sm" onClick={() => openDrawer('serve')}>Logs</button>}
+              <button class="btn sm" disabled={busy} onClick={() => act(() => stopService('serve', s.running!.owned ? undefined : s.running!.pid))}>Stop</button></>
+          : s?.state === 'starting'
+            ? <><span class="sdot warn" /> <b>Server</b> starting… <span class="sp" /><button class="btn ghost sm" onClick={() => openDrawer('serve')}>Logs</button></>
+            : <><span class="sdot" /> <b>Server</b> not running. The routes below answer once it is up.
+                <span class="sp" />
+                <button class="btn primary sm" disabled={busy} onClick={() => act(() => startService('serve'))}>{busy ? 'Starting…' : 'Start server'}</button>
+                <button class="btn ghost sm" onClick={openOverview} title="Port, host, token and options, on the Project page">Settings</button></>}
       </div>
     </div>
   );
@@ -165,13 +173,12 @@ const api = createWorkflowApi({ dir: './workflows' });
 export default { fetch: (req: Request) => api.fetch(req) };`;
 
 export function EndpointsSide() {
-  const [pane, setPane] = useState<'about' | 'mount' | 'cli'>('about');
+  const [pane, setPane] = useState<'about' | 'mount'>('about');
   return (
     <>
       <div class="panes">
         <PaneTab icon="info" label="About" on={pane === 'about'} onClick={() => setPane('about')} />
         <PaneTab icon="extension" label="Mount" on={pane === 'mount'} onClick={() => setPane('mount')} />
-        <PaneTab icon="terminal" label="CLI" on={pane === 'cli'} onClick={() => setPane('cli')} />
       </div>
       <div class="panebody">
         {pane === 'about' && (
@@ -226,7 +233,6 @@ export function EndpointsSide() {
             </div>
           </div>
         )}
-        {pane === 'cli' && <CliPane />}
       </div>
     </>
   );

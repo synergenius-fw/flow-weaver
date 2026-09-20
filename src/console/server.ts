@@ -27,7 +27,7 @@ import type { ExecutionTraceEvent } from '../mcp/workflow-executor.js';
 import { buildGateResolution, computeBundleDigest, createLocalCoordinator, defaultRunsDir, answerAgentGate, transcriptName, isAnswering, reclaimStaleAgentAnswers, type RunRecord, type RunSummary, type RunStore, type TraceEntry } from '../coordinator/index.js';
 import { loadAgentProfiles, saveAgentProfiles, validateProfile, readiness, keyEnvOf, agentsFile, STARTER_AGENTS_YAML, DEFAULT_MODEL, SUGGESTED_MODELS, type AgentProfiles, type AgentProfile } from '../agent/profiles.js';
 import { tryProfile, type AgentGateEvent } from '../agent/gate.js';
-import { listServices } from '../service-registry.js';
+import { VERSION } from '../generated-version.js';
 import { ERROR_HINTS } from '../mcp/response-utils.js';
 import { searchDocs, readTopic, readTopicStructured, listTopics, getPackDocTopics } from '../docs/index.js';
 import { loadPackDocTopics } from '../docs/pack-topics.js';
@@ -35,6 +35,7 @@ import { guideOutline } from '../docs/guide.js';
 import { cliCatalog } from './cli-catalog.js';
 import { planFwCommand, spawnFw } from './cli-run.js';
 import { DebugSessions, type DebugView } from './debug.js';
+import { Supervisor, type ManagedKind, type SupervisorOptions } from './services.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import { fileHistory, fileAt, stamp as gitStamp } from './git.js';
 import { buildDiffView } from './diff-view.js';
@@ -71,6 +72,8 @@ export interface ConsoleServerOptions {
    * picked up by polling, since a store of yours has no directory to watch.
    */
   store?: RunStore;
+  /** How the project's services are started; a test hands in a fake spawn and its own directories. */
+  services?: Pick<SupervisorOptions, 'spawn' | 'settingsDir' | 'registryDir'>;
 }
 
 export interface ConsoleServer {
@@ -435,13 +438,24 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
       }),
     };
   }
-  /** Whether `fw serve` is running for this project, from the service registry. */
+  /**
+   * The project's services: ours, and those the registry knows. A change of
+   * state is broadcast so every page refreshes; the lines go to whoever
+   * opened the log stream.
+   */
+  const superviseFor = (dir: string) => new Supervisor({
+    projectDir: dir,
+    ...options.services,
+    onChange: (e) => { if (!e.line) broadcast({ type: 'services', kind: e.kind, state: e.state, url: e.url ?? null, exitCode: e.exitCode ?? null, error: e.error ?? null }); },
+  });
+  let supervisor = superviseFor(projectDir);
+
+  /** Whether `fw serve` is running for this project: ours, or from a terminal. */
   function describeServe(): Json {
-    const real = (p: string) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
-    const here = real(projectDir);
-    const s = listServices().find((x) => x.kind === 'serve' && x.project && real(x.project) === here);
+    const s = supervisor.view('serve');
     return {
-      running: s ? { url: s.url ?? null, pid: s.pid, startedAt: s.startedAt, version: s.version, install: s.install } : null,
+      running: s.state === 'running' && s.pid ? { url: s.url ?? null, pid: s.pid, startedAt: s.startedAt, version: s.activity?.version ?? VERSION, install: s.activity?.install ?? '', owned: s.owned, token: s.token ?? null } : null,
+      state: s.state,
       command: 'fw serve --trace',
     };
   }
@@ -847,6 +861,9 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
         }
         projectDir = target;
         invalidateListing(projectDir);
+        // The services were the old project's; this one gets its own.
+        await supervisor.close().catch(() => undefined);
+        supervisor = superviseFor(projectDir);
         await watchProject();
         await loadPackDocTopics(projectDir).catch(() => 0);
         options.onProject?.(projectDir);
@@ -1108,6 +1125,32 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
         }
       }
       if (url.pathname === '/api/serve') return json(res, 200, describeServe());
+      // The project's services: what runs, its settings, start and stop, its output.
+      if (url.pathname === '/api/services') return json(res, 200, { services: supervisor.list(), settings: supervisor.settings() });
+      const sm = url.pathname.match(/^\/api\/services\/(serve|watch)\/(start|stop|restart|settings|logs)$/);
+      if (sm) {
+        const kind = sm[1] as ManagedKind;
+        try {
+          if (sm[2] === 'logs') {
+            if (q('format') === 'json') return json(res, 200, supervisor.logs(kind));
+            sse(res);
+            for (const line of supervisor.logs(kind)) res.write(`data: ${JSON.stringify(line)}\n\n`);
+            res.write(`data: ${JSON.stringify({ synced: true })}\n\n`);
+            const off = supervisor.onLog(kind, (line) => res.write(`data: ${JSON.stringify(line)}\n\n`));
+            req.on('close', off);
+            return;
+          }
+          if (req.method !== 'POST' && req.method !== 'PUT') return json(res, 405, { error: 'POST to start, stop or restart; PUT settings' });
+          const b = await body(req);
+          if (sm[2] === 'settings') { supervisor.saveSettings(kind, b as never); return json(res, 200, { services: supervisor.list(), settings: supervisor.settings() }); }
+          if (sm[2] === 'start') { if (Object.keys(b).length) supervisor.saveSettings(kind, b as never); supervisor.start(kind); }
+          if (sm[2] === 'stop') await supervisor.stop(kind, typeof b.pid === 'number' ? b.pid : undefined);
+          if (sm[2] === 'restart') await supervisor.restart(kind);
+          return json(res, 200, { services: supervisor.list(), settings: supervisor.settings() });
+        } catch (err) {
+          return json(res, 400, { error: err instanceof Error ? err.message : String(err) });
+        }
+      }
       if (url.pathname === '/api/events') { sse(res); globalSubs.add(res); req.on('close', () => globalSubs.delete(res)); return; }
 
       if (url.pathname === '/api/runs' && req.method === 'GET') {
@@ -1227,10 +1270,17 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
   const actualPort = typeof address === 'object' && address ? address.port : port;
   actualPortRef.value = actualPort;
 
+  // The services this project asked to have running with the console.
+  for (const kind of ['serve', 'watch'] as const) {
+    if (supervisor.settings()[kind].autoStart) { try { supervisor.start(kind); } catch { /* the card says why */ } }
+  }
+
   return {
     url: `http://${host}:${actualPort}`,
     async close() {
       clearInterval(heartbeat);
+      // Services the console started stop with it: one rule, no orphans.
+      await supervisor.close().catch(() => undefined);
       await watcher?.close();
       if (storePoll) clearInterval(storePoll);
       await storeWatcher?.close();

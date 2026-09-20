@@ -1,4 +1,4 @@
-import { wf, run, runActive, errorCount, ui, cancelRun, runDuration, now, isParsed, isNarrow, view, doc, guide, packs, closeDoc, openDoc } from '../state';
+import { wf, run, runActive, errorCount, ui, cancelRun, runDuration, now, isParsed, isNarrow, view, doc, guide, packs, closeDoc, openDoc, isProjectView, project, openOverview, openEndpoints, openAgents } from '../state';
 import { ms } from '../format';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { q } from '../api';
@@ -68,28 +68,18 @@ export function Header() {
     );
   }
 
-  if (view.value.kind === 'status') {
+  // The pages about the project as a whole share one bar, with the way
+  // between them on it, so they read as one place rather than three.
+  if (isProjectView(view.value)) {
+    const kind = view.value.kind;
     return (
       <div class="head docbar">
-        <div class="grow"><div class="meta">{menu}<span class="here">Status</span></div></div>
-        <div class="actions">{w && <button class="btn sm" onClick={closeDoc}>← {w.name}</button>}</div>
-      </div>
-    );
-  }
-
-  if (view.value.kind === 'agents') {
-    return (
-      <div class="head docbar">
-        <div class="grow"><div class="meta">{menu}<span class="here">Agents</span></div></div>
-        <div class="actions">{w && <button class="btn sm" onClick={closeDoc}>← {w.name}</button>}</div>
-      </div>
-    );
-  }
-
-  if (view.value.kind === 'endpoints') {
-    return (
-      <div class="head docbar">
-        <div class="grow"><div class="meta">{menu}<span class="here">Endpoints</span></div></div>
+        <div class="grow"><div class="meta">{menu}<span>{project.value.name || 'Project'}</span></div></div>
+        <div class="seg projectnav">
+          <button class={kind === 'project' ? 'on' : ''} onClick={openOverview}>Overview</button>
+          <button class={kind === 'endpoints' ? 'on' : ''} onClick={openEndpoints}>Endpoints</button>
+          <button class={kind === 'agents' ? 'on' : ''} onClick={openAgents}>Agents</button>
+        </div>
         <div class="actions">{w && <button class="btn sm" onClick={closeDoc}>← {w.name}</button>}</div>
       </div>
     );

@@ -118,7 +118,7 @@ export const run = signal<RunState | null>(null);
 export const sel = signal<string | null>(null);
 export const now = signal(Date.now());
 export const toastMsg = signal('');
-export type SidePane = 'run' | 'step' | 'issues' | 'reference' | 'changes' | 'cli' | 'export' | 'serve';
+export type SidePane = 'run' | 'step' | 'issues' | 'reference' | 'changes' | 'export' | 'serve';
 
 // --------------------------------------------------------------- changes
 export type Change = 'added' | 'removed' | 'changed';
@@ -143,7 +143,7 @@ export const diffMode = signal<DiffMode>('diff');
 export const diffRequest = signal<{ from: string; to: string } | null>(null);
 /** Open the Changes pane on a comparison. */
 export function openChanges(from: string, to = 'worktree') { diffRequest.value = { from, to }; ui.side.value = 'changes'; }
-export type DocSidePane = 'contents' | 'project' | 'cli';
+export type DocSidePane = 'contents' | 'project';
 
 // ------------------------------------------------------------------- docs
 export interface GuideEntry { slug: string; name: string; description: string; related?: { codes?: boolean; uses?: string[] } }
@@ -154,7 +154,9 @@ export interface Doc { slug: string; name: string; description: string; sections
  * it is a thing opened in the same place a workflow is, and the workflow
  * stays loaded behind it, one click away.
  */
-export type View = { kind: 'workflow' } | { kind: 'doc'; slug: string } | { kind: 'pack'; name: string } | { kind: 'market' } | { kind: 'author' } | { kind: 'status' } | { kind: 'agents' } | { kind: 'endpoints' };
+export type View = { kind: 'workflow' } | { kind: 'doc'; slug: string } | { kind: 'pack'; name: string } | { kind: 'market' } | { kind: 'author' } | { kind: 'project' } | { kind: 'agents' } | { kind: 'endpoints' };
+/** The pages about the project as a whole, which share one header. */
+export const isProjectView = (v: View): boolean => v.kind === 'project' || v.kind === 'agents' || v.kind === 'endpoints';
 export const view = signal<View>({ kind: 'workflow' });
 export const guide = signal<GuideGroup[]>([]);
 export const doc = signal<Doc | null>(null);
@@ -223,6 +225,9 @@ export const ui = {
   /** The search palette (⌘K). */
   search: signal(false),
   width: signal(window.innerWidth),
+  /** The bottom drawer, when open: which stream it shows, and how tall it is. */
+  drawer: signal<DrawerTab | null>(store.get<DrawerTab | null>('drawer', null)),
+  drawerH: signal(store.get('drawerH', 240)),
 };
 export const iconsReady = signal(false);
 
@@ -442,6 +447,12 @@ stream('/api/events', (msg) => {
   }
   if (msg.type === 'project') { get('/api/project').then((p) => { project.value = p; }); loadWorkflows(); loadPacks().catch(() => undefined); }
   if (msg.type === 'client') location.reload();
+  if (msg.type === 'services') {
+    void loadServices().catch(() => undefined);
+    void loadServe().catch(() => undefined);
+    if (msg.kind === 'serve' && msg.state === 'running' && msg.url) toast(`server up at ${msg.url}`);
+    if (msg.state === 'exited' && msg.error) toast(`${msg.kind === 'serve' ? 'server' : 'watch'} stopped: ${msg.error}`);
+  }
 });
 
 export async function openProject(dir: string): Promise<void> {
@@ -498,12 +509,48 @@ export async function loadPacks(): Promise<void> {
   packProject.value = await get('/api/pack-project').catch(() => ({ isPack: false }));
 }
 
-/** The services around the project, the editors that reach them, the environment. */
-export function openStatus(): void {
+/** The project's front door: its server, endpoints, agents, runs, editors and environment on one page. */
+export function openOverview(): void {
   ui.railOpen.value = false;
-  view.value = { kind: 'status' };
-  location.hash = 'status';
+  view.value = { kind: 'project' };
+  location.hash = 'project';
+  void loadServices().catch(() => undefined);
 }
+
+// -------------------------------------------------------------- services
+export type ServiceKind = 'serve' | 'watch';
+export interface ServiceView {
+  kind: ServiceKind;
+  state: 'stopped' | 'starting' | 'running' | 'exited';
+  /** Started by this console, so it can be restarted and its output read. */
+  owned: boolean;
+  pid?: number; url?: string; startedAt?: string;
+  exitCode?: number | null; error?: string;
+  lines: number;
+  /** The token a server this console started expects. */
+  token?: string;
+  activity?: { count: number; last?: string; at: string; version: string; install: string };
+  others: Array<{ pid: number; url?: string; startedAt: string; version: string; install: string }>;
+}
+export interface ServeSettings { port: number; host: string; auth: 'token' | 'open'; agents: boolean; trace: boolean; dev: boolean; swagger: boolean; autoStart: boolean }
+export interface ServicesInfo { services: ServiceView[]; settings: { serve: ServeSettings; watch: { autoStart: boolean } } }
+export const services = signal<ServicesInfo | null>(null);
+export const serviceOf = (kind: ServiceKind): ServiceView | undefined => services.value?.services.find((s) => s.kind === kind);
+export async function loadServices(): Promise<ServicesInfo> {
+  const s = await get<ServicesInfo>('/api/services');
+  services.value = s;
+  return s;
+}
+export async function startService(kind: ServiceKind, settings?: Partial<ServeSettings>): Promise<void> { services.value = await post(`/api/services/${kind}/start`, settings ?? {}); void loadServe().catch(() => undefined); }
+export async function stopService(kind: ServiceKind, pid?: number): Promise<void> { services.value = await post(`/api/services/${kind}/stop`, pid ? { pid } : {}); void loadServe().catch(() => undefined); }
+export async function restartService(kind: ServiceKind): Promise<void> { services.value = await post(`/api/services/${kind}/restart`, {}); void loadServe().catch(() => undefined); }
+export async function saveServiceSettings(kind: ServiceKind, patch: Partial<ServeSettings> | { autoStart: boolean }): Promise<void> { services.value = await put(`/api/services/${kind}/settings`, patch); }
+
+// ---------------------------------------------------------------- drawer
+/** The bottom drawer: a service's output, or the command line. */
+export type DrawerTab = 'serve' | 'watch' | 'cli';
+export function openDrawer(tab: DrawerTab): void { ui.drawer.value = tab; store.set('drawer', tab); }
+export function closeDrawer(): void { ui.drawer.value = null; store.set('drawer', null); }
 
 // ---------------------------------------------------------------- agents
 /** One agent profile as `/api/agents` describes it: readiness by environment, never a key. */
@@ -547,7 +594,7 @@ export async function askAgent(): Promise<void> {
   await post(`/api/runs/${run.value!.id}/agent`, {});
 }
 /** Whether `fw serve` is running for this project, and how to reach it. */
-export interface ServeInfo { running: { url: string | null; pid: number; startedAt: string; version: string; install: string } | null; command: string }
+export interface ServeInfo { running: { url: string | null; pid: number; startedAt: string; version: string; install: string; owned: boolean; token: string | null } | null; state: 'stopped' | 'starting' | 'running' | 'exited'; command: string }
 export const serveInfo = signal<ServeInfo | null>(null);
 export async function loadServe(): Promise<ServeInfo> {
   const s = await get<ServeInfo>('/api/serve');
@@ -630,7 +677,7 @@ export function stageCli(line: string): void {
   cli.line.value = staged;
   cli.build.value = false;
   cli.focus.value = true;
-  if (view.value.kind === 'doc') ui.docSide.value = 'cli'; else ui.side.value = 'cli';
+  openDrawer('cli');
 }
 
 export function runCli(argv: string[]): void {
@@ -669,6 +716,8 @@ export function runCli(argv: string[]): void {
 
 export function stopCli(id: string): void { cli.runs.value.find((r) => r.id === id)?.stop(); }
 cli.history.subscribe((h) => store.set('cli-history', h));
+// The server's state shows on the rail from the first paint.
+void loadServices().catch(() => undefined);
 ui.railTab.subscribe((t) => store.set('railTab', t));
 
 /**
@@ -680,7 +729,7 @@ async function applyHash(initial = false): Promise<void> {
   const h = decodeURIComponent(location.hash.slice(1));
   if (h === 'market') { if (view.value.kind !== 'market') openMarket(); return; }
   if (h === 'author') { if (view.value.kind !== 'author') openAuthor(); return; }
-  if (h === 'status') { if (view.value.kind !== 'status') openStatus(); return; }
+  if (h === 'project' || h === 'status') { if (view.value.kind !== 'project') openOverview(); return; }
   if (h === 'agents') { if (view.value.kind !== 'agents') openAgents(); return; }
   if (h === 'endpoints') { if (view.value.kind !== 'endpoints') openEndpoints(); return; }
   const asPack = h.match(/^pack\/(.+)$/);
@@ -695,6 +744,9 @@ async function applyHash(initial = false): Promise<void> {
     if (view.value.kind !== 'doc' || view.value.slug !== asDoc[1] || docAnchor.value !== anchor) await openDoc(asDoc[1], anchor);
     return;
   }
+  // Nowhere in particular: the project's front door. A remembered place --
+  // the hash of the last visit -- still lands where it says.
+  if (!h && initial) { openOverview(); return; }
   const cut = h.lastIndexOf('/');
   const [rel, name] = cut > 0 ? [h.slice(0, cut), h.slice(cut + 1)] : ['', ''];
   const named = workflows.value.find((w) => w.rel === rel && w.name === name);
