@@ -225,8 +225,8 @@ export function generateReadme(projectName: string, persona: PersonaId, _templat
       '- "Add retry logic to the data pipeline"',
       '- "Show me a diagram of the current workflow"',
       '',
-      'The AI has access to Flow Weaver\'s 48 tools and will create, modify, and validate',
-      'workflows for you.',
+      'Through the Flow Weaver MCP server the AI creates, modifies, validates and runs',
+      'workflows for you, and `fw console --open` shows you what it made.',
       '',
     );
   } else if (persona === 'vibecoder') {
@@ -468,7 +468,7 @@ function printLowcodeGuidance(): void {
   logger.newline();
   logger.log(`  ${logger.bold('Explore and customize')}`);
   logger.newline();
-  logger.log(`    npx fw templates            ${logger.dim('List all 16 workflow templates')}`);
+  logger.log(`    npx fw templates            ${logger.dim('List the workflow and node templates')}`);
   logger.log(`    npx fw describe src/*.ts     ${logger.dim('See the workflow structure')}`);
   logger.log(`    npx fw docs annotations     ${logger.dim('Annotation reference')}`);
   logger.newline();

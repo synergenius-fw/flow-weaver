@@ -357,7 +357,7 @@ Results carry no trace events, progress, or continuation. A waiting result for a
 
 ## Agent profiles
 
-An agent gate can be answered by a model called from inside the process, so a gated workflow runs from start to finish with nobody watching. Which model, and what it is told, is a **profile** in the project at `.flowweaver/agents.yaml`:
+An agent gate can be answered by a model called from inside the process, so a gated workflow runs from start to finish with nobody watching. Which model, and what it is told, is a **profile** in the project at `.flowweaver/agents.yaml`. `fw agents --init` writes a starter file, `fw agents` says whether each profile is ready, and the console's Agents page edits the same file with a form:
 
 ```yaml
 default: reviewer

@@ -201,6 +201,18 @@ program
       await doctorCommand(options);
   }));
 
+// Agents command
+program
+  .command('agents [directory]')
+  .description('The agent profiles that answer agent gates in this project, and whether each is ready')
+  .option('--init', 'Write the starter .flowweaver/agents.yaml', false)
+  .option('--force', 'With --init: replace an existing file', false)
+  .option('--json', 'Output as JSON', false)
+  .action(wrapAction(async (directory: string | undefined, options) => {
+      const { agentsCommand } = await import('./commands/agents.js');
+      await agentsCommand(directory, options);
+  }));
+
 // Init command
 program
   .command('init [directory]')

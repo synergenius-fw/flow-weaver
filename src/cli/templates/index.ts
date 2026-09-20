@@ -14,6 +14,7 @@ import { aiChatTemplate } from './workflows/ai-chat';
 import { aggregatorTemplate } from './workflows/aggregator';
 import { webhookTemplate } from './workflows/webhook';
 import { errorHandlerTemplate } from './workflows/error-handler';
+import { approvalTemplate } from './workflows/approval';
 
 // Import node templates
 import { validatorNodeTemplate } from './nodes/validator';
@@ -116,6 +117,7 @@ export const workflowTemplates: WorkflowTemplate[] = [
   sequentialTemplate,
   foreachTemplate,
   conditionalTemplate,
+  approvalTemplate,
   aiAgentTemplate,
   aiReactTemplate,
   aiRagTemplate,

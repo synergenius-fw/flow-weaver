@@ -23,6 +23,7 @@ Complete reference for all `fw` CLI commands.
 | `diff` | Compare two workflow files semantically |
 | `validate` | Validate workflow files without compiling |
 | `doctor` | Check project environment and configuration for flow-weaver compatibility |
+| `agents` | The agent profiles that answer agent gates in this project, and whether each is ready |
 | `init` | Create a new flow-weaver project |
 | `watch` | Watch workflow files and recompile on changes |
 | `dev` | Watch, compile, and run workflow on changes |

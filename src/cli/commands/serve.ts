@@ -77,7 +77,7 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
     const ready = Object.values(profiles.agents).filter((p) => readiness(p).ready).length;
     logger.info(profiles.exists
       ? `Agents: ${Object.keys(profiles.agents).length} profile(s), ${ready} ready${profiles.default ? `, default ${profiles.default}` : ''}${profiles.errors.length ? ` — ${profiles.errors.length} problem(s) in ${profiles.file}` : ''}`
-      : 'Agents: no .flowweaver/agents.yaml; agent gates wait for a person');
+      : 'Agents: no .flowweaver/agents.yaml; agent gates wait for a person (fw agents --init writes a starter)');
   } else {
     logger.info('Agents: off; agent gates wait for a person');
   }

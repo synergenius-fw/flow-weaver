@@ -1,12 +1,12 @@
 ---
 name: Flow Weaver Scaffold
 description: Scaffold workflows and nodes from templates using CLI commands
-keywords: [scaffold, templates, create, generate, workflow, node, sequential, foreach, ai-agent]
+keywords: [scaffold, templates, create, generate, workflow, node, sequential, foreach, approval, gate, ai-agent]
 ---
 
 # Quick Start
 
-Use the `fw create` command to scaffold workflows and nodes from templates, or `fw init` to create a new project.
+Use the `fw create` command to scaffold workflows and nodes from templates, or `fw init` to create a new project. The same templates are behind `fw_scaffold` for an assistant and `fw templates` lists them. `approval` is the gated one: it pauses for a person and resumes with their answer.
 
 ## Create a Project
 
@@ -18,7 +18,7 @@ Creates a new Flow Weaver project with recommended structure, dependencies, and 
 
 Options:
 - `--name <name>` / `-n` - Project name (defaults to directory name)
-- `--template <template>` / `-t` - Workflow template (default: `simple`)
+- `--template <template>` / `-t` - Workflow template (default: `sequential`)
 - `--format <format>` / `-f` - Module format: `esm` or `cjs` (default: `esm`)
 - `--yes` / `-y` - Skip prompts, use defaults
 - `--install` / `--no-install` - Run or skip npm install
@@ -85,6 +85,7 @@ fw templates [--json]
 | `sequential` | Linear pipeline: validate -> transform -> output |
 | `foreach` | Batch processing with iteration over arrays |
 | `conditional` | Route data based on conditions with branching paths |
+| `approval` | Prepare a request, pause for a person to approve it, then carry it out |
 | `ai-agent` | Stateful LLM agent with explicit reasoning loop and tool execution |
 | `ai-react` | Reasoning + Acting agent with explicit thought process |
 | `ai-rag` | Retrieval-Augmented Generation for knowledge-based Q&A |

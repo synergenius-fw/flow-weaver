@@ -220,6 +220,17 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
       { flags: '--json', description: 'Output results as JSON' },
     ],
   },
+  {
+    name: 'agents',
+    syntax: 'fw agents [directory] [--init] [--json]',
+    description: 'The agent profiles in .flowweaver/agents.yaml that answer agent gates, whether each is ready, and the gate mapping. --init writes the starter file.',
+    botCompatible: true,
+    options: [
+      { flags: '--init', description: 'Write the starter .flowweaver/agents.yaml' },
+      { flags: '--force', description: 'With --init: replace an existing file' },
+      { flags: '--json', description: 'Output as JSON' },
+    ],
+  },
 
   // ── Context ─────────────────────────────────────────────────────
   {
