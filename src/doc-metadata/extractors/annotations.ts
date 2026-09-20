@@ -393,6 +393,46 @@ targetType     ::= "string" | "number" | "boolean" | "json" | "object"`,
     examples: ['@throttle limit=3 period="1m"', '@throttle limit=10'],
     contexts: ['workflow'],
   },
+  {
+    name: '@return',
+    category: 'workflow',
+    syntax: '@return name [- description]',
+    description:
+      'Declares a workflow output (Exit port). An alias of @returns; both parse identically.',
+    insertText: '@return ${1:name}',
+    insertTextFormat: 'snippet',
+    ebnf: 'returnTag      ::= ("@return" | "@returns") IDENTIFIER [ "-" TEXT ]',
+    examples: ['@return result', '@return score - The computed score'],
+    contexts: ['workflow'],
+  },
+  {
+    name: '@async',
+    category: 'workflow',
+    syntax: '@async',
+    description:
+      'Marks a workflow or node type as asynchronous. Async is auto-detected from the TypeScript signature (a function returning a Promise), so this tag is optional; it is accepted as an explicit override and for documentation. Valid on both @flowWeaver workflow and @flowWeaver nodeType blocks.',
+    insertText: '@async',
+    insertTextFormat: 'plain',
+    ebnf: 'asyncTag       ::= "@async"',
+    examples: ['@async'],
+    contexts: ['workflow', 'nodeType'],
+  },
+  {
+    name: '@deploy',
+    category: 'workflow',
+    syntax: '@deploy target [key=value ...]',
+    description:
+      'Attaches deployment options for a named pack target. The default `typescript` compile target ignores it; a pack target reads the keys it supports. Values coerce to boolean/number when unquoted, and a quoted comma-separated value becomes a string array. Valid on both @flowWeaver workflow and @flowWeaver nodeType blocks. Several @deploy lines for the same target merge.',
+    insertText: '@deploy ${1:target} ${2:key}=${3:value}',
+    insertTextFormat: 'snippet',
+    ebnf: 'deployTag      ::= "@deploy" IDENTIFIER { IDENTIFIER "=" ( STRING | BARE ) }',
+    examples: [
+      '@deploy inngest',
+      '@deploy aws-lambda memory=512 timeout=30',
+      '@deploy vercel regions="iad1,sfo1"',
+    ],
+    contexts: ['workflow', 'nodeType'],
+  },
 ];
 
 /**
