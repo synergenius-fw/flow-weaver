@@ -19,7 +19,7 @@ describe('parseTriggerLine edge cases', () => {
     expect(parseTriggerLine('', w)).toBeNull();
   });
 
-  it('returns null for @trigger with no event or cron (CI/CD style)', () => {
+  it('returns null for @trigger with no event or cron (pack style)', () => {
     const w: string[] = [];
     // @trigger with no event=/cron= should return null so domain-specific
     // handlers can process it

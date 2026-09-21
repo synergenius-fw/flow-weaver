@@ -43,9 +43,9 @@ function parsePattern(code: string) {
 }
 
 /** Minimal fake TagHandlerRegistry for testing delegation paths */
-function fakeRegistry(knownTags: string[], cicdTrigger = false): TagHandlerRegistry {
+function fakeRegistry(knownTags: string[], packTrigger = false): TagHandlerRegistry {
   const tags = new Set(knownTags);
-  if (cicdTrigger) tags.add('_cicdTrigger');
+  if (packTrigger) tags.add('_trigger');
   return {
     has(tag: string) { return tags.has(tag); },
     handle(_tag: string, _comment: string, _ctx: string, deploy: Record<string, Record<string, unknown>>, _w: string[]) {
@@ -135,10 +135,10 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
     });
   });
 
-  // ── trigger: _cicdTrigger delegation (lines 1469-1472) ────
+  // ── trigger: _trigger delegation (lines 1469-1472) ────
 
-  describe('trigger _cicdTrigger delegation', () => {
-    it('delegates non-core trigger to _cicdTrigger handler', () => {
+  describe('trigger _trigger delegation', () => {
+    it('delegates non-core trigger to _trigger handler', () => {
       const registry = fakeRegistry([], true);
       const { config, warnings } = parseWorkflow(`
 /**
@@ -152,7 +152,7 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
       expect(config!.deploy!['__handled']).toEqual({ handled: true });
     });
 
-    it('warns on CI/CD trigger keyword when no cicd handler installed', () => {
+    it('warns on a non-core trigger form when no pack handler is installed', () => {
       const { warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow
@@ -160,7 +160,11 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('CI/CD') && w.includes('pack'))).toBe(true);
+      // Core knows only event=/cron=. With no pack `_trigger` handler, an
+      // unrecognised form is a generic invalid-format warning that names no
+      // domain and no pack.
+      expect(warnings.some(w => w.includes('Invalid @trigger format'))).toBe(true);
+      expect(warnings.some(w => w.toLowerCase().includes('pack'))).toBe(false);
     });
   });
 
@@ -502,8 +506,7 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
       expect(inst.height).toBeUndefined();
       expect(inst.x).toBeUndefined();
       expect(inst.y).toBeUndefined();
-      expect(inst.job).toBeUndefined();
-      expect(inst.environment).toBeUndefined();
+      expect(inst.attributes).toBeUndefined();
       expect(inst.suppressWarnings).toBeUndefined();
     });
   });
@@ -878,9 +881,9 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
     });
   });
 
-  // ── @trigger: CI/CD keyword warning ──
+  // ── @trigger: explicit event= forms parse cleanly ──
 
-  describe('@trigger CI/CD keyword with explicit event= syntax', () => {
+  describe('@trigger with explicit event= syntax', () => {
     it('accepts event="push" as valid Inngest trigger without warning', () => {
       const { config, warnings } = parseWorkflow(`
 /**
@@ -891,8 +894,8 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
 `);
       expect(config!.trigger).toBeDefined();
       expect(config!.trigger!.event).toBe('push');
-      // Explicit event= syntax is valid Inngest, no CI/CD warning
-      expect(warnings.some(w => w.includes('CI/CD'))).toBe(false);
+      // Explicit event= syntax is a valid core trigger, no warning
+      expect(warnings.some(w => w.includes('Invalid @trigger'))).toBe(false);
     });
 
     it('accepts event="pull_request" as valid Inngest trigger without warning', () => {
@@ -904,10 +907,10 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
       expect(config!.trigger!.event).toBe('pull_request');
-      expect(warnings.some(w => w.includes('CI/CD'))).toBe(false);
+      expect(warnings.some(w => w.includes('Invalid @trigger'))).toBe(false);
     });
 
-    it('does not warn for non-CI/CD event name', () => {
+    it('does not warn for an ordinary event name', () => {
       const { config, warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow

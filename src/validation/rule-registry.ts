@@ -1,7 +1,7 @@
 /**
  * ValidationRuleRegistry: dynamic dispatch for pack-contributed validation rules.
  *
- * Replaces the hardcoded `isCICDWorkflow() ? getCICDValidationRules() : []`
+ * Replaces a former hardcoded per-domain rule-set lookup
  * pattern. Each registered rule set has a detect predicate and a lazy rule loader.
  * The validate API calls `getApplicableRules(ast)` and merges results.
  */
@@ -21,7 +21,7 @@ export type TValidationRuleSet = {
 
 /**
  * Registry for dynamically contributed validation rule sets.
- * Core rule sets (like CI/CD) register themselves at startup.
+ * Core and pack rule sets register themselves at startup.
  * Pack-contributed rule sets are loaded from manifests.
  */
 export class ValidationRuleRegistry {

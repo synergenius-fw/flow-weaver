@@ -20,11 +20,10 @@ import {
   SizePrefix,
   ColorPrefix,
   IconPrefix,
-  JobPrefix,
-  EnvironmentAttrPrefix,
   TagsPrefix,
   SuppressPrefix,
   StringLiteral,
+  Colon,
   LBracket,
   RBracket,
   Comma,
@@ -56,10 +55,13 @@ export interface NodeParseResult {
   color?: string;
   icon?: string;
   tags?: Array<{ label: string; tooltip?: string }>;
-  /** CI/CD job group */
-  job?: string;
-  /** CI/CD deployment environment */
-  environment?: string;
+  /**
+   * Generic `[key: "value"]` bracket attributes not claimed by a named
+   * attribute above. Core does not interpret these; a pack reads them from the
+   * node instance and gives them meaning (validation, export, serialization).
+   * This is the extension point for domain vocabularies on `@node`.
+   */
+  attributes?: Record<string, string>;
   /** Warning codes to suppress for this instance */
   suppress?: string[];
 }
@@ -113,10 +115,16 @@ class NodeParser extends CstParser {
           { ALT: () => this.SUBRULE(this.sizeAttr) },
           { ALT: () => this.SUBRULE(this.colorAttr) },
           { ALT: () => this.SUBRULE(this.iconAttr) },
-          { ALT: () => this.SUBRULE(this.jobAttr) },
-          { ALT: () => this.SUBRULE(this.environmentAttr) },
           { ALT: () => this.SUBRULE(this.tagsAttr) },
           { ALT: () => this.SUBRULE(this.suppressAttr) },
+          // Catch-all LAST: any `key: "value"` not claimed above lands in the
+          // node's `attributes` for a pack to read. INVARIANT: every named
+          // attribute above must have its OWN prefix token (label:, color:,
+          // size:, …) tokenised before `Identifier`. A named attribute added as
+          // a bare `word:` with no dedicated token would tokenise as
+          // `Identifier Colon` and be swallowed here instead of parsed as
+          // itself. Add a prefix token in tokens.ts for any new named attribute.
+          { ALT: () => this.SUBRULE(this.customAttr) },
         ]);
       },
     });
@@ -228,16 +236,12 @@ class NodeParser extends CstParser {
     this.CONSUME(StringLiteral, { LABEL: 'iconValue' });
   });
 
-  // job: "value" (CI/CD job group)
-  private jobAttr = this.RULE('jobAttr', () => {
-    this.CONSUME(JobPrefix);
-    this.CONSUME(StringLiteral, { LABEL: 'jobValue' });
-  });
-
-  // environment: "value" (CI/CD deployment environment)
-  private environmentAttr = this.RULE('environmentAttr', () => {
-    this.CONSUME(EnvironmentAttrPrefix);
-    this.CONSUME(StringLiteral, { LABEL: 'environmentValue' });
+  // key: "value" — a generic bracket attribute a pack interprets. Matched last,
+  // so it never shadows a named attribute above.
+  private customAttr = this.RULE('customAttr', () => {
+    this.CONSUME(Identifier, { LABEL: 'attrKey' });
+    this.CONSUME(Colon);
+    this.CONSUME(StringLiteral, { LABEL: 'attrValue' });
   });
 
   // tags: "label" "tooltip", "label2"
@@ -310,10 +314,9 @@ interface AttributeBracketContext {
   sizeAttr?: CstNode[];
   colorAttr?: CstNode[];
   iconAttr?: CstNode[];
-  jobAttr?: CstNode[];
-  environmentAttr?: CstNode[];
   tagsAttr?: CstNode[];
   suppressAttr?: CstNode[];
+  customAttr?: CstNode[];
 }
 
 interface SuppressAttrContext {
@@ -374,12 +377,9 @@ interface IconAttrContext {
   iconValue: CstNodeWithImage[];
 }
 
-interface JobAttrContext {
-  jobValue: CstNodeWithImage[];
-}
-
-interface EnvironmentAttrContext {
-  environmentValue: CstNodeWithImage[];
+interface CustomAttrContext {
+  attrKey: CstNodeWithImage[];
+  attrValue: CstNodeWithImage[];
 }
 
 interface TagsAttrContext {
@@ -412,8 +412,7 @@ class NodeVisitor extends BaseVisitor {
     let color: string | undefined;
     let icon: string | undefined;
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
-    let job: string | undefined;
-    let environment: string | undefined;
+    let attributes: Record<string, string> | undefined;
     let suppress: string[] | undefined;
 
     if (ctx.parentScopeRef) {
@@ -433,8 +432,7 @@ class NodeVisitor extends BaseVisitor {
         if (attrs.color) color = attrs.color;
         if (attrs.icon) icon = attrs.icon;
         if (attrs.tags) tags = [...(tags || []), ...attrs.tags];
-        if (attrs.job) job = attrs.job;
-        if (attrs.environment) environment = attrs.environment;
+        if (attrs.attributes) attributes = { ...(attributes || {}), ...attrs.attributes };
         if (attrs.suppress) suppress = [...(suppress || []), ...attrs.suppress];
       }
     }
@@ -453,8 +451,7 @@ class NodeVisitor extends BaseVisitor {
       ...(color && { color }),
       ...(icon && { icon }),
       ...(tags && { tags }),
-      ...(job && { job }),
-      ...(environment && { environment }),
+      ...(attributes && { attributes }),
       ...(suppress && { suppress }),
     };
   }
@@ -476,8 +473,7 @@ class NodeVisitor extends BaseVisitor {
       color?: string;
     icon?: string;
     tags?: Array<{ label: string; tooltip?: string }>;
-    job?: string;
-    environment?: string;
+    attributes?: Record<string, string>;
     suppress?: string[];
   } {
     let label: string | undefined;
@@ -490,8 +486,7 @@ class NodeVisitor extends BaseVisitor {
     let color: string | undefined;
     let icon: string | undefined;
     let tags: Array<{ label: string; tooltip?: string }> | undefined;
-    let job: string | undefined;
-    let environment: string | undefined;
+    let attributes: Record<string, string> | undefined;
     let suppress: string[] | undefined;
 
     if (ctx.labelAttr) {
@@ -556,15 +551,10 @@ class NodeVisitor extends BaseVisitor {
       }
     }
 
-    if (ctx.jobAttr) {
-      for (const attr of ctx.jobAttr) {
-        job = this.visit(attr);
-      }
-    }
-
-    if (ctx.environmentAttr) {
-      for (const attr of ctx.environmentAttr) {
-        environment = this.visit(attr);
+    if (ctx.customAttr) {
+      for (const attr of ctx.customAttr) {
+        const { key, value } = this.visit(attr);
+        attributes = { ...(attributes || {}), [key]: value };
       }
     }
 
@@ -586,8 +576,7 @@ class NodeVisitor extends BaseVisitor {
       color,
       icon,
       tags,
-      job,
-      environment,
+      attributes,
       suppress,
     };
   }
@@ -687,12 +676,11 @@ class NodeVisitor extends BaseVisitor {
     return this.unescapeString(ctx.iconValue[0].image);
   }
 
-  jobAttr(ctx: JobAttrContext): string {
-    return this.unescapeString(ctx.jobValue[0].image);
-  }
-
-  environmentAttr(ctx: EnvironmentAttrContext): string {
-    return this.unescapeString(ctx.environmentValue[0].image);
+  customAttr(ctx: CustomAttrContext): { key: string; value: string } {
+    return {
+      key: ctx.attrKey[0].image,
+      value: this.unescapeString(ctx.attrValue[0].image),
+    };
   }
 
   suppressAttr(ctx: SuppressAttrContext): string[] {

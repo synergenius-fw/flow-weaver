@@ -6,7 +6,7 @@
  * `options.deploy` is handed to its registered serializer, which emits the
  * annotation lines that reproduce it. Without this, tags a pack learned to
  * parse after core froze its hardcoded emitters were silently dropped on
- * regeneration (e.g. @matrix, @artifact, @service for CI/CD).
+ * regeneration (e.g. @matrix, @artifact, @service from a pack).
  */
 
 import { tagHandlerRegistry } from './tag-registry.js';

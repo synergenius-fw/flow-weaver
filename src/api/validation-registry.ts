@@ -1,7 +1,7 @@
 /**
  * Singleton validation rule registry for the public API.
  *
- * Core rule sets (agent, CI/CD) are registered statically.
+ * Core rule sets (e.g. agent rules) are registered statically.
  * Pack-contributed rule sets are registered via marketplace discovery.
  */
 

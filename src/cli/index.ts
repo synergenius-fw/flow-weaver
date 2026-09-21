@@ -11,7 +11,7 @@ import './env-setup.js';
 
 import * as path from 'node:path';
 
-// Load built-in extensions (CI/CD, etc.) before any commands run
+// Load built-in extensions before any commands run
 import '../extensions/index.js';
 
 import { Command, Option } from 'commander';
@@ -222,7 +222,7 @@ program
   .option('-f, --format <format>', 'Module format: esm or cjs (default: esm)')
   .option('-y, --yes', 'Skip prompts and use defaults', false)
   .option('--preset <persona>', 'User preset: nocode, vibecoder, lowcode, expert')
-  .option('--use-case <category>', 'Use case: data, ai, api, automation, cicd, minimal')
+  .option('--use-case <category>', 'Use case: data, ai, api, automation, minimal')
   .option('--mcp', 'Auto-configure MCP for AI editors after scaffolding')
   .option('--no-mcp', 'Skip MCP setup prompt')
   .option('--no-agent', 'Skip post-init agent launch prompt')

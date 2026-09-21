@@ -125,7 +125,7 @@ async function exportSingleWorkflowViaRegistry(
     throw new Error(`Input file not found: ${inputPath}`);
   }
 
-  // Parse to find workflows (load pack tag handlers so CI/CD annotations resolve)
+  // Parse to find workflows (load pack tag handlers so pack annotations resolve)
   const parser = new AnnotationParser();
   const projectDir = path.dirname(inputPath);
   await parser.loadPackHandlers(projectDir);
@@ -230,7 +230,7 @@ async function exportMultiWorkflowViaRegistry(
     throw new Error(`Input file not found: ${inputPath}`);
   }
 
-  // Parse to find workflows (load pack tag handlers so CI/CD annotations resolve)
+  // Parse to find workflows (load pack tag handlers so pack annotations resolve)
   const parser = new AnnotationParser();
   const projectDir = path.dirname(inputPath);
   await parser.loadPackHandlers(projectDir);

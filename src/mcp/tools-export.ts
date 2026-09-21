@@ -118,7 +118,7 @@ export function registerExportTools(mcp: McpServer): void {
           }
         }
 
-        // CI/CD targets use generate() directly — they read the AST, not compiled code
+        // Some targets use generate() directly -- they read the AST, not compiled code
         if (!exportTarget.generateBundle) {
           const serviceName =
             args.serviceName || path.basename(filePath, '.ts').replace(/[^a-zA-Z0-9-]/g, '-');

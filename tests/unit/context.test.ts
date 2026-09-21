@@ -172,8 +172,8 @@ describe('PRESETS', () => {
     }
   });
 
-  it('cicd topics are contributed by extension via registerPackDocTopics', () => {
-    // CI/CD is now an extension. Its preset contribution is
+  it('example topics are contributed by extension via registerPackDocTopics', () => {
+    // pack topics are an extension. Its preset contribution is
     // verified through pack doc topic registration in extension tests.
   });
 });

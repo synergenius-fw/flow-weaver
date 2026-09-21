@@ -4,7 +4,7 @@
  * Targets uncovered branches: scoped port type inference with async callbacks,
  * node tag optional fields (portOrder, portLabel, expressions, size, position,
  * color, icon, tags, job, environment, suppress), invalid format branches for
- * scope/map/path/connect/fanOut/fanIn/coerce tags, trigger CI/CD keyword
+ * scope/map/path/connect/fanOut/fanIn/coerce tags, trigger non-core keyword
  * warning, tag registry delegation, standard JSDoc tag skipping, output
  * property type fallback, and edge cases in deploy parsing.
  */
@@ -272,7 +272,7 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
  */
 export async function a(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(config!.instances![0].job).toBe('build');
+      expect(config!.instances![0].attributes?.job).toBe('build');
     });
 
     it('parses @node with environment', () => {
@@ -283,7 +283,7 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
  */
 export async function a(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(config!.instances![0].environment).toBe('staging');
+      expect(config!.instances![0].attributes?.environment).toBe('staging');
     });
 
     it('parses @node with suppress', () => {
@@ -401,10 +401,10 @@ function myPattern() {}
     });
   });
 
-  // ── @trigger CI/CD keyword warning ──────────────────────────
+  // ── @trigger non-core trigger form ──────────────────────────
 
   describe('trigger edge cases', () => {
-    it('accepts @trigger event="push" as valid Inngest trigger without CI/CD warning', () => {
+    it('accepts @trigger event="push" as a valid core trigger without warning', () => {
       const { config, warnings } = parseWorkflow(`
 /**
  * @flowWeaver workflow
@@ -414,8 +414,8 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
 `);
       expect(config!.trigger).toBeDefined();
       expect(config!.trigger!.event).toBe('push');
-      // Explicit event= syntax is valid Inngest, no CI/CD warning needed
-      expect(warnings.some(w => w.includes('CI/CD'))).toBe(false);
+      // Explicit event= syntax is a valid core trigger, no warning needed
+      expect(warnings.some(w => w.includes('pack'))).toBe(false);
     });
 
     it('accumulates event and cron from separate @trigger tags', () => {

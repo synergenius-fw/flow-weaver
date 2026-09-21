@@ -408,7 +408,7 @@ describe('validatePackage', () => {
   // ── HND-001 / HND-002: tag handlers ─────────────────────────────────────
 
   describe('HND-001 / HND-002: tag handlers', () => {
-    const handler = { tags: ['secret', 'runner'], namespace: 'cicd', scope: 'workflow' as const, file: 'dist/tag-handler.js', exportName: 'cicdTagHandler' };
+    const handler = { tags: ['secret', 'runner'], namespace: 'example', scope: 'workflow' as const, file: 'dist/tag-handler.js', exportName: 'exampleTagHandler' };
 
     it('warns when a handler has no serializer, naming the tags that would be lost', async () => {
       setupFs(makePackageJson());
@@ -423,7 +423,7 @@ describe('validatePackage', () => {
 
     it('is quiet when the handler names its serializer', async () => {
       setupFs(makePackageJson());
-      const result = await validatePackage(DIR, makeManifest({ tagHandlers: [{ ...handler, serializerExport: 'cicdSerializer' }] }));
+      const result = await validatePackage(DIR, makeManifest({ tagHandlers: [{ ...handler, serializerExport: 'exampleSerializer' }] }));
       expect(result.issues.find((i) => i.code.startsWith('HND-'))).toBeUndefined();
     });
 

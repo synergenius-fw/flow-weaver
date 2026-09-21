@@ -493,7 +493,7 @@ Visual tags/badges on the instance. Each tag has a label string and optional too
 
 ### Suppress Warnings (`[suppress: ...]`)
 
-Silences specific validator warnings on a per-instance basis. Useful when a warning is intentional, such as output ports that are deliberately left unconnected in CI/CD workflows where data is discarded by design.
+Silences specific validator warnings on a per-instance basis. Useful when a warning is intentional, such as an output port deliberately left unconnected because its value is discarded by design.
 
 ```typescript
 @node fetch fetchData [suppress: "UNUSED_OUTPUT_PORT"]

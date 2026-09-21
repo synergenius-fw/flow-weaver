@@ -311,7 +311,7 @@ describe('getKnownWorkflowTags', () => {
 // ---------------------------------------------------------------------------
 
 describe('TNodeInstanceAST deploy field', () => {
-  it('parser preserves job/environment on instances (backwards compat)', () => {
+  it('parser preserves a generic bracket attribute on instances for packs to read', () => {
     const parser = new AnnotationParser();
     const code = `
 /**
@@ -335,7 +335,9 @@ export function pipeline(execute: boolean): { onSuccess: boolean } {
     const wf = result.workflows[0];
     const instance = wf.instances.find((i) => i.id === 'build1');
     expect(instance).toBeDefined();
-    expect(instance!.job).toBe('build');
+    // Core keeps `[job: "build"]` as a generic attribute; it assigns it no
+    // meaning. A pack reads instance.attributes to interpret it.
+    expect(instance!.attributes?.job).toBe('build');
   });
 });
 

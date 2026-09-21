@@ -197,7 +197,7 @@ export type TInstalledPackage = {
 export type TManifestTagHandler = {
   /** Tag name(s) this handler processes (e.g., "secret", "runner") */
   tags: string[];
-  /** Deploy namespace for storing parsed data (e.g., "cicd") */
+  /** Deploy namespace for storing parsed data (e.g., a pack name) */
   namespace: string;
   /** Applicable scope: workflow-level tags, nodeType-level tags, or both */
   scope: 'workflow' | 'nodeType' | 'both';
@@ -222,7 +222,7 @@ export type TManifestTagHandler = {
 export type TManifestValidationRuleSet = {
   /** Human-readable name for this rule set */
   name: string;
-  /** Deploy namespace this rule set applies to (e.g., "cicd") */
+  /** Deploy namespace this rule set applies to (e.g., a pack name) */
   namespace: string;
   /** Relative path to the compiled JS file exporting detect and getRules */
   file: string;

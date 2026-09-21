@@ -271,10 +271,8 @@ export interface JSDocWorkflowConfig {
     x?: number;
     y?: number;
     sourceLocation?: { line: number; column: number };
-    /** CI/CD job group */
-    job?: string;
-    /** CI/CD deployment environment */
-    environment?: string;
+    /** Generic `[key: "value"]` bracket attributes, kept for packs to read. */
+    attributes?: Record<string, string>;
     suppressWarnings?: string[];
   }>;
   connections?: Array<{
@@ -1318,8 +1316,7 @@ export class JSDocParser {
       color,
       icon,
       tags,
-      job,
-      environment,
+      attributes,
       suppress,
     } = result;
 
@@ -1372,8 +1369,7 @@ export class JSDocParser {
       ...(icon && { icon }),
       ...(tags && tags.length > 0 && { tags }),
       ...(size && { width: size.width, height: size.height }),
-      ...(job && { job }),
-      ...(environment && { environment }),
+      ...(attributes && Object.keys(attributes).length > 0 && { attributes }),
       ...(suppress && suppress.length > 0 && { suppressWarnings: suppress }),
       sourceLocation: { line, column: 0 },
     });
@@ -1530,21 +1526,13 @@ export class JSDocParser {
 
   /**
    * Parse @trigger tag using Chevrotain parser.
-   * Delegates unrecognized trigger formats to the tag registry (e.g. CI/CD triggers).
+   *
+   * Core parses the built-in `event=` / `cron=` forms. Any other form is a
+   * pack's to interpret: a pack registers a `_trigger` handler and core hands
+   * the line to it. Core itself knows nothing about the domains a pack adds.
    */
   private parseTriggerTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[], tagRegistry?: TagHandlerRegistry): void {
     const comment = (tag.getCommentText() || '').trim();
-
-    // Check if the trigger looks like a CI/CD keyword (push, pull_request, etc.)
-    const cicdKeywords = ['push', 'pull_request', 'dispatch', 'tag', 'schedule'];
-    const firstToken = comment.split(/\s/)[0];
-
-    // CI/CD triggers: delegate to pack handler if registered
-    if (cicdKeywords.includes(firstToken) && tagRegistry && tagRegistry.has('_cicdTrigger')) {
-      if (!config.deploy) config.deploy = {};
-      tagRegistry.handle('_cicdTrigger', comment, 'workflow', config.deploy, warnings);
-      return;
-    }
 
     // Core FW trigger parsing (event= and/or cron=)
     const result = parseTriggerLine(`@trigger ${comment}`, warnings);
@@ -1556,12 +1544,11 @@ export class JSDocParser {
       return;
     }
 
-    // Not a core trigger and no CI/CD handler available. Try CI/CD keywords as fallback hint.
-    if (cicdKeywords.includes(firstToken)) {
-      warnings.push(
-        `@trigger ${firstToken} looks like a CI/CD trigger but no CI/CD pack is installed. ` +
-        `Install @synergenius/flow-weaver-pack-cicd to enable CI/CD pipeline annotations.`
-      );
+    // Not a core trigger form: delegate to a pack's trigger handler if one is
+    // registered. The pack writes into its own deploy namespace.
+    if (tagRegistry && tagRegistry.has('_trigger')) {
+      if (!config.deploy) config.deploy = {};
+      tagRegistry.handle('_trigger', comment, 'workflow', config.deploy, warnings);
       return;
     }
 

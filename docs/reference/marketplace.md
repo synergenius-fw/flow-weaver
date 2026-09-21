@@ -272,7 +272,7 @@ A target is a class implementing `ExportTarget` from `@synergenius/flow-weaver/d
 | Member | Required | Called by |
 |--------|----------|-----------|
 | `name`, `description` | yes | Always |
-| `generate(options)` | yes | `fw export` for a single workflow; `fw_export` when the target has no `generateBundle` — targets that read the workflow AST rather than compiled code, such as CI/CD pipelines |
+| `generate(options)` | yes | `fw export` for a single workflow; `fw_export` when the target has no `generateBundle` — targets that read the workflow AST rather than compiled code |
 | `generateBundle(workflows, nodeTypes, options)` | no | `fw export --multi`; `fw_export` whenever the target defines it. Receives the selected workflows and node types, each with an `expose` flag saying whether it gets an HTTP endpoint |
 | `getDeployInstructions(artifacts)` | yes | After generation; returns `{ title, steps, prerequisites, localTestSteps?, links? }` |
 | `deploySchema`, `nodeTypeDeploySchema` | no | Declare the `@deploy` keys the target accepts, for validation and Studio autocomplete |
@@ -320,7 +320,7 @@ Both generators return artifacts of the shape `{ files, target, workflowName, en
 
 ## Extending the grammar with a pack
 
-A pack can teach the parser new JSDoc tags. That is the whole of what it can add to the grammar, and it is enough for a platform's vocabulary — `@secret`, `@runner`, `@matrix` in a CI/CD pack — because the data a tag carries is meant for the pack's own consumers: its export target, its validation rules, its CLI. What a pack cannot add: new bracket attributes on `@node`, new structural tags like `@path`, or new port syntax; those stay in core so every tool reads a workflow the same way.
+A pack can teach the parser new JSDoc tags — for example `@secret`, `@runner`, `@matrix` — because the data a tag carries is meant for the pack's own consumers: its export target, its validation rules, its CLI. A pack can also read generic `[key: "value"]` bracket attributes on `@node`: core parses any bracket attribute it does not itself define into `nodeInstance.attributes` verbatim and gives it no meaning, so a pack reads that map and interprets its own keys (for example `[runner: "ubuntu-latest"]`). What a pack cannot add: new structural tags like `@path`, or new port syntax; those stay in core so every tool reads a workflow the same way.
 
 The pieces, all declared under `tagHandlers` in the manifest and resolved from one compiled file:
 
@@ -332,7 +332,7 @@ The pieces, all declared under `tagHandlers` in the manifest and resolved from o
 
 ### Where the data goes
 
-A handled tag writes into the deploy map under the handler's namespace. In the AST that is `workflow.options.deploy[namespace]` for a workflow block and `nodeType.deploy[namespace]` for a node type block; the parser also mirrors each namespace to `options.<namespace>` (`options.cicd`) so a pack's own code can read it with a typed name. Everything else reads it from there: the console shows it on the step card as *pack tags*, an export target receives it as `deploy`, and the pack's rules see it in `ast`.
+A handled tag writes into the deploy map under the handler's namespace. In the AST that is `workflow.options.deploy[namespace]` for a workflow block and `nodeType.deploy[namespace]` for a node type block; the parser also mirrors each namespace to `options.<namespace>` so a pack's own code can read it with a typed name. Everything else reads it from there: the console shows it on the step card as *pack tags*, an export target receives it as `deploy`, and the pack's rules see it in `ast`.
 
 ### Writing a handler
 

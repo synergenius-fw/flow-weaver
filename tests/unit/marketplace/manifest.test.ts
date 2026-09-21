@@ -347,7 +347,7 @@ describe('marketplace/manifest', () => {
     it('preserves v2 extension fields from existing manifest on regeneration', async () => {
       fs.writeFileSync(
         path.join(tmpDir, 'package.json'),
-        JSON.stringify({ name: 'flow-weaver-pack-cicd', version: '0.3.0' }),
+        JSON.stringify({ name: 'flow-weaver-pack-example', version: '0.3.0' }),
       );
       fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
       mockGlob.mockResolvedValue([]);
@@ -355,7 +355,7 @@ describe('marketplace/manifest', () => {
       // Write an existing manifest with v2 extension fields
       const existingManifest: TMarketplaceManifest = {
         manifestVersion: 2,
-        name: 'flow-weaver-pack-cicd',
+        name: 'flow-weaver-pack-example',
         version: '0.2.0',
         nodeTypes: [],
         workflows: [],
@@ -363,16 +363,16 @@ describe('marketplace/manifest', () => {
         tagHandlers: [
           {
             tags: ['secret', 'runner'],
-            namespace: 'cicd',
+            namespace: 'example',
             scope: 'workflow',
             file: 'dist/tag-handler.js',
-            exportName: 'cicdTagHandler',
+            exportName: 'exampleTagHandler',
           },
         ],
         validationRuleSets: [
           {
-            name: 'CI/CD Rules',
-            namespace: 'cicd',
+            name: 'Example Rules',
+            namespace: 'example',
             file: 'dist/rules.js',
           },
         ],
@@ -384,14 +384,14 @@ describe('marketplace/manifest', () => {
         ],
         docs: [
           {
-            slug: 'cicd',
-            name: 'CI/CD Pipelines',
-            file: 'docs/cicd.md',
+            slug: 'example',
+            name: 'Example Topic',
+            file: 'docs/example.md',
           },
         ],
         initContributions: {
-          useCase: { id: 'cicd', name: 'CI/CD', description: 'Build pipelines' },
-          templates: ['cicd-basic'],
+          useCase: { id: 'example', name: 'Example', description: 'An example use case' },
+          templates: ['example-basic'],
         },
       };
       writeManifest(tmpDir, existingManifest);

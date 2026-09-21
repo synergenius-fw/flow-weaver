@@ -263,8 +263,8 @@ Multiple attribute brackets are allowed (zero or more). Attributes can be split 
 @node myAdd Add [color: "red", icon: "database"]
 @node myAdd Add [tags: "math" "Math operation", "transform"]
 @node myAdd Add [label: "hi"] [color: "#f00"]
-@node build npmBuild [job: "build"]
-@node deploy deploySsh [job: "deploy"] [environment: "production"]
+@node build npmBuild [runner: "ubuntu-latest"]
+@node deploy deploySsh [region: "eu-west-1", environment: "production"]
 @node fetch fetchData [suppress: "UNUSED_OUTPUT_PORT"]
 ```
 

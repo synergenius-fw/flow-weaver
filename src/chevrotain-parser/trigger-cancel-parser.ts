@@ -249,7 +249,7 @@ export function parseTriggerLine(input: string, warnings: string[]): TriggerPars
   const cst = parserInstance.triggerLine();
 
   if (parserInstance.errors.length > 0) {
-    // Don't warn here. Return null so domain-specific handlers (e.g. CI/CD)
+    // Don't warn here. Return null so domain-specific handlers
     // get a chance to parse the trigger. The caller can warn if nothing handles it.
     return null;
   }
@@ -257,7 +257,7 @@ export function parseTriggerLine(input: string, warnings: string[]): TriggerPars
   const result = visitorInstance.visit(cst) as TriggerParseResult;
 
   // Empty result means the parser consumed @trigger but found no event=/cron= assignments.
-  // Return null so the caller can delegate to domain-specific handlers (e.g. CI/CD triggers
+  // Return null so the caller can delegate to a pack's trigger handler
   // like @trigger push, @trigger pull_request, etc.)
   if (!result.event && !result.cron) {
     return null;

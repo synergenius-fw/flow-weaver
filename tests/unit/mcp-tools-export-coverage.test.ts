@@ -103,7 +103,7 @@ describe('fw_export tool', () => {
     expect(parsed.error.message).toContain('cloudflare, aws');
   });
 
-  it('handles target without generateBundle (CI/CD target) in non-preview mode', async () => {
+  it('handles target without generateBundle (AST-only target) in non-preview mode', async () => {
     const artifacts = makeArtifacts();
     const target = {
       generate: vi.fn().mockResolvedValue(artifacts),
@@ -134,7 +134,7 @@ describe('fw_export tool', () => {
     expect(fs.promises.writeFile).toHaveBeenCalled();
   });
 
-  it('handles CI/CD target in preview mode (no file writes)', async () => {
+  it('handles AST-only target in preview mode (no file writes)', async () => {
     const artifacts = makeArtifacts();
     const target = {
       generate: vi.fn().mockResolvedValue(artifacts),

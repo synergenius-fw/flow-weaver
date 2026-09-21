@@ -253,42 +253,44 @@ describe('Annotation Generator', () => {
       expect(parsed?.pullExecution).toBe('execute');
     });
 
-    it('should preserve [job:] attribute after round-trip', () => {
+    it('should preserve a generic bracket attribute after round-trip', () => {
       const instance: TNodeInstanceAST = {
         type: 'NodeInstance',
         id: 'build',
         nodeType: 'npmBuild',
-        job: 'build',
+        attributes: { job: 'build' },
       };
 
       const generated = generateNodeInstanceTag(instance);
       expect(generated).toContain('[job: "build"]');
 
       const parsed = parseNodeLine(generated.replace(' * ', ''), w);
-      expect(parsed?.job).toBe('build');
+      expect(parsed?.attributes?.job).toBe('build');
     });
 
-    it('should preserve [environment:] attribute after round-trip', () => {
+    it('should preserve several generic attributes, sorted, after round-trip', () => {
       const instance: TNodeInstanceAST = {
         type: 'NodeInstance',
         id: 'deploy',
         nodeType: 'deploySsh',
-        environment: 'production',
+        attributes: { environment: 'production', runner: 'ubuntu-latest' },
       };
 
       const generated = generateNodeInstanceTag(instance);
       expect(generated).toContain('[environment: "production"]');
+      expect(generated).toContain('[runner: "ubuntu-latest"]');
 
       const parsed = parseNodeLine(generated.replace(' * ', ''), w);
-      expect(parsed?.environment).toBe('production');
+      expect(parsed?.attributes?.environment).toBe('production');
+      expect(parsed?.attributes?.runner).toBe('ubuntu-latest');
     });
 
-    it('should preserve [job:] alongside other attributes', () => {
+    it('should preserve a generic attribute alongside named attributes', () => {
       const instance: TNodeInstanceAST = {
         type: 'NodeInstance',
         id: 'test',
         nodeType: 'npmTest',
-        job: 'test',
+        attributes: { job: 'test' },
         config: { color: 'teal', icon: 'check_circle', },
       };
 
@@ -299,12 +301,12 @@ describe('Annotation Generator', () => {
     });
   });
 
-  describe('CI/CD workflow annotation preservation', () => {
+  describe('pack workflow annotation preservation', () => {
     // Emission is now driven by a pack-registered serializer over
     // options.deploy[namespace] (symmetric with tag parsing). This block
-    // registers a cicd serializer that mirrors what the real pack does.
+    // registers a example serializer that mirrors what the real pack does.
     beforeAll(() => {
-      tagHandlerRegistry.registerSerializer('cicd', (data: any) => {
+      tagHandlerRegistry.registerSerializer('example', (data: any) => {
         const out: string[] = [];
         if (Array.isArray(data.triggers)) {
           for (const t of data.triggers) {
@@ -331,7 +333,7 @@ describe('Annotation Generator', () => {
         return out;
       });
     });
-    afterAll(() => tagHandlerRegistry.registerSerializer('cicd', undefined));
+    afterAll(() => tagHandlerRegistry.registerSerializer('example', undefined));
 
     it('should preserve @secret, @runner, @cache in generated workflow annotation', () => {
       const workflow = {
@@ -345,7 +347,7 @@ describe('Annotation Generator', () => {
         exitPorts: {},
         options: {
           deploy: {
-            cicd: {
+            example: {
               secrets: [{ name: 'NPM_TOKEN', description: 'NPM auth token' }],
               runner: 'ubuntu-latest',
               caches: [{ strategy: 'npm', key: 'package-lock.json' }],
@@ -361,7 +363,7 @@ describe('Annotation Generator', () => {
       expect(generated).toContain('package-lock.json');
     });
 
-    it('should preserve @trigger push CI/CD style in generated workflow annotation', () => {
+    it('should preserve @trigger push pack style in generated workflow annotation', () => {
       const workflow = {
         name: 'ciPipeline',
         functionName: 'ciPipeline',
@@ -373,7 +375,7 @@ describe('Annotation Generator', () => {
         exitPorts: {},
         options: {
           deploy: {
-            cicd: {
+            example: {
               triggers: [{ type: 'push', branches: 'main' }],
             },
           },

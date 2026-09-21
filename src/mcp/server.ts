@@ -1,4 +1,4 @@
-// Load built-in extensions (CI/CD, etc.) before tool registration
+// Load built-in extensions before tool registration
 import '../extensions/index.js';
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

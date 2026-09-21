@@ -1,12 +1,12 @@
 /**
- * Tests for CI/CD pack tag handler loading across CLI commands.
+ * Tests for a pack pack tag handler loading across CLI commands.
  *
- * The cicd pack registers tag handlers for @secret, @runner, @cache, [job:],
+ * The packns pack registers tag handlers for @secret, @runner, @cache, [job:],
  * @trigger (push/pull_request/etc) through tagHandlerRegistry. These handlers
- * populate ctx.deploy['cicd'] which the parser maps to ast.options.cicd.
+ * populate ctx.deploy['packns'] which the parser maps to ast.options.packns.
  *
  * BUG: Only compile.ts calls loadPackHandlers() before parsing. validate.ts
- * and export.ts skip this step, so CI/CD annotations are silently ignored
+ * and export.ts skip this step, so a pack annotations are silently ignored
  * in those commands.
  *
  * The tagHandlerRegistry is a global singleton. Handlers registered by one
@@ -21,7 +21,7 @@ import * as fs from 'node:fs';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const CICD_WORKFLOW_SOURCE = `
+const PACK_WORKFLOW_SOURCE = `
 /**
  * @flowWeaver nodeType
  * @expression
@@ -98,7 +98,7 @@ export function hello(
 describe('[job:] attribute parsing (core parser)', () => {
   it('should parse [job:] on node instances', () => {
     const parser = new AnnotationParser();
-    const result = parser.parseFromString(CICD_WORKFLOW_SOURCE, 'test.ts');
+    const result = parser.parseFromString(PACK_WORKFLOW_SOURCE, 'test.ts');
     const wf = result.workflows[0];
 
     expect(wf).toBeDefined();
@@ -107,9 +107,9 @@ describe('[job:] attribute parsing (core parser)', () => {
     const testInst = wf.instances.find((i: any) => i.id === 'test');
     const deployInst = wf.instances.find((i: any) => i.id === 'deploy');
 
-    expect(buildInst?.job).toBe('build');
-    expect(testInst?.job).toBe('test');
-    expect(deployInst?.job).toBe('deploy');
+    expect(buildInst?.attributes?.job).toBe('build');
+    expect(testInst?.attributes?.job).toBe('test');
+    expect(deployInst?.attributes?.job).toBe('deploy');
   });
 
   it('should not have [job:] on nodes without it', () => {
@@ -119,19 +119,19 @@ describe('[job:] attribute parsing (core parser)', () => {
     const inst = wf.instances.find((i: any) => i.id === 'g');
 
     expect(inst).toBeDefined();
-    expect(inst?.job).toBeUndefined();
+    expect(inst?.attributes?.job).toBeUndefined();
   });
 
   it('should parse multiple [job:] assignments creating distinct groups', () => {
     const parser = new AnnotationParser();
-    const result = parser.parseFromString(CICD_WORKFLOW_SOURCE, 'test.ts');
+    const result = parser.parseFromString(PACK_WORKFLOW_SOURCE, 'test.ts');
     const wf = result.workflows[0];
 
     const jobGroups = new Map<string, string[]>();
     for (const inst of wf.instances) {
-      if (inst.job) {
-        if (!jobGroups.has(inst.job)) jobGroups.set(inst.job, []);
-        jobGroups.get(inst.job)!.push(inst.id);
+      if (inst.attributes?.job) {
+        if (!jobGroups.has(inst.attributes?.job)) jobGroups.set(inst.attributes?.job, []);
+        jobGroups.get(inst.attributes?.job)!.push(inst.id);
       }
     }
 
@@ -142,18 +142,18 @@ describe('[job:] attribute parsing (core parser)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// @trigger delegation to CI/CD pack handler
+// @trigger delegation to a pack pack handler
 // ---------------------------------------------------------------------------
 
-describe('@trigger CI/CD delegation', () => {
-  it('@trigger push should delegate to cicd handler, not be consumed as Inngest event', async () => {
-    // Register a mock cicd trigger handler
+describe('@trigger a pack delegation', () => {
+  it('@trigger push should delegate to packns handler, not be consumed as Inngest event', async () => {
+    // Register a mock packns trigger handler
     const captured: Array<{ tagName: string; comment: string }> = [];
     const { tagHandlerRegistry } = await import('../../src/parser/tag-registry');
 
     tagHandlerRegistry.register(
-      ['_cicdTrigger'],
-      'cicd',
+      ['_trigger'],
+      'packns',
       'workflow',
       (tagName: string, comment: string, ctx: any) => {
         captured.push({ tagName, comment });
@@ -191,24 +191,24 @@ export function w(execute: boolean, params: { x: string }): { onSuccess: boolean
     // @trigger push should NOT be treated as Inngest event trigger
     expect(hasInngestTrigger).toBe(false);
 
-    // The cicd handler should have been called
+    // The packns handler should have been called
     expect(handlerCalled).toBe(true);
     expect(captured[0].comment).toContain('push');
 
-    // The handler writes to ctx.deploy['cicd']. Core no longer owns a typed
-    // `cicd` field (it lives in flow-weaver-pack-cicd via module augmentation),
+    // The handler writes to ctx.deploy['packns']. Core no longer owns a typed
+    // `packns` field (it lives in flow-weaver-pack-packns via module augmentation),
     // so read the namespace-agnostic deploy map here.
-    const cicd = wf.options?.deploy?.cicd as { triggers?: Array<{ type?: string }> } | undefined;
-    expect(cicd?.triggers).toBeDefined();
-    expect(cicd?.triggers?.[0]?.type).toBe('push');
+    const packns = wf.options?.deploy?.packns as { triggers?: Array<{ type?: string }> } | undefined;
+    expect(packns?.triggers).toBeDefined();
+    expect(packns?.triggers?.[0]?.type).toBe('push');
   });
 });
 
 // ---------------------------------------------------------------------------
-// Regular workflows should be unaffected by CI/CD pack presence
+// Regular workflows should be unaffected by a pack pack presence
 // ---------------------------------------------------------------------------
 
-describe('non-CICD workflows are unaffected by pack handlers', () => {
+describe('non-pack workflows are unaffected by pack handlers', () => {
   it('simple workflow parses correctly regardless of registry state', () => {
     const parser = new AnnotationParser();
     const result = parser.parseFromString(SIMPLE_WORKFLOW_SOURCE, 'test.ts');
@@ -221,12 +221,12 @@ describe('non-CICD workflows are unaffected by pack handlers', () => {
     expect(wf.instances[0].nodeType).toBe('greet');
   });
 
-  it('simple workflow has no cicd options', () => {
+  it('simple workflow has no packns options', () => {
     const parser = new AnnotationParser();
     const result = parser.parseFromString(SIMPLE_WORKFLOW_SOURCE, 'test.ts');
     const wf = result.workflows[0];
 
-    expect(wf.options?.deploy?.cicd).toBeUndefined();
+    expect(wf.options?.deploy?.packns).toBeUndefined();
   });
 
   it('simple workflow validates without errors', () => {

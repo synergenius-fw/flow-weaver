@@ -352,7 +352,7 @@ export class AnnotationGenerator {
       lines.push(line);
     }
 
-    // Pack-namespace annotations round-trip (e.g. CI/CD). Emission is symmetric
+    // Pack-namespace annotations round-trip. Emission is symmetric
     // with parsing: each pack registers a serializer for its deploy namespace,
     // so whatever tags it learns to parse it also re-emits — no core changes.
     lines.push(...serializePackDeployAnnotations(workflow.options?.deploy));
@@ -817,19 +817,17 @@ export function generateNodeInstanceTag(instance: TNodeInstanceAST): string {
     sizeAttr = ` [size: ${Math.round(instance.config.width)} ${Math.round(instance.config.height)}]`;
   }
 
-  // Generate [job: "name"] attribute if present (CI/CD job group)
-  let jobAttr = '';
-  if (instance.job) {
-    jobAttr = ` [job: "${instance.job}"]`;
+  // Emit generic `[key: "value"]` bracket attributes a pack contributed. Core
+  // round-trips them verbatim; it does not interpret them. Sorted for stable
+  // output.
+  let customAttrs = '';
+  if (instance.attributes) {
+    for (const key of Object.keys(instance.attributes).sort()) {
+      customAttrs += ` [${key}: "${instance.attributes[key]}"]`;
+    }
   }
 
-  // Generate [environment: "name"] attribute if present (CI/CD environment)
-  let environmentAttr = '';
-  if (instance.environment) {
-    environmentAttr = ` [environment: "${instance.environment}"]`;
-  }
-
-  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${suppressAttr}${sizeAttr}${jobAttr}${environmentAttr}`;
+  return ` * @node ${instance.id} ${instance.nodeType}${parent}${labelAttr}${portOrderAttr}${portLabelAttr}${exprAttr}${pullExecutionAttr}${minimizedAttr}${colorAttr}${iconAttr}${tagsAttr}${suppressAttr}${sizeAttr}${customAttrs}`;
 }
 
 /**

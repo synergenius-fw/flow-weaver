@@ -134,8 +134,9 @@ attributeBracket ::= "[" nodeAttr { "," nodeAttr } "]"
 
 nodeAttr       ::= labelAttr | exprAttr | portOrderAttr | portLabelAttr
                  | minimizedAttr | pullExecutionAttr | sizeAttr
-                 | colorAttr | iconAttr | tagsAttr
+                 | colorAttr | iconAttr | tagsAttr | customAttr
 
+customAttr     ::= IDENTIFIER ":" STRING
 labelAttr      ::= "label:" STRING
 exprAttr       ::= "expr:" IDENTIFIER "=" STRING { "," IDENTIFIER "=" STRING }
 portOrderAttr  ::= "portOrder:" IDENTIFIER "=" INTEGER { "," IDENTIFIER "=" INTEGER }

@@ -7,8 +7,8 @@
  * - NodeType-level @deploy parsing → nodeTypeAST.deploy
  * - @deploy in KNOWN_WORKFLOW_TAGS and KNOWN_NODETYPE_TAGS
  *
- * CI/CD-specific tag tests (@secret, @runner, @cache, etc.) live in
- * @synergenius/flow-weaver-pack-cicd since that's where the tag handler is now.
+ * Pack-specific tag tests (@secret, @runner, @cache, etc.) live in
+ * @synergenius/flow-weaver-pack-example since that's where the tag handler is now.
  */
 
 import { describe, it, expect } from 'vitest';

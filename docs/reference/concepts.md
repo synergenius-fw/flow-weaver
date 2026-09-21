@@ -76,7 +76,6 @@ That is it. Two expression-mode functions, one workflow annotation, zero boilerp
 | Pull execution, merge strategies | `advanced-annotations`       | jsdoc-grammar       |
 | Compile to a pack target         | `compilation`                | cli-reference       |
 | Deploy to cloud                  | `deployment`                 | compilation         |
-| Build a CI/CD pipeline           | `cicd`                       | deployment, scaffold |
 | Get the one-page map first       | `orientation`                | concepts            |
 | Use delay/invokeWorkflow/mocks   | `built-in-nodes`             | debugging           |
 | Pause for approval/input/agent   | `durable-gates`              | built-in-nodes      |
@@ -100,7 +99,7 @@ fw watch <file>      # Watch mode
 fw dev <file>        # Watch + compile + run in one command
 fw serve [dir]       # HTTP server exposing workflows as endpoints
 fw diagram <file>    # Generate SVG diagram
-fw export <file>     # Export as serverless function or CI/CD pipeline
+fw export <file>     # Export for an installed pack target (e.g. a serverless function)
 fw docs              # Browse documentation
 fw docs <topic>      # Read a specific topic
 fw docs search <q>   # Search across all docs

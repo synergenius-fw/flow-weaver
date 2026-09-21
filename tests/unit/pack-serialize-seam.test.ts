@@ -3,7 +3,7 @@
  *
  * The parser delegates tag PARSING to pack tag handlers via TagHandlerRegistry,
  * but core historically hardcoded the reverse direction (annotation emission)
- * for a fixed set of CI/CD tags (@trigger/@secret/@runner/@cache). Tags the
+ * for a fixed set of a pack tags (@trigger/@secret/@runner/@cache). Tags the
  * pack learned to parse later (@matrix, @artifact, @service, @concurrency, ...)
  * were silently DROPPED on regeneration.
  *
@@ -21,15 +21,15 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 // ---------------------------------------------------------------------------
-// A fuller mock CI/CD handler that also parses @matrix and @artifact, the
+// A fuller mock a pack handler that also parses @matrix and @artifact, the
 // tags core's hardcoded serializer never emitted.
 // ---------------------------------------------------------------------------
 
-function registerFullCicdHandler() {
+function registerFullExampleHandler() {
   // Re-register cleanly for each test (register() overwrites by tag name).
   tagHandlerRegistry.register(
     ['secret', 'runner', 'matrix', 'artifact'],
-    'cicd',
+    'packns',
     'workflow',
     (tagName: string, comment: string, ctx: any) => {
       switch (tagName) {
@@ -65,8 +65,8 @@ function registerFullCicdHandler() {
   );
 }
 
-/** The serializer the cicd pack will provide: deploy['cicd'] -> annotation lines. */
-function cicdSerializer(data: Record<string, unknown>): string[] {
+/** The serializer the packns pack will provide: deploy['packns'] -> annotation lines. */
+function packnsSerializer(data: Record<string, unknown>): string[] {
   const lines: string[] = [];
   if (Array.isArray(data.secrets)) {
     for (const s of data.secrets as Array<Record<string, unknown>>) {
@@ -96,7 +96,7 @@ function cicdSerializer(data: Record<string, unknown>): string[] {
 // ---------------------------------------------------------------------------
 
 function compileSource(source: string): string {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-cicd-seam-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-packns-seam-'));
   const tmpFile = path.join(tmpDir, 'test.ts');
   fs.writeFileSync(tmpFile, source);
   try {
@@ -136,9 +136,9 @@ export function w(execute: boolean, params: { x: string }): { onSuccess: boolean
 
 describe('pack-contributed tag serialize seam', () => {
   beforeEach(() => {
-    registerFullCicdHandler();
+    registerFullExampleHandler();
     // Reset serializer between tests so each declares its own expectation.
-    tagHandlerRegistry.registerSerializer('cicd', undefined);
+    tagHandlerRegistry.registerSerializer('packns', undefined);
   });
 
   it('without a serializer, pack tags are not emitted (the historical data loss)', () => {
@@ -150,7 +150,7 @@ describe('pack-contributed tag serialize seam', () => {
   });
 
   it('a registered serializer emits ALL its tags, including @matrix/@artifact core never hardcoded', () => {
-    tagHandlerRegistry.registerSerializer('cicd', cicdSerializer);
+    tagHandlerRegistry.registerSerializer('packns', packnsSerializer);
     const compiled = compileSource(makeWorkflow(
       ' * @secret NPM_TOKEN - Auth\n * @runner ubuntu-latest\n * @matrix node=["18","20"]\n * @artifact dist path="dist/"'
     ));
@@ -161,21 +161,21 @@ describe('pack-contributed tag serialize seam', () => {
   });
 
   it('serialized tags round-trip: re-parsing recovers the same data', () => {
-    tagHandlerRegistry.registerSerializer('cicd', cicdSerializer);
+    tagHandlerRegistry.registerSerializer('packns', packnsSerializer);
     const compiled = compileSource(makeWorkflow(' * @matrix node=["18","20","22"]'));
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-cicd-seam-rp-'));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-packns-seam-rp-'));
     const tmpFile = path.join(tmpDir, 'compiled.ts');
     fs.writeFileSync(tmpFile, compiled);
     try {
       const wf = parser.parse(tmpFile).workflows[0] as any;
-      expect(wf.options?.cicd?.matrix?.dimensions?.node).toEqual(['18', '20', '22']);
+      expect(wf.options?.packns?.matrix?.dimensions?.node).toEqual(['18', '20', '22']);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('no serializer + no data: non-CICD workflow is unaffected', () => {
+  it('no serializer + no data: non-pack workflow is unaffected', () => {
     const compiled = compileSource(makeWorkflow(''));
     expect(compiled).toContain('@flowWeaver workflow');
     expect(compiled).not.toContain('@matrix');

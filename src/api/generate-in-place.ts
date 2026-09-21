@@ -1750,7 +1750,7 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
     if (t.period) line += ` period="${t.period}"`;
     lines.push(line);
   }
-  // Pack-namespace annotations round-trip (e.g. CI/CD). Emission is symmetric
+  // Pack-namespace annotations round-trip. Emission is symmetric
   // with parsing: each pack registers a serializer for its deploy namespace,
   // so whatever tags it learns to parse it also re-emits — no core changes.
   lines.push(...serializePackDeployAnnotations(ast.options?.deploy));

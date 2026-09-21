@@ -1,11 +1,11 @@
 /**
- * Tests for CI/CD annotation preservation through generateInPlace (compile).
+ * Tests for a pack annotation preservation through generateInPlace (compile).
  *
  * The compile path uses replaceWorkflowJSDoc in generate-in-place.ts to
- * regenerate the workflow JSDoc. CI/CD annotations (@secret, @runner, @cache,
+ * regenerate the workflow JSDoc. a pack annotations (@secret, @runner, @cache,
  * @trigger push, [job:], [environment:]) must survive this round-trip.
  *
- * Also verifies that Inngest annotations and non-CICD workflows are unaffected.
+ * Also verifies that Inngest annotations and non-pack workflows are unaffected.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -17,15 +17,15 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 // ---------------------------------------------------------------------------
-// Mock CI/CD tag handler (simulates what the real cicd pack does)
+// Mock a pack tag handler (simulates what the real packns pack does)
 // ---------------------------------------------------------------------------
 
-function ensureCicdHandler() {
+function ensureExampleHandler() {
   if (tagHandlerRegistry.has('secret')) return;
-  // The real cicd pack registers BOTH a tag handler (parse) and a serializer
-  // (emit). Core no longer hardcodes CI/CD annotation emission, so the mock
+  // The real packns pack registers BOTH a tag handler (parse) and a serializer
+  // (emit). Core no longer hardcodes a pack annotation emission, so the mock
   // must provide the serializer too, mirroring the pack.
-  tagHandlerRegistry.registerSerializer('cicd', (data: any) => {
+  tagHandlerRegistry.registerSerializer('packns', (data: any) => {
     const out: string[] = [];
     if (Array.isArray(data.triggers)) {
       for (const t of data.triggers) {
@@ -56,8 +56,8 @@ function ensureCicdHandler() {
     return out;
   });
   tagHandlerRegistry.register(
-    ['secret', 'runner', 'cache', '_cicdTrigger'],
-    'cicd',
+    ['secret', 'runner', 'cache', '_trigger'],
+    'packns',
     'workflow',
     (tagName: string, comment: string, ctx: any) => {
       switch (tagName) {
@@ -79,7 +79,7 @@ function ensureCicdHandler() {
           ctx.deploy.caches.push({ strategy, key: keyMatch?.[1], path: pathMatch?.[1] });
           break;
         }
-        case '_cicdTrigger': {
+        case '_trigger': {
           if (!ctx.deploy.triggers) ctx.deploy.triggers = [];
           const tokens = comment.split(/\s+/);
           const type = tokens[0];
@@ -102,9 +102,9 @@ function ensureCicdHandler() {
 // ---------------------------------------------------------------------------
 
 function compileSource(source: string): string {
-  ensureCicdHandler();
+  ensureExampleHandler();
 
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-cicd-gip-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-packns-gip-'));
   const tmpFile = path.join(tmpDir, 'test.ts');
   fs.writeFileSync(tmpFile, source);
 
@@ -123,9 +123,9 @@ function compileSource(source: string): string {
 
 /** Re-parse compiled output and return the AST */
 function reparseCompiled(compiled: string): any {
-  ensureCicdHandler();
+  ensureExampleHandler();
 
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-cicd-reparse-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-packns-reparse-'));
   const tmpFile = path.join(tmpDir, 'compiled.ts');
   fs.writeFileSync(tmpFile, compiled);
 
@@ -176,10 +176,10 @@ export function w(execute: boolean, params: { x: string }): { onSuccess: boolean
 }
 
 // ---------------------------------------------------------------------------
-// CI/CD individual annotation tests
+// a pack individual annotation tests
 // ---------------------------------------------------------------------------
 
-describe('CI/CD annotation round-trip through generateInPlace', () => {
+describe('a pack annotation round-trip through generateInPlace', () => {
   it('@secret with description survives compile', () => {
     const compiled = compileSource(makeWorkflow(' * @secret NPM_TOKEN - NPM auth token'));
     expect(compiled).toContain('@secret NPM_TOKEN');
@@ -250,7 +250,7 @@ describe('CI/CD annotation round-trip through generateInPlace', () => {
     expect(compiled).toContain('[environment: "production"]');
   });
 
-  it('all CI/CD annotations together survive compile', () => {
+  it('all a pack annotations together survive compile', () => {
     const compiled = compileSource(makeWorkflowWithNodes(`
  * @trigger push branches="main"
  * @secret NPM_TOKEN - NPM auth token
@@ -273,11 +273,11 @@ describe('CI/CD annotation round-trip through generateInPlace', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Full pipeline: parse → compile → re-parse → check options.cicd
+// Full pipeline: parse → compile → re-parse → check options.packns
 // ---------------------------------------------------------------------------
 
 describe('full pipeline: parse → compile → re-parse', () => {
-  it('options.cicd is populated after re-parsing compiled output', () => {
+  it('options.packns is populated after re-parsing compiled output', () => {
     const source = makeWorkflow(
       ' * @secret NPM_TOKEN - Auth\n * @runner ubuntu-latest\n * @cache npm key="package-lock.json"'
     );
@@ -285,11 +285,11 @@ describe('full pipeline: parse → compile → re-parse', () => {
     const wf = reparseCompiled(compiled);
 
     expect(wf).toBeDefined();
-    expect(wf.options?.cicd).toBeDefined();
-    expect(wf.options.cicd.secrets).toHaveLength(1);
-    expect(wf.options.cicd.secrets[0].name).toBe('NPM_TOKEN');
-    expect(wf.options.cicd.runner).toBe('ubuntu-latest');
-    expect(wf.options.cicd.caches).toHaveLength(1);
+    expect(wf.options?.packns).toBeDefined();
+    expect(wf.options.packns.secrets).toHaveLength(1);
+    expect(wf.options.packns.secrets[0].name).toBe('NPM_TOKEN');
+    expect(wf.options.packns.runner).toBe('ubuntu-latest');
+    expect(wf.options.packns.caches).toHaveLength(1);
   });
 
   it('[job:] is populated on instances after re-parsing compiled output', () => {
@@ -303,17 +303,17 @@ describe('full pipeline: parse → compile → re-parse', () => {
 
     const aInst = wf.instances.find((i: any) => i.id === 'a');
     const bInst = wf.instances.find((i: any) => i.id === 'b');
-    expect(aInst?.job).toBe('build');
-    expect(bInst?.job).toBe('test');
+    expect(aInst?.attributes?.job).toBe('build');
+    expect(bInst?.attributes?.job).toBe('test');
   });
 });
 
 // ---------------------------------------------------------------------------
-// Non-CICD workflows are unaffected
+// Non-pack workflows are unaffected
 // ---------------------------------------------------------------------------
 
-describe('non-CICD workflows unaffected by CI/CD round-trip code', () => {
-  it('simple workflow compiles without CI/CD annotations appearing', () => {
+describe('non-pack workflows unaffected by a pack round-trip code', () => {
+  it('simple workflow compiles without a pack annotations appearing', () => {
     const source = makeWorkflow('');
     const compiled = compileSource(source);
     expect(compiled).not.toContain('@secret');
@@ -323,11 +323,11 @@ describe('non-CICD workflows unaffected by CI/CD round-trip code', () => {
     expect(compiled).toContain('@flowWeaver workflow');
   });
 
-  it('simple workflow round-trip has no cicd options', () => {
+  it('simple workflow round-trip has no packns options', () => {
     const source = makeWorkflow('');
     const compiled = compileSource(source);
     const wf = reparseCompiled(compiled);
-    expect(wf.options?.cicd).toBeUndefined();
+    expect(wf.options?.packns).toBeUndefined();
   });
 });
 
@@ -335,7 +335,7 @@ describe('non-CICD workflows unaffected by CI/CD round-trip code', () => {
 // Inngest annotations are unaffected
 // ---------------------------------------------------------------------------
 
-describe('Inngest annotations unaffected by CI/CD changes', () => {
+describe('Inngest annotations unaffected by a pack changes', () => {
   it('@trigger event= survives compile', () => {
     const compiled = compileSource(makeWorkflow(' * @trigger event="user.created"'));
     expect(compiled).toContain('@trigger event="user.created"');
@@ -378,9 +378,9 @@ describe('Inngest annotations unaffected by CI/CD changes', () => {
     expect(compiled).toContain('period="1m"');
   });
 
-  it('Inngest + CI/CD annotations coexist without interference', () => {
-    // A workflow might have both Inngest deploy config and CI/CD annotations
-    // (e.g. Inngest for the serverless deploy + CI/CD for the pipeline that deploys it)
+  it('Inngest + a pack annotations coexist without interference', () => {
+    // A workflow might have both Inngest deploy config and a pack annotations
+    // (e.g. Inngest for the serverless deploy + a pack for the pipeline that deploys it)
     const compiled = compileSource(makeWorkflow(
       ' * @trigger event="deploy/start"\n * @retries 2\n * @secret DEPLOY_KEY - Key\n * @runner ubuntu-latest'
     ));

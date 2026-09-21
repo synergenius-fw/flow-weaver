@@ -44,19 +44,19 @@ afterAll(() => { fs.rmSync(project, { recursive: true, force: true }); });
 describe('packNamespace', () => {
   it('drops the scope and the prefix', () => {
     expect(packNamespace('@acme/flow-weaver-pack-audio')).toBe('audio');
-    expect(packNamespace('flow-weaver-pack-cicd')).toBe('cicd');
+    expect(packNamespace('flow-weaver-pack-example')).toBe('example');
   });
 });
 
 const installed: InstalledRef[] = [
   { name: '@acme/pipelines', path: '/p/node_modules/@acme/pipelines' },
-  { name: 'flow-weaver-pack-cicd', path: 'C:\\p\\node_modules\\flow-weaver-pack-cicd' },
+  { name: 'flow-weaver-pack-example', path: 'C:\\p\\node_modules\\flow-weaver-pack-example' },
 ];
 
 describe('packForFile', () => {
   it('names the installed pack a resolved file sits under, whatever the pack is called, on either separator', () => {
     expect(packForFile('/p/node_modules/@acme/pipelines/dist/trim.js', installed)).toBe('@acme/pipelines');
-    expect(packForFile('C:\\p\\node_modules\\flow-weaver-pack-cicd\\dist\\job.js', installed)).toBe('flow-weaver-pack-cicd');
+    expect(packForFile('C:\\p\\node_modules\\flow-weaver-pack-example\\dist\\job.js', installed)).toBe('flow-weaver-pack-example');
   });
 
   it("answers null for the project's own files and for dependencies that are not packs", () => {
@@ -69,13 +69,13 @@ describe('packForFile', () => {
 describe('packForSpecifier', () => {
   it('reads the package out of a specifier', () => {
     expect(packageOfSpecifier('@acme/pipelines/dist/trim.js')).toBe('@acme/pipelines');
-    expect(packageOfSpecifier('flow-weaver-pack-cicd')).toBe('flow-weaver-pack-cicd');
+    expect(packageOfSpecifier('flow-weaver-pack-example')).toBe('flow-weaver-pack-example');
     expect(packageOfSpecifier('./utils')).toBeNull();
   });
 
   it('names the installed pack an @fwImport specifier points into, and nothing else', () => {
     expect(packForSpecifier('@acme/pipelines/dist/trim.js', installed)).toBe('@acme/pipelines');
-    expect(packForSpecifier('flow-weaver-pack-cicd', installed)).toBe('flow-weaver-pack-cicd');
+    expect(packForSpecifier('flow-weaver-pack-example', installed)).toBe('flow-weaver-pack-example');
     expect(packForSpecifier('lodash', installed)).toBeNull();
     expect(packForSpecifier('@acme/flow-weaver-pack-audio/x', installed)).toBeNull();
     expect(packForSpecifier(undefined, installed)).toBeNull();

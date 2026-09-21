@@ -2,7 +2,7 @@
  * Generator utilities: the public barrel for export target packs.
  *
  * Exposes control-flow analysis and code generation helpers used by
- * compile targets (Inngest deep generator, CI/CD compile target, etc.).
+ * compile targets (e.g. the Inngest deep generator and other pack targets).
  */
 
 export {

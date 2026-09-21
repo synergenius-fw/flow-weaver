@@ -400,11 +400,13 @@ export type TNodeInstanceAST = {
   sourceLocation?: TSourceLocation;
   /** Reserved for plugin extensibility */
   metadata?: TNodeMetadata;
-  /** CI/CD job group this node belongs to (from [job: "name"] attribute). */
-  job?: string;
-  /** CI/CD environment for this node's job (from [environment: "name"] attribute). */
-  environment?: string;
-  /** Per-target deploy config contributed by packs (e.g., deploy['cicd'].job) */
+  /**
+   * Generic `[key: "value"]` bracket attributes from `@node`, kept verbatim.
+   * Core stores them but gives them no meaning; a pack reads them and decides
+   * what they do. This is the `@node`-attribute extension point.
+   */
+  attributes?: Record<string, string>;
+  /** Per-target deploy config contributed by packs (e.g., deploy['<pack>'].key) */
   deploy?: Record<string, Record<string, unknown>>;
 };
 
@@ -429,9 +431,9 @@ export type TTypeCompatibility = {
  * Workflow-level options parsed from JSDoc annotations.
  *
  * Declared as an `interface` so packs can contribute domain-specific option
- * fields via module augmentation (e.g. flow-weaver-pack-cicd augments this
- * with `cicd?: TCICDOptions`). Core carries only generic options plus the
- * `deploy` escape hatch. Vendor and domain vocabularies live in their packs.
+ * fields via module augmentation (a pack augments this with its own typed
+ * field). Core carries only generic options plus the `deploy` escape hatch.
+ * Vendor and domain vocabularies live in their packs.
  */
 /**
  * One HTTP route a workflow answers on, from `@http METHOD /path [mode=…] [auth=…] [callback]`.
@@ -475,8 +477,8 @@ export interface TWorkflowOptions {
 
   /**
    * Namespaced deploy config. Pack tag handlers populate `deploy[namespace]`
-   * (e.g. `deploy['cicd']`, `deploy['github-actions'].runner`). Packs may
-   * additionally surface a typed convenience field via module augmentation.
+   * (e.g. `deploy['github-actions'].runner`). Packs may additionally surface a
+   * typed convenience field via module augmentation.
    */
   deploy?: Record<string, Record<string, unknown>>;
 }

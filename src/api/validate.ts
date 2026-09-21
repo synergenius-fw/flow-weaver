@@ -36,7 +36,7 @@ export function validateWorkflow(
   const result = validator.validate(ast, { mode: options?.mode });
 
   // Apply agent-specific rules, registry rules (pack-contributed,
-  // including CI/CD when applicable), and custom rules
+  // including pack rule sets when applicable), and custom rules
   const allRules = [
     ...getAgentValidationRules(),
     ...getDesignValidationRules(),

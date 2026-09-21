@@ -62,7 +62,7 @@ const RESERVED_OPTION_KEYS = new Set([
 
 /**
  * Promote each pack deploy namespace to a top-level `options.<namespace>`
- * convenience mirror (e.g. `deploy['cicd']` → `options.cicd`). Packs type these
+ * convenience mirror (e.g. `deploy['<pack>']` -> `options.<pack>`). Packs type these
  * fields via module augmentation of TWorkflowOptions, while core stays namespace-
  * agnostic. Returns a partial options object to spread. Reserved core keys are
  * skipped so a namespace can never clobber a built-in option.
@@ -1427,8 +1427,7 @@ export class AnnotationParser {
           ...(inst.sourceLocation && {
             sourceLocation: { file: filePath, ...inst.sourceLocation },
           }),
-          ...(inst.job && { job: inst.job }),
-          ...(inst.environment && { environment: inst.environment }),
+          ...(inst.attributes && { attributes: inst.attributes }),
         };
       });
 
@@ -1601,7 +1600,7 @@ export class AnnotationParser {
             ...(config.timeout && { timeout: config.timeout }),
             ...(config.throttle && { throttle: config.throttle }),
             // Surface each pack deploy namespace as a top-level options.<namespace>
-            // convenience mirror (e.g. options.cicd from deploy['cicd']). Packs
+            // convenience mirror (e.g. options.<pack> from deploy['<pack>']). Packs
             // type these fields via module augmentation of TWorkflowOptions; core
             // stays namespace-agnostic and keeps no vendor vocabulary.
             ...promoteDeployNamespaces(config.deploy),
