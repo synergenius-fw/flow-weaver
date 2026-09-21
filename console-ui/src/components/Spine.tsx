@@ -186,6 +186,18 @@ export function Spine({ w }: { w: ParsedWorkflow }) {
           </div>
         );
       })}
+      {/* The same band behind a failure arm, so a detour is bounded and named
+          rather than being rows that happen to sit one lane right. */}
+      {graph.arms.map((a) => {
+        const first = graph.rows[a.first].id, last = graph.rows[a.last].id;
+        if (pos.top[first] === undefined || pos.bottom[last] === undefined) return null;
+        const top = pos.top[first] + 3;
+        return (
+          <div key={`arm-${a.gate}-${a.first}`} class="arm" style={`top: ${top}px; height: ${pos.bottom[last] - 3 - top}px; left: ${laneX(a.lane) - TILE / 2 - 8}px`} aria-hidden="true">
+            <span class="lbl">{a.gate} on failure</span>
+          </div>
+        );
+      })}
       <svg class="lanes" width={gutter} height={pos.h} aria-hidden="true">
         {graph.edges.map((e) => {
           const k = `${e.from}>${e.to}`;

@@ -284,6 +284,9 @@ h5.fold { display: flex; align-items: center; gap: 8px; cursor: pointer; user-se
 .scope { position: absolute; right: -8px; pointer-events: none; border-radius: 8px; background: color-mix(in srgb, var(--loop) calc(7% + var(--d, 0) * 3%), transparent); border: 1px solid color-mix(in srgb, var(--loop) 28%, transparent); }
 /* The label sits in the band's top edge like a fieldset legend, above the rows and clear of the status text at the right of the first row. */
 .scope .lbl { position: absolute; top: -8px; right: 10px; z-index: 1; font-size: 10.5px; line-height: 14px; color: var(--loop); background: var(--bg); padding: 0 5px; border-radius: 4px; }
+/* The same band behind a failure arm: which gate the detour leaves, and where it rejoins. Tinted with --err, so an arm is never mistaken for a loop body. */
+.arm { position: absolute; right: -8px; pointer-events: none; border-radius: 8px; background: color-mix(in srgb, var(--err) 6%, transparent); border: 1px solid color-mix(in srgb, var(--err) 26%, transparent); }
+.arm .lbl { position: absolute; top: -8px; right: 10px; z-index: 1; font-size: 10.5px; line-height: 14px; color: color-mix(in srgb, var(--err) 80%, var(--dim)); background: var(--bg); padding: 0 5px; border-radius: 4px; }
 /* Inside a band a row's hover and selection take the band's tint, and stop 8px short of its edge, so the highlight sits within the band instead of fighting it. */
 .row.inscope > .body > .line1 { margin-right: 0; border-radius: 6px; }
 .row.inscope > .body > .line1:hover { background: color-mix(in srgb, var(--loop) 9%, var(--panel)); }

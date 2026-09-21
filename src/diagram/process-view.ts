@@ -33,6 +33,12 @@ export interface ProcessStep {
   kind: ProcessKind;
   gate: 'approval' | 'input' | 'agent' | 'timer' | null;
   scope: string | null;
+  /**
+   * Which of its parent's scopes this step sits in. A node type may declare
+   * several (`@scope` more than once), each a callback the owner drives, and
+   * the children of all of them arrive in one list.
+   */
+  inScope: string | null;
   pure: boolean;
   expression: boolean;
   stage: number;
@@ -115,6 +121,7 @@ export function buildProcessModel(ast: TWorkflowAST): ProcessModel {
       kind,
       gate: nt?.durableGate ?? null,
       scope: nt?.scope ?? nt?.scopes?.[0] ?? null,
+      inScope: inst.parent?.scope ?? null,
       pure: Boolean(nt?.expression || nt?.durablePure),
       expression: Boolean(nt?.expression),
       stage: stage.get(inst.id) ?? 0,

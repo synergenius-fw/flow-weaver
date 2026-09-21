@@ -11,6 +11,7 @@
  * The console draws this live and the SVG renderer draws it still. Both
  * take the picture from here, so the two never disagree about the shape.
  */
+import { orderArms } from './arms';
 
 /** What the layout needs to know about a step. The process model has all of it. */
 export interface LaneStep {
@@ -19,6 +20,8 @@ export interface LaneStep {
   pull?: boolean;
   /** The scope this step owns, when it has children. */
   scope?: string | null;
+  /** Which of its owner's scopes this step sits in, when the owner has several. */
+  inScope?: string | null;
   reads: Array<{ from: string }>;
   produces: Array<{ to: string[] }>;
   children: LaneStep[];
@@ -49,11 +52,19 @@ export interface LaneEdge { from: string; to: string; kind: EdgeKind; fromLane: 
  * that the rows are indented.
  */
 export interface LaneScope { owner: string; scope: string | null; first: number; last: number; depth: number; lane: number }
+/**
+ * The rows one failure arm occupies, drawn as a band the way a scope body is:
+ * the reader sees which gate the detour leaves and where it rejoins, not only
+ * that some rows sit one lane right.
+ */
+export interface LaneArm { gate: string; first: number; last: number; lane: number }
 export interface LaneGraph<S extends LaneStep = LaneStep> {
   rows: LaneRow<S>[];
   edges: LaneEdge[];
   /** One per owner with a body, outer scopes first. */
   scopes: LaneScope[];
+  /** One per gate arm that owns rows of its own. */
+  arms: LaneArm[];
   lanes: number;
   index: Record<string, number>;
   /** Centre x of each lane. A lane carrying only edges is narrower than one holding tiles. */
@@ -86,6 +97,12 @@ export function buildLanes<S extends LaneStep>(model: { steps: S[]; startTo: str
   };
   visit(model.steps, 0, null);
   flat.push({ id: 'Exit', step: null, depth: 0, owner: null });
+
+  // 1b. a failure arm moves up beside the gate it leaves, so the fail line is
+  // a short hop rather than a long one drawn past unrelated rows.
+  const ordered = orderArms(flat, model.exitFrom);
+  flat.length = 0;
+  flat.push(...ordered.flat);
 
   // 2. a pulled step moves to just before its first consumer
   const byId = new Map(flat.map((r) => [r.id, r]));
@@ -150,9 +167,13 @@ export function buildLanes<S extends LaneStep>(model: { steps: S[]; startTo: str
 
   // 4. lanes: held[lane] = id of the row that will land on it (or null)
   const held: Array<string | null> = [];
-  const free = (not?: number) => {
-    let i = held.findIndex((h, idx) => h === null && idx !== not);
-    if (i < 0) { i = held.length; held.push(null); }
+  // `min` keeps a branch inside a scope body out of the trunk: those rows run
+  // once per item, so a failure arm among them belongs right of the body's own
+  // lane. Without it the arm takes lane 0 whenever lane 0 happens to be free,
+  // and the band behind the body starts on the trunk and swallows its owner.
+  const free = (not?: number, min = 0) => {
+    let i = held.findIndex((h, idx) => h === null && idx !== not && idx >= min);
+    if (i < 0) { i = Math.max(held.length, min); while (held.length <= i) held.push(null); }
     return i;
   };
   const edgeLane = new Map<string, number>();
@@ -199,7 +220,12 @@ export function buildLanes<S extends LaneStep>(model: { steps: S[]; startTo: str
       // process -- so it goes back to the lane its scope owner was on.
       const branches = e.kind === 'loop' || e.kind === 'fail';
       const owner = e.kind === 'return' ? ownerLane.get(r.id) : undefined;
-      const l = owner ?? (e === primary && !branches ? lane : free(branches ? lane : undefined));
+      // A failure arm inside a scope body may not fall back to the trunk. The
+      // `loop` edge entering a body is what sets that body's lane in the first
+      // place, so it still chooses freely.
+      const inBody = e.kind === 'fail' && byId.get(e.to)?.owner;
+      const floor = inBody ? (ownerLane.get(e.to) ?? 0) + 1 : 0;
+      const l = owner ?? (e === primary && !branches ? lane : free(branches ? lane : undefined, floor));
       held[l] = e.to;
       edgeLane.set(`${e.from}>${e.to}`, l);
     }
@@ -228,15 +254,34 @@ export function buildLanes<S extends LaneStep>(model: { steps: S[]; startTo: str
   const scopes: LaneScope[] = [];
   for (const r of rows) {
     if (!r.step?.children.length) continue;
-    const ids: string[] = [];
-    const gather = (steps: LaneStep[]) => steps.forEach((c) => { ids.push(c.id); gather(c.children); });
-    gather(r.step.children);
-    const idx = ids.map((id) => index[id]).filter((i) => i !== undefined);
-    if (!idx.length) continue;
-    scopes.push({ owner: r.id, scope: r.step.scope ?? null, first: Math.min(...idx), last: Math.max(...idx), depth: r.depth, lane: Math.min(...idx.map((i) => rows[i].lane)) });
+    // A node may own several scopes, each a callback it drives itself
+    // (`@output start scope:processItem`). They are separate bodies, so each
+    // gets its own band: one band across them all names only the first scope
+    // and claims the other scopes' rows belong to it.
+    const groups = new Map<string | null, number[]>();
+    const place = (steps: LaneStep[], scope: string | null) => steps.forEach((c) => {
+      const own = c.inScope ?? scope;
+      const at = index[c.id];
+      if (at !== undefined) (groups.get(own) ?? groups.set(own, []).get(own)!).push(at);
+      place(c.children, own);
+    });
+    place(r.step.children, r.step.scope ?? null);
+    for (const [scope, gidx] of groups) {
+      if (!gidx.length) continue;
+      scopes.push({ owner: r.id, scope, first: Math.min(...gidx), last: Math.max(...gidx), depth: r.depth, lane: Math.min(...gidx.map((i) => rows[i].lane)) });
+    }
   }
 
-  return { rows, edges, scopes, lanes, index, laneX: laneXs, gutter: x + GUTTER_PAD };
+  // The same band, for a failure arm: which gate the detour leaves, and the
+  // rows it owns before it rejoins.
+  const arms: LaneArm[] = [];
+  for (const a of ordered.arms) {
+    const idx = a.ids.map((id) => index[id]).filter((i) => i !== undefined);
+    if (!idx.length) continue;
+    arms.push({ gate: a.gate, first: Math.min(...idx), last: Math.max(...idx), lane: Math.min(...idx.map((i) => rows[i].lane)) });
+  }
+
+  return { rows, edges, scopes, arms, lanes, index, laneX: laneXs, gutter: x + GUTTER_PAD };
 }
 
 /** SVG path for one edge given row centre y positions and a lane x function. */

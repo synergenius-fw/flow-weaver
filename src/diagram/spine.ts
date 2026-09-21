@@ -173,6 +173,20 @@ export function renderSpineSVG(ast: TWorkflowAST, options: SpineOptions = {}): s
     out.push(`<text x="${W - PAD - 15}" y="${by + 3.5}" font-size="10.5" text-anchor="end" fill="${p.loop}">${esc(name)}</text></g>`);
   }
 
+  // The same band behind a failure arm, so the detour is bounded and named
+  // rather than being some rows that happen to sit one lane right.
+  for (const a of graph.arms) {
+    const col = mix(p.err, p.line2, 0.7);
+    const bx = x(a.lane) - TILE / 2 - 8;
+    const by = rowTop(a.first) + 3;
+    const bh = rowTop(a.last) + ROW - 3 - by;
+    out.push(`<g class="arm" data-gate="${esc(a.gate)}"><rect x="${bx}" y="${by}" width="${W - PAD - bx}" height="${bh}" rx="8" fill="${p.err}" fill-opacity=".06" stroke="${p.err}" stroke-opacity=".26"/>`);
+    const name = `${a.gate} on failure`;
+    const nw = width(name, 10.5) + 10;
+    out.push(`<rect x="${W - PAD - 10 - nw}" y="${by - 7}" width="${nw}" height="14" rx="4" fill="${p.bg}"/>`);
+    out.push(`<text x="${W - PAD - 15}" y="${by + 3.5}" font-size="10.5" text-anchor="end" fill="${col}">${esc(name)}</text></g>`);
+  }
+
   // Lanes next, so the tiles sit on the lines. Every edge and row carries
   // its ids as data attributes: the brief lights them up on click, and a
   // stylesheet in the host page can address `.edge` and `.row`.
