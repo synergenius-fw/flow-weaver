@@ -61,6 +61,33 @@ function resolveSourcePortDataType(
   return nodeType.outputs?.[sourcePort]?.dataType;
 }
 
+/**
+ * Resolve the TypeScript type of a value read out of an expression reference
+ * (`node.port` inside an `[expr: ...]` annotation). Mirrors the
+ * `Parameters<typeof fn>[N]` trick used for plain connections: a node
+ * instance's function is always in scope in generated code, so its return
+ * type is a safe way to name a non-primitive output type without risking a
+ * bare type name from a module that isn't imported. Start has no function to
+ * reference, so its declared `tsType` is used directly (same caveat the rest
+ * of the generator already accepts for Start ports).
+ */
+function resolveReferencedPortType(workflow: TWorkflowAST, sourceNodeId: string, sourcePort: string): string {
+  const dataType = resolveSourcePortDataType(workflow, sourceNodeId, sourcePort);
+  if (!dataType) return 'any';
+  if (isStartNode(sourceNodeId)) {
+    return mapToTypeScript(dataType, workflow.startPorts?.[sourcePort]?.tsType);
+  }
+  const instance = workflow.instances.find((i) => i.id === sourceNodeId);
+  const nodeType = instance
+    ? workflow.nodeTypes.find((nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType)
+    : undefined;
+  const tsType = nodeType?.outputs?.[sourcePort]?.tsType;
+  const rawPortType = mapToTypeScript(dataType, tsType);
+  const isPrimitive = /^(string|number|boolean|void|unknown|any|never|null|undefined)(\[\])?$/.test(rawPortType);
+  if (isPrimitive || !nodeType) return rawPortType;
+  return `Awaited<ReturnType<typeof ${nodeType.functionName}>>['${sourcePort}']`;
+}
+
 function isPullExecutionSource(workflow: TWorkflowAST, sourceNodeId: string): boolean {
   const instance = workflow.instances.find((candidate) => candidate.id === sourceNodeId);
   if (!instance) return false;
@@ -444,8 +471,9 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
           const sourceExecutionIndex = isPullExecutionSource(workflow, ref.root)
             ? `${sourceIdx} ?? 0`
             : `${sourceIdx}${isConstSource ? '' : '!'}`;
+          const refType = resolveReferencedPortType(workflow, ref.root, ref.port);
           lines.push(
-            `${indent}const ${refVar} = ${getCall}({ id: '${ref.root}', portName: '${ref.port}', executionIndex: ${sourceExecutionIndex}, nodeTypeName: '${getSourceNodeTypeName(ref.root)}' }) as any;`,
+            `${indent}const ${refVar} = ${getCall}({ id: '${ref.root}', portName: '${ref.port}', executionIndex: ${sourceExecutionIndex}, nodeTypeName: '${getSourceNodeTypeName(ref.root)}' }) as ${refType};`,
           );
           fetched.set(key, refVar);
         }

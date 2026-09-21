@@ -1421,7 +1421,7 @@ function emitBranchNodeCallAndOutputs(params: {
       trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
     );
     lines.push(
-      `${indent}  const ${resultVar} = ${ctxVar}.resolveGate('${branchNode.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as WireValue) as any;`,
+      `${indent}  const ${resultVar} = ${ctxVar}.resolveGate('${branchNode.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as unknown as WireValue) as any;`,
     );
     Object.keys(branchNode.outputs).forEach((portName) => {
       const portConfig = branchNode.outputs[portName];
@@ -2039,7 +2039,7 @@ function generatePullNodeWithContext(
       trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
     );
     lines.push(
-      `${indent}    const ${resultVar} = ${ctxVar}.resolveGate('${nodeType.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as WireValue) as any;`,
+      `${indent}    const ${resultVar} = ${ctxVar}.resolveGate('${nodeType.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as unknown as WireValue) as any;`,
     );
   } else if (nodeType.durableEffect) {
     lines.push(
@@ -2344,7 +2344,7 @@ function generateNodeCallWithContext(
       trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
     );
     lines.push(
-      `${indent}  const ${resultVar} = ${ctxVar}.resolveGate('${nodeType.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as WireValue) as Record<string, unknown>;`,
+      `${indent}  const ${resultVar} = ${ctxVar}.resolveGate('${nodeType.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as unknown as WireValue) as Record<string, unknown>;`,
     );
     Object.keys(nodeType.outputs).forEach((portName) => {
       const portConfig = nodeType.outputs[portName];

@@ -311,7 +311,7 @@ export function generateScopeFunctionClosure(
           trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
         );
         lines.push(
-          `${tryIndent}const ${childResultVar} = scopedCtx.resolveGate('${childNodeType.durableGate}', '${child.id}', '${child.nodeType}', ${safeChildId}Idx, ${buildDurableGatePayload(gateArgs)} as WireValue) as any;`,
+          `${tryIndent}const ${childResultVar} = scopedCtx.resolveGate('${childNodeType.durableGate}', '${child.id}', '${child.nodeType}', ${safeChildId}Idx, ${buildDurableGatePayload(gateArgs)} as unknown as WireValue) as any;`,
         );
       } else if (childNodeType.durableEffect) {
         lines.push(
