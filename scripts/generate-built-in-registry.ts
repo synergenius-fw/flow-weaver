@@ -10,7 +10,6 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import * as ts from 'typescript';
 import { fileURLToPath } from 'url';
 
 import { AnnotationParser } from '../src/parser';
@@ -59,11 +58,11 @@ function extractMockHelpers(): string {
   const getMockFull = getMockMatch[0];
   const lookupMockFull = `export function lookupMock${lookupMockMatch[0].slice(lookupMockMatch[0].indexOf('<'))}`;
 
-  // Transpile to JS and rename to __fw_ prefix
-  const getMockJS = transpileToJS(getMockFull)
+  // Keep the TypeScript (see the note in main()) and rename to __fw_ prefix.
+  const getMockJS = getMockFull
     .replace('export function getMockConfig', 'function __fw_getMockConfig')
     .trim();
-  const lookupMockJS = transpileToJS(lookupMockFull)
+  const lookupMockJS = lookupMockFull
     .replace('export function lookupMock', 'function __fw_lookupMock')
     .trim();
 
@@ -81,28 +80,6 @@ const MOCK_HELPERS = (() => {
   try { return extractMockHelpers(); }
   catch { return ''; }
 })();
-
-// ---------------------------------------------------------------------------
-// TypeScript → JavaScript transpilation (strips types cleanly)
-// ---------------------------------------------------------------------------
-
-function transpileToJS(tsCode: string): string {
-  const result = ts.transpileModule(tsCode, {
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.ESNext,
-      removeComments: true,
-      // TypeScript 6's transpileModule emits a "use strict" prologue by default;
-      // these snippets are inlined into ES modules (already strict), and the
-      // prologue would change the emitted function text and break the
-      // built-in-node dedup that matches on it.
-      alwaysStrict: false,
-    },
-  });
-  // Belt and suspenders: drop a leading "use strict" directive if one slips
-  // through, so the output is stable across TypeScript versions.
-  return result.outputText.replace(/^\s*["']use strict["'];?\s*/, '').trim();
-}
 
 // ---------------------------------------------------------------------------
 // Source file processing
@@ -489,13 +466,17 @@ function main() {
     // 4. Create production TypeScript version (mock code removed)
     const tsProduction = createProductionTS(tsInlined, functionName);
 
-    // 5. Transpile both to JavaScript
-    let jsCode = transpileToJS(tsInlined);
-    let jsProduction = transpileToJS(tsProduction);
-
-    // Remove any "export" keywords that survived transpilation
-    jsCode = jsCode.replace(/^export\s+/gm, '');
-    jsProduction = jsProduction.replace(/^export\s+/gm, '');
+    // 5. Keep the TypeScript. These bodies are inlined into a generated
+    // TypeScript file, where every type they name is already in scope:
+    // `NodeExecutionRuntime` comes from the inlined durable engine and
+    // `FwMockConfig` from the inline runtime. Stripping the types instead
+    // made every parameter an implicit `any`, which fails the generated
+    // file under `noImplicitAny`, and left call sites unable to recover a
+    // type through `Parameters<typeof fn>`. A JavaScript output is still
+    // possible: `generate.ts` strips types from the whole assembled file
+    // when `outputFormat` is 'javascript'.
+    let jsCode = tsInlined.replace(/^export\s+/gm, '').trim();
+    let jsProduction = tsProduction.replace(/^export\s+/gm, '').trim();
 
     // 6. Build registry entry, with helpers separated from the main function
     const indent = '    ';

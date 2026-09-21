@@ -730,8 +730,12 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     args.push(abortSignalExpression);
   }
   if (node.receivesRuntime) {
+    // `${safeId}Idx` is assigned before this call, but it is declared
+    // `number | undefined` and read inside a closure, where TypeScript cannot
+    // carry the definite assignment through. Every other read of it on these
+    // lines is outside a closure and narrows fine.
     args.push(
-      `{ nodeId: '${id}', runtime: ${runtimeContextExpression}.getRuntime(), recursionDepth: __rd__, createNestedRuntime: (workflowId: string) => ${runtimeContextExpression}.createNestedRuntime(workflowId, '${id}', ${safeId}Idx) }`,
+      `{ nodeId: '${id}', runtime: ${runtimeContextExpression}.getRuntime(), recursionDepth: __rd__, createNestedRuntime: (workflowId: string) => ${runtimeContextExpression}.createNestedRuntime(workflowId, '${id}', ${safeId}Idx!) }`,
     );
   }
 

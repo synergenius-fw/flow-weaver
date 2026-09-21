@@ -35,7 +35,6 @@ import { detectSugarPatterns, filterStaleMacros } from '../sugar-optimizer';
 import { isPathImpliedDataEdge } from '../parser/path-data-resolution';
 import { serializePackDeployAnnotations } from '../parser/serialize-deploy-annotations';
 import { validateDurableClosure } from './durable-validation';
-import { mapToTypeScript } from '../type-mappings';
 import * as ts from 'typescript';
 import * as path from 'path';
 
@@ -181,8 +180,7 @@ export function generateInPlace(
       // by workflow, and both need `__fw_getMockConfig`).
       const emittedHelpers = new Set<string>();
       for (const node of builtInNodes) {
-        const rawHelperText = production ? (node.helperTextProduction ?? null) : (node.helperText ?? null);
-        const helperText = rawHelperText ? typeMockHelperText(rawHelperText) : rawHelperText;
+        const helperText = production ? (node.helperTextProduction ?? null) : (node.helperText ?? null);
         if (helperText && !emittedHelpers.has(helperText) && !result.includes(helperText)) {
           emittedHelpers.add(helperText);
           insertionLines.push(helperText);
@@ -192,8 +190,7 @@ export function generateInPlace(
 
       // Emit each built-in function with its JSDoc
       for (const node of builtInNodes) {
-        const rawFuncText = (production && node.functionTextProduction != null) ? node.functionTextProduction : node.functionText;
-        const funcText = rawFuncText ? typeBuiltInFunctionText(node, rawFuncText) : rawFuncText;
+        const funcText = (production && node.functionTextProduction != null) ? node.functionTextProduction : node.functionText;
         if (funcText) {
           // Add JSDoc annotation so the function is recognized on re-parse.
           // The durable classification must travel with it: without it a
@@ -1459,77 +1456,6 @@ function durableClassificationLines(
     lines.push(' * @durablePure');
   }
   return lines;
-}
-
-/**
- * Type the shared mock helpers (`__fw_getMockConfig`, `__fw_lookupMock`)
- * inlined alongside a built-in node's function. Same problem as
- * `typeBuiltInFunctionText`: the registry stores these as plain JS, which
- * makes their parameters implicit `any` in a `strict` TypeScript output.
- * Their shape is fixed (see `extractMockHelpers` in
- * `scripts/generate-built-in-registry.ts`), so the two signatures are
- * rewritten directly rather than derived from port metadata.
- */
-function typeMockHelperText(helperText: string): string {
-  return helperText
-    .replace(
-      /function __fw_getMockConfig\(runtime\)/,
-      "function __fw_getMockConfig(runtime?: { nodeId?: string; runtime: WorkflowRuntime }): { fast?: boolean; events?: Record<string, object>; invocations?: Record<string, object>; agents?: Record<string, object>; gates?: Record<string, object> } | undefined",
-    )
-    .replace(
-      /function __fw_lookupMock\(section, key, runtime\)/,
-      "function __fw_lookupMock<T>(section: Record<string, T> | undefined, key: string, runtime?: { nodeId?: string; runtime: WorkflowRuntime }): T | undefined",
-    );
-}
-
-/**
- * Type a built-in node's inlined function signature.
- *
- * `functionText`/`functionTextProduction` in the registry are plain JS (see
- * `scripts/generate-built-in-registry.ts`), transpiled that way so the same
- * text can be inlined into non-TypeScript compile targets. In a TypeScript
- * output, though, an untyped `async function waitForAgent(execute, agentId,
- * ...)` makes every parameter an implicit `any` under `noImplicitAny` /
- * `strict` -- and worse, poisons every call site that tries to type its
- * arguments against it via `Parameters<typeof waitForAgent>`, since that
- * resolves to `any` too. The parameter order is always `execute`, each
- * declared input in `node.inputs` order (skipping `execute` itself), then
- * `abortSignal` if `receivesAbortSignal`, then `runtime` if `receivesRuntime`
- * -- exactly how `generate-built-in-registry.ts` emits the source function.
- */
-function typeBuiltInFunctionText(node: TNodeTypeAST, funcText: string): string {
-  const match = funcText.match(/^(\s*(?:export\s+)?(?:async\s+)?function\s+[A-Za-z0-9_$]+\s*)\(([^)]*)\)/);
-  if (!match) return funcText;
-
-  const params = match[2].split(',').map((p) => p.trim()).filter(Boolean);
-  const inputNames = Object.keys(node.inputs).filter((name) => name !== 'execute');
-  const expectedParamCount = 1 + inputNames.length + (node.receivesAbortSignal ? 1 : 0) + (node.receivesRuntime ? 1 : 0);
-  if (params.length !== expectedParamCount) return funcText; // Shape doesn't match what we expect; leave untyped rather than emit something wrong.
-
-  let cursor = 0;
-  const typedParams = [`${params[cursor++]}: boolean`];
-  for (const name of inputNames) {
-    const port = node.inputs[name];
-    const tsType = mapToTypeScript(port.dataType, port.tsType);
-    const optional = port.optional ? '?' : '';
-    typedParams.push(`${params[cursor++]}${optional}: ${tsType}`);
-  }
-  if (node.receivesAbortSignal) {
-    typedParams.push(`${params[cursor++]}?: AbortSignal`);
-  }
-  if (node.receivesRuntime) {
-    // Structurally matches NodeExecutionRuntime (src/runtime/durable-execution.ts),
-    // narrowed to what a built-in body actually reads: `runtime.nodeId` and
-    // `runtime.runtime.services.{mocks,workflowRegistry}`. WorkflowRuntime is the
-    // generated file's own inline runtime type, always in scope at this point.
-    typedParams.push(`${params[cursor++]}?: { nodeId?: string; runtime: WorkflowRuntime }`);
-  }
-
-  const dataOutputs = Object.entries(node.outputs).filter(([name]) => name !== 'onSuccess' && name !== 'onFailure');
-  const returnFields = ['onSuccess: boolean', 'onFailure: boolean', ...dataOutputs.map(([name, port]) => `${name}: ${mapToTypeScript(port.dataType, port.tsType)}`)];
-  const returnType = node.isAsync ? `Promise<{ ${returnFields.join('; ')} }>` : `{ ${returnFields.join('; ')} }`;
-
-  return funcText.slice(0, match.index) + `${match[1]}(${typedParams.join(', ')}): ${returnType}` + funcText.slice(match.index! + match[0].length);
 }
 
 // Note: generateJSDocPortTag and assignPortOrders are now imported from annotation-generator

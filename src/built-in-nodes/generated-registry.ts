@@ -30,114 +30,127 @@ export const BUILT_IN_NODE_TYPES: TNodeTypeAST[] = [
       elapsed: { dataType: 'BOOLEAN', label: 'Always true after sleep completes', tsType: 'boolean' },
     },
     helperText: `
-function __fw_getMockConfig(runtime) {
-    return runtime?.runtime.services.mocks;
+function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
+  return runtime?.runtime.services.mocks;
 }
 
-function __fw_lookupMock(section, key, runtime) {
-    if (!section)
-        return undefined;
-    const nodeId = runtime?.nodeId;
-    if (nodeId) {
-        const qualified = section[\`\${nodeId}:\${key}\`];
-        if (qualified !== undefined)
-            return qualified;
-        const any = section[\`\${nodeId}:*\`];
-        if (any !== undefined)
-            return any;
-    }
-    return section[key];
+function __fw_lookupMock<T>(
+  section: Record<string, T> | undefined,
+  key: string,
+  runtime?: NodeExecutionRuntime,
+): T | undefined {
+  if (!section) return undefined;
+
+  const nodeId = runtime?.nodeId;
+  if (nodeId) {
+    const qualified = section[\`\${nodeId}:\${key}\`];
+    if (qualified !== undefined) return qualified;
+    const any = section[\`\${nodeId}:*\`];
+    if (any !== undefined) return any;
+  }
+
+  return section[key];
 }
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function delay(execute, duration, abortSignal, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, elapsed: false };
-    const mocks = __fw_getMockConfig(runtime);
-    if (mocks?.fast) {
-        await __fw_waitForDuration(1, abortSignal);
-    }
-    else {
-        const ms = __fw_parseDuration(duration);
-        await __fw_waitForDuration(ms, abortSignal);
-    }
-    return { onSuccess: true, onFailure: false, elapsed: true };
+async function delay(
+  execute: boolean,
+  duration: string,
+  abortSignal?: AbortSignal,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; elapsed: boolean }> {
+  if (!execute) return { onSuccess: false, onFailure: false, elapsed: false };
+
+  const mocks = __fw_getMockConfig(runtime);
+  if (mocks?.fast) {
+    // Fast mode: skip real sleep, keep async behavior with 1ms
+    await __fw_waitForDuration(1, abortSignal);
+  } else {
+    const ms = __fw_parseDuration(duration);
+    await __fw_waitForDuration(ms, abortSignal);
+  }
+
+  return { onSuccess: true, onFailure: false, elapsed: true };
 }
-function __fw_waitForDuration(ms, abortSignal) {
-    if (abortSignal?.aborted)
-        return Promise.reject(new CancellationError());
-    return new Promise((resolve, reject) => {
-        let settled = false;
-        const onAbort = () => {
-            if (settled)
-                return;
-            settled = true;
-            clearTimeout(timer);
-            abortSignal?.removeEventListener('abort', onAbort);
-            reject(new CancellationError());
-        };
-        const timer = setTimeout(() => {
-            if (settled)
-                return;
-            settled = true;
-            abortSignal?.removeEventListener('abort', onAbort);
-            resolve();
-        }, ms);
-        abortSignal?.addEventListener('abort', onAbort, { once: true });
-        if (abortSignal?.aborted)
-            onAbort();
-    });
+
+function __fw_waitForDuration(ms: number, abortSignal?: AbortSignal): Promise<void> {
+  if (abortSignal?.aborted) return Promise.reject(new CancellationError());
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      abortSignal?.removeEventListener('abort', onAbort);
+      reject(new CancellationError());
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      abortSignal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    abortSignal?.addEventListener('abort', onAbort, { once: true });
+    if (abortSignal?.aborted) onAbort();
+  });
 }
-function __fw_parseDuration(duration) {
-    const match = duration.match(/^(\\d+)(ms|s|m|h|d)$/);
-    if (!match)
-        return 0;
-    const [, value, unit] = match;
-    const multipliers = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
-    return parseInt(value) * (multipliers[unit] || 0);
+
+function __fw_parseDuration(duration: string): number {
+  const match = duration.match(/^(\\d+)(ms|s|m|h|d)$/);
+  if (!match) return 0;
+  const [, value, unit] = match;
+  const multipliers: Record<string, number> = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
+  return parseInt(value) * (multipliers[unit] || 0);
 }
 `.trim(),
     functionTextProduction: `
-async function delay(execute, duration, abortSignal, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, elapsed: false };
-    const ms = __fw_parseDuration(duration);
-    await __fw_waitForDuration(ms, abortSignal);
-    return { onSuccess: true, onFailure: false, elapsed: true };
+async function delay(
+  execute: boolean,
+  duration: string,
+  abortSignal?: AbortSignal,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; elapsed: boolean }> {
+  if (!execute) return { onSuccess: false, onFailure: false, elapsed: false };
+
+const ms = __fw_parseDuration(duration);
+  await __fw_waitForDuration(ms, abortSignal);
+
+  return { onSuccess: true, onFailure: false, elapsed: true };
 }
-function __fw_waitForDuration(ms, abortSignal) {
-    if (abortSignal?.aborted)
-        return Promise.reject(new CancellationError());
-    return new Promise((resolve, reject) => {
-        let settled = false;
-        const onAbort = () => {
-            if (settled)
-                return;
-            settled = true;
-            clearTimeout(timer);
-            abortSignal?.removeEventListener('abort', onAbort);
-            reject(new CancellationError());
-        };
-        const timer = setTimeout(() => {
-            if (settled)
-                return;
-            settled = true;
-            abortSignal?.removeEventListener('abort', onAbort);
-            resolve();
-        }, ms);
-        abortSignal?.addEventListener('abort', onAbort, { once: true });
-        if (abortSignal?.aborted)
-            onAbort();
-    });
+
+function __fw_waitForDuration(ms: number, abortSignal?: AbortSignal): Promise<void> {
+  if (abortSignal?.aborted) return Promise.reject(new CancellationError());
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      abortSignal?.removeEventListener('abort', onAbort);
+      reject(new CancellationError());
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      abortSignal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    abortSignal?.addEventListener('abort', onAbort, { once: true });
+    if (abortSignal?.aborted) onAbort();
+  });
 }
-function __fw_parseDuration(duration) {
-    const match = duration.match(/^(\\d+)(ms|s|m|h|d)$/);
-    if (!match)
-        return 0;
-    const [, value, unit] = match;
-    const multipliers = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
-    return parseInt(value) * (multipliers[unit] || 0);
+
+function __fw_parseDuration(duration: string): number {
+  const match = duration.match(/^(\\d+)(ms|s|m|h|d)$/);
+  if (!match) return 0;
+  const [, value, unit] = match;
+  const multipliers: Record<string, number> = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
+  return parseInt(value) * (multipliers[unit] || 0);
 }
 `.trim(),
   },
@@ -163,45 +176,66 @@ function __fw_parseDuration(duration) {
       wokeAt: { dataType: 'STRING', label: 'When the run went on, as an ISO 8601 time', tsType: 'string' },
     },
     helperText: `
-function __fw_getMockConfig(runtime) {
-    return runtime?.runtime.services.mocks;
+function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
+  return runtime?.runtime.services.mocks;
 }
 
-function __fw_lookupMock(section, key, runtime) {
-    if (!section)
-        return undefined;
-    const nodeId = runtime?.nodeId;
-    if (nodeId) {
-        const qualified = section[\`\${nodeId}:\${key}\`];
-        if (qualified !== undefined)
-            return qualified;
-        const any = section[\`\${nodeId}:*\`];
-        if (any !== undefined)
-            return any;
-    }
-    return section[key];
+function __fw_lookupMock<T>(
+  section: Record<string, T> | undefined,
+  key: string,
+  runtime?: NodeExecutionRuntime,
+): T | undefined {
+  if (!section) return undefined;
+
+  const nodeId = runtime?.nodeId;
+  if (nodeId) {
+    const qualified = section[\`\${nodeId}:\${key}\`];
+    if (qualified !== undefined) return qualified;
+    const any = section[\`\${nodeId}:*\`];
+    if (any !== undefined) return any;
+  }
+
+  return section[key];
 }
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function sleep(execute, duration, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, wokeAt: '' };
-    const mocks = __fw_getMockConfig(runtime);
-    if (mocks) {
-        if (mocks.fast)
-            return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
-    }
-    void duration;
-    return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
+async function sleep(
+  execute: boolean,
+  duration: string,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; wokeAt: string }> {
+  if (!execute) return { onSuccess: false, onFailure: false, wokeAt: '' };
+
+  const mocks = __fw_getMockConfig(runtime);
+  if (mocks) {
+    // Mock mode -- \`fast\` wakes at once, as it makes \`delay\` return at once
+    if (mocks.fast) return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
+  }
+
+  // A timer gate: in a compiled workflow this body is never called. The run
+  // yields here and whoever keeps it -- the coordinator, or a host of its
+  // own -- resumes it once \`duration\` has passed. Called directly, it does
+  // not hold the process: that is what \`delay\` is for.
+  void duration;
+  return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
 }
 `.trim(),
     functionTextProduction: `
-async function sleep(execute, duration, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, wokeAt: '' };
-    void duration;
-    return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
+async function sleep(
+  execute: boolean,
+  duration: string,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; wokeAt: string }> {
+  if (!execute) return { onSuccess: false, onFailure: false, wokeAt: '' };
+
+
+  // A timer gate: in a compiled workflow this body is never called. The run
+  // yields here and whoever keeps it -- the coordinator, or a host of its
+  // own -- resumes it once \`duration\` has passed. Called directly, it does
+  // not hold the process: that is what \`delay\` is for.
+  void duration;
+  return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
 }
 `.trim(),
   },
@@ -229,46 +263,66 @@ async function sleep(execute, duration, runtime) {
       eventData: { dataType: 'OBJECT', label: 'The received event\'s data payload', tsType: 'object' },
     },
     helperText: `
-function __fw_getMockConfig(runtime) {
-    return runtime?.runtime.services.mocks;
+function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
+  return runtime?.runtime.services.mocks;
 }
 
-function __fw_lookupMock(section, key, runtime) {
-    if (!section)
-        return undefined;
-    const nodeId = runtime?.nodeId;
-    if (nodeId) {
-        const qualified = section[\`\${nodeId}:\${key}\`];
-        if (qualified !== undefined)
-            return qualified;
-        const any = section[\`\${nodeId}:*\`];
-        if (any !== undefined)
-            return any;
-    }
-    return section[key];
+function __fw_lookupMock<T>(
+  section: Record<string, T> | undefined,
+  key: string,
+  runtime?: NodeExecutionRuntime,
+): T | undefined {
+  if (!section) return undefined;
+
+  const nodeId = runtime?.nodeId;
+  if (nodeId) {
+    const qualified = section[\`\${nodeId}:\${key}\`];
+    if (qualified !== undefined) return qualified;
+    const any = section[\`\${nodeId}:*\`];
+    if (any !== undefined) return any;
+  }
+
+  return section[key];
 }
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function waitForEvent(execute, eventName, match, timeout, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, eventData: {} };
-    const mocks = __fw_getMockConfig(runtime);
-    if (mocks) {
-        const mockData = __fw_lookupMock(mocks.events, eventName, runtime);
-        if (mockData !== undefined) {
-            return { onSuccess: true, onFailure: false, eventData: mockData };
-        }
-        return { onSuccess: false, onFailure: true, eventData: {} };
+async function waitForEvent(
+  execute: boolean,
+  eventName: string,
+  match?: string,
+  timeout?: string,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; eventData: object }> {
+  if (!execute) return { onSuccess: false, onFailure: false, eventData: {} };
+
+  const mocks = __fw_getMockConfig(runtime);
+  if (mocks) {
+    // Mock mode: look up event data by name (supports instance-qualified keys)
+    const mockData = __fw_lookupMock(mocks.events, eventName, runtime);
+    if (mockData !== undefined) {
+      return { onSuccess: true, onFailure: false, eventData: mockData };
     }
-    return { onSuccess: true, onFailure: false, eventData: {} };
+    // No mock data for this event, so simulate timeout
+    return { onSuccess: false, onFailure: true, eventData: {} };
+  }
+
+  // No mocks: original no-op behavior (always succeeds)
+  return { onSuccess: true, onFailure: false, eventData: {} };
 }
 `.trim(),
     functionTextProduction: `
-async function waitForEvent(execute, eventName, match, timeout, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, eventData: {} };
-    return { onSuccess: true, onFailure: false, eventData: {} };
+async function waitForEvent(
+  execute: boolean,
+  eventName: string,
+  match?: string,
+  timeout?: string,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; eventData: object }> {
+  if (!execute) return { onSuccess: false, onFailure: false, eventData: {} };
+
+
+  return { onSuccess: true, onFailure: false, eventData: {} };
 }
 `.trim(),
   },
@@ -296,94 +350,136 @@ async function waitForEvent(execute, eventName, match, timeout, runtime) {
       result: { dataType: 'OBJECT', label: 'Return value from the invoked function', tsType: 'object' },
     },
     helperText: `
-function __fw_getMockConfig(runtime) {
-    return runtime?.runtime.services.mocks;
+function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
+  return runtime?.runtime.services.mocks;
 }
 
-function __fw_lookupMock(section, key, runtime) {
-    if (!section)
-        return undefined;
-    const nodeId = runtime?.nodeId;
-    if (nodeId) {
-        const qualified = section[\`\${nodeId}:\${key}\`];
-        if (qualified !== undefined)
-            return qualified;
-        const any = section[\`\${nodeId}:*\`];
-        if (any !== undefined)
-            return any;
-    }
-    return section[key];
+function __fw_lookupMock<T>(
+  section: Record<string, T> | undefined,
+  key: string,
+  runtime?: NodeExecutionRuntime,
+): T | undefined {
+  if (!section) return undefined;
+
+  const nodeId = runtime?.nodeId;
+  if (nodeId) {
+    const qualified = section[\`\${nodeId}:\${key}\`];
+    if (qualified !== undefined) return qualified;
+    const any = section[\`\${nodeId}:*\`];
+    if (any !== undefined) return any;
+  }
+
+  return section[key];
 }
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, result: {} };
-    const mocks = __fw_getMockConfig(runtime);
-    if (mocks) {
-        const mockResult = __fw_lookupMock(mocks.invocations, functionId, runtime);
-        if (mockResult !== undefined) {
-            return { onSuccess: true, onFailure: false, result: mockResult };
-        }
-        return { onSuccess: false, onFailure: true, result: {} };
+async function invokeWorkflow(
+  execute: boolean,
+  functionId: string,
+  payload: object,
+  timeout?: string,
+  abortSignal?: AbortSignal,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }> {
+  if (!execute) return { onSuccess: false, onFailure: false, result: {} };
+
+  const mocks = __fw_getMockConfig(runtime);
+  if (mocks) {
+    // Mock mode: look up result by functionId (supports instance-qualified keys)
+    const mockResult = __fw_lookupMock(mocks.invocations, functionId, runtime);
+    if (mockResult !== undefined) {
+      return { onSuccess: true, onFailure: false, result: mockResult };
     }
-    const registry = runtime?.runtime.services.workflowRegistry;
-    if (registry?.[functionId]) {
-        const nodeRuntime = runtime;
-        if (!Number.isSafeInteger(nodeRuntime.recursionDepth) ||
-            nodeRuntime.recursionDepth < 0 ||
-            nodeRuntime.recursionDepth >= 999) {
-            throw new Error('Max recursion depth exceeded (1000) in dynamic workflow invocation');
-        }
-        try {
-            const result = await registry[functionId](true, { ...payload, __rd__: nodeRuntime.recursionDepth + 1 }, nodeRuntime.createNestedRuntime(functionId));
-            return { onSuccess: true, onFailure: false, result: result ?? {} };
-        }
-        catch (error) {
-            const controlFlowCode = typeof error === 'object' && error !== null
-                ? error.code
-                : undefined;
-            if (CancellationError.isCancellationError(error) ||
-                controlFlowCode === 'FLOW_WEAVER_DURABLE_GATE_YIELD' ||
-                controlFlowCode === 'FLOW_WEAVER_AMBIGUOUS_EFFECT') {
-                throw error;
-            }
-            return { onSuccess: false, onFailure: true, result: {} };
-        }
+    // No mock data for this functionId, so simulate failure
+    return { onSuccess: false, onFailure: true, result: {} };
+  }
+
+  // Check local workflow registry (populated by executeWorkflow)
+  const registry = runtime?.runtime.services.workflowRegistry;
+  if (registry?.[functionId]) {
+    const nodeRuntime = runtime!;
+    if (
+      !Number.isSafeInteger(nodeRuntime.recursionDepth) ||
+      nodeRuntime.recursionDepth < 0 ||
+      nodeRuntime.recursionDepth >= 999
+    ) {
+      throw new Error('Max recursion depth exceeded (1000) in dynamic workflow invocation');
     }
-    return { onSuccess: true, onFailure: false, result: {} };
+    try {
+      const result = await registry[functionId](
+        true,
+        { ...payload, __rd__: nodeRuntime.recursionDepth + 1 },
+        nodeRuntime.createNestedRuntime(functionId),
+      );
+      return { onSuccess: true, onFailure: false, result: (result as object) ?? {} };
+    } catch (error) {
+      const controlFlowCode =
+        typeof error === 'object' && error !== null
+          ? (error as { code?: unknown }).code
+          : undefined;
+      if (
+        CancellationError.isCancellationError(error) ||
+        controlFlowCode === 'FLOW_WEAVER_DURABLE_GATE_YIELD' ||
+        controlFlowCode === 'FLOW_WEAVER_AMBIGUOUS_EFFECT'
+      ) {
+        throw error;
+      }
+      return { onSuccess: false, onFailure: true, result: {} };
+    }
+  }
+
+  // No mocks, no registry match: original no-op behavior (always succeeds)
+  return { onSuccess: true, onFailure: false, result: {} };
 }
 `.trim(),
     functionTextProduction: `
-async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, result: {} };
-    const registry = runtime?.runtime.services.workflowRegistry;
-    if (registry?.[functionId]) {
-        const nodeRuntime = runtime;
-        if (!Number.isSafeInteger(nodeRuntime.recursionDepth) ||
-            nodeRuntime.recursionDepth < 0 ||
-            nodeRuntime.recursionDepth >= 999) {
-            throw new Error('Max recursion depth exceeded (1000) in dynamic workflow invocation');
-        }
-        try {
-            const result = await registry[functionId](true, { ...payload, __rd__: nodeRuntime.recursionDepth + 1 }, nodeRuntime.createNestedRuntime(functionId));
-            return { onSuccess: true, onFailure: false, result: result ?? {} };
-        }
-        catch (error) {
-            const controlFlowCode = typeof error === 'object' && error !== null
-                ? error.code
-                : undefined;
-            if (CancellationError.isCancellationError(error) ||
-                controlFlowCode === 'FLOW_WEAVER_DURABLE_GATE_YIELD' ||
-                controlFlowCode === 'FLOW_WEAVER_AMBIGUOUS_EFFECT') {
-                throw error;
-            }
-            return { onSuccess: false, onFailure: true, result: {} };
-        }
+async function invokeWorkflow(
+  execute: boolean,
+  functionId: string,
+  payload: object,
+  timeout?: string,
+  abortSignal?: AbortSignal,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }> {
+  if (!execute) return { onSuccess: false, onFailure: false, result: {} };
+
+
+  // Check local workflow registry (populated by executeWorkflow)
+  const registry = runtime?.runtime.services.workflowRegistry;
+  if (registry?.[functionId]) {
+    const nodeRuntime = runtime!;
+    if (
+      !Number.isSafeInteger(nodeRuntime.recursionDepth) ||
+      nodeRuntime.recursionDepth < 0 ||
+      nodeRuntime.recursionDepth >= 999
+    ) {
+      throw new Error('Max recursion depth exceeded (1000) in dynamic workflow invocation');
     }
-    return { onSuccess: true, onFailure: false, result: {} };
+    try {
+      const result = await registry[functionId](
+        true,
+        { ...payload, __rd__: nodeRuntime.recursionDepth + 1 },
+        nodeRuntime.createNestedRuntime(functionId),
+      );
+      return { onSuccess: true, onFailure: false, result: (result as object) ?? {} };
+    } catch (error) {
+      const controlFlowCode =
+        typeof error === 'object' && error !== null
+          ? (error as { code?: unknown }).code
+          : undefined;
+      if (
+        CancellationError.isCancellationError(error) ||
+        controlFlowCode === 'FLOW_WEAVER_DURABLE_GATE_YIELD' ||
+        controlFlowCode === 'FLOW_WEAVER_AMBIGUOUS_EFFECT'
+      ) {
+        throw error;
+      }
+      return { onSuccess: false, onFailure: true, result: {} };
+    }
+  }
+
+  return { onSuccess: true, onFailure: false, result: {} };
 }
 `.trim(),
   },
@@ -411,50 +507,76 @@ async function invokeWorkflow(execute, functionId, payload, timeout, abortSignal
       agentResult: { dataType: 'OBJECT', label: 'Result returned by the agent', tsType: 'object' },
     },
     helperText: `
-function __fw_getMockConfig(runtime) {
-    return runtime?.runtime.services.mocks;
+function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
+  return runtime?.runtime.services.mocks;
 }
 
-function __fw_lookupMock(section, key, runtime) {
-    if (!section)
-        return undefined;
-    const nodeId = runtime?.nodeId;
-    if (nodeId) {
-        const qualified = section[\`\${nodeId}:\${key}\`];
-        if (qualified !== undefined)
-            return qualified;
-        const any = section[\`\${nodeId}:*\`];
-        if (any !== undefined)
-            return any;
-    }
-    return section[key];
+function __fw_lookupMock<T>(
+  section: Record<string, T> | undefined,
+  key: string,
+  runtime?: NodeExecutionRuntime,
+): T | undefined {
+  if (!section) return undefined;
+
+  const nodeId = runtime?.nodeId;
+  if (nodeId) {
+    const qualified = section[\`\${nodeId}:\${key}\`];
+    if (qualified !== undefined) return qualified;
+    const any = section[\`\${nodeId}:*\`];
+    if (any !== undefined) return any;
+  }
+
+  return section[key];
 }
 `.trim(),
     helperTextProduction: undefined,
     functionText: `
-async function waitForAgent(execute, agentId, context, prompt, _abortSignal, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, agentResult: {} };
-    const mocks = __fw_getMockConfig(runtime);
-    const mockResult = __fw_lookupMock(mocks?.agents, agentId, runtime);
-    if (mockResult !== undefined) {
-        return { onSuccess: true, onFailure: false, agentResult: mockResult };
-    }
-    if (mocks?.agents) {
-        return { onSuccess: false, onFailure: true, agentResult: {} };
-    }
-    void context;
-    void prompt;
-    throw new Error('waitForAgent requires a generated durable agent gate');
+async function waitForAgent(
+  execute: boolean,
+  agentId: string,
+  context: object,
+  prompt?: string,
+  _abortSignal?: AbortSignal,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }> {
+  if (!execute) return { onSuccess: false, onFailure: false, agentResult: {} };
+
+  // 1. Check mocks first (supports instance-qualified keys)
+  const mocks = __fw_getMockConfig(runtime);
+  const mockResult = __fw_lookupMock(mocks?.agents, agentId, runtime);
+  if (mockResult !== undefined) {
+    return { onSuccess: true, onFailure: false, agentResult: mockResult };
+  }
+  // Mocks section exists but key not found, so fail like waitForEvent/invokeWorkflow
+  if (mocks?.agents) {
+    return { onSuccess: false, onFailure: true, agentResult: {} };
+  }
+
+  // The compiler replaces this declared agent gate with a terminal durable
+  // yield. Reaching the implementation without a mock means the generated
+  // program did not apply the durable-gate boundary and must fail closed.
+  void context;
+  void prompt;
+  throw new Error('waitForAgent requires a generated durable agent gate');
 }
 `.trim(),
     functionTextProduction: `
-async function waitForAgent(execute, agentId, context, prompt, _abortSignal, runtime) {
-    if (!execute)
-        return { onSuccess: false, onFailure: false, agentResult: {} };
-    void context;
-    void prompt;
-    throw new Error('waitForAgent requires a generated durable agent gate');
+async function waitForAgent(
+  execute: boolean,
+  agentId: string,
+  context: object,
+  prompt?: string,
+  _abortSignal?: AbortSignal,
+  runtime?: NodeExecutionRuntime,
+): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }> {
+  if (!execute) return { onSuccess: false, onFailure: false, agentResult: {} };
+
+
+  // The compiler replaces this declared agent gate with a terminal durable
+  // program did not apply the durable-gate boundary and must fail closed.
+  void context;
+  void prompt;
+  throw new Error('waitForAgent requires a generated durable agent gate');
 }
 `.trim(),
   },
