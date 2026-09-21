@@ -77,7 +77,8 @@ describe('marketInitCommand', () => {
       expect(fs.existsSync(path.join(targetDir, 'src'))).toBe(true);
       expect(fs.existsSync(path.join(targetDir, 'src', 'node-types'))).toBe(true);
       expect(fs.existsSync(path.join(targetDir, 'src', 'workflows'))).toBe(true);
-      expect(fs.existsSync(path.join(targetDir, 'src', 'patterns'))).toBe(true);
+      // Patterns are gone, so a pack has nowhere to put one.
+      expect(fs.existsSync(path.join(targetDir, 'src', 'patterns'))).toBe(false);
 
       // Verify package.json
       const pkgJson = JSON.parse(fs.readFileSync(path.join(targetDir, 'package.json'), 'utf8'));
