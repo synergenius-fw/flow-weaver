@@ -490,15 +490,23 @@ const SCENARIOS: Array<[string, () => TWorkflowAST]> = [
   ['expression-branch-extra-ports', expressionBranchExtraPorts],
 ];
 
+/**
+ * The generated file carries the engine version it was written by, which
+ * these snapshots baked in and so broke on every release -- a diff that says
+ * nothing about branching codegen, which is all they are here to watch.
+ */
+const stableVersion = (code: string): string =>
+  code.replace(/const VERSION = "\d+\.\d+\.\d+[^"]*";/g, 'const VERSION = "0.0.0-test";');
+
 describe('branching codegen golden (debt #2)', () => {
   for (const [label, build] of SCENARIOS) {
     it(`dev-mode output is stable: ${label}`, () => {
       const code = generateCode(build(), { production: false });
-      expect(code).toMatchSnapshot();
+      expect(stableVersion(code)).toMatchSnapshot();
     });
     it(`prod-mode output is stable: ${label}`, () => {
       const code = generateCode(build(), { production: true });
-      expect(code).toMatchSnapshot();
+      expect(stableVersion(code)).toMatchSnapshot();
     });
   }
 });

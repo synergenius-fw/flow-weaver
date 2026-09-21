@@ -458,7 +458,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -2552,7 +2552,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -4674,7 +4674,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -6852,7 +6852,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -8946,7 +8946,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -11059,7 +11059,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -13201,7 +13201,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -15323,7 +15323,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -17328,7 +17328,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -19441,7 +19441,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -21535,7 +21535,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -23629,7 +23629,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -25742,7 +25742,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -27836,7 +27836,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -29997,7 +29997,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type DebugController = TDebugController;
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
@@ -31981,7 +31981,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -33933,7 +33933,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -35913,7 +35913,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -37945,7 +37945,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -39897,7 +39897,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -41868,7 +41868,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -43866,7 +43866,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -45846,7 +45846,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -47713,7 +47713,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -49684,7 +49684,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -51636,7 +51636,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -53588,7 +53588,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -55559,7 +55559,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -57511,7 +57511,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
@@ -59528,7 +59528,7 @@ class GeneratedExecutionContext {
 // The package's own engine, copied here so this file runs without it.
 // ============================================================================
 
-const VERSION = "0.38.0";
+const VERSION = "0.0.0-test";
 type FwMockConfig = { readonly events?: Readonly<Record<string, object>>, readonly invocations?: Readonly<Record<string, object>>, readonly agents?: Readonly<Record<string, object>>, readonly gates?: Readonly<Record<string, object>>, readonly fast?: boolean };
 
 // ---- src/runtime/continuation-core.ts ------------------------------------------
