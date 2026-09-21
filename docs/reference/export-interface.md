@@ -140,6 +140,15 @@ For iteration (forEach), use **per-port scopes** with `scope:scopeName` suffix o
 
 The forEach node owns a scope, which is one of the reasons for normal mode: it takes `execute`, calls the generated callback per item itself, and reports `onSuccess`/`onFailure` when the loop is done. The child node inside the scope is an ordinary expression node.
 
+> **A scope and a durable gate cannot share a workflow.** A workflow whose
+> reachable closure contains a gate — `waitForEvent`, `waitForAgent`, or any
+> `@durableGate` — may not contain scoped children at all, and is refused with
+> `DURABLE_CLOSURE_INVALID`. The owner calls the callback itself, so the engine
+> cannot prove on resume that the iteration it is servicing is the one that
+> paused. To loop over work that pauses, run the loop **outside** the workflow
+> and invoke the gated workflow once per item, or write the passes out in full
+> if there are few and the count is fixed. See [Durable Gates](durable-gates).
+
 ## 1. Define ForEach Node Type
 
 ```typescript

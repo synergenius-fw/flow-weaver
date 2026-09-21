@@ -1,7 +1,7 @@
 ---
 name: CLI Reference
 description: Complete reference for all Flow Weaver CLI commands, flags, and options
-keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, grammar, openapi, pattern, create, templates, context, modify, implement, status]
+keywords: [cli, commands, compile, validate, strip, run, watch, dev, serve, export, diagram, diff, doctor, init, migrate, marketplace, grammar, openapi, agents, create, templates, context, modify, implement, status]
 ---
 
 # CLI Reference
@@ -375,6 +375,30 @@ fw console ./workflows --open
 Runs started here stream real execution events, so the process lights up step by step and a paused gate offers a form built from the port's TypeScript type. Runs live in the same store as `fw_run` and `fw_resume` (`~/.fw/runs`, or `FW_RUNS_DIR`): a gate reached in the console can be answered by an assistant over MCP and the other way round, a run waiting at a gate survives a restart of the console, and effects get receipts. The step trace is kept beside the record, so a run opened later still shows what each step did; a segment resumed over MCP keeps no trace, and the console says so rather than guessing. The console binds to localhost and re-reads a file as you save it.
 
 > See also: [Durable Gates](durable-gates) for what pauses a run and how it resumes.
+
+---
+
+### agents
+
+The agent profiles that answer agent gates in this project, and whether each is ready. A profile is ready when its provider is configured and the environment variable naming its key is set; the listing says which of those is missing rather than failing at the gate.
+
+```bash
+fw agents [directory] [options]
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--init` | Write the starter `.flowweaver/agents.yaml` | `false` |
+| `--force` | With `--init`: replace an existing file | `false` |
+| `--json` | Output as JSON | `false` |
+
+**Examples:**
+```bash
+fw agents
+fw agents --init
+```
+
+> See also: [Durable Gates](durable-gates) for the `agents.yaml` format and how a profile is matched to a gate.
 
 ---
 
@@ -954,7 +978,7 @@ fw context [preset] [options]
 | `-o, --output <path>` | Write to file instead of stdout | stdout |
 | `--list` | List available presets and exit | — |
 
-Built-in presets: `core` (concepts, grammar, tutorial), `authoring` (concepts, grammar, annotations, built-in nodes, scaffold, node-conversion, patterns), `ops` (CLI, compilation, deployment, export, debugging, error-codes), `full` (all 16 topics).
+Built-in presets: `core` (the `orientation` map alone, plus the list of every other topic to read on demand), `authoring` (orientation, concepts, grammar, annotations, built-in nodes, durable gates, scaffold, node-conversion), `ops` (orientation, library, CLI, MCP tools, compilation, deployment, export-interface, debugging, error-codes), `full` (all 20 topics).
 
 **Examples:**
 ```bash

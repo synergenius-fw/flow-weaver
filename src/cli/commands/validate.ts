@@ -12,6 +12,7 @@ import { getFriendlyError } from '../../friendly-errors.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import { getAgentValidationRules } from '../../validation/agent-rules.js';
+import { validateDurableClosure } from '../../api/durable-validation.js';
 
 export interface ValidateOptions {
   verbose?: boolean;
@@ -165,6 +166,29 @@ export async function validateCommand(input: string, options: ValidateOptions = 
               validation.errors.push(err);
               validation.valid = false;
             }
+          }
+        }
+
+        // The durable-closure rules (scopes, branch regions, pull, gate
+        // classification, effect contracts) live outside the validator, so
+        // this command reported a gated workflow with a scope in it as valid
+        // and `fw compile` then refused the same file. Run them here too.
+        const ast = parseResult.ast;
+        if (
+          ast.instances.some(
+            (inst) => inst.nodeType === 'waitForAgent' || inst.nodeType === 'waitForEvent',
+          ) ||
+          ast.nodeTypes.some((nt) => nt.durableGate !== undefined || nt.durableEffect === true)
+        ) {
+          try {
+            validateDurableClosure(ast);
+          } catch (e) {
+            validation.errors.push({
+              type: 'error',
+              code: 'DURABLE_CLOSURE_INVALID',
+              message: e instanceof Error ? e.message : String(e),
+            });
+            validation.valid = false;
           }
         }
 

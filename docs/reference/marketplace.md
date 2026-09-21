@@ -178,13 +178,12 @@ fw market publish --tag beta # Publish with dist-tag
 | `PKG-003` | error | `peerDependencies` must include `@synergenius/flow-weaver` |
 | `PKG-004` | error | The package must not be `private` |
 | `PKG-005` | warning | The name should follow `flow-weaver-pack-*` — the convention that makes a pack easy to find; a pack named otherwise still packs, installs and loads |
-| `PKG-006` | error | At least one node type, workflow, pattern or export target |
+| `PKG-006` | error | At least one node type, workflow or export target |
 | `PKG-007` | warning | `README.md` should exist |
 | `PKG-008` | warning | A node type should have a description |
 | `PKG-009` | warning | A node type should have visuals (`@color`, `@icon` or `@tag`) |
 | `UNIT-001` | error | Every workflow in the pack must validate |
 | `UNIT-002` | error | Node type names must be unique within the pack |
-| `UNIT-003` | error | A pattern must have at least one `IN` or `OUT` port |
 | `TGT-001` / `TGT-002` | error | An export target needs `name` and `file`; names are unique |
 | `HND-001` | warning | A tag handler has no `serializerExport`: its tags are dropped whenever annotations are regenerated — see [Extending the grammar](#extending-the-grammar-with-a-pack) |
 | `HND-002` | error | A tag handler must declare `tags`, `namespace` and `file` |

@@ -212,7 +212,10 @@ const errorMappers: Record<string, ErrorMapper> = {
     return {
       title: 'Circular Dependency Found',
       explanation: `Circular dependency found. Node '${nodeName}' eventually connects back to itself, creating an infinite loop.${cyclePath ? ` Path: ${cyclePath}` : ''}`,
-      fix: 'Break the cycle by removing one of the connections in the loop, or use a scoped node (like forEach) for intentional iteration.',
+      // A workflow with a durable gate may not contain scoped children at
+      // all, so sending everyone to forEach sends half of them to a second
+      // refusal. Name the condition rather than the exception.
+      fix: 'Break the cycle by removing one of the connections in the loop, or use a scoped node (like forEach) for intentional iteration. A workflow that pauses at a durable gate cannot do either: run the loop outside it and invoke the workflow once per item.',
       code: error.code,
     };
   },
@@ -661,12 +664,26 @@ const errorMappers: Record<string, ErrorMapper> = {
   },
 
   DURABLE_CLOSURE_INVALID(error) {
-    return {
-      title: 'Invalid Durable Closure',
-      explanation: error.message,
-      fix: 'Keep each gate/effect in one branch region reading only from its immediate predecessor. Thread shared values through the chain rather than wiring them around a gate. See the durable-gates topic.',
-      code: error.code,
-    };
+    // One code covers five rules, and the generic advice fits only the branch
+    // one -- which left an author reading about branch regions when what they
+    // had was a loop. Answer the rule the message actually names.
+    const message = error.message;
+    let fix =
+      'Keep each gate/effect in one branch region reading only from its immediate predecessor. Thread shared values through the chain rather than wiring them around a gate. See the durable-gates topic.';
+    if (message.includes('Scope callbacks are not supported')) {
+      fix =
+        'A workflow that pauses at a durable gate cannot contain scoped children, so the loop has to sit outside it: invoke this workflow once per item from the caller, or write the passes out in full if there are few and the count is fixed. See the durable-gates topic.';
+    } else if (message.includes('do not support pull or lazy execution')) {
+      fix =
+        'Remove pullExecution from the named nodes, or give them a step connection so they run in order. A yielded continuation needs every predecessor already compiled into it. See the durable-gates topic.';
+    } else if (message.includes('Durable classification errors')) {
+      fix =
+        'Give every reachable node exactly one of @durablePure, @durableGate or @durableEffect. An @expression node is pure automatically; a normal-mode node that only computes needs @durablePure. See the durable-gates topic.';
+    } else if (message.includes('effect contract')) {
+      fix =
+        'A @durableEffect node takes an operationKey parameter and returns { result, receipt }, so the engine can replay the receipt instead of running it twice. See the durable-gates topic.';
+    }
+    return { title: 'Invalid Durable Closure', explanation: message, fix, code: error.code };
   },
 
   STUB_NODE(error) {

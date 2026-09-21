@@ -18,7 +18,7 @@ tagLine        ::= "*" "@" TAG_NAME [ tagContent ]
 # Block Types
 
 ```
-flowWeaverTag  ::= "@flowWeaver" ( "nodeType" | "workflow" | "pattern" )
+flowWeaverTag  ::= "@flowWeaver" ( "nodeType" | "workflow" )
 ```
 
 ---
