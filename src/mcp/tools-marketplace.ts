@@ -96,10 +96,6 @@ export function registerMarketplaceTools(mcp: McpServer): void {
               name: wf.name,
               description: wf.description,
             })),
-            patterns: manifest.patterns.map((p) => ({
-              name: p.name,
-              description: p.description,
-            })),
           });
         }
 
@@ -139,10 +135,6 @@ export function registerMarketplaceTools(mcp: McpServer): void {
             workflows: pkg.manifest.workflows.map((wf) => ({
               name: wf.name,
               description: wf.description,
-            })),
-            patterns: pkg.manifest.patterns.map((p) => ({
-              name: p.name,
-              description: p.description,
             })),
           })),
           hint: packages.length === 0

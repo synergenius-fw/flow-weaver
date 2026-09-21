@@ -446,7 +446,6 @@ Now that you have a working workflow, explore these topics to go further:
 - **Built-in Nodes** (`fw docs built-in-nodes`) -- delay, waitForEvent, invokeWorkflow, waitForAgent and the mock system for testing
 - **Durable Gates** (`fw docs durable-gates`) -- pausing a workflow for approval, input, or an AI agent and resuming it later
 - **Marketplace** (`fw docs marketplace`) -- Install and publish reusable node type packages
-- **Patterns** (`fw docs patterns`) -- Extract reusable workflow fragments and apply them across projects
 - **Scoped ports and forEach** (`fw docs export-interface`) -- Iterate over arrays using scoped ports and callback parameters
 - **Node conversion** (`fw docs node-conversion`) -- Turn existing functions into expression nodes, and when to fall back to normal mode
 - **Scaffolding templates** (`fw docs scaffold`) -- Generate workflows from templates like `sequential`, `foreach`, `conditional`, and more

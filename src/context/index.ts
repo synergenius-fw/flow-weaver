@@ -61,7 +61,6 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'durable-gates',
     'scaffold',
     'node-conversion',
-    'patterns',
   ],
   ops: [
     'orientation',
@@ -94,7 +93,6 @@ export const PRESETS: Record<ContextPreset, string[]> = {
     'iterative-development',
     'marketplace',
     'node-conversion',
-    'patterns',
     'scaffold',
   ],
 };

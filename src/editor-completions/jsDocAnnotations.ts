@@ -204,16 +204,6 @@ export const JSDOC_ANNOTATIONS: AnnotationCompletion[] = [
     sortOrder: 24,
     blockTypes: ['workflow'],
   },
-  {
-    label: '@port',
-    detail: 'Pattern port declaration',
-    documentation: 'Declares an IN/OUT port for a reusable pattern.',
-    insertText: '@port ${1:name}',
-    insertTextFormat: 'snippet',
-    kind: 'annotation',
-    sortOrder: 24,
-    blockTypes: ['workflow'],
-  },
 
   // Metadata (both or specific)
   {

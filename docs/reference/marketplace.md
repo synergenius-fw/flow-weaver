@@ -1,12 +1,12 @@
 ---
 name: Marketplace
 description: Create, publish, install, and manage Flow Weaver marketplace packages
-keywords: [marketplace, market, package, pack, publish, install, search, npm, flow-weaver-pack, manifest, manifestVersion, node types, patterns, workflows, cliEntrypoint, cliCommands, mcpEntrypoint, mcpTools, exportTargets, tagHandlers, serializerExport, validationRuleSets, initContributions, docs, engineVersion, authoring, extend, grammar, custom tags, deploy namespace]
+keywords: [marketplace, market, package, pack, publish, install, search, npm, flow-weaver-pack, manifest, manifestVersion, node types, workflows, cliEntrypoint, cliCommands, mcpEntrypoint, mcpTools, exportTargets, tagHandlers, serializerExport, validationRuleSets, initContributions, docs, engineVersion, authoring, extend, grammar, custom tags, deploy namespace]
 ---
 
 # Marketplace
 
-The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node types, workflows, and patterns. A pack is an npm package that carries a `flowweaver.manifest.json` and the `flow-weaver-marketplace-pack` keyword — that is how one is recognised, installed or on a registry. By convention packs are named `flow-weaver-pack-*` (or `@scope/flow-weaver-pack-*`), which makes them easy to find; a pack named otherwise, as an organisation's policy may require, works the same and is found the same way.
+The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node types and workflows. A pack is an npm package that carries a `flowweaver.manifest.json` and the `flow-weaver-marketplace-pack` keyword — that is how one is recognised, installed or on a registry. By convention packs are named `flow-weaver-pack-*` (or `@scope/flow-weaver-pack-*`), which makes them easy to find; a pack named otherwise, as an organisation's policy may require, works the same and is found the same way.
 
 ## Overview
 
@@ -14,7 +14,6 @@ The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node 
 |------|---------|----------|
 | **Node types** | Reusable `@flowWeaver nodeType` functions | Generated from source |
 | **Workflows** | Complete `@flowWeaver workflow` exports | Generated from source |
-| **Patterns** | Reusable `@flowWeaver pattern` fragments | Generated from source |
 | **Export targets** | Deployment targets for `fw export` | `exportTargets` in the manifest |
 | **Tag handlers** | New JSDoc tags, parsed into a namespace of the workflow's deploy data — see [Extending the grammar](#extending-the-grammar-with-a-pack) | `tagHandlers` |
 | **CLI commands** | `fw <pack> <command>` | `cliEntrypoint` + `cliCommands` |
@@ -62,7 +61,7 @@ fw market install flow-weaver-pack-openai
 fw market install flow-weaver-pack-openai@1.0.0
 ```
 
-After installation, the package's node types, workflows, and patterns are available for use in your workflows via `@fwImport`.
+After installation, the package's node types and workflows are available for use in your workflows via `@fwImport`.
 
 ### List Installed
 
@@ -70,7 +69,7 @@ After installation, the package's node types, workflows, and patterns are availa
 fw market list
 ```
 
-Shows every installed pack — any package under `node_modules` with a `flowweaver.manifest.json` — with its node types, workflows, and patterns.
+Shows every installed pack — any package under `node_modules` with a `flowweaver.manifest.json` — with its node types and workflows.
 
 ---
 
@@ -91,12 +90,11 @@ This creates `flow-weaver-pack-openai/` (the prefix is added when missing):
 ```
 flow-weaver-pack-openai/
   src/
-    index.ts                # barrel: re-exports node-types, workflows, patterns
+    index.ts                # barrel: re-exports node-types, workflows
     node-types/
       index.ts
       sample.ts             # one @flowWeaver nodeType to start from
     workflows/index.ts
-    patterns/index.ts
   package.json              # keyword flow-weaver-marketplace-pack, flowWeaver.engineVersion,
                             # peerDependency on @synergenius/flow-weaver, scripts build / pack / prepublishOnly
   tsconfig.json             # ESM, declarations, src → dist
@@ -140,7 +138,7 @@ fw market pack --verbose  # Show parse warnings
 
 This scans `src/**/*.ts` for `@flowWeaver` annotations, validates the package against the [marketplace rules](#marketplace-validation-rules), and writes `flowweaver.manifest.json`.
 
-Only `nodeTypes`, `workflows` and `patterns` are derived from source. Every other manifest field is hand-written and carried over unchanged from the existing `flowweaver.manifest.json` each time `market pack` runs; `name`, `version` and `description` come from `package.json`, and `engineVersion` and `categories` from its `flowWeaver` block.
+Only `nodeTypes` and `workflows` are derived from source. Every other manifest field is hand-written and carried over unchanged from the existing `flowweaver.manifest.json` each time `market pack` runs; `name`, `version` and `description` come from `package.json`, and `engineVersion` and `categories` from its `flowWeaver` block.
 
 `fw console` opened on the pack's directory does the same without writing: the *This pack* page shows the manifest it would produce, the rules over it, and what writing it would change.
 
@@ -447,6 +445,5 @@ When `parseWorkflow()` is called with a `projectDir` (the CLI and the console al
 ## Related Topics
 
 - [CLI Reference](cli-reference) — Full marketplace command flags
-- [Patterns](patterns) — Creating and sharing reusable patterns
 - [Scaffold](scaffold) — Template system for node types and workflows
 - [Concepts](concepts) — Core workflow fundamentals

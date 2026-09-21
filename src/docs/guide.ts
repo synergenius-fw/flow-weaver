@@ -44,7 +44,6 @@ const GROUPS: Array<{ title: string; topics: Array<[slug: string, related?: Rela
       ['built-in-nodes', { uses: ['builtin:'] }],
       ['node-conversion'],
       ['visual-reference'],
-      ['patterns'],
       ['scaffold'],
     ],
   },

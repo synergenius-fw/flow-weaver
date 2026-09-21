@@ -68,7 +68,6 @@ export function manifestChanges(existing: TMarketplaceManifest | null, next: TMa
   for (const [label, was, now] of [
     ['node type', names(existing.nodeTypes), names(next.nodeTypes)],
     ['workflow', names(existing.workflows), names(next.workflows)],
-    ['pattern', names(existing.patterns), names(next.patterns)],
   ] as const) {
     for (const n of now) if (!was.has(n)) out.push(`${label} ${n} added`);
     for (const n of was) if (!now.has(n)) out.push(`${label} ${n} removed`);

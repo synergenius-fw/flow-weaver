@@ -168,32 +168,6 @@ export const calc = (execute: boolean, params: { a: number; b: number }): { sum:
     });
   });
 
-  describe('pattern parsing', () => {
-    it('should parse arrow function with @flowWeaver pattern', () => {
-      const code = `
-/**
- * @flowWeaver nodeType
- * @input data
- * @output result
- */
-function processor(execute: boolean, data: any): { onSuccess: boolean; onFailure: boolean; result: any } {
-  if (!execute) return { onSuccess: false, onFailure: false, result: null };
-  return { onSuccess: true, onFailure: false, result: data };
-}
-
-/**
- * @flowWeaver pattern
- * @name testPattern
- * @node p processor
- */
-const myPattern = () => {};
-`;
-      const result = parser.parseFromString(code, 'arrow-pattern.ts');
-
-      expect(result.patterns.length).toBe(1);
-      expect(result.patterns[0].name).toBe('testPattern');
-    });
-  });
 
   describe('regression', () => {
     it('should still parse regular FunctionDeclaration', () => {

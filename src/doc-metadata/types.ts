@@ -8,8 +8,8 @@
 export interface TAnnotationDoc {
   /** Annotation name (e.g., '@input', '@connect') */
   name: string;
-  /** Category for grouping (marker, port, workflow, metadata, pattern, standard) */
-  category: 'marker' | 'port' | 'workflow' | 'metadata' | 'pattern' | 'standard';
+  /** Category for grouping (marker, port, workflow, metadata, standard) */
+  category: 'marker' | 'port' | 'workflow' | 'metadata' | 'standard';
   /** Syntax example */
   syntax: string;
   /** Human-readable description */
@@ -23,7 +23,7 @@ export interface TAnnotationDoc {
   /** Usage examples (code lines) */
   examples?: string[];
   /** Which block types accept this tag */
-  contexts?: ('nodeType' | 'workflow' | 'pattern')[];
+  contexts?: ('nodeType' | 'workflow')[];
 }
 
 /**
@@ -49,7 +49,7 @@ export interface TMcpToolDoc {
   /** Human-readable description */
   description: string;
   /** Category for grouping */
-  category: 'query' | 'template' | 'pattern' | 'modify' | 'editor' | 'execution' | 'debug';
+  category: 'query' | 'template' | 'modify' | 'editor' | 'execution' | 'debug';
   /** Tool parameters */
   params: TMcpToolParam[];
 }

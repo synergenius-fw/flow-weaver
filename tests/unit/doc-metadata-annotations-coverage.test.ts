@@ -14,7 +14,6 @@ import {
   WORKFLOW_ANNOTATIONS,
   METADATA_ANNOTATIONS,
   STANDARD_ANNOTATIONS,
-  PATTERN_ANNOTATIONS,
   extractAnnotations,
   extractPortModifiers,
   extractNodeModifiers,
@@ -39,7 +38,6 @@ describe('annotations extractors', () => {
       expect(categories).toContain('port');
       expect(categories).toContain('workflow');
       expect(categories).toContain('metadata');
-      expect(categories).toContain('pattern');
       expect(categories).toContain('standard');
     });
   });
@@ -88,8 +86,8 @@ describe('annotations extractors', () => {
 });
 
 describe('CORE_ANNOTATIONS', () => {
-  it('should have exactly 4 core annotations', () => {
-    expect(CORE_ANNOTATIONS.length).toBe(4);
+  it('should have exactly 3 core annotations', () => {
+    expect(CORE_ANNOTATIONS.length).toBe(3);
   });
 
   it('all should be in the marker category', () => {
@@ -98,12 +96,11 @@ describe('CORE_ANNOTATIONS', () => {
     }
   });
 
-  it('should include @flowWeaver, @flowWeaver nodeType, workflow, pattern', () => {
+  it('should include @flowWeaver, @flowWeaver nodeType, workflow', () => {
     const names = CORE_ANNOTATIONS.map((a) => a.name);
     expect(names).toContain('@flowWeaver');
     expect(names).toContain('@flowWeaver nodeType');
     expect(names).toContain('@flowWeaver workflow');
-    expect(names).toContain('@flowWeaver pattern');
   });
 
   it('all should have plain insertTextFormat', () => {
@@ -268,31 +265,6 @@ describe('STANDARD_ANNOTATIONS', () => {
   });
 });
 
-describe('PATTERN_ANNOTATIONS', () => {
-  it('should have exactly 2 pattern annotations', () => {
-    expect(PATTERN_ANNOTATIONS.length).toBe(2);
-  });
-
-  it('should include @port IN and @port OUT', () => {
-    const names = PATTERN_ANNOTATIONS.map((a) => a.name);
-    expect(names).toContain('@port IN');
-    expect(names).toContain('@port OUT');
-  });
-
-  it('both should target pattern context', () => {
-    for (const ann of PATTERN_ANNOTATIONS) {
-      expect(ann.contexts).toContain('pattern');
-    }
-  });
-
-  it('both should have examples', () => {
-    for (const ann of PATTERN_ANNOTATIONS) {
-      expect(ann.examples).toBeDefined();
-      expect(ann.examples!.length).toBeGreaterThan(0);
-    }
-  });
-});
-
 describe('ALL_ANNOTATIONS composition', () => {
   it('should be the concatenation of all sub-arrays', () => {
     const expected =
@@ -300,7 +272,6 @@ describe('ALL_ANNOTATIONS composition', () => {
       PORT_ANNOTATIONS.length +
       WORKFLOW_ANNOTATIONS.length +
       METADATA_ANNOTATIONS.length +
-      PATTERN_ANNOTATIONS.length +
       STANDARD_ANNOTATIONS.length;
     expect(ALL_ANNOTATIONS.length).toBe(expected);
   });

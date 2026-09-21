@@ -19,7 +19,6 @@ describe('AnnotationParser.parseFromString branch coverage', () => {
       const result = parser.parseFromString('');
       expect(result.workflows).toHaveLength(0);
       expect(result.nodeTypes).toHaveLength(0);
-      expect(result.patterns).toHaveLength(0);
       expect(result.errors).toHaveLength(0);
     });
 
@@ -499,20 +498,6 @@ describe('AnnotationParser.parseFromString branch coverage', () => {
         expect(seen.has(w)).toBe(false);
         seen.add(w);
       }
-    });
-  });
-
-  describe('pattern extraction', () => {
-    it('returns empty patterns for files with no @flowWeaver pattern', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver nodeType
-         * @input x NUMBER
-         */
-        function step(x: number) {}
-      `);
-      expect(result.patterns).toHaveLength(0);
     });
   });
 

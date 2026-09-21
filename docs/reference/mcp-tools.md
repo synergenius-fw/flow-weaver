@@ -6,7 +6,7 @@ keywords: [mcp, tools, fw_run, fw_resume, fw_runs, fw_docs, fw_validate, fw_desc
 
 # MCP Tools
 
-`fw mcp-server --stdio` exposes 35 tools and one prompt. Every tool definition is sent to the assistant on every turn — about 27 KB, or roughly 6,700 tokens, before any work happens — so this page also says which tools to reach for and which results are large.
+`fw mcp-server --stdio` exposes 32 tools and one prompt. Every tool definition is sent to the assistant on every turn — about 27 KB, or roughly 6,700 tokens, before any work happens — so this page also says which tools to reach for and which results are large.
 
 - Register with an editor: `fw mcp-setup` (Claude Code, Cursor, VS Code, Windsurf, Codex, OpenClaw)
 - Every result is JSON: `{ success: true, data }` or `{ success: false, error: { code, message } }`. The one exception is `fw_context`, whose result is the bundle itself as markdown
@@ -60,16 +60,6 @@ See [Durable Gates](durable-gates) for what a gate is and the `answer` rules.
 | `fw_compile` | `filePath`, `write?`, `production?`, `target?`, … | Compiled output path or code | Only marker sections are regenerated. `cron`, `serve`, `framework`, `typedEvents`, `retries`, `timeout` are handed to a pack target; the default `typescript` target does not use them |
 | `fw_export` | `filePath`, `target`, `outputDir?`, `preview?`, … | Deployment files | Targets come from installed packs; with none installed every target is `INVALID_TARGET` |
 
-## Patterns
-
-| Tool | Arguments | Returns |
-|------|-----------|---------|
-| `fw_list_patterns` | `filePath` | Patterns defined in a file |
-| `fw_extract_pattern` | `sourceFile`, `nodes`, `name`, `outputFile?` | A reusable pattern from selected nodes; boundary ports are inferred |
-| `fw_apply_pattern` | `patternFile`, `targetFile`, `patternName?`, `prefix?`, `preview?` | Pattern instantiated into a workflow |
-
-See [Patterns](patterns).
-
 ## Debugging
 
 Six tools share one in-memory session; the session ends with the server process and cannot resume a gate.
@@ -108,4 +98,3 @@ The server also publishes one prompt, `flow-weaver-nocode`. It instructs the ass
 - [CLI Reference](cli-reference) — `mcp-server` and `mcp-setup`; most tools mirror a CLI command
 - [Debugging](debugging) — The debug session tools in context
 - [Scaffold](scaffold) — Template catalogue behind `fw_scaffold`
-- [Patterns](patterns) — The pattern tools in context

@@ -22,7 +22,7 @@ vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
 
 vi.mock('../../src/mcp/tools-query', () => ({ registerQueryTools: vi.fn() }));
 vi.mock('../../src/mcp/tools-template', () => ({ registerTemplateTools: vi.fn() }));
-vi.mock('../../src/mcp/tools-pattern', () => ({ registerPatternTools: vi.fn() }));
+vi.mock('../../src/mcp/tools-workflow', () => ({ registerWorkflowTools: vi.fn() }));
 vi.mock('../../src/mcp/tools-export', () => ({ registerExportTools: vi.fn() }));
 vi.mock('../../src/mcp/tools-marketplace', () => ({ registerMarketplaceTools: vi.fn() }));
 vi.mock('../../src/mcp/tools-diagram', () => ({ registerDiagramTools: vi.fn() }));
@@ -36,7 +36,7 @@ vi.mock('../../src/docs/pack-topics', () => ({ loadPackDocTopics: vi.fn().mockRe
 import { startMcpServer, mcpServerCommand } from '../../src/mcp/server';
 import { registerQueryTools } from '../../src/mcp/tools-query';
 import { registerTemplateTools } from '../../src/mcp/tools-template';
-import { registerPatternTools } from '../../src/mcp/tools-pattern';
+import { registerWorkflowTools } from '../../src/mcp/tools-workflow';
 import { registerExportTools } from '../../src/mcp/tools-export';
 import { registerMarketplaceTools } from '../../src/mcp/tools-marketplace';
 import { registerDiagramTools } from '../../src/mcp/tools-diagram';
@@ -62,7 +62,7 @@ describe('startMcpServer', () => {
     await startMcpServer({ stdio: false });
     expect(registerQueryTools).toHaveBeenCalled();
     expect(registerTemplateTools).toHaveBeenCalled();
-    expect(registerPatternTools).toHaveBeenCalled();
+    expect(registerWorkflowTools).toHaveBeenCalled();
     expect(registerExportTools).toHaveBeenCalled();
     expect(registerMarketplaceTools).toHaveBeenCalled();
     expect(registerDiagramTools).toHaveBeenCalled();

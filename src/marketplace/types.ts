@@ -28,8 +28,6 @@ export type TMarketplaceManifest = {
   nodeTypes: TManifestNodeType[];
   /** Workflows included in this package */
   workflows: TManifestWorkflow[];
-  /** Patterns included in this package */
-  patterns: TManifestPattern[];
   /** Export targets provided by this package */
   exportTargets?: TManifestExportTarget[];
   /** Tag handlers contributed by this pack (v2) */
@@ -119,21 +117,6 @@ export type TManifestWorkflow = {
   nodeCount: number;
   /** Number of connections */
   connectionCount: number;
-};
-
-export type TManifestPattern = {
-  /** Pattern name */
-  name: string;
-  /** Human-readable description */
-  description?: string;
-  /** Relative path to source file */
-  file: string;
-  /** Input ports (IN pseudo-node connections) */
-  inputPorts: Record<string, TManifestPort>;
-  /** Output ports (OUT pseudo-node connections) */
-  outputPorts: Record<string, TManifestPort>;
-  /** Number of internal nodes */
-  nodeCount: number;
 };
 
 // ── Validation ───────────────────────────────────────────────────────────────

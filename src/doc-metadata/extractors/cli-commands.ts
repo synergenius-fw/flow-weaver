@@ -145,43 +145,6 @@ export const CLI_COMMANDS: TCliCommandDoc[] = [
     list: nodeTemplates.map(t => `${t.id} - ${t.description}`),
   },
 
-  // ── Pattern subcommands ────────────────────────────────────────
-  {
-    name: 'pattern list',
-    syntax: 'fw pattern list <path> [--json]',
-    description: 'List patterns in file or directory',
-    botCompatible: true,
-    group: 'pattern',
-    options: [
-      { flags: '--json', description: 'Output as JSON' },
-    ],
-  },
-  {
-    name: 'pattern apply',
-    syntax: 'fw pattern apply <pattern-file> <target-file> [options]',
-    description: 'Apply a pattern to a workflow file',
-    botCompatible: true,
-    group: 'pattern',
-    options: [
-      { flags: '-p, --preview', description: 'Preview changes without writing' },
-      { flags: '--prefix', arg: '<prefix>', description: 'Prefix for node instance IDs' },
-      { flags: '-n, --name', arg: '<name>', description: 'Specific pattern name to apply' },
-    ],
-  },
-  {
-    name: 'pattern extract',
-    syntax: 'fw pattern extract <source-file> --nodes <ids> -o <file> [options]',
-    description: 'Extract nodes as reusable pattern',
-    botCompatible: true,
-    group: 'pattern',
-    options: [
-      { flags: '--nodes', arg: '<ids>', description: 'Comma-separated list of node IDs to extract', required: true },
-      { flags: '-o, --output', arg: '<file>', description: 'Output pattern file', required: true },
-      { flags: '-n, --name', arg: '<name>', description: 'Pattern name' },
-      { flags: '-p, --preview', description: 'Preview pattern without writing' },
-    ],
-  },
-
   // ── Project & dev commands ─────────────────────────────────────
   {
     name: 'init',

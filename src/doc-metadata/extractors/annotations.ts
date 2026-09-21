@@ -14,13 +14,13 @@ export const CORE_ANNOTATIONS: TAnnotationDoc[] = [
   {
     name: '@flowWeaver',
     category: 'marker',
-    syntax: '@flowWeaver nodeType | workflow | pattern',
+    syntax: '@flowWeaver nodeType | workflow',
     description:
       'Required marker to identify function purpose. Must be first Flow Weaver annotation.',
     insertText: '@flowWeaver ',
     insertTextFormat: 'plain',
-    ebnf: 'flowWeaverTag  ::= "@flowWeaver" ( "nodeType" | "workflow" | "pattern" )',
-    contexts: ['nodeType', 'workflow', 'pattern'],
+    ebnf: 'flowWeaverTag  ::= "@flowWeaver" ( "nodeType" | "workflow" )',
+    contexts: ['nodeType', 'workflow'],
   },
   {
     name: '@flowWeaver nodeType',
@@ -39,15 +39,6 @@ export const CORE_ANNOTATIONS: TAnnotationDoc[] = [
     insertText: '@flowWeaver workflow',
     insertTextFormat: 'plain',
     contexts: ['workflow'],
-  },
-  {
-    name: '@flowWeaver pattern',
-    category: 'marker',
-    syntax: '@flowWeaver pattern',
-    description: 'Marks function as a reusable subgraph pattern.',
-    insertText: '@flowWeaver pattern',
-    insertTextFormat: 'plain',
-    contexts: ['pattern'],
   },
 ];
 
@@ -162,7 +153,7 @@ tagEntry       ::= STRING [ STRING ]`,
       '@node myAdd Add [tags: "math" "Math operation", "transform"]',
       '@node myAdd Add [label: "hi"] [color: "#f00"]',
     ],
-    contexts: ['workflow', 'pattern'],
+    contexts: ['workflow'],
   },
   {
     name: '@connect',
@@ -178,7 +169,7 @@ portRef        ::= IDENTIFIER "." IDENTIFIER [ ":" IDENTIFIER ]`,
       '@connect myAdd.result -> myLog.message',
       '@connect loop.item -> process.input:loopScope',
     ],
-    contexts: ['workflow', 'pattern'],
+    contexts: ['workflow'],
   },
   {
     name: '@fwImport',
@@ -448,7 +439,7 @@ export const METADATA_ANNOTATIONS: TAnnotationDoc[] = [
       'Sets the node type identifier. Used to reference this type in @node declarations.',
     insertText: '@name ${1:identifier}',
     insertTextFormat: 'snippet',
-    contexts: ['nodeType', 'workflow', 'pattern'],
+    contexts: ['nodeType', 'workflow'],
   },
   {
     name: '@label',
@@ -457,7 +448,7 @@ export const METADATA_ANNOTATIONS: TAnnotationDoc[] = [
     description: 'Sets a human-readable display label for the node or workflow in the UI.',
     insertText: '@label "${1:Label}"',
     insertTextFormat: 'snippet',
-    contexts: ['nodeType', 'workflow', 'pattern'],
+    contexts: ['nodeType', 'workflow'],
   },
   {
     name: '@description',
@@ -466,7 +457,7 @@ export const METADATA_ANNOTATIONS: TAnnotationDoc[] = [
     description: 'Sets a description that appears as hover tooltip in the UI.',
     insertText: '@description ${1:description}',
     insertTextFormat: 'snippet',
-    contexts: ['nodeType', 'workflow', 'pattern'],
+    contexts: ['nodeType', 'workflow'],
   },
   {
     name: '@scope',
@@ -632,39 +623,6 @@ export const STANDARD_ANNOTATIONS: TAnnotationDoc[] = [
 ];
 
 /**
- * Pattern-specific annotations
- */
-export const PATTERN_ANNOTATIONS: TAnnotationDoc[] = [
-  {
-    name: '@port IN',
-    category: 'pattern',
-    syntax: '@port IN.name - description',
-    description: 'Defines a pattern input port. Use IN instead of Start in patterns.',
-    insertText: '@port IN.${1:name}',
-    insertTextFormat: 'snippet',
-    ebnf: 'portTag        ::= "@port" ( "IN" | "OUT" ) "." IDENTIFIER [ "-" TEXT ]',
-    examples: [
-      '@port IN.data - Input data to process',
-      '@port IN.config - Configuration object',
-    ],
-    contexts: ['pattern'],
-  },
-  {
-    name: '@port OUT',
-    category: 'pattern',
-    syntax: '@port OUT.name - description',
-    description: 'Defines a pattern output port. Use OUT instead of Exit in patterns.',
-    insertText: '@port OUT.${1:name}',
-    insertTextFormat: 'snippet',
-    examples: [
-      '@port OUT.result - Processed result',
-      '@port OUT.error - Error output',
-    ],
-    contexts: ['pattern'],
-  },
-];
-
-/**
  * Port modifiers - attributes in square brackets after port name
  */
 export const PORT_MODIFIERS: TAnnotationModifierDoc[] = [
@@ -746,7 +704,6 @@ export const ALL_ANNOTATIONS: TAnnotationDoc[] = [
   ...PORT_ANNOTATIONS,
   ...WORKFLOW_ANNOTATIONS,
   ...METADATA_ANNOTATIONS,
-  ...PATTERN_ANNOTATIONS,
   ...STANDARD_ANNOTATIONS,
 ];
 

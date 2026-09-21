@@ -20,9 +20,6 @@ const mockCreateNodeCommand = vi.fn();
 const mockDescribeCommand = vi.fn();
 const mockDiagramCommand = vi.fn();
 const mockDiffCommand = vi.fn();
-const mockPatternListCommand = vi.fn();
-const mockPatternApplyCommand = vi.fn();
-const mockPatternExtractCommand = vi.fn();
 const mockTemplatesCommand = vi.fn();
 const mockValidateCommand = vi.fn();
 const mockDoctorCommand = vi.fn();
@@ -60,7 +57,6 @@ vi.mock('../../src/cli/commands/create.js', () => ({ createWorkflowCommand: mock
 vi.mock('../../src/cli/commands/describe.js', () => ({ describeCommand: mockDescribeCommand }));
 vi.mock('../../src/cli/commands/diagram.js', () => ({ diagramCommand: mockDiagramCommand }));
 vi.mock('../../src/cli/commands/diff.js', () => ({ diffCommand: mockDiffCommand }));
-vi.mock('../../src/cli/commands/pattern.js', () => ({ patternListCommand: mockPatternListCommand, patternApplyCommand: mockPatternApplyCommand, patternExtractCommand: mockPatternExtractCommand }));
 vi.mock('../../src/cli/commands/templates.js', () => ({ templatesCommand: mockTemplatesCommand }));
 vi.mock('../../src/cli/commands/validate.js', () => ({ validateCommand: mockValidateCommand }));
 vi.mock('../../src/cli/commands/doctor.js', () => ({ doctorCommand: mockDoctorCommand }));
@@ -286,11 +282,6 @@ function buildTestProgram(): Command {
   createCmd.command('workflow <template> <file>').action(mockCreateWorkflowCommand);
   createCmd.command('node <name> <file>').action(mockCreateNodeCommand);
 
-  // pattern group
-  const patternCmd = program.command('pattern').description('Patterns');
-  patternCmd.command('list <path>').action(mockPatternListCommand);
-  patternCmd.command('apply <pattern-file> <target-file>').action(mockPatternApplyCommand);
-  patternCmd.command('extract <source-file>').action(mockPatternExtractCommand);
 
   // market group
   const marketCmd = program.command('market').description('Marketplace');
@@ -610,27 +601,6 @@ describe('CLI command registration and parsing', () => {
     });
   });
 
-  describe('pattern subcommands', () => {
-    it('should invoke pattern list', () => {
-      parseArgs('pattern', 'list', './patterns');
-      expect(mockPatternListCommand).toHaveBeenCalled();
-      expect(mockPatternListCommand.mock.calls[0][0]).toBe('./patterns');
-    });
-
-    it('should invoke pattern apply', () => {
-      parseArgs('pattern', 'apply', 'pattern.ts', 'target.ts');
-      expect(mockPatternApplyCommand).toHaveBeenCalled();
-      expect(mockPatternApplyCommand.mock.calls[0][0]).toBe('pattern.ts');
-      expect(mockPatternApplyCommand.mock.calls[0][1]).toBe('target.ts');
-    });
-
-    it('should invoke pattern extract', () => {
-      parseArgs('pattern', 'extract', 'source.ts');
-      expect(mockPatternExtractCommand).toHaveBeenCalled();
-      expect(mockPatternExtractCommand.mock.calls[0][0]).toBe('source.ts');
-    });
-  });
-
   describe('market subcommands', () => {
     it('should invoke market init', () => {
       parseArgs('market', 'init', 'openai');
@@ -715,7 +685,6 @@ describe('CLI command registration and parsing', () => {
 
       expect(helpText).toContain('ui');
       expect(helpText).toContain('create');
-      expect(helpText).toContain('pattern');
       expect(helpText).toContain('market');
     });
   });

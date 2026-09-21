@@ -13,6 +13,8 @@ import type {
 import type { NodeFilter } from './helpers';
 import { portReferencesEqual } from './helpers';
 import { isPerPortScopedChild } from '../generator/control-flow';
+import { glob } from 'glob';
+import { AnnotationParser } from '../parser';
 
 // ============================================================================
 // SCOPE HELPERS
@@ -1000,6 +1002,56 @@ export function findDisconnectedOutputPorts(
     }
     if (disconnectedPorts.length > 0) {
       results.push({ nodeId: instance.id, ports: disconnectedPorts });
+    }
+  }
+
+  return results;
+}
+
+// ============================================================================
+// WORKFLOW DISCOVERY
+// ============================================================================
+
+/** A file that contains one or more workflows, with a summary of each. */
+export interface WorkflowFileInfo {
+  filePath: string;
+  workflows: Array<{
+    name: string;
+    functionName: string;
+    nodeCount: number;
+    connectionCount: number;
+  }>;
+}
+
+/**
+ * Find workflow files under a directory (optionally filtered by a glob),
+ * returning a summary of the workflows each one declares. Files that fail to
+ * parse are skipped. Read-only: nothing is written.
+ */
+export async function findWorkflows(
+  directory: string,
+  pattern?: string
+): Promise<WorkflowFileInfo[]> {
+  const files = await glob(pattern ?? '**/*.ts', { cwd: directory, absolute: true });
+  const parser = new AnnotationParser();
+  const results: WorkflowFileInfo[] = [];
+
+  for (const file of files) {
+    try {
+      const parseResult = parser.parse(file);
+      if (parseResult.workflows.length > 0) {
+        results.push({
+          filePath: file,
+          workflows: parseResult.workflows.map((w) => ({
+            name: w.name,
+            functionName: w.functionName,
+            nodeCount: w.instances.length,
+            connectionCount: w.connections.length,
+          })),
+        });
+      }
+    } catch {
+      // Skip files that fail to parse
     }
   }
 

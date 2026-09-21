@@ -36,14 +36,6 @@ function parseWorkflow(code: string) {
   return { config, warnings, functions };
 }
 
-function parsePattern(code: string) {
-  const sourceFile = project.createSourceFile(nextFile('pt'), code, { overwrite: true });
-  const functions = extractFunctionLikes(sourceFile);
-  const warnings: string[] = [];
-  const config = jsdocParser.parsePattern(functions[0], warnings);
-  return { config, warnings, functions };
-}
-
 describe('JSDocParser branch coverage 2', () => {
 
   // ── Scoped port type inference with async callbacks ──────────
@@ -366,39 +358,6 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
 `);
       expect(warnings.some(w => w.includes('@position'))).toBe(true);
     });
-
-    it('warns on invalid @node format in pattern', () => {
-      const { warnings } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @node
- */
-function myPattern() {}
-`);
-      expect(warnings.some(w => w.includes('@node'))).toBe(true);
-    });
-
-    it('warns on invalid @position format in pattern', () => {
-      const { warnings } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @position
- */
-function myPattern() {}
-`);
-      expect(warnings.some(w => w.includes('@position'))).toBe(true);
-    });
-
-    it('warns on invalid @connect format in pattern', () => {
-      const { warnings } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @connect !!!invalid
- */
-function myPattern() {}
-`);
-      expect(warnings.some(w => w.includes('@connect'))).toBe(true);
-    });
   });
 
   // ── @trigger non-core trigger form ──────────────────────────
@@ -457,17 +416,6 @@ function myNode(execute: boolean): { onSuccess: boolean } {
 export async function a(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
       expect(warnings.filter(w => w.includes('@deprecated'))).toHaveLength(0);
-    });
-
-    it('does not warn on @see in pattern', () => {
-      const { warnings } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @see other-pattern
- */
-function myPattern() {}
-`);
-      expect(warnings.filter(w => w.includes('@see'))).toHaveLength(0);
     });
   });
 
@@ -731,16 +679,6 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
  * @flowWeaver nodeType
  */
 function myNode(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
-`);
-      expect(config).toBeNull();
-    });
-
-    it('returns null for parsePattern when @flowWeaver has workflow value', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver workflow
- */
-export async function a(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
       expect(config).toBeNull();
     });

@@ -33,7 +33,6 @@ Complete reference for all `fw` CLI commands.
 | `modify` | Modify workflow structure |
 | `templates` | List available templates |
 | `grammar` | Output JSDoc annotation grammar (@input, @output, @connect, @node, @scope) as HTML railroad diagrams or EBNF text |
-| `pattern` | Work with reusable workflow patterns |
 | `run` | Execute a workflow file directly |
 | `serve` | Serve the workflows as HTTP endpoints. Gated runs pause, resume and stream over the same API |
 | `console` | Open the local operator console: workflows as processes, issues, code, live runs and gates |
@@ -702,63 +701,6 @@ fw templates [options]
 | `--json` | Output as JSON | `false` |
 
 > See also: [Scaffold](scaffold) for template details.
-
----
-
-## Patterns
-
-### pattern list
-
-List patterns in a file or directory.
-
-```bash
-fw pattern list <path> [options]
-```
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--json` | Output as JSON | `false` |
-
----
-
-### pattern apply
-
-Apply a reusable pattern to a workflow file.
-
-```bash
-fw pattern apply <pattern-file> <target-file> [options]
-```
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-p, --preview` | Preview without writing | `false` |
-| `--prefix <prefix>` | Prefix for node IDs (conflict avoidance) | — |
-| `-n, --name <name>` | Specific pattern name | — |
-
----
-
-### pattern extract
-
-Extract a pattern from selected workflow nodes.
-
-```bash
-fw pattern extract <source-file> [options]
-```
-
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--nodes <nodes>` | Comma-separated node IDs **(required)** | — |
-| `-o, --output <file>` | Output file **(required)** | — |
-| `-n, --name <name>` | Pattern name | — |
-| `-p, --preview` | Preview without writing | `false` |
-
-**Examples:**
-```bash
-fw pattern extract workflow.ts --nodes a,b -o extracted.ts
-fw pattern extract workflow.ts --nodes validator,transformer -o validate-transform.ts --name validateTransform
-```
-
-> See also: [Patterns](patterns) for the full pattern system guide.
 
 ---
 

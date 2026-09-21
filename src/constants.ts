@@ -189,10 +189,6 @@ export const KNOWN_WORKFLOW_TAGS = new Set([
   'deploy',
 ]);
 
-export const KNOWN_PATTERN_TAGS = new Set([
-  'flowWeaver', 'name', 'description', 'node', 'connect', 'port',
-]);
-
 export const STANDARD_JSDOC_TAGS = new Set([
   'example', 'see', 'deprecated', 'type', 'typedef', 'template',
   'link', 'since', 'version', 'author',

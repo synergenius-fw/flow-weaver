@@ -559,89 +559,6 @@ describe('parser branch coverage 2', () => {
     });
   });
 
-  // ─── pattern extraction branches ────────────────────────────────────
-
-  describe('pattern extraction', () => {
-    it('extracts a pattern with instances and connections', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver nodeType
-         * @input value NUMBER
-         * @output result NUMBER
-         */
-        function step(value: number): number { return value; }
-
-        /**
-         * @flowWeaver pattern
-         * @name RetryPattern
-         * @description A retry pattern
-         * @patternNode A step
-         * @patternNode B step
-         * @port IN data
-         * @port OUT result
-         * @connect IN.data -> A.value
-         * @connect A.result -> B.value
-         * @connect B.result -> OUT.result
-         */
-        function retryPattern() {}
-      `);
-      // Pattern may or may not parse depending on exact tag format.
-      // At minimum, should not throw.
-      expect(result.errors.length + result.patterns.length).toBeGreaterThanOrEqual(0);
-    });
-
-    it('produces error for pattern without @name', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver pattern
-         * @description Missing name
-         */
-        function noNamePattern() {}
-      `);
-      // Should produce an error about missing @name
-      const hasNameError = result.errors.some((e) => e.includes('missing') && e.includes('@name'));
-      // Or it just skips silently
-      expect(result.patterns.length === 0 || hasNameError).toBe(true);
-    });
-
-    it('warns on malformed @flowWeaver pattern annotation', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver pattern
-         * ---
-         * Broken JSDoc
-         * ---
-         */
-        function brokenPattern() {}
-      `);
-      const hasWarning = result.warnings.some((w) => w.includes('could not be parsed'));
-      const hasPattern = result.patterns.length > 0;
-      expect(hasWarning || !hasPattern).toBe(true);
-    });
-
-    it('produces error for duplicate pattern names', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver pattern
-         * @name DupeName
-         */
-        function pat1() {}
-
-        /**
-         * @flowWeaver pattern
-         * @name DupeName
-         */
-        function pat2() {}
-      `);
-      const hasDupeError = result.errors.some((e) => e.includes('Duplicate pattern'));
-      expect(hasDupeError).toBe(true);
-    });
-  });
-
   // ─── inferNodeTypeFromFunction branches ─────────────────────────────
 
   describe('inferNodeTypeFromFunction (via auto-infer)', () => {
@@ -1016,7 +933,7 @@ describe('parser branch coverage 2', () => {
          */
         function outWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
-      expect(result.errors.some((e) => e.includes('OUT') && e.includes('pseudo-node'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('OUT') && e.includes('not a node'))).toBe(true);
     });
   });
 

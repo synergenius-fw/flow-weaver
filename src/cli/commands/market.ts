@@ -64,7 +64,6 @@ export async function marketInitCommand(name: string, options: MarketInitOptions
     path.join(targetDir, 'src'),
     path.join(targetDir, 'src', 'node-types'),
     path.join(targetDir, 'src', 'workflows'),
-    path.join(targetDir, 'src', 'patterns'),
   ];
 
   for (const dir of dirs) {
@@ -157,15 +156,10 @@ export function sample(data: string): { result: string } {
     '// Export workflows here\n'
   );
   fs.writeFileSync(
-    path.join(targetDir, 'src', 'patterns', 'index.ts'),
-    '// Export patterns here\n'
-  );
-  fs.writeFileSync(
     path.join(targetDir, 'src', 'index.ts'),
     [
       "export * from './node-types/index.js';",
       "export * from './workflows/index.js';",
-      "export * from './patterns/index.js';",
       '',
     ].join('\n')
   );
@@ -216,7 +210,7 @@ npm publish     # Publish to npm
   logger.section('Next Steps');
   logger.log(`  cd ${name}`);
   logger.log('  npm install');
-  logger.log('  # Add your node types, workflows, and patterns to src/');
+  logger.log('  # Add your node types and workflows to src/');
   logger.log('  npm run build');
   logger.log('  fw market pack');
   logger.log('  npm publish');
@@ -267,7 +261,7 @@ export async function marketPackCommand(directory?: string, options: MarketPackO
 
   // Display results
   logger.info(`Parsed ${parsedFiles.length} file(s)`);
-  logger.info(`Found ${manifest.nodeTypes.length} node type(s), ${manifest.workflows.length} workflow(s), ${manifest.patterns.length} pattern(s)`);
+  logger.info(`Found ${manifest.nodeTypes.length} node type(s), ${manifest.workflows.length} workflow(s)`);
   logger.newline();
 
   // Show validation issues
@@ -504,7 +498,6 @@ export async function marketListCommand(options: MarketListOptions = {}): Promis
       version: p.version,
       nodeTypes: p.manifest.nodeTypes.length,
       workflows: p.manifest.workflows.length,
-      patterns: p.manifest.patterns.length,
     })), null, 2));
     return;
   }
@@ -562,14 +555,6 @@ function displayManifestSummary(manifest: TMarketplaceManifest): void {
     }
   }
 
-  if (manifest.patterns.length > 0) {
-    logger.log('  Patterns:');
-    for (const pat of manifest.patterns) {
-      const desc = pat.description ? `: ${pat.description}` : '';
-      logger.log(`    - ${pat.name}${desc}`);
-    }
-  }
-
   logger.newline();
 }
 
@@ -580,7 +565,6 @@ function displayInstalledPackage(pkg: TInstalledPackage): void {
   const counts: string[] = [];
   if (m.nodeTypes.length > 0) counts.push(`${m.nodeTypes.length} node type(s)`);
   if (m.workflows.length > 0) counts.push(`${m.workflows.length} workflow(s)`);
-  if (m.patterns.length > 0) counts.push(`${m.patterns.length} pattern(s)`);
 
   if (counts.length > 0) {
     logger.log(`    ${counts.join(', ')}`);

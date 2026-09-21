@@ -604,7 +604,7 @@ describe('parser branch coverage 3', () => {
     });
   });
 
-  // ── Workflow with IN/OUT pseudo-nodes (only valid in patterns) ──
+  // ── Workflow with IN/OUT (not real nodes) ──
 
   describe('IN/OUT pseudo-nodes in workflows', () => {
     it('produces errors for IN pseudo-node in workflow @connect', () => {
@@ -1389,41 +1389,6 @@ describe('parser branch coverage 3', () => {
         }
       `);
       expect(result).toBeDefined();
-    });
-  });
-
-  // ── Pattern extraction ──
-
-  describe('pattern extraction', () => {
-    it('errors for pattern without @name', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver pattern
-         */
-        function noNamePat() {}
-      `);
-      const hasError = result.errors.some((e) => e.includes('missing') && e.includes('@name'));
-      const hasNoPats = result.patterns.length === 0;
-      expect(hasError || hasNoPats).toBe(true);
-    });
-
-    it('errors for duplicate pattern names', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver pattern
-         * @name Dupe
-         */
-        function pat1() {}
-
-        /**
-         * @flowWeaver pattern
-         * @name Dupe
-         */
-        function pat2() {}
-      `);
-      expect(result.errors.some((e) => e.includes('Duplicate pattern'))).toBe(true);
     });
   });
 
@@ -2401,37 +2366,6 @@ describe('parser branch coverage 3', () => {
       `);
       const wf = result.workflows[0];
       expect(wf.exitPorts.onSuccess).toBeDefined();
-    });
-  });
-
-  // ── Pattern extraction ──
-
-  describe('pattern extraction', () => {
-    it('extracts a valid pattern with nodes and connections', () => {
-      const parser = freshParser();
-      const result = parser.parseFromString(`
-        /**
-         * @flowWeaver nodeType
-         * @input value NUMBER
-         * @output result NUMBER
-         */
-        function worker(execute: boolean, value: number): number { return value; }
-
-        /**
-         * @flowWeaver pattern
-         * @name myPattern
-         * @description A sample pattern
-         * @node A worker
-         * @node B worker
-         * @connect A.onSuccess -> B.execute
-         */
-        function myPattern() {}
-      `);
-      expect(result.patterns.length).toBeGreaterThan(0);
-      const pat = result.patterns[0];
-      expect(pat.name).toBe('myPattern');
-      expect(pat.instances.length).toBe(2);
-      expect(pat.connections.length).toBe(1);
     });
   });
 

@@ -49,7 +49,6 @@ Flow Weaver compiles workflows you describe with JSDoc annotations into plain Ty
 | Decide which values are scalar ports and which travel as one object | `export-interface` |
 | Loop over items with scoped ports | `export-interface` |
 | Turn an existing function into a node | `node-conversion` |
-| Reuse a fragment across workflows | `patterns` |
 | Start from a template | `scaffold` |
 | Step through execution | `debugging` |
 | Cancel a run | `cancellation` |

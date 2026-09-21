@@ -419,41 +419,6 @@ program
       await grammarCommand(options);
   }));
 
-// Pattern command (with subcommands)
-const patternCmd = program.command('pattern').description('Work with reusable workflow patterns');
-
-patternCmd
-  .command('list <path>')
-  .description('List patterns in a file or directory')
-  .option('--json', 'Output as JSON', false)
-  .action(wrapAction(async (inputPath: string, options) => {
-      const { patternListCommand } = await import('./commands/pattern.js');
-      await patternListCommand(inputPath, options);
-  }));
-
-patternCmd
-  .command('apply <pattern-file> <target-file>')
-  .description('Apply a pattern to a workflow file')
-  .option('-p, --preview', 'Preview changes without writing', false)
-  .option('--prefix <prefix>', 'Prefix for node instance IDs')
-  .option('-n, --name <name>', 'Specific pattern name to apply')
-  .action(wrapAction(async (patternFile: string, targetFile: string, options) => {
-      const { patternApplyCommand } = await import('./commands/pattern.js');
-      await patternApplyCommand(patternFile, targetFile, options);
-  }));
-
-patternCmd
-  .command('extract <source-file>')
-  .description('Extract a pattern from workflow nodes')
-  .requiredOption('--nodes <nodes>', 'Comma-separated list of node IDs to extract')
-  .requiredOption('-o, --output <file>', 'Output pattern file')
-  .option('-n, --name <name>', 'Pattern name')
-  .option('-p, --preview', 'Preview pattern without writing', false)
-  .action(wrapAction(async (sourceFile: string, options) => {
-      const { patternExtractCommand } = await import('./commands/pattern.js');
-      await patternExtractCommand(sourceFile, options);
-  }));
-
 // Run command
 program
   .command('run <input>')

@@ -70,7 +70,6 @@ That is it. Two expression-mode functions, one workflow annotation, zero boilerp
 | Convert existing functions       | `node-conversion`            | concepts            |
 | Debug validation errors          | `debugging`                  | error-codes         |
 | Look up specific error code      | `error-codes`                | debugging           |
-| Reuse workflow fragments         | `patterns`                   | concepts            |
 | Check annotation syntax          | `jsdoc-grammar`              | concepts            |
 | Look up CLI commands/flags       | `cli-reference`              | —                   |
 | Pull execution, merge strategies | `advanced-annotations`       | jsdoc-grammar       |

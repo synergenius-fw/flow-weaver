@@ -466,34 +466,6 @@ Limits concurrent executions; applied by deployment targets that support throttl
 
 ---
 
-# Pattern Tags
-
-A `@flowWeaver pattern` block defines a reusable partial workflow with boundary ports:
-
-```
-patternBlock   ::= "@flowWeaver pattern"
-                   [ "@name" TEXT ]
-                   [ "@description" TEXT ]
-                   { nodeTag }
-                   { connectTag }
-                   { portTag }
-
-portTag        ::= "@port" ( "IN" | "OUT" ) "." IDENTIFIER [ "-" TEXT ]
-```
-
-Pattern ports define the boundary connections (IN for inputs, OUT for outputs) that are wired when the pattern is applied to a workflow.
-
-**Examples:**
-
-```
-@port IN.data - Input data to process
-@port OUT.result - Processed result
-@port IN.config - Configuration object
-@port OUT.error - Error output
-```
-
----
-
 # Terminals
 
 <!-- AUTO:START terminals -->

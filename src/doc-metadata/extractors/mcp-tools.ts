@@ -560,62 +560,10 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
     ],
   },
   {
-    name: 'fw_list_patterns',
-    description:
-      'List reusable patterns defined in a file.',
-    category: 'pattern',
-    params: [
-      {
-        name: 'filePath',
-        type: 'string',
-        description: 'Path to file containing patterns',
-        required: true,
-      },
-    ],
-  },
-  {
-    name: 'fw_apply_pattern',
-    description:
-      'Apply a reusable pattern to a workflow file.',
-    category: 'pattern',
-    params: [
-      {
-        name: 'patternFile',
-        type: 'string',
-        description: 'Path to file containing the pattern',
-        required: true,
-      },
-      {
-        name: 'targetFile',
-        type: 'string',
-        description: 'Path to target workflow file',
-        required: true,
-      },
-      {
-        name: 'patternName',
-        type: 'string',
-        description: 'Specific pattern name if file has multiple',
-        required: false,
-      },
-      {
-        name: 'prefix',
-        type: 'string',
-        description: 'Node ID prefix to avoid conflicts',
-        required: false,
-      },
-      {
-        name: 'preview',
-        type: 'boolean',
-        description: 'Preview only, don\'t write (default: false)',
-        required: false,
-      },
-    ],
-  },
-  {
     name: 'fw_find_workflows',
     description:
       'Scan a directory for workflow files containing @flowWeaver workflow annotations. Returns file paths and workflow metadata.',
-    category: 'pattern',
+    category: 'query',
     params: [
       {
         name: 'directory',
@@ -627,38 +575,6 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         name: 'pattern',
         type: 'string',
         description: 'Glob pattern (default: **/*.ts)',
-        required: false,
-      },
-    ],
-  },
-  {
-    name: 'fw_extract_pattern',
-    description:
-      'Extract a reusable pattern from selected nodes in a workflow. Identifies internal connections and boundary IN/OUT ports automatically.',
-    category: 'pattern',
-    params: [
-      {
-        name: 'sourceFile',
-        type: 'string',
-        description: 'Path to workflow file',
-        required: true,
-      },
-      {
-        name: 'nodes',
-        type: 'string',
-        description: 'Comma-separated node IDs to extract',
-        required: true,
-      },
-      {
-        name: 'name',
-        type: 'string',
-        description: 'Pattern name',
-        required: false,
-      },
-      {
-        name: 'outputFile',
-        type: 'string',
-        description: 'Output file path (omit for preview only)',
         required: false,
       },
     ],

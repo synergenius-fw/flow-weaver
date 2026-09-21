@@ -79,7 +79,6 @@ describe('marketplace/manifest', () => {
           },
         ],
         workflows: [],
-        patterns: [],
         errors: [],
       });
 
@@ -129,7 +128,6 @@ describe('marketplace/manifest', () => {
             connections: [{ from: {}, to: {} }],
           },
         ],
-        patterns: [],
         errors: [],
       });
 
@@ -141,45 +139,6 @@ describe('marketplace/manifest', () => {
       expect(wf.nodeCount).toBe(2);
       expect(wf.connectionCount).toBe(1);
       expect(wf.startPorts.to.dataType).toBe('STRING');
-    });
-
-    it('generates manifest from parsed patterns', async () => {
-      fs.writeFileSync(
-        path.join(tmpDir, 'package.json'),
-        JSON.stringify({ name: 'test', version: '0.1.0' }),
-      );
-      fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
-
-      const srcFile = path.join(tmpDir, 'src', 'patterns.ts');
-      mockGlob.mockResolvedValue([srcFile]);
-
-      mockParse.mockReturnValue({
-        nodeTypes: [],
-        workflows: [],
-        patterns: [
-          {
-            name: 'RetryPattern',
-            description: 'Retries on failure',
-            inputPorts: {
-              input: { dataType: 'ANY', description: 'Input data' },
-            },
-            outputPorts: {
-              output: { description: 'Output data' }, // no dataType, should default to ANY
-            },
-            instances: [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }],
-          },
-        ],
-        errors: [],
-      });
-
-      const result = await generateManifest({ directory: tmpDir });
-
-      expect(result.manifest.patterns).toHaveLength(1);
-      const pat = result.manifest.patterns[0];
-      expect(pat.name).toBe('RetryPattern');
-      expect(pat.nodeCount).toBe(3);
-      expect(pat.inputPorts.input.dataType).toBe('ANY');
-      expect(pat.outputPorts.output.dataType).toBe('ANY');
     });
 
     it('collects parse errors from individual files', async () => {
@@ -195,7 +154,6 @@ describe('marketplace/manifest', () => {
       mockParse.mockReturnValue({
         nodeTypes: [],
         workflows: [],
-        patterns: [],
         errors: ['Missing @output annotation'],
       });
 
@@ -241,7 +199,6 @@ describe('marketplace/manifest', () => {
       mockParse.mockReturnValue({
         nodeTypes: [],
         workflows: [],
-        patterns: [],
         errors: [],
       });
 
@@ -332,7 +289,6 @@ describe('marketplace/manifest', () => {
           },
         ],
         workflows: [],
-        patterns: [],
         errors: [],
       });
 
@@ -359,7 +315,6 @@ describe('marketplace/manifest', () => {
         version: '0.2.0',
         nodeTypes: [],
         workflows: [],
-        patterns: [],
         tagHandlers: [
           {
             tags: ['secret', 'runner'],
@@ -447,7 +402,6 @@ describe('marketplace/manifest', () => {
           outputs: {},
         }],
         workflows: [],
-        patterns: [],
         errors: [],
       });
 
@@ -481,7 +435,6 @@ describe('marketplace/manifest', () => {
           },
         ],
         workflows: [],
-        patterns: [],
       };
 
       const outPath = writeManifest(tmpDir, manifest);
@@ -504,7 +457,6 @@ describe('marketplace/manifest', () => {
         version: '1.0.0',
         nodeTypes: [],
         workflows: [],
-        patterns: [],
       };
 
       const outPath = writeManifest(tmpDir, manifest);

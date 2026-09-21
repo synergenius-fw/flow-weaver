@@ -28,7 +28,6 @@ export interface PackView {
   compatible: boolean | null;
   nodeTypes: Array<{ name: string; functionName: string; description: string; inputs: PackPort[]; outputs: PackPort[]; color: string | null; icon: string | null }>;
   workflows: Array<{ name: string; description: string; params: PackPort[]; returns: PackPort[]; nodes: number }>;
-  patterns: Array<{ name: string; description: string; nodes: number }>;
   exportTargets: Array<{ name: string; description: string }>;
   tagHandlers: Array<{ tags: string[]; namespace: string; scope: string }>;
   validationRuleSets: Array<{ name: string; namespace: string }>;
@@ -146,7 +145,6 @@ export function describePack(pkg: TInstalledPackage): PackView {
       color: n.visuals?.color ?? null, icon: n.visuals?.icon ?? null,
     })),
     workflows: (m.workflows ?? []).map((w) => ({ name: w.name, description: w.description ?? '', params: ports(w.startPorts), returns: ports(w.exitPorts), nodes: w.nodeCount })),
-    patterns: (m.patterns ?? []).map((p) => ({ name: p.name, description: p.description ?? '', nodes: p.nodeCount })),
     exportTargets: (m.exportTargets ?? []).map((t) => ({ name: t.name, description: t.description ?? '' })),
     tagHandlers: (m.tagHandlers ?? []).map((t) => ({ tags: t.tags, namespace: t.namespace, scope: t.scope })),
     validationRuleSets: (m.validationRuleSets ?? []).map((r) => ({ name: r.name, namespace: r.namespace })),

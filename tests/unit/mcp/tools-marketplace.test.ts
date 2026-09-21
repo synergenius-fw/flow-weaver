@@ -149,7 +149,6 @@ describe('tools-marketplace', () => {
           { name: 'OpenAIChat', description: 'Chat completion', inputs: { prompt: {} }, outputs: { response: {} } },
         ],
         workflows: [{ name: 'summarize', description: 'Summarize text' }],
-        patterns: [{ name: 'retry', description: 'Retry pattern' }],
       });
 
       const result = parseResult(await callInstall({ package: 'flow-weaver-pack-openai' }));
@@ -159,13 +158,11 @@ describe('tools-marketplace', () => {
         version: string;
         nodeTypes: unknown[];
         workflows: unknown[];
-        patterns: unknown[];
       };
       expect(data.installed).toBe('flow-weaver-pack-openai');
       expect(data.version).toBe('2.0.0');
       expect(data.nodeTypes).toHaveLength(1);
       expect(data.workflows).toHaveLength(1);
-      expect(data.patterns).toHaveLength(1);
     });
 
     it('handles package without manifest', async () => {
@@ -238,7 +235,6 @@ describe('tools-marketplace', () => {
           manifest: {
             nodeTypes: [{ name: 'Chat', description: 'LLM chat' }],
             workflows: [],
-            patterns: [{ name: 'retry', description: 'Retry' }],
           },
         },
       ]);
@@ -249,7 +245,7 @@ describe('tools-marketplace', () => {
       expect(data.count).toBe(1);
     });
 
-    it('maps workflows and patterns from installed packages', async () => {
+    it('maps workflows from installed packages', async () => {
       mockListInstalledPackages.mockResolvedValue([
         {
           name: 'flow-weaver-pack-full',
@@ -261,9 +257,6 @@ describe('tools-marketplace', () => {
               { name: 'emailFlow', description: 'Sends emails' },
               { name: 'slackFlow', description: 'Posts to Slack' },
             ],
-            patterns: [
-              { name: 'retry', description: 'Retry pattern' },
-            ],
           },
         },
       ]);
@@ -273,14 +266,12 @@ describe('tools-marketplace', () => {
       const data = result.data as {
         packages: Array<{
           workflows: Array<{ name: string; description: string }>;
-          patterns: Array<{ name: string; description: string }>;
           nodeTypes: Array<{ name: string; description: string }>;
         }>;
       };
       expect(data.packages[0].workflows).toHaveLength(2);
       expect(data.packages[0].workflows[0].name).toBe('emailFlow');
       expect(data.packages[0].workflows[1].name).toBe('slackFlow');
-      expect(data.packages[0].patterns).toHaveLength(1);
       expect(data.packages[0].nodeTypes).toHaveLength(1);
     });
 

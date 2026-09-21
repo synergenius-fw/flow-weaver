@@ -16,7 +16,7 @@ import type {
 } from './ast/types';
 import {
   isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort,
-  KNOWN_NODETYPE_TAGS, KNOWN_WORKFLOW_TAGS, KNOWN_PATTERN_TAGS, STANDARD_JSDOC_TAGS,
+  KNOWN_NODETYPE_TAGS, KNOWN_WORKFLOW_TAGS, STANDARD_JSDOC_TAGS,
   getKnownWorkflowTags,
 } from './constants';
 import { inferDataTypeFromTS, stripOptionalUndefined } from './type-mappings';
@@ -346,13 +346,6 @@ export interface JSDocWorkflowConfig {
   deploy?: Record<string, Record<string, unknown>>;
 }
 
-export interface JSDocPatternConfig {
-  name?: string;
-  description?: string;
-  instances?: Array<{ id: string; nodeType: string }>;
-  connections?: Array<{ from: { node: string; port: string }; to: { node: string; port: string } }>;
-  ports?: Array<{ direction: 'IN' | 'OUT'; name: string; description?: string }>;
-}
 
 /**
  * Recover the default expression TypeScript deliberately omits from a
@@ -727,152 +720,6 @@ export class JSDocParser {
     });
 
     return config;
-  }
-
-  /**
-   * Parse @flowWeaver pattern from JSDoc comments
-   */
-  parsePattern(func: FunctionLike, warnings: string[]): JSDocPatternConfig | null {
-    const jsdocs = func.getJsDocs();
-    if (jsdocs.length === 0) return null;
-
-    // Find the JSDoc block that contains @flowWeaver pattern
-    let jsdoc = null;
-    let flowWeaverTag = null;
-
-    for (const doc of jsdocs) {
-      const tags = doc.getTags();
-      const tag = tags.find(
-        (t) => t.getTagName() === 'flowWeaver' && t.getCommentText()?.trim() === 'pattern'
-      );
-      if (tag) {
-        jsdoc = doc;
-        flowWeaverTag = tag;
-        break;
-      }
-    }
-
-    if (!jsdoc || !flowWeaverTag) return null;
-
-    const tags = jsdoc.getTags();
-
-    const config: JSDocPatternConfig = {
-      instances: [],
-      connections: [],
-      ports: [],
-    };
-
-    // Parse tags
-    tags.forEach((tag) => {
-      const tagName = tag.getTagName();
-      const comment = tag.getCommentText() || '';
-
-      switch (tagName) {
-        case 'name':
-          config.name = comment.trim();
-          break;
-
-        case 'description':
-          config.description = comment.trim();
-          break;
-
-        case 'node':
-          this.parsePatternNodeTag(tag, config, warnings);
-          break;
-
-        case 'position':
-          // Positions left the grammar; a file that still carries the line parses, minus the line.
-          warnings.push(positionGone(`@position ${comment.trim()}`));
-          break;
-
-        case 'connect':
-          this.parsePatternConnectTag(tag, config, warnings);
-          break;
-
-        case 'port':
-          this.parsePatternPortTag(tag, config, warnings);
-          break;
-
-        default:
-          if (!KNOWN_PATTERN_TAGS.has(tagName) && !STANDARD_JSDOC_TAGS.has(tagName)) {
-            const suggestions = findClosestMatches(tagName, [...KNOWN_PATTERN_TAGS]);
-            const hint = suggestions.length > 0 ? ` Did you mean @${suggestions[0]}?` : '';
-            warnings.push(`Unknown annotation @${tagName} in pattern block.${hint}`);
-          }
-          break;
-      }
-    });
-
-    return config;
-  }
-
-  /**
-   * Parse @node tag for patterns.
-   * Format: @node instanceId nodeType
-   */
-  private parsePatternNodeTag(tag: JSDocTag, config: JSDocPatternConfig, warnings: string[]): void {
-    const comment = tag.getCommentText() || '';
-
-    const result = parseNodeLine(`@node ${comment}`, warnings);
-    if (!result) {
-      warnings.push(`Invalid @node tag format in pattern: ${comment}`);
-      return;
-    }
-
-    const { instanceId, nodeType } = result;
-
-    config.instances!.push({
-      id: instanceId,
-      nodeType: nodeType,
-    });
-  }
-
-  /**
-   * Parse @connect tag for patterns.
-   * Supports IN/OUT pseudo-nodes: IN.port -> node.port, node.port -> OUT.port
-   */
-  private parsePatternConnectTag(
-    tag: JSDocTag,
-    config: JSDocPatternConfig,
-    warnings: string[]
-  ): void {
-    const comment = tag.getCommentText() || '';
-
-    const result = parseConnectLine(`@connect ${comment}`, warnings);
-    if (!result) {
-      warnings.push(`Invalid @connect tag format in pattern: ${comment}`);
-      return;
-    }
-
-    const { source, target } = result;
-
-    config.connections!.push({
-      from: { node: source.nodeId, port: source.portName },
-      to: { node: target.nodeId, port: target.portName },
-    });
-  }
-
-  /**
-   * Parse @port tag for patterns.
-   * Format: @port IN.name - description OR @port OUT.name - description
-   */
-  private parsePatternPortTag(tag: JSDocTag, config: JSDocPatternConfig, warnings: string[]): void {
-    const comment = tag.getCommentText() || '';
-
-    // Parse format: IN.name - description OR OUT.name - description
-    const match = comment.match(/^(IN|OUT)\.(\w+)\s*(?:-\s*(.*))?$/);
-    if (!match) {
-      warnings.push(`Invalid @port tag format in pattern: ${comment}`);
-      return;
-    }
-
-    const [, direction, name, description] = match;
-
-    config.ports!.push({
-      direction: direction as 'IN' | 'OUT',
-      name,
-      description: description?.trim(),
-    });
   }
 
   /**

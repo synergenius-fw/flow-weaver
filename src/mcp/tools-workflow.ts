@@ -5,7 +5,6 @@ import * as fs from 'fs';
 import { globSync } from 'glob';
 import type { TWorkflowAST } from '../ast/types.js';
 import { parseWorkflow, validateWorkflow } from '../api/index.js';
-import { listPatterns, applyPattern, findWorkflows, extractPattern } from '../api/patterns.js';
 import { generateInPlace, hasInPlaceMarkers } from '../api/generate-in-place.js';
 import { applyMigrations, getRegisteredMigrations } from '../migration/registry.js';
 import { describeWorkflow, formatDescribeOutput } from '../cli/commands/describe.js';
@@ -18,118 +17,11 @@ import {
   removeConnection as manipRemoveConnection,
   setNodeLabel as manipSetNodeLabel,
 } from '../api/manipulation/index.js';
-import { findIsolatedNodes } from '../api/query.js';
-import { AnnotationParser } from '../parser.js';
+import { findIsolatedNodes, findWorkflows } from '../api/query.js';
 import { makeToolResult, makeErrorResult, addHintsToItems } from './response-utils.js';
 import { getFriendlyError } from '../friendly-errors.js';
 
-export function registerPatternTools(mcp: McpServer): void {
-  mcp.tool(
-    'fw_list_patterns',
-    'List reusable patterns defined in a file.',
-    {
-      filePath: z.string().describe('Path to file containing patterns'),
-    },
-    async (args: { filePath: string }) => {
-      try {
-        const filePath = path.resolve(args.filePath);
-        const patterns = listPatterns(filePath);
-        return makeToolResult(patterns);
-      } catch (err) {
-        return makeErrorResult(
-          'LIST_PATTERNS_ERROR',
-          `fw_list_patterns failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
-    }
-  );
-
-  mcp.tool(
-    'fw_apply_pattern',
-    'Apply a reusable pattern to a workflow file.',
-    {
-      patternFile: z.string().describe('Path to file containing the pattern'),
-      targetFile: z.string().describe('Path to target workflow file'),
-      patternName: z.string().optional().describe('Specific pattern name if file has multiple'),
-      prefix: z.string().optional().describe('Node ID prefix to avoid conflicts'),
-      preview: z.boolean().optional().describe("Preview only, don't write (default: false)"),
-    },
-    async (args: {
-      patternFile: string;
-      targetFile: string;
-      patternName?: string;
-      prefix?: string;
-      preview?: boolean;
-    }) => {
-      try {
-        const patternFilePath = path.resolve(args.patternFile);
-        const targetFilePath = path.resolve(args.targetFile);
-        const annotationParser = new AnnotationParser();
-
-        // Parse pattern file
-        const patternResult = annotationParser.parse(patternFilePath);
-        if (patternResult.patterns.length === 0) {
-          return makeErrorResult('PATTERN_NOT_FOUND', `No patterns found in ${args.patternFile}`);
-        }
-
-        // Select pattern
-        let pattern;
-        if (args.patternName) {
-          pattern = patternResult.patterns.find((p) => p.name === args.patternName);
-          if (!pattern) {
-            return makeErrorResult(
-              'PATTERN_NOT_FOUND',
-              `Pattern "${args.patternName}" not found in ${args.patternFile}`
-            );
-          }
-        } else {
-          pattern = patternResult.patterns[0];
-        }
-
-        // Read target file and parse for existing node types
-        const targetContent = fs.readFileSync(targetFilePath, 'utf8');
-        const targetResult = annotationParser.parse(targetFilePath);
-        const existingNodeTypes = new Set(targetResult.nodeTypes.map((nt) => nt.name));
-
-        // Apply pattern via pure API
-        const result = applyPattern({
-          patternAST: pattern,
-          targetContent,
-          targetNodeTypes: existingNodeTypes,
-          prefix: args.prefix,
-        });
-
-        if (args.preview) {
-          return makeToolResult({
-            success: true,
-            preview: true,
-            nodesAdded: result.nodesAdded,
-            connectionsAdded: result.connectionsAdded,
-            nodeTypesAdded: result.nodeTypesAdded,
-            conflicts: result.conflicts,
-            wiringInstructions: result.wiringInstructions,
-            content: result.modifiedContent,
-          });
-        }
-
-        fs.writeFileSync(targetFilePath, result.modifiedContent, 'utf8');
-        return makeToolResult({
-          success: true,
-          nodesAdded: result.nodesAdded,
-          connectionsAdded: result.connectionsAdded,
-          nodeTypesAdded: result.nodeTypesAdded,
-          conflicts: result.conflicts,
-          wiringInstructions: result.wiringInstructions,
-        });
-      } catch (err) {
-        return makeErrorResult(
-          'APPLY_PATTERN_ERROR',
-          `fw_apply_pattern failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
-    }
-  );
-
+export function registerWorkflowTools(mcp: McpServer): void {
   mcp.tool(
     'fw_find_workflows',
     'Scan a directory for workflow files containing @flowWeaver workflow annotations. Returns file paths and workflow metadata.',
@@ -638,68 +530,6 @@ export function registerPatternTools(mcp: McpServer): void {
         return makeErrorResult(
           'MODIFY_ERROR',
           `fw_modify_batch failed: ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
-    }
-  );
-
-  mcp.tool(
-    'fw_extract_pattern',
-    'Extract a reusable pattern from selected nodes in a workflow. Identifies internal connections and boundary IN/OUT ports automatically.',
-    {
-      sourceFile: z.string().describe('Path to workflow file'),
-      nodes: z.string().describe('Comma-separated node IDs to extract'),
-      name: z.string().optional().describe('Pattern name'),
-      outputFile: z.string().optional().describe('Output file path (omit for preview only)'),
-    },
-    async (args: { sourceFile: string; nodes: string; name?: string; outputFile?: string }) => {
-      try {
-        const filePath = path.resolve(args.sourceFile);
-        const parseResult = await parseWorkflow(filePath);
-        if (parseResult.errors.length > 0) {
-          return makeErrorResult('PARSE_ERROR', `Parse errors:\n${parseResult.errors.join('\n')}`);
-        }
-
-        const annotationParser = new AnnotationParser();
-        const fullParse = annotationParser.parse(filePath);
-
-        const nodeIds = args.nodes.split(',').map((s) => s.trim());
-
-        const result = extractPattern({
-          workflowAST: parseResult.ast,
-          nodeTypes: fullParse.nodeTypes,
-          nodeIds,
-          name: args.name,
-        });
-
-        if (args.outputFile) {
-          const outPath = path.resolve(args.outputFile);
-          fs.writeFileSync(outPath, result.patternCode, 'utf8');
-          return makeToolResult({
-            success: true,
-            filePath: outPath,
-            patternName: result.patternName,
-            nodes: result.nodes,
-            inputPorts: result.inputPorts,
-            outputPorts: result.outputPorts,
-            internalConnectionCount: result.internalConnectionCount,
-          });
-        }
-
-        return makeToolResult({
-          success: true,
-          preview: true,
-          patternName: result.patternName,
-          nodes: result.nodes,
-          inputPorts: result.inputPorts,
-          outputPorts: result.outputPorts,
-          internalConnectionCount: result.internalConnectionCount,
-          code: result.patternCode,
-        });
-      } catch (err) {
-        return makeErrorResult(
-          'EXTRACT_PATTERN_ERROR',
-          `fw_extract_pattern failed: ${err instanceof Error ? err.message : String(err)}`
         );
       }
     }

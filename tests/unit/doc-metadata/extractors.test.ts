@@ -87,7 +87,7 @@ describe('MCP Tools extractor', () => {
   });
 
   it('categories are drawn from the allowed set', () => {
-    const allowed = new Set(['query', 'template', 'pattern', 'modify', 'editor', 'execution', 'debug']);
+    const allowed = new Set(['query', 'template', 'modify', 'editor', 'execution', 'debug']);
     for (const tool of MCP_TOOLS) {
       expect(allowed.has(tool.category)).toBe(true);
     }
@@ -169,9 +169,6 @@ describe('CLI Commands extractor', () => {
     const names = CLI_COMMANDS.map((c) => c.name);
     expect(names).toContain('create workflow');
     expect(names).toContain('create node');
-    expect(names).toContain('pattern list');
-    expect(names).toContain('pattern apply');
-    expect(names).toContain('pattern extract');
     expect(names).toContain('mcp-server');
   });
 
@@ -214,8 +211,6 @@ describe('CLI Commands extractor', () => {
   it('subcommands have group property', () => {
     const createWorkflow = CLI_COMMANDS.find((c) => c.name === 'create workflow')!;
     expect(createWorkflow.group).toBe('create');
-    const patternList = CLI_COMMANDS.find((c) => c.name === 'pattern list')!;
-    expect(patternList.group).toBe('pattern');
   });
 
   it('template listing commands have list property', () => {
@@ -244,7 +239,6 @@ describe('Annotations extractor', () => {
     expect(categories).toContain('port');
     expect(categories).toContain('workflow');
     expect(categories).toContain('metadata');
-    expect(categories).toContain('pattern');
     expect(categories).toContain('standard');
   });
 
@@ -264,7 +258,6 @@ describe('Annotations extractor', () => {
     expect(names).toContain('@flowWeaver');
     expect(names).toContain('@flowWeaver nodeType');
     expect(names).toContain('@flowWeaver workflow');
-    expect(names).toContain('@flowWeaver pattern');
   });
 
   it('port annotations include @input, @output, @step', () => {
@@ -294,12 +287,6 @@ describe('Annotations extractor', () => {
     expect(names).toContain('@strictTypes');
   });
 
-  it('pattern annotations include @port IN and @port OUT', () => {
-    const names = ALL_ANNOTATIONS.map((a) => a.name);
-    expect(names).toContain('@port IN');
-    expect(names).toContain('@port OUT');
-  });
-
   it('standard annotations include @param and @returns', () => {
     const names = ALL_ANNOTATIONS.map((a) => a.name);
     expect(names).toContain('@param');
@@ -315,7 +302,7 @@ describe('Annotations extractor', () => {
   });
 
   it('annotations with contexts list only valid context values', () => {
-    const validContexts = new Set(['nodeType', 'workflow', 'pattern']);
+    const validContexts = new Set(['nodeType', 'workflow']);
     for (const ann of ALL_ANNOTATIONS) {
       if (ann.contexts) {
         for (const ctx of ann.contexts) {

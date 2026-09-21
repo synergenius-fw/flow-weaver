@@ -6,7 +6,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import type { McpServerOptions } from './types.js';
 import { registerQueryTools } from './tools-query.js';
 import { registerTemplateTools } from './tools-template.js';
-import { registerPatternTools } from './tools-pattern.js';
+import { registerWorkflowTools } from './tools-workflow.js';
 import { registerExportTools } from './tools-export.js';
 import { registerMarketplaceTools } from './tools-marketplace.js';
 import { registerDiagramTools } from './tools-diagram.js';
@@ -59,7 +59,7 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   // Register all tools
   registerQueryTools(mcp);
   registerTemplateTools(mcp);
-  registerPatternTools(mcp);
+  registerWorkflowTools(mcp);
   registerExportTools(mcp);
   registerMarketplaceTools(mcp);
   registerDiagramTools(mcp);

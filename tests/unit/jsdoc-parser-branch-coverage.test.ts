@@ -28,14 +28,6 @@ function parseWorkflow(code: string) {
   return { config, warnings, functions };
 }
 
-function parsePattern(code: string) {
-  const sourceFile = project.createSourceFile(`branch-pt-${Date.now()}-${Math.random()}.ts`, code, { overwrite: true });
-  const functions = extractFunctionLikes(sourceFile);
-  const warnings: string[] = [];
-  const config = jsdocParser.parsePattern(functions[0], warnings);
-  return { config, warnings, functions };
-}
-
 describe('JSDocParser branch coverage', () => {
   // ── parseNodeType ─────────────────────────────────────────────
 
@@ -888,99 +880,6 @@ export async function a(execute: boolean, params: {}): Promise<{ onSuccess: bool
 }
 `);
       expect(config!.returnPorts!['onSuccess'].dataType).toBe('STEP');
-    });
-  });
-
-  // ── parsePattern ──────────────────────────────────────────────
-
-  describe('parsePattern', () => {
-    it('returns null when function has no JSDoc', () => {
-      const { config } = parsePattern(`function bare() { return {}; }`);
-      expect(config).toBeNull();
-    });
-
-    it('returns null when JSDoc has no @flowWeaver pattern tag', () => {
-      const { config } = parsePattern(`
-/** @flowWeaver nodeType */
-function bare(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
-`);
-      expect(config).toBeNull();
-    });
-
-    it('parses @name and @description for pattern', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @name MyPattern
- * @description A test pattern
- */
-function myPattern() {}
-`);
-      expect(config!.name).toBe('MyPattern');
-      expect(config!.description).toBe('A test pattern');
-    });
-
-    it('parses @node tag in pattern', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @node inst1 NodeTypeA
- */
-function myPattern() {}
-`);
-      expect(config!.instances).toHaveLength(1);
-      expect(config!.instances![0].id).toBe('inst1');
-      expect(config!.instances![0].nodeType).toBe('NodeTypeA');
-    });
-
-    it('parses @connect in pattern', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @node a TypeA
- * @node b TypeB
- * @connect a.onSuccess -> b.execute
- */
-function myPattern() {}
-`);
-      expect(config!.connections).toHaveLength(1);
-      expect(config!.connections![0].from).toEqual({ node: 'a', port: 'onSuccess' });
-    });
-
-    it('parses @port IN and OUT', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @port IN.data - Input data
- * @port OUT.result
- */
-function myPattern() {}
-`);
-      expect(config!.ports).toHaveLength(2);
-      expect(config!.ports![0]).toEqual({ direction: 'IN', name: 'data', description: 'Input data' });
-      expect(config!.ports![1]).toEqual({ direction: 'OUT', name: 'result', description: undefined });
-    });
-
-    it('warns on invalid @port format', () => {
-      const { warnings } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @port badformat
- */
-function myPattern() {}
-`);
-      expect(warnings.some(w => w.includes('Invalid @port tag format'))).toBe(true);
-    });
-
-    it('warns on unknown tags in pattern', () => {
-      const { warnings } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @zzzzunknown something
- */
-function myPattern() {}
-`);
-      expect(warnings.some(w => w.includes('Unknown annotation @zzzzunknown'))).toBe(true);
     });
   });
 

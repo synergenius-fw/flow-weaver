@@ -38,7 +38,6 @@ function makeManifest(overrides?: Partial<TMarketplaceManifest>): TMarketplaceMa
       },
     ],
     workflows: [],
-    patterns: [],
     ...overrides,
   };
 }
@@ -100,7 +99,7 @@ describe('validatePackage', () => {
 
     it('does not check other rules when package.json is missing', async () => {
       setupFs(null);
-      const manifest = makeManifest({ nodeTypes: [], workflows: [], patterns: [] });
+      const manifest = makeManifest({ nodeTypes: [], workflows: [] });
       const result = await validatePackage(DIR, manifest);
 
       // Only PKG-000, not PKG-006 for empty manifest
@@ -317,26 +316,9 @@ describe('validatePackage', () => {
       expect(result.issues.find((i) => i.code === 'PKG-006')).toBeUndefined();
     });
 
-    it('passes with only a pattern', async () => {
+    it('fails when nodeTypes and workflows are all empty', async () => {
       setupFs(makePackageJson());
-      const manifest = makeManifest({
-        nodeTypes: [],
-        patterns: [{
-          name: 'myPattern',
-          file: 'src/myPattern.ts',
-          inputPorts: { data: { dataType: 'STRING' } },
-          outputPorts: {},
-          nodeCount: 1,
-        }],
-      });
-      const result = await validatePackage(DIR, manifest);
-
-      expect(result.issues.find((i) => i.code === 'PKG-006')).toBeUndefined();
-    });
-
-    it('fails when nodeTypes, workflows, and patterns are all empty', async () => {
-      setupFs(makePackageJson());
-      const manifest = makeManifest({ nodeTypes: [], workflows: [], patterns: [] });
+      const manifest = makeManifest({ nodeTypes: [], workflows: [] });
       const result = await validatePackage(DIR, manifest);
 
       const issue = result.issues.find((i) => i.code === 'PKG-006');
@@ -522,64 +504,6 @@ describe('validatePackage', () => {
       const result = await validatePackage(DIR, manifest);
 
       expect(result.issues.find((i) => i.code === 'PKG-009')).toBeUndefined();
-    });
-  });
-
-  // ── UNIT-003: pattern ports ──────────────────────────────────────────────
-
-  describe('UNIT-003: pattern ports', () => {
-    it('passes when a pattern has input ports', async () => {
-      setupFs(makePackageJson());
-      const manifest = makeManifest({
-        nodeTypes: [],
-        patterns: [{
-          name: 'inputOnly',
-          file: 'src/inputOnly.ts',
-          inputPorts: { data: { dataType: 'STRING' } },
-          outputPorts: {},
-          nodeCount: 1,
-        }],
-      });
-      const result = await validatePackage(DIR, manifest);
-
-      expect(result.issues.find((i) => i.code === 'UNIT-003')).toBeUndefined();
-    });
-
-    it('passes when a pattern has output ports', async () => {
-      setupFs(makePackageJson());
-      const manifest = makeManifest({
-        nodeTypes: [],
-        patterns: [{
-          name: 'outputOnly',
-          file: 'src/outputOnly.ts',
-          inputPorts: {},
-          outputPorts: { result: { dataType: 'NUMBER' } },
-          nodeCount: 1,
-        }],
-      });
-      const result = await validatePackage(DIR, manifest);
-
-      expect(result.issues.find((i) => i.code === 'UNIT-003')).toBeUndefined();
-    });
-
-    it('fails when a pattern has no ports at all', async () => {
-      setupFs(makePackageJson());
-      const manifest = makeManifest({
-        nodeTypes: [],
-        patterns: [{
-          name: 'noports',
-          file: 'src/noports.ts',
-          inputPorts: {},
-          outputPorts: {},
-          nodeCount: 1,
-        }],
-      });
-      const result = await validatePackage(DIR, manifest);
-
-      const issue = result.issues.find((i) => i.code === 'UNIT-003');
-      expect(issue).toBeDefined();
-      expect(issue!.severity).toBe('error');
-      expect(issue!.message).toContain('noports');
     });
   });
 

@@ -16,7 +16,6 @@ import type {
   TConnectionAST,
   TNodeInstanceAST,
   TSerializableValue,
-  TPatternAST,
   TWorkflowMacro,
 } from './ast/types';
 import { EXECUTION_STRATEGIES, isControlFlowPort } from './constants';
@@ -82,7 +81,6 @@ function promoteDeployNamespaces(
 export interface ParseResult {
   workflows: TWorkflowAST[];
   nodeTypes: TNodeTypeAST[];
-  patterns: TPatternAST[];
   errors: string[];
   warnings: string[];
 }
@@ -543,10 +541,9 @@ export class AnnotationParser {
     nodeTypes.push(...inferredNodeTypes);
 
     const workflows = this.extractWorkflows(sourceFile, nodeTypes, filePath, errors, warnings);
-    const patterns = this.extractPatterns(sourceFile, nodeTypes, filePath, errors, warnings);
     // Deduplicate warnings (extractWorkflowSignatures + extractWorkflows both parse JSDoc)
     const dedupedWarnings = [...new Set(warnings)];
-    const result = { workflows, nodeTypes, patterns, errors, warnings: dedupedWarnings };
+    const result = { workflows, nodeTypes, errors, warnings: dedupedWarnings };
 
     // Clean up source file to prevent ts-morph Project bloat
     // (results are captured in the returned AST, source file is no longer needed)
@@ -630,7 +627,6 @@ export class AnnotationParser {
 
     // Note: imports not supported for virtual files - would need filesystem access
     const workflows = this.extractWorkflows(sourceFile, nodeTypes, virtualPath, errors, warnings);
-    const patterns = this.extractPatterns(sourceFile, nodeTypes, virtualPath, errors, warnings);
 
     // Clean up virtual source file to prevent memory bloat
     // (tests create many unique virtual paths that accumulate)
@@ -641,7 +637,6 @@ export class AnnotationParser {
     return {
       workflows,
       nodeTypes,
-      patterns,
       errors,
       warnings: dedupedWarnings,
     };
@@ -1323,17 +1318,18 @@ export class AnnotationParser {
 
       const functionName = fn.getName() || 'anonymous';
 
-      // Validate no IN/OUT pseudo-nodes in workflows (they're only for patterns)
+      // "IN" and "OUT" are not real nodes; a workflow's boundaries are "Start"
+      // and "Exit".
       if (config.connections) {
         for (const conn of config.connections) {
           if (conn.from.node === 'IN' || conn.from.node === 'OUT') {
             errors.push(
-              `Workflow "${functionName}" uses "${conn.from.node}" pseudo-node which is only valid in patterns. Use "Start" or "Exit" instead.`
+              `Workflow "${functionName}" uses "${conn.from.node}", which is not a node. Use "Start" or "Exit" instead.`
             );
           }
           if (conn.to.node === 'IN' || conn.to.node === 'OUT') {
             errors.push(
-              `Workflow "${functionName}" uses "${conn.to.node}" pseudo-node which is only valid in patterns. Use "Start" or "Exit" instead.`
+              `Workflow "${functionName}" uses "${conn.to.node}", which is not a node. Use "Start" or "Exit" instead.`
             );
           }
         }
@@ -1614,97 +1610,6 @@ export class AnnotationParser {
   }
 
   /**
-   * Extract patterns from a source file.
-   * Patterns are defined with @flowWeaver pattern annotation.
-   */
-  private extractPatterns(
-    sourceFile: SourceFile,
-    availableNodeTypes: TNodeTypeAST[],
-    filePath: string,
-    errors: string[],
-    warnings: string[]
-  ): TPatternAST[] {
-    const patterns: TPatternAST[] = [];
-    const seenNames = new Set<string>();
-
-    extractFunctionLikes(sourceFile).forEach((fn: FunctionLike) => {
-      // Parse JSDoc comments for pattern
-      const config = jsdocParser.parsePattern(fn, warnings);
-      if (!config) {
-        const jsdocText = fn.getJsDocs().map((d) => d.getFullText()).join('');
-        if (jsdocText.includes('@flowWeaver pattern')) {
-          warnings.push(
-            `Function "${fn.getName() || 'anonymous'}" has @flowWeaver annotation but could not be parsed. ` +
-            `Check for special characters (---) or malformed JSDoc syntax.`
-          );
-        }
-        return;
-      }
-
-      // Validate required @name
-      if (!config.name) {
-        errors.push(`Pattern is missing required @name tag in function "${fn.getName()}"`);
-        return;
-      }
-
-      // Check for duplicate names
-      if (seenNames.has(config.name)) {
-        errors.push(`Duplicate pattern name "${config.name}" in file`);
-        return;
-      }
-      seenNames.add(config.name);
-
-      // Extract node types used by this pattern
-      const patternNodeTypes = availableNodeTypes.filter((nt) =>
-        config.instances?.some((inst) => inst.nodeType === nt.name)
-      );
-
-      // Build connections from config
-      const connections: TConnectionAST[] = (config.connections || []).map((conn) => ({
-        type: 'Connection' as const,
-        from: conn.from,
-        to: conn.to,
-      }));
-
-      // Extract input/output ports from @port declarations
-      const inputPorts: Record<string, { description?: string }> = {};
-      const outputPorts: Record<string, { description?: string }> = {};
-
-      if (config.ports) {
-        for (const port of config.ports) {
-          if (port.direction === 'IN') {
-            inputPorts[port.name] = { description: port.description };
-          } else if (port.direction === 'OUT') {
-            outputPorts[port.name] = { description: port.description };
-          }
-        }
-      }
-
-      // Build instances from config
-      const instances: TNodeInstanceAST[] = (config.instances || []).map((inst) => ({
-        type: 'NodeInstance' as const,
-        id: inst.id,
-        nodeType: inst.nodeType,
-        config: {},
-      }));
-
-      patterns.push({
-        type: 'Pattern',
-        sourceFile: filePath,
-        name: config.name,
-        description: config.description,
-        nodeTypes: patternNodeTypes,
-        instances,
-        connections,
-        inputPorts,
-        outputPorts,
-      });
-    });
-
-    return patterns;
-  }
-
-  /**
    * Infer a TNodeTypeAST from a single function's TypeScript signature.
    * Shared helper used by both same-file and cross-file inference.
    */
@@ -1882,8 +1787,9 @@ export class AnnotationParser {
         if (tag.getTagName() !== 'flowWeaver') continue;
         const comment = tag.getCommentText?.()?.trim() || '';
         const firstWord = comment.split(/\s/)[0];
-        // 'workflow' explicitly, or bare @flowWeaver (no qualifier), or named workflow
-        if (firstWord === 'workflow' || firstWord === '' || (firstWord !== 'nodeType' && firstWord !== 'pattern')) {
+        // Anything that is not a node type is a workflow candidate: 'workflow'
+        // explicitly, bare @flowWeaver (no qualifier), or a named workflow.
+        if (firstWord !== 'nodeType') {
           return true;
         }
       }

@@ -34,14 +34,6 @@ function parseWorkflow(code: string, tagRegistry?: TagHandlerRegistry) {
   return { config, warnings, functions };
 }
 
-function parsePattern(code: string) {
-  const sourceFile = project.createSourceFile(nextFile('pt'), code, { overwrite: true });
-  const functions = extractFunctionLikes(sourceFile);
-  const warnings: string[] = [];
-  const config = jsdocParser.parsePattern(functions[0], warnings);
-  return { config, warnings, functions };
-}
-
 /** Minimal fake TagHandlerRegistry for testing delegation paths */
 function fakeRegistry(knownTags: string[], packTrigger = false): TagHandlerRegistry {
   const tags = new Set(knownTags);
@@ -832,21 +824,6 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
     });
   });
 
-  // ── Pattern: positions applied to instances ──
-
-  describe('pattern position application', () => {
-    it('does not apply positions to non-matching instances', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @node instA TypeA
- */
-function myPattern() {}
-`);
-      expect(config!.instances![0].config).toBeUndefined();
-    });
-  });
-
   // ── @connect in workflow with scoped endpoints ──
 
   describe('@connect with scopes', () => {
@@ -1448,47 +1425,6 @@ function myNode(execute: boolean): { onSuccess: boolean } {
 `);
       expect(config!.tags![0].label).toBe('stable');
       expect(config!.tags![0].tooltip).toBeUndefined();
-    });
-  });
-
-  // ── Pattern: @port parsing ──
-
-  describe('pattern @port parsing', () => {
-    it('parses IN port without description', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @port IN.data
- */
-function myPattern() {}
-`);
-      expect(config!.ports![0].direction).toBe('IN');
-      expect(config!.ports![0].name).toBe('data');
-      expect(config!.ports![0].description).toBeUndefined();
-    });
-
-    it('parses OUT port with description', () => {
-      const { config } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @port OUT.result - The final result
- */
-function myPattern() {}
-`);
-      expect(config!.ports![0].direction).toBe('OUT');
-      expect(config!.ports![0].name).toBe('result');
-      expect(config!.ports![0].description).toBe('The final result');
-    });
-
-    it('warns on invalid port format', () => {
-      const { warnings } = parsePattern(`
-/**
- * @flowWeaver pattern
- * @port invalid
- */
-function myPattern() {}
-`);
-      expect(warnings.some(w => w.includes('Invalid @port tag format'))).toBe(true);
     });
   });
 

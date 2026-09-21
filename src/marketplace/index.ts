@@ -9,7 +9,6 @@ export type {
   TMarketplaceManifest,
   TManifestNodeType,
   TManifestWorkflow,
-  TManifestPattern,
   TManifestExportTarget,
   TManifestPort,
   TValidationIssue,

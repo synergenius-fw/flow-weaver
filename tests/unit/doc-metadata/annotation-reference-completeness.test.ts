@@ -25,9 +25,9 @@ const parsedTags = new Set<string>([
 
 /**
  * Bare tag names the reference documents. Reference entries may carry a
- * compound name that encodes a marker variant or a port direction rather than
- * a distinct tag (e.g. "@flowWeaver nodeType", "@port IN"); reduce to the tag
- * token so they match the parser's set.
+ * compound name that encodes a marker variant rather than a distinct tag
+ * (e.g. "@flowWeaver nodeType"); reduce to the tag token so they match the
+ * parser's set.
  */
 const documentedTags = new Set<string>(
   ALL_ANNOTATIONS.map((a) => a.name.replace(/^@/, '').split(/\s+/)[0])
@@ -53,7 +53,6 @@ const DOCUMENTED_ONLY = new Set<string>([
   // Marker / port entries whose bare token is a real tag but whose reference
   // rows describe variants; the base tag is itself covered elsewhere.
   'flowWeaver',
-  'port',
   'input',
   'output',
   'connect',

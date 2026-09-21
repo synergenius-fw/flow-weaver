@@ -12,15 +12,12 @@ import { AnnotationParser } from '../parser.js';
 import type {
   TNodeTypeAST,
   TWorkflowAST,
-  TPatternAST,
   TPortDefinition,
-  TPatternPortDefinition,
 } from '../ast/types.js';
 import type {
   TMarketplaceManifest,
   TManifestNodeType,
   TManifestWorkflow,
-  TManifestPattern,
   TManifestPort,
 } from './types.js';
 
@@ -31,13 +28,6 @@ function toManifestPort(port: TPortDefinition): TManifestPort {
     dataType: port.dataType,
     ...(port.description && { description: port.description }),
     ...(port.optional && { optional: true }),
-  };
-}
-
-function toManifestPortFromPattern(port: TPatternPortDefinition): TManifestPort {
-  return {
-    dataType: port.dataType ?? 'ANY',
-    ...(port.description && { description: port.description }),
   };
 }
 
@@ -80,26 +70,6 @@ function workflowToManifest(wf: TWorkflowAST, relativeFile: string): TManifestWo
     exitPorts: toManifestPorts(wf.exitPorts),
     nodeCount: wf.instances.length,
     connectionCount: wf.connections.length,
-  };
-}
-
-function patternToManifest(pat: TPatternAST, relativeFile: string): TManifestPattern {
-  const inputPorts: Record<string, TManifestPort> = {};
-  for (const [name, def] of Object.entries(pat.inputPorts)) {
-    inputPorts[name] = toManifestPortFromPattern(def);
-  }
-  const outputPorts: Record<string, TManifestPort> = {};
-  for (const [name, def] of Object.entries(pat.outputPorts)) {
-    outputPorts[name] = toManifestPortFromPattern(def);
-  }
-
-  return {
-    name: pat.name,
-    ...(pat.description && { description: pat.description }),
-    file: relativeFile,
-    inputPorts,
-    outputPorts,
-    nodeCount: pat.instances.length,
   };
 }
 
@@ -152,7 +122,6 @@ export async function generateManifest(
   const parser = new AnnotationParser();
   const allNodeTypes: TManifestNodeType[] = [];
   const allWorkflows: TManifestWorkflow[] = [];
-  const allPatterns: TManifestPattern[] = [];
   const errors: string[] = [];
   const parsedFiles: string[] = [];
 
@@ -175,11 +144,6 @@ export async function generateManifest(
         allWorkflows.push(workflowToManifest(wf, distRelative));
       }
 
-      // Collect patterns
-      for (const pat of result.patterns) {
-        allPatterns.push(patternToManifest(pat, distRelative));
-      }
-
       if (result.errors.length > 0) {
         errors.push(...result.errors.map((e) => `${file}: ${e}`));
       }
@@ -190,7 +154,7 @@ export async function generateManifest(
 
   // Preserve v2 extension fields from the existing manifest so that
   // re-running pack:manifest doesn't wipe manually declared contributions.
-  // Only nodeTypes, workflows and patterns are derived from source; every
+  // Only nodeTypes and workflows are derived from source; every
   // field below is hand-written and would otherwise vanish on regeneration,
   // which for cliCommands/mcpTools means the pack's commands and tools stop
   // loading (pack-commands.ts:72, pack-tools.ts:52 require both the
@@ -218,7 +182,6 @@ export async function generateManifest(
     ...(pkg.flowWeaver?.categories && { categories: pkg.flowWeaver.categories }),
     nodeTypes: allNodeTypes,
     workflows: allWorkflows,
-    patterns: allPatterns,
     ...v2Fields,
     ...(Object.keys(pkg.dependencies ?? {}).length > 0 && {
       dependencies: {
@@ -251,6 +214,5 @@ function emptyManifest(name: string, version: string): TMarketplaceManifest {
     version,
     nodeTypes: [],
     workflows: [],
-    patterns: [],
   };
 }

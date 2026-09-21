@@ -92,7 +92,7 @@ function validateManifestContents(manifest: TMarketplaceManifest): TValidationIs
   const issues: TValidationIssue[] = [];
 
   const totalUnits =
-    manifest.nodeTypes.length + manifest.workflows.length + manifest.patterns.length +
+    manifest.nodeTypes.length + manifest.workflows.length +
     (manifest.exportTargets?.length ?? 0);
 
   // PKG-006: Must contain at least one unit
@@ -101,7 +101,7 @@ function validateManifestContents(manifest: TMarketplaceManifest): TValidationIs
       issue(
         'PKG-006',
         'error',
-        'Package must contain at least one node type, workflow, pattern, or export target',
+        'Package must contain at least one node type, workflow, or export target',
       )
     );
   }
@@ -178,17 +178,6 @@ function validateManifestContents(manifest: TMarketplaceManifest): TValidationIs
           'warning',
           `Tag handler "${th.namespace}" has no "serializerExport": its tags (${th.tags.map((t) => `@${t}`).join(', ')}) are dropped whenever annotations are regenerated (fw compile, fw_modify). Export a TTagSerializerFn from ${th.file} and name it here`,
         )
-      );
-    }
-  }
-
-  // UNIT-003: Patterns must have at least one IN or OUT port
-  for (const pat of manifest.patterns) {
-    const inCount = Object.keys(pat.inputPorts).length;
-    const outCount = Object.keys(pat.outputPorts).length;
-    if (inCount === 0 && outCount === 0) {
-      issues.push(
-        issue('UNIT-003', 'error', `Pattern "${pat.name}" must have at least one IN or OUT port`)
       );
     }
   }
