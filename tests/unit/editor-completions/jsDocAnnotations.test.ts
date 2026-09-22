@@ -25,7 +25,6 @@ describe('JSDOC_ANNOTATIONS', () => {
     expect(labels).toContain('@timeout');
     expect(labels).toContain('@throttle');
     expect(labels).toContain('@strictTypes');
-    expect(labels).toContain('@port');
     // Metadata
     expect(labels).toContain('@label');
     expect(labels).toContain('@scope');
@@ -66,7 +65,7 @@ describe('JSDOC_ANNOTATIONS', () => {
 
   it('should mark workflow-only annotations with blockTypes', () => {
     const workflowOnly = ['@node', '@connect', '@fwImport', '@path', '@trigger',
-      '@cancelOn', '@retries', '@timeout', '@throttle', '@strictTypes', '@port'];
+      '@cancelOn', '@retries', '@timeout', '@throttle', '@strictTypes'];
     for (const label of workflowOnly) {
       const ann = JSDOC_ANNOTATIONS.find((a) => a.label === label)!;
       expect(ann.blockTypes).toContain('workflow');
