@@ -183,7 +183,12 @@ export function orderArms<S extends ArmStep>(
   const shared = flat.filter((r) => {
     if (!r.step || claimed.has(r.id) || pulled.has(r.id)) return false;
     const from = [...(enteredBy.get(r.id) ?? [])];
-    return from.length > 1 && from.every((f) => byId.get(f)?.step?.failureTo.includes(r.id));
+    if (from.length <= 1 || !from.every((f) => byId.get(f)?.step?.failureTo.includes(r.id))) return false;
+    // A scope owner is entered by its own children when their failure arms feed
+    // its scoped failure input. That is the loop body reporting failure, not an
+    // independent join: the owner heads its body and must never sink below it.
+    if (from.every((f) => byId.get(f)?.owner === r.id)) return false;
+    return true;
   });
 
   // An arm sits directly under its gate, so the detour is read and dismissed

@@ -114,6 +114,77 @@ describe('renderSpineSVG', () => {
     expect(renderSpineSVG(gated)).not.toContain('class="scope"');
   }, 60000);
 
+  it('keeps a scope owner above its body when its children fail into it', async () => {
+    // A loop that wires its children's failure arms into its own scoped
+    // `failure` input is entered by those children. That must not sink the
+    // owner below its body: it is the loop reporting failure, not a join.
+    const src = `
+/**
+ * @flowWeaver nodeType
+ * @durablePure
+ * @input items - Items
+ * @input [maxItems] - Limit
+ * @output start scope:it - Iterate
+ * @output item scope:it - Current item
+ * @input success scope:it - Done
+ * @input failure scope:it - Failed
+ * @output results - Results
+ */
+async function loopOwner(execute: boolean, items: string[], maxItems: number, it: (start: boolean, item: string) => Promise<{ success: boolean; failure: boolean }>): Promise<{ onSuccess: boolean; onFailure: boolean; results: string[] }> {
+  if (!execute) return { onSuccess: false, onFailure: false, results: [] };
+  const results: string[] = [];
+  for (let i = 0; i < Math.min(items.length, maxItems); i++) { const o = await it(true, items[i]!); if (o.failure) return { onSuccess: false, onFailure: true, results }; }
+  return { onSuccess: true, onFailure: false, results };
+}
+/**
+ * @flowWeaver nodeType
+ * @durableGate approval
+ * @input prompt - Prompt
+ * @output ok - Approved
+ */
+async function step(execute: boolean, prompt: string): Promise<{ onSuccess: boolean; onFailure: boolean; ok: boolean }> { throw new Error('gate'); }
+/**
+ * @flowWeaver nodeType
+ * @durablePure
+ * @input ok - Approved
+ * @output note - Note
+ */
+function record(execute: boolean, ok: boolean): { onSuccess: boolean; onFailure: boolean; note: string } { return { onSuccess: execute, onFailure: false, note: ok ? 'y' : 'n' }; }
+/**
+ * @flowWeaver workflow
+ * @param items - Items
+ * @param [maxItems] - Limit
+ * @returns onFailure - Failed
+ * @returns results - Results
+ * @node loop loopOwner
+ * @node child step loop.it
+ * @node note record loop.it
+ * @connect Start.execute -> loop.execute
+ * @connect Start.items -> loop.items
+ * @connect Start.maxItems -> loop.maxItems
+ * @connect loop.start:it -> child.execute
+ * @connect loop.item:it -> child.prompt
+ * @connect child.onSuccess -> note.execute
+ * @connect child.ok -> note.ok
+ * @connect child.onFailure -> loop.failure:it
+ * @connect note.onSuccess -> loop.success:it
+ * @connect note.onFailure -> loop.failure:it
+ * @connect loop.results -> Exit.results
+ * @connect loop.onSuccess -> Exit.onSuccess
+ * @connect loop.onFailure -> Exit.onFailure
+ */
+export async function loopWithFailure(execute: boolean, params: { items: string[]; maxItems?: number }): Promise<{ onSuccess: boolean; onFailure: boolean; results: string[] }> { throw new Error('compile'); }
+`;
+    const parsed = parser.parseFromString(src);
+    expect(parsed.errors).toEqual([]);
+    const svg = renderSpineSVG(parsed.workflows[0], { title: false });
+    const rows = [...svg.matchAll(/data-id="([^"]+)"/g)].map((m) => m[1]);
+    // The owner heads its body: it must sit above both scoped children, even
+    // though both fail into its scoped failure input.
+    expect(rows.indexOf('loop')).toBeLessThan(rows.indexOf('child'));
+    expect(rows.indexOf('loop')).toBeLessThan(rows.indexOf('note'));
+  });
+
   it('marks the pause: a square tile, the gate kind at the right, a legend line', () => {
     const svg = renderSpineSVG(gated);
     expect(svg).toContain('rx="2"');
