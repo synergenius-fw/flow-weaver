@@ -6,7 +6,7 @@ import { VERSION as COMPILER_VERSION } from '../generated-version';
 import { type GenerateOptions, generateCode } from './generate';
 import { type InPlaceGenerateOptions, generateInPlace } from './generate-in-place';
 import { type ParseOptions, parseWorkflow } from './parse';
-import { validateDurableClosure, durableClassificationCount } from './durable-validation';
+import { validateDurableClosure } from './durable-validation';
 import {
   applyDurableSourceProof,
   type DurableSourceProof,
@@ -90,119 +90,11 @@ export async function compileWorkflow(
       options.durableFlattenedSource,
     );
   }
+  // The durable closure rules — scope safety (bounded + sequential loops),
+  // classification, lazy execution, branch convergence — all live in
+  // validateDurableClosure, so there is one rule and it cannot drift between a
+  // compile and an `fw validate`. It throws with an author-facing message.
   validateDurableClosure(parseResult.ast, parseResult.allWorkflows);
-
-  const workflowsByName = new Map(
-    parseResult.allWorkflows.map((workflow) => [workflow.functionName, workflow]),
-  );
-  const reachableWorkflows = new Set<string>();
-  const collectReachable = (workflow: typeof parseResult.ast): void => {
-    if (reachableWorkflows.has(workflow.functionName)) return;
-    reachableWorkflows.add(workflow.functionName);
-    for (const instance of workflow.instances) {
-      if (instance.nodeType === 'invokeWorkflow') {
-        for (const possibleTarget of parseResult.allWorkflows) {
-          collectReachable(possibleTarget);
-        }
-      }
-      const nested = workflowsByName.get(instance.nodeType);
-      if (nested) collectReachable(nested);
-    }
-  };
-  collectReachable(parseResult.ast);
-  const reachable = parseResult.allWorkflows.filter((workflow) =>
-    reachableWorkflows.has(workflow.functionName),
-  );
-  if (!reachable.some((workflow) => workflow.functionName === parseResult.ast.functionName)) {
-    reachable.push(parseResult.ast);
-  }
-  const hasDurableGate = reachable.some((workflow) =>
-    workflow.instances.some((instance) => {
-      const nodeType = workflow.nodeTypes.find(
-        (candidate) =>
-          candidate.name === instance.nodeType ||
-          candidate.functionName === instance.nodeType,
-      );
-      return nodeType?.durableGate !== undefined;
-    }),
-  );
-  if (hasDurableGate) {
-    const workflowHasDurableBoundary = (
-      workflowName: string,
-      visiting = new Set<string>(),
-    ): boolean => {
-      if (visiting.has(workflowName)) return false;
-      visiting.add(workflowName);
-      const workflow = workflowsByName.get(workflowName);
-      if (workflow === undefined) return false;
-      return workflow.instances.some((instance) => {
-        const nodeType = workflow.nodeTypes.find(
-          (candidate) =>
-            candidate.name === instance.nodeType ||
-            candidate.functionName === instance.nodeType,
-        );
-        if (nodeType?.durableGate !== undefined || nodeType?.durableEffect === true) {
-          return true;
-        }
-        if (instance.nodeType === 'invokeWorkflow') {
-          return parseResult.allWorkflows.some((candidate) =>
-            workflowHasDurableBoundary(candidate.functionName, new Set(visiting)),
-          );
-        }
-        return workflowHasDurableBoundary(instance.nodeType, new Set(visiting));
-      });
-    };
-    const unsafeScopedBoundaries = reachable
-      .flatMap((workflow) =>
-        workflow.instances
-          .filter((instance) => instance.parent !== undefined && instance.parent !== null)
-          .filter((instance) => {
-            const nodeType = workflow.nodeTypes.find(
-              (candidate) =>
-                candidate.name === instance.nodeType ||
-                candidate.functionName === instance.nodeType,
-            );
-            return (
-              nodeType?.durableGate !== undefined ||
-              nodeType?.durableEffect === true ||
-              instance.nodeType === 'invokeWorkflow' ||
-              workflowHasDurableBoundary(instance.nodeType)
-            );
-          })
-          .map(
-            (instance) =>
-              `${workflow.functionName}.${instance.id} (${instance.parent!.id}.${instance.parent!.scope})`,
-          ),
-      )
-      .sort();
-    if (unsafeScopedBoundaries.length > 0) {
-      throw new Error(
-        `Durable gates and effects are not supported inside scope callbacks because the scope owner may invoke callbacks concurrently. Invalid: ${unsafeScopedBoundaries.join(', ')}`,
-      );
-    }
-    const invalid = reachable
-      .flatMap((workflow) =>
-        workflow.instances.map((instance) => {
-          if (workflowsByName.has(instance.nodeType)) return undefined;
-          const nodeType = workflow.nodeTypes.find(
-            (candidate) =>
-              candidate.name === instance.nodeType ||
-              candidate.functionName === instance.nodeType,
-          );
-          const classifications = durableClassificationCount(nodeType);
-          return classifications === 1
-            ? undefined
-            : `${workflow.functionName}.${instance.id} (${instance.nodeType}): ${classifications === 0 ? 'unclassified' : 'conflicting classifications'}`;
-        }),
-      )
-      .filter((value): value is string => value !== undefined)
-      .sort();
-    if (invalid.length > 0) {
-      throw new Error(
-        `Durable classification errors:\nEvery reachable node in a workflow with a durable gate must have exactly one compiler classification: @durablePure, @durableGate, or @durableEffect. Invalid: ${invalid.join(', ')}`,
-      );
-    }
-  }
 
   // Validate before generating
   const { validateWorkflow } = await import('./validate.js');

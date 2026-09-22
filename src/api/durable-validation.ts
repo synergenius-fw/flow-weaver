@@ -185,6 +185,63 @@ export function durableClassificationCount(
   return [isGate, isEffect, isPure].filter(Boolean).length;
 }
 
+/**
+ * Whether a scope owner invokes its iteration callback concurrently, so
+ * durable gates inside the scope cannot be authenticated on resume.
+ *
+ * A sequential owner awaits the callback once per iteration in a loop, so each
+ * gate yield carries a distinct, ordered iteration ordinal. A concurrent owner
+ * (`Promise.all(items.map(cb))`, `Promise.allSettled`) fans the callback out in
+ * parallel: several iterations reach their gate at once and their ordinals race,
+ * which a resumed process cannot reconstruct deterministically. The owner's
+ * body is inspected through its retained `functionText`; a runtime-provided
+ * external descriptor has no source, so it is treated conservatively as unsafe.
+ * The check is deliberately narrow — it looks for the parallel combinators that
+ * are the actual footgun — and errs toward refusal, so a false positive only
+ * asks the author to sequence the loop, never lets a racing gate through.
+ */
+function scopeOwnerInvokesConcurrently(
+  parentNodeType: Pick<TNodeTypeAST, 'functionText' | 'functionTextProduction'> | undefined,
+): boolean {
+  const body = parentNodeType?.functionTextProduction ?? parentNodeType?.functionText;
+  if (body === undefined) return true;
+  // Scan code, not prose: a comment or string mentioning `Promise.all` must not
+  // trip the guard. Strip block and line comments and the contents of string,
+  // template, and regex-ish literals before testing, so only real calls count.
+  const codeOnly = body
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ')
+    .replace(/`(?:\\[\s\S]|[^`\\])*`/g, '``')
+    .replace(/'(?:\\.|[^'\\])*'/g, "''")
+    .replace(/"(?:\\.|[^"\\])*"/g, '""');
+  return /\bPromise\s*\.\s*(all|allSettled|race|any)\b/.test(codeOnly);
+}
+
+/**
+ * Whether a scope's parent node exposes a visible attempt limit, so a durable
+ * resume cannot re-run the loop forever.
+ *
+ * A durable loop is numbered by an iteration ordinal reconstructed from
+ * committed continuation state on resume (see
+ * `DurableExecution.resumedScopeHighWater`). That makes each iteration
+ * addressable and idempotent, but it does not by itself stop a loop whose
+ * termination the engine cannot see from diverging on replay. Requiring a
+ * declared bound (a `max`/`limit`/`attempts`/`retries`/`count`/`iterations`
+ * input on the scope node) keeps the iteration space finite and inspectable,
+ * matching the shape every shipped agent loop already has (`maxSteps`,
+ * `maxIterations`). This is the durable counterpart of the softer
+ * `DESIGN_UNBOUNDED_RETRY` design warning, promoted to a hard requirement for
+ * a scope that reaches a durable boundary.
+ */
+function scopeHasVisibleAttemptLimit(
+  workflow: TWorkflowAST,
+  parentNodeType: Pick<TNodeTypeAST, 'inputs'> | undefined,
+): boolean {
+  if (parentNodeType === undefined) return false;
+  const limitPattern = /max|limit|attempts|retries|count|iterations/i;
+  return Object.keys(parentNodeType.inputs).some((port) => limitPattern.test(port));
+}
+
 export function validateDurableClosure(
   root: TWorkflowAST,
   allWorkflows: readonly TWorkflowAST[] = [],
@@ -296,7 +353,8 @@ export function validateDurableClosure(
     return result;
   };
 
-  const unsafeScopedNodes: string[] = [];
+  const unboundedDurableScopes: string[] = [];
+  const concurrentDurableScopes: string[] = [];
   const invalidClassifications: string[] = [];
   const lazyNodes: string[] = [];
   const convergenceBoundaries: string[] = [];
@@ -306,18 +364,45 @@ export function validateDurableClosure(
     });
     const branchPaths = durableBranchPaths(workflow);
     const branchingNodes = findAllBranchingNodes(workflow, workflow.nodeTypes);
-    for (const instance of workflow.instances) {
-      const nodeType = nodeTypeFor(workflow, instance.nodeType);
-      const reachesBoundary =
+    const nodeReachesBoundary = (nodeTypeName: string): boolean => {
+      const nodeType = nodeTypeFor(workflow, nodeTypeName);
+      return (
         nodeType?.durableGate !== undefined ||
         nodeType?.durableEffect === true ||
-        instance.nodeType === 'invokeWorkflow' ||
-        workflowHasDurableBoundary(instance.nodeType);
-      if (instance.parent !== undefined && instance.parent !== null) {
-        unsafeScopedNodes.push(
-          `${workflow.functionName}.${instance.id} (${instance.parent.id}.${instance.parent.scope})`,
-        );
+        nodeTypeName === 'invokeWorkflow' ||
+        workflowHasDurableBoundary(nodeTypeName)
+      );
+    };
+    // A scoped child under a durable boundary is allowed once its owning loop
+    // is both bounded and sequential: the iteration ordinal is reconstructed
+    // from committed state on resume, a visible attempt limit keeps the replay
+    // finite, and sequential invocation keeps the ordinals ordered. Each such
+    // scope is judged once, by its owner, and named — not each child, and not
+    // every scope. A boundary-free scope never yields, so it is left alone.
+    const durableScopes = new Map<string, { ownerId: string; scopeName: string }>();
+    for (const instance of workflow.instances) {
+      if (instance.parent === undefined || instance.parent === null) continue;
+      if (!nodeReachesBoundary(instance.nodeType)) continue;
+      const scopeKey = `${instance.parent.id}::${instance.parent.scope}`;
+      if (!durableScopes.has(scopeKey)) {
+        durableScopes.set(scopeKey, { ownerId: instance.parent.id, scopeName: instance.parent.scope });
       }
+    }
+    for (const { ownerId, scopeName } of durableScopes.values()) {
+      const ownerInstance = workflow.instances.find((candidate) => candidate.id === ownerId);
+      const ownerNodeType =
+        ownerInstance === undefined ? undefined : nodeTypeFor(workflow, ownerInstance.nodeType);
+      const where = `${workflow.functionName}.${ownerId} (scope '${scopeName}')`;
+      if (!scopeHasVisibleAttemptLimit(workflow, ownerNodeType)) {
+        unboundedDurableScopes.push(where);
+      }
+      if (scopeOwnerInvokesConcurrently(ownerNodeType)) {
+        concurrentDurableScopes.push(where);
+      }
+    }
+    for (const instance of workflow.instances) {
+      const nodeType = nodeTypeFor(workflow, instance.nodeType);
+      const reachesBoundary = nodeReachesBoundary(instance.nodeType);
       if (!workflowsByName.has(instance.nodeType)) {
         const classifications = durableClassificationCount(nodeType);
         if (classifications !== 1) {
@@ -345,9 +430,16 @@ export function validateDurableClosure(
       }
     }
   }
-  if (unsafeScopedNodes.length > 0) {
+  if (concurrentDurableScopes.length > 0) {
+    const invalid = [...new Set(concurrentDurableScopes)].sort();
     throw new Error(
-      `Scope callbacks are not supported in workflow closures containing durable gates because callback execution ordinals cannot yet be authenticated independently of a live process. Invalid: ${unsafeScopedNodes.sort().join(', ')}`,
+      `A loop that reaches a durable gate must iterate sequentially so each gate keeps a distinct, ordered iteration ordinal; this scope owner invokes its iterations concurrently (Promise.all/allSettled/race/any). Await the callback once per iteration instead. Invalid: ${invalid.join(', ')}`,
+    );
+  }
+  if (unboundedDurableScopes.length > 0) {
+    const invalid = [...new Set(unboundedDurableScopes)].sort();
+    throw new Error(
+      `A loop that reaches a durable gate needs a visible attempt limit so a resumed run cannot diverge on replay. Add a max/limit/attempts/iterations input to the scope node. Invalid: ${invalid.join(', ')}`,
     );
   }
   if (invalidClassifications.length > 0) {

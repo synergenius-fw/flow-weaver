@@ -172,7 +172,19 @@ function hasCompleteRequiredPrefix(
     );
     if (boundaryNode === undefined) return false;
 
+    // The scope owners on the boundary's own scope path are its ancestors, not
+    // ordinary predecessors: an owner is suspended around the boundary while its
+    // loop body runs, so it has entered but cannot have committed. Its presence
+    // is proven by the boundary carrying its scope, so a predecessor that is one
+    // of those owners needs no separate committed entry.
+    const boundaryScopeOwners = new Set(
+      frameIndex === location.frames.length - 1
+        ? location.scopes.map((scope) => scope.parentNodeId)
+        : [],
+    );
+
     for (const predecessor of boundaryNode.predecessors) {
+      if (boundaryScopeOwners.has(predecessor.nodeId)) continue;
       const predecessorNode = graph.nodes.find(
         (node) => node.workflowId === frame.workflowId && node.nodeId === predecessor.nodeId,
       );
@@ -202,12 +214,20 @@ function addressBelongsToGraph(
   rootWorkflowId: string,
   address: ExecutionAddress,
 ): boolean {
+  // A scoped node re-executes once per loop iteration, so its executionIndex
+  // legitimately advances past 0 — it counts the node's runs, and the iteration
+  // it belongs to is authenticated by the scope address below. Only a node with
+  // no scopes must be its own first (and only) execution.
+  const isScopedAddress = address.scopes.length > 0;
   if (
     address.frames[0]?.workflowId !== rootWorkflowId ||
     address.frames[0]?.invocation !== 0 ||
     address.frames[0]?.callerNodeId !== undefined ||
-    address.executionIndex !== 0 ||
-    address.scopes.length > 0 ||
+    (!isScopedAddress && address.executionIndex !== 0) ||
+    // Scopes are authenticated per-scope below (each scope's parent node must
+    // declare it) and, for a scoped node, against the node's own parentScope.
+    // A scoped durable boundary therefore carries scopes; blanket-rejecting any
+    // scope here would refuse a legitimate loop iteration's committed address.
     address.branches.some((branch) => branch.executionIndex !== 0) ||
     address.frames.some(
       (frame, index) => frame.invocation !== 0 || (index > 0 && frame.callerExecutionIndex !== 0),

@@ -212,10 +212,9 @@ const errorMappers: Record<string, ErrorMapper> = {
     return {
       title: 'Circular Dependency Found',
       explanation: `Circular dependency found. Node '${nodeName}' eventually connects back to itself, creating an infinite loop.${cyclePath ? ` Path: ${cyclePath}` : ''}`,
-      // A workflow with a durable gate may not contain scoped children at
-      // all, so sending everyone to forEach sends half of them to a second
-      // refusal. Name the condition rather than the exception.
-      fix: 'Break the cycle by removing one of the connections in the loop, or use a scoped node (like forEach) for intentional iteration. A workflow that pauses at a durable gate cannot do either: run the loop outside it and invoke the workflow once per item.',
+      // A durable-gate workflow may contain a scoped loop, but only a bounded
+      // one; point at the scope node and its limit rather than banning it.
+      fix: 'Break the cycle by removing one of the connections in the loop, or use a scoped node (like forEach) for intentional iteration. Inside a workflow that pauses at a durable gate, that scope must be bounded: give it a max/limit/attempts/iterations input.',
       code: error.code,
     };
   },
@@ -670,9 +669,9 @@ const errorMappers: Record<string, ErrorMapper> = {
     const message = error.message;
     let fix =
       'Keep each gate/effect in one branch region reading only from its immediate predecessor. Thread shared values through the chain rather than wiring them around a gate. See the durable-gates topic.';
-    if (message.includes('Scope callbacks are not supported')) {
+    if (message.includes('needs a visible attempt limit')) {
       fix =
-        'A workflow that pauses at a durable gate cannot contain scoped children, so the loop has to sit outside it: invoke this workflow once per item from the caller, or write the passes out in full if there are few and the count is fixed. See the durable-gates topic.';
+        'A loop inside a durable workflow is allowed once it is bounded: give the scope node a max/limit/attempts/iterations input (like the maxSteps on the ReAct agent) so a resumed run has a finite, inspectable iteration space. The iteration ordinal is reconstructed from committed state on resume, so the bound is all that is missing. See the durable-gates topic.';
     } else if (message.includes('do not support pull or lazy execution')) {
       fix =
         'Remove pullExecution from the named nodes, or give them a step connection so they run in order. A yielded continuation needs every predecessor already compiled into it. See the durable-gates topic.';

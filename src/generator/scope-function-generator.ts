@@ -273,9 +273,16 @@ export function generateScopeFunctionClosure(
           argLines.push(
             `${tryIndent}const ${varName} = ${getCall}({ id: '${parentNodeId}', portName: '${conn.from.port}', executionIndex: ${scopeParamIdxVar} }) as ${portType};`,
           );
-          // Emit VARIABLE_SET for the child's INPUT port so breakpoints and inspection work
+          // Emit VARIABLE_SET for the child's INPUT port so breakpoints and
+          // inspection work. `durable: false` keeps it live/debug-visible but
+          // out of the serialized continuation — an input is not a graph-owned
+          // output, and a durable resume authenticates outputs only. Without
+          // this a scoped gate's `execute`/`prompt` inputs would be committed
+          // as durable variables and a resumed loop iteration would be refused.
+          // This matches buildNodeArgumentsWithContext, which sets every input
+          // port `durable: false`; the pre-handled scope path must not diverge.
           argLines.push(
-            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${targetPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}' }, ${varName});`,
+            `${tryIndent}${childSetCall}({ id: '${child.id}', portName: '${targetPort}', executionIndex: ${safeChildId}Idx, nodeTypeName: '${child.nodeType}', durable: false }, ${varName});`,
           );
           preHandledPorts.add(targetPort);
         }

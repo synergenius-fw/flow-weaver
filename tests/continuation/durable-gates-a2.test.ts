@@ -662,7 +662,10 @@ describe('A2 durable gate continuation', () => {
     ).rejects.toThrow(/externalConflict\.effect.*conflicting classifications/s);
   });
 
-  it('rejects durable boundaries inside arbitrary scope callback topology', async () => {
+  it('rejects a concurrent durable scope, naming the scope and its owner', async () => {
+    // durable-scoped-gate.ts fans its iterations out with Promise.all, so the
+    // per-iteration gate ordinals would race and could not be authenticated on
+    // resume. The concurrency hazard is reported before the missing bound.
     await expect(
       compileWorkflow(scopedGateFixture, {
         write: false,
@@ -670,7 +673,7 @@ describe('A2 durable gate continuation', () => {
         generate: { production: true },
       }),
     ).rejects.toThrow(
-      /Scope callbacks are not supported in workflow closures containing durable gates.*durableScopedGate\.gate \(owner\.iteration\)/s,
+      /must iterate sequentially.*durableScopedGate\.owner \(scope 'iteration'\)/s,
     );
   });
 
@@ -796,7 +799,7 @@ describe('A2 durable gate continuation', () => {
         production: true,
         allWorkflows: scoped.allWorkflows,
       }),
-    ).toThrow(/Scope callbacks are not supported/);
+    ).toThrow(/must iterate sequentially/);
   });
 
   it('refuses lazy predecessors and gates after branch convergence', async () => {

@@ -86,6 +86,15 @@ export class GeneratedExecutionContext {
     this.flowWeaverDebugger = runtime.services.debugger;
     this.runtime = runtime;
     this.branchStack = [...runtime.branches];
+    // Resume-safety: a re-entered scope must continue at the iteration the
+    // original process reached, not restart at 0. The next ordinal to assign
+    // is one past the highest iteration committed to the continuation. Without
+    // this seed a fresh-process resume would recount from 0 and collide with
+    // already-committed loop iterations. Every scoped context is built through
+    // this constructor with the same shared `runtime`, so nested loops seed too.
+    for (const [scopeKey, maxIteration] of runtime.durable.resumedScopeHighWater()) {
+      this.scopeInvocationCounts.set(scopeKey, maxIteration + 1);
+    }
   }
   registerPullExecutor(id: string, executor: () => void | Promise<void>): void {
     this.pullExecutors.set(id, executor);

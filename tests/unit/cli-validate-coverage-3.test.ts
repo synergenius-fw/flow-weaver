@@ -122,7 +122,7 @@ describe('validateCommand coverage round 3', () => {
   describe('agent validation rules producing errors and warnings', () => {
     it('should merge agent rule errors into validation result', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: { nodes: [], connections: [] },
+        ast: { instances: [], nodeTypes: [], connections: [] },
         warnings: [],
         errors: [],
       });
@@ -151,7 +151,7 @@ describe('validateCommand coverage round 3', () => {
 
     it('should merge agent rule warnings into validation result', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: { nodes: [], connections: [] },
+        ast: { instances: [], nodeTypes: [], connections: [] },
         warnings: [],
         errors: [],
       });
@@ -184,7 +184,7 @@ describe('validateCommand coverage round 3', () => {
   describe('friendly error display for validation errors', () => {
     it('should display friendly error with location and docUrl', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: {},
+        ast: { instances: [], nodeTypes: [] },
         warnings: [],
         errors: [],
       });
@@ -223,7 +223,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should display friendly error without location', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: false,
         errors: [
@@ -252,7 +252,7 @@ describe('validateCommand coverage round 3', () => {
 
     it('should display non-friendly error with location, node, and connection info', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: {},
+        ast: { instances: [], nodeTypes: [] },
         warnings: [],
         errors: [],
       });
@@ -291,7 +291,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should display non-friendly error without location, node, or connection', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: false,
         errors: [{ message: 'Generic error', type: 'error' }],
@@ -313,7 +313,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should display non-friendly error with docUrl but no friendly match', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: false,
         errors: [
@@ -336,7 +336,7 @@ describe('validateCommand coverage round 3', () => {
 
   describe('friendly error display for validation warnings', () => {
     it('should display friendly warning with location and docUrl', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: true,
         errors: [],
@@ -366,7 +366,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should display friendly warning without location', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: true,
         errors: [],
@@ -389,7 +389,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should display non-friendly warning with location, node, and docUrl', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: true,
         errors: [],
@@ -415,7 +415,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should display non-friendly warning without location or node', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: true,
         errors: [],
@@ -431,7 +431,7 @@ describe('validateCommand coverage round 3', () => {
 
     it('should suppress warnings in quiet mode', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: {},
+        ast: { instances: [], nodeTypes: [] },
         warnings: ['Parse-level warning'],
         errors: [],
       });
@@ -452,7 +452,7 @@ describe('validateCommand coverage round 3', () => {
   describe('parse warnings display', () => {
     it('should display parse warnings when not quiet and not json', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: {},
+        ast: { instances: [], nodeTypes: [] },
         warnings: ['Deprecated annotation used', 'Unknown tag ignored'],
         errors: [],
       });
@@ -469,7 +469,7 @@ describe('validateCommand coverage round 3', () => {
   describe('parse errors handling', () => {
     it('should skip non-workflow files silently in non-verbose mode', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: {},
+        ast: { instances: [], nodeTypes: [] },
         warnings: [],
         errors: ['No workflows found in this file'],
       });
@@ -481,7 +481,7 @@ describe('validateCommand coverage round 3', () => {
 
     it('should record parse errors in JSON mode with string-to-object mapping', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: {},
+        ast: { instances: [], nodeTypes: [] },
         warnings: ['a warning'],
         errors: ['Parse error: invalid syntax', { message: 'Structured error', severity: 'error' }],
       });
@@ -498,7 +498,7 @@ describe('validateCommand coverage round 3', () => {
 
     it('should display parse errors in non-JSON mode', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: {},
+        ast: { instances: [], nodeTypes: [] },
         warnings: [],
         errors: ['Node type "ghost" not found', 'Duplicate node id "x"'],
       });
@@ -547,7 +547,7 @@ describe('validateCommand coverage round 3', () => {
     it('should show singular "error" and plural "warnings"', async () => {
       mockGlob.mockResolvedValue(['/fake/a.ts', '/fake/b.ts']);
 
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
 
       let validateCallCount = 0;
       mockValidate.mockImplementation(() => {
@@ -574,7 +574,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should show plural "errors" when count > 1', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: false,
         errors: [
@@ -595,7 +595,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should show warnings-only summary when no errors', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: true,
         errors: [],
@@ -610,7 +610,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should show singular "file" when only 1 valid file', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/pattern', { json: false });
@@ -621,7 +621,7 @@ describe('validateCommand coverage round 3', () => {
 
     it('should show plural "files" when multiple valid', async () => {
       mockGlob.mockResolvedValue(['/fake/a.ts', '/fake/b.ts']);
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/pattern', { json: false });
@@ -659,7 +659,7 @@ describe('validateCommand coverage round 3', () => {
         isFile: () => true,
       });
       mockGlob.mockResolvedValue(['/fake/dir/file.ts']);
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/dir', { json: false });
@@ -675,7 +675,7 @@ describe('validateCommand coverage round 3', () => {
         throw new Error('Permission denied');
       });
       mockGlob.mockResolvedValue(['/fake/file.ts']);
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/pattern', { json: false });
@@ -696,7 +696,7 @@ describe('validateCommand coverage round 3', () => {
         return { isDirectory: () => false, isFile: () => true };
       });
 
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/pattern', { json: true });
@@ -728,7 +728,7 @@ describe('validateCommand coverage round 3', () => {
 
   describe('JSON output structure', () => {
     it('should include nodeId and code in JSON validation errors', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: false,
         errors: [
@@ -762,7 +762,7 @@ describe('validateCommand coverage round 3', () => {
 
     it('should include parse warnings alongside validation warnings in JSON', async () => {
       mockParseWorkflow.mockResolvedValue({
-        ast: {},
+        ast: { instances: [], nodeTypes: [] },
         warnings: ['Deprecated tag'],
         errors: [],
       });
@@ -785,7 +785,7 @@ describe('validateCommand coverage round 3', () => {
     });
 
     it('should produce correct JSON summary', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/pattern', { json: true });
@@ -804,7 +804,7 @@ describe('validateCommand coverage round 3', () => {
 
   describe('verbose progress display', () => {
     it('should show progress and file count in verbose non-json mode', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/pattern', { json: false, verbose: true });
@@ -817,7 +817,7 @@ describe('validateCommand coverage round 3', () => {
 
   describe('strict mode', () => {
     it('should pass strictMode to validator', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/pattern', { strict: true });
@@ -831,7 +831,7 @@ describe('validateCommand coverage round 3', () => {
 
   describe('workflowName option', () => {
     it('should pass workflowName to parseWorkflow', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/pattern', { workflowName: 'myWf' });
@@ -845,7 +845,7 @@ describe('validateCommand coverage round 3', () => {
 
   describe('error handling on validation errors', () => {
     it('should throw when there are validation errors', async () => {
-      mockParseWorkflow.mockResolvedValue({ ast: {}, warnings: [], errors: [] });
+      mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({
         valid: false,
         errors: [{ message: 'err', type: 'error' }],
