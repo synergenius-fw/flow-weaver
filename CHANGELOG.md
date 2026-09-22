@@ -4,6 +4,10 @@ All notable changes to this project are documented in [GitHub Releases](https://
 
 This project follows [Semantic Versioning](https://semver.org/) during alpha. Breaking changes may occur between minor versions until v1.0.
 
+## 0.42.2
+
+- **The spine keeps a scope owner above its body.** When a loop wired its scoped children's failure arms into its own `failure` input, the diagram's shared-failure-join pass treated the owner as a join and drew it below its own body, inverting the loop. A node entered only by its own scoped children is the loop reporting failure, not a join, so it now keeps its place at the head of its body.
+
 ## 0.42.1
 
 - **A durable loop can wire its failure path out.** The convergence check refused a scoped gate whenever any branching node sorted before it, and a scope owner always sorts before its scoped children — so wiring the loop's own `onFailure` (surfacing a failed iteration instead of losing it) falsely tripped "durable boundaries after branch convergence". The check now counts a branching node against a boundary only when the boundary is actually in that branch's reach, so an in-scope gate is no longer flagged for its own loop's downstream arms. A genuine post-convergence gate (fed by both arms of a real branch) is still refused. `examples/research-agent-loop.ts` now wires its failure path and validates clean.
