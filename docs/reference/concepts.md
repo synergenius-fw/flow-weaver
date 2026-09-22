@@ -8,7 +8,7 @@ keywords: [annotations, nodes, workflows, ports, scopes, STEP, expression, conne
 
 # Direct Code Editing
 
-**The code IS the workflow. The visual editor is a view.**
+**The code IS the workflow.**
 
 Flow Weaver workflows are plain TypeScript files with JSDoc annotations. You write functions, annotate them, and the compiler handles everything else. No drag-and-drop required.
 
@@ -98,7 +98,7 @@ fw watch <file>      # Watch mode
 fw dev <file>        # Watch + compile + run in one command
 fw serve [dir]       # HTTP server exposing workflows as endpoints
 fw diagram <file>    # Generate SVG diagram
-fw export <file>     # Export for an installed pack target (e.g. a serverless function)
+fw export <file>     # Export through a target provided by an installed pack
 fw docs              # Browse documentation
 fw docs <topic>      # Read a specific topic
 fw docs search <q>   # Search across all docs

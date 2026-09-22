@@ -461,7 +461,7 @@ Display the node in a collapsed/minimized state:
 
 ### Size (`[size: W H]`)
 
-Custom node dimensions in the visual editor:
+Custom node dimensions when the workflow is rendered as a diagram:
 
 ```typescript
 @node big BigNode [size: 400 300]

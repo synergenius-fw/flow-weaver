@@ -36,7 +36,7 @@ Complete reference for all `fw` CLI commands.
 | `run` | Execute a workflow file directly |
 | `serve` | Serve the workflows as HTTP endpoints. Gated runs pause, resume and stream over the same API |
 | `console` | Open the local operator console: workflows as processes, issues, code, live runs and gates |
-| `export` | Export workflow as serverless function |
+| `export` | Export a workflow to a target provided by an installed pack |
 | `openapi` | Generate OpenAPI specification from workflows |
 | `migrate` | Migrate workflow files to current syntax via parse → regenerate round-trip |
 | `status` | Report implementation progress for stub workflows |
@@ -732,7 +732,7 @@ fw templates [options]
 
 ### export
 
-Export workflow as a serverless function for cloud platforms.
+Export a workflow through a target provided by an installed pack. Flow Weaver core ships no export target; install one with `fw market search` / `fw market install`, then pass its name to `--target`.
 
 ```bash
 fw export <input> [options]

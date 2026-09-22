@@ -493,7 +493,7 @@ program
 // Export command
 program
   .command('export <input>')
-  .description('Export workflow as serverless function')
+  .description('Export a workflow to a target provided by an installed pack')
   .requiredOption('-t, --target <target>', 'Target platform (install target packs via marketplace)')
   .requiredOption('-o, --output <path>', 'Output directory')
   .option('-w, --workflow <name>', 'Specific workflow name to export')

@@ -1,5 +1,7 @@
 /**
- * Export command - generate serverless function handlers for deployment
+ * Export command - run a workflow through an export target provided by an
+ * installed pack. Flow Weaver core ships no target; each comes from a pack's
+ * `exportTargets` manifest, resolved from node_modules per call.
  */
 
 import { exportWorkflow, type ExportTarget } from '../../export/index.js';
@@ -29,7 +31,7 @@ export interface ExportOptions {
 }
 
 /**
- * Export a workflow as a serverless function.
+ * Export a workflow through an installed pack's export target.
  *
  * @param input - Path to the workflow file
  * @param options - Export options
