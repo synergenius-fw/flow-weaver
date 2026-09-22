@@ -136,6 +136,23 @@ function progressVector(
     }
     progress.push(caller.executionOrder, frame.callerExecutionIndex, frame.invocation);
   }
+  // Each scope is a nesting level, like a frame: contribute the scope owner's
+  // position in the graph, then the loop iteration, before descending. This
+  // keeps the vector aligned across addresses at different depths (a node before
+  // the loop sorts by the owner's executionOrder against the owner's own slot)
+  // and makes iteration the dominant order inside the loop: everything in
+  // iteration N precedes everything in iteration N+1, regardless of the
+  // intra-loop topological order of the nodes. Without the iteration term a node
+  // late in the body in iteration N compares as "after" a boundary early in
+  // iteration N+1 and the prefix check wrongly rejects the resume.
+  const lastFrameWorkflowId = address.frames[address.frames.length - 1]?.workflowId;
+  for (const scope of address.scopes) {
+    const owner = graph.nodes.find(
+      (node) => node.workflowId === lastFrameWorkflowId && node.nodeId === scope.parentNodeId,
+    );
+    if (owner === undefined) return undefined;
+    progress.push(owner.executionOrder, scope.loopIteration ?? scope.invocation);
+  }
   const node = graphNodeForAddress(graph, address);
   if (node === undefined) return undefined;
   progress.push(node.executionOrder, address.executionIndex);
