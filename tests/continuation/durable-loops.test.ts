@@ -25,6 +25,8 @@ const boundedLoopFixture = path.join(here, 'fixtures', 'durable-bounded-loop.ts'
 const unboundedLoopFixture = path.join(here, 'fixtures', 'durable-scoped-gate.ts');
 const boundLessGateFixture = path.join(here, 'fixtures', 'durable-unbounded-loop.ts');
 const boundaryFreeScopeFixture = path.join(here, 'fixtures', 'durable-boundary-free-scope.ts');
+const agentLoopFixture = path.join(here, 'fixtures', 'durable-agent-loop.ts');
+const convergenceFixture = path.join(here, 'fixtures', 'durable-branch-convergence.ts');
 const bundleDigest = digestContract.bundleDigest;
 
 describe('bounded durable loops — validation', () => {
@@ -61,6 +63,29 @@ describe('bounded durable loops — validation', () => {
     expect(() =>
       validateDurableClosure(parsed.ast, parsed.allWorkflows, { enforce: true }),
     ).toThrow(/needs a visible attempt limit.*durableUnboundedLoop\.owner \(scope 'iteration'\)/s);
+  });
+
+  it('accepts an in-scope gate whose loop wires its own failure path out', async () => {
+    // The scope owner's onSuccess/onFailure arms fire after the whole loop, so
+    // an in-scope gate is upstream of them, not after a convergence. Wiring the
+    // loop's failure path (which makes the owner a branching node that sorts
+    // before its children) must not trip the convergence check.
+    const parsed = await parseWorkflow(agentLoopFixture, { workflowName: 'researchAgent' });
+    expect(parsed.errors).toEqual([]);
+    expect(() =>
+      validateDurableClosure(parsed.ast, parsed.allWorkflows, { enforce: true }),
+    ).not.toThrow();
+  });
+
+  it('still refuses a real gate after two arms converge', async () => {
+    // A gate fed by both branch.onSuccess and branch.onFailure genuinely sits
+    // where the arms rejoin: its address cannot record which arm ran, so the
+    // convergence rule must still catch it. The false-positive fix must not
+    // relax this.
+    const parsed = await parseWorkflow(convergenceFixture, { workflowName: 'durableBranchConvergence' });
+    expect(() =>
+      validateDurableClosure(parsed.ast, parsed.allWorkflows, { enforce: true }),
+    ).toThrow(/after branch convergence/);
   });
 
   it('accepts a scoped loop whose body never reaches a durable boundary', async () => {

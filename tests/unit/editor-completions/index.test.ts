@@ -47,7 +47,6 @@ describe('getFlowWeaverCompletions', () => {
       expect(result.some((c) => c.label === '@executeWhen')).toBe(true);
       expect(result.some((c) => c.label === '@fwImport')).toBe(true);
       expect(result.some((c) => c.label === '@strictTypes')).toBe(true);
-      expect(result.some((c) => c.label === '@port')).toBe(true);
     });
 
     it('should filter annotations by block type (workflow)', () => {

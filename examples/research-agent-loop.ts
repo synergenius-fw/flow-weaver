@@ -27,6 +27,7 @@
  * @output subtopic scope:topic - The subtopic for this iteration
  * @output context scope:topic - Context object sent to the agent
  * @input success scope:topic - Iteration finished
+ * @input failure scope:topic - Iteration failed
  * @input finding scope:topic - The agent's finding for this subtopic
  * @output report - Findings, one per processed subtopic, in order
  */
@@ -36,6 +37,7 @@ async function researchLoop(
   maxTopics: number = 20,
   topic: (start: boolean, subtopic: string, context: object) => Promise<{
     success: boolean;
+    failure: boolean;
     finding: string;
   }>,
 ): Promise<{ onSuccess: boolean; onFailure: boolean; report: string[] }> {
@@ -44,6 +46,10 @@ async function researchLoop(
   const bound = Math.min(subtopics.length, maxTopics);
   for (let i = 0; i < bound; i++) {
     const outcome = await topic(true, subtopics[i]!, { subtopic: subtopics[i]! });
+    // A failed iteration takes the loop's failure path instead of being lost.
+    if (outcome.failure) {
+      return { onSuccess: false, onFailure: true, report };
+    }
     report.push(`${subtopics[i]}: ${outcome.finding}`);
   }
   return { onSuccess: true, onFailure: false, report };
@@ -76,6 +82,7 @@ async function recordFinding(
  * @flowWeaver workflow
  * @param subtopics - Subtopics to research
  * @param [maxTopics] - Maximum subtopics to process
+ * @returns onFailure - An iteration failed
  * @returns report - One finding per subtopic
  * @node loop researchLoop [color: "purple"] [icon: "science"]
  * @node investigate waitForAgent loop.topic [color: "blue"] [icon: "smartToy"]
@@ -87,10 +94,14 @@ async function recordFinding(
  * @connect loop.subtopic:topic -> investigate.agentId
  * @connect loop.context:topic -> investigate.context
  * @connect investigate.onSuccess -> record.execute
+ * @connect investigate.onFailure -> loop.failure:topic
  * @connect investigate.agentResult -> record.agentResult
  * @connect record.finding -> loop.finding:topic
  * @connect record.onSuccess -> loop.success:topic
+ * @connect record.onFailure -> loop.failure:topic
  * @connect loop.report -> Exit.report
+ * @connect loop.onSuccess -> Exit.onSuccess
+ * @connect loop.onFailure -> Exit.onFailure
  */
 export async function researchAgent(
   execute: boolean,

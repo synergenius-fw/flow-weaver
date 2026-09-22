@@ -364,6 +364,22 @@ export function validateDurableClosure(
     });
     const branchPaths = durableBranchPaths(workflow);
     const branchingNodes = findAllBranchingNodes(workflow, workflow.nodeTypes);
+    const allInstanceIds = new Set(workflow.instances.map((instance) => instance.id));
+    // The raw reach of each branching node: the nodes on either of its arms,
+    // before the convergence promotions durableBranchPaths applies. A boundary
+    // is "after" a branch only if it actually sits in that branch's reach; a
+    // node merely later in topological order is not downstream of the branch.
+    // In particular a scope owner sorts before its scoped children yet its
+    // success/failure arms fire only after the whole scope completes, so an
+    // in-scope gate is upstream of the owner's branch, not after it.
+    const branchReach = new Map<string, Set<string>>();
+    for (const branchNodeId of branchingNodes) {
+      const reach = new Set<string>([
+        ...findNodesInBranch(branchNodeId, RESERVED_PORT_NAMES.ON_SUCCESS, workflow, allInstanceIds, branchingNodes, workflow.nodeTypes),
+        ...findNodesInBranch(branchNodeId, RESERVED_PORT_NAMES.ON_FAILURE, workflow, allInstanceIds, branchingNodes, workflow.nodeTypes),
+      ]);
+      branchReach.set(branchNodeId, reach);
+    }
     const nodeReachesBoundary = (nodeTypeName: string): boolean => {
       const nodeType = nodeTypeFor(workflow, nodeTypeName);
       return (
@@ -423,7 +439,8 @@ export function validateDurableClosure(
         (branchPaths.get(instance.id)?.length ?? 0) === 0 &&
         [...branchingNodes].some(
           (branchNodeId) =>
-            executionOrder.indexOf(branchNodeId) < instanceOrder,
+            executionOrder.indexOf(branchNodeId) < instanceOrder &&
+            branchReach.get(branchNodeId)?.has(instance.id) === true,
         )
       ) {
         convergenceBoundaries.push(`${workflow.functionName}.${instance.id}`);
