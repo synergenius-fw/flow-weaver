@@ -125,7 +125,8 @@
     "!dist/**/*.map",
     "docs/reference",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "prebuild": "tsx scripts/generate-version.ts && tsx scripts/generate-inline-engine.ts && tsx scripts/generate-built-in-registry.ts",
@@ -169,14 +170,11 @@
     "typescript",
     "compiler",
     "code-generation",
-    "visual-programming",
-    "node-graph",
     "durable-execution",
-    "inngest",
-    "serverless"
+    "human-in-the-loop"
   ],
   "author": "Ricardo José Horta Morais",
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "homepage": "https://github.com/synergenius-fw/flow-weaver#readme",
   "bugs": "https://github.com/synergenius-fw/flow-weaver/issues",
   "repository": {
@@ -202,7 +200,6 @@
     "picocolors": "^1.1.1",
     "source-map": "^0.7.6",
     "ts-morph": "^28.0.0",
-    "ws": "^8.21.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -210,14 +207,12 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
-    "@types/ws": "^8.18.1",
     "@vitest/coverage-v8": "^4.1.7",
     "husky": "^9.1.7",
     "marked": "^18.0.13",
     "preact": "^10.29.0",
     "prettier": "^3.8.3",
     "rimraf": "6.1.3",
-    "ts-node": "^10.9.2",
     "tsx": "^4.22.4",
     "typedoc": "^0.28.19",
     "typescript": "^6.0.3",

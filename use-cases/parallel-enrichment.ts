@@ -35,11 +35,12 @@ interface AnalysisResult {
  * @output analyzerCount [order:2] - Number of successful analyzers
  */
 function mergeResults(
-  sentiment: AnalysisResult,
-  readability: AnalysisResult,
-  keywords: AnalysisResult
+  sentiment: AnalysisResult | null,
+  readability: AnalysisResult | null,
+  keywords: AnalysisResult | null
 ): { report: Record<string, unknown>; analyzerCount: number } {
-  const results = [sentiment, readability, keywords];
+  // An analyzer that did not run hands over null; count only the ones that did.
+  const results = [sentiment, readability, keywords].filter((r): r is AnalysisResult => r !== null);
   const report: Record<string, unknown> = {};
   for (const r of results) {
     report[r.source] = { score: r.score, ...r.details };

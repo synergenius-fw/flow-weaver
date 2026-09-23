@@ -31,5 +31,5 @@ jobs:
           days-before-close: 15
           stale-issue-label: stale
           stale-pr-label: stale
-          exempt-issue-labels: 'alpha-feedback,enhancement,breaking'
+          exempt-issue-labels: 'feedback,enhancement,breaking'
           exempt-pr-labels: 'breaking'

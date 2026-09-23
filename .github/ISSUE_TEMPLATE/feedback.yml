@@ -1,6 +1,6 @@
-name: Alpha Feedback
-description: General feedback from alpha testers
-labels: ["alpha-feedback"]
+name: Feedback
+description: What is working, what is confusing, what is missing
+labels: ["feedback"]
 body:
   - type: textarea
     id: feedback

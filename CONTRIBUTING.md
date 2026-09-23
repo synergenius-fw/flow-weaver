@@ -7,8 +7,8 @@ understand the requirements below.
 
 All contributors must agree to the [Contributor License Agreement](CLA.md)
 before any contribution can be accepted. By submitting a pull request, you agree
-to the CLA and assign copyright of your contribution to Ricardo Jose Horta
-Morais (Synergenius).
+to the CLA and assign copyright of your contribution to Ricardo José Horta
+Morais.
 
 This means all accepted contributions become the property of the licensor.
 You retain the right to use your own contributions under a non-exclusive

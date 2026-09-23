@@ -3,9 +3,10 @@
  *
  * One entry per tool the MCP server registers, mirroring the zod schema in
  * its src/mcp/tools-*.ts registration: same names, descriptions, parameter
- * types, enums and required flags. The platform's documentation plugin
- * renders this array, so a tool missing here is missing from the product
- * docs. When a tool schema changes, change the entry with it.
+ * types, enums and required flags. It is exported from
+ * `@synergenius/flow-weaver/doc-metadata` for documentation tooling, so a tool
+ * missing here is missing from generated docs. When a tool schema changes,
+ * change the entry with it.
  */
 
 import type { TMcpToolDoc } from '../types.js';

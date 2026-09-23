@@ -1,8 +1,7 @@
 /**
  * Orthogonal connection router for SVG diagram rendering.
  *
- * 1-1 port of the platform's orthogonalRouter.ts.
- * Only change: removed the gl-matrix dependency in favor of plain [number, number] tuples.
+ * Uses plain [number, number] tuples for points, with no vector-math dependency.
  */
 
 // ─── Types ───

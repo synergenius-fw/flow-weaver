@@ -17,3 +17,4 @@
 - [ ] Types check cleanly
 - [ ] Tests added/updated if applicable
 - [ ] Docs updated if user-facing behavior changed
+- [ ] I agree to the [Contributor License Agreement](https://github.com/synergenius-fw/flow-weaver/blob/main/CLA.md)

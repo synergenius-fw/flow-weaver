@@ -372,7 +372,7 @@ fw console
 fw console ./workflows --open
 ```
 
-Runs started here stream real execution events, so the process lights up step by step and a paused gate offers a form built from the port's TypeScript type. Runs live in the same store as `fw_run` and `fw_resume` (`~/.fw/runs`, or `FW_RUNS_DIR`): a gate reached in the console can be answered by an assistant over MCP and the other way round, a run waiting at a gate survives a restart of the console, and effects get receipts. The step trace is kept beside the record, so a run opened later still shows what each step did; a segment resumed over MCP keeps no trace, and the console says so rather than guessing. The console binds to localhost and re-reads a file as you save it.
+Runs started here stream real execution events, so the process lights up step by step and a paused gate offers a form built from the port's TypeScript type. Runs live in the same store as `fw_run` and `fw_resume` (the project's `.fw/runs`, or `FW_RUNS_DIR`): a gate reached in the console can be answered by an assistant over MCP and the other way round, a run waiting at a gate survives a restart of the console, and effects get receipts. The step trace is kept beside the record, so a run opened later still shows what each step did; a segment resumed over MCP keeps no trace, and the console says so rather than guessing. The console binds to localhost and re-reads a file as you save it.
 
 > See also: [Durable Gates](durable-gates) for what pauses a run and how it resumes.
 
@@ -1016,7 +1016,7 @@ fw mcp-server [options]
 | `fw_workflow_run` | Coordinators | Stateless; returns the raw continuation envelope |
 | `fw_workflow_resume` | Coordinators | Stateless; requires the envelope, `gateId`, full resolution, and `bundleDigest` |
 
-The `fw_run` family stores runs under `~/.fw/runs/<runId>/` (`FW_RUNS_DIR` overrides). Results carry no trace events or continuation. See [Durable Gates](durable-gates).
+The `fw_run` family stores runs under the workflow's project, in `.fw/runs/<runId>/` (`FW_RUNS_DIR` overrides). Results carry no trace events or continuation. See [Durable Gates](durable-gates).
 
 The full list of 35 tools, with which to prefer and how large their results are, is in [MCP Tools](mcp-tools).
 

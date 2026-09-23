@@ -74,8 +74,5 @@ temp/
 # Worktrees
 .worktrees/
 
-# Per-customer licensed builds (scripts/make-licensed-copy.mjs output)
-licensed-out/
-
 # Local run store written by the coordinator / console / fw serve
 .fw/

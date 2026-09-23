@@ -25,12 +25,11 @@ async function build() {
     target: 'node18',
     format: 'esm',
     outfile,
-    // The published CLI ships minified: the proprietary licence forbids
-    // redistributing readable source, and no sourcemap goes out (package.json
-    // `files` already excludes dist/**/*.map).
-    minify: true,
+    // One readable file. No sourcemap goes out (package.json `files` already
+    // excludes dist/**/*.map). Bundled dependencies keep their licence comments.
+    minify: false,
     sourcemap: false,
-    legalComments: 'none',
+    legalComments: 'eof',
     external: [
       // Keep these external - they're native/problematic to bundle
       'typescript',

@@ -366,7 +366,7 @@ export function generateProjectFiles(
     },
     devDependencies: {
       typescript: '^5.3.0',
-      '@types/node': '^20.11.0',
+      '@types/node': '^22.0.0',
       tsx: '^4.21.0',
     },
   };

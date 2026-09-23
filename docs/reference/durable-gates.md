@@ -336,7 +336,7 @@ A gate with a due time is still a gate: it can be answered or rejected before th
 
 ## Driving a run from an AI assistant
 
-The MCP server exposes a local coordinator so an assistant only ever sees a run id and a labeled gate — not the continuation. Runs are stored under `~/.fw/runs/<runId>/` (override with `FW_RUNS_DIR`). `fw console` drives the same store, so a gate reached from either side can be answered from the other, and a person can watch or take over a run an assistant started.
+The MCP server exposes a local coordinator so an assistant only ever sees a run id and a labeled gate — not the continuation. Runs are stored under the workflow's project, in `.fw/runs/<runId>/` (override with `FW_RUNS_DIR`). `fw console` drives the same store, so a gate reached from either side can be answered from the other, and a person can watch or take over a run an assistant started.
 
 | Tool | Arguments | Returns |
 |------|-----------|---------|
@@ -397,7 +397,7 @@ A paused gate is matched by `workflow/node` first, then by its `agentId` input, 
 
 **What the model is given.** The gate's inputs as JSON — `agentId`, `context`, `prompt` — and a `submit_answer` tool whose input schema is the gate's output type, derived from the workflow's TypeScript the way the console's answer form is. When the gate has an `onFailure` port it also gets a `reject` tool. It has no other tools: it cannot read files, run commands, or reach the network on its own; what it needs must be in `context` (paths and excerpts, not whole files — the continuation envelope is capped at 1 MiB). It is asked to do the task and call the tool once; the tool's arguments become the answer, exactly as `fw_resume`'s `answer` would.
 
-**What is kept.** The run records `agent: { profile, status, usage, toolCalls }` — `answering` while the model works, then `answered`, `rejected` or `failed` — and the transcript is kept beside the run (`~/.fw/runs/<runId>/agent-<gate>.json`). The console shows the words as they stream and the line that remains; `fw serve` streams them on `/runs/:id/events` and returns the transcript on `/runs/:id/agent`.
+**What is kept.** The run records `agent: { profile, status, usage, toolCalls }` — `answering` while the model works, then `answered`, `rejected` or `failed` — and the transcript is kept beside the run (`.fw/runs/<runId>/agent-<gate>.json`). The console shows the words as they stream and the line that remains; `fw serve` streams them on `/runs/:id/events` and returns the transcript on `/runs/:id/agent`.
 
 **When it cannot.** A profile whose key is not set, a model that never submits, or an answer that does not fit the gate's outputs leaves the run **waiting** with the reason on `agent.error`. Nothing is lost: a person answers the gate in the console, or asks the agent again. The gate is a coordination boundary, not a trust boundary — validate the answer downstream as described above; a profile does not change that.
 
@@ -405,7 +405,7 @@ A paused gate is matched by `workflow/node` first, then by its `agentId` input, 
 
 ## Driving a run as a coordinator
 
-Most code does not need to be a coordinator: `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` starts and resumes runs from code, persists them under `~/.fw/runs`, and shares them with the console and the MCP tools — see [Using the library](library).
+Most code does not need to be a coordinator: `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` starts and resumes runs from code, persists them under `~/.fw/runs` by default, and shares them with the console and the MCP tools when given the project's store (`rootDir: defaultRunsDir(projectDir)`) — see [Using the library](library).
 
 A coordinator is any caller that persists continuations itself and vouches for the bundle. The smallest one is a host with the compiled file and nothing else: the file exports `createWorkflowRuntime`, throws `DurableGateYield` with the continuation at a gate, and exports `acceptContinuation` to take it back — see [A host of your own](library#a-host-of-your-own). The engine's continuation boundary inside the package is `executeWorkflow` (`src/mcp/workflow-executor.ts`); it is not in the package's export map, so the supported way to reach it from outside the CLI is the stateless MCP tool pair:
 

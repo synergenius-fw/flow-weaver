@@ -1035,7 +1035,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
       // file is parsed), so the check is a separate call made on request.
       if (url.pathname === '/api/pack-project') return json(res, 200, detectPackProject(projectDir));
       // Everything around the project: services alive, MCP registrations,
-      // the environment, registries and the platform. Probes are brief.
+      // the environment and registries. Probes are brief.
       if (url.pathname === '/api/status') {
         return json(res, 200, await describeStatus(projectDir, { url: `http://${host}:${actualPortRef.value}`, watching, runsDir: options.store ? 'a run store of your own' : runsDir }));
       }

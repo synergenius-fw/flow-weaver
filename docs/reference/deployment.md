@@ -63,7 +63,7 @@ fw export workflows.ts --target <name> --output dist/ --multi --workflows valida
 fw serve [directory] [options]
 ```
 
-Runs go through the same local coordinator `fw console` and the MCP tools use, stored under `~/.fw/runs` (`FW_RUNS_DIR` to move it). That is what makes a workflow with durable gates an ordinary endpoint here: it runs to its first gate and answers with a run id; the gate is resolved by another request, by an agent profile, or by a person in the console — the same run, whoever picks it up. The same handler is a function you can mount in your own server; see [Embedding the API](#embedding-the-api).
+Runs go through the same local coordinator `fw console` and the MCP tools use, stored under the project's `.fw/runs` (`FW_RUNS_DIR` to move it). That is what makes a workflow with durable gates an ordinary endpoint here: it runs to its first gate and answers with a run id; the gate is resolved by another request, by an agent profile, or by a person in the console — the same run, whoever picks it up. The same handler is a function you can mount in your own server; see [Embedding the API](#embedding-the-api).
 
 ### Workflows as endpoints
 
@@ -195,7 +195,7 @@ const api = createWorkflowApi({
   agents: true,                          // answer agent gates from the project's profiles
   trace: false,                          // keep and stream a step trace per run
   legacyRoutes: true,                    // also POST /workflows/<name> for every workflow
-  runsDir: undefined,                    // where runs live, defaulting to the shared ~/.fw/runs
+  runsDir: undefined,                    // where runs live; unset is ~/.fw/runs (fw serve passes the project's .fw/runs)
   maxWaitMs: 60_000,                     // answer 202 with the result URL past this
   maxInFlight: 32,                       // 503 past this many running segments
   callbacks: { hosts: ['hooks.example.com'] },

@@ -2,8 +2,8 @@
  * Build-time executable artifact emission for workflow deployments.
  *
  * The interactive executor still accepts source for development tooling. A
- * deployed Stitch workflow, however, must never make an accountant wait for
- * parsing and compilation after pressing Run. This compiler boundary turns a
+ * deployed workflow, however, must never make a user wait for parsing and
+ * compilation after pressing Run. This compiler boundary turns a
  * closed TypeScript workflow source into one ESM module before it is signed.
  */
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';

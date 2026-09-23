@@ -1,13 +1,12 @@
 #!/usr/bin/env npx tsx
 
 /**
- * Build the library entry points into minified bundles.
+ * Build the library entry points into bundles.
  *
- * Why this exists: the proprietary licence (BUSL-1.1, source not published,
- * reverse engineering prohibited) is undercut if `npm pack` ships readable
- * per-file `tsc` output. This step replaces that readable JavaScript with
- * minified bundles — one output per `package.json` `exports` entry — while
- * keeping every `.d.ts` so the public type surface still resolves.
+ * Why this exists: the package ships one bundle per `package.json` `exports`
+ * entry instead of per-file `tsc` output. This step replaces the per-file
+ * JavaScript with readable (unminified) bundles while keeping every `.d.ts` so
+ * the public type surface still resolves.
  *
  * How it works:
  *   1. tsc has already emitted `dist/**` (JS + .d.ts) and postbuild rewrote
@@ -17,8 +16,8 @@
  *      duplicated (which would also break singletons / instanceof identity).
  *      `outbase: src` keeps each entry at its original dist path, so any
  *      `import.meta.url`-relative path resolution keeps its depth.
- *   3. The readable per-file `tsc` `.js` (and `.js.map`) that are not entry
- *      outputs or shared chunks are deleted — only minified code remains.
+ *   3. The per-file `tsc` `.js` (and `.js.map`) that are not entry outputs or
+ *      shared chunks are deleted — only the bundles remain.
  *
  * Externals: esbuild, typescript, ts-morph, chokidar, fsevents stay external
  * (native or problematic to bundle, and always installed alongside the
@@ -102,7 +101,6 @@ const PATH_ANCHORED = [
   'agent/cli-session.ts',
   'agent/mcp-bridge.ts',
   'docs/index.ts', // also an export entry; listed there
-  'cli/license.ts',
   'cli/commands/doctor.ts',
   'mcp/auto-registration.ts',
   'console/cli-run.ts',
@@ -125,10 +123,10 @@ const COMMON: esbuild.BuildOptions = {
   platform: 'node',
   target: 'node18',
   format: 'esm',
-  minify: true,
+  minify: false,
   sourcemap: false,
-  // Comments are source; the licence forbids redistributing it. Strip them.
-  legalComments: 'none',
+  // Keep bundled dependencies' licence comments (MIT and similar require it).
+  legalComments: 'eof',
   external: EXTERNAL,
   define: {
     __CLI_VERSION__: JSON.stringify(require('../package.json').version),
@@ -194,16 +192,16 @@ const CJS_NAMESPACE_EXTERNALS = ['typescript', 'ts-morph'];
  */
 function normalizeCjsExternals(outputs: string[]): void {
   const pkgAlt = CJS_NAMESPACE_EXTERNALS.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-  // Matches `import <id> from"<pkg>"` (esbuild minified form: no spaces around
-  // quotes, a single default binding, double-quoted specifier).
-  const re = new RegExp(`import ([A-Za-z_$][\\w$]*) from"(${pkgAlt})"`, 'g');
+  // Matches `import <id> from "<pkg>"` with a single default binding, in both
+  // esbuild's minified (`from"x"`) and readable (`from "x"`) forms.
+  const re = new RegExp(`import\\s+([A-Za-z_$][\\w$]*)\\s+from\\s*"(${pkgAlt})"`, 'g');
   for (const rel of outputs) {
     const file = path.resolve(root, rel);
     if (!file.endsWith('.js') || !fs.existsSync(file)) continue;
     const src = fs.readFileSync(file, 'utf-8');
     if (!re.test(src)) continue;
     re.lastIndex = 0;
-    fs.writeFileSync(file, src.replace(re, (_m, id, pkg) => `import*as ${id} from"${pkg}"`));
+    fs.writeFileSync(file, src.replace(re, (_m, id, pkg) => `import * as ${id} from "${pkg}"`));
   }
 }
 
@@ -273,7 +271,7 @@ async function build() {
     return abs;
   };
 
-  // Pass 1: the path-anchored modules, each a self-contained minified file at
+  // Pass 1: the path-anchored modules, each a self-contained file at
   // its original dist path. No splitting — a shared chunk would relocate their
   // `import.meta.url` math. Some duplication of small helpers is acceptable;
   // these are leaf CLI/agent utilities, not shared singletons.
@@ -360,8 +358,8 @@ async function build() {
   }
 
   console.log(
-    `✓ Library bundled: ${written.size} minified file(s) kept, ` +
-      `${deletedJs} readable .js removed, ${deletedMaps} .map removed`
+    `✓ Library bundled: ${written.size} bundle file(s) kept, ` +
+      `${deletedJs} per-file .js removed, ${deletedMaps} .map removed`
   );
 }
 

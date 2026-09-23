@@ -1,16 +1,14 @@
 /**
- * Tests that all icons in the platform's NODE_ICON_CATALOG exist in core's NODE_ICON_PATHS.
- * This ensures the diagram renderer can display any icon the platform UI offers.
+ * Tests that every icon in the extended catalog exists in NODE_ICON_PATHS, so
+ * the diagram renderer can draw any icon a workflow names.
  */
 
 import { describe, it, expect } from 'vitest';
 import { NODE_ICON_PATHS, VALID_NODE_ICONS } from '../../../src/diagram/theme';
 
 /**
- * Icons from the platform's node-icon-catalog.ts (NODE_ICON_CATALOG).
- * This is the canonical list of icons available in the platform's node icon picker.
- * When a new icon is added to the platform catalog, it must also be added here
- * and to NODE_ICON_PATHS in theme.ts.
+ * The extended icon catalog. When an icon is added here it must also be added
+ * to NODE_ICON_PATHS in theme.ts.
  */
 const PLATFORM_CATALOG_ICONS = [
   'addAuthorization', 'adminPanel', 'ai', 'alarm', 'allInclusive', 'altRoute', 'analytics', 'api',

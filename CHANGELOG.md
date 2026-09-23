@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in [GitHub Releases](https://github.com/synergenius-fw/flow-weaver/releases).
 
-This project follows [Semantic Versioning](https://semver.org/) during alpha. Breaking changes may occur between minor versions until v1.0.
+This project follows [Semantic Versioning](https://semver.org/) during beta. Breaking changes may occur between minor versions until v1.0.
 
 ## 0.42.2
 

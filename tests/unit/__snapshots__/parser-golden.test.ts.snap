@@ -27769,11 +27769,12 @@ exports[`AnnotationParser golden (debt #4) > parse output is stable: use-cases/p
  * @output analyzerCount [order:2] - Number of successful analyzers
  */
 function mergeResults(
-  sentiment: AnalysisResult,
-  readability: AnalysisResult,
-  keywords: AnalysisResult
+  sentiment: AnalysisResult | null,
+  readability: AnalysisResult | null,
+  keywords: AnalysisResult | null
 ): { report: Record<string, unknown>; analyzerCount: number } {
-  const results = [sentiment, readability, keywords];
+  // An analyzer that did not run hands over null; count only the ones that did.
+  const results = [sentiment, readability, keywords].filter((r): r is AnalysisResult => r !== null);
   const report: Record<string, unknown> = {};
   for (const r of results) {
     report[r.source] = { score: r.score, ...r.details };
@@ -27799,7 +27800,7 @@ function mergeResults(
             "order": 3,
           },
           "optional": undefined,
-          "tsType": "AnalysisResult",
+          "tsType": "AnalysisResult | null",
         },
         "readability": {
           "dataType": "OBJECT",
@@ -27810,7 +27811,7 @@ function mergeResults(
             "order": 2,
           },
           "optional": undefined,
-          "tsType": "AnalysisResult",
+          "tsType": "AnalysisResult | null",
         },
         "sentiment": {
           "dataType": "OBJECT",
@@ -27821,7 +27822,7 @@ function mergeResults(
             "order": 1,
           },
           "optional": undefined,
-          "tsType": "AnalysisResult",
+          "tsType": "AnalysisResult | null",
         },
       },
       "isAsync": false,
@@ -27966,7 +27967,7 @@ function analyzeSentiment(
       "sourceLocation": {
         "column": 0,
         "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-        "line": 60,
+        "line": 61,
       },
       "type": "NodeType",
       "variant": "FUNCTION",
@@ -28067,7 +28068,7 @@ function analyzeReadability(
       "sourceLocation": {
         "column": 0,
         "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-        "line": 92,
+        "line": 93,
       },
       "type": "NodeType",
       "variant": "FUNCTION",
@@ -28171,7 +28172,7 @@ function extractKeywords(
       "sourceLocation": {
         "column": 0,
         "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-        "line": 126,
+        "line": 127,
       },
       "type": "NodeType",
       "variant": "FUNCTION",
@@ -28291,7 +28292,7 @@ function scoreContent(
       "sourceLocation": {
         "column": 0,
         "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-        "line": 165,
+        "line": 166,
       },
       "type": "NodeType",
       "variant": "FUNCTION",
@@ -28394,26 +28395,10 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 198,
-          },
-          "to": {
-            "node": "sent",
-            "port": "execute",
-          },
-          "type": "Connection",
-        },
-        {
-          "from": {
-            "node": "Start",
-            "port": "execute",
-          },
-          "sourceLocation": {
-            "column": 0,
-            "file": "<ROOT>/use-cases/parallel-enrichment.ts",
             "line": 199,
           },
           "to": {
-            "node": "read",
+            "node": "sent",
             "port": "execute",
           },
           "type": "Connection",
@@ -28429,7 +28414,7 @@ function scoreContent(
             "line": 200,
           },
           "to": {
-            "node": "kw",
+            "node": "read",
             "port": "execute",
           },
           "type": "Connection",
@@ -28437,7 +28422,7 @@ function scoreContent(
         {
           "from": {
             "node": "Start",
-            "port": "text",
+            "port": "execute",
           },
           "sourceLocation": {
             "column": 0,
@@ -28445,8 +28430,8 @@ function scoreContent(
             "line": 201,
           },
           "to": {
-            "node": "sent",
-            "port": "text",
+            "node": "kw",
+            "port": "execute",
           },
           "type": "Connection",
         },
@@ -28461,7 +28446,7 @@ function scoreContent(
             "line": 202,
           },
           "to": {
-            "node": "read",
+            "node": "sent",
             "port": "text",
           },
           "type": "Connection",
@@ -28477,6 +28462,22 @@ function scoreContent(
             "line": 203,
           },
           "to": {
+            "node": "read",
+            "port": "text",
+          },
+          "type": "Connection",
+        },
+        {
+          "from": {
+            "node": "Start",
+            "port": "text",
+          },
+          "sourceLocation": {
+            "column": 0,
+            "file": "<ROOT>/use-cases/parallel-enrichment.ts",
+            "line": 204,
+          },
+          "to": {
             "node": "kw",
             "port": "text",
           },
@@ -28490,7 +28491,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 204,
+            "line": 205,
           },
           "to": {
             "node": "merge",
@@ -28506,7 +28507,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 205,
+            "line": 206,
           },
           "to": {
             "node": "merge",
@@ -28522,7 +28523,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 206,
+            "line": 207,
           },
           "to": {
             "node": "merge",
@@ -28538,7 +28539,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 207,
+            "line": 208,
           },
           "to": {
             "node": "scorer",
@@ -28554,7 +28555,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 208,
+            "line": 209,
           },
           "to": {
             "node": "scorer",
@@ -28570,39 +28571,39 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 209,
-          },
-          "to": {
-            "node": "merge",
-            "port": "execute",
-          },
-          "type": "Connection",
-        },
-        {
-          "from": {
-            "node": "merge",
-            "port": "onSuccess",
-          },
-          "sourceLocation": {
-            "column": 0,
-            "file": "<ROOT>/use-cases/parallel-enrichment.ts",
             "line": 210,
           },
           "to": {
-            "node": "scorer",
+            "node": "merge",
             "port": "execute",
           },
           "type": "Connection",
         },
         {
           "from": {
-            "node": "scorer",
+            "node": "merge",
             "port": "onSuccess",
           },
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
             "line": 211,
+          },
+          "to": {
+            "node": "scorer",
+            "port": "execute",
+          },
+          "type": "Connection",
+        },
+        {
+          "from": {
+            "node": "scorer",
+            "port": "onSuccess",
+          },
+          "sourceLocation": {
+            "column": 0,
+            "file": "<ROOT>/use-cases/parallel-enrichment.ts",
+            "line": 212,
           },
           "to": {
             "node": "Exit",
@@ -28618,7 +28619,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 212,
+            "line": 213,
           },
           "to": {
             "node": "Exit",
@@ -28634,7 +28635,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 213,
+            "line": 214,
           },
           "to": {
             "node": "Exit",
@@ -28650,7 +28651,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 214,
+            "line": 215,
           },
           "to": {
             "node": "Exit",
@@ -28711,7 +28712,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 193,
+            "line": 194,
           },
           "type": "NodeInstance",
         },
@@ -28722,7 +28723,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 194,
+            "line": 195,
           },
           "type": "NodeInstance",
         },
@@ -28733,7 +28734,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 195,
+            "line": 196,
           },
           "type": "NodeInstance",
         },
@@ -28744,7 +28745,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 196,
+            "line": 197,
           },
           "type": "NodeInstance",
         },
@@ -28755,7 +28756,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 197,
+            "line": 198,
           },
           "type": "NodeInstance",
         },
@@ -28781,11 +28782,12 @@ function scoreContent(
  * @output analyzerCount [order:2] - Number of successful analyzers
  */
 function mergeResults(
-  sentiment: AnalysisResult,
-  readability: AnalysisResult,
-  keywords: AnalysisResult
+  sentiment: AnalysisResult | null,
+  readability: AnalysisResult | null,
+  keywords: AnalysisResult | null
 ): { report: Record<string, unknown>; analyzerCount: number } {
-  const results = [sentiment, readability, keywords];
+  // An analyzer that did not run hands over null; count only the ones that did.
+  const results = [sentiment, readability, keywords].filter((r): r is AnalysisResult => r !== null);
   const report: Record<string, unknown> = {};
   for (const r of results) {
     report[r.source] = { score: r.score, ...r.details };
@@ -28811,7 +28813,7 @@ function mergeResults(
                 "order": 3,
               },
               "optional": undefined,
-              "tsType": "AnalysisResult",
+              "tsType": "AnalysisResult | null",
             },
             "readability": {
               "dataType": "OBJECT",
@@ -28822,7 +28824,7 @@ function mergeResults(
                 "order": 2,
               },
               "optional": undefined,
-              "tsType": "AnalysisResult",
+              "tsType": "AnalysisResult | null",
             },
             "sentiment": {
               "dataType": "OBJECT",
@@ -28833,7 +28835,7 @@ function mergeResults(
                 "order": 1,
               },
               "optional": undefined,
-              "tsType": "AnalysisResult",
+              "tsType": "AnalysisResult | null",
             },
           },
           "isAsync": false,
@@ -28978,7 +28980,7 @@ function analyzeSentiment(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 60,
+            "line": 61,
           },
           "type": "NodeType",
           "variant": "FUNCTION",
@@ -29079,7 +29081,7 @@ function analyzeReadability(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 92,
+            "line": 93,
           },
           "type": "NodeType",
           "variant": "FUNCTION",
@@ -29183,7 +29185,7 @@ function extractKeywords(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 126,
+            "line": 127,
           },
           "type": "NodeType",
           "variant": "FUNCTION",
@@ -29303,7 +29305,7 @@ function scoreContent(
           "sourceLocation": {
             "column": 0,
             "file": "<ROOT>/use-cases/parallel-enrichment.ts",
-            "line": 165,
+            "line": 166,
           },
           "type": "NodeType",
           "variant": "FUNCTION",
