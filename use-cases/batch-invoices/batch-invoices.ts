@@ -174,11 +174,11 @@ export function summarize(results: Rated[]): { summary: { count: number; totalEu
  * @output report - What happened, in one line
  */
 export function report(
-  summary: { count: number; totalEur: number; flagged: string[] },
-  rejection: string,
+  summary?: { count: number; totalEur: number; flagged: string[] },
+  rejection?: string,
 ): { status: string; report: string } {
-  // Both inputs are optional in the graph, not in the type: on the refusal
-  // arm `summary` never arrived, and on the posted arm `rejection` did not.
+  // Both inputs are optional: on the refusal arm `summary` never arrives, and
+  // on the posted arm `rejection` does not.
   if (rejection) return { status: 'refused', report: `batch refused: ${rejection}` };
   if (!summary) return { status: 'refused', report: 'batch refused: nothing was rated' };
   const flagged = summary.flagged.length ? ` · ${summary.flagged.length} flagged (${summary.flagged.join(', ')})` : '';
