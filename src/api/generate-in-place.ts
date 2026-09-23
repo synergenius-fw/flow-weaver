@@ -21,7 +21,7 @@ import { bodyGenerator } from '../body-generator';
 import { generateInlineRuntime } from './inline-runtime';
 import { graphIdentity } from './graph-identity';
 import type { GraphIdentityStamp } from '../generator/unified';
-import { isExecutePort, isSuccessPort, isFailurePort, isControlFlowPort } from '../constants';
+import { isExecutePort, isSuccessPort, isFailurePort } from '../constants';
 import {
   generateJSDocPortTag,
   assignPortOrders,
@@ -105,7 +105,6 @@ export function generateInPlace(
     production = false,
     allWorkflows,
     moduleFormat = 'esm',
-    sourceFile,
     skipParamReturns = false,
     annotationsOnly = false,
   } = options;
@@ -347,7 +346,7 @@ export function generateInPlace(
 function generateRuntimeSection(
   functionName: string,
   production: boolean,
-  moduleFormat: TModuleFormat = 'esm',
+  _moduleFormat: TModuleFormat = 'esm',
 ): string {
   const lines: string[] = [];
 
@@ -1831,81 +1830,6 @@ function generateWorkflowJSDoc(ast: TWorkflowAST, options: { skipParamReturns?: 
   return lines.join('\n');
 }
 
-/**
- * Compute topological order for workflow instances using connections.
- * Falls back to declaration order when connections don't provide a clear ordering.
- */
-function computeTopologicalOrder(ast: TWorkflowAST): string[] {
-  const instanceIds = ast.instances.map((inst) => inst.id);
-
-  // If no connections, use declaration order
-  if (!ast.connections || ast.connections.length === 0) {
-    return instanceIds;
-  }
-
-  // Build adjacency list from execution flow connections only
-  // (control flow connections determine order, data connections don't)
-  const graph = new Map<string, Set<string>>();
-  const inDegree = new Map<string, number>();
-
-  for (const id of instanceIds) {
-    graph.set(id, new Set());
-    inDegree.set(id, 0);
-  }
-
-  for (const conn of ast.connections) {
-    const fromNode = conn.from.node;
-    const toNode = conn.to.node;
-
-    // Only consider connections between instances (skip Start/Exit)
-    if (!graph.has(fromNode) || !graph.has(toNode)) continue;
-
-    // Only use execution flow (onSuccess/onFailure -> execute) for ordering
-    const isExecutionFlow =
-      (conn.from.port === 'onSuccess' || conn.from.port === 'onFailure') &&
-      conn.to.port === 'execute';
-
-    if (isExecutionFlow && !graph.get(fromNode)!.has(toNode)) {
-      graph.get(fromNode)!.add(toNode);
-      inDegree.set(toNode, (inDegree.get(toNode) || 0) + 1);
-    }
-  }
-
-  // Kahn's algorithm for topological sort
-  const queue: string[] = [];
-  for (const id of instanceIds) {
-    if ((inDegree.get(id) || 0) === 0) {
-      queue.push(id);
-    }
-  }
-
-  const sorted: string[] = [];
-  while (queue.length > 0) {
-    const node = queue.shift()!;
-    sorted.push(node);
-
-    for (const neighbor of graph.get(node) || []) {
-      const newDegree = (inDegree.get(neighbor) || 1) - 1;
-      inDegree.set(neighbor, newDegree);
-      if (newDegree === 0) {
-        queue.push(neighbor);
-      }
-    }
-  }
-
-  // If topological sort didn't include all nodes (cycles or disconnected),
-  // append remaining nodes in declaration order
-  if (sorted.length < instanceIds.length) {
-    const sortedSet = new Set(sorted);
-    for (const id of instanceIds) {
-      if (!sortedSet.has(id)) {
-        sorted.push(id);
-      }
-    }
-  }
-
-  return sorted;
-}
 
 /**
  * Check if source code has in-place generation markers

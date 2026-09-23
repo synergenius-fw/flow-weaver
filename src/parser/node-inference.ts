@@ -15,7 +15,6 @@ import { type FunctionLike, extractFunctionLikes } from '../function-like';
 import { jsdocParser } from '../jsdoc-parser';
 import type {
   TNodeTypeAST,
-  TDataType,
   TExecuteWhen,
   TPortDefinition,
   TNodeTypeDefaultConfig,

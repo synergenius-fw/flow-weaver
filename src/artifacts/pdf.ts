@@ -109,7 +109,8 @@ function printToFile(cmd: string, args: string[], pdfFile: string, timeoutMs: nu
       settled = true;
       clearInterval(poll); clearTimeout(timer);
       try { child.kill(); } catch { /* already gone */ }
-      err ? reject(err) : resolve();
+      if (err) reject(err);
+      else resolve();
     };
     const poll = setInterval(() => {
       let size = -1;

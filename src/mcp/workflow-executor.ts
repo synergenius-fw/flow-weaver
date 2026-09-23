@@ -336,7 +336,7 @@ export async function executeWorkflow(
       });
     }
 
-    let compiledCode = fs.readFileSync(tmpTsFile, 'utf8');
+    const compiledCode = fs.readFileSync(tmpTsFile, 'utf8');
 
     // Transpile TypeScript to JavaScript so Node.js can import it directly
     const jsOutput = ts.transpileModule(compiledCode, {
@@ -354,7 +354,6 @@ export async function executeWorkflow(
     let transpiledOutput = jsOutput.outputText;
     const srcDir = path.dirname(tmpTsFile);
     if (srcDir.includes(`${path.sep}src${path.sep}`)) {
-      const distDir = srcDir.replace(`${path.sep}src${path.sep}`, `${path.sep}dist${path.sep}`);
       transpiledOutput = transpiledOutput.replace(
         /from\s+['"](\.[^'"]+)['"]/g,
         (_match, specifier: string) => {

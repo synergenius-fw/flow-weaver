@@ -377,7 +377,6 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
 }
 
 const VALID_MOCK_KEYS = new Set(['events', 'invocations', 'agents', 'gates', 'fast']);
-const BUILT_IN_NODE_TYPES = new Set(['delay', 'waitForEvent', 'invokeWorkflow', 'waitForAgent']);
 
 const MOCK_SECTION_TO_NODE: Record<string, string> = {
   events: 'waitForEvent',

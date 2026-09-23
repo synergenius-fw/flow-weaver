@@ -108,7 +108,7 @@ export async function compileExecutableWorkflowArtifact(
     for (const workflow of workflows) {
       // Sequential compilation is intentional: every generated body remains
       // in the same module for local workflow composition.
-      // eslint-disable-next-line no-await-in-loop
+       
       await compileWorkflow(filePath, {
         write: true,
         inPlace: true,

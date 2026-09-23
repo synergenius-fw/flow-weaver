@@ -1,5 +1,5 @@
 import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST } from '../ast';
-import { isSuccessPort, isFailurePort, isExecutePort } from '../constants';
+import { isSuccessPort, isFailurePort } from '../constants';
 import { buildDurableGatePayload, buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
 import { performKahnsTopologicalSort, buildControlFlowGraph } from './control-flow';
 import { mapToTypeScript } from '../type-mappings';

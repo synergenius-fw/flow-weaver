@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Validate command - validates workflow files without compiling
  */

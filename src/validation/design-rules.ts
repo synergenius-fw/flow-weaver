@@ -314,7 +314,6 @@ export const exitDataUnreachableRule: TValidationRule = {
   name: 'DESIGN_EXIT_DATA_UNREACHABLE',
   validate(ast: TWorkflowAST): TValidationError[] {
     const errors: TValidationError[] = [];
-    const stepPorts = new Set(['onSuccess', 'onFailure']);
 
     for (const [portName, portDef] of Object.entries(ast.exitPorts)) {
       if (portDef.dataType === 'STEP') continue; // Step ports handled by core validator

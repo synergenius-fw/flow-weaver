@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Diagram command: the workflow as an SVG of its spine, or as text for a
  * terminal.

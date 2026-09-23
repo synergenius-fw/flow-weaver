@@ -184,7 +184,7 @@ export function validateConnections(
     }
     if (!isStartNode(fromNode)) {
       const sourceNode = instanceMap.get(fromNode);
-      if (sourceNode && !sourceNode.outputs.hasOwnProperty(fromPort)) {
+      if (sourceNode && !Object.prototype.hasOwnProperty.call(sourceNode.outputs, fromPort)) {
         const portNames = Object.keys(sourceNode.outputs);
         const suggestions = findClosestMatches(fromPort, portNames);
         const suggestion = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
@@ -222,7 +222,7 @@ export function validateConnections(
     }
     if (!isExitNode(toNode)) {
       const targetNode = instanceMap.get(toNode);
-      if (targetNode && !targetNode.inputs.hasOwnProperty(toPort)) {
+      if (targetNode && !Object.prototype.hasOwnProperty.call(targetNode.inputs, toPort)) {
         const portNames = Object.keys(targetNode.inputs);
         const suggestions = findClosestMatches(toPort, portNames);
         const suggestion = suggestions.length > 0 ? ` Did you mean "${suggestions[0]}"?` : '';
@@ -1426,7 +1426,7 @@ export function validateDuplicateConnections(ctx: ValidationContext, workflow: T
 export function validateVisualAnnotations(
   ctx: ValidationContext,
   workflow: TWorkflowAST,
-  instanceMap: Map<string, TNodeTypeAST>
+  _instanceMap: Map<string, TNodeTypeAST>
 ): void {
   const validColors = VALID_NODE_COLORS as readonly string[];
   // An icon is any Material Symbol, in the font's snake_case or in camelCase:

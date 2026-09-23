@@ -105,7 +105,7 @@ export async function implementCommand(
     if (preview) {
       logger.section(`Preview: ${stubNodeType.functionName}`);
       logger.newline();
-      // eslint-disable-next-line no-console
+       
       console.log(replacement);
     } else {
       const updated = source.replace(found.match, replacement);

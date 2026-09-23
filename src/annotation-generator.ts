@@ -1,6 +1,6 @@
 import type { TNodeTypeAST, TNodeInstanceAST, TPortDefinition, TWorkflowAST, TDataType, TConnectionAST, TWorkflowMacro, THttpRoute } from "./ast";
 import { mapToTypeScript } from "./type-mappings";
-import { isExecutePort, isSuccessPort, isFailurePort, isControlFlowPort } from "./constants";
+import { isExecutePort, isSuccessPort, isFailurePort } from "./constants";
 import { shouldUseStepTag } from "./utils/port-tag-utils";
 import { detectSugarPatterns, filterStaleMacros } from "./sugar-optimizer";
 import { isPathImpliedDataEdge } from "./parser/path-data-resolution";

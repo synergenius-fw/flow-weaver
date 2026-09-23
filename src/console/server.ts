@@ -46,7 +46,7 @@ import { describeStatus } from './status.js';
 import { renderArtifact, ARTIFACT_KINDS, type ArtifactKind } from '../artifacts/index.js';
 import { searchAllRegistries } from '../marketplace/registry.js';
 import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST, TPortDefinition, TValidationError } from '../ast/types.js';
-import { workflowParamsSchema, nodeOutputSchema, gateOutputSchemas, type FieldSchema } from './schema.js';
+import { workflowParamsSchema, gateOutputSchemas, type FieldSchema } from './schema.js';
 import { scanWorkflowNames, checkWorkflows, invalidateListing, toPosix } from './scan.js';
 import { workflowSource } from './source.js';
 import { terminalWiring } from './terminals.js';

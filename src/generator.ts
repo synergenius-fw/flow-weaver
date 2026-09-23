@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import * as path from 'node:path';
 import { parseWorkflow, type ParseResult } from "./api/parse";
 import { validateWorkflow, type ValidationResult } from "./api/validate";

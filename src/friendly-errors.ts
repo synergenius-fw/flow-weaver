@@ -398,7 +398,6 @@ const errorMappers: Record<string, ErrorMapper> = {
   },
 
   SCOPE_CONNECTION_OUTSIDE(error) {
-    const quoted = extractQuoted(error.message);
     return {
       title: 'Scope Connection Leak',
       explanation: `A scoped connection references a node that is outside the scope boundary. Scoped connections must stay within the scope.`,

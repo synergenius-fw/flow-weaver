@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Doctor command - validates project environment and configuration for flow-weaver compatibility
  */

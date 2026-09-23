@@ -295,7 +295,6 @@ export function getPackageExports(
 
   try {
     const project = getSharedProject();
-    const dtsContent = fs.readFileSync(typesPath, 'utf-8');
 
     // Add the .d.ts file and nearby declaration files to the project so
     // ts-morph can resolve re-exports (including `export * from './submodule'`).

@@ -122,15 +122,6 @@ function parts(g: Gathered, interactive: boolean) {
   };
 }
 
-/** The shared parts as one column, for paper. */
-function sections(g: Gathered): string {
-  const p = parts(g, false);
-  return `
-  <section><h2>What goes in</h2>${p.inputs}</section>
-  <section><h2>What comes out</h2>${p.outputs}</section>
-  <section><h2>How it runs</h2>${p.steps}</section>
-  ${p.gates ? `<section><h2>Where a person or an agent is needed</h2>${p.gates}</section>` : ''}`;
-}
 
 function tokens(dark: boolean): string {
   return `--bg:${dark ? '#0e1014' : '#ffffff'}; --fg:${dark ? '#e7e9ee' : '#1a1d24'}; --muted:${dark ? '#8a90a0' : '#667085'}; --faint:${dark ? '#5c6270' : '#98a2b3'}; --line:${dark ? '#2a303c' : '#e3e6eb'}; --panel:${dark ? '#151923' : '#f6f7f9'}; --panel-2:${dark ? '#1b1f27' : '#eef0f4'}; --accent:${dark ? '#6ea8fe' : '#2f6fed'}; --gate:${dark ? '#c79bff' : '#8f5bd6'}; --loop:${dark ? '#5fd4d9' : '#1d9aa2'}; --effect:${dark ? '#ff9f5a' : '#d97a2b'}; --err:${dark ? '#f0636a' : '#d64550'}; --pull:${dark ? '#f2c94c' : '#b7860b'}; --graph:${dark ? '#0e1014' : '#f6f7f9'};`;

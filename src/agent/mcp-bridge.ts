@@ -122,10 +122,10 @@ export async function createMcpBridge(
     if (cleaned) return;
     cleaned = true;
     server.close();
-    try { fs.unlinkSync(socketPath); } catch {}
-    try { fs.unlinkSync(defsPath); } catch {}
-    try { fs.unlinkSync(configPath); } catch {}
-    try { fs.rmdirSync(tmpDir); } catch {}
+    try { fs.unlinkSync(socketPath); } catch { /* already gone */ }
+    try { fs.unlinkSync(defsPath); } catch { /* already gone */ }
+    try { fs.unlinkSync(configPath); } catch { /* already gone */ }
+    try { fs.rmdirSync(tmpDir); } catch { /* already gone */ }
   };
 
   const setHandlers = (exec: ToolExecutor, onEvt?: (event: ToolEvent) => void) => {

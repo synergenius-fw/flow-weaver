@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import type {
   TGenerateOptions as ASTGenerateOptions,
   TWorkflowAST,
@@ -12,7 +11,6 @@ import { mapToTypeScript } from '../type-mappings';
 import { SourceMapGenerator } from 'source-map';
 import { generateInlineRuntime, stripTypeScript, INLINE_ENGINE_EXPORTS } from './inline-runtime';
 import { graphIdentity } from './graph-identity';
-import type { TOutputFormat } from './inline-runtime';
 import { validateWorkflowAsync } from '../generator/async-detection';
 import { extractTypeDeclarationsFromFile } from './extract-types';
 import { validateDurableClosure } from './durable-validation';

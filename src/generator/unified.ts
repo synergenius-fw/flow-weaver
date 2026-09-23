@@ -146,7 +146,7 @@ export function generateControlFlowWithExecutionContext(
   // at breakpoints (sendStatusChangedEvent must be awaited for this to work).
   // Production mode respects the original isAsync to avoid overhead.
   if (!production) {
-    isAsync = true; // eslint-disable-line no-param-reassign
+    isAsync = true;  
   }
 
   const asyncArg = isAsync ? 'true' : 'false';
@@ -1407,7 +1407,6 @@ function emitBranchNodeCallAndOutputs(params: {
     setCall,
     indent,
     isAsync,
-    abortSignalExpression,
     ctxVar,
     lines,
   } = params;

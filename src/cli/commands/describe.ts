@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Describe command - outputs workflow structure in LLM-friendly formats
  */

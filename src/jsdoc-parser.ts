@@ -16,7 +16,7 @@ import type {
 } from './ast/types';
 import {
   isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort,
-  KNOWN_NODETYPE_TAGS, KNOWN_WORKFLOW_TAGS, STANDARD_JSDOC_TAGS,
+  KNOWN_NODETYPE_TAGS, STANDARD_JSDOC_TAGS,
   getKnownWorkflowTags,
 } from './constants';
 import { inferDataTypeFromTS, stripOptionalUndefined } from './type-mappings';
@@ -440,7 +440,7 @@ export class JSDocParser {
           config.icon = comment.trim().replace(/^["']|["']$/g, '');
           break;
 
-        case 'tag':
+        case 'tag': {
           config.tags = config.tags || [];
           const tagMatch = comment.match(/^(\S+)(?:\s+"([^"]+)")?$/);
           if (tagMatch) {
@@ -450,6 +450,7 @@ export class JSDocParser {
             });
           }
           break;
+        }
 
         case 'executeWhen':
           config.executeWhen = comment.trim();
@@ -463,13 +464,14 @@ export class JSDocParser {
           config.expression = true;
           break;
 
-        case 'pullExecution':
+        case 'pullExecution': {
           const pullValue = comment.trim();
           if (pullValue) {
             config.defaultConfig = config.defaultConfig || {};
             config.defaultConfig.pullExecution = { triggerPort: pullValue };
           }
           break;
+        }
 
         case 'resilience': {
           const resilience: { retries?: number; fallback?: string } = {};
@@ -813,7 +815,7 @@ export class JSDocParser {
     }
 
     // B: Duplicate port detection
-    if (config.inputs!.hasOwnProperty(name)) {
+    if (Object.prototype.hasOwnProperty.call(config.inputs!, name)) {
       warnings.push(`Duplicate @input "${name}". The second declaration will overwrite the first.`);
     }
 
@@ -913,7 +915,7 @@ export class JSDocParser {
     }
 
     // B: Duplicate port detection
-    if (config.outputs!.hasOwnProperty(name)) {
+    if (Object.prototype.hasOwnProperty.call(config.outputs!, name)) {
       warnings.push(`Duplicate @output "${name}". The second declaration will overwrite the first.`);
     }
 
@@ -1006,7 +1008,7 @@ export class JSDocParser {
     config.returnPorts = config.returnPorts || {};
 
     // B: Duplicate port detection
-    if (config.returnPorts.hasOwnProperty(name)) {
+    if (Object.prototype.hasOwnProperty.call(config.returnPorts, name)) {
       warnings.push(`Duplicate @returns "${name}". The second declaration will overwrite the first.`);
     }
 
@@ -1089,7 +1091,7 @@ export class JSDocParser {
     config.startPorts = config.startPorts || {};
 
     // B: Duplicate port detection
-    if (config.startPorts.hasOwnProperty(name)) {
+    if (Object.prototype.hasOwnProperty.call(config.startPorts, name)) {
       warnings.push(`Duplicate @param "${name}". The second declaration will overwrite the first.`);
     }
 

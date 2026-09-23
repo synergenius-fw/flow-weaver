@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import type { TDataType } from './ast/types';
 
 export type TypeScriptType =

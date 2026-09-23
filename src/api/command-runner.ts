@@ -14,7 +14,7 @@ import { generateInPlace } from './generate-in-place.js';
 import { applyModifyOperation, validateModifyParams } from './modify-operation.js';
 import { generateWorkflowFromTemplate } from './templates.js';
 import {
-  getNode, getNodes, getConnections, getTopologicalOrder,
+  getNodes, getConnections, getTopologicalOrder,
   findIsolatedNodes, findDeadEnds, countNodes, countConnections,
 } from './query.js';
 import { WorkflowDiffer } from '../diff/WorkflowDiffer.js';

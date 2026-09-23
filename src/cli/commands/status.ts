@@ -112,7 +112,7 @@ export async function statusCommand(input: string, options: StatusOptions = {}):
     };
 
     if (json) {
-      // eslint-disable-next-line no-console
+       
       console.log(JSON.stringify(result, null, 2));
     } else {
       logger.section(`${ast.name}: ${implemented}/${total} nodes implemented`);
@@ -146,7 +146,7 @@ export async function statusCommand(input: string, options: StatusOptions = {}):
     }
   } catch (error) {
     if (json) {
-      // eslint-disable-next-line no-console
+       
       console.log(JSON.stringify({ error: getErrorMessage(error) }));
     } else {
       logger.error(`Status failed: ${getErrorMessage(error)}`);

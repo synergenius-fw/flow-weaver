@@ -1,8 +1,3 @@
-/**
- * Grammar command - output JSDoc grammar as HTML railroad diagrams or EBNF text
- */
-
-import * as fs from 'fs';
 import {
   generateGrammarDiagrams,
   getAllGrammars,

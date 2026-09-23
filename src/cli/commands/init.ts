@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Init command: scaffolds a new flow-weaver project interactively.
  * Supports persona-aware onboarding for nocode, low-code, vibe-coder, and expert users.

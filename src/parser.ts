@@ -1,5 +1,4 @@
-/* eslint-disable no-console */
-import { Project, type JSDoc, type SourceFile, type Type, type Symbol as TsSymbol } from 'ts-morph';
+import { Project, type SourceFile } from 'ts-morph';
 import ts from 'typescript';
 import { type FunctionLike, extractFunctionLikes } from './function-like';
 import * as path from 'node:path';
@@ -8,14 +7,11 @@ import { createHash } from 'node:crypto';
 import { jsdocParser } from './jsdoc-parser';
 import type {
   TDataType,
-  TExecuteWhen,
   TNodeTypeAST,
-  TNodeTypeDefaultConfig,
   TPortDefinition,
   TWorkflowAST,
   TConnectionAST,
   TNodeInstanceAST,
-  TSerializableValue,
   TWorkflowMacro,
 } from './ast/types';
 import { EXECUTION_STRATEGIES, isControlFlowPort } from './constants';
@@ -40,7 +36,6 @@ import { expandExpressionReferences, collectModuleBindings } from './parser/expr
 import {
   parseStartPorts,
   parseExitPorts,
-  capitalize,
 } from './parser/port-inference';
 import {
   extractNodeTypes,

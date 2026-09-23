@@ -18,7 +18,7 @@
  * ```
  */
 
-import type { LLMMessage, LLMProvider, LLMResponse, LLMTool, LLMTokenUsage } from './mock-llm';
+import type { LLMMessage, LLMProvider, LLMResponse, LLMTool } from './mock-llm';
 
 // ---------------------------------------------------------------------------
 // Recording format
