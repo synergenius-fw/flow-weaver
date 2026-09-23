@@ -6,7 +6,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 import { parseWorkflow } from '../../../src/api/parse';
 import { renderSpineSVG, mix } from '../../../src/diagram/spine';
 import { workflowToSVG } from '../../../src/diagram/index';

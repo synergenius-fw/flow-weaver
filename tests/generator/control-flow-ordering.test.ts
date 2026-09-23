@@ -6,7 +6,7 @@
  */
 
 import { buildControlFlowGraph, performKahnsTopologicalSort } from '../../src/generator/control-flow';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';

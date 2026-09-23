@@ -1,4 +1,4 @@
-import { parser } from "../../src/parser";
+import { parser } from "../../src/parser/annotation-parser";
 import { TPortDefinition } from "../../src/ast/types";
 import * as fs from "fs";
 import * as path from "path";

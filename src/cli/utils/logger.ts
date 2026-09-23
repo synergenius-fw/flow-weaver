@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * CLI logging utility with colors and formatting
  */

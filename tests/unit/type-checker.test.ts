@@ -3,8 +3,8 @@
  * Tests for TypeScript-level type compatibility checking using ts-morph
  */
 
-import { getParserProject } from "../../src/parser";
-import { checkTypeCompatibility, isRuntimeCoercible } from "../../src/type-checker";
+import { getParserProject } from "../../src/parser/annotation-parser";
+import { checkTypeCompatibility, isRuntimeCoercible } from "../../src/validation/type-checker";
 
 describe("Type Checker", () => {
   // Reuse the shared parser Project for performance

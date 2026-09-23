@@ -70,7 +70,7 @@ vi.mock('../../../src/api/query.js', () => ({
 // ── Mock annotation parser ──────────────────────────────────────────────────
 const mockAnnotationParserParse = vi.fn();
 
-vi.mock('../../../src/parser.js', () => {
+vi.mock('../../../src/parser/annotation-parser.js', () => {
   class MockAnnotationParser {
     parse(...args: unknown[]) {
       return mockAnnotationParserParse(...args);
@@ -87,7 +87,7 @@ vi.mock('glob', () => ({
 }));
 
 // ── Mock friendly errors ─────────────────────────────────────────────────────
-vi.mock('../../../src/friendly-errors.js', () => ({
+vi.mock('../../../src/validation/friendly-errors.js', () => ({
   getFriendlyError: () => null,
 }));
 

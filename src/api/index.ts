@@ -111,7 +111,7 @@ export * from './templates';
 export { type CommandResult, runCommand, getAvailableCommands } from './command-runner';
 
 // Re-exports needed by export target packs
-export { AnnotationParser } from '../parser.js';
+export { AnnotationParser } from '../parser/annotation-parser.js';
 export { compileTargetRegistry, type CompileTarget } from '../generator/compile-target-registry.js';
 export { devModeRegistry, type DevModeProvider, type DevModeOptions } from '../generator/dev-mode-registry.js';
 export { tagHandlerRegistry, type TagHandlerRegistry, type TTagHandlerFn, type TTagHandlerContext, type TTagSerializerFn } from '../parser/tag-registry.js';

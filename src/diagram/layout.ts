@@ -1,5 +1,5 @@
 import type { TWorkflowAST } from '../ast/types';
-import { isStartNode, isExitNode } from '../constants';
+import { isExitNode } from '../constants';
 
 export interface LayoutResult {
   layers: string[][];

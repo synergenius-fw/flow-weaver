@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { jsdocParser } from '../../src/jsdoc-parser';
-import { extractFunctionLikes } from '../../src/function-like';
-import { parser } from '../../src/parser';
-import { getSharedProject } from '../../src/shared-project';
+import { jsdocParser } from '../../src/parser/jsdoc-parser';
+import { extractFunctionLikes } from '../../src/parser/function-like';
+import { parser } from '../../src/parser/annotation-parser';
+import { getSharedProject } from '../../src/parser/shared-project';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';

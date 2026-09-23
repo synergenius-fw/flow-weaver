@@ -5,8 +5,8 @@
  * Uses in-memory parsing (parseFromString) for speed - no file I/O.
  */
 
-import { parser } from "../../src/parser";
-import { validator } from "../../src/validator";
+import { parser } from "../../src/parser/annotation-parser";
+import { validator } from "../../src/validation/validator";
 import { generateCode } from "../../src/api/generate";
 
 // Helper to test validation errors (in-memory, no file I/O)

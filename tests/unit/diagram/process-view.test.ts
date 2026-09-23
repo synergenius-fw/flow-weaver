@@ -5,7 +5,7 @@
  * shown is what would run.
  */
 import { describe, it, expect } from 'vitest';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 import { buildProcessModel } from '../../../src/diagram/process-view';
 
 const GATED = `

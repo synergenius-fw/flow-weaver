@@ -226,7 +226,7 @@ export function expandPathMacros(
   exitPorts: Record<string, TPortDefinition>,
   macros: TWorkflowMacro[],
   errors: string[],
-  warnings: string[],
+  _warnings: string[],
 ): void {
   // Helper to find a node type by name or functionName
   const findNodeType = (nodeTypeName: string): TNodeTypeAST | undefined =>

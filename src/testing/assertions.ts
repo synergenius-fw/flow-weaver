@@ -14,7 +14,7 @@
  * ```
  */
 
-import type { MockLlmProvider, MockLlmCall } from './mock-llm';
+import type { MockLlmProvider } from './mock-llm';
 
 // ---------------------------------------------------------------------------
 // Agent result assertions

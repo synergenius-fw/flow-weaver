@@ -5,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseWorkflow } from '../../api/index.js';
-import { generateFunctionSignature } from '../../annotation-generator.js';
+import { generateFunctionSignature } from '../../generator/annotation-generator.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import { safeWriteFile } from '../utils/safe-write.js';
@@ -105,7 +105,7 @@ export async function implementCommand(
     if (preview) {
       logger.section(`Preview: ${stubNodeType.functionName}`);
       logger.newline();
-      // eslint-disable-next-line no-console
+       
       console.log(replacement);
     } else {
       const updated = source.replace(found.match, replacement);

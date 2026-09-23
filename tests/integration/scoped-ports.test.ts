@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('Scoped Ports Integration Tests', () => {
   const outputDir = global.testHelpers?.outputDir || path.join(os.tmpdir(), `flow-weaver-scoped-ports-${process.pid}`);

@@ -3,7 +3,7 @@
  * Tests that nodes within branches execute in correct topological order
  */
 
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 import * as path from 'path';
 import * as fs from 'fs';
 

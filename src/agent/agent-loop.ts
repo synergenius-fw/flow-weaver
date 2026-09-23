@@ -11,10 +11,8 @@ import type {
   AgentMessage,
   ToolDefinition,
   ToolExecutor,
-  StreamEvent,
   AgentLoopOptions,
   AgentLoopResult,
-  TurnEndContext,
 } from './types.js';
 
 const DEFAULT_MAX_ITERATIONS = 15;

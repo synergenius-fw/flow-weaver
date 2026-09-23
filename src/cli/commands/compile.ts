@@ -8,14 +8,14 @@ import { glob } from 'glob';
 import { parseWorkflow } from '../../api/index.js';
 import { generateInPlace } from '../../api/generate-in-place.js';
 import { generateCode } from '../../api/generate.js';
-import { validator } from '../../validator.js';
+import { validator } from '../../validation/validator.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
-import { getFriendlyError } from '../../friendly-errors.js';
+import { getFriendlyError } from '../../validation/friendly-errors.js';
 import type { TModuleFormat } from '../../ast/types.js';
 import { detectProjectModuleFormat } from './doctor.js';
 import { compileTargetRegistry } from '../../generator/compile-target-registry.js';
-import { AnnotationParser } from '../../parser.js';
+import { AnnotationParser } from '../../parser/annotation-parser.js';
 import { safeWriteFile, safeAppendFile } from '../utils/safe-write.js';
 
 /** Show path relative to cwd for cleaner output */

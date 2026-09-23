@@ -4,7 +4,7 @@
  * Shared Chevrotain parser for @trigger, @cancelOn, @retries, @timeout, @throttle annotations.
  */
 
-import { CstParser, type CstNode } from 'chevrotain';
+import { CstParser } from 'chevrotain';
 import {
   JSDocLexer,
   TriggerTag,
@@ -62,7 +62,7 @@ function stripQuotes(s: string): string {
   return s;
 }
 
-const CRON_REGEX = /^(\*|[0-9,\-\/]+)\s+(\*|[0-9,\-\/]+)\s+(\*|[0-9,\-\/]+)\s+(\*|[0-9,\-\/]+)\s+(\*|[0-9,\-\/]+)$/;
+const CRON_REGEX = /^(\*|[0-9,/-]+)\s+(\*|[0-9,/-]+)\s+(\*|[0-9,/-]+)\s+(\*|[0-9,/-]+)\s+(\*|[0-9,/-]+)$/;
 
 // =============================================================================
 // Parser Definition

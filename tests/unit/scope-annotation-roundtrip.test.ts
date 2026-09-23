@@ -1,5 +1,5 @@
-import { parser } from "../../src/parser";
-import { annotationGenerator } from "../../src/annotation-generator";
+import { parser } from "../../src/parser/annotation-parser";
+import { annotationGenerator } from "../../src/generator/annotation-generator";
 import path from "path";
 import * as fs from "fs";
 import * as os from "os";

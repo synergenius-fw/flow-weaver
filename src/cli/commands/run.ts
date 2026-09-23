@@ -12,7 +12,7 @@ import { DebugController } from '../../runtime/debug-controller.js';
 import type { DebugPauseState } from '../../runtime/debug-controller.js';
 import { getTopologicalOrder } from '../../api/query.js';
 import { logger } from '../utils/logger.js';
-import { getFriendlyError } from '../../friendly-errors.js';
+import { getFriendlyError } from '../../validation/friendly-errors.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
 import { parseWorkflow } from '../../api/index.js';
@@ -377,7 +377,6 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
 }
 
 const VALID_MOCK_KEYS = new Set(['events', 'invocations', 'agents', 'gates', 'fast']);
-const BUILT_IN_NODE_TYPES = new Set(['delay', 'waitForEvent', 'invokeWorkflow', 'waitForAgent']);
 
 const MOCK_SECTION_TO_NODE: Record<string, string> = {
   events: 'waitForEvent',

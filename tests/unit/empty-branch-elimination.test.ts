@@ -5,7 +5,7 @@
  */
 
 import * as path from "path";
-import { generator } from "../../src/generator";
+import { generator } from "../../src/generator/workflow-generator";
 
 describe("Empty Branch Elimination", () => {
   const testWorkflowFile = path.join(

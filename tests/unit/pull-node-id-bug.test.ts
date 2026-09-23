@@ -6,7 +6,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('Pull Execution Node ID Bug', () => {
   const inputFile = path.join(__dirname, '../fixtures/pull-node-id-bug.ts');

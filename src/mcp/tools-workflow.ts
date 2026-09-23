@@ -3,7 +3,6 @@ import { z } from 'zod';
 import * as path from 'path';
 import * as fs from 'fs';
 import { globSync } from 'glob';
-import type { TWorkflowAST } from '../ast/types.js';
 import { parseWorkflow, validateWorkflow } from '../api/index.js';
 import { generateInPlace, hasInPlaceMarkers } from '../api/generate-in-place.js';
 import { applyMigrations, getRegisteredMigrations } from '../migration/registry.js';
@@ -19,7 +18,7 @@ import {
 } from '../api/manipulation/index.js';
 import { findIsolatedNodes, findWorkflows } from '../api/query.js';
 import { makeToolResult, makeErrorResult, addHintsToItems } from './response-utils.js';
-import { getFriendlyError } from '../friendly-errors.js';
+import { getFriendlyError } from '../validation/friendly-errors.js';
 
 export function registerWorkflowTools(mcp: McpServer): void {
   mcp.tool(

@@ -6,7 +6,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { generator } from "../../src/generator";
+import { generator } from "../../src/generator/workflow-generator";
 
 const TEST_DIR = path.join(os.tmpdir(), `flow-weaver-multi-exit-${process.pid}`);
 

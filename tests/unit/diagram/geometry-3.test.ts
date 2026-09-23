@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/diagram/geometry.ts
+ * Tests for src/diagram/geometry.ts
  * Targets lines 1370-1373 (findScopeParent) and 1396 (resolveNodeColor fallback
  * for non-variant color strings). Both are private functions exercised via
  * buildDiagramGraph.

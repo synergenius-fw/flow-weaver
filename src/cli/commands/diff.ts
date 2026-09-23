@@ -59,7 +59,7 @@ export async function diffCommand(
         logger.success('Workflows are identical');
       }
     } else {
-      // eslint-disable-next-line no-console
+       
       console.log(formatDiff(diff, format));
       // Throw if there are differences (useful for CI)
       if (!exitZero) {

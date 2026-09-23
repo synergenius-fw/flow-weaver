@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Describe command - outputs workflow structure in LLM-friendly formats
  */
@@ -6,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseWorkflow, generateInPlace } from '../../api/index.js';
-import { validator } from '../../validator.js';
+import { validator } from '../../validation/validator.js';
 import { getNode, getIncomingConnections, getOutgoingConnections } from '../../api/query.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';

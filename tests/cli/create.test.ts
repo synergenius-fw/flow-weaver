@@ -14,8 +14,8 @@ import {
   nodeTemplates,
   toCamelCase,
 } from '../../src/cli/templates/index';
-import { parser } from '../../src/parser';
-import { validator } from '../../src/validator';
+import { parser } from '../../src/parser/annotation-parser';
+import { validator } from '../../src/validation/validator';
 import { createWorkflowCommand, createNodeCommand } from '../../src/cli/commands/create';
 
 const TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-create-${process.pid}`);

@@ -5,7 +5,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('Basic Workflow Generation', () => {
   const exampleFile = path.join(__dirname, '../../fixtures/basic/example.ts');

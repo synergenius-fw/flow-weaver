@@ -8,7 +8,7 @@ import {
   filterStaleMacros,
   detectSugarPatterns,
   isConnectionCoveredBySugar,
-} from '../../src/sugar-optimizer';
+} from '../../src/generator/sugar-optimizer';
 import type {
   TConnectionAST,
   TNodeInstanceAST,

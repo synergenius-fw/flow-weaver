@@ -5,8 +5,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { parser } from "../../src/parser";
-import type { ParseResult } from "../../src/parser";
+import { parser } from "../../src/parser/annotation-parser";
+import type { ParseResult } from "../../src/parser/annotation-parser";
 
 describe("JSDoc visual annotations", () => {
   const uniqueId = `jsdoc-visuals-${process.pid}-${Date.now()}`;

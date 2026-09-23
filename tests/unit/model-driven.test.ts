@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { TWorkflowAST, TNodeTypeAST, TDataType } from '../../src/ast/types';
-import { validator } from '../../src/validator';
+import { validator } from '../../src/validation/validator';
 import { generateCode } from '../../src/api/generate';
-import { AnnotationGenerator, generateFunctionSignature } from '../../src/annotation-generator';
+import { AnnotationGenerator, generateFunctionSignature } from '../../src/generator/annotation-generator';
 
 // -- Factories --
 

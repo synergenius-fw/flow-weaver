@@ -9,7 +9,6 @@
 // Must be imported first: sets up env vars before picocolors reads them
 import './env-setup.js';
 
-import * as path from 'node:path';
 
 // Load built-in extensions before any commands run
 import '../extensions/index.js';

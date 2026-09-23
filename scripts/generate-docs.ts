@@ -38,7 +38,7 @@ const docsDir = path.resolve(__dirname, '..', 'docs', 'reference');
 async function crossCheckFriendlyErrors(): Promise<void> {
   // Dynamic import to avoid issues if the file doesn't exist
   try {
-    const { getFriendlyError } = await import('../src/friendly-errors.js');
+    const { getFriendlyError } = await import('../src/validation/friendly-errors.js');
     const missing: string[] = [];
     for (const code of VALIDATION_CODES) {
       const friendly = getFriendlyError({ code: code.code, message: 'test', node: 'test' });

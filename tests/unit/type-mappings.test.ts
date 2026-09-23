@@ -9,7 +9,7 @@ import {
   mapToTypeScript,
   isValidPortType,
   stripOptionalUndefined,
-} from '../../src/type-mappings';
+} from '../../src/types/type-mappings';
 
 describe('inferDataTypeFromTS', () => {
   describe('Primitive types', () => {

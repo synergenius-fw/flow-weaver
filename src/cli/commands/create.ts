@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Create command - scaffolds workflows and nodes from templates
  */

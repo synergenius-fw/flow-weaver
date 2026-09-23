@@ -18,7 +18,7 @@ import {
 } from '../api/index.js';
 import { validateDurableClosure } from '../api/durable-validation.js';
 import { graphIdentity } from '../api/graph-identity.js';
-import type { TExternalNodeType } from '../parser.js';
+import type { TExternalNodeType } from '../parser/annotation-parser.js';
 import {
   EXECUTABLE_WORKFLOW_METADATA_EXPORT,
   EXECUTABLE_WORKFLOW_MODULE_FORMAT,
@@ -108,7 +108,7 @@ export async function compileExecutableWorkflowArtifact(
     for (const workflow of workflows) {
       // Sequential compilation is intentional: every generated body remains
       // in the same module for local workflow composition.
-      // eslint-disable-next-line no-await-in-loop
+       
       await compileWorkflow(filePath, {
         write: true,
         inPlace: true,

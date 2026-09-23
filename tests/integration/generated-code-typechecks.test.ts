@@ -9,7 +9,7 @@
 
 import { describe, expect, test } from "vitest";
 import { generateCode } from "../../src/api/generate";
-import { parser } from "../../src/parser";
+import { parser } from "../../src/parser/annotation-parser";
 import * as ts from "typescript";
 
 /**

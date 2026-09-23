@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('Scoped Workflows', () => {
   const outputDir = path.join(os.tmpdir(), `flow-weaver-scoped-workflows-${process.pid}`);

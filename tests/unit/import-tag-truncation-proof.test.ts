@@ -3,7 +3,7 @@
  * in the same ts-morph configuration as the production parser.
  */
 import { describe, it, expect } from 'vitest';
-import { getSharedProject } from '../../src/shared-project';
+import { getSharedProject } from '../../src/parser/shared-project';
 
 describe('PROOF: @import tag truncation by TypeScript', () => {
   const project = getSharedProject();

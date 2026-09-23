@@ -3,7 +3,7 @@
  * Tests workflow parsing and generation with multiple levels of nested scopes
  */
 
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { GeneratedExecutionContext } from '../../src/runtime/ExecutionContext';
 
 describe('Deeply Nested Scopes', () => {

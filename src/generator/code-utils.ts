@@ -18,7 +18,7 @@ export function buildDurableGatePayload(arguments_: readonly string[]): string {
   return `{ arguments: [${arguments_.join(', ')}].map((value) => value === undefined ? { absent: true } : { value }) }`;
 }
 import { generateScopeFunctionClosure } from './scope-function-generator';
-import { mapToTypeScript } from '../type-mappings';
+import { mapToTypeScript } from '../types/type-mappings';
 import { findExpressionReferences, rewriteExpressionReferences } from '../parser/expression-references';
 
 /** Map coercion target type to inline JS expression */
@@ -30,13 +30,6 @@ const COERCION_EXPRESSIONS: Record<TCoerceTargetType, string> = {
   object: 'JSON.parse',
 };
 
-/** Map TDataType to TCoerceTargetType for auto-coercion */
-const DATATYPE_TO_COERCE: Partial<Record<TDataType, TCoerceTargetType>> = {
-  STRING: 'string',
-  NUMBER: 'number',
-  BOOLEAN: 'boolean',
-  OBJECT: 'object',
-};
 
 /**
  * Resolve the dataType of a source port by looking up the node instance -> node type -> outputs.
@@ -309,7 +302,6 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
     emitInputEvents = false,
     setCall = 'await ctx.setVariable',
     nodeTypeName,
-    bundleMode = false,
     production = false,
     abortSignalExpression = 'ctx.getAbortSignal()',
     runtimeContextExpression = 'ctx',
@@ -785,8 +777,8 @@ export function generateNodeWithExecutionContext(
   lines.push(`${indent}    executionIndex: ${safeNodeName}Idx,`);
   lines.push(`${indent}    status: 'SUCCEEDED',`);
   lines.push(`${indent}  });`);
-  const hasOnSuccess = node.outputs.hasOwnProperty(RESERVED_PORT_NAMES.ON_SUCCESS);
-  const hasOnFailure = node.outputs.hasOwnProperty(RESERVED_PORT_NAMES.ON_FAILURE);
+  const hasOnSuccess = Object.prototype.hasOwnProperty.call(node.outputs, RESERVED_PORT_NAMES.ON_SUCCESS);
+  const hasOnFailure = Object.prototype.hasOwnProperty.call(node.outputs, RESERVED_PORT_NAMES.ON_FAILURE);
   if (hasOnSuccess || hasOnFailure) {
     if (hasOnSuccess) {
       lines.push(

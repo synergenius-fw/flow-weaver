@@ -14,7 +14,7 @@
  */
 import * as path from 'path';
 import * as fs from 'fs';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('Dynamic Execution Index', () => {
   const examplesDir = path.join(__dirname, '../../fixtures');

@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Validate command - validates workflow files without compiling
  */
@@ -7,8 +6,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
 import { parseWorkflow } from '../../api/index.js';
-import { validator } from '../../validator.js';
-import { getFriendlyError } from '../../friendly-errors.js';
+import { validator } from '../../validation/validator.js';
+import { getFriendlyError } from '../../validation/friendly-errors.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import { getAgentValidationRules } from '../../validation/agent-rules.js';

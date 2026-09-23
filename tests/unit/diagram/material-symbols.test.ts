@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { MATERIAL_SYMBOLS, isMaterialSymbol, toSymbolName } from '../../../src/diagram/material-symbols';
 import { VALID_NODE_ICONS } from '../../../src/diagram/theme';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 import { validateWorkflow } from '../../../src/api/validate';
 
 describe('Material Symbols names', () => {

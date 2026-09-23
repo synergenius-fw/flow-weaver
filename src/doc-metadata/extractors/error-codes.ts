@@ -1,7 +1,7 @@
 /**
  * Single source of truth for validation error code documentation.
  *
- * Every code the validator (src/validator.ts) and agent rules
+ * Every code the validator (src/validation/validator.ts) and agent rules
  * (src/validation/agent-rules.ts) can emit is listed here.
  *
  * The generate-docs script uses this to build the summary tables

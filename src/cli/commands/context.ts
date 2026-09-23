@@ -1,8 +1,3 @@
-/**
- * Context command - generate LLM context bundles from documentation and grammar
- */
-
-import * as fs from 'fs';
 import { buildContext, PRESETS, PRESET_NAMES, type ContextPreset } from '../../context/index.js';
 import { loadPackDocTopics } from '../../docs/pack-topics.js';
 import { logger } from '../utils/logger.js';

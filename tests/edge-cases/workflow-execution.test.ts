@@ -3,7 +3,7 @@
  * Tests workflow execution behavior: state isolation and idempotency
  */
 
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 import * as path from 'path';
 import * as fs from 'fs';
 

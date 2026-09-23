@@ -9,7 +9,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import type { TCoerceMacro } from '../../src/ast/types';
 
 // Two minimal node types: one produces a string output, the other consumes a number input.

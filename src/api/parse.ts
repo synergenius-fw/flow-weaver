@@ -7,7 +7,7 @@ import {
   type SourceImportResolver,
   type SourceOverrideLoader,
   type TExternalNodeType,
-} from '../parser';
+} from '../parser/annotation-parser';
 import { getErrorMessage } from '../utils/error-utils';
 
 export interface ParseOptions extends Partial<ASTParseOptions> {

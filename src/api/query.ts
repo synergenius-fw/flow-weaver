@@ -14,7 +14,7 @@ import type { NodeFilter } from './helpers';
 import { portReferencesEqual } from './helpers';
 import { isPerPortScopedChild } from '../generator/control-flow';
 import { glob } from 'glob';
-import { AnnotationParser } from '../parser';
+import { AnnotationParser } from '../parser/annotation-parser';
 
 // ============================================================================
 // SCOPE HELPERS

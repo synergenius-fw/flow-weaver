@@ -3,7 +3,7 @@
  * A workflow should be able to reference itself as a node type (recursion)
  */
 
-import { AnnotationParser } from "../../src/parser";
+import { AnnotationParser } from "../../src/parser/annotation-parser";
 
 describe("Recursive Workflow Invocation", () => {
   let parser: AnnotationParser;

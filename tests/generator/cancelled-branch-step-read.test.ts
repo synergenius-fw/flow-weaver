@@ -8,7 +8,7 @@
 
 import * as path from 'path';
 import { describe, it, expect } from 'vitest';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { generateCode } from '../../src/api/generate';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
 

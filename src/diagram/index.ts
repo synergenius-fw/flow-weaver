@@ -1,5 +1,5 @@
 import type { TWorkflowAST } from '../ast/types';
-import { parser } from '../parser';
+import { parser } from '../parser/annotation-parser';
 import { buildDiagramGraph } from './geometry';
 import { renderASCII, renderASCIICompact, renderText } from './ascii-renderer';
 import { renderSpineSVG } from './spine';

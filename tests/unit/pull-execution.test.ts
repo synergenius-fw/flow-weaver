@@ -4,8 +4,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { generator } from '../../src/generator';
-import { parser } from '../../src/parser';
+import { generator } from '../../src/generator/workflow-generator';
+import { parser } from '../../src/parser/annotation-parser';
 import { generateInPlace } from '../../src/api/generate-in-place';
 
 describe('Pull Execution', () => {

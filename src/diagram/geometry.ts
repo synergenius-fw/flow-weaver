@@ -1,5 +1,5 @@
-import type { TWorkflowAST, TNodeTypeAST, TPortDefinition, TDataType } from '../ast/types';
-import { isStartNode, isExitNode, isExecutePort, isSuccessPort, isFailurePort, SCOPED_PORT_NAMES, isScopedStartPort, isScopedSuccessPort, isScopedFailurePort } from '../constants';
+import type { TWorkflowAST, TNodeTypeAST, TPortDefinition } from '../ast/types';
+import { isExecutePort, isSuccessPort, isFailurePort, SCOPED_PORT_NAMES, isScopedStartPort, isScopedSuccessPort, isScopedFailurePort } from '../constants';
 import { assignImplicitPortOrders } from '../utils/port-ordering';
 import { getPortColor, NODE_VARIANT_COLORS, NODE_DEFAULT_COLOR, TYPE_ABBREVIATIONS } from './theme';
 import { layoutWorkflow } from './layout';
@@ -988,10 +988,6 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
     const tx = pc.targetPort.cx;
     const ty = pc.targetPort.cy;
 
-    const dx = tx - sx;
-    const dy = ty - sy;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const useCurve = forceCurveSet.has(pc);
 
     const sourceColor = getPortColor(pc.sourcePort.dataType, pc.sourcePort.isFailure, themeName);
     const targetColor = getPortColor(pc.targetPort.dataType, pc.targetPort.isFailure, themeName);
@@ -1138,10 +1134,6 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
       const sy = sp.sourcePort.cy;
       const tx = sp.targetPort.cx;
       const ty = sp.targetPort.cy;
-      const ddx = tx - sx;
-      const ddy = ty - sy;
-      const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-      const useCurve = spForceCurveSet.has(sp);
 
       // Always try orthogonal routing first (matches platform style)
       const orthoPath = calculateOrthogonalPathSafe(

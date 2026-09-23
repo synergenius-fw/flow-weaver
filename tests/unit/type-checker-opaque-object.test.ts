@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkTypeCompatibilityFromStrings, isOpaqueObjectType } from '../../src/type-checker';
+import { checkTypeCompatibilityFromStrings, isOpaqueObjectType } from '../../src/validation/type-checker';
 
 describe('opaque object types in string compatibility', () => {
   it('recognises the shapes that say nothing about structure', () => {

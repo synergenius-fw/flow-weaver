@@ -3,9 +3,9 @@
  * Tests for @strictTypes parsing and annotation generation
  */
 
-import { parser } from "../../src/parser";
-import { annotationGenerator } from "../../src/annotation-generator";
-import { validator } from "../../src/validator";
+import { parser } from "../../src/parser/annotation-parser";
+import { annotationGenerator } from "../../src/generator/annotation-generator";
+import { validator } from "../../src/validation/validator";
 
 describe("Strict Types", () => {
   describe("JSDoc Parsing", () => {

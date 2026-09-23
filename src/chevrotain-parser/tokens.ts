@@ -387,6 +387,10 @@ export const StringLiteral = createToken({
 export const Identifier = createToken({
   name: 'Identifier',
   // Support / and - for npm package names like npm/react-window/areEqual
+  // The escaped slash stays: this pattern's .source is printed in the
+  // published grammar (IDENTIFIER ::= ... \/-) and matched by that text in
+  // grammar-diagrams.ts.
+  // eslint-disable-next-line no-useless-escape
   pattern: /[a-zA-Z_$][a-zA-Z0-9_$\/-]*/,
 });
 

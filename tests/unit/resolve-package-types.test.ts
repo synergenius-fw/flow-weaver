@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
-import { resolvePackageTypesPath } from '../../src/resolve-package-types';
+import { resolvePackageTypesPath } from '../../src/parser/resolve-package-types';
 
 const fixturesDir = path.resolve(__dirname, '../fixtures');
 const fakeNodeModules = path.join(fixturesDir, 'fake-node-modules');

@@ -12,7 +12,7 @@
  */
 import * as path from 'path';
 import * as fs from 'fs';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('Catch Block Control Flow', () => {
   const tmpDir = path.join(__dirname, '../fixtures/tmp-catch-flow');

@@ -6,7 +6,7 @@
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
-import { AnnotationParser } from "../../src/parser";
+import { AnnotationParser } from "../../src/parser/annotation-parser";
 import { generateCode } from "../../src/api/generate";
 
 const FIXTURES_DIR = path.resolve(__dirname, "../fixtures/cross-file");

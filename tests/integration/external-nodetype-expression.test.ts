@@ -20,7 +20,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { parser, TExternalNodeType } from '../../src/parser';
+import { parser, TExternalNodeType } from '../../src/parser/annotation-parser';
 import { generateCode } from '../../src/api/generate';
 
 const WORKFLOW = `/**

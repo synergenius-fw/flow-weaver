@@ -9,8 +9,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AnnotationParser } from '../../src/parser';
-import { WorkflowValidator } from '../../src/validator';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
+import { WorkflowValidator } from '../../src/validation/validator';
 
 describe('auto-infer node types from unannotated functions', () => {
   // ── 1. Basic inference ──────────────────────────────────────────────

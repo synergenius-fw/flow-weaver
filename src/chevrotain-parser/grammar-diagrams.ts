@@ -51,7 +51,7 @@ function definitionToEBNF(definition: ISerializedGastItem[]): string {
 
 function itemToEBNF(item: ISerializedGastItem): string {
   switch (item.type) {
-    case 'Terminal':
+    case 'Terminal': {
       const pattern = item.pattern || '';
 
       // Show readable patterns for known tokens
@@ -104,11 +104,12 @@ function itemToEBNF(item: ISerializedGastItem): string {
 
       // Fallback
       return item.terminalLabel || item.name || 'unknown';
+    }
 
     case 'NonTerminal':
       return `<${item.name || 'unknown'}>`;
 
-    case 'Alternation':
+    case 'Alternation': {
       const alts = (item.definition || []).map((alt: ISerializedGastItem) => {
         if (alt.type === 'Alternative' && alt.definition) {
           return definitionToEBNF(alt.definition);
@@ -116,6 +117,7 @@ function itemToEBNF(item: ISerializedGastItem): string {
         return itemToEBNF(alt);
       });
       return `( ${alts.join(' | ')} )`;
+    }
 
     case 'Option':
       return `[ ${definitionToEBNF(item.definition || [])} ]`;
@@ -126,13 +128,15 @@ function itemToEBNF(item: ISerializedGastItem): string {
     case 'RepetitionMandatory':
       return `${definitionToEBNF(item.definition || [])}+`;
 
-    case 'RepetitionMandatoryWithSeparator':
+    case 'RepetitionMandatoryWithSeparator': {
       const sepName = item.separator?.name || ',';
       return `${definitionToEBNF(item.definition || [])} { "${sepName === 'Comma' ? ',' : sepName}" ${definitionToEBNF(item.definition || [])} }`;
+    }
 
-    case 'RepetitionWithSeparator':
+    case 'RepetitionWithSeparator': {
       const sep = item.separator?.name || ',';
       return `[ ${definitionToEBNF(item.definition || [])} { "${sep === 'Comma' ? ',' : sep}" ${definitionToEBNF(item.definition || [])} } ]`;
+    }
 
     default:
       return `/* ${item.type} */`;

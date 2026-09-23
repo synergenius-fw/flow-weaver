@@ -82,7 +82,7 @@ export async function migrateCommand(
           const semanticDiff = WorkflowDiffer.compare(parseResult.ast, ast);
           if (!semanticDiff.identical) {
             logger.info(`\n${file}:`);
-            // eslint-disable-next-line no-console
+             
             console.log(formatDiff(semanticDiff, 'text'));
           }
         }

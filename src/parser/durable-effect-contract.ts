@@ -1,6 +1,6 @@
 import type { Type } from 'ts-morph';
 import type { TDataType, TNodeTypeAST } from '../ast/types';
-import type { FunctionLike } from '../function-like';
+import type { FunctionLike } from './function-like';
 
 export interface DurableEffectContractAnalysis {
   readonly valid: boolean;

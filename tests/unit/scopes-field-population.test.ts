@@ -1,4 +1,4 @@
-import { parser } from "../../src/parser";
+import { parser } from "../../src/parser/annotation-parser";
 import path from "path";
 import * as os from "os";
 

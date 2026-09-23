@@ -101,7 +101,7 @@ describe('marketInitCommand', () => {
       expect(sampleContent).toContain('@flowWeaver nodeType');
       // The sample is the shape a new author copies: it must parse clean and
       // carry the visuals fw market pack asks for.
-      const { parser } = await import('../../src/parser');
+      const { parser } = await import('../../src/parser/annotation-parser');
       const parsed = parser.parseFromString(sampleContent);
       expect(parsed.warnings).toEqual([]);
       expect(parsed.errors).toEqual([]);

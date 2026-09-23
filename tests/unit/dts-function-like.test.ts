@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { extractFunctionLikes } from '../../src/function-like';
-import { getSharedProject } from '../../src/shared-project';
+import { extractFunctionLikes } from '../../src/parser/function-like';
+import { getSharedProject } from '../../src/parser/shared-project';
 
 describe('extractFunctionLikes with .d.ts content', () => {
   const project = getSharedProject();

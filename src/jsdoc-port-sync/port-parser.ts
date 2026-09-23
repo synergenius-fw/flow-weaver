@@ -6,9 +6,9 @@
  */
 
 import type { TPortDefinition, TDataType, TSerializableValue } from '../ast/types';
-import { generateJSDocPortTag } from '../annotation-generator';
+import { generateJSDocPortTag } from '../generator/annotation-generator';
 import { isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort } from '../constants';
-import { inferDataTypeFromTS } from '../type-mappings';
+import { inferDataTypeFromTS } from '../types/type-mappings';
 import {
   parsePortLine,
   parsePortsFromJSDoc,

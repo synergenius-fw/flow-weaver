@@ -4,8 +4,8 @@
  * Includes: basic round-trips, port switching, and transformation preservation
  */
 
-import { parser } from "../../src/parser";
-import { annotationGenerator } from "../../src/annotation-generator";
+import { parser } from "../../src/parser/annotation-parser";
+import { annotationGenerator } from "../../src/generator/annotation-generator";
 import { swapPortOrder, swapNodeInstancePortOrder } from "../../src/api/manipulation";
 import { TWorkflowAST, TNodeTypeAST, TConnectionAST } from "../../src/ast/types";
 import * as path from "path";

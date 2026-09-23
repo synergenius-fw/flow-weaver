@@ -3,9 +3,9 @@
  * Tests to ensure parsing, code generation, and execution meet performance targets
  */
 
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { generateCode } from '../../src/api/generate';
-import { validator } from '../../src/validator';
+import { validator } from '../../src/validation/validator';
 import type {
   TWorkflowAST,
   TNodeTypeAST,

@@ -7,7 +7,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { parseWorkflow } from '../../src/api/parse';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('@expression node - Parser', () => {
   const tmpDir = path.join(os.tmpdir(), `flow-weaver-expression-parser-${process.pid}`);

@@ -5,7 +5,7 @@
  * into the AST or a regenerated annotation block.
  */
 import { describe, it, expect } from 'vitest';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { generateInPlace } from '../../src/api/generate-in-place';
 import { getAllGrammars, serializedToEBNF } from '../../src/chevrotain-parser';
 

@@ -5,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseWorkflow } from '../../api/index.js';
-import { validator } from '../../validator.js';
+import { validator } from '../../validation/validator.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import type { TNodeTypeAST, TPortDefinition } from '../../ast/types.js';
@@ -112,7 +112,7 @@ export async function statusCommand(input: string, options: StatusOptions = {}):
     };
 
     if (json) {
-      // eslint-disable-next-line no-console
+       
       console.log(JSON.stringify(result, null, 2));
     } else {
       logger.section(`${ast.name}: ${implemented}/${total} nodes implemented`);
@@ -146,7 +146,7 @@ export async function statusCommand(input: string, options: StatusOptions = {}):
     }
   } catch (error) {
     if (json) {
-      // eslint-disable-next-line no-console
+       
       console.log(JSON.stringify({ error: getErrorMessage(error) }));
     } else {
       logger.error(`Status failed: ${getErrorMessage(error)}`);

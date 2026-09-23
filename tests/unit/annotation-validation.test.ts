@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from 'vitest';
-import { AnnotationParser } from '../../src/parser';
-import { WorkflowValidator } from '../../src/validator';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
+import { WorkflowValidator } from '../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST, TNodeVisualsAST } from '../../src/ast/types';
 
 // ── Helpers ────────────────────────────────────────────────────────────

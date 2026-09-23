@@ -11,11 +11,10 @@
  */
 
 import { type SourceFile, type JSDoc } from 'ts-morph';
-import { type FunctionLike, extractFunctionLikes } from '../function-like';
-import { jsdocParser } from '../jsdoc-parser';
+import { type FunctionLike, extractFunctionLikes } from './function-like';
+import { jsdocParser } from './jsdoc-parser';
 import type {
   TNodeTypeAST,
-  TDataType,
   TExecuteWhen,
   TPortDefinition,
   TNodeTypeDefaultConfig,
@@ -23,7 +22,7 @@ import type {
 } from '../ast/types';
 import { RESERVED_PORT_NAMES, EXECUTION_STRATEGIES } from '../constants';
 import { assignImplicitPortOrders } from '../utils/port-ordering';
-import { inferDataTypeFromTS, stripOptionalUndefined } from '../type-mappings';
+import { inferDataTypeFromTS, stripOptionalUndefined } from '../types/type-mappings';
 import { BUILT_IN_NODE_TYPES } from '../built-in-nodes/generated-registry';
 import type { TagHandlerRegistry } from './tag-registry';
 import { capitalize } from './port-inference';

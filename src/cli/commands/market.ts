@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Marketplace commands: init, pack, publish, install, search, list
  */

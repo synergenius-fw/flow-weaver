@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 
 import { compileWorkflow } from '../api/compile.js';
-import { AnnotationParser } from '../parser.js';
+import { AnnotationParser } from '../parser/annotation-parser.js';
 
 /**
  * Export target identifier.

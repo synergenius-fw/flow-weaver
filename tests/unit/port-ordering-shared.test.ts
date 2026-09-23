@@ -1,6 +1,6 @@
 /**
  * Tests for shared port ordering utilities
- * Extracted from parser.ts for reuse across the codebase
+ * Extracted from parser/annotation-parser.ts for reuse across the codebase
  */
 
 import { isMandatoryPort, assignImplicitPortOrders } from "../../src/utils/port-ordering";

@@ -302,7 +302,7 @@ function drawConnections(
   grid: CharGrid,
   connections: DiagramConnection[],
   positions: Map<string, BoxPos>,
-  boxAreaTop: number,
+  _boxAreaTop: number,
   _gridHeight: number,
 ): void {
   // Compute global box y-bounds

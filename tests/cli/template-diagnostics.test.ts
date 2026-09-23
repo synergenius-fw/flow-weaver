@@ -5,8 +5,8 @@
  * These tests serve as regression tests for template correctness.
  */
 
-import { parser } from "../../src/parser";
-import { validator } from "../../src/validator";
+import { parser } from "../../src/parser/annotation-parser";
+import { validator } from "../../src/validation/validator";
 import { validateWorkflow } from "../../src/api/validate";
 import {
   listWorkflowTemplates,

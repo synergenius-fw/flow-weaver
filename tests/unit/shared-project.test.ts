@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { getSharedProject, resetSharedProject } from '../../src/shared-project';
+import { getSharedProject, resetSharedProject } from '../../src/parser/shared-project';
 
 describe('shared-project', () => {
   afterEach(() => {

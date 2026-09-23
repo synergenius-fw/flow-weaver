@@ -8,9 +8,9 @@
 
 import { describe, it, expect, afterAll } from 'vitest';
 import { parseMapLine } from '../../src/chevrotain-parser/map-parser';
-import { AnnotationParser } from '../../src/parser';
-import { generator } from '../../src/generator';
-import { annotationGenerator } from '../../src/annotation-generator';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
+import { generator } from '../../src/generator/workflow-generator';
+import { annotationGenerator } from '../../src/generator/annotation-generator';
 import type { TMapMacro } from '../../src/ast/types';
 import * as fs from 'fs';
 import * as path from 'path';

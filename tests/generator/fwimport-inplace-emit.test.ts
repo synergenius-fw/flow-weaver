@@ -9,7 +9,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { generateInPlace } from '../../src/api/generate-in-place';
 
 const tmp = path.join(os.tmpdir(), `fw-fwimport-inplace-${process.pid}`);
