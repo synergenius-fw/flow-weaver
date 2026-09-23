@@ -7,8 +7,8 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { parser } from "../../../src/parser";
-import { validator } from "../../../src/validator";
+import { parser } from "../../../src/parser/annotation-parser";
+import { validator } from "../../../src/validation/validator";
 
 describe("Scoped Ports Validation", () => {
   describe("Scope name validation", () => {

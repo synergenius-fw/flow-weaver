@@ -1,7 +1,5 @@
 /**
- * Additional type-checker coverage tests.
- *
- * Targets uncovered lines in src/type-checker.ts, focusing on:
+ * Tests for src/validation/type-checker.ts, focusing on:
  * - checkTypeCompatibilityFromStrings (string-based fallback path)
  * - checkTypeCompatibility without a typeChecker argument
  * - checkTypeCompatibility with a typeChecker that lacks isTypeAssignableTo
@@ -9,12 +7,12 @@
  * - isSubtypeViaBaseTypes error handling (getBaseTypes throwing)
  */
 
-import { getParserProject } from "../../src/parser";
+import { getParserProject } from "../../src/parser/annotation-parser";
 import {
   checkTypeCompatibility,
   checkTypeCompatibilityFromStrings,
   isRuntimeCoercible,
-} from "../../src/type-checker";
+} from "../../src/validation/type-checker";
 
 describe("type-checker coverage", () => {
   const project = getParserProject();

@@ -3,7 +3,7 @@
  * TDD: These tests define the expected behavior for arrow function parsing.
  */
 
-import { AnnotationParser } from '../../../src/parser';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
 
 describe('Arrow Function Support', () => {
   let parser: AnnotationParser;

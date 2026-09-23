@@ -5,8 +5,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { parser } from '../../../src/parser';
-import { validator, WorkflowValidator } from '../../../src/validator';
+import { parser } from '../../../src/parser/annotation-parser';
+import { validator, WorkflowValidator } from '../../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST } from '../../../src/ast/types';
 
 describe('Scoped Node Inner Topology Validation', () => {

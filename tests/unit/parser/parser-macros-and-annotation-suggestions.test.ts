@@ -1,14 +1,13 @@
 /**
- * Additional branch coverage tests for src/parser.ts
- *
- * Targets uncovered branches in: generateAnnotationSuggestion, isWorkflowBlock,
- * generateWorkflowStructureSuggestion, extractExistingAnnotatedPorts,
- * resolveNpmNodeTypes, externalToAST, parseStartPorts, parseExitPorts,
- * extractTypeSchema, isExpandableObjectType, autoConnect, path macros,
- * fanOut/fanIn macros, coerce macros, pattern extraction, and detectMinorEdit.
+ * Tests for src/parser/annotation-parser.ts: generateAnnotationSuggestion,
+ * isWorkflowBlock, generateWorkflowStructureSuggestion,
+ * extractExistingAnnotatedPorts, resolveNpmNodeTypes, externalToAST,
+ * parseStartPorts, parseExitPorts, extractTypeSchema, isExpandableObjectType,
+ * autoConnect, path macros, fanOut/fanIn macros, coerce macros, pattern
+ * extraction, and detectMinorEdit.
  */
 
-import { AnnotationParser, resolveNpmNodeTypes, type TExternalNodeType } from '../../../src/parser';
+import { AnnotationParser, resolveNpmNodeTypes, type TExternalNodeType } from '../../../src/parser/annotation-parser';
 import type { TWorkflowAST, TNodeTypeAST, TPortDefinition } from '../../../src/ast/types';
 
 function freshParser() {

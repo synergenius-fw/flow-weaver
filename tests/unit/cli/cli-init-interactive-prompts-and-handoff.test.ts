@@ -1,5 +1,5 @@
 /**
- * Branch coverage tests for src/cli/commands/init.ts (round 3).
+ * Tests for src/cli/commands/init.ts (round 3).
  * Targets interactive prompt paths, ExitPromptError handling,
  * spinner fail branches, filesSkipped warnings, and agent-launched early return.
  */

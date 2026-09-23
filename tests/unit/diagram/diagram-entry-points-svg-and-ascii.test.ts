@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock the parser
-vi.mock('../../../src/parser.js', () => ({
+vi.mock('../../../src/parser/annotation-parser.js', () => ({
   parser: {
     parse: vi.fn(),
     parseFromString: vi.fn(),
@@ -32,7 +32,7 @@ vi.mock('../../../src/diagram/ascii-renderer.js', () => ({
   renderText: vi.fn(() => 'TEXT output'),
 }));
 
-import { parser } from '../../../src/parser.js';
+import { parser } from '../../../src/parser/annotation-parser.js';
 import { buildDiagramGraph } from '../../../src/diagram/geometry.js';
 import { renderSpineSVG } from '../../../src/diagram/spine.js';
 import { renderASCIICompact, renderText } from '../../../src/diagram/ascii-renderer.js';

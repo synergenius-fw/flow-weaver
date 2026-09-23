@@ -1,11 +1,11 @@
-import type { TNodeTypeAST, TNodeInstanceAST, TPortDefinition, TWorkflowAST, TDataType, TConnectionAST, TWorkflowMacro, THttpRoute } from "./ast";
-import { mapToTypeScript } from "./type-mappings";
-import { isExecutePort, isSuccessPort, isFailurePort } from "./constants";
-import { shouldUseStepTag } from "./utils/port-tag-utils";
+import type { TNodeTypeAST, TNodeInstanceAST, TPortDefinition, TWorkflowAST, TDataType, TConnectionAST, TWorkflowMacro, THttpRoute } from "../ast";
+import { mapToTypeScript } from "../types/type-mappings";
+import { isExecutePort, isSuccessPort, isFailurePort } from "../constants";
+import { shouldUseStepTag } from "../utils/port-tag-utils";
 import { detectSugarPatterns, filterStaleMacros } from "./sugar-optimizer";
-import { isPathImpliedDataEdge } from "./parser/path-data-resolution";
-import { serializePackDeployAnnotations } from "./parser/serialize-deploy-annotations";
-import { assignImplicitPortOrders } from "./utils/port-ordering";
+import { isPathImpliedDataEdge } from "../parser/path-data-resolution";
+import { serializePackDeployAnnotations } from "../parser/serialize-deploy-annotations";
+import { assignImplicitPortOrders } from "../utils/port-ordering";
 
 export interface GenerateAnnotationsOptions {
   includeComments?: boolean;

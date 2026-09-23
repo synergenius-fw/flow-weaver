@@ -13,15 +13,15 @@ import type {
   TNodeTagAST,
   TSerializableValue,
   THttpRoute,
-} from './ast/types';
+} from '../ast/types';
 import {
   isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort,
   KNOWN_NODETYPE_TAGS, STANDARD_JSDOC_TAGS,
   getKnownWorkflowTags,
-} from './constants';
-import { inferDataTypeFromTS, stripOptionalUndefined } from './type-mappings';
-import { findClosestMatches } from './utils/string-distance';
-import type { TagHandlerRegistry } from './parser/tag-registry';
+} from '../constants';
+import { inferDataTypeFromTS, stripOptionalUndefined } from '../types/type-mappings';
+import { findClosestMatches } from '../utils/string-distance';
+import type { TagHandlerRegistry } from './tag-registry';
 import {
   parsePortLine,
   parseNodeLine,
@@ -35,7 +35,7 @@ import {
   parseTriggerLine,
   parseCancelOnLine,
   parseThrottleLine,
-} from './chevrotain-parser';
+} from '../chevrotain-parser';
 
 /**
  * Extract the type of a field from a callback's return type using ts-morph Type API.

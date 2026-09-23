@@ -2,7 +2,7 @@
  * Tests for validator mergeStrategy handling
  */
 
-import { WorkflowValidator } from "../../../src/validator";
+import { WorkflowValidator } from "../../../src/validation/validator";
 import type { TWorkflowAST, TNodeTypeAST, TMergeStrategy } from "../../../src/ast/types";
 
 describe("Validator mergeStrategy", () => {

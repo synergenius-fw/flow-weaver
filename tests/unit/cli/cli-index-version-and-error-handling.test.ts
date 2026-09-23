@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/cli/index.ts
+ * Tests for src/cli/index.ts
  *
  * Targets: version detection fallback, writeErr suppression,
  * writeOut passthrough, wrapAction error handling, no-args banner,

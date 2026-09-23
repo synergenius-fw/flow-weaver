@@ -1,5 +1,5 @@
 /**
- * Coverage tests for marketplace validator export target rules (lines 108-128).
+ * Tests for marketplace validator export target rules.
  * Covers TGT-001 (name/file required) and TGT-002 (unique names) validation.
  */
 

@@ -1,6 +1,6 @@
 /**
- * Branch coverage tests for src/cli/commands/init.ts (round 2).
- * Targets uncovered branches in initCommand's non-JSON output path,
+ * Tests for src/cli/commands/init.ts (round 2).
+ * Tests for initCommand's non-JSON output path,
  * MCP setup, compile step, install/git result reporting, displayDir logic,
  * and agent handoff error handling.
  */

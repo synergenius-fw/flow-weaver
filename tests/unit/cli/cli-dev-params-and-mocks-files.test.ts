@@ -1,7 +1,7 @@
 /**
- * Additional coverage tests for src/cli/commands/dev.ts
+ * Tests for src/cli/commands/dev.ts
  *
- * Targets uncovered lines:
+ * Tests:
  *  - Lines 101-102: friendly error display in compile failure branch
  *  - Lines 198-235: watch mode (chokidar watcher, cleanup handlers, cycleSeparator)
  */

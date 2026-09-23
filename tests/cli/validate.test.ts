@@ -7,8 +7,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { parser } from '../../src/parser';
-import { validator } from '../../src/validator';
+import { parser } from '../../src/parser/annotation-parser';
+import { validator } from '../../src/validation/validator';
 import { validateCommand } from '../../src/cli/commands/validate';
 
 const VALIDATE_TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-validate-${process.pid}`);

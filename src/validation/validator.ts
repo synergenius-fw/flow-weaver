@@ -2,9 +2,9 @@ import type {
   TNodeTypeAST,
   TWorkflowAST,
   TValidationError,
-} from './ast/types';
-import { findClosestMatches } from './utils/string-distance.js';
-import type { ValidationContext } from './validation/core-rules.js';
+} from '../ast/types';
+import { findClosestMatches } from '../utils/string-distance.js';
+import type { ValidationContext } from './core-rules.js';
 import {
   validateStructure,
   validateDuplicateNodeNames,
@@ -28,10 +28,10 @@ import {
   validateExpressionSyntax,
   validateExecuteWhen,
   validateScopeTopology,
-} from './validation/core-rules.js';
+} from './core-rules.js';
 
 // Re-export TValidationError for convenience
-export type { TValidationError } from './ast/types';
+export type { TValidationError } from '../ast/types';
 
 // The reference as published with the source. These are the same pages `fw docs`
 // prints and the console shows.

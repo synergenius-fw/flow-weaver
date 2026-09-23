@@ -1,6 +1,6 @@
 /**
- * Coverage tests for src/cli/commands/mcp-setup.ts
- * Targets uncovered lines: 404, 447-485, 493
+ * Tests for src/cli/commands/mcp-setup.ts
+ * Tests: 404, 447-485, 493
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

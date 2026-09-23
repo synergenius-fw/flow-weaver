@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { AnnotationParser } from '../../src/parser';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';

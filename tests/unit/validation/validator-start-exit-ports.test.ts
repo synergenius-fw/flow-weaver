@@ -4,7 +4,7 @@
  * against declared @param/@returns ports with "Did you mean?" suggestions.
  */
 
-import { WorkflowValidator } from '../../../src/validator';
+import { WorkflowValidator } from '../../../src/validation/validator';
 import type { TWorkflowAST } from '../../../src/ast/types';
 import { createProcessorNodeType, createNodeInstance } from '../../helpers/test-fixtures';
 

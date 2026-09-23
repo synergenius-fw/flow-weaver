@@ -9,7 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 
 describe('Parser JSDoc Resilience', () => {
   const uniqueId = `parser-resilience-${process.pid}-${Date.now()}`;

@@ -1,8 +1,8 @@
 /**
- * Coverage for src/diagram/orthogonal-router.ts uncovered lines:
- * - Line 601: exitX fallback when initial exitX < from[0] and vertical segment blocked
- * - Lines 611-614: entryX fallback when initial entryX > to[0] and vertical segment blocked
- * - Line 742: catch block in calculateOrthogonalPathSafe
+ * Tests for src/diagram/orthogonal-router.ts:
+ * - exitX fallback when initial exitX < from[0] and vertical segment blocked
+ * - entryX fallback when initial entryX > to[0] and vertical segment blocked
+ * - catch block in calculateOrthogonalPathSafe
  */
 import { describe, it, expect, vi } from 'vitest';
 import {

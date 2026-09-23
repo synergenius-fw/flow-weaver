@@ -1,4 +1,4 @@
-import type { TDataType } from './ast/types';
+import type { TDataType } from '../ast/types';
 
 export type TypeScriptType =
   | 'string'

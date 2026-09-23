@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyModifyOperation } from '../../../src/api/modify-operation';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 
 const SOURCE = `
 /**

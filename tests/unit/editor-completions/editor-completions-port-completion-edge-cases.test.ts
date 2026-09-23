@@ -1,8 +1,8 @@
 /**
- * Coverage for src/editor-completions/index.ts uncovered lines:
- * - Line 174: getPortCompletions returns [] when context has no instances
- * - Line 186: getPortCompletions returns [] when nodeType not found in context
- * - Lines 218-219: connectedPorts tracks output-direction connections
+ * Tests for src/editor-completions/index.ts:
+ * - getPortCompletions returns [] when context has no instances
+ * - getPortCompletions returns [] when nodeType not found in context
+ * - connectedPorts tracks output-direction connections
  */
 import { describe, it, expect } from 'vitest';
 import { getFlowWeaverCompletions, WorkflowContext } from '../../../src/editor-completions';

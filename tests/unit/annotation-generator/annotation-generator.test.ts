@@ -3,7 +3,7 @@
  * Ensures proper escaping of special characters in generated JSDoc annotations.
  */
 
-import { generateNodeInstanceTag, annotationGenerator } from '../../../src/annotation-generator';
+import { generateNodeInstanceTag, annotationGenerator } from '../../../src/generator/annotation-generator';
 import { parseNodeLine } from '../../../src/chevrotain-parser/node-parser';
 import { tagHandlerRegistry } from '../../../src/parser/tag-registry';
 import type { TNodeInstanceAST, TWorkflowAST } from '../../../src/ast/types';

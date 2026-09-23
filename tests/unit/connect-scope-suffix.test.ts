@@ -5,9 +5,9 @@
  * Uses in-memory parsing (parseFromString) for speed - no file I/O.
  */
 
-import { parser } from "../../src/parser";
+import { parser } from "../../src/parser/annotation-parser";
 import { generateInPlace } from "../../src/api/generate-in-place";
-import { annotationGenerator } from "../../src/annotation-generator";
+import { annotationGenerator } from "../../src/generator/annotation-generator";
 
 describe("Parser @connect Scope Suffix", () => {
   it("should parse @connect with scope suffix on from port", () => {

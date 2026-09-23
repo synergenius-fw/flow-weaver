@@ -11,11 +11,11 @@
 
 import * as path from 'node:path';
 import { type Type, type Symbol as TsSymbol } from 'ts-morph';
-import type { FunctionLike } from '../function-like';
-import { jsdocParser } from '../jsdoc-parser';
+import type { FunctionLike } from './function-like';
+import { jsdocParser } from './jsdoc-parser';
 import type { TDataType, TPortDefinition } from '../ast/types';
 import { assignImplicitPortOrders } from '../utils/port-ordering';
-import { inferDataTypeFromTS, stripOptionalUndefined } from '../type-mappings';
+import { inferDataTypeFromTS, stripOptionalUndefined } from '../types/type-mappings';
 
 export function parseStartPorts(
   fn: FunctionLike,

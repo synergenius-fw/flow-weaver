@@ -1,6 +1,6 @@
 /**
- * Coverage tests for src/api/manipulation/workflow.ts
- * Targets uncovered lines 119-151: renameWorkflow and setWorkflowPorts
+ * Tests for src/api/manipulation/workflow.ts
+ * Tests renameWorkflow and setWorkflowPorts
  */
 
 import {

@@ -5,7 +5,7 @@
  * Uses in-memory parsing (parseFromString) for speed - no file I/O.
  */
 
-import { parser } from "../../src/parser";
+import { parser } from "../../src/parser/annotation-parser";
 import { generateCode } from "../../src/api/generate";
 
 describe("Circular Dependency Detection", () => {

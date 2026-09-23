@@ -18,7 +18,7 @@ export function buildDurableGatePayload(arguments_: readonly string[]): string {
   return `{ arguments: [${arguments_.join(', ')}].map((value) => value === undefined ? { absent: true } : { value }) }`;
 }
 import { generateScopeFunctionClosure } from './scope-function-generator';
-import { mapToTypeScript } from '../type-mappings';
+import { mapToTypeScript } from '../types/type-mappings';
 import { findExpressionReferences, rewriteExpressionReferences } from '../parser/expression-references';
 
 /** Map coercion target type to inline JS expression */

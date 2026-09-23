@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { AnnotationParser } from '../../../src/parser';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
 import { TagHandlerRegistry } from '../../../src/parser/tag-registry';
 import { ValidationRuleRegistry } from '../../../src/validation/rule-registry';
 import { validationRuleRegistry } from '../../../src/api/validation-registry';

@@ -1,5 +1,5 @@
 /**
- * Branch coverage tests for src/cli/commands/init.ts
+ * Tests for src/cli/commands/init.ts
  *
  * Tests the pure/synchronous functions: validateProjectName, toWorkflowName,
  * isNonInteractive, generateProjectFiles, scaffoldProject, runNpmInstall,

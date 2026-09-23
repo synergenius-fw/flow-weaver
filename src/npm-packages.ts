@@ -7,11 +7,11 @@
 
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { resolvePackageTypesPath } from './resolve-package-types';
-import { extractFunctionLikes, type FunctionLike } from './function-like';
-import { inferDataTypeFromTS } from './type-mappings';
+import { resolvePackageTypesPath } from './parser/resolve-package-types';
+import { extractFunctionLikes, type FunctionLike } from './parser/function-like';
+import { inferDataTypeFromTS } from './types/type-mappings';
 import type { TDataType } from './ast/types';
-import { getSharedProject } from './shared-project';
+import { getSharedProject } from './parser/shared-project';
 
 /**
  * Port definition compatible with TNodeType.ports

@@ -1,20 +1,17 @@
 /**
- * Third round of branch coverage tests for src/parser.ts.
- *
- * Targets remaining partial and fully uncovered branches that coverage-1
- * and coverage-2 missed: autoConnect data port wiring, @path fail routes
- * and scope walking, @map with explicit/missing ports, @coerce validation,
- * @fanOut/@fanIn deduplication, instance config optional fields via the
- * binary-expr spreads, generateAnnotationSuggestion continuation mode,
- * isWorkflowBlock bare tag, resolveNpmNodeTypes, extractTypeSchema
- * fallback path, parseExitPorts with non-control-flow outputs, and
- * various binary-expr null-guard branches on port definitions.
+ * Tests for src/parser/annotation-parser.ts: autoConnect data port wiring,
+ * @path fail routes and scope walking, @map with explicit/missing ports,
+ * @coerce validation, @fanOut/@fanIn deduplication, instance config optional
+ * fields via the binary-expr spreads, generateAnnotationSuggestion
+ * continuation mode, isWorkflowBlock bare tag, resolveNpmNodeTypes,
+ * extractTypeSchema fallback path, parseExitPorts with non-control-flow
+ * outputs, and various binary-expr null-guard branches on port definitions.
  */
 
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { AnnotationParser, resolveNpmNodeTypes, type TExternalNodeType } from '../../../src/parser';
+import { AnnotationParser, resolveNpmNodeTypes, type TExternalNodeType } from '../../../src/parser/annotation-parser';
 import type { TWorkflowAST, TNodeTypeAST, TPortDefinition } from '../../../src/ast/types';
 
 function freshParser() {

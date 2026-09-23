@@ -1,7 +1,7 @@
 /**
- * Coverage for WorkflowDiffer.ts uncovered lines:
- * - Lines 288-289: instance UI changes detected and flagged
- * - Lines 422, 425: UI instance maps built from workflow.ui.instances
+ * Tests for src/diff/WorkflowDiffer.ts:
+ * - instance UI changes detected and flagged
+ * - UI instance maps built from workflow.ui.instances
  */
 import { describe, it, expect } from 'vitest';
 import { WorkflowDiffer } from '../../../src/diff/WorkflowDiffer.js';

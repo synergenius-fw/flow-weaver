@@ -1,7 +1,7 @@
 /**
- * Coverage for chevrotain-parser/grammar-diagrams.ts uncovered lines:
- * - Lines 135-139: RepetitionWithSeparator and default/unknown GAST types in itemToEBNF
- * - Lines 318-325: generateGrammarDiagramFor function
+ * Tests for src/chevrotain-parser/grammar-diagrams.ts:
+ * - RepetitionWithSeparator and default/unknown GAST types in itemToEBNF
+ * - generateGrammarDiagramFor function
  */
 import { describe, it, expect } from 'vitest';
 import {

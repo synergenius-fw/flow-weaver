@@ -13,9 +13,9 @@ import type {
   TWorkflowMacro,
   TPathMacro,
   TPortDefinition,
-} from './ast/types';
-import { isControlFlowPort } from './constants';
-import { isPathImpliedDataEdge, pathDataEdgesSatisfied } from './parser/path-data-resolution';
+} from '../ast/types';
+import { isControlFlowPort } from '../constants';
+import { isPathImpliedDataEdge, pathDataEdgesSatisfied } from '../parser/path-data-resolution';
 
 export interface DetectedSugar {
   paths: TPathMacro[];

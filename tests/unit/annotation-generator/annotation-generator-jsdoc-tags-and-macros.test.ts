@@ -1,6 +1,6 @@
 /**
- * Branch coverage tests for src/annotation-generator.ts
- * Targets uncovered branches in generate(), generateNodeTypeAnnotation(),
+ * Tests for src/annotation-generator.ts
+ * Tests for generate(), generateNodeTypeAnnotation(),
  * generateWorkflowAnnotation(), generateNodeInstanceTag(), generateJSDocPortTag(),
  * generateFunctionSignature(), and isConnectionCoveredByMacroStatic().
  */
@@ -11,7 +11,7 @@ import {
   generateNodeInstanceTag,
   generateFunctionSignature,
   assignPortOrders,
-} from '../../../src/annotation-generator';
+} from '../../../src/generator/annotation-generator';
 import type {
   TWorkflowAST,
   TNodeTypeAST,

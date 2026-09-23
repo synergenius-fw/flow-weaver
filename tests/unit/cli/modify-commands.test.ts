@@ -11,7 +11,7 @@ import {
   modifySetLabelCommand,
 } from '../../../src/cli/commands/modify';
 import { applyModifyOperation, validateModifyParams } from '../../../src/api/modify-operation';
-import { AnnotationParser } from '../../../src/parser';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
 
 const FIXTURE_WORKFLOW = `
 /**

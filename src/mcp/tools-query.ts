@@ -18,9 +18,9 @@ import { runDoctorChecks } from '../cli/commands/doctor.js';
 import { WorkflowDiffer } from '../diff/WorkflowDiffer.js';
 import { formatDiff } from '../diff/formatDiff.js';
 import { makeToolResult, makeErrorResult, addHintsToItems } from './response-utils.js';
-import { getFriendlyError } from '../friendly-errors.js';
+import { getFriendlyError } from '../validation/friendly-errors.js';
 import { compileTargetRegistry } from '../generator/compile-target-registry.js';
-import { AnnotationParser } from '../parser.js';
+import { AnnotationParser } from '../parser/annotation-parser.js';
 
 /** Detect MULTIPLE_WORKFLOWS_FOUND marker in parse errors and return the right error code */
 function parseErrorCode(errors: string[]): string {

@@ -1,16 +1,14 @@
 /**
- * Additional branch coverage tests for src/diagram/orthogonal-router.ts.
- *
- * Targets uncovered branches in:
+ * Tests for src/diagram/orthogonal-router.ts:
  * - TrackAllocator claim with overlapping corridors
- * - findClearY bestDist===Infinity fallback (lines 285-301)
- * - findClearX bestDist===Infinity fallback (lines 343-360)
- * - simplifyWaypoints horizontal jog collapse (lines 397-413)
- * - waypointsToSvgPath adjacent corner radius shrink (lines 456-466)
- * - forward cluster detection pushing candidateY outside cluster (lines 536-546)
- * - S-shape clearY snap to source/target Y (lines 578-588)
- * - exitX/entryX fallback when blocked (lines 597-614)
- * - calculateOrthogonalPathSafe catch branch (line 741-742)
+ * - findClearY bestDist===Infinity fallback
+ * - findClearX bestDist===Infinity fallback
+ * - simplifyWaypoints horizontal jog collapse
+ * - waypointsToSvgPath adjacent corner radius shrink
+ * - forward cluster detection pushing candidateY outside cluster
+ * - S-shape clearY snap to source/target Y
+ * - exitX/entryX fallback when blocked
+ * - calculateOrthogonalPathSafe catch branch
  */
 import { describe, it, expect, vi } from 'vitest';
 import {

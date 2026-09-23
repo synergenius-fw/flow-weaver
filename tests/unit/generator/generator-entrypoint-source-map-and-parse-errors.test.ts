@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/generator.ts (lines 72, 88-92)
+ * Tests for src/generator.ts
  * Targets: generate() with sourceMap:true branch, and parseWithLogging error path.
  */
 
@@ -44,7 +44,7 @@ export function simpleWf(execute: boolean): Promise<{ onSuccess: boolean; onFail
 
 describe('WorkflowGenerator.generate coverage', () => {
   it('should generate code without sourceMap', async () => {
-    const { generator } = await import('../../../src/generator');
+    const { generator } = await import('../../../src/generator/workflow-generator');
     const filePath = writeFixture('gen-no-map.ts', SIMPLE_WORKFLOW);
 
     const code = await generator.generate(filePath, 'simpleWf');
@@ -53,7 +53,7 @@ describe('WorkflowGenerator.generate coverage', () => {
   });
 
   it('should generate code with sourceMap:true (returns GeneratorResult)', async () => {
-    const { generator } = await import('../../../src/generator');
+    const { generator } = await import('../../../src/generator/workflow-generator');
     const filePath = writeFixture('gen-map.ts', SIMPLE_WORKFLOW);
 
     const result = await generator.generate(filePath, 'simpleWf', { sourceMap: true });
@@ -64,7 +64,7 @@ describe('WorkflowGenerator.generate coverage', () => {
   });
 
   it('should generate code with production:true', async () => {
-    const { generator } = await import('../../../src/generator');
+    const { generator } = await import('../../../src/generator/workflow-generator');
     const filePath = writeFixture('gen-prod.ts', SIMPLE_WORKFLOW);
 
     const code = await generator.generate(filePath, 'simpleWf', { production: true });
@@ -72,7 +72,7 @@ describe('WorkflowGenerator.generate coverage', () => {
   });
 
   it('should throw on parse errors (e.g., referencing nonexistent workflow)', async () => {
-    const { generator } = await import('../../../src/generator');
+    const { generator } = await import('../../../src/generator/workflow-generator');
     const filePath = writeFixture('gen-err.ts', SIMPLE_WORKFLOW);
 
     await expect(
@@ -81,7 +81,7 @@ describe('WorkflowGenerator.generate coverage', () => {
   });
 
   it('should throw on parse errors for invalid file content', async () => {
-    const { generator } = await import('../../../src/generator');
+    const { generator } = await import('../../../src/generator/workflow-generator');
     const filePath = writeFixture('gen-bad.ts', `
 // No workflow annotations at all
 export const x = 1;

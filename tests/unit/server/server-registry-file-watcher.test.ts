@@ -1,5 +1,5 @@
 /**
- * Coverage tests for WorkflowRegistry file watcher (lines 191-205, 218).
+ * Tests for WorkflowRegistry file watcher.
  * Covers the debounced 'all' event handler and stopWatching timer cleanup.
  */
 

@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/cli/commands/init.ts (lines 775-798, 806, 824)
+ * Tests for src/cli/commands/init.ts
  * Targets: agent handoff block, ExitPromptError handling, and agentLaunched early return.
  * Also tests pure utility functions: validateProjectName, toWorkflowName, generateProjectFiles, scaffoldProject.
  */

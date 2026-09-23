@@ -1,5 +1,5 @@
 /**
- * Additional coverage for src/cli/index.ts
+ * Tests for src/cli/index.ts
  *
  * Since cli/index.ts has heavy side effects (importing Commander, registering commands,
  * checking process.argv), most of it can't be imported directly in tests. Instead we

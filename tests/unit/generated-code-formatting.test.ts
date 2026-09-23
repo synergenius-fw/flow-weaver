@@ -11,7 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('Generated Code Formatting', () => {
   const uniqueId = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { AnnotationParser } from '../../../src/parser';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
 
 describe('AnnotationParser uncovered regions', () => {
   let parser: AnnotationParser;

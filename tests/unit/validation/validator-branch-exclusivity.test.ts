@@ -3,7 +3,7 @@
  * mutually exclusive branches (onSuccess vs onFailure paths).
  */
 
-import { WorkflowValidator } from '../../../src/validator';
+import { WorkflowValidator } from '../../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST } from '../../../src/ast/types';
 
 describe('Validator Branch Exclusivity', () => {

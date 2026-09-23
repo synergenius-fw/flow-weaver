@@ -1,19 +1,19 @@
 /**
- * Coverage tests for src/cli/commands/export.ts (round 2)
+ * Tests for src/cli/commands/export.ts (round 2)
  *
- * Targets uncovered branches:
+ * Tests:
  *  - Missing --target throws
- *  - Multi-workflow dry run success message (lines 106-109)
- *  - Multi-workflow non-dry run with workflows list (lines 114-118)
- *  - Dry run handler preview for .yml/.yaml files (lines 140-141)
- *  - Dry run with no matching handler file (line 143)
+ *  - Multi-workflow dry run success message
+ *  - Multi-workflow non-dry run with workflows list
+ *  - Dry run handler preview for .yml/.yaml files
+ *  - Dry run with no matching handler file
  *  - Dry run with short handler (<=40 lines, no "more lines" message)
- *  - Warnings display (lines 155-161)
- *  - Target not found in registry for deploy instructions (line 186-188)
- *  - Prerequisites in deploy instructions (lines 183-185)
- *  - workflows comma parsing (line 63)
- *  - durableSteps logging (line 83-85)
- *  - docs logging (line 80-82)
+ *  - Warnings display
+ *  - Target not found in registry for deploy instructions
+ *  - Prerequisites in deploy instructions
+ *  - workflows comma parsing
+ *  - durableSteps logging
+ *  - docs logging
  */
 
 // ── Hoisted mocks ──────────────────────────────────────────────────────────

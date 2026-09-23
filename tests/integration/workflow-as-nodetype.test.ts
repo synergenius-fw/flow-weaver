@@ -5,7 +5,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { AnnotationParser } from '../../src/parser';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
 
 const FIXTURES_DIR = path.resolve(__dirname, '../fixtures/cross-file');
 

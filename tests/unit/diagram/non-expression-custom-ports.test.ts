@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 
 /**
  * Non-expression nodes with explicit @input/@output annotations keep their

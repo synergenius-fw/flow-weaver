@@ -1,5 +1,5 @@
 /**
- * Additional coverage tests for src/cli/commands/run.ts
+ * Tests for src/cli/commands/run.ts
  * Targets lines 464-842: error formatting, streaming onEvent callback,
  * result output (JSON + human-readable), trace summary display,
  * checkpoint/resume integration, and validateMockConfig.
@@ -64,7 +64,7 @@ vi.mock('../../../src/runtime/checkpoint', () => {
   };
 });
 
-vi.mock('../../../src/friendly-errors', () => ({
+vi.mock('../../../src/validation/friendly-errors', () => ({
   getFriendlyError: vi.fn(() => null),
 }));
 
@@ -139,7 +139,7 @@ async function getLogger() {
 }
 
 async function getFriendlyErrorMock() {
-  const mod = await import('../../../src/friendly-errors');
+  const mod = await import('../../../src/validation/friendly-errors');
   return mod.getFriendlyError as unknown as ReturnType<typeof vi.fn>;
 }
 

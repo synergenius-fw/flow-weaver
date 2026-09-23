@@ -11,7 +11,7 @@ import {
   listNodeTemplates,
 } from '../../src/api/templates';
 import { parsePortsFromFunctionText } from '../../src/jsdoc-port-sync';
-import { getFriendlyError } from '../../src/friendly-errors';
+import { getFriendlyError } from '../../src/validation/friendly-errors';
 import { ERROR_HINTS } from '../../src/mcp/response-utils';
 
 describe('template regressions', () => {

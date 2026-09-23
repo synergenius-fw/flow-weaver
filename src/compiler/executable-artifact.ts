@@ -18,7 +18,7 @@ import {
 } from '../api/index.js';
 import { validateDurableClosure } from '../api/durable-validation.js';
 import { graphIdentity } from '../api/graph-identity.js';
-import type { TExternalNodeType } from '../parser.js';
+import type { TExternalNodeType } from '../parser/annotation-parser.js';
 import {
   EXECUTABLE_WORKFLOW_METADATA_EXPORT,
   EXECUTABLE_WORKFLOW_MODULE_FORMAT,

@@ -1,5 +1,5 @@
 /**
- * Coverage for constants.ts:
+ * Tests for constants.ts:
  * - Line 108: isSpecialNode (calls isStartNode || isExitNode)
  * - Line 158: isScopedPort (FUNCTION type with scope attribute)
  */

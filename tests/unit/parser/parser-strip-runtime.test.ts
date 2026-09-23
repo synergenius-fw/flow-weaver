@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { AnnotationParser } from '../../../src/parser';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
 import { MARKERS } from '../../../src/api/generate-in-place';
 import * as fs from 'node:fs';
 import * as os from 'node:os';

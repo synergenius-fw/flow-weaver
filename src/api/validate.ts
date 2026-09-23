@@ -6,7 +6,7 @@
  */
 
 import type { TValidationRule, TWorkflowAST } from "../ast";
-import { validator, type TValidationError } from "../validator";
+import { validator, type TValidationError } from "../validation/validator";
 import { getAgentValidationRules } from "../validation/agent-rules";
 import { getDesignValidationRules } from "../validation/design-rules";
 import { validationRuleRegistry } from "./validation-registry";

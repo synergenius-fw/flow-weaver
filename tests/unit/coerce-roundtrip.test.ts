@@ -10,8 +10,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { parser } from '../../src/parser';
-import { annotationGenerator } from '../../src/annotation-generator';
+import { parser } from '../../src/parser/annotation-parser';
+import { annotationGenerator } from '../../src/generator/annotation-generator';
 
 const NODE_TYPES_SOURCE = `
 /**

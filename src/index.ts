@@ -60,8 +60,8 @@
 export * from './api';
 
 // Parser (for advanced use - clearing import cache)
-export { parser, resolveNpmNodeTypes } from './parser';
-export type { TExternalNodeType } from './parser';
+export { parser, resolveNpmNodeTypes } from './parser/annotation-parser';
+export type { TExternalNodeType } from './parser/annotation-parser';
 
 // Extension registries
 export { TagHandlerRegistry } from './parser/tag-registry';
@@ -150,30 +150,30 @@ export { isDurableGateYield, isAmbiguousEffectError } from './runtime/durable-ex
 export * from './runtime/continuation';
 
 // Node Types Generator (for generated .node-types files)
-export type { TLocalFunctionNodeType } from './node-types-generator';
+export type { TLocalFunctionNodeType } from './generator/node-types-generator';
 
 // Generated Branding (configurable output branding)
 export { configureGeneratedBranding, getGeneratedBranding } from './generated-branding';
 export type { GeneratedBranding } from './generated-branding';
 
 // Type Mappings & Constants
-export * from './type-mappings';
+export * from './types/type-mappings';
 export * from './constants';
 
 // Validation
-export { validator, WorkflowValidator } from './validator';
+export { validator, WorkflowValidator } from './validation/validator';
 
 // Friendly Errors (beginner-friendly validation messages)
-export { getFriendlyError, formatFriendlyDiagnostics } from './friendly-errors';
-export type { TFriendlyError } from './friendly-errors';
+export { getFriendlyError, formatFriendlyDiagnostics } from './validation/friendly-errors';
+export type { TFriendlyError } from './validation/friendly-errors';
 
 // Code Generation
-export { generator, WorkflowGenerator } from './generator';
-export { AnnotationGenerator } from './annotation-generator';
-export type { GenerateAnnotationsOptions } from './annotation-generator';
+export { generator, WorkflowGenerator } from './generator/workflow-generator';
+export { AnnotationGenerator } from './generator/annotation-generator';
+export type { GenerateAnnotationsOptions } from './generator/annotation-generator';
 
 // Generator Utilities (for advanced use)
-export * as GeneratorUtils from './generator';
+export * as GeneratorUtils from './generator/workflow-generator';
 
 // JSDoc Port Sync (browser-compatible parsing/updating)
 export {

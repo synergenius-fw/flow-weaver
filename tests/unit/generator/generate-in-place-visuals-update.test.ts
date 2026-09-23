@@ -7,7 +7,7 @@
  * because path.resolve(virtualPath) !== path.resolve(ast.sourceFile).
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 import { updateNodeType } from '../../../src/api';
 import { generateInPlace } from '../../../src/api/generate-in-place';
 import type { TNodeTypeAST } from '../../../src/ast/types';

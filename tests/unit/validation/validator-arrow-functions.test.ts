@@ -3,8 +3,8 @@
  * Warns about mutable bindings (let/var) and nested arrow functions used as node types.
  */
 
-import { AnnotationParser } from '../../../src/parser';
-import { WorkflowValidator } from '../../../src/validator';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
+import { WorkflowValidator } from '../../../src/validation/validator';
 
 describe('Validator Arrow Function Warnings', () => {
   let parser: AnnotationParser;

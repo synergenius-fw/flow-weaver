@@ -7,7 +7,7 @@
 
 import { generateCode } from '../../src/api/generate';
 import { generateInlineRuntime } from '../../src/api/inline-runtime';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 
 const SIMPLE_WORKFLOW = `
 /**

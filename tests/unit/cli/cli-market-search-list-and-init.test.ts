@@ -1,6 +1,6 @@
 /**
- * Coverage tests for src/cli/commands/market.ts
- * Targets uncovered lines: 442-464 (search results display, error handling),
+ * Tests for src/cli/commands/market.ts
+ * Tests: 442-464 (search results display, error handling),
  * 504-575 (displayInstalledPackage, displayManifestSummary).
  */
 

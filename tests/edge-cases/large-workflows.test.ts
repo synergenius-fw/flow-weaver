@@ -6,9 +6,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { generateCode } from '../../src/api/generate';
-import { validator } from '../../src/validator';
+import { validator } from '../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST, TConnectionAST, TDataType } from '../../src/ast/types';
 
 describe('Large Workflows', () => {

@@ -1,9 +1,11 @@
 /**
- * Branch coverage tests for src/validator.ts
- * Targets uncovered branches across all validation methods.
+ * Tests for src/validation/validator.ts: the error and warning rules across
+ * all validation methods (workflow metadata, reserved names, unknown nodes and
+ * ports, duplicates, STEP typing, coercion, type mismatches, unused and
+ * unreachable nodes, draft mode, suppression, cycles, and scopes).
  */
 
-import { WorkflowValidator } from '../../../src/validator';
+import { WorkflowValidator } from '../../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST, TConnectionAST } from '../../../src/ast/types';
 
 // ── Helpers ──────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@
  */
 
 import type { TPortDefinition, TDataType } from "../ast/types";
-import { generateJSDocPortTag } from "../annotation-generator";
+import { generateJSDocPortTag } from "../generator/annotation-generator";
 import { JSDOC_BLOCK_REGEX, PORT_TAG_REGEX } from "./constants";
 import { portTypeToTsType } from "./signature-parser";
 

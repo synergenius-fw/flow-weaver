@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/cli/commands/create.ts (lines 164, 183, 187-188)
+ * Tests for src/cli/commands/create.ts
  * Targets: createNodeCommand unknown template, invalid --config JSON, line insertion info,
  * and error handling in node file creation.
  */

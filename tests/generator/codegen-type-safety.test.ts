@@ -16,7 +16,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
 import { describe, it, expect } from 'vitest';
-import { mapToTypeScript } from '../../src/type-mappings';
+import { mapToTypeScript } from '../../src/types/type-mappings';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 const FIXTURE_DIR = path.resolve(__dirname, '../fixtures/codegen-types');

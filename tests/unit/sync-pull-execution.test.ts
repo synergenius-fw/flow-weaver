@@ -5,7 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('Sync Pull Execution', () => {
   const inputFile = path.join(__dirname, '../../fixtures/advanced/example-sync-pull.ts');

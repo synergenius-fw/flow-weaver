@@ -1,5 +1,5 @@
 /**
- * Additional coverage for trigger-cancel-parser.ts: edge cases for
+ * Tests for trigger-cancel-parser.ts: edge cases for
  * parse error handling, empty inputs, grammar serialization, and
  * the throttle parser.
  */

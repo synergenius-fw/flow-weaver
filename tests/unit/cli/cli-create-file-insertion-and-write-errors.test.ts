@@ -1,7 +1,5 @@
 /**
- * Additional coverage for src/cli/commands/create.ts
- *
- * Targets remaining uncovered lines:
+ * Tests for src/cli/commands/create.ts:
  *  - insertIntoFile: creating directories when file doesn't exist, line insertion boundary
  *  - createWorkflowCommand: async flag, error handling in file write, config merge
  *  - createNodeCommand: error handling in file write, preview with console.log

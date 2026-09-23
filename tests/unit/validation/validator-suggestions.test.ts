@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { levenshteinDistance, findClosestMatches } from '../../../src/utils/string-distance';
-import { WorkflowValidator } from '../../../src/validator';
+import { WorkflowValidator } from '../../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST } from '../../../src/ast/types';
 
 // ─── String Distance Tests ──────────────────────────────────────────────────

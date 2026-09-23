@@ -7,7 +7,7 @@
 
 import type { Type, TypeChecker } from "ts-morph";
 import type { TypeChecker as TSTypeChecker } from "typescript";
-import type { TTypeCompatibility } from "./ast/types";
+import type { TTypeCompatibility } from "../ast/types";
 
 /**
  * Safe runtime coercions that JavaScript handles automatically.

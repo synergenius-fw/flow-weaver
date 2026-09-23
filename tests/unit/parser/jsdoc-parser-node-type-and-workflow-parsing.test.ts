@@ -1,14 +1,14 @@
 /**
- * Branch coverage tests for src/jsdoc-parser.ts
+ * Tests for src/jsdoc-parser.ts
  *
  * Exercises both sides of conditionals: error paths, malformed inputs,
  * edge cases for nodeType/workflow/pattern parsing, deploy tag parsing,
  * unknown tag detection, context validation, and default value parsing.
  */
 
-import { jsdocParser } from '../../../src/jsdoc-parser';
-import { extractFunctionLikes } from '../../../src/function-like';
-import { getSharedProject } from '../../../src/shared-project';
+import { jsdocParser } from '../../../src/parser/jsdoc-parser';
+import { extractFunctionLikes } from '../../../src/parser/function-like';
+import { getSharedProject } from '../../../src/parser/shared-project';
 
 const project = getSharedProject();
 

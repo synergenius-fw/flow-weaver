@@ -1,12 +1,12 @@
 /**
- * Coverage for annotation-generator.ts:
+ * Tests for annotation-generator.ts:
  * - Line 491: required port with default value (non-optional)
  * - Line 511: port with placement metadata
  * - Line 515: port with expression
  * - Line 732: instance with size (width/height) config
  */
 import { describe, it, expect } from 'vitest';
-import { generateJSDocPortTag, generateNodeInstanceTag } from '../../../src/annotation-generator';
+import { generateJSDocPortTag, generateNodeInstanceTag } from '../../../src/generator/annotation-generator';
 import type { TPortDefinition, TNodeInstanceAST } from '../../../src/ast/types';
 
 describe('generateJSDocPortTag: uncovered branches', () => {

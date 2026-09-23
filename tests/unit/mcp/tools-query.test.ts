@@ -81,7 +81,7 @@ vi.mock('../../../src/generator/compile-target-registry.js', () => {
 // ── Mock parser ──────────────────────────────────────────────────────────────
 const mockAnnotationParserParse = vi.fn();
 
-vi.mock('../../../src/parser.js', () => {
+vi.mock('../../../src/parser/annotation-parser.js', () => {
   class MockAnnotationParser {
     parse(...args: unknown[]) {
       return mockAnnotationParserParse(...args);
@@ -91,7 +91,7 @@ vi.mock('../../../src/parser.js', () => {
 });
 
 // ── Mock friendly errors ─────────────────────────────────────────────────────
-vi.mock('../../../src/friendly-errors.js', () => ({
+vi.mock('../../../src/validation/friendly-errors.js', () => ({
   getFriendlyError: () => null,
 }));
 

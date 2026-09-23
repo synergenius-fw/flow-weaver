@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileToSVG, fileToASCII } from '../../diagram/index.js';
-import { parser } from '../../parser.js';
+import { parser } from '../../parser/annotation-parser.js';
 import { logger } from '../utils/logger.js';
 import { safeWriteFile } from '../utils/safe-write.js';
 

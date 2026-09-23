@@ -4,10 +4,10 @@ import type {
   TNodeTypeAST,
   TModuleFormat,
 } from '../ast/types';
-import { bodyGenerator } from '../body-generator';
+import { bodyGenerator } from '../generator/body-generator';
 import { extractExitPorts, extractStartPorts, hasBranching } from '../ast/workflow-utils';
 import { isExecutePort } from '../constants';
-import { mapToTypeScript } from '../type-mappings';
+import { mapToTypeScript } from '../types/type-mappings';
 import { SourceMapGenerator } from 'source-map';
 import { generateInlineRuntime, stripTypeScript, INLINE_ENGINE_EXPORTS } from './inline-runtime';
 import { graphIdentity } from './graph-identity';

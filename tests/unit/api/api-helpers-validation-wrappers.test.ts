@@ -1,6 +1,5 @@
 /**
- * Coverage tests for api/helpers.ts uncovered paths (lines 64-112).
- * Covers withMinimalValidation and withoutValidation.
+ * Tests for src/api/helpers.ts: withMinimalValidation and withoutValidation.
  */
 
 import {

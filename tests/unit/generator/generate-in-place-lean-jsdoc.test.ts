@@ -17,7 +17,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 import { generateInPlace } from '../../../src/api/generate-in-place';
 
 const SOURCE = `/**

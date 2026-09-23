@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/generator/unified.ts
+ * Tests for src/generator/unified.ts
  * Targets lines 2040 (CONJUNCTION OR-grouped with multiple sources per port),
  * 2049-2064 (DISJUNCTION with dedup), and 2065-2087 (CUSTOM fallback with
  * multiple sources per port generating OR-grouped conditions).

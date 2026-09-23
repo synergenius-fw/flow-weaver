@@ -1,6 +1,6 @@
 /**
- * Coverage tests for src/cli/pack-commands.ts
- * Targets uncovered lines: 33-40 (checkPackEngineVersion warning),
+ * Tests for src/cli/pack-commands.ts
+ * Tests: 33-40 (checkPackEngineVersion warning),
  * 100-108 (lazy handler error path)
  */
 

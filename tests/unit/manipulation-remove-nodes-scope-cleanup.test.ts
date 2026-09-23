@@ -1,7 +1,7 @@
 /**
- * Coverage tests for src/api/manipulation/nodes.ts
- * Targets uncovered lines:
- *   298-299: removeNodes with scopes
+ * Tests for src/api/manipulation/nodes.ts
+ * Tests:
+ *   - removeNodes with scopes
  */
 
 import {

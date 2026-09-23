@@ -1,9 +1,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { extractFunctionLikes } from '../../../src/function-like';
-import { jsdocParser } from '../../../src/jsdoc-parser';
-import { getSharedProject } from '../../../src/shared-project';
+import { extractFunctionLikes } from '../../../src/parser/function-like';
+import { jsdocParser } from '../../../src/parser/jsdoc-parser';
+import { getSharedProject } from '../../../src/parser/shared-project';
 
 const source = `
 /**

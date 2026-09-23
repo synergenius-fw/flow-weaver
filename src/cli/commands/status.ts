@@ -5,7 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseWorkflow } from '../../api/index.js';
-import { validator } from '../../validator.js';
+import { validator } from '../../validation/validator.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import type { TNodeTypeAST, TPortDefinition } from '../../ast/types.js';

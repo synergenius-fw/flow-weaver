@@ -1,6 +1,6 @@
 /**
- * Coverage tests for src/cli/commands/doctor.ts
- * Targets uncovered lines: 667, 696, 767-802
+ * Tests for src/cli/commands/doctor.ts
+ * Tests: 667, 696, 767-802
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

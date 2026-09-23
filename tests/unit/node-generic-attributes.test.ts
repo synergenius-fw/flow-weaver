@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseNodeLine } from '../../src/chevrotain-parser/node-parser.js';
-import { generateNodeInstanceTag } from '../../src/annotation-generator.js';
+import { generateNodeInstanceTag } from '../../src/generator/annotation-generator.js';
 import type { TNodeInstanceAST } from '../../src/ast/types.js';
 
 /**

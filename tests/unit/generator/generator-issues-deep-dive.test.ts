@@ -5,7 +5,7 @@
  * Each phase has its own describe block.
  */
 import * as path from 'path';
-import { generator } from '../../../src/generator';
+import { generator } from '../../../src/generator/workflow-generator';
 
 describe('Generator Issues', () => {
   const examplesDir = path.join(__dirname, '..', '..', '..', 'fixtures');

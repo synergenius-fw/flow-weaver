@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildDiagramGraph } from '../../../src/diagram/geometry';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 import * as fs from 'fs';
 import * as path from 'path';
 

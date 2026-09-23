@@ -1,8 +1,6 @@
 /**
- * Coverage tests for src/cli/utils/logger.ts
- *
- * Targets remaining uncovered lines:
- *  - debug() when DEBUG env is unset (line 31-33 else branch)
+ * Tests for src/cli/utils/logger.ts:
+ *  - debug() when DEBUG env is unset
  *  - spinner TTY branch: interval-based animation, update(), stop()/fail() with clear
  *  - spinner non-TTY: stop/fail with and without message
  *  - timer: elapsed() returning seconds (1s-60s) and minutes (>60s)

@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/api/generate.ts
+ * Tests for src/api/generate.ts
  * Targets lines 503-505 (missing workflow dep warning) and 679-688
  * (recursive local workflow dependency generation in generateWorkflowFunction).
  */

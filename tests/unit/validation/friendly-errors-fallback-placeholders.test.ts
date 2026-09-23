@@ -1,9 +1,11 @@
 /**
- * Additional branch coverage tests for src/friendly-errors.ts
- * Targets the "other side" of partial branches (||, ??, ternary fallbacks).
+ * Tests for src/validation/friendly-errors.ts: the fallback placeholders
+ * (||, ??, ternary defaults) each error code uses when the diagnostic lacks
+ * quoted names, node or type details, plus buildCoerceSuggestion target types
+ * and formatFriendlyDiagnostics for unmapped codes.
  */
 
-import { getFriendlyError, formatFriendlyDiagnostics } from '../../../src/friendly-errors';
+import { getFriendlyError, formatFriendlyDiagnostics } from '../../../src/validation/friendly-errors';
 
 describe('extractQuoted - no matches branch', () => {
   // extractQuoted returns [] when no quotes found - triggers fallback chains

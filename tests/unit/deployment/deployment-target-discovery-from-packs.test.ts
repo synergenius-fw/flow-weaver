@@ -1,5 +1,5 @@
 /**
- * Additional coverage for src/deployment/index.ts lines 124-133:
+ * Tests for src/deployment/index.ts lines 124-133:
  * the createTargetRegistry() branch that scans installed marketplace packs.
  */
 import { describe, it, expect, vi } from 'vitest';

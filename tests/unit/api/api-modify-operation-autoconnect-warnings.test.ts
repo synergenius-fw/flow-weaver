@@ -1,9 +1,9 @@
 /**
- * Coverage tests for src/api/modify-operation.ts
- * Targets uncovered lines:
- *   188: autoConnect warning on addConnection
- *   195-196: autoConnect warning on removeConnection
- *   218: unknown operation default case
+ * Tests for src/api/modify-operation.ts
+ * Tests:
+ *   - autoConnect warning on addConnection
+ *   - autoConnect warning on removeConnection
+ *   - unknown operation default case
  */
 
 import { applyModifyOperation } from '../../../src/api/modify-operation';

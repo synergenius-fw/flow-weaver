@@ -1,5 +1,5 @@
 /**
- * Branch coverage tests for src/diagram/orthogonal-router.ts.
+ * Tests for src/diagram/orthogonal-router.ts.
  *
  * Exercises both sides of key conditionals in:
  * - TrackAllocator (claim with overlap detection, grid snapping)

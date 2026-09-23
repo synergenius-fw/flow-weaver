@@ -1,10 +1,10 @@
 /**
- * Coverage tests for src/api/manipulation/ports.ts
- * Targets uncovered lines:
- *   28-29: getImplicitOrder helper
- *   63: Start ports not found
- *   80: Exit ports not found
- *   130: Node type not found for instance
+ * Tests for src/api/manipulation/ports.ts
+ * Tests:
+ *   - getImplicitOrder helper
+ *   - Start ports not found
+ *   - Exit ports not found
+ *   - Node type not found for instance
  */
 
 import {

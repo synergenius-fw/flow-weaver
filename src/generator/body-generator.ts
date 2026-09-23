@@ -1,5 +1,5 @@
-import type { TNodeTypeAST, TWorkflowAST } from "./ast";
-import { generateControlFlowWithExecutionContext, type GraphIdentityStamp } from "./generator/unified";
+import type { TNodeTypeAST, TWorkflowAST } from "../ast";
+import { generateControlFlowWithExecutionContext, type GraphIdentityStamp } from "./unified";
 
 /**
  * Generates executable function body code from workflow ASTs.

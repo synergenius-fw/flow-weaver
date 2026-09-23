@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { generateInPlace } from '../../../src/api/generate-in-place';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 import { tagHandlerRegistry } from '../../../src/parser/tag-registry';
 import * as fs from 'node:fs';
 import * as path from 'node:path';

@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/cli/commands/describe.ts (lines 335-388, 442-444)
+ * Tests for src/cli/commands/describe.ts
  * Targets: formatTextOutput with scoped ports, formatDescribeOutput with ascii/ascii-compact,
  * expression node port filtering, describeCommand error paths.
  */

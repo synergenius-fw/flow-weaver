@@ -13,17 +13,17 @@ import type {
   TConnectionAST,
   TNodeInstanceAST,
   TWorkflowMacro,
-} from './ast/types';
-import { EXECUTION_STRATEGIES, isControlFlowPort } from './constants';
-import { getErrorMessage } from './utils/error-utils';
-import { stripGeneratedSections, hasInPlaceMarkers } from './api/generate-in-place';
-import { generateJSDocPortTag } from './annotation-generator';
+} from '../ast/types';
+import { EXECUTION_STRATEGIES, isControlFlowPort } from '../constants';
+import { getErrorMessage } from '../utils/error-utils';
+import { stripGeneratedSections, hasInPlaceMarkers } from '../api/generate-in-place';
+import { generateJSDocPortTag } from '../generator/annotation-generator';
 import { resolvePackageTypesPath } from './resolve-package-types';
-import { getPackageExports } from './npm-packages';
+import { getPackageExports } from '../npm-packages';
 import { getSharedProject } from './shared-project';
-import { LRUCache } from './utils/lru-cache';
-import { COERCION_NODE_TYPES } from './built-in-nodes/coercion-types';
-import { tagHandlerRegistry, type TagHandlerRegistry } from './parser/tag-registry';
+import { LRUCache } from '../utils/lru-cache';
+import { COERCION_NODE_TYPES } from '../built-in-nodes/coercion-types';
+import { tagHandlerRegistry, type TagHandlerRegistry } from './tag-registry';
 import {
   expandMapMacro,
   expandPathMacros,
@@ -31,19 +31,19 @@ import {
   expandFanInMacros,
   expandCoerceMacros,
   generateAutoConnections,
-} from './parser/macro-expansion';
-import { expandExpressionReferences, collectModuleBindings } from './parser/expression-references';
+} from './macro-expansion';
+import { expandExpressionReferences, collectModuleBindings } from './expression-references';
 import {
   parseStartPorts,
   parseExitPorts,
-} from './parser/port-inference';
+} from './port-inference';
 import {
   extractNodeTypes,
   inferNodeTypeFromFunction,
   inferAllUnannotatedFunctions,
   inferNodeTypesFromUnannotated,
   hasFlowWeaverAnnotation,
-} from './parser/node-inference';
+} from './node-inference';
 
 /**
  * Core option keys that must never be shadowed by a pack deploy namespace when
@@ -255,7 +255,7 @@ export class AnnotationParser {
     if (this.loadedPackDirs.has(projectDir)) return;
     this.loadedPackDirs.add(projectDir);
 
-    const { discoverTagHandlers, discoverValidationRuleSets } = await import('./marketplace/registry.js');
+    const { discoverTagHandlers, discoverValidationRuleSets } = await import('../marketplace/registry.js');
     const { pathToFileURL } = await import('node:url');
 
     // Load tag handlers
@@ -293,7 +293,7 @@ export class AnnotationParser {
     }
 
     // Load validation rule sets
-    const { validationRuleRegistry } = await import('./api/validation-registry.js');
+    const { validationRuleRegistry } = await import('../api/validation-registry.js');
     const ruleSets = await discoverValidationRuleSets(projectDir);
     for (const ruleSet of ruleSets) {
       try {

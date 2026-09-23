@@ -1,6 +1,6 @@
 /**
- * Coverage tests for src/api/manipulation/node-types.ts
- * Targets uncovered lines 204-253: renameNodeType and replaceNodeTypes
+ * Tests for src/api/manipulation/node-types.ts
+ * Tests renameNodeType and replaceNodeTypes
  */
 
 import {

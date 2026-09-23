@@ -1,14 +1,16 @@
 /**
- * Branch coverage tests (round 3) for src/jsdoc-parser.ts
- *
- * Targets remaining partial branches and uncovered lines to push
- * branch coverage above 90%.
+ * Tests for src/parser/jsdoc-parser.ts: tag registry delegation for node
+ * types, workflows and triggers, reserved port and duplicate port detection,
+ * scoped ports, port metadata (mergeStrategy, hidden, order), @retries,
+ * @timeout, @strictTypes, @param/@returns handling, deploy tags, node type and
+ * workflow context validation, and the macro and flow tags (@fanOut, @fanIn,
+ * @map, @path, @coerce, @scope, @cancelOn, @throttle, @step).
  */
 
 import { describe, it, expect } from 'vitest';
-import { jsdocParser, type JSDocWorkflowConfig } from '../../../src/jsdoc-parser';
-import { extractFunctionLikes } from '../../../src/function-like';
-import { getSharedProject } from '../../../src/shared-project';
+import { jsdocParser, type JSDocWorkflowConfig } from '../../../src/parser/jsdoc-parser';
+import { extractFunctionLikes } from '../../../src/parser/function-like';
+import { getSharedProject } from '../../../src/parser/shared-project';
 import type { TagHandlerRegistry } from '../../../src/parser/tag-registry';
 
 const project = getSharedProject();

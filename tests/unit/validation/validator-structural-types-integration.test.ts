@@ -3,7 +3,7 @@
  */
 
 import { parseWorkflow } from "../../../src/api";
-import { validator } from "../../../src/validator";
+import { validator } from "../../../src/validation/validator";
 import * as path from "path";
 
 describe("Validator Structural Type Mismatch Integration", () => {

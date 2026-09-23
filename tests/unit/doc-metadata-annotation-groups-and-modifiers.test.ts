@@ -1,7 +1,7 @@
 /**
- * Coverage tests for src/doc-metadata/extractors/annotations.ts
+ * Tests for src/doc-metadata/extractors/annotations.ts
  *
- * Targets the three extractor functions at the bottom of the file (lines 659-675)
+ * Targets the three extractor functions at the bottom of the file
  * and ensures all exported arrays are exercised with deeper validation.
  */
 

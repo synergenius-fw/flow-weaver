@@ -1,7 +1,7 @@
 /**
- * Branch coverage tests for src/generator/unified.ts (round 2).
+ * Tests for src/generator/unified.ts (round 2).
  *
- * Targets uncovered branches in variant dispatch (STUB, COERCION, expression,
+ * Tests for variant dispatch (STUB, COERCION, expression,
  * MAP_ITERATOR, IMPORTED_WORKFLOW, scoped nodes), exit port edge cases,
  * pull execution config paths, and parallel group fallbacks.
  */

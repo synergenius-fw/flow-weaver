@@ -1,12 +1,12 @@
 /**
- * Coverage tests for src/jsdoc-parser.ts
+ * Tests for src/jsdoc-parser.ts
  * Targets lines 1498-1499 (invalid @throttle warning) and 1569
  * (parseDefaultValue fallback to string for non-JSON values).
  */
 
-import { jsdocParser } from '../../../src/jsdoc-parser';
-import { extractFunctionLikes } from '../../../src/function-like';
-import { getSharedProject } from '../../../src/shared-project';
+import { jsdocParser } from '../../../src/parser/jsdoc-parser';
+import { extractFunctionLikes } from '../../../src/parser/function-like';
+import { getSharedProject } from '../../../src/parser/shared-project';
 
 describe('JSDocParser coverage', () => {
   const project = getSharedProject();

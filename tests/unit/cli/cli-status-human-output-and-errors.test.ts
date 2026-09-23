@@ -1,6 +1,6 @@
 /**
- * Additional coverage tests for src/cli/commands/status.ts
- * Targets uncovered branches: formatPortList filtering, human-readable structural errors,
+ * Tests for src/cli/commands/status.ts
+ * Tests: formatPortList filtering, human-readable structural errors,
  * non-JSON error paths, port display with arrows.
  */
 

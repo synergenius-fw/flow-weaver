@@ -1,12 +1,12 @@
 /**
- * Branch coverage tests for src/parser.ts
+ * Tests for src/parser.ts
  *
  * Exercises both sides of conditionals: empty inputs, missing annotations,
  * malformed JSDoc, expression nodes, scope detection, async detection,
  * workflow error paths, and cache/clear operations.
  */
 
-import { AnnotationParser } from '../../../src/parser';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
 
 function freshParser() {
   return new AnnotationParser();

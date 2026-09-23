@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { AnnotationParser } from '../../../src/parser';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
 import { tagHandlerRegistry } from '../../../src/parser/tag-registry';
 import * as fs from 'node:fs';
 import * as path from 'node:path';

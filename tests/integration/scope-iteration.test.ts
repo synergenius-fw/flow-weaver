@@ -8,7 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 
 describe('Scope Iteration', () => {
   const outputDir = path.join(os.tmpdir(), `flow-weaver-scope-iteration-${process.pid}`);

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
-import { AnnotationParser } from '../../src/parser';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
 
 const tmpDir = path.join(os.tmpdir(), `fw-fwimport-warn-${process.pid}`);
 

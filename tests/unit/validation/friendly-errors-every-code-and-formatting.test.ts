@@ -1,5 +1,5 @@
 /**
- * Coverage tests for friendly-errors.ts.
+ * Tests for friendly-errors.ts.
  * Covers every error code mapper branch, formatFriendlyDiagnostics,
  * and the internal helper functions via their observable outputs.
  */
@@ -8,7 +8,7 @@ import {
   getFriendlyError,
   formatFriendlyDiagnostics,
   type TFriendlyError,
-} from '../../../src/friendly-errors';
+} from '../../../src/validation/friendly-errors';
 
 function expectValid(result: TFriendlyError | null, code: string) {
   expect(result).not.toBeNull();

@@ -1,7 +1,6 @@
 /**
- * Tests for uncovered branches in src/api/compile.ts
- * Covers: saveAST option, inPlace=false path, getDefaultOutputFile,
- * compileWorkflows, compilePattern, and write=false.
+ * Tests for src/api/compile.ts: the saveAST option, the inPlace=false path,
+ * getDefaultOutputFile, compileWorkflows, compilePattern, and write=false.
  */
 
 import * as path from 'path';

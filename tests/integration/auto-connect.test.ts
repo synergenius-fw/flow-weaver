@@ -6,9 +6,9 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 import { parseWorkflow } from '../../src/api/index';
-import { validator } from '../../src/validator';
+import { validator } from '../../src/validation/validator';
 
 describe('@autoConnect - Integration', () => {
   const outputDir = path.join(os.tmpdir(), `flow-weaver-autoconnect-e2e-${process.pid}`);

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { resolveNpmNodeTypes } from '../../src/parser';
+import { resolveNpmNodeTypes } from '../../src/parser/annotation-parser';
 import * as npmPackages from '../../src/npm-packages';
 import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
 

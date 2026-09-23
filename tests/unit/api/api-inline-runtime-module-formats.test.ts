@@ -1,6 +1,6 @@
 /**
- * Coverage tests for src/api/inline-runtime.ts
- * Targets uncovered lines 642-684: generateStandaloneRuntimeModule
+ * Tests for src/api/inline-runtime.ts
+ * Tests generateStandaloneRuntimeModule
  */
 
 import { generateStandaloneRuntimeModule } from '../../../src/api/inline-runtime';

@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { annotationGenerator } from '../../src/annotation-generator';
+import { annotationGenerator } from '../../src/generator/annotation-generator';
 import { generateProjectFiles } from '../../src/cli/commands/init';
 import { validateMockConfig } from '../../src/cli/commands/run';
 import { lookupMock } from '../../src/built-in-nodes/mock-types';
@@ -18,7 +18,7 @@ import { logger } from '../../src/cli/utils/logger';
 import { invokeWorkflow } from '../../src/built-in-nodes/invoke-workflow';
 import { waitForEvent } from '../../src/built-in-nodes/wait-for-event';
 import { waitForAgent } from '../../src/built-in-nodes/wait-for-agent';
-import { WorkflowValidator } from '../../src/validator';
+import { WorkflowValidator } from '../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
 import { createNestedWorkflowRuntime, type NodeExecutionRuntime } from '../../src/runtime/durable-execution';
 

@@ -11,7 +11,7 @@ import { executeWorkflow } from '../../mcp/workflow-executor.js';
 import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
-import { getFriendlyError } from '../../friendly-errors.js';
+import { getFriendlyError } from '../../validation/friendly-errors.js';
 import { devModeRegistry, type DevModeOptions } from '../../generator/dev-mode-registry.js';
 
 function timestamp(): string {

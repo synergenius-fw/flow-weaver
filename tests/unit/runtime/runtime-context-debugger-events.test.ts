@@ -1,5 +1,5 @@
 /**
- * Coverage for ExecutionContext.ts: debugger event methods
+ * Tests for ExecutionContext.ts: debugger event methods
  * (sendStatusChangedEvent, sendLogErrorEvent, sendWorkflowCompletedEvent)
  * and the serialize() function error branch.
  */

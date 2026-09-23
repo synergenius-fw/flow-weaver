@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AnnotationParser } from '../../src/parser';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
 import { generateInPlace } from '../../src/api/generate-in-place';
 import { removeConnection, addConnection } from '../../src/api/manipulation';
 

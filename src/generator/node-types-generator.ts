@@ -1,10 +1,10 @@
-import type { TNodeTypeAST } from "./ast/types";
+import type { TNodeTypeAST } from "../ast/types";
 import {
   RESERVED_PORT_NAMES,
   isExecutePort,
   isSuccessPort,
   isFailurePort,
-} from "./constants";
+} from "../constants";
 
 export interface TNodeTypePort {
   name: string;

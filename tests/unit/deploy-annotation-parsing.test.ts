@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AnnotationParser } from '../../src/parser';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
 import { KNOWN_WORKFLOW_TAGS, KNOWN_NODETYPE_TAGS } from '../../src/constants';
 
 // ---------------------------------------------------------------------------

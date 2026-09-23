@@ -1,9 +1,9 @@
 /**
- * Additional coverage tests for src/api/command-runner.ts
- * Targets uncovered lines:
- *   170: remove-connection parse errors
- *   193: query parse errors
- *   225-231: run command handler
+ * Tests for src/api/command-runner.ts
+ * Tests:
+ *   - remove-connection parse errors
+ *   - query parse errors
+ *   - run command handler
  */
 
 import * as path from 'path';

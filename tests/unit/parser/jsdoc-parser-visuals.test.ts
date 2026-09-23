@@ -2,10 +2,10 @@
  * Tests that @color and @icon annotations on @flowWeaver nodeType
  * are parsed into the config and surface as visuals on the AST.
  */
-import { jsdocParser } from '../../../src/jsdoc-parser';
-import { extractFunctionLikes } from '../../../src/function-like';
-import { getSharedProject } from '../../../src/shared-project';
-import { parser } from '../../../src/parser';
+import { jsdocParser } from '../../../src/parser/jsdoc-parser';
+import { extractFunctionLikes } from '../../../src/parser/function-like';
+import { getSharedProject } from '../../../src/parser/shared-project';
+import { parser } from '../../../src/parser/annotation-parser';
 
 describe('@color and @icon on nodeType', () => {
   const project = getSharedProject();

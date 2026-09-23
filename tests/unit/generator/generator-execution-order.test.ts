@@ -1,5 +1,5 @@
 /**
- * Coverage for control-flow.ts determineExecutionOrder function (lines 402-428).
+ * Tests for control-flow.ts determineExecutionOrder function.
  * Tests topological ordering of nodes based on workflow connections.
  */
 import { describe, it, expect } from 'vitest';

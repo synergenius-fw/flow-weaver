@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AnnotationParser } from '../../../src/parser';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
 
 describe('parse error messages', () => {
   it('should mention nodeType in no-workflow error guidance', () => {

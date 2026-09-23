@@ -1,8 +1,8 @@
 /**
- * Coverage for ascii-renderer.ts uncovered lines:
- * - Lines 362-363: spanning route with avgY <= midBoxY (above highway)
- * - Line 499: findTrack fallback returning mid when all tracks conflicted
- * - Line 588: renderText node with no input AND no output ports
+ * Tests for src/diagram/ascii-renderer.ts:
+ * - spanning route with avgY <= midBoxY (above highway)
+ * - findTrack fallback returning mid when all tracks conflicted
+ * - renderText node with no input AND no output ports
  */
 import { describe, it, expect } from 'vitest';
 import { renderASCII, renderText } from '../../../src/diagram/ascii-renderer.js';

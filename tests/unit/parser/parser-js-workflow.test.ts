@@ -9,7 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 
 const tempDir = path.join(os.tmpdir(), `fw-parser-js-${process.pid}`);
 

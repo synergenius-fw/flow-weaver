@@ -1,5 +1,5 @@
 /**
- * Branch coverage tests for src/api/generate-in-place.ts.
+ * Tests for src/api/generate-in-place.ts.
  * Exercises conditional branches: production vs dev, inline vs external runtime,
  * skipParamReturns, moduleFormat, missing functions, async detection, markers,
  * stripGeneratedSections, and hasInPlaceMarkers.

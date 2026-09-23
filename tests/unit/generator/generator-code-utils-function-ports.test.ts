@@ -1,7 +1,7 @@
 /**
- * Coverage for code-utils.ts:
- * - FUNCTION dataType port with multiple connections (lines 408, 416-421)
- * - Non-function expression on an input port (line 437)
+ * Tests for code-utils.ts:
+ * - FUNCTION dataType port with multiple connections
+ * - Non-function expression on an input port
  */
 import * as fs from 'fs';
 import * as path from 'path';

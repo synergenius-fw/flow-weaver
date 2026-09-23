@@ -5,7 +5,7 @@
  * the validator should report an error rather than silently skipping the instance.
  */
 
-import { WorkflowValidator } from '../../../src/validator';
+import { WorkflowValidator } from '../../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST } from '../../../src/ast/types';
 
 describe('Validator Unknown Node Type', () => {

@@ -3,7 +3,7 @@
  * Uses direct function calls for speed, with CLI smoke tests for wiring
  */
 
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { generateCode } from '../../src/api/generate';
 import { generateInPlace } from '../../src/api/generate-in-place';
 

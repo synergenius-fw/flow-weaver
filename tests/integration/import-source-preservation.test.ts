@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { generateInPlace } from '../../src/api/generate-in-place';
 import type { TNodeTypeAST, TWorkflowAST } from '../../src/ast/types';
 

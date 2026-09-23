@@ -1,7 +1,7 @@
 /**
- * Coverage tests for src/jsdoc-port-sync/port-parser.ts
- * Targets remaining uncovered lines: isIncompletePortLine trailing dash detection,
- * getIncompletePortNames for @step tags, and updatePortsInFunctionText edge paths.
+ * Tests for src/jsdoc-port-sync/port-parser.ts: isIncompletePortLine trailing
+ * dash detection, getIncompletePortNames for @step tags, and
+ * updatePortsInFunctionText edge paths.
  */
 
 import {

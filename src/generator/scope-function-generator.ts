@@ -2,7 +2,7 @@ import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST } from '../ast';
 import { isSuccessPort, isFailurePort } from '../constants';
 import { buildDurableGatePayload, buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
 import { performKahnsTopologicalSort, buildControlFlowGraph } from './control-flow';
-import { mapToTypeScript } from '../type-mappings';
+import { mapToTypeScript } from '../types/type-mappings';
 
 /**
  * Generate a scope function closure for a scoped port (e.g., forEach iteration callback).

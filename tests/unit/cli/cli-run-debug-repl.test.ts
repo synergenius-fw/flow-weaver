@@ -1,9 +1,7 @@
 /**
- * Coverage tests for src/cli/commands/run.ts
- * Targets uncovered lines 61-391 and 535-842: the debug REPL, agent pause
- * handling in the race loop, printDebugState, printDebugHelp, all REPL
- * commands (step, continue, cb, inspect, breakpoint, set, quit, help),
- * and promptForInput.
+ * Tests for src/cli/commands/run.ts: the debug REPL, agent pause handling in
+ * the race loop, printDebugState, printDebugHelp, all REPL commands (step,
+ * continue, cb, inspect, breakpoint, set, quit, help), and promptForInput.
  */
 
 import * as fs from 'fs';
@@ -92,7 +90,7 @@ vi.mock('../../../src/runtime/checkpoint', () => ({
   loadCheckpoint: vi.fn(),
 }));
 
-vi.mock('../../../src/friendly-errors', () => ({
+vi.mock('../../../src/validation/friendly-errors', () => ({
   getFriendlyError: vi.fn(() => null),
 }));
 

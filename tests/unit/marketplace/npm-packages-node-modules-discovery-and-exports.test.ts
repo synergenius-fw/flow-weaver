@@ -1,5 +1,5 @@
 /**
- * Coverage tests for npm-packages.ts:
+ * Tests for npm-packages.ts:
  * - findNodeModulesDirs (walking up directories)
  * - listPackagesInNodeModules (scoped packages, permissions)
  * - getPackageExports catch block (malformed .d.ts)

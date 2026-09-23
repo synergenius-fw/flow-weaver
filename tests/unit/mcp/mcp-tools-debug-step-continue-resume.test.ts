@@ -1,8 +1,7 @@
 /**
- * Additional coverage tests for src/mcp/tools-debug.ts.
- * Targets uncovered lines 205-324 (fw_debug_step and fw_debug_continue
- * success/error paths with live sessions) and 567-620 (fw_resume_from_checkpoint
- * debug-mode and non-debug completion paths).
+ * Tests for src/mcp/tools-debug.ts: fw_debug_step and fw_debug_continue
+ * success/error paths with live sessions, and fw_resume_from_checkpoint
+ * debug-mode and non-debug completion paths.
  *
  * Mocks executeWorkflow, checkpoint utilities, parseWorkflow, and
  * getTopologicalOrder so we can control execution outcomes without compiling

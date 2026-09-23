@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 import { generateCode } from '../../src/api/generate';
 import { TEvent, TVariableSetEvent } from '../../src/runtime/events';
 import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST } from '../../src/ast/types';

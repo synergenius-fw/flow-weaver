@@ -16,7 +16,7 @@ import { TagHandlerRegistry } from '../../src/parser/tag-registry';
 import type { TTagHandlerFn } from '../../src/parser/tag-registry';
 import { ValidationRuleRegistry } from '../../src/validation/rule-registry';
 import type { TValidationRule, TWorkflowAST } from '../../src/ast/types';
-import { AnnotationParser } from '../../src/parser';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
 import { getKnownWorkflowTags, KNOWN_WORKFLOW_TAGS } from '../../src/constants';
 import { registerPackDocTopics, getPackDocTopics } from '../../src/docs/index';
 import { registerPackUseCase, USE_CASE_CHOICES, USE_CASE_TEMPLATES } from '../../src/cli/commands/init-personas';

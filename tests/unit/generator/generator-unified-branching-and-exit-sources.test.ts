@@ -1,5 +1,5 @@
 /**
- * Branch coverage tests for src/generator/unified.ts (round 3).
+ * Tests for src/generator/unified.ts (round 3).
  *
  * Focuses on partial branches: async paths, DISJUNCTION/CUSTOM strategies,
  * node-level scoped children, branching chains, promoted nodes, production

@@ -1,7 +1,7 @@
 /**
- * Additional coverage tests for src/cli/commands/validate.ts
+ * Tests for src/cli/commands/validate.ts
  *
- * Targets uncovered lines:
+ * Tests:
  *  - Line 260: totalErrors++ in the catch block (file throws during validation)
  *  - Line 289: summary with warnings but no errors
  *  - Lines 300-302: outer catch with json mode (top-level error with --json)

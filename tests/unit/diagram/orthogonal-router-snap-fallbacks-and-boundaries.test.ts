@@ -1,6 +1,9 @@
 /**
- * Third round of branch coverage tests for src/diagram/orthogonal-router.ts.
- * Targets remaining uncovered statements and branches.
+ * Tests for src/diagram/orthogonal-router.ts: findClearY/findClearX Infinity
+ * fallbacks, simplifyWaypoints jogs, waypointsToSvgPath radius shrinking,
+ * S-shape clearY snapping, exitX/entryX fallbacks, TrackAllocator exhaustion,
+ * cluster detection, JOG_THRESHOLD and equal-X boundaries, self-connections,
+ * calculateOrthogonalPathSafe, verticalSegmentClear and segmentOverlapsBox.
  */
 import { describe, it, expect } from 'vitest';
 import {

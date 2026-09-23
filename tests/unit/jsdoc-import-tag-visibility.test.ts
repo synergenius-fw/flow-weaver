@@ -5,7 +5,7 @@
  * truncating the first word. We use @fwImport instead.
  */
 import { describe, it, expect } from 'vitest';
-import { getSharedProject } from '../../src/shared-project';
+import { getSharedProject } from '../../src/parser/shared-project';
 
 describe('JSDoc @fwImport tag visibility in ts-morph', () => {
   const project = getSharedProject();
@@ -61,7 +61,7 @@ export function testWorkflow() {}
   });
 
   it('should return @fwImport after generateInPlace writes it', async () => {
-    const { parser } = await import('../../src/parser');
+    const { parser } = await import('../../src/parser/annotation-parser');
     const { generateInPlace } = await import('../../src/api/generate-in-place');
     const { addNodeType } = await import('../../src/api');
     const fs = await import('fs');

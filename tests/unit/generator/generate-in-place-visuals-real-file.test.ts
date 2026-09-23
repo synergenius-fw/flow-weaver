@@ -2,7 +2,7 @@
  * Reproduces bug using the actual workspace file that fails on the server.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 import { updateNodeType } from '../../../src/api';
 import { generateInPlace } from '../../../src/api/generate-in-place';
 import fs from 'fs';

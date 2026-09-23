@@ -12,7 +12,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { generator } from '../../src/generator';
+import { generator } from '../../src/generator/workflow-generator';
 import { TEvent, TErrorLogEvent } from '../../src/runtime/events';
 
 describe('LOG_ERROR carries the thrown Error.code', () => {

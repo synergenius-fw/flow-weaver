@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/jsdoc-port-sync/port-parser.ts
+ * Tests for src/jsdoc-port-sync/port-parser.ts
  * Targets lines 521-522 (orphan output line reuse with type mismatch),
  * line 609 (fallback insertIndex for new input), and line 661 (parseDefaultValue non-JSON).
  */

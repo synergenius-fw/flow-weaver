@@ -12,7 +12,7 @@ import { validateDurableClosure } from '../api/durable-validation.js';
 import { graphIdentity } from '../api/graph-identity.js';
 import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
-import type { TExternalNodeType } from '../parser.js';
+import type { TExternalNodeType } from '../parser/annotation-parser.js';
 import type { DebugController } from '../runtime/debug-controller.js';
 import { CancellationError } from '../runtime/CancellationError.js';
 import {

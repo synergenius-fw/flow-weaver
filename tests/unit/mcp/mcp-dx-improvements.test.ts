@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { parseWorkflow, validateWorkflow } from '../../../src/api/index.js';
-import { AnnotationParser } from '../../../src/parser.js';
+import { AnnotationParser } from '../../../src/parser/annotation-parser.js';
 
 // =============================================================================
 // 1. @async in workflow blocks

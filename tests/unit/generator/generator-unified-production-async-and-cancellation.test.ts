@@ -1,5 +1,5 @@
 /**
- * Branch coverage tests for src/generator/unified.ts
+ * Tests for src/generator/unified.ts
  *
  * Targets conditional branches that are harder to reach through end-to-end compilation:
  * - Production vs dev mode (debugger, controller, variable_set omission)

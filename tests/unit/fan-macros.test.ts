@@ -6,8 +6,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseFanOutLine, parseFanInLine } from '../../src/chevrotain-parser/fan-parser';
-import { parser } from '../../src/parser';
-import { annotationGenerator } from '../../src/annotation-generator';
+import { parser } from '../../src/parser/annotation-parser';
+import { annotationGenerator } from '../../src/generator/annotation-generator';
 import type { TFanOutMacro, TFanInMacro } from '../../src/ast/types';
 
 // Shared node types for expansion tests

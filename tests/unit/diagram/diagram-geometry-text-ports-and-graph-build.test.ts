@@ -1,5 +1,5 @@
 /**
- * Branch coverage tests for src/diagram/geometry.ts
+ * Tests for src/diagram/geometry.ts
  *
  * Exercises both sides of every conditional in exported functions:
  * measureText, portBadgeWidth, computeNodeDimensions, computePortPositions,

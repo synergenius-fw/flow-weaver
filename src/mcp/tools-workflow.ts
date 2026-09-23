@@ -18,7 +18,7 @@ import {
 } from '../api/manipulation/index.js';
 import { findIsolatedNodes, findWorkflows } from '../api/query.js';
 import { makeToolResult, makeErrorResult, addHintsToItems } from './response-utils.js';
-import { getFriendlyError } from '../friendly-errors.js';
+import { getFriendlyError } from '../validation/friendly-errors.js';
 
 export function registerWorkflowTools(mcp: McpServer): void {
   mcp.tool(

@@ -15,7 +15,7 @@
  * stands as before.
  */
 import { describe, it, expect } from 'vitest';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { validateWorkflow } from '../../src/api/validate';
 
 const SOURCE = `

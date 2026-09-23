@@ -1,15 +1,15 @@
 /**
- * Coverage tests for src/cli/commands/validate.ts (round 3)
+ * Tests for src/cli/commands/validate.ts (round 3)
  *
- * Targets uncovered branches:
+ * Tests:
  *  - Agent validation rules injecting errors/warnings into validation result
  *  - Friendly error display with location, connection, docUrl fields
  *  - Warning display with friendly errors, location, node, docUrl
  *  - Per-file catch block recording errors in JSON mode with proper structure
  *  - Summary singular vs plural formatting for errors/warnings
  *  - Summary with both errors and warnings
- *  - statSync catch in file filter (line 57-59)
- *  - Outer catch re-throw when json=false (line 304)
+ *  - statSync catch in file filter
+ *  - Outer catch re-throw when json=false
  *  - JSON validation result with nodeId and code fields
  */
 
@@ -54,7 +54,7 @@ vi.mock('../../../src/api/index.js', () => ({
   parseWorkflow: mockParseWorkflow,
 }));
 
-vi.mock('../../../src/validator.js', () => ({
+vi.mock('../../../src/validation/validator.js', () => ({
   validator: { validate: mockValidate },
 }));
 
@@ -62,7 +62,7 @@ vi.mock('../../../src/validation/agent-rules.js', () => ({
   getAgentValidationRules: mockGetAgentValidationRules,
 }));
 
-vi.mock('../../../src/friendly-errors.js', () => ({
+vi.mock('../../../src/validation/friendly-errors.js', () => ({
   getFriendlyError: mockGetFriendlyError,
 }));
 

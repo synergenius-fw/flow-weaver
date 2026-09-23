@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/mcp/tools-debug.ts (lines 25-645)
+ * Tests for src/mcp/tools-debug.ts
  * Tests registerDebugTools via a fake McpServer. Focuses on tool registration,
  * error paths (session not found, missing params), and the
  * debug session helpers (findVariableKey, cleanupDebugSession, raceDebugPause).

@@ -10,9 +10,9 @@
 
 import * as path from 'path';
 import { describe, it, expect } from 'vitest';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import { generateCode } from '../../src/api/generate';
-import { mapToTypeScript } from '../../src/type-mappings';
+import { mapToTypeScript } from '../../src/types/type-mappings';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
 
 const FIXTURE_PATH = path.resolve(__dirname, '../fixtures/compiler-type-assertions.ts');

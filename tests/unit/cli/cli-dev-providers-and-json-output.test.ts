@@ -1,6 +1,6 @@
 /**
- * Coverage tests for src/cli/commands/dev.ts
- * Targets uncovered lines: 169-174 (dev mode registry delegation),
+ * Tests for src/cli/commands/dev.ts
+ * Tests: 169-174 (dev mode registry delegation),
  * 198-235 (watch mode setup with chokidar, cleanup handlers).
  */
 

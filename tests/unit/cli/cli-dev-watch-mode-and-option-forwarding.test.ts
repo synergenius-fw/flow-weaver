@@ -1,7 +1,5 @@
 /**
- * Additional coverage for src/cli/commands/dev.ts
- *
- * Focuses on the remaining uncovered paths:
+ * Tests for src/cli/commands/dev.ts:
  *  - Watch mode: chokidar watcher setup, cycleSeparator with/without file,
  *    cleanup handler on SIGINT/SIGTERM, the "watching" success message
  *  - compileAndRun: friendly error branch where getFriendlyError returns null

@@ -5,8 +5,8 @@
  * Uses in-memory parsing (parseFromString) and validator for speed - no file I/O.
  */
 
-import { parser } from "../../src/parser";
-import { validator } from "../../src/validator";
+import { parser } from "../../src/parser/annotation-parser";
+import { validator } from "../../src/validation/validator";
 
 // Helper to test type coercion warnings (in-memory, no file I/O)
 function testTypeCoercion(

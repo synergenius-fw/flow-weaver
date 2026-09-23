@@ -1,7 +1,7 @@
-import { parser } from '../../src/parser';
-import { jsdocParser } from '../../src/jsdoc-parser';
-import { extractFunctionLikes } from '../../src/function-like';
-import { getSharedProject } from '../../src/shared-project';
+import { parser } from '../../src/parser/annotation-parser';
+import { jsdocParser } from '../../src/parser/jsdoc-parser';
+import { extractFunctionLikes } from '../../src/parser/function-like';
+import { getSharedProject } from '../../src/parser/shared-project';
 
 describe('@resilience node contract', () => {
   const source = `

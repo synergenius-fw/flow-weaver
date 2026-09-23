@@ -22,7 +22,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
-import type { TExternalNodeType } from '../../src/parser';
+import type { TExternalNodeType } from '../../src/parser/annotation-parser';
 
 describe('executeWorkflow with externalNodeTypes', () => {
   const outputDir = path.join(os.tmpdir(), `fw-exec-ext-${process.pid}`);

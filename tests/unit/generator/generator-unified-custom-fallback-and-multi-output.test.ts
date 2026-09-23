@@ -1,5 +1,5 @@
 /**
- * Coverage for unified.ts:
+ * Tests for unified.ts:
  * - CUSTOM executeWhen fallback to CONJUNCTION when no customExecuteCondition (line ~2087)
  * - Expression node with multiple data output ports (lines ~2203-2204)
  */

@@ -1,7 +1,7 @@
 /**
- * Branch coverage tests (round 2) for src/jsdoc-parser.ts
+ * Tests (round 2) for src/jsdoc-parser.ts
  *
- * Targets uncovered branches: scoped port type inference with async callbacks,
+ * Tests: scoped port type inference with async callbacks,
  * node tag optional fields (portOrder, portLabel, expressions, size, position,
  * color, icon, tags, job, environment, suppress), invalid format branches for
  * scope/map/path/connect/fanOut/fanIn/coerce tags, trigger non-core keyword
@@ -9,9 +9,9 @@
  * property type fallback, and edge cases in deploy parsing.
  */
 
-import { jsdocParser } from '../../../src/jsdoc-parser';
-import { extractFunctionLikes } from '../../../src/function-like';
-import { getSharedProject } from '../../../src/shared-project';
+import { jsdocParser } from '../../../src/parser/jsdoc-parser';
+import { extractFunctionLikes } from '../../../src/parser/function-like';
+import { getSharedProject } from '../../../src/parser/shared-project';
 
 const project = getSharedProject();
 

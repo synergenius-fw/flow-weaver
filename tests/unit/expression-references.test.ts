@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { AnnotationParser } from '../../src/parser';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
 import { parseWorkflow, validateWorkflow } from '../../src/api/index';
 import { generateInPlace } from '../../src/api/generate-in-place';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';

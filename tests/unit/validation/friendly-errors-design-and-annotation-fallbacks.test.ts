@@ -1,10 +1,10 @@
 /**
- * Additional edge-case coverage for friendly-errors.ts.
- * Targets remaining uncovered branches in design rules, annotation rules,
- * and the LOSSY_TYPE_COERCION coerce-suggestion builder.
+ * Tests for src/validation/friendly-errors.ts: fallback node names in design
+ * rules, annotation rule edge cases, and the LOSSY_TYPE_COERCION
+ * coerce-suggestion builder.
  */
 import { describe, it, expect } from 'vitest';
-import { getFriendlyError, type TFriendlyError } from '../../../src/friendly-errors';
+import { getFriendlyError, type TFriendlyError } from '../../../src/validation/friendly-errors';
 
 function expectValid(result: TFriendlyError | null, code: string) {
   expect(result).not.toBeNull();

@@ -1,14 +1,13 @@
 /**
- * Coverage tests for jsdoc-port-sync/sync.ts
+ * Tests for src/jsdoc-port-sync/sync.ts
  *
- * Targets uncovered branches and edge cases across syncSignatureToJSDoc
- * and syncJSDocToSignature, including: orphan line bail-out, return type
- * annotation source selection, STEP vs BOOLEAN type preservation, input type
- * fields from TFlowWeaverNodeType, scoped port auto-generation,
- * auto-removal of orphan outputs, signature input ordering, arrow function
- * execute insertion, multiline param handling, authoritative ports,
- * output-removal detection, expression function type fallthrough, and
- * the callback update helper for edge cases.
+ * Edge cases across syncSignatureToJSDoc and syncJSDocToSignature, including:
+ * orphan line bail-out, return type annotation source selection, STEP vs
+ * BOOLEAN type preservation, input type fields from TFlowWeaverNodeType,
+ * scoped port auto-generation, auto-removal of orphan outputs, signature
+ * input ordering, arrow function execute insertion, multiline param handling,
+ * authoritative ports, output-removal detection, expression function type
+ * fallthrough, and the callback update helper for edge cases.
  */
 
 import {

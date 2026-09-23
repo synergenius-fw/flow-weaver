@@ -1,5 +1,5 @@
 /**
- * Coverage tests for marketplace registry discovery functions (lines 243-281).
+ * Tests for marketplace registry discovery functions.
  * Covers discoverDocTopics and discoverInitContributions.
  *
  * Strategy: create a real temp directory structure with manifest files

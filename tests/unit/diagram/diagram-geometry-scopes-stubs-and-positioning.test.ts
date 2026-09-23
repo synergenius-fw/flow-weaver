@@ -1,6 +1,9 @@
 /**
- * Additional branch coverage tests for src/diagram/geometry.ts
- * Targets uncovered branches not exercised by the first coverage file.
+ * Tests for src/diagram/geometry.ts: buildDiagramGraph auto-layout and mixed
+ * positioning, exit/failure port handling, hidden control-flow ports, node
+ * colours and labels, stub distance and orthogonal routing, scope sub-graphs,
+ * skipped connections, custom start/exit ports, and the measureText,
+ * portBadgeWidth and computeNodeDimensions helpers.
  */
 
 import {

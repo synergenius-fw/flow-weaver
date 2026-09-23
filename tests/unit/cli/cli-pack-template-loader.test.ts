@@ -1,7 +1,7 @@
 /**
- * Coverage for src/cli/templates/pack-loader.ts uncovered lines 44-47, 57:
- * - Lines 44-47: loading templates from pack module and filtering by manifest
- * - Line 57: calling registerWorkflowTemplates when templates are found
+ * Tests for src/cli/templates/pack-loader.ts:
+ * - loading templates from pack module and filtering by manifest
+ * - calling registerWorkflowTemplates when templates are found
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 

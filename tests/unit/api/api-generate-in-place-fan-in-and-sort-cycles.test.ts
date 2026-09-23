@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/api/generate-in-place.ts
+ * Tests for src/api/generate-in-place.ts
  * Targets line 1564 (@fanIn macro emission) and lines 1764-1767
  * (topological sort cycle fallback).
  */

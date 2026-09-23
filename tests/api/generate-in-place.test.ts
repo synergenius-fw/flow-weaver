@@ -6,7 +6,7 @@ import {
 } from '../../src/api/generate-in-place';
 import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
 import { createMultiInputNodeType, createNodeInstance } from '../helpers/test-fixtures';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';

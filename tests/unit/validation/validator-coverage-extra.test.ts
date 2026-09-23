@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/validator.ts (lines 1670-1672, 1700)
+ * Tests for src/validator.ts
  * Targets: INVALID_ICON warning for instances with invalid icon config,
  * and INVALID_PORT_TYPE warning for output ports with unrecognized types.
  */
@@ -50,7 +50,7 @@ function makeBaseWorkflow(overrides: Partial<TWorkflowAST> = {}): TWorkflowAST {
 
 describe('validator INVALID_ICON warning coverage', () => {
   it('should warn when an instance has an invalid icon', async () => {
-    const { validator } = await import('../../../src/validator');
+    const { validator } = await import('../../../src/validation/validator');
 
     const ast = makeBaseWorkflow({
       instances: [
@@ -72,7 +72,7 @@ describe('validator INVALID_ICON warning coverage', () => {
 
 describe('validator INVALID_PORT_TYPE warning on output ports coverage', () => {
   it('should warn when an output port has an invalid data type', async () => {
-    const { validator } = await import('../../../src/validator');
+    const { validator } = await import('../../../src/validation/validator');
 
     const ast = makeBaseWorkflow({
       nodeTypes: [
@@ -101,7 +101,7 @@ describe('validator INVALID_PORT_TYPE warning on output ports coverage', () => {
   });
 
   it('should warn when an input port has an invalid data type', async () => {
-    const { validator } = await import('../../../src/validator');
+    const { validator } = await import('../../../src/validation/validator');
 
     const ast = makeBaseWorkflow({
       nodeTypes: [
@@ -130,7 +130,7 @@ describe('validator INVALID_PORT_TYPE warning on output ports coverage', () => {
   });
 
   it('should not warn for valid port types', async () => {
-    const { validator } = await import('../../../src/validator');
+    const { validator } = await import('../../../src/validation/validator');
 
     const ast = makeBaseWorkflow({
       nodeTypes: [

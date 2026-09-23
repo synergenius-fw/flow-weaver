@@ -1,6 +1,6 @@
 /**
- * Additional coverage tests for src/cli/commands/market.ts
- * Targets uncovered lines: 313-401 (marketPublishCommand, marketInstallCommand),
+ * Tests for src/cli/commands/market.ts
+ * Tests: 313-401 (marketPublishCommand, marketInstallCommand),
  * 515-559 (resolvePackageName, displayManifestSummary).
  */
 

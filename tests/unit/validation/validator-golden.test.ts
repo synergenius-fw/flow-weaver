@@ -17,8 +17,8 @@
  */
 
 import { parseWorkflow } from '../../../src/api/parse';
-import { parser } from '../../../src/parser';
-import { WorkflowValidator } from '../../../src/validator';
+import { parser } from '../../../src/parser/annotation-parser';
+import { WorkflowValidator } from '../../../src/validation/validator';
 import type { TValidationError } from '../../../src/ast/types';
 import * as fs from 'node:fs';
 import * as path from 'node:path';

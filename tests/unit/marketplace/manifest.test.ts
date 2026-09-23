@@ -11,7 +11,7 @@ vi.mock('glob', () => ({
 
 // Mock AnnotationParser
 const mockParse = vi.fn();
-vi.mock('../../../src/parser.js', () => {
+vi.mock('../../../src/parser/annotation-parser.js', () => {
   class MockAnnotationParser {
     parse(...args: unknown[]) {
       return mockParse(...args);

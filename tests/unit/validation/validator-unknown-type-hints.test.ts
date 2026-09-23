@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { WorkflowValidator } from '../../../src/validator';
+import { WorkflowValidator } from '../../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST } from '../../../src/ast/types';
 
 describe('validator unknown type hints', () => {

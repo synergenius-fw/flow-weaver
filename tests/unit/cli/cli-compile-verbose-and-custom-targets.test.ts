@@ -1,6 +1,6 @@
 /**
- * Additional coverage tests for src/cli/commands/compile.ts
- * Targets uncovered branches: displayPath, compileCustomTarget, verbose paths,
+ * Tests for src/cli/commands/compile.ts
+ * Tests: displayPath, compileCustomTarget, verbose paths,
  * error handling, strict validation warnings, sourceMap edge cases.
  */
 

@@ -1,5 +1,5 @@
 /**
- * Additional coverage for orthogonal-router.ts lines 598-601 and 611-614.
+ * Tests for orthogonal-router.ts lines 598-601 and 611-614.
  *
  * These lines handle fallback logic in the S-shape path of forward connections:
  * - Lines 598-601: exitX resets to stubExit[0] when findClearX returns a value

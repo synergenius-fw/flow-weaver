@@ -9,8 +9,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { parsePathLine } from '../../src/chevrotain-parser/path-parser';
-import { AnnotationParser } from '../../src/parser';
-import { annotationGenerator } from '../../src/annotation-generator';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
+import { annotationGenerator } from '../../src/generator/annotation-generator';
 import { removeNode, renameNode } from '../../src/api/manipulation/nodes';
 
 // =============================================================================

@@ -1,10 +1,10 @@
 /**
- * Coverage tests for src/api/command-runner.ts
- * Targets uncovered lines:
- *   142: remove-node parse errors
- *   155: add-connection parse errors
- *   170: remove-connection (already partially covered, ensuring the error path)
- *   231: run handler returning data
+ * Tests for src/api/command-runner.ts
+ * Tests:
+ *   - remove-node parse errors
+ *   - add-connection parse errors
+ *   - remove-connection (already partially covered, ensuring the error path)
+ *   - run handler returning data
  */
 
 import * as path from 'path';

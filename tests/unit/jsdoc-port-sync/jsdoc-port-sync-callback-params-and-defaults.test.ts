@@ -1,6 +1,6 @@
 /**
- * Additional coverage tests for jsdoc-port-sync/sync.ts
- * Targets uncovered lines: 664-665 (declaration callback push),
+ * Tests for jsdoc-port-sync/sync.ts
+ * Tests: 664-665 (declaration callback push),
  * 681-735 (arrow callback branch), 745-750 (parseDefaultValue).
  */
 

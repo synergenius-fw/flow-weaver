@@ -8,7 +8,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { parser } from "../../../src/parser";
+import { parser } from "../../../src/parser/annotation-parser";
 import { generateInPlace } from "../../../src/api/generate-in-place";
 
 describe("generateInPlace async/sync handling", () => {

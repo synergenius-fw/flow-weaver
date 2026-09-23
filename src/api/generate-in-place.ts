@@ -17,7 +17,7 @@ import type {
   TConnectionAST,
   TWorkflowMacro,
 } from '../ast/types';
-import { bodyGenerator } from '../body-generator';
+import { bodyGenerator } from '../generator/body-generator';
 import { generateInlineRuntime } from './inline-runtime';
 import { graphIdentity } from './graph-identity';
 import type { GraphIdentityStamp } from '../generator/unified';
@@ -29,9 +29,9 @@ import {
   formatJSDocDescription,
   planPortTags,
   httpRouteText,
-} from '../annotation-generator';
+} from '../generator/annotation-generator';
 import { shouldWorkflowBeAsync } from '../generator/async-detection';
-import { detectSugarPatterns, filterStaleMacros } from '../sugar-optimizer';
+import { detectSugarPatterns, filterStaleMacros } from '../generator/sugar-optimizer';
 import { isPathImpliedDataEdge } from '../parser/path-data-resolution';
 import { serializePackDeployAnnotations } from '../parser/serialize-deploy-annotations';
 import { validateDurableClosure } from './durable-validation';

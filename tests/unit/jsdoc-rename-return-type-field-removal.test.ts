@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/jsdoc-port-sync/rename.ts
+ * Tests for src/jsdoc-port-sync/rename.ts
  * Targets lines 124-142 (removeFieldFromReturnType) and 312-318
  * (output orphan removal in syncCodeRenames).
  */

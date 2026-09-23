@@ -1,10 +1,10 @@
 /**
- * Additional coverage for friendly-errors.ts: design quality rules,
+ * Tests for friendly-errors.ts: design quality rules,
  * coercion rules, and annotation validation rules that were not covered
  * by the existing friendly-errors-coverage.test.ts.
  */
 import { describe, it, expect } from 'vitest';
-import { getFriendlyError, type TFriendlyError } from '../../../src/friendly-errors';
+import { getFriendlyError, type TFriendlyError } from '../../../src/validation/friendly-errors';
 
 function expectValid(result: TFriendlyError | null, code: string) {
   expect(result).not.toBeNull();

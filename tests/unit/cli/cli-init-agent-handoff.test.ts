@@ -1,6 +1,6 @@
 /**
- * Additional coverage tests for src/cli/commands/init.ts
- * Targets uncovered lines: 775-798 (agent handoff with detectCliTools fallback),
+ * Tests for src/cli/commands/init.ts
+ * Tests: 775-798 (agent handoff with detectCliTools fallback),
  * 806 (agentLaunched early return), 824 (ExitPromptError in outer catch).
  */
 

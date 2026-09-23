@@ -8,7 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
-import { AnnotationParser } from '../parser.js';
+import { AnnotationParser } from '../parser/annotation-parser.js';
 import type {
   TNodeTypeAST,
   TWorkflowAST,

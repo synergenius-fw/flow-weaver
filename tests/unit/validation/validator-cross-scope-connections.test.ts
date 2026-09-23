@@ -5,7 +5,7 @@
  * the validator should flag it. Children in different scopes execute in separate
  * callback contexts and cannot share data directly.
  */
-import { WorkflowValidator } from "../../../src/validator";
+import { WorkflowValidator } from "../../../src/validation/validator";
 import type {
   TWorkflowAST,
   TNodeTypeAST,

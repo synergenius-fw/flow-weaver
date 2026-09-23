@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { parsePathLine } from '../../src/chevrotain-parser/path-parser';
-import { AnnotationParser } from '../../src/parser';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
 
 // =============================================================================
 // 1. Chevrotain Parser - comma-separated paths

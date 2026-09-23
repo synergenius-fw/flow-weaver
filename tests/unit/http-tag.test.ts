@@ -10,7 +10,7 @@ import path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parseWorkflow } from '../../src/api/parse';
 import { validateWorkflow } from '../../src/api/validate';
-import { annotationGenerator, httpRouteText } from '../../src/annotation-generator';
+import { annotationGenerator, httpRouteText } from '../../src/generator/annotation-generator';
 
 let dir: string;
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-http-')); });

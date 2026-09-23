@@ -5,8 +5,8 @@
  * Uses in-memory parsing (parseFromString) for speed - no file I/O.
  */
 
-import { parser } from "../../src/parser";
-import { validator } from "../../src/validator";
+import { parser } from "../../src/parser/annotation-parser";
+import { validator } from "../../src/validation/validator";
 
 describe("Exit Port Type Parsing", () => {
   it("should infer onSuccess/onFailure as STEP ports by default (backward compatibility)", () => {

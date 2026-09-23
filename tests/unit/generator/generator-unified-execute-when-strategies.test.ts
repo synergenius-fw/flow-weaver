@@ -1,7 +1,6 @@
 /**
- * Coverage tests for src/generator/unified.ts
- * Targets uncovered lines around executeWhen strategies (CONJUNCTION with OR-grouped conditions,
- * DISJUNCTION, and CUSTOM with fallback).
+ * Tests for src/generator/unified.ts: executeWhen strategies (CONJUNCTION with
+ * OR-grouped conditions, DISJUNCTION, and CUSTOM with fallback).
  */
 
 import { generateCode } from '../../../src/api/generate';

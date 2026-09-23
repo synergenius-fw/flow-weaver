@@ -1,8 +1,8 @@
 /**
- * Additional branch coverage tests for src/api/generate-in-place.ts.
- * Targets uncovered branches: Promise return type wrapping, node rename via @name tag,
- * insertNodeTypeFunction paths, isConnectionCoveredByMacro variants, ports array format,
- * WORKFLOW variant skip, external sourceLocation skip, macro filtering in JSDoc, etc.
+ * Tests for src/api/generate-in-place.ts: Promise return type wrapping, node
+ * rename via @name tag, insertNodeTypeFunction paths, isConnectionCoveredByMacro
+ * variants, ports array format, WORKFLOW variant skip, external sourceLocation
+ * skip, macro filtering in JSDoc, etc.
  */
 
 import { generateInPlace, hasInPlaceMarkers, stripGeneratedSections, MARKERS } from '../../../src/api/generate-in-place';

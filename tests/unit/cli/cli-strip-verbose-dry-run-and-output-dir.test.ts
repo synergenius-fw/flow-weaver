@@ -1,6 +1,6 @@
 /**
- * Additional coverage tests for src/cli/commands/strip.ts
- * Targets uncovered branches: directory expansion, verbose skip/success logging,
+ * Tests for src/cli/commands/strip.ts
+ * Tests: directory expansion, verbose skip/success logging,
  * process.exit(1) for no files, output directory creation.
  */
 

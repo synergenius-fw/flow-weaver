@@ -2,7 +2,7 @@
  * Tests for validator required input port detection
  */
 
-import { WorkflowValidator } from "../../../src/validator";
+import { WorkflowValidator } from "../../../src/validation/validator";
 import type { TWorkflowAST, TNodeTypeAST } from "../../../src/ast/types";
 
 describe("Validator Required Inputs", () => {

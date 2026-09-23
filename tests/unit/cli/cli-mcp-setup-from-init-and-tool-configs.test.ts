@@ -1,6 +1,6 @@
 /**
- * Additional coverage tests for src/cli/commands/mcp-setup.ts
- * Targets uncovered lines: 294 (openclaw isConfigured JSON parse catch),
+ * Tests for src/cli/commands/mcp-setup.ts
+ * Tests: 294 (openclaw isConfigured JSON parse catch),
  * 354-387 (runMcpSetupFromInit full flow), 482 (ExitPromptError in interactive confirm).
  */
 

@@ -1,8 +1,7 @@
 /**
- * Coverage tests for src/jsdoc-port-sync/rename.ts
- * Targets remaining uncovered lines: renamePortInCode for scoped input/output ports,
- * renameCallbackParameter, renameFieldInReturnType (callback path), and
- * syncCodeRenames output rename detection.
+ * Tests for src/jsdoc-port-sync/rename.ts: renamePortInCode for scoped
+ * input/output ports, renameCallbackParameter, renameFieldInReturnType
+ * (callback path), and syncCodeRenames output rename detection.
  */
 
 import {

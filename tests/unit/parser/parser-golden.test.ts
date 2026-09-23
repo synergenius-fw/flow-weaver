@@ -11,7 +11,7 @@
  * before updating. Snapshots are captured against the pre-refactor code.
  */
 
-import { parser } from '../../../src/parser';
+import { parser } from '../../../src/parser/annotation-parser';
 import * as path from 'node:path';
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');

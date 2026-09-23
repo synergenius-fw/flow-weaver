@@ -1,5 +1,5 @@
 /**
- * Branch coverage tests for src/cli/index.ts
+ * Tests for src/cli/index.ts
  *
  * Exercises conditionals: version fallback, writeErr suppression,
  * writeOut passthrough, wrapAction error handling, no-args banner,

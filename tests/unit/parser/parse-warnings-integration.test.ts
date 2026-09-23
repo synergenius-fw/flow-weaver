@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from 'vitest';
-import { AnnotationParser } from '../../../src/parser';
+import { AnnotationParser } from '../../../src/parser/annotation-parser';
 
 describe('Parse Warnings Integration', () => {
   let parser: AnnotationParser;

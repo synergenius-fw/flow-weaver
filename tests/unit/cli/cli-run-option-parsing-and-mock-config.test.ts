@@ -1,5 +1,5 @@
 /**
- * Coverage tests for src/cli/commands/run.ts (lines 478-842)
+ * Tests for src/cli/commands/run.ts
  * Targets: runCommand error handling, validateMockConfig, stream callbacks,
  * JSON output paths, checkpoint, and production mode.
  */

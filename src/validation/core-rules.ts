@@ -27,8 +27,8 @@ import {
 import * as ts from 'typescript';
 import { findClosestMatches } from '../utils/string-distance.js';
 import { parseFunctionSignature } from '../jsdoc-port-sync/signature-parser.js';
-import { checkTypeCompatibilityFromStrings } from '../type-checker.js';
-import { isValidPortType } from '../type-mappings.js';
+import { checkTypeCompatibilityFromStrings } from './type-checker.js';
+import { isValidPortType } from '../types/type-mappings.js';
 import { VALID_NODE_ICONS } from '../diagram/theme.js';
 import { MATERIAL_SYMBOLS, isMaterialSymbol } from '../diagram/material-symbols.js';
 import {

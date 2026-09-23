@@ -9,8 +9,8 @@
  * automatically expands test coverage with zero maintenance.
  */
 
-import { parser } from '../../src/parser';
-import { annotationGenerator } from '../../src/annotation-generator';
+import { parser } from '../../src/parser/annotation-parser';
+import { annotationGenerator } from '../../src/generator/annotation-generator';
 import { WorkflowDiffer } from '../../src/diff/WorkflowDiffer';
 import { globSync } from 'glob';
 import * as path from 'path';

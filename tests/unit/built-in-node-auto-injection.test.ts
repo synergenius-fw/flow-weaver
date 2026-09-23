@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { AnnotationParser } from '../../src/parser';
+import { AnnotationParser } from '../../src/parser/annotation-parser';
 import { generateCode } from '../../src/api/generate';
 
 describe('built-in node auto-injection', () => {

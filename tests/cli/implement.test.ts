@@ -12,7 +12,7 @@ vi.mock('../../src/api/index.js', () => ({
   parseWorkflow: vi.fn(),
 }));
 
-vi.mock('../../src/annotation-generator.js', () => ({
+vi.mock('../../src/generator/annotation-generator.js', () => ({
   generateFunctionSignature: vi.fn(),
 }));
 
@@ -43,7 +43,7 @@ vi.mock('../../src/utils/error-utils.js', () => ({
 
 import { implementCommand } from '../../src/cli/commands/implement';
 import { parseWorkflow } from '../../src/api/index.js';
-import { generateFunctionSignature } from '../../src/annotation-generator.js';
+import { generateFunctionSignature } from '../../src/generator/annotation-generator.js';
 import { logger } from '../../src/cli/utils/logger.js';
 
 const IMPL_TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-implement-test-${process.pid}`);

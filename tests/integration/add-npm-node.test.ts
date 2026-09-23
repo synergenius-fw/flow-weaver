@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { addNodeType, addNode } from '../../src/api/manipulation';
 import { generateInPlace } from '../../src/api/generate-in-place';
-import { parser } from '../../src/parser';
+import { parser } from '../../src/parser/annotation-parser';
 import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST } from '../../src/ast/types';
 
 describe('Add NPM Node Integration', () => {

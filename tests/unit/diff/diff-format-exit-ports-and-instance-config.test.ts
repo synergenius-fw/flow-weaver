@@ -1,9 +1,9 @@
 /**
- * Coverage for formatDiff.ts uncovered lines:
- * - Line 131: exit ports added
- * - Line 137: exit ports modified
- * - Line 215: instance config pullExecution changed
- * - Line 218: instance config portConfigs changed
+ * Tests for src/diff/formatDiff.ts:
+ * - exit ports added
+ * - exit ports modified
+ * - instance config pullExecution changed
+ * - instance config portConfigs changed
  */
 import { describe, it, expect } from 'vitest';
 import { formatDiff } from '../../../src/diff/formatDiff.js';

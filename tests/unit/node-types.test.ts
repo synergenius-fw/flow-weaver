@@ -5,8 +5,8 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { parser } from "../../src/parser";
-import { nodeTypesGenerator } from "../../src/node-types-generator";
+import { parser } from "../../src/parser/annotation-parser";
+import { nodeTypesGenerator } from "../../src/generator/node-types-generator";
 
 describe("Node Types Generation", () => {
   const inputPath = path.join(__dirname, "../../fixtures/basic/example.ts");

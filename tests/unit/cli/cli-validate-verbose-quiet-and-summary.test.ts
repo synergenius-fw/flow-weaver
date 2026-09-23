@@ -1,6 +1,6 @@
 /**
- * Additional coverage tests for src/cli/commands/validate.ts
- * Targets uncovered branches: verbose progress, parse warnings, validation error formatting
+ * Tests for src/cli/commands/validate.ts
+ * Tests: verbose progress, parse warnings, validation error formatting
  * (friendly errors, location, connection, docUrl), quiet mode, non-JSON error paths.
  */
 

@@ -1,8 +1,8 @@
 import * as path from 'node:path';
-import { parseWorkflow, type ParseResult } from "./api/parse";
-import { validateWorkflow, type ValidationResult } from "./api/validate";
-import { generateCode, type GenerateResult } from "./api/generate";
-import type { TWorkflowAST } from "./ast";
+import { parseWorkflow, type ParseResult } from "../api/parse";
+import { validateWorkflow, type ValidationResult } from "../api/validate";
+import { generateCode, type GenerateResult } from "../api/generate";
+import type { TWorkflowAST } from "../ast";
 
 export interface GeneratorOptions {
   production?: boolean;

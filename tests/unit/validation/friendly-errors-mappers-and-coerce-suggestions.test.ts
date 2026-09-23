@@ -1,11 +1,11 @@
 /**
- * Branch coverage tests for src/friendly-errors.ts
- * Targets uncovered branches: extractQuoted no-match, extractTypes all four regex paths,
+ * Tests for src/friendly-errors.ts
+ * Tests: extractQuoted no-match, extractTypes all four regex paths,
  * buildCoerceSuggestion edge cases, extractCyclePath, all error mappers with/without quoted values,
  * formatFriendlyDiagnostics empty/unmapped/mapped paths.
  */
 
-import { getFriendlyError, formatFriendlyDiagnostics } from '../../../src/friendly-errors';
+import { getFriendlyError, formatFriendlyDiagnostics } from '../../../src/validation/friendly-errors';
 
 // ── extractQuoted branches ──
 

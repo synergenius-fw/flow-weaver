@@ -1,7 +1,6 @@
 /**
- * Additional coverage tests for src/api/manipulation/nodes.ts
- * Targets uncovered lines 184-185 (map macro), 188-196 (fanOut/fanIn macros)
- * in renameNode when updating macro references.
+ * Tests for src/api/manipulation/nodes.ts: renameNode updating macro
+ * references in map and fanOut/fanIn macros.
  */
 
 import { renameNode } from '../../src/api/manipulation/nodes';

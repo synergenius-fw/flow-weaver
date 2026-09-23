@@ -9,8 +9,8 @@
  */
 
 import * as path from "path";
-import { parser } from "../../src/parser";
-import { generator } from "../../src/generator";
+import { parser } from "../../src/parser/annotation-parser";
+import { generator } from "../../src/generator/workflow-generator";
 import { shouldWorkflowBeAsync, validateWorkflowAsync } from "../../src/generator/async-detection";
 import { TWorkflowAST, TNodeTypeAST } from "../../src/ast/types";
 
