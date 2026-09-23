@@ -159,7 +159,7 @@ The package exports the same `createWorkflowRuntime`, built from the same source
 |---------|-------------|
 | `fw init` | Scaffold a new project |
 | `fw validate` | Validate workflows without compiling |
-| `fw compile` | Compile workflows to standalone TypeScript |
+| `fw compile` / `fw strip` | Compile workflows to standalone TypeScript, or remove the generated code |
 | `fw run` | Execute a workflow without gates directly |
 | `fw watch` / `fw dev` | Recompile (and run) on file changes |
 | `fw console` | Open the local operator console |
@@ -170,13 +170,15 @@ The package exports the same `createWorkflowRuntime`, built from the same source
 | `fw diff` | Semantic diff between two workflow versions |
 | `fw modify` | Programmatic graph mutations |
 | `fw create` / `fw templates` | Create workflows or nodes from templates |
-| `fw pattern` | Work with reusable workflow fragments |
+| `fw status` / `fw implement` | Report which stub nodes are still unimplemented, and replace a stub with a real function |
+| `fw migrate` | Rewrite workflow files in the current syntax |
 | `fw serve` | Serve the workflows' declared routes and run resources over HTTP, where gated runs pause and resume |
 | `fw export` / `fw openapi` | Export to a deploy target, or generate an OpenAPI spec |
 | `fw market` | Discover, install, and publish marketplace packs |
 | `fw doctor` | Check the project environment |
 | `fw mcp-server` / `fw mcp-setup` | Start or configure the MCP server |
-| `fw docs` | Browse the bundled reference documentation |
+| `fw docs` / `fw grammar` | Browse the bundled reference documentation, or print the annotation grammar |
+| `fw context` | Build a context bundle of the docs for an LLM |
 
 ## Extending with packs
 
