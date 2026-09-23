@@ -22,6 +22,11 @@ import { getFriendlyError } from '../validation/friendly-errors.js';
 import { compileTargetRegistry } from '../generator/compile-target-registry.js';
 import { AnnotationParser } from '../parser/annotation-parser.js';
 
+/** The parse failed only because the file declares several workflows and none was picked. */
+function isMultipleWorkflows(errors: unknown[]): boolean {
+  return errors.length > 0 && errors.every((e) => typeof e === 'string' && e.startsWith('[MULTIPLE_WORKFLOWS_FOUND]'));
+}
+
 /** Detect MULTIPLE_WORKFLOWS_FOUND marker in parse errors and return the right error code */
 function parseErrorCode(errors: string[]): string {
   if (errors.some((e) => e.includes('[MULTIPLE_WORKFLOWS_FOUND]'))) {
@@ -102,12 +107,43 @@ export function registerQueryTools(mcp: McpServer): void {
     }
   );
 
+  /** One workflow's validation result, in the shape fw_validate returns. */
+  function validationReport(parseResult: Awaited<ReturnType<typeof parseWorkflow>>, draft?: boolean) {
+    if (parseResult.errors.length > 0) {
+      return { valid: false, errors: parseResult.errors, warnings: parseResult.warnings };
+    }
+    const result = validateWorkflow(parseResult.ast, draft ? { mode: 'draft' } : undefined);
+    const errors = result.errors.map((e) => ({
+      message: e.message,
+      severity: e.type,
+      nodeId: e.node,
+      code: e.code,
+    }));
+    const warnings = [
+      ...parseResult.warnings,
+      ...result.warnings.map((w) => ({
+        message: w.message,
+        severity: w.type,
+        nodeId: w.node,
+        code: w.code,
+      })),
+    ];
+    return {
+      valid: result.valid,
+      errors: addHintsToItems(errors, getFriendlyError),
+      warnings: addHintsToItems(
+        warnings as Array<{ message: string; severity: string; nodeId?: string; code?: string }>,
+        getFriendlyError
+      ),
+    };
+  }
+
   mcp.tool(
     'fw_validate',
     'Validate a workflow file and return errors/warnings.',
     {
       filePath: z.string().describe('Path to the workflow file'),
-      workflowName: z.string().optional().describe('Specific workflow name'),
+      workflowName: z.string().optional().describe('Specific workflow name (default: every workflow in the file)'),
       draft: z.boolean().optional().describe('Draft mode - suppresses STUB_NODE errors for unimplemented nodes (default: false)'),
     },
     async (args: { filePath: string; workflowName?: string; draft?: boolean }) => {
@@ -142,37 +178,17 @@ export function registerQueryTools(mcp: McpServer): void {
           }
         }
 
-        if (parseResult.errors.length > 0) {
-          return makeToolResult({
-            valid: false,
-            errors: parseResult.errors,
-            warnings: parseResult.warnings,
-          });
+        // Several workflows and none named: validate each one.
+        if (!args.workflowName && isMultipleWorkflows(parseResult.errors) && parseResult.availableWorkflows.length > 1) {
+          const workflows = [];
+          for (const name of parseResult.availableWorkflows) {
+            const one = await parseWorkflow(filePath, { workflowName: name, projectDir: path.dirname(filePath) });
+            workflows.push({ workflowName: name, ...validationReport(one, args.draft) });
+          }
+          return makeToolResult({ valid: workflows.every((w) => w.valid), workflows });
         }
-        const result = validateWorkflow(parseResult.ast, args.draft ? { mode: 'draft' } : undefined);
-        const errors = result.errors.map((e) => ({
-          message: e.message,
-          severity: e.type,
-          nodeId: e.node,
-          code: e.code,
-        }));
-        const warnings = [
-          ...parseResult.warnings,
-          ...result.warnings.map((w) => ({
-            message: w.message,
-            severity: w.type,
-            nodeId: w.node,
-            code: w.code,
-          })),
-        ];
-        return makeToolResult({
-          valid: result.valid,
-          errors: addHintsToItems(errors, getFriendlyError),
-          warnings: addHintsToItems(
-            warnings as Array<{ message: string; severity: string; nodeId?: string; code?: string }>,
-            getFriendlyError
-          ),
-        });
+
+        return makeToolResult(validationReport(parseResult, args.draft));
       } catch (err) {
         return makeErrorResult(
           'VALIDATE_ERROR',
@@ -194,7 +210,7 @@ export function registerQueryTools(mcp: McpServer): void {
         .boolean()
         .optional()
         .describe('Production mode, meaning no debug events (default: false)'),
-      workflowName: z.string().optional().describe('Specific workflow name'),
+      workflowName: z.string().optional().describe('Specific workflow name (default: every workflow in the file)'),
       target: z
         .string()
         .optional()
@@ -290,12 +306,29 @@ export function registerQueryTools(mcp: McpServer): void {
           });
         }
 
-        const result = await compileWorkflow(filePath, {
-          write: args.write ?? true,
-          parse: { workflowName: args.workflowName },
-          generate: { production: args.production ?? false },
-          validationMode: args.draft ? 'draft' : undefined,
-        });
+        const compileOne = (workflowName: string | undefined) =>
+          compileWorkflow(filePath, {
+            write: args.write ?? true,
+            parse: { workflowName },
+            generate: { production: args.production ?? false },
+            validationMode: args.draft ? 'draft' : undefined,
+          });
+
+        let result;
+        try {
+          result = await compileOne(args.workflowName);
+        } catch (err) {
+          // Several workflows and none named: compile each one in turn. Each
+          // compile reads the file the previous one wrote, so the bodies stack.
+          if (args.workflowName || !String(err instanceof Error ? err.message : err).includes('[MULTIPLE_WORKFLOWS_FOUND]')) throw err;
+          const { availableWorkflows } = await parseWorkflow(filePath, { projectDir: path.dirname(filePath) });
+          const warnings = [];
+          for (const name of availableWorkflows) {
+            const one = await compileOne(name);
+            warnings.push(...(one.analysis?.warnings ?? []).map((w) => ({ workflowName: name, ...w })));
+          }
+          return makeToolResult({ outputFile: filePath, workflows: availableWorkflows, warnings });
+        }
         return makeToolResult({
           outputFile: result.metadata?.outputFile ?? filePath,
           warnings: result.analysis?.warnings ?? [],

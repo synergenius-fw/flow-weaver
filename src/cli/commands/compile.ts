@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
 import { parseWorkflow } from '../../api/index.js';
+import { parseWorkflowSourceAtPath } from '../../api/parse.js';
 import { generateInPlace } from '../../api/generate-in-place.js';
 import { generateCode } from '../../api/generate.js';
 import { validator } from '../../validation/validator.js';
@@ -17,6 +18,66 @@ import { detectProjectModuleFormat } from './doctor.js';
 import { compileTargetRegistry } from '../../generator/compile-target-registry.js';
 import { AnnotationParser } from '../../parser/annotation-parser.js';
 import { safeWriteFile, safeAppendFile } from '../utils/safe-write.js';
+
+/** The parse failed only because the file declares several workflows and none was picked. */
+function isMultipleWorkflows(errors: unknown[]): boolean {
+  return errors.length > 0 && errors.every((e) => typeof e === 'string' && e.startsWith('[MULTIPLE_WORKFLOWS_FOUND]'));
+}
+
+/**
+ * Print a workflow's validation result. Returns false when it must not be
+ * compiled: in strict mode validation errors block compilation. Warnings are
+ * always shown (the fix hint only with --verbose).
+ */
+function reportValidation(
+  label: string,
+  validation: ReturnType<typeof validator.validate>,
+  strict: boolean,
+  verbose: boolean,
+): boolean {
+  // In strict mode, validation errors block compilation
+  if (strict && validation.errors.length > 0) {
+    logger.error(`  ${label}`);
+    validation.errors.forEach((err) => {
+      const friendly = getFriendlyError(err);
+      if (friendly) {
+        const loc = err.location ? `[line ${err.location.line}] ` : '';
+        logger.error(`    ${loc}${friendly.title}: ${friendly.explanation}`);
+        logger.warn(`    How to fix: ${friendly.fix}`);
+        if (err.docUrl) {
+          logger.warn(`    See: ${err.docUrl}`);
+        }
+      } else {
+        let msg = `    ${err.message}`;
+        if (err.node) {
+          msg += ` (node: ${err.node})`;
+        }
+        logger.error(msg);
+        if (err.docUrl) {
+          logger.warn(`    See: ${err.docUrl}`);
+        }
+      }
+    });
+    return false;
+  }
+
+  // Always show validation warnings (not just in verbose mode)
+  if (validation.warnings.length > 0) {
+    validation.warnings.forEach((warn) => {
+      const friendly = getFriendlyError(warn);
+      if (friendly) {
+        const loc = warn.location ? `[line ${warn.location.line}] ` : '';
+        logger.warn(`  ${loc}${friendly.title}: ${friendly.explanation}`);
+        if (verbose) {
+          logger.warn(`    How to fix: ${friendly.fix}`);
+        }
+      } else {
+        logger.warn(`  ${warn.message}`);
+      }
+    });
+  }
+  return true;
+}
 
 /** Show path relative to cwd for cleaner output */
 function displayPath(filePath: string): string {
@@ -170,6 +231,42 @@ export async function compileCommand(input: string, options: CompileOptions = {}
       // Parse the workflow
       const parseResult = await parseWorkflow(file, { workflowName, projectDir: cwd });
 
+      // A file may declare several workflows. Without -w, install each body in
+      // turn on the in-memory source and write the file once, so a failure in
+      // one leaves the file untouched and --dry-run writes nothing.
+      if (!workflowName && isMultipleWorkflows(parseResult.errors) && parseResult.availableWorkflows.length > 1) {
+        let code = rawSource;
+        let failed = false;
+        for (const name of parseResult.availableWorkflows) {
+          const label = `${fileName} (${name})`;
+          const one = await parseWorkflowSourceAtPath(file, code, { workflowName: name, projectDir: cwd });
+          if (one.errors.length > 0) {
+            logger.error(`  ${label}`);
+            one.errors.forEach((err) => logger.error(`    ${err}`));
+            failed = true;
+            break;
+          }
+          if (!reportValidation(label, validator.validate(one.ast, { strictMode: strict }), strict, verbose)) {
+            failed = true;
+            break;
+          }
+          code = generateInPlace(code, one.ast, { production, moduleFormat, sourceFile: file, skipParamReturns: clean }).code;
+        }
+        if (failed) {
+          errorCount++;
+          continue;
+        }
+        const writePath = outputFile ? outputFile : outputDir ? path.join(outputDir, path.basename(file)) : file;
+        const changed = code !== rawSource;
+        if (!dryRun && changed) safeWriteFile(writePath, code);
+        if (sourceMap) logger.warn(`  ${fileName}: source maps are only written for files with one workflow`);
+        const names = logger.dim(`(${parseResult.availableWorkflows.join(', ')})`);
+        if (changed) logger.success(`${displayPath(file)} ${names} ${logger.dim(fileTimer.elapsed())}${dryRun ? ` ${logger.dim('(dry run)')}` : ''}`);
+        else if (verbose || dryRun) logger.log(`  ${displayPath(file)} ${names} ${logger.dim(dryRun ? '(no changes, dry run)' : 'no changes')}`);
+        successCount++;
+        continue;
+      }
+
       if (parseResult.warnings.length > 0 && verbose) {
         logger.warn(`Parse warnings in ${fileName}:`);
         parseResult.warnings.forEach((w) => logger.warn(`  ${w}`));
@@ -196,56 +293,13 @@ export async function compileCommand(input: string, options: CompileOptions = {}
       }
 
       // Validate the AST
-      const validation = validator.validate(parseResult.ast, { strictMode: strict });
-
-      // In strict mode, validation errors block compilation
-      if (strict && validation.errors.length > 0) {
-        logger.error(`  ${fileName}`);
-        validation.errors.forEach((err) => {
-          const friendly = getFriendlyError(err);
-          if (friendly) {
-            const loc = err.location ? `[line ${err.location.line}] ` : '';
-            logger.error(`    ${loc}${friendly.title}: ${friendly.explanation}`);
-            logger.warn(`    How to fix: ${friendly.fix}`);
-            if (err.docUrl) {
-              logger.warn(`    See: ${err.docUrl}`);
-            }
-          } else {
-            let msg = `    ${err.message}`;
-            if (err.node) {
-              msg += ` (node: ${err.node})`;
-            }
-            logger.error(msg);
-            if (err.docUrl) {
-              logger.warn(`    See: ${err.docUrl}`);
-            }
-          }
-        });
+      if (!reportValidation(fileName, validator.validate(parseResult.ast, { strictMode: strict }), strict, verbose)) {
         errorCount++;
         continue;
       }
 
-      // Always show validation warnings (not just in verbose mode)
-      if (validation.warnings.length > 0) {
-        validation.warnings.forEach((warn) => {
-          const friendly = getFriendlyError(warn);
-          if (friendly) {
-            const loc = warn.location ? `[line ${warn.location.line}] ` : '';
-            logger.warn(`  ${loc}${friendly.title}: ${friendly.explanation}`);
-            if (verbose) {
-              logger.warn(`    How to fix: ${friendly.fix}`);
-            }
-          } else {
-            logger.warn(`  ${warn.message}`);
-          }
-        });
-      }
-
-      // Read original source
-      const sourceCode = fs.readFileSync(file, 'utf8');
-
       // Generate code in-place (preserves types, interfaces, etc.)
-      const result = generateInPlace(sourceCode, parseResult.ast, { production, moduleFormat, sourceFile: file, skipParamReturns: clean });
+      const result = generateInPlace(rawSource, parseResult.ast, { production, moduleFormat, sourceFile: file, skipParamReturns: clean });
 
       // Determine where to write the compiled output
       const writePath = outputFile

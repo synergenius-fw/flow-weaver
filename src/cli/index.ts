@@ -88,7 +88,7 @@ program
   .option('-s, --source-map', 'Generate source maps', false)
   .option('--verbose', 'Verbose output', false)
   .option('--dry-run', 'Preview compilation without writing files', false)
-  .option('-w, --workflow <name>', 'Specific workflow name to compile')
+  .option('-w, --workflow <name>', 'Compile only this workflow (default: every workflow in the file)')
   .addOption(new Option('-f, --format <format>', 'Module format').choices(['esm', 'cjs', 'auto']).default('auto'))
   .option('--strict', 'Treat type coercion warnings as errors', false)
   .option('--clean', 'Omit redundant @param/@returns annotations from compiled output', false)
@@ -181,7 +181,7 @@ program
   .option('--verbose', 'Verbose output', false)
   .option('-q, --quiet', 'Suppress warnings', false)
   .option('--json', 'Output results as JSON', false)
-  .option('-w, --workflow <name>', 'Specific workflow name to validate')
+  .option('-w, --workflow <name>', 'Validate only this workflow (default: every workflow in the file)')
   .option('--strict', 'Treat type coercion warnings as errors', false)
   .action(wrapAction(async (input: string, options) => {
       const { validateCommand } = await import('./commands/validate.js');

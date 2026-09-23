@@ -63,7 +63,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'workflowName',
         type: 'string',
-        description: 'Specific workflow name',
+        description: 'Specific workflow name (default: every workflow in the file)',
         required: false,
       },
       {
@@ -101,7 +101,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'workflowName',
         type: 'string',
-        description: 'Specific workflow name',
+        description: 'Specific workflow name (default: every workflow in the file)',
         required: false,
       },
       {
