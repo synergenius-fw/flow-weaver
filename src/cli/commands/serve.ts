@@ -65,11 +65,14 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
   }
   const agents = options.agents !== false;
   const trace = options.trace === true;
+  // The same project-anchored store `fw console` and `fw_run` resolve, so a run
+  // paused here shows up there (FW_RUNS_DIR still overrides all three).
+  const runsDir = defaultRunsDir(workflowDir);
 
   logger.section('Flow Weaver Server');
   logger.info(`Workflows: ${workflowDir}`);
   logger.info(`Auth: ${token ? 'bearer token' : 'open'}${!token && !isLoopback(host) ? ' (insecure)' : ''}`);
-  logger.info(`Runs: ${defaultRunsDir()} (shared with fw console and fw_run)`);
+  logger.info(`Runs: ${runsDir} (shared with fw console and fw_run)`);
   logger.info(`Trace: ${trace ? 'kept per run' : 'off (--trace to keep)'}`);
   logger.info(`Callbacks: ${options.dev ? 'any host, including localhost (--dev)' : 'public hosts only'}`);
   if (agents) {
@@ -96,6 +99,7 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
     token,
     agents,
     trace,
+    runsDir,
     dev: options.dev ?? false,
     // Callbacks to localhost are what testing a callback locally needs;
     // in production they are the classic request-forgery hole.

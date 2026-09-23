@@ -51,7 +51,7 @@ export interface WebhookServerConfig {
   trace?: boolean;
   /** Development conveniences: error stacks in responses, `mocks` accepted in a start body. */
   dev?: boolean;
-  /** Where runs are stored. Defaults to the shared `~/.fw/runs`. */
+  /** Where runs are stored. `fw serve` passes the project's `.fw/runs`; unset falls back to `~/.fw/runs`. */
   runsDir?: string;
   /** A run store of your own in place of the directory. */
   store?: import('../coordinator/store.js').RunStore;

@@ -154,6 +154,8 @@ import { contextCommand } from '../../src/cli/commands/context.js';
 import { grammarCommand } from '../../src/cli/commands/grammar.js';
 import { logger } from '../../src/cli/utils/logger.js';
 import { WebhookServer } from '../../src/server/webhook-server.js';
+import { defaultRunsDir } from '../../src/coordinator/run-store.js';
+import * as path from 'path';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -322,6 +324,8 @@ describe('serveCommand', () => {
 
     expect(WebhookServer).toHaveBeenCalledWith(
       expect.objectContaining({
+        // Anchored to the served directory, like fw console and fw_run.
+        runsDir: defaultRunsDir(path.resolve('.')),
         port: 3000,
         host: '127.0.0.1',
         watchEnabled: true,

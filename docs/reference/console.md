@@ -67,7 +67,7 @@ The **Changes** tab compares two versions of the open workflow from git and pain
 
 ## Runs and gates
 
-A run started in the console is a real execution of the workflow, through the same coordinator `fw_run` uses over MCP, stored under `~/.fw/runs` (`FW_RUNS_DIR` to move it). That has three consequences worth knowing:
+A run started in the console is a real execution of the workflow, through the same coordinator `fw_run` uses over MCP, stored under the project's `.fw/runs` (`FW_RUNS_DIR` to move it). That has three consequences worth knowing:
 
 - A gate reached here can be answered by an assistant over MCP with `fw_resume`, and a gate reached by an assistant can be answered here. The console follows either as it happens.
 - A run waiting at a gate survives the console being closed and reopened.
@@ -137,7 +137,7 @@ The **CLI** tab of the drawer runs `fw` commands in the project — as an argume
 
 ## The console on a store of your own
 
-`fw console` shows the runs in `~/.fw/runs`, the same directory `fw serve`, `fw_run` and your own `createLocalCoordinator()` use on this machine. A service in production keeps its runs in a [run store](library#run-stores) of its own instead; to answer those gates from the console, run it from code on the same store:
+`fw console` shows the runs in the project's `.fw/runs`, the same directory `fw serve` and `fw_run` use for that project. Your own code joins them with `createLocalCoordinator({ rootDir: defaultRunsDir(projectDir) })`. A service in production keeps its runs in a [run store](library#run-stores) of its own instead; to answer those gates from the console, run it from code on the same store:
 
 ```typescript
 import { createConsoleServer } from '@synergenius/flow-weaver/console';
