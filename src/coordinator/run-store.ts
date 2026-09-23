@@ -20,7 +20,7 @@ import { dueFor, type RunDue } from './time.js';
  * The local durable-run coordinator.
  *
  * The engine returns a terminal `yielded` outcome and keeps nothing
- * (`docs/stitch-a2-continuation.md`, "Coordinator"). Somebody has to hold
+ * (see `docs/adr/0001-durable-gate-continuation.md`). Somebody has to hold
  * the continuation between the yield and the resume, own run identity, vouch
  * for the bundle, and record effect receipts. This is that somebody, for a
  * driver in the same process: an assistant over MCP sees `{ runId, gate }`

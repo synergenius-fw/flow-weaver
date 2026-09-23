@@ -48,9 +48,9 @@
  *   --only limits the rules, so one rule can be made strict while another
  *   is still being swept: --strict --only=middle-dot,filler,emoji
  *
- * Adapted from stitch-pack-accounting-pt/scripts/lint-slop.mjs, which reads
- * TypeScript only and knows the first three rules. The Markdown reader, the
- * filler and emoji rules, the per-rule summary and --only are this repo's.
+ * The Markdown reader, the filler and emoji rules, the per-rule summary and
+ * --only were added on top of an earlier TypeScript-only version that knew the
+ * first three rules.
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';

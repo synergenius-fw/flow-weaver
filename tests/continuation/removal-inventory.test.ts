@@ -215,8 +215,6 @@ describe('A2 clean-cutover removal inventory', () => {
     const unclassified = matchingFiles().filter(
       (file) =>
         !file.startsWith('tests/') &&
-        file !== 'docs/stitch-a0-baseline.md' &&
-        file !== 'docs/stitch-a2-continuation.md' &&
         file !== 'docs/adr/0001-durable-gate-continuation.md',
     );
     expect(unclassified).toEqual([]);

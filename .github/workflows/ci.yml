@@ -26,8 +26,6 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: Authenticate to private Verdaccio
-        run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - run: npm ci
 
@@ -63,8 +61,6 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: Authenticate to private Verdaccio
-        run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - run: npm ci
 
@@ -91,8 +87,6 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: Authenticate to private Verdaccio
-        run: echo "//npm.example.com/:_auth=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
 
       - run: npm ci
 

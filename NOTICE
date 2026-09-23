@@ -1,0 +1,13 @@
+Flow Weaver
+Copyright 2026 Ricardo José Horta Morais
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Compiler output exception
+
+Files produced by Flow Weaver (compiled workflows, generated code and
+diagrams), including the execution engine source that the compiler copies
+into compiled files, are not subject to the attribution and notice
+requirements of the Apache License. As additional permission, the copyright
+holder grants you the right to use, modify and distribute such output under
+terms of your choice, without retaining this NOTICE or the LICENSE.

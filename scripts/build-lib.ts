@@ -3,11 +3,10 @@
 /**
  * Build the library entry points into minified bundles.
  *
- * Why this exists: the proprietary licence (BUSL-1.1, source not published,
- * reverse engineering prohibited) is undercut if `npm pack` ships readable
- * per-file `tsc` output. This step replaces that readable JavaScript with
- * minified bundles — one output per `package.json` `exports` entry — while
- * keeping every `.d.ts` so the public type surface still resolves.
+ * Why this exists: the package ships one bundle per `package.json` `exports`
+ * entry instead of per-file `tsc` output. This step replaces the per-file
+ * JavaScript with minified bundles while keeping every `.d.ts` so the public
+ * type surface still resolves. The source is in the repository.
  *
  * How it works:
  *   1. tsc has already emitted `dist/**` (JS + .d.ts) and postbuild rewrote
@@ -102,7 +101,6 @@ const PATH_ANCHORED = [
   'agent/cli-session.ts',
   'agent/mcp-bridge.ts',
   'docs/index.ts', // also an export entry; listed there
-  'cli/license.ts',
   'cli/commands/doctor.ts',
   'mcp/auto-registration.ts',
   'console/cli-run.ts',
@@ -127,7 +125,6 @@ const COMMON: esbuild.BuildOptions = {
   format: 'esm',
   minify: true,
   sourcemap: false,
-  // Comments are source; the licence forbids redistributing it. Strip them.
   legalComments: 'none',
   external: EXTERNAL,
   define: {

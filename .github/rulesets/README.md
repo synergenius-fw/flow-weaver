@@ -1,8 +1,7 @@
 # Branch protection ruleset — source of truth
 
 `main.json` is the canonical spec for the `main` branch-protection
-ruleset. It mirrors the same trunk-based policy the
-`flow-weaver-platform` repo enforces: **nobody pushes raw commits to
+ruleset. The policy is trunk-based: **nobody pushes raw commits to
 `main`**; every change lands through a `feature/* → main` PR with a
 code-owner review and green CI.
 
@@ -33,9 +32,8 @@ code-owner review and green CI.
 
 ## How changes land
 
-Edit `main.json`, open a `feature/* → main` PR, merge. Unlike the
-platform repo there is no `ruleset-guard` workflow here, so after the
-spec changes an admin re-applies it to the live ruleset:
+Edit `main.json`, open a `feature/* → main` PR, merge. There is no workflow that syncs the ruleset, so after the spec
+changes an admin re-applies it to the live ruleset:
 
 ```sh
 # find the ruleset id

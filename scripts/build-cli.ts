@@ -25,9 +25,9 @@ async function build() {
     target: 'node18',
     format: 'esm',
     outfile,
-    // The published CLI ships minified: the proprietary licence forbids
-    // redistributing readable source, and no sourcemap goes out (package.json
-    // `files` already excludes dist/**/*.map).
+    // The published CLI ships as one minified file. No sourcemap goes out
+    // (package.json `files` already excludes dist/**/*.map); the source is in
+    // the repository.
     minify: true,
     sourcemap: false,
     legalComments: 'none',

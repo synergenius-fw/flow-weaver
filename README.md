@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@synergenius/flow-weaver?style=flat)](https://www.npmjs.com/package/@synergenius/flow-weaver)
 [![CI](https://img.shields.io/github/actions/workflow/status/synergenius-fw/flow-weaver/ci.yml?branch=main&style=flat)](https://github.com/synergenius-fw/flow-weaver/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green?style=flat)](https://nodejs.org)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue?style=flat)](./LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat)](./LICENSE)
 
 **A deterministic TypeScript workflow compiler. You describe a workflow with JSDoc annotations. It compiles to a standalone TypeScript function you own.**
 
@@ -208,11 +208,8 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
-Flow Weaver is source-available under the [Business Source License 1.1](./LICENSE) (`BUSL-1.1`). Each version becomes open source under the Apache License 2.0 four years after its release. This is a non-binding summary. The [LICENSE](./LICENSE) controls:
+Flow Weaver is licensed under the [Apache License 2.0](./LICENSE).
 
-- **Free for everyone:** evaluation, development, testing, and CI (including compiling, validating, and generating workflows) at any organization size. Everything the compiler produces is yours: compiled workflows, generated code, diagrams, and artifacts are not covered by the license and can be used, modified, and sublicensed without restriction.
-- **Free in production** for organizations with fewer than 100 people (employees and contractors, including affiliates).
-- **Commercial license required** for production use by organizations of 100 or more people, and for offering Flow Weaver (or a product whose primary value is its functionality) to third parties as a hosted or managed service.
-- **What counts as production use** is running the package itself in the operation of a business: the coordinator, `fw serve` or the console. The compiled files are output, not the licensed work, whoever runs them. They carry everything they need to run, so a program that only calls compiled workflows does not use the package at all.
+What the compiler produces is yours. Compiled workflows, generated code and diagrams, including the execution engine the compiler copies into each compiled file, may be used, modified and distributed under any terms you choose, without attribution. See [NOTICE](./NOTICE).
 
-Commercial licensing, support, and enterprise agreements: support@synergenius.pt.
+Support and enterprise agreements: support@synergenius.pt.

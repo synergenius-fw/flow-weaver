@@ -125,7 +125,8 @@
     "!dist/**/*.map",
     "docs/reference",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "prebuild": "tsx scripts/generate-version.ts && tsx scripts/generate-inline-engine.ts && tsx scripts/generate-built-in-registry.ts",
@@ -169,14 +170,11 @@
     "typescript",
     "compiler",
     "code-generation",
-    "visual-programming",
-    "node-graph",
     "durable-execution",
-    "inngest",
-    "serverless"
+    "human-in-the-loop"
   ],
   "author": "Ricardo José Horta Morais",
-  "license": "BUSL-1.1",
+  "license": "Apache-2.0",
   "homepage": "https://github.com/synergenius-fw/flow-weaver#readme",
   "bugs": "https://github.com/synergenius-fw/flow-weaver/issues",
   "repository": {
