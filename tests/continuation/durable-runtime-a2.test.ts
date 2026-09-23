@@ -16,6 +16,7 @@ import {
   DurableExecution,
   DurableGateYield,
   createWorkflowRuntime,
+  type EffectAdapter,
 } from '../../src/runtime/durable-execution.js';
 import { GeneratedExecutionContext } from '../../src/runtime/ExecutionContext.js';
 import { storeDebugSession } from '../../src/mcp/debug-session.js';
@@ -35,9 +36,9 @@ function graphForAddress(
       executionOrder: 1,
       inputPorts: [],
       outputPorts,
-      scopeNames: [],
-      invokedWorkflows: [],
-      branchArms: [],
+      scopeNames: [] as string[],
+      invokedWorkflows: [] as string[],
+      branchArms: [] as string[],
       branchPath: address.branches
         .filter((branch) => branch.frameDepth === address.frames.length - 1)
         .map(({ nodeId, arm }) => ({ nodeId, arm })),
@@ -463,7 +464,7 @@ describe('A2 durable runtime state machine', () => {
     const commit = vi.fn(async (key: string, _address: unknown, execution: { receipt: unknown; result: unknown }) => {
       committed.set(key, structuredClone(execution));
     });
-    const runtime = createWorkflowRuntime({ runId: 'commit-hook-run', workflowId: 'effects', services: { effectAdapter: { recover, commit } } });
+    const runtime = createWorkflowRuntime({ runId: 'commit-hook-run', workflowId: 'effects', services: { effectAdapter: { recover, commit } as unknown as EffectAdapter } });
     await expect(runtime.durable.executeEffect(
       runtime,
       { nodeId: 'charge', nodeType: 'chargeCard', executionIndex: 0 },

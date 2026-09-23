@@ -22,6 +22,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
+import type { CompletedExecutionOutcome } from '../../src/mcp/workflow-executor';
 import type { TExternalNodeType } from '../../src/parser/annotation-parser';
 
 describe('executeWorkflow with externalNodeTypes', () => {
@@ -107,7 +108,7 @@ export function usesForeignGate(
       workflowName: 'usesForeignGate',
       externalNodeTypes: [FOREIGN_GATE],
     });
-    const out = result.result as Record<string, unknown>;
+    const out = (result as CompletedExecutionOutcome).result as Record<string, unknown>;
     expect(out.onSuccess).toBe(true);
     expect(out.passed).toBe('OK');
   });

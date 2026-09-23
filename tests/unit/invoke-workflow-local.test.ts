@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
+import type { CompletedExecutionOutcome } from '../../src/mcp/workflow-executor';
 
 describe('Local invokeWorkflow Resolution', () => {
   it('should call sibling exported function when invoked locally', async () => {
@@ -64,7 +65,7 @@ export async function mainWorkflow(execute: boolean, params: { payload: object }
         workflowName: 'mainWorkflow',
       });
 
-      const workflowResult = result.result as { result: { result: string } };
+      const workflowResult = (result as CompletedExecutionOutcome).result as { result: { result: string } };
       expect(workflowResult.result.result).toBe('HELLO');
     } finally {
       fs.unlinkSync(testFile);
@@ -103,8 +104,8 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
       });
 
       // Without a matching sibling function and no mocks, should return no-op result
-      expect(result.result).toBeDefined();
-      const workflowResult = result.result as {
+      expect((result as CompletedExecutionOutcome).result).toBeDefined();
+      const workflowResult = (result as CompletedExecutionOutcome).result as {
         onSuccess: boolean;
         result: object;
       };
@@ -154,7 +155,7 @@ export async function mainWorkflow(execute: boolean, params: { data: string }): 
 
       // When mocks are configured but no matching functionId, invokeWorkflow returns failure
       // (since there's no explicit functionId connection providing a matching key)
-      expect(result.result).toBeDefined();
+      expect((result as CompletedExecutionOutcome).result).toBeDefined();
     } finally {
       fs.unlinkSync(testFile);
     }
@@ -228,7 +229,7 @@ export async function callerWorkflow(execute: boolean, params: { input: string }
 
       // The callerWorkflow calls invokeWorkflow with functionId='helperWorkflow'
       // The registry should resolve helperWorkflow from the same module
-      const workflowResult = result.result as { result: { upper: string } };
+      const workflowResult = (result as CompletedExecutionOutcome).result as { result: { upper: string } };
       expect(workflowResult.result).toBeDefined();
       // If the registry works, result should contain the helperWorkflow output
       if (workflowResult.result && 'upper' in workflowResult.result) {

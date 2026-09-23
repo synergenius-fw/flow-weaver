@@ -10,12 +10,14 @@ import { generator } from '../../src/generator/workflow-generator';
 
 const TEST_DIR = path.join(os.tmpdir(), `flow-weaver-skill-assertions-${process.pid}`);
 
+type GeneratedWorkflow = (...args: unknown[]) => Promise<Record<string, unknown>>;
+
 function executeGenerated(
-  module: { testWorkflow: (...args: unknown[]) => unknown },
+  module: Record<string, unknown>,
   execute: boolean,
   params: Record<string, unknown>,
-) {
-  return module.testWorkflow(execute, params, testHelpers.createRuntime('testWorkflow'));
+): Promise<Record<string, unknown>> {
+  return (module.testWorkflow as GeneratedWorkflow)(execute, params, testHelpers.createRuntime('testWorkflow'));
 }
 
 beforeEach(() => {

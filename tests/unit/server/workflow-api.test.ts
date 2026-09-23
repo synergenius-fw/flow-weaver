@@ -425,7 +425,7 @@ export async function nap(execute: boolean, params: { label: string }): Promise<
     await api.deliverCallbacks();   // the periodic sweep: the clock first
     const done = await api.fetch(new Request(`http://x${first.headers.get('location')}`));
     expect(done.status).toBe(200);
-    expect((await done.json()).note).toMatch(/^woke at \d{4}-/);
+    expect(((await done.json()) as { note: string }).note).toMatch(/^woke at \d{4}-/);
     // Announced like any other state change.
     expect(announced.some((r) => r.runId === run.runId && r.status === 'completed')).toBe(true);
   });
@@ -451,7 +451,7 @@ describe('embedding', () => {
       const busy = await post('/double', { n: 2 });
       expect(busy.status).toBe(503);
       expect(busy.headers.get('retry-after')).toBe('2');
-      expect((await busy.json()).error.code).toBe('BUSY');
+      expect(((await busy.json()) as { error: { code: string } }).error.code).toBe('BUSY');
       const loc = first.headers.get('location')!;
       await until(async () => (await limited.fetch(new Request(`http://x${loc}`))).status === 200);
       expect(await (await limited.fetch(new Request(`http://x${loc}`))).json()).toEqual({ out: 2 });
@@ -485,10 +485,10 @@ describe('embedding', () => {
       expect(health.status).toBe(200);
       const paused = await fetch(`http://127.0.0.1:${port}/api/approvals`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: 1 }) });
       expect(paused.status).toBe(202);
-      const run = await paused.json();
+      const run = (await paused.json()) as { runId: string; links: { resolve: string } };
       expect(paused.headers.get('location')).toBe(`/api/runs/${run.runId}/result`);
       expect(run.links.resolve).toBe(`/api/runs/${run.runId}/resolve`);
-      const spec = await (await fetch(`http://127.0.0.1:${port}/api/openapi.json`)).json();
+      const spec = (await (await fetch(`http://127.0.0.1:${port}/api/openapi.json`)).json()) as { servers: { url: string }[] };
       expect(spec.servers[0].url).toBe('/api');
       const doubled = await fetch(`http://127.0.0.1:${port}/api/double`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ n: 20 }) });
       expect(await doubled.json()).toEqual({ out: 40 });
@@ -501,7 +501,7 @@ describe('embedding', () => {
   it('answers a fetch Request and streams events through it', async () => {
     const health = await api.fetch(new Request('http://x/health'));
     expect(health.status).toBe(200);
-    expect((await health.json()).status).toBe('ok');
+    expect(((await health.json()) as { status: string }).status).toBe('ok');
     const doubled = await api.fetch(new Request('http://x/double', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ n: 3 }) }));
     expect(doubled.status).toBe(200);
     expect(await doubled.json()).toEqual({ out: 6 });
@@ -547,6 +547,6 @@ describe('embedding', () => {
     const r = await call('POST', '/double', { n: 11 });
     const seen = await api.fetch(new Request(`http://x/runs/${r.headers.get('x-run-id')}`));
     expect(seen.status).toBe(200);
-    expect((await seen.json()).params).toEqual({ n: 11 });
+    expect(((await seen.json()) as { params: unknown }).params).toEqual({ n: 11 });
   });
 });

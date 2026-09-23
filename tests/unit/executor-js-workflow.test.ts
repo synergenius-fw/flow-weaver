@@ -9,7 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { executeWorkflow } from '../../src/mcp/workflow-executor';
+import { executeWorkflow, type CompletedExecutionOutcome } from '../../src/mcp/workflow-executor';
 
 const tempDir = path.join(os.tmpdir(), `fw-exec-js-${process.pid}`);
 
@@ -96,7 +96,7 @@ export async function upperWorkflow(
       params: { text: 'hello' },
       production: true,
       includeTrace: false,
-    });
+    }) as CompletedExecutionOutcome;
 
     expect((result as unknown as Record<string, unknown>).error).toBeUndefined();
     expect(result.result).toBeDefined();

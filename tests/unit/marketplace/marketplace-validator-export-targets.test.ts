@@ -29,7 +29,7 @@ function makeValidManifest(overrides: Partial<TMarketplaceManifest> = {}): TMark
     workflows: [],
     patterns: [],
     ...overrides,
-  };
+  } as TMarketplaceManifest;
 }
 
 function makeValidPackageJson(): Record<string, unknown> {

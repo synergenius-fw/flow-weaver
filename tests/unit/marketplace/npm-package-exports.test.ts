@@ -652,9 +652,9 @@ export declare function foo(x: string): string`,
     const onSuccess = nt.ports.find(p => p.name === 'onSuccess')!;
     const onFailure = nt.ports.find(p => p.name === 'onFailure')!;
 
-    expect(onSuccess.defaultOrder).toBeLessThan(result.defaultOrder);
-    expect(onFailure.defaultOrder).toBeLessThan(result.defaultOrder);
-    expect(onSuccess.defaultOrder).toBeLessThan(onFailure.defaultOrder);
+    expect(onSuccess.defaultOrder).toBeLessThan(result.defaultOrder!);
+    expect(onFailure.defaultOrder).toBeLessThan(result.defaultOrder!);
+    expect(onSuccess.defaultOrder).toBeLessThan(onFailure.defaultOrder!);
   });
 
   it('onSuccess and onFailure have lower defaultOrder than data outputs (object return)', () => {
@@ -666,10 +666,10 @@ export declare function foo(x: string): string`,
     const onSuccess = nt.ports.find(p => p.name === 'onSuccess')!;
     const onFailure = nt.ports.find(p => p.name === 'onFailure')!;
 
-    expect(onSuccess.defaultOrder).toBeLessThan(host.defaultOrder);
-    expect(onSuccess.defaultOrder).toBeLessThan(port.defaultOrder);
-    expect(onFailure.defaultOrder).toBeLessThan(host.defaultOrder);
-    expect(onFailure.defaultOrder).toBeLessThan(port.defaultOrder);
+    expect(onSuccess.defaultOrder).toBeLessThan(host.defaultOrder!);
+    expect(onSuccess.defaultOrder).toBeLessThan(port.defaultOrder!);
+    expect(onFailure.defaultOrder).toBeLessThan(host.defaultOrder!);
+    expect(onFailure.defaultOrder).toBeLessThan(port.defaultOrder!);
   });
 
   it('onSuccess and onFailure before result on star re-export', () => {
@@ -684,8 +684,8 @@ export declare function foo(x: string): string`,
     const onSuccess = nt.ports.find(p => p.name === 'onSuccess')!;
     const onFailure = nt.ports.find(p => p.name === 'onFailure')!;
 
-    expect(onSuccess.defaultOrder).toBeLessThan(result.defaultOrder);
-    expect(onFailure.defaultOrder).toBeLessThan(result.defaultOrder);
+    expect(onSuccess.defaultOrder).toBeLessThan(result.defaultOrder!);
+    expect(onFailure.defaultOrder).toBeLessThan(result.defaultOrder!);
   });
 
   it('execute has lower defaultOrder than all data inputs', () => {
@@ -696,7 +696,7 @@ export declare function foo(x: string): string`,
     const dataInputs = nt.ports.filter(p => p.direction === 'INPUT' && p.name !== 'execute');
 
     for (const input of dataInputs) {
-      expect(execute.defaultOrder).toBeLessThan(input.defaultOrder);
+      expect(execute.defaultOrder).toBeLessThan(input.defaultOrder!);
     }
   });
 
@@ -706,14 +706,14 @@ export declare function foo(x: string): string`,
     const nt = exports.find(e => e.function === 'fetch')!;
     const outputPorts = nt.ports
       .filter(p => p.direction === 'OUTPUT')
-      .sort((a, b) => a.defaultOrder - b.defaultOrder);
+      .sort((a, b) => a.defaultOrder! - b.defaultOrder!);
 
     expect(outputPorts[0].name).toBe('onSuccess');
     expect(outputPorts[1].name).toBe('onFailure');
     // Data ports come after
     const dataOutputs = outputPorts.filter(p => p.type !== 'STEP');
     for (const dp of dataOutputs) {
-      expect(dp.defaultOrder).toBeGreaterThan(outputPorts[1].defaultOrder);
+      expect(dp.defaultOrder).toBeGreaterThan(outputPorts[1].defaultOrder!);
     }
   });
 
@@ -725,7 +725,7 @@ export declare function foo(x: string): string`,
     expect(outputs).toHaveLength(2);
     const onSuccess = outputs.find(p => p.name === 'onSuccess')!;
     const onFailure = outputs.find(p => p.name === 'onFailure')!;
-    expect(onSuccess.defaultOrder).toBeLessThan(onFailure.defaultOrder);
+    expect(onSuccess.defaultOrder).toBeLessThan(onFailure.defaultOrder!);
   });
 
   it('async function: onSuccess and onFailure before result', () => {
@@ -736,8 +736,8 @@ export declare function foo(x: string): string`,
     const onSuccess = nt.ports.find(p => p.name === 'onSuccess')!;
     const onFailure = nt.ports.find(p => p.name === 'onFailure')!;
 
-    expect(onSuccess.defaultOrder).toBeLessThan(result.defaultOrder);
-    expect(onFailure.defaultOrder).toBeLessThan(result.defaultOrder);
+    expect(onSuccess.defaultOrder).toBeLessThan(result.defaultOrder!);
+    expect(onFailure.defaultOrder).toBeLessThan(result.defaultOrder!);
   });
 
   it('declare const function: onSuccess and onFailure before result', () => {
@@ -748,8 +748,8 @@ export declare function foo(x: string): string`,
     const onSuccess = nt.ports.find(p => p.name === 'onSuccess')!;
     const onFailure = nt.ports.find(p => p.name === 'onFailure')!;
 
-    expect(onSuccess.defaultOrder).toBeLessThan(result.defaultOrder);
-    expect(onFailure.defaultOrder).toBeLessThan(result.defaultOrder);
+    expect(onSuccess.defaultOrder).toBeLessThan(result.defaultOrder!);
+    expect(onFailure.defaultOrder).toBeLessThan(result.defaultOrder!);
   });
 
   it('multiple data output props all have higher order than step ports', () => {
@@ -762,8 +762,8 @@ export declare function foo(x: string): string`,
 
     expect(dataOutputs.length).toBe(4);
     for (const dp of dataOutputs) {
-      expect(dp.defaultOrder).toBeGreaterThan(onSuccess.defaultOrder);
-      expect(dp.defaultOrder).toBeGreaterThan(onFailure.defaultOrder);
+      expect(dp.defaultOrder).toBeGreaterThan(onSuccess.defaultOrder!);
+      expect(dp.defaultOrder).toBeGreaterThan(onFailure.defaultOrder!);
     }
   });
 
@@ -775,7 +775,7 @@ export declare function foo(x: string): string`,
     const y = nt.ports.find(p => p.name === 'y')!;
     const z = nt.ports.find(p => p.name === 'z')!;
 
-    expect(x.defaultOrder).toBeLessThan(y.defaultOrder);
-    expect(y.defaultOrder).toBeLessThan(z.defaultOrder);
+    expect(x.defaultOrder).toBeLessThan(y.defaultOrder!);
+    expect(y.defaultOrder).toBeLessThan(z.defaultOrder!);
   });
 });

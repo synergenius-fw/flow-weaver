@@ -11,6 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import type { CompletedExecutionOutcome } from '../../../src/mcp/workflow-executor';
 
 const TEMP_DIR = path.join(os.tmpdir(), `fw-dev-cov3-${process.pid}`);
 
@@ -93,7 +94,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
       executionTime: 3,
       result: { done: true },
       trace: [],
-    });
+    } as unknown as CompletedExecutionOutcome);
 
     const filePath = writeFixture('prod-flag.ts', SIMPLE_WORKFLOW);
     await devCommand(filePath, { once: true, production: true });
@@ -117,7 +118,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
       executionTime: 3,
       result: { done: true },
       trace: [],
-    });
+    } as unknown as CompletedExecutionOutcome);
 
     const filePath = writeFixture('wf-name.ts', SIMPLE_WORKFLOW);
     await devCommand(filePath, { once: true, workflow: 'simpleWf' });
@@ -142,7 +143,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
       executionTime: 1,
       result: {},
       trace: [],
-    });
+    } as unknown as CompletedExecutionOutcome);
 
     const filePath = writeFixture('format-clean.ts', SIMPLE_WORKFLOW);
     await devCommand(filePath, { once: true, format: 'esm', clean: true });
@@ -196,7 +197,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
       executionTime: 1,
       result: {},
       trace: [],
-    });
+    } as unknown as CompletedExecutionOutcome);
 
     const filePath = writeFixture('log-params.ts', SIMPLE_WORKFLOW);
     // Calling with params and no json flag should trigger the "Params:" info line
@@ -212,7 +213,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
       executionTime: 1,
       result: {},
       trace: [],
-    });
+    } as unknown as CompletedExecutionOutcome);
 
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
 
@@ -244,7 +245,7 @@ describe('devCommand coverage - watch mode and edge cases', () => {
       executionTime: 42,
       result: { ok: true },
       trace: [],
-    });
+    } as unknown as CompletedExecutionOutcome);
 
     const filePath = writeFixture('elapsed.ts', SIMPLE_WORKFLOW);
     await devCommand(filePath, { once: true });

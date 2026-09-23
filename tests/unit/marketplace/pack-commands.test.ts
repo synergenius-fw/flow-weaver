@@ -1,6 +1,7 @@
 import * as path from 'path';
 import { Command } from 'commander';
 import { registerPackCommands } from '../../../src/cli/pack-commands.js';
+import type { TMarketplaceManifest } from '../../../src/marketplace/types.js';
 
 // Mock listInstalledPackages to return controlled data
 vi.mock('../../../src/marketplace/registry.js', () => ({
@@ -37,7 +38,7 @@ describe('registerPackCommands', () => {
         nodeTypes: [],
         workflows: [],
         patterns: [],
-      },
+      } as TMarketplaceManifest,
       path: '/mock/path',
     }]);
     await registerPackCommands(program);
@@ -60,7 +61,7 @@ describe('registerPackCommands', () => {
           { name: 'run', description: 'Run a workflow' },
           { name: 'history', description: 'List runs' },
         ],
-      },
+      } as TMarketplaceManifest,
       path: '/mock/weaver-pack',
     }]);
 
@@ -89,7 +90,7 @@ describe('registerPackCommands', () => {
         patterns: [],
         cliEntrypoint: 'dist/bridge.js',
         cliCommands: [{ name: 'deploy', description: 'Deploy' }],
-      },
+      } as TMarketplaceManifest,
       path: '/mock/gitlab-pack',
     }]);
 
@@ -112,7 +113,7 @@ describe('registerPackCommands', () => {
         patterns: [],
         cliEntrypoint: 'dist/bridge.js',
         cliCommands: [{ name: 'build', description: 'Build image' }],
-      },
+      } as TMarketplaceManifest,
       path: '/mock/docker-pack',
     }]);
 
@@ -149,7 +150,7 @@ describe('registerPackCommands', () => {
             { flags: '--port <number>', description: 'Port', default: '3000' },
           ],
         }],
-      },
+      } as TMarketplaceManifest,
       path: '/mock/test-pack',
     }]);
 
@@ -187,7 +188,7 @@ describe('registerPackCommands', () => {
             { flags: '--out <file>', description: 'Output file' },
           ],
         }],
-      },
+      } as TMarketplaceManifest,
       path: packPath,
     }]);
 

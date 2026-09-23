@@ -39,6 +39,8 @@ jobs:
           fi
 
       - run: npm run typecheck
+      - run: npm run typecheck:tests
+      - run: npm run typecheck:console
       - run: npm run lint
       - run: npm run build
 

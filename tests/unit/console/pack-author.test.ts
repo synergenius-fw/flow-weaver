@@ -9,7 +9,7 @@ import path from 'node:path';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { detectPackProject, checkPackProject, manifestChanges } from '../../../src/console/author';
 import { writeManifest } from '../../../src/marketplace/manifest';
-import type { TMarketplaceManifest } from '../../../src/marketplace/types';
+import type { TMarketplaceManifest, TManifestWorkflow } from '../../../src/marketplace/types';
 
 let dir: string;
 
@@ -73,7 +73,7 @@ describe('checkPackProject', () => {
     const first = await checkPackProject(dir);
     // Commit the manifest as it stands, then change the source.
     const raw = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
-    writeManifest(dir, { manifestVersion: 2, name: first.name, version: first.version, description: 'A demo pack', nodeTypes: [], workflows: [], patterns: [] });
+    writeManifest(dir, { manifestVersion: 2, name: first.name, version: first.version, description: 'A demo pack', nodeTypes: [], workflows: [], patterns: [] } as TMarketplaceManifest);
     fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ ...raw, version: '0.2.0' }));
     const second = await checkPackProject(dir);
     expect(second.hasManifest).toBe(true);
@@ -84,7 +84,7 @@ describe('checkPackProject', () => {
 describe('manifestChanges', () => {
   const base = (over: Partial<TMarketplaceManifest> = {}): TMarketplaceManifest => ({
     manifestVersion: 2, name: 'p', version: '1.0.0', nodeTypes: [], workflows: [], patterns: [], ...over,
-  });
+  } as TMarketplaceManifest);
   const nt = (name: string, out = 'x') => ({ name, functionName: name, file: 'f', isAsync: false, inputs: {}, outputs: { [out]: { dataType: 'STRING' as const } } });
 
   it('notices a node type whose ports changed', () => {
@@ -96,6 +96,6 @@ describe('manifestChanges', () => {
   });
 
   it('lists removals', () => {
-    expect(manifestChanges(base({ workflows: [{ name: 'w', functionName: 'w', file: 'f', startPorts: {}, exitPorts: {}, nodeCount: 1 }] }), base())).toEqual(['workflow w removed']);
+    expect(manifestChanges(base({ workflows: [{ name: 'w', functionName: 'w', file: 'f', startPorts: {}, exitPorts: {}, nodeCount: 1 } as TManifestWorkflow] }), base())).toEqual(['workflow w removed']);
   });
 });

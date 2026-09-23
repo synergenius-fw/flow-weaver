@@ -13,7 +13,7 @@ import type { ChildProcess } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CliSession } from '../../src/agent/cli-session.js';
 import { getCliSessionConfig } from '../../src/agent/cli-spawn-config.js';
-import type { StreamEvent } from '../../src/agent/types.js';
+import type { SpawnFn, StreamEvent } from '../../src/agent/types.js';
 
 let session: CliSession | null = null;
 
@@ -58,7 +58,7 @@ describe('CliSession current CLI contract and result cost', () => {
       pid: 12345,
       killed: false,
     }) as unknown as ChildProcess;
-    const spawnFn = vi.fn(() => child);
+    const spawnFn = vi.fn<SpawnFn>(() => child);
 
     session = new CliSession({
       ...getCliSessionConfig({

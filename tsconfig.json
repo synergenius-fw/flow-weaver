@@ -3,7 +3,9 @@
   "compilerOptions": {
     "noEmit": true,
     "rootDir": ".",
-    "types": ["node", "vitest/globals"]
+    "types": ["node", "vitest/globals"],
+    // Tests also import console-ui code, which runs in the browser.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"],
   "exclude": ["node_modules", "dist"]

@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 import { parser } from '../../src/parser/annotation-parser';
 import { generateCode } from '../../src/api/generate';
 import { mapToTypeScript } from '../../src/types/type-mappings';
-import { executeWorkflow } from '../../src/mcp/workflow-executor';
+import { executeWorkflow, type CompletedExecutionOutcome } from '../../src/mcp/workflow-executor';
 
 const FIXTURE_PATH = path.resolve(__dirname, '../fixtures/compiler-type-assertions.ts');
 
@@ -79,7 +79,7 @@ describe('compiler type assertion generation', () => {
       params: {
         raw: JSON.stringify({ name: 'test', value: 42 }),
       },
-    });
+    }) as CompletedExecutionOutcome;
 
     expect(result.result).toBeDefined();
     const output = result.result as { onSuccess: boolean; result: string };

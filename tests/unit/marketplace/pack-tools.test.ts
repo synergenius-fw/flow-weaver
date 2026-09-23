@@ -5,6 +5,7 @@ vi.mock('../../../src/marketplace/registry.js', () => ({
 }));
 
 import { listInstalledPackages } from '../../../src/marketplace/registry.js';
+import type { TMarketplaceManifest } from '../../../src/marketplace/types.js';
 
 const mockList = vi.mocked(listInstalledPackages);
 
@@ -34,7 +35,7 @@ describe('registerPackMcpTools', () => {
         nodeTypes: [],
         workflows: [],
         patterns: [],
-      },
+      } as TMarketplaceManifest,
       path: '/mock/path',
     }]);
     await registerPackMcpTools(mockMcp as any);
@@ -54,7 +55,7 @@ describe('registerPackMcpTools', () => {
         patterns: [],
         mcpEntrypoint: 'dist/mcp.js',
         mcpTools: [],
-      },
+      } as TMarketplaceManifest,
       path: '/mock/path',
     }]);
     await registerPackMcpTools(mockMcp as any);
@@ -82,7 +83,7 @@ describe('registerPackMcpTools', () => {
         patterns: [],
         mcpEntrypoint: 'dist/nonexistent.js',
         mcpTools: [{ name: 'test', description: 'Test' }],
-      },
+      } as TMarketplaceManifest,
       path: '/mock/broken-pack',
     }]);
 

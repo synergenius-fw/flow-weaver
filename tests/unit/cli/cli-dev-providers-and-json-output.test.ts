@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import type { WorkflowExecutionOutcome } from '../../../src/mcp/workflow-executor';
 
 const TEMP_DIR = path.join(os.tmpdir(), `fw-dev-cov-${process.pid}`);
 
@@ -107,7 +108,7 @@ describe('devCommand coverage', () => {
       executionTime: 10,
       result: { onSuccess: true },
       trace: [],
-    });
+    } as unknown as WorkflowExecutionOutcome);
 
     const filePath = writeFixture('dev-params.ts', SIMPLE_WORKFLOW);
 
@@ -143,7 +144,7 @@ describe('devCommand coverage', () => {
       executionTime: 5,
       result: { ok: true },
       trace: [],
-    });
+    } as unknown as WorkflowExecutionOutcome);
 
     const paramsFile = writeFixture('params.json', '{"fromFile": true}');
     const filePath = writeFixture('dev-pfile.ts', SIMPLE_WORKFLOW);
@@ -218,7 +219,7 @@ describe('devCommand coverage', () => {
       executionTime: 7,
       result: { done: true },
       trace: [],
-    });
+    } as unknown as WorkflowExecutionOutcome);
 
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
 

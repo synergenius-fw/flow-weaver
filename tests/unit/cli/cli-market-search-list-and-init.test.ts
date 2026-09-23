@@ -8,6 +8,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import type { TMarketplaceManifest, TMarketplacePackageInfo } from '../../../src/marketplace/types';
+
+type SearchHit = TMarketplacePackageInfo & { registry: string };
 
 const TEMP_DIR = path.join(os.tmpdir(), `fw-market-cov-${process.pid}`);
 
@@ -61,7 +64,7 @@ describe('marketSearchCommand coverage', () => {
         version: '0.1.0',
         official: false,
       },
-    ] });
+    ] as SearchHit[] });
 
     await marketSearchCommand('pack', { json: false });
   });
@@ -83,7 +86,7 @@ describe('marketSearchCommand coverage', () => {
         description: 'Beta pack',
         official: false,
       },
-    ] });
+    ] as SearchHit[] });
 
     // Only "alpha" should match
     await marketSearchCommand('alpha', { json: false });
@@ -126,7 +129,7 @@ describe('marketSearchCommand coverage', () => {
         description: 'JSON output test',
         official: false,
       },
-    ] });
+    ] as SearchHit[] });
 
     await marketSearchCommand(undefined, { json: true });
   });
@@ -173,7 +176,7 @@ describe('marketListCommand coverage', () => {
           initContributions: [] as any,
           cliCommands: [],
           mcpTools: [],
-        },
+        } as TMarketplaceManifest,
       },
       {
         name: 'flow-weaver-pack-two',
@@ -195,7 +198,7 @@ describe('marketListCommand coverage', () => {
           initContributions: [] as any,
           cliCommands: [],
           mcpTools: [],
-        },
+        } as TMarketplaceManifest,
       },
     ]);
 
@@ -234,7 +237,7 @@ describe('marketListCommand coverage', () => {
           initContributions: [] as any,
           cliCommands: [],
           mcpTools: [],
-        },
+        } as TMarketplaceManifest,
       },
     ]);
 
@@ -274,7 +277,7 @@ describe('marketListCommand - displayInstalledPackage with all sections', () => 
           initContributions: [] as any,
           cliCommands: [],
           mcpTools: [],
-        },
+        } as TMarketplaceManifest,
       },
       {
         name: 'flow-weaver-pack-empty',
@@ -294,7 +297,7 @@ describe('marketListCommand - displayInstalledPackage with all sections', () => 
           initContributions: [] as any,
           cliCommands: [],
           mcpTools: [],
-        },
+        } as TMarketplaceManifest,
       },
     ]);
 

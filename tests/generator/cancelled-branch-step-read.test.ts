@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { parser } from '../../src/parser/annotation-parser';
 import { generateCode } from '../../src/api/generate';
 import { executeWorkflow } from '../../src/mcp/workflow-executor';
+import type { CompletedExecutionOutcome } from '../../src/mcp/workflow-executor';
 
 const FIXTURE_PATH = path.resolve(__dirname, '../fixtures/cancelled-branch-step-read.ts');
 
@@ -24,8 +25,8 @@ describe('cancelled branch STEP port read', () => {
       },
     });
 
-    expect(result.result).toBeDefined();
-    const output = result.result as { onSuccess: boolean; result: string };
+    expect((result as CompletedExecutionOutcome).result).toBeDefined();
+    const output = (result as CompletedExecutionOutcome).result as { onSuccess: boolean; result: string };
     expect(output.onSuccess).toBe(true);
     expect(JSON.parse(output.result).mainDone).toBe(true);
   });

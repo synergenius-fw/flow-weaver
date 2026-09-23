@@ -143,7 +143,7 @@ describe('runCommand coverage', () => {
   it('should run with --checkpoint option', async () => {
     const { runCommand } = await import('../../../src/cli/commands/run');
     const filePath = writeFixture('run-ckpt.ts', SIMPLE_WORKFLOW);
-    await runCommand(filePath, { workflow: 'simpleWf', checkpoint: true });
+    await runCommand(filePath, { workflow: 'simpleWf', checkpoint: true } as Parameters<typeof runCommand>[1]);
   });
 
   it('should run with --mocks-file', async () => {
@@ -202,7 +202,7 @@ export function failWf(execute: boolean): Promise<{ onSuccess: boolean; onFailur
     const originalExitCode = process.exitCode;
     try {
       // The error is caught internally in non-json mode; exitCode is set instead of throwing
-      await runCommand(filePath, { workflow: 'simpleWf', resume: true });
+      await runCommand(filePath, { workflow: 'simpleWf', resume: true } as Parameters<typeof runCommand>[1]);
     } catch {
       // May or may not throw depending on internal error path
     } finally {

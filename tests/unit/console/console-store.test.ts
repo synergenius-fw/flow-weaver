@@ -20,9 +20,9 @@ let server: ConsoleServer;
 const store = createMemoryRunStore();
 const previousRunsDir = process.env.FW_RUNS_DIR;
 
-const api = async (method: string, p: string, body?: unknown) => {
+const api = async <T = Record<string, unknown>>(method: string, p: string, body?: unknown) => {
   const res = await fetch(server.url + p, { method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
-  return { status: res.status, body: await res.json() };
+  return { status: res.status, body: (await res.json()) as T };
 };
 const until = async (pred: () => Promise<boolean>, ms = 15000) => {
   const end = Date.now() + ms;
@@ -64,7 +64,7 @@ describe('the console on a store of its own', () => {
     expect(gate).toMatchObject({ kind: 'approval', inputLabels: { value: 'Value requiring approval' }, outputLabels: { value: 'Approved value' } });
     expect(typeof gate.description).toBe('string');
 
-    const listed = await api('GET', `/api/runs?file=${encodeURIComponent(file)}&name=durableApproval`);
+    const listed = await api<Array<{ id: string }>>('GET', `/api/runs?file=${encodeURIComponent(file)}&name=durableApproval`);
     expect(listed.body.map((r: { id: string }) => r.id)).toEqual([id]);
 
     const resolved = await api('POST', `/api/runs/${id}/resolve`, { answer: 8 });
@@ -74,7 +74,7 @@ describe('the console on a store of its own', () => {
     expect((await store.get(id))?.status).toBe('completed');
 
     expect(fs.existsSync(runsDir)).toBe(false);
-    const status = await api('GET', '/api/status');
+    const status = await api<{ console: { runsDir: string } }>('GET', '/api/status');
     expect(status.body.console.runsDir).toBe('a run store of your own');
   }, 60000);
 });
