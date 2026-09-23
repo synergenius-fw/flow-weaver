@@ -27,4 +27,4 @@ jobs:
           pr_message: |
             Thanks for your first pull request! We appreciate the contribution.
 
-            A maintainer will review this soon. Make sure CI passes and the PR checklist is complete.
+            A maintainer will review this soon. Make sure CI passes and the PR checklist is complete. Opening a pull request means you agree to the [Contributor License Agreement](https://github.com/synergenius-fw/flow-weaver/blob/main/CLA.md).
