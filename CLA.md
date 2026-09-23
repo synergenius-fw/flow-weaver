@@ -17,7 +17,7 @@ issues, comments, and other electronic submissions.
 
 "You" means the individual signing this agreement.
 
-"Licensor" means Ricardo Jose Horta Morais (Synergenius).
+"Licensor" means Ricardo José Horta Morais.
 
 ## Copyright Assignment
 
