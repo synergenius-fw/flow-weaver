@@ -472,13 +472,20 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
         expr = rewriteExpressionReferences(expr, refs, (ref) => fetched.get(`${ref.root}.${ref.port}`)!);
       }
 
+      // Type the value as the node declares the port, as the other input
+      // paths do; a referenced upstream port can be typed more loosely (e.g.
+      // `object` where the port wants `Record<string, unknown>`).
+      const rawExprType = mapToTypeScript(portConfig.dataType, portConfig.tsType);
+      const exprPortType = /^(string|number|boolean|void|unknown|any|never|null|undefined)(\[\])?$/.test(rawExprType)
+        ? rawExprType
+        : `Parameters<typeof ${node.functionName}>[${args.length}]`;
       // Check if expression is a function (arrow or regular)
       const isFunction = expr.includes('=>') || expr.trim().startsWith('function');
       if (isFunction) {
-        lines.push(`${indent}const ${varName} = ${isAsync ? 'await ' : ''}(${expr})(ctx);`);
+        lines.push(`${indent}const ${varName} = ${isAsync ? 'await ' : ''}(${expr})(ctx) as ${exprPortType};`);
       } else {
         // Simple expression - evaluate directly
-        lines.push(`${indent}const ${varName} = ${expr};`);
+        lines.push(`${indent}const ${varName} = (${expr}) as ${exprPortType};`);
       }
       args.push(varName);
       emitSetEvent();
@@ -550,8 +557,14 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
           if (needsGuard) {
             const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' })`;
             const wrappedExpr = coerceExpr ? `${coerceExpr}(${getExpr})` : getExpr;
+            // An optional port really is `T | undefined`. A required port gets
+            // the type its node declares, like the unguarded read below: the
+            // guard only covers an arm that did not run, and typing the value
+            // `T | undefined` made compiled files fail `tsc --strict`.
             lines.push(
-              `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${wrappedExpr} as ${portType} : undefined;`,
+              portConfig.optional
+                ? `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${wrappedExpr} as ${portType} : undefined;`
+                : `${indent}const ${varName} = (${sourceIdx} !== undefined ? ${wrappedExpr} : undefined) as ${portType};`,
             );
           } else {
             const getExpr = `${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceExecutionIndex}, nodeTypeName: '${getSourceNodeTypeName(sourceNode)}' })`;
@@ -628,7 +641,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
           );
           lines.push(`${indent}const ${varName} = ${varName}_resolved?.fn as ${portType};`);
         } else {
-          lines.push(`${indent}const ${varName} = ${ternary} as ${portType};`);
+          lines.push(`${indent}const ${varName} = (${ternary}) as ${portType};`);
         }
       }
       args.push(varName);
