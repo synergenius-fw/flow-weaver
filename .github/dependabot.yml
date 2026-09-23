@@ -12,6 +12,11 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # TypeScript 7 drops APIs the compiler uses (ts.ScriptTarget), so
+      # fw compile fails on it; the peer range stops below 7 until it does.
+      - dependency-name: typescript
+        versions: [">=7"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions
