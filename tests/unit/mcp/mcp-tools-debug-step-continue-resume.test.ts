@@ -8,7 +8,7 @@
  * real workflows.
  */
 
-import { DebugController } from '../../../src/runtime/debug-controller';
+import { DebugController, type DebugControllerConfig } from '../../../src/runtime/debug-controller';
 import {
   storeDebugSession,
   removeDebugSession,
@@ -82,7 +82,7 @@ function createPausedSession(
     debug: true,
     checkpoint: false,
     executionOrder: ['nodeA', 'nodeB'],
-  });
+  } as DebugControllerConfig);
 
   const session: DebugSession = {
     debugId,

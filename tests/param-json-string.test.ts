@@ -17,6 +17,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { executeWorkflow } from '../src/mcp/workflow-executor';
+import type { CompletedExecutionOutcome } from '../src/mcp/workflow-executor';
 
 describe('@param with JSON string value', () => {
   const outputDir = path.join(os.tmpdir(), `fw-param-json-${process.pid}`);
@@ -107,7 +108,7 @@ export function botWorkflow(
       },
     });
 
-    const result = execResult.result as Record<string, unknown>;
+    const result = (execResult as CompletedExecutionOutcome).result as Record<string, unknown>;
     const ctx = JSON.parse(result.ctx as string);
 
     // BUG: taskJson becomes undefined when read by the downstream node
@@ -273,7 +274,7 @@ export function minimalJsonParam(
       filePath: testFile,
       params: { taskJson: jsonString },
     });
-    const result = execResult.result as Record<string, unknown>;
+    const result = (execResult as CompletedExecutionOutcome).result as Record<string, unknown>;
 
     // The node must receive the original JSON string (not undefined, not parsed)
     expect(result.isDefined).toBe(true);

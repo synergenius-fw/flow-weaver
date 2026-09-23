@@ -4,7 +4,7 @@ import { waitForEvent } from '../../src/built-in-nodes/wait-for-event';
 import { invokeWorkflow } from '../../src/built-in-nodes/invoke-workflow';
 import { waitForAgent } from '../../src/built-in-nodes/wait-for-agent';
 import type { FwMockConfig } from '../../src/built-in-nodes/mock-types';
-import { createNestedWorkflowRuntime, type NodeExecutionRuntime } from '../../src/runtime/durable-execution';
+import { createNestedWorkflowRuntime, type NodeExecutionRuntime, type WorkflowRuntime } from '../../src/runtime/durable-execution';
 
 let mocks: FwMockConfig | undefined;
 afterEach(() => {
@@ -17,7 +17,7 @@ function nodeRuntime(nodeId: string): NodeExecutionRuntime {
     nodeId,
     runtime,
     recursionDepth: 0,
-    createNestedRuntime: (workflowId: string) => createNestedWorkflowRuntime(runtime, workflowId, nodeId, 0),
+    createNestedRuntime: (workflowId: string) => createNestedWorkflowRuntime(runtime, workflowId, nodeId, 0, 0),
   };
 }
 

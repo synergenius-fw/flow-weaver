@@ -16,7 +16,7 @@ vi.mock('../../../src/server/workflow-registry.js', () => ({
   WorkflowRegistry: vi.fn(),
 }));
 
-import { executeWorkflow } from '../../../src/mcp/workflow-executor.js';
+import { executeWorkflow, type WorkflowExecutionOutcome } from '../../../src/mcp/workflow-executor.js';
 
 const mockedExecute = vi.mocked(executeWorkflow);
 
@@ -670,7 +670,7 @@ describe('UnifiedWorkflowExecutor', () => {
         functionName: 'calculator',
         trace: [],
         executionTime: 10,
-      });
+      } as unknown as WorkflowExecutionOutcome);
 
       const result = await executor.executeFromFile('/calculator.ts', { a: 20, b: 22 });
 
@@ -688,7 +688,7 @@ describe('UnifiedWorkflowExecutor', () => {
         functionName: 'wf',
         trace: traceEvents,
         executionTime: 0,
-      });
+      } as unknown as WorkflowExecutionOutcome);
 
       const result = await executor.executeFromFile('/wf.ts', {}, { includeTrace: true });
       expect(result.trace).toEqual(traceEvents);
@@ -701,7 +701,7 @@ describe('UnifiedWorkflowExecutor', () => {
         functionName: 'wf',
         trace: [{ type: 'NODE_STARTED', timestamp: Date.now() }],
         executionTime: 0,
-      });
+      } as unknown as WorkflowExecutionOutcome);
 
       const result = await executor.executeFromFile('/wf.ts', {}, { includeTrace: true });
       expect(result.trace).toBeUndefined();
@@ -751,7 +751,7 @@ describe('UnifiedWorkflowExecutor', () => {
         functionName: 'calculator',
         trace: [],
         executionTime: 5,
-      });
+      } as unknown as WorkflowExecutionOutcome);
 
       const result = await executor.execute(makeRequest({ workflowId: 'calculator' }));
 

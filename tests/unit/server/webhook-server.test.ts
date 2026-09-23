@@ -177,7 +177,7 @@ describe('a gated workflow as an endpoint', () => {
   it('rejects a body that is not JSON', async () => {
     const res = await fetch(`${base}/workflows/durableApproval`, { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: '{not json' });
     expect(res.status).toBe(400);
-    expect((await res.json()).error.code).toBe('INVALID_JSON');
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe('INVALID_JSON');
   });
 });
 

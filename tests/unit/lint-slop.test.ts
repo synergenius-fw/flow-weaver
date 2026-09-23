@@ -33,7 +33,7 @@ function lint(source: string, ext = 'ts'): string {
 }
 
 describe('the slop linter', () => {
-  it.each([
+  it.each<[string, string, string?]>([
     ['a middle dot between labels in a comment', '// steps 3 \u00b7 gates 1\n'],
     ['a bullet as a separator', '// answers 200 \u2022 422 \u2022 500\n'],
     ['a middle dot in a string', 'const s = "up \u00b7 since noon";\n'],
@@ -51,7 +51,7 @@ describe('the slop linter', () => {
     expect(lint(source, ext as string | undefined)).not.toContain('slop: clean');
   });
 
-  it.each([
+  it.each<[string, string, string?]>([
     ['a code semicolon', 'const a = [];\nconst b = 0;\n'],
     ['a CSS block in a string', 'const css = ".x { color: red; font: bold; }";\n'],
     ['a media type', 'const h = "text/csv; charset=utf-8";\n'],

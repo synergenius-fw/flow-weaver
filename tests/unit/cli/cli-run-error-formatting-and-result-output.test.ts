@@ -50,20 +50,6 @@ vi.mock('../../../src/api/query', () => ({
   getTopologicalOrder: vi.fn(() => ['p']),
 }));
 
-vi.mock('../../../src/runtime/checkpoint', () => {
-  const mockFindLatest = vi.fn();
-  const mockLoad = vi.fn();
-  return {
-    CheckpointWriter: class MockCheckpointWriter {
-      write = vi.fn();
-      cleanup = vi.fn();
-      constructor() {}
-    },
-    findLatestCheckpoint: mockFindLatest,
-    loadCheckpoint: mockLoad,
-  };
-});
-
 vi.mock('../../../src/validation/friendly-errors', () => ({
   getFriendlyError: vi.fn(() => null),
 }));
@@ -146,14 +132,6 @@ async function getFriendlyErrorMock() {
 async function getExecutorMock() {
   const mod = await import('../../../src/mcp/workflow-executor');
   return mod.executeWorkflow as unknown as ReturnType<typeof vi.fn>;
-}
-
-async function getCheckpointMocks() {
-  const mod = await import('../../../src/runtime/checkpoint');
-  return {
-    findLatestCheckpoint: mod.findLatestCheckpoint as unknown as ReturnType<typeof vi.fn>,
-    loadCheckpoint: mod.loadCheckpoint as unknown as ReturnType<typeof vi.fn>,
-  };
 }
 
 async function getParseWorkflowMock() {

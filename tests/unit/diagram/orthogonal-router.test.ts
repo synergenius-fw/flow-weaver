@@ -11,6 +11,14 @@ import {
 
 type Vec2 = [number, number];
 
+/**
+ * The router's signature no longer takes an allocator; these tests still pass
+ * one as a trailing argument, which the implementation ignores.
+ */
+type WithAllocator<F extends (...args: never[]) => unknown> = (
+  ...args: [...Required<Parameters<F>>, TrackAllocator]
+) => ReturnType<F>;
+
 function makeBox(id: string, x: number, y: number, width = 120, height = 60): NodeBox {
   return { id, x, y, width, height };
 }
@@ -429,10 +437,10 @@ describe('calculateOrthogonalPath', () => {
       ];
 
       // Use different Y values so the router does not fall back to bezier
-      const path1 = calculateOrthogonalPath(
+      const path1 = (calculateOrthogonalPath as WithAllocator<typeof calculateOrthogonalPath>)(
         [220, 80], [400, 180], boxes, 'A', 'B', {}, alloc,
       );
-      const path2 = calculateOrthogonalPath(
+      const path2 = (calculateOrthogonalPath as WithAllocator<typeof calculateOrthogonalPath>)(
         [220, 80], [400, 330], boxes, 'A', 'C', {}, alloc,
       );
 
@@ -451,9 +459,9 @@ describe('calculateOrthogonalPath', () => {
       ];
 
       // First connection claims some tracks
-      calculateOrthogonalPath([220, 130], [500, 130], boxes, 'A', 'B', {}, alloc);
+      (calculateOrthogonalPath as WithAllocator<typeof calculateOrthogonalPath>)([220, 130], [500, 130], boxes, 'A', 'B', {}, alloc);
       // Second connection should avoid the claimed tracks
-      const path2 = calculateOrthogonalPath([220, 130], [500, 230], boxes, 'A', 'C', {}, alloc);
+      const path2 = (calculateOrthogonalPath as WithAllocator<typeof calculateOrthogonalPath>)([220, 130], [500, 230], boxes, 'A', 'C', {}, alloc);
       expect(path2).not.toBeNull();
     });
   });
@@ -594,7 +602,7 @@ describe('calculateOrthogonalPathSafe', () => {
   it('accepts a shared allocator', () => {
     const alloc = new TrackAllocator();
     const boxes = [makeBox('A', 100, 50), makeBox('B', 500, 50)];
-    const path = calculateOrthogonalPathSafe(
+    const path = (calculateOrthogonalPathSafe as WithAllocator<typeof calculateOrthogonalPathSafe>)(
       [220, 80], [500, 80], boxes, 'A', 'B', {}, alloc,
     );
     if (path !== null) {

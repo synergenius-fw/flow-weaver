@@ -31,7 +31,7 @@ function makeManifest(overrides?: Partial<TMarketplaceManifest>): TMarketplaceMa
     workflows: [],
     patterns: [],
     ...overrides,
-  };
+  } as TMarketplaceManifest;
 }
 
 function makeNpmSearchResponse(

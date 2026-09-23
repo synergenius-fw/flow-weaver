@@ -81,7 +81,7 @@ function wf(
   nodeTypes: TNodeTypeAST[],
   instances: TWorkflowAST['instances'],
   connections: TWorkflowAST['connections'],
-  overrides: Partial<TWorkflowAST> = {},
+  overrides: Partial<TWorkflowAST> & { isAsync?: boolean } = {},
 ): TWorkflowAST {
   return {
     type: 'Workflow',

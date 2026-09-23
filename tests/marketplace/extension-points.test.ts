@@ -385,7 +385,7 @@ describe('Manifest v2 types', () => {
         },
         templates: ['test-template'],
       },
-    };
+    } as TMarketplaceManifest;
 
     // Type check passes (no runtime assertion needed, but verify structure)
     expect(manifest.manifestVersion).toBe(2);
@@ -403,7 +403,7 @@ describe('Manifest v2 types', () => {
       nodeTypes: [],
       workflows: [],
       patterns: [],
-    };
+    } as TMarketplaceManifest;
 
     expect(manifest.manifestVersion).toBe(2);
     expect(manifest.tagHandlers).toBeUndefined();

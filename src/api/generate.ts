@@ -125,7 +125,7 @@ export interface GenerateResult {
  */
 export function generateCode(
   ast: TWorkflowAST,
-  options?: GenerateOptions & { sourceMap: true }
+  options: GenerateOptions & { sourceMap: true }
 ): GenerateResult;
 export function generateCode(ast: TWorkflowAST, options?: GenerateOptions): string;
 export function generateCode(

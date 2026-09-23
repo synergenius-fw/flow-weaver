@@ -4,6 +4,9 @@ import type {
   TManifestMcpTool,
 } from '../../../src/marketplace/types.js';
 
+/** These fixtures still carry the `patterns` field from before patterns were removed. */
+type ManifestWithPatterns = TMarketplaceManifest & { patterns?: unknown[] };
+
 describe('marketplace types', () => {
   it('TManifestCliCommand shape is correct', () => {
     const cmd: TManifestCliCommand = {
@@ -27,7 +30,7 @@ describe('marketplace types', () => {
   });
 
   it('TMarketplaceManifest accepts CLI and MCP fields', () => {
-    const manifest: TMarketplaceManifest = {
+    const manifest: ManifestWithPatterns = {
       manifestVersion: 2,
       name: 'flow-weaver-pack-test',
       version: '1.0.0',
@@ -44,7 +47,7 @@ describe('marketplace types', () => {
   });
 
   it('TMarketplaceManifest works without CLI and MCP fields', () => {
-    const manifest: TMarketplaceManifest = {
+    const manifest: ManifestWithPatterns = {
       manifestVersion: 2,
       name: 'flow-weaver-pack-basic',
       version: '1.0.0',

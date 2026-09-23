@@ -138,7 +138,7 @@ describe('a compiled file, loaded without the package', () => {
 
     // The refusal arm.
     const other = 'host-2';
-    const paused = await mod.approveSpend!(true, { request: 'a boat' }, mod.createWorkflowRuntime({ runId: other, workflowId: 'approveSpend' })).catch((e: unknown) => e as Yield);
+    const paused = (await mod.approveSpend!(true, { request: 'a boat' }, mod.createWorkflowRuntime({ runId: other, workflowId: 'approveSpend' })).catch((e: unknown) => e as Yield)) as Yield;
     const again = mod.acceptContinuation(paused.continuation, { runId: other, workflowId: 'approveSpend' });
     if (!again.accepted) throw new Error(again.message);
     await expect(mod.approveSpend!(true, { request: 'a boat' }, mod.createWorkflowRuntime({
@@ -151,7 +151,7 @@ describe('a compiled file, loaded without the package', () => {
     const a = await compileAndLoad('approve-a', approvalSource());
     const b = await compileAndLoad('approve-b', approvalSource('order'));   // same name, other graph
     const runId = 'host-3';
-    const paused = await a.mod.approveSpend!(true, { request: 'x' }, a.mod.createWorkflowRuntime({ runId, workflowId: 'approveSpend' })).catch((e: unknown) => e as Yield);
+    const paused = (await a.mod.approveSpend!(true, { request: 'x' }, a.mod.createWorkflowRuntime({ runId, workflowId: 'approveSpend' })).catch((e: unknown) => e as Yield)) as Yield;
     const kept = paused.continuation!;
 
     const tampered = JSON.parse(JSON.stringify(kept)) as { state: { completed: unknown[] } };
@@ -178,7 +178,7 @@ describe('a compiled file, loaded without the package', () => {
     const digestB = `sha256:${'b'.repeat(64)}`;
     expect(() => mod.createWorkflowRuntime({ runId, workflowId: 'approveSpend', bundleDigest: 'build-42' })).toThrow(/sha256/);
 
-    const paused = await mod.approveSpend!(true, { request: 'x' }, mod.createWorkflowRuntime({ runId, workflowId: 'approveSpend', bundleDigest: digestA })).catch((e: unknown) => e as Yield);
+    const paused = (await mod.approveSpend!(true, { request: 'x' }, mod.createWorkflowRuntime({ runId, workflowId: 'approveSpend', bundleDigest: digestA })).catch((e: unknown) => e as Yield)) as Yield;
     expect(paused.continuation!.bundleDigest).toBe(digestA);
     const decoded = mod.acceptContinuation(paused.continuation, { runId, workflowId: 'approveSpend' });
     if (!decoded.accepted) throw new Error(decoded.message);

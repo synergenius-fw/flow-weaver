@@ -11,6 +11,12 @@ import {
   operationKey,
 } from '../../src/runtime/continuation.js';
 import digestContract from './fixtures/stitch-digest-contract.json';
+
+type Writable<T> = { -readonly [K in keyof T]: T[K] };
+/** A cloned envelope the tests tamper with to forge a continuation. */
+type ForgeableEnvelope = Writable<Omit<ContinuationEnvelope, 'state'>> & {
+  state: Writable<ContinuationEnvelope['state']>;
+};
 import { compileWorkflow } from '../../src/api/compile.js';
 import { parseWorkflow } from '../../src/api/parse.js';
 import { generateCode } from '../../src/api/generate.js';
@@ -481,12 +487,15 @@ describe('A2 durable gate continuation', () => {
           value: { onSuccess: true, onFailure: false, value: 8 },
         },
       }),
-    ).rejects.toMatchObject<Partial<ContinuationRefusalError>>({
+    ).rejects.toMatchObject({
       name: 'ContinuationRefusalError',
       refusal: { accepted: false, reason: 'stale-gate' },
+    } satisfies {
+      name: ContinuationRefusalError['name'];
+      refusal: Partial<ContinuationRefusalError['refusal']>;
     });
 
-    const invalid = structuredClone(yielded.continuation);
+    const invalid = structuredClone(yielded.continuation) as ForgeableEnvelope;
     invalid.state.variables = [
       ...invalid.state.variables,
       {
@@ -938,7 +947,7 @@ describe('A2 durable gate continuation', () => {
       nodeType: 'lateEffect',
       executionIndex: 0,
     } as const;
-    const forged = structuredClone(outcome.continuation);
+    const forged = structuredClone(outcome.continuation) as ForgeableEnvelope;
     forged.state.completed = [...forged.state.completed, forgedEffectAddress];
     forged.receipts = [
       ...forged.receipts,

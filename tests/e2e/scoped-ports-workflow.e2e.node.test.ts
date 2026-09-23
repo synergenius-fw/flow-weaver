@@ -14,7 +14,7 @@ describe('Scoped Ports Workflow E2E', () => {
   const workflowPath = path.join(__dirname, '../../fixtures/advanced/example-scoped-ports.ts');
   const outputPath = path.join(os.tmpdir(), `flow-weaver-scoped-ports-workflow-${process.pid}.generated.ts`);
 
-  type WorkflowFn = (execute: boolean, params: Record<string, unknown>) => Record<string, unknown>;
+  type WorkflowFn = (execute: boolean, params: Record<string, unknown>, runtime?: unknown) =>Record<string, unknown>;
   let module: Record<string, WorkflowFn>;
   let code: string;
 

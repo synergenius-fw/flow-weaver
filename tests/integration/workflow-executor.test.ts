@@ -6,7 +6,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { executeWorkflow } from '../../src/mcp/workflow-executor';
+import { executeWorkflow, type CompletedExecutionOutcome } from '../../src/mcp/workflow-executor';
 
 describe('Workflow Executor Integration', () => {
   const outputDir = path.join(os.tmpdir(), `fw-executor-test-${process.pid}`);
@@ -54,8 +54,8 @@ export function simpleWorkflow(execute: boolean, params: { value: number }): { r
     });
 
     // Result should be the full object with all exit ports
-    expect(execResult.result).toBeDefined();
-    const result = execResult.result as Record<string, unknown>;
+    expect((execResult as CompletedExecutionOutcome).result).toBeDefined();
+    const result = (execResult as CompletedExecutionOutcome).result as Record<string, unknown>;
     expect(result.result).toBe(10); // doubleIt(5) = 10
     expect(result.onSuccess).toBe(true);
     expect(result.onFailure).toBe(false);
@@ -146,7 +146,7 @@ export function outerPipeline(execute: boolean, params: { value: number }): { re
       workflowName: 'outerPipeline',
     });
 
-    const result = execResult.result as Record<string, unknown>;
+    const result = (execResult as CompletedExecutionOutcome).result as Record<string, unknown>;
     expect(result.result).toBe(33);
     expect(result.onSuccess).toBe(true);
   });

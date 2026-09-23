@@ -127,7 +127,7 @@ describe('lookupMock', () => {
       nodeId,
       runtime,
       recursionDepth: 0,
-      createNestedRuntime: (workflowId: string) => createNestedWorkflowRuntime(runtime, workflowId, nodeId, 0),
+      createNestedRuntime: (workflowId: string) => createNestedWorkflowRuntime(runtime, workflowId, nodeId, 0, 0),
     };
   }
 
@@ -187,7 +187,7 @@ describe('Built-in nodes with scoped mocks', () => {
       nodeId,
       runtime,
       recursionDepth: 0,
-      createNestedRuntime: (workflowId: string) => createNestedWorkflowRuntime(runtime, workflowId, nodeId, 0),
+      createNestedRuntime: (workflowId: string) => createNestedWorkflowRuntime(runtime, workflowId, nodeId, 0, 0),
     };
   }
 

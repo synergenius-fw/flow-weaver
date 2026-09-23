@@ -24,7 +24,7 @@ function makeManifest(overrides: Partial<TMarketplaceManifest> = {}): TMarketpla
     workflows: [],
     patterns: [],
     ...overrides,
-  };
+  } as TMarketplaceManifest;
 }
 
 describe('marketplace registry discovery', () => {
