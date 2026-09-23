@@ -41,7 +41,7 @@ const MOCK_DOCUMENTS: Record<string, RetrievedDocument[]> = {
     { text: 'The compiler validates connections at compile time, catching errors before runtime.', score: 0.88, metadata: { source: 'docs/compiler.md' } },
     { text: 'Workflows are standard TypeScript files with JSDoc annotations.', score: 0.82, metadata: { source: 'docs/authoring.md' } },
     { text: 'Deploy compiled workflows to any supported target via installed packs.', score: 0.75, metadata: { source: 'docs/deployment.md' } },
-    { text: 'The visual editor provides bidirectional editing, so code changes update the canvas and vice versa.', score: 0.71, metadata: { source: 'docs/editor.md' } },
+    { text: 'The console shows each run step by step and answers paused gates from a form.', score: 0.71, metadata: { source: 'docs/console.md' } },
   ],
 };
 

@@ -45,7 +45,6 @@ export interface CompileOptions {
   format?: 'esm' | 'cjs' | 'auto';
   /**
    * Omit redundant @param/@returns annotations from compiled output.
-   * Useful for vibe coders who don't use the visual editor.
    */
   clean?: boolean;
   /** Compilation target. 'typescript' (default) or a registered extension target. */

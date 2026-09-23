@@ -272,7 +272,7 @@ A target is a class implementing `ExportTarget` from `@synergenius/flow-weaver/d
 | `generate(options)` | yes | `fw export` for a single workflow; `fw_export` when the target has no `generateBundle` — targets that read the workflow AST rather than compiled code |
 | `generateBundle(workflows, nodeTypes, options)` | no | `fw export --multi`; `fw_export` whenever the target defines it. Receives the selected workflows and node types, each with an `expose` flag saying whether it gets an HTTP endpoint |
 | `getDeployInstructions(artifacts)` | yes | After generation; returns `{ title, steps, prerequisites, localTestSteps?, links? }` |
-| `deploySchema`, `nodeTypeDeploySchema` | no | Declare the `@deploy` keys the target accepts, for validation and Studio autocomplete |
+| `deploySchema`, `nodeTypeDeploySchema` | no | Declare the `@deploy` keys the target accepts, for validation and editor autocomplete |
 | `generateMultiWorkflow`, `generateNodeTypeService` | no | Declared on the interface; neither `fw export` nor `fw_export` calls them |
 
 `options` is an `ExportOptions`: `sourceFile`, `workflowName`, `displayName`, `outputDir`, and optionally `description`, `production`, `includeDocs`, `multi`, `workflows`, and `targetOptions` — `{ durableSteps: true }` when requested; `fw_export` also passes the workflow's `@deploy` block as `deploy`.
