@@ -272,6 +272,22 @@ describe('tools-query', () => {
       return handler(args);
     }
 
+    it('validates each workflow when a file has several and none is named', async () => {
+      mockParseWorkflow
+        .mockResolvedValueOnce({ errors: ['[MULTIPLE_WORKFLOWS_FOUND] x'], warnings: [], availableWorkflows: ['a', 'b'] })
+        .mockResolvedValueOnce({ errors: [], warnings: [], ast: { name: 'a' } })
+        .mockResolvedValueOnce({ errors: [], warnings: [], ast: { name: 'b' } });
+      mockValidateWorkflow
+        .mockReturnValueOnce({ valid: true, errors: [], warnings: [] })
+        .mockReturnValueOnce({ valid: false, errors: [{ type: 'error', message: 'bad', code: 'X' }], warnings: [] });
+
+      const result = parseResult(await callValidate({ filePath: '/tmp/two.ts' }));
+      expect(result.success).toBe(true);
+      const data = result.data as { valid: boolean; workflows: Array<{ workflowName: string; valid: boolean }> };
+      expect(data.valid).toBe(false);
+      expect(data.workflows.map((w) => [w.workflowName, w.valid])).toEqual([['a', true], ['b', false]]);
+    });
+
     it('returns valid result with no errors', async () => {
       mockParseWorkflow.mockResolvedValue({
         errors: [],
@@ -380,6 +396,27 @@ describe('tools-query', () => {
       expect(handler).toBeDefined();
       return handler(args);
     }
+
+    it('compiles every workflow in turn when a file has several and none is named', async () => {
+      mockCompileWorkflow
+        .mockRejectedValueOnce(new Error('Parse errors:\n[MULTIPLE_WORKFLOWS_FOUND] Multiple workflows found: a, b.'))
+        .mockResolvedValueOnce({ analysis: { warnings: [] } })
+        .mockResolvedValueOnce({ analysis: { warnings: [{ type: 'warning', message: 'w' }] } });
+      mockParseWorkflow.mockResolvedValue({ errors: ['[MULTIPLE_WORKFLOWS_FOUND] x'], availableWorkflows: ['a', 'b'] });
+
+      const result = parseResult(await callCompile({ filePath: '/tmp/two.ts' }));
+      expect(result.success).toBe(true);
+      const data = result.data as { workflows: string[]; warnings: Array<{ workflowName: string }> };
+      expect(data.workflows).toEqual(['a', 'b']);
+      expect(data.warnings).toEqual([{ workflowName: 'b', type: 'warning', message: 'w' }]);
+      expect(mockCompileWorkflow.mock.calls.map((c) => (c[1] as { parse: { workflowName?: string } }).parse.workflowName)).toEqual([undefined, 'a', 'b']);
+    });
+
+    it('does not fall back when a named workflow fails', async () => {
+      mockCompileWorkflow.mockRejectedValueOnce(new Error('[MULTIPLE_WORKFLOWS_FOUND] x'));
+      const result = parseResult(await callCompile({ filePath: '/tmp/two.ts', workflowName: 'a' }));
+      expect(result.success).toBe(false);
+    });
 
     it('compiles a workflow with default options', async () => {
       mockCompileWorkflow.mockResolvedValue({

@@ -45,9 +45,16 @@ interface JsonValidationItem {
 
 interface JsonValidationResult {
   file: string;
+  /** Set when the file declares more than one workflow. */
+  workflow?: string;
   valid: boolean;
   errors: JsonValidationItem[];
   warnings: JsonValidationItem[];
+}
+
+/** The parse failed only because the file declares several workflows and none was picked. */
+function isMultipleWorkflows(errors: unknown[]): boolean {
+  return errors.length > 0 && errors.every((e) => typeof e === 'string' && e.startsWith('[MULTIPLE_WORKFLOWS_FOUND]'));
 }
 
 export async function validateCommand(input: string, options: ValidateOptions = {}): Promise<void> {
@@ -96,19 +103,31 @@ export async function validateCommand(input: string, options: ValidateOptions = 
     let totalErrors = 0;
     let totalWarnings = 0;
     let successCount = 0;
+    // File-level tallies for the JSON contract (validFiles counts files, not workflows).
+    const invalidFiles = new Set<string>();
+    const checkedFiles = new Set<string>();
     const jsonResults: JsonValidationResult[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const fileName = path.basename(file);
+    // One target per file, or one per workflow when a file declares several
+    // and no -w picked one (expanded as each such file is reached).
+    const targets: Array<{ file: string; workflow?: string }> = files.map((file) => ({ file, workflow: workflowName }));
+
+    for (let i = 0; i < targets.length; i++) {
+      const { file, workflow } = targets[i];
+      const fileName = workflow && !workflowName ? `${path.basename(file)} (${workflow})` : path.basename(file);
 
       if (!json && verbose) {
-        logger.progress(i + 1, files.length, fileName);
+        logger.progress(i + 1, targets.length, fileName);
       }
 
       try {
         // Parse the workflow
-        const parseResult = await parseWorkflow(file, { workflowName, projectDir: path.dirname(path.resolve(file)) });
+        const parseResult = await parseWorkflow(file, { workflowName: workflow, projectDir: path.dirname(path.resolve(file)) });
+
+        if (!workflow && isMultipleWorkflows(parseResult.errors) && parseResult.availableWorkflows.length > 1) {
+          targets.splice(i + 1, 0, ...parseResult.availableWorkflows.map((name) => ({ file, workflow: name })));
+          continue;
+        }
 
         if (parseResult.warnings.length > 0) {
           if (!json && !quiet) {
@@ -147,6 +166,8 @@ export async function validateCommand(input: string, options: ValidateOptions = 
             logger.error(`Parse errors in ${fileName}:`);
             parseResult.errors.forEach((err) => logger.error(`  ${err}`));
           }
+          checkedFiles.add(file);
+          invalidFiles.add(file);
           totalErrors += parseResult.errors.length;
           continue;
         }
@@ -194,6 +215,7 @@ export async function validateCommand(input: string, options: ValidateOptions = 
         if (json) {
           jsonResults.push({
             file,
+            ...(workflow && !workflowName && { workflow }),
             valid: validation.valid,
             errors: validation.errors.map((e) => ({
               message: e.message,
@@ -282,16 +304,20 @@ export async function validateCommand(input: string, options: ValidateOptions = 
           totalWarnings += validation.warnings.length;
         }
 
+        checkedFiles.add(file);
         if (validation.valid) {
           if (!json && verbose) {
             logger.success(`  ${fileName} is valid`);
           }
           successCount++;
+        } else {
+          invalidFiles.add(file);
         }
       } catch (error) {
         if (json) {
           jsonResults.push({
             file,
+            ...(workflow && !workflowName && { workflow }),
             valid: false,
             errors: [{ message: getErrorMessage(error), severity: 'error' }],
             warnings: [],
@@ -299,6 +325,8 @@ export async function validateCommand(input: string, options: ValidateOptions = 
         } else {
           logger.error(`Failed to validate ${fileName}: ${getErrorMessage(error)}`);
         }
+        checkedFiles.add(file);
+        invalidFiles.add(file);
         totalErrors++;
       }
     }
@@ -310,7 +338,7 @@ export async function validateCommand(input: string, options: ValidateOptions = 
           {
             valid: totalErrors === 0,
             totalFiles: files.length,
-            validFiles: successCount,
+            validFiles: [...checkedFiles].filter((f) => !invalidFiles.has(f)).length,
             totalErrors,
             totalWarnings,
             results: jsonResults,
@@ -330,7 +358,8 @@ export async function validateCommand(input: string, options: ValidateOptions = 
       } else if (totalWarnings > 0) {
         logger.log(`  ${successCount} valid, ${totalWarnings} warning${totalWarnings !== 1 ? 's' : ''} in ${elapsed}`);
       } else {
-        logger.success(`${successCount} file${successCount !== 1 ? 's' : ''} valid in ${elapsed}`);
+        const unit = targets.length > files.length ? 'workflow' : 'file';
+        logger.success(`${successCount} ${unit}${successCount !== 1 ? 's' : ''} valid in ${elapsed}`);
       }
     }
 
