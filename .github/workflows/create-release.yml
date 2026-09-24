@@ -50,6 +50,10 @@ jobs:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
 
+      # Trusted publishing (OIDC, no stored token) needs npm 11.5.1 or later;
+      # Node 22 ships npm 10.
+      - run: npm install -g npm@11
+
       - run: npm ci
 
       - name: Verify README exists
@@ -58,6 +62,10 @@ jobs:
           echo "README.md exists ($(wc -c < README.md) bytes)"
 
       - name: Pack, verify, and publish to npm
+        # Publishes through npm trusted publishing: the package's npm settings
+        # name this repository and workflow, and npm exchanges the run's OIDC
+        # token (id-token: write above) for a short-lived publish credential.
+        # NPMJS_TOKEN is only a fallback and may be unset.
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPMJS_TOKEN }}
         run: |

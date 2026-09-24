@@ -93,7 +93,7 @@ jobs:
       - run: npm ci
 
       - name: Run tests with coverage
-        run: npx vitest run --reporter=default --reporter=json --outputFile=test-results.json --coverage
+        run: npx vitest run --reporter=default --coverage
         # See the test job: per-worker heap is configured in vitest.config.ts.
         env:
           NODE_OPTIONS: '--max-old-space-size=2048'
@@ -105,22 +105,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
           fail_ci_if_error: false
-
-      - name: Extract test count
-        id: test-count
-        run: |
-          PASSED=$(jq '.numPassedTests' test-results.json)
-          echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
-
-      - name: Update test count badge
-        uses: schneegans/dynamic-badges-action@v1.7.0
-        with:
-          auth: ${{ secrets.GIST_SECRET }}
-          gistID: ${{ secrets.GIST_ID }}
-          filename: flow-weaver-test-count.json
-          label: tests
-          message: '${{ steps.test-count.outputs.passed }} passed'
-          color: brightgreen
 
   check:
     if: always()
