@@ -15,7 +15,7 @@ import type {
   TWorkflowMacro,
 } from '../ast/types';
 import { EXECUTION_STRATEGIES, isControlFlowPort } from '../constants';
-import { stripGeneratedSections, hasInPlaceMarkers } from '../api/generate-in-place';
+import { stripGeneratedSections, hasInPlaceMarkers } from './generated-sections';
 import { generateJSDocPortTag } from '../generator/annotation-generator';
 import { resolvePackageTypesPath } from './resolve-package-types';
 import { getPackageExports } from '../npm-packages';
