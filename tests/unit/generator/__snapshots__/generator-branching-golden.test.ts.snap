@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: async-branch 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: async-branch 1`] = `
 "
 
 // ============================================================================
@@ -2183,7 +2183,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: async-map-iterator-branch 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: async-map-iterator-branch 1`] = `
 "
 
 // ============================================================================
@@ -4394,7 +4394,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: chained-branches 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: chained-branches 1`] = `
 "
 
 // ============================================================================
@@ -6661,7 +6661,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: expression-branch 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: expression-branch 1`] = `
 "
 
 // ============================================================================
@@ -8844,7 +8844,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: expression-branch-extra-ports 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: expression-branch-extra-ports 1`] = `
 "
 
 // ============================================================================
@@ -11046,7 +11046,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: fan-out-two-branches 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: fan-out-two-branches 1`] = `
 "
 
 // ============================================================================
@@ -13277,7 +13277,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: map-iterator-branch 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: map-iterator-branch 1`] = `
 "
 
 // ============================================================================
@@ -15488,7 +15488,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: neither-downstream 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: neither-downstream 1`] = `
 "
 
 // ============================================================================
@@ -17582,7 +17582,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: node-scoped-branch 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: node-scoped-branch 1`] = `
 "
 
 // ============================================================================
@@ -19784,7 +19784,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: only-failure-downstream 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: only-failure-downstream 1`] = `
 "
 
 // ============================================================================
@@ -21967,7 +21967,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: only-success-downstream 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: only-success-downstream 1`] = `
 "
 
 // ============================================================================
@@ -24150,7 +24150,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: regular-branch-scoped-output 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: regular-branch-scoped-output 1`] = `
 "
 
 // ============================================================================
@@ -26352,7 +26352,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: scopes-array-branch 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: scopes-array-branch 1`] = `
 "
 
 // ============================================================================
@@ -28535,7 +28535,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: single-both-downstream 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: single-both-downstream 1`] = `
 "
 
 // ============================================================================
@@ -30785,7 +30785,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > dev-mode output is stable: workflow-variant-branch-scoped-output 1`] = `
+exports[`branching codegen golden > dev-mode output is stable: workflow-variant-branch-scoped-output 1`] = `
 "
 
 // ============================================================================
@@ -32988,7 +32988,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: async-branch 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: async-branch 1`] = `
 "
 
 // ============================================================================
@@ -35030,7 +35030,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: async-map-iterator-branch 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: async-map-iterator-branch 1`] = `
 "
 
 // ============================================================================
@@ -37100,7 +37100,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: chained-branches 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: chained-branches 1`] = `
 "
 
 // ============================================================================
@@ -39222,7 +39222,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: expression-branch 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: expression-branch 1`] = `
 "
 
 // ============================================================================
@@ -41264,7 +41264,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: expression-branch-extra-ports 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: expression-branch-extra-ports 1`] = `
 "
 
 // ============================================================================
@@ -43325,7 +43325,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: fan-out-two-branches 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: fan-out-two-branches 1`] = `
 "
 
 // ============================================================================
@@ -45413,7 +45413,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: map-iterator-branch 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: map-iterator-branch 1`] = `
 "
 
 // ============================================================================
@@ -47483,7 +47483,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: neither-downstream 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: neither-downstream 1`] = `
 "
 
 // ============================================================================
@@ -49440,7 +49440,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: node-scoped-branch 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: node-scoped-branch 1`] = `
 "
 
 // ============================================================================
@@ -51501,7 +51501,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: only-failure-downstream 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: only-failure-downstream 1`] = `
 "
 
 // ============================================================================
@@ -53543,7 +53543,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: only-success-downstream 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: only-success-downstream 1`] = `
 "
 
 // ============================================================================
@@ -55585,7 +55585,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: regular-branch-scoped-output 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: regular-branch-scoped-output 1`] = `
 "
 
 // ============================================================================
@@ -57646,7 +57646,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: scopes-array-branch 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: scopes-array-branch 1`] = `
 "
 
 // ============================================================================
@@ -59688,7 +59688,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: single-both-downstream 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: single-both-downstream 1`] = `
 "
 
 // ============================================================================
@@ -61795,7 +61795,7 @@ export async function testWorkflow(
 }"
 `;
 
-exports[`branching codegen golden (debt #2) > prod-mode output is stable: workflow-variant-branch-scoped-output 1`] = `
+exports[`branching codegen golden > prod-mode output is stable: workflow-variant-branch-scoped-output 1`] = `
 "
 
 // ============================================================================

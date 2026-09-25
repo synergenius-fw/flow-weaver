@@ -499,7 +499,7 @@ const SCENARIOS: Array<[string, () => TWorkflowAST]> = [
 const stableVersion = (code: string): string =>
   code.replace(/const VERSION = "\d+\.\d+\.\d+[^"]*";/g, 'const VERSION = "0.0.0-test";');
 
-describe('branching codegen golden (debt #2)', () => {
+describe('branching codegen golden', () => {
   for (const [label, build] of SCENARIOS) {
     it(`dev-mode output is stable: ${label}`, () => {
       const code = generateCode(build(), { production: false });
