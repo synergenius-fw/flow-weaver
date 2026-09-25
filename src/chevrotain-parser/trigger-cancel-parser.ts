@@ -11,7 +11,6 @@
 
 import { CstParser, type CstNode } from 'chevrotain';
 import {
-  JSDocLexer,
   TriggerTag,
   CancelOnTag,
   RetriesTag,
@@ -23,6 +22,13 @@ import {
   Integer,
   allTokens,
 } from './tokens';
+import {
+  lexTaggedLine,
+  lineFailure,
+  runRule,
+  unquoteStringLiteral,
+  type CstNodeWithImage,
+} from './parse-line';
 
 // =============================================================================
 // Parser Result Types
@@ -55,13 +61,6 @@ export interface ThrottleParseResult {
 // =============================================================================
 // Helpers
 // =============================================================================
-
-function stripQuotes(s: string): string {
-  if (s.startsWith('"') && s.endsWith('"')) {
-    return s.slice(1, -1);
-  }
-  return s;
-}
 
 /**
  * A standard five-field cron expression. Each field is `*`, a value, a range
@@ -155,10 +154,6 @@ const parserInstance = new TriggerCancelParser();
 
 const BaseVisitor = parserInstance.getBaseCstVisitorConstructor();
 
-interface CstNodeWithImage {
-  image: string;
-}
-
 interface AssignmentListContext {
   assignment?: CstNode[];
 }
@@ -232,7 +227,7 @@ class TriggerCancelVisitor extends BaseVisitor {
   assignment(ctx: AssignmentContext): Assignment {
     const key = ctx.key[0].image;
     if (ctx.strValue?.[0]) {
-      return { key, str: stripQuotes(ctx.strValue[0].image) };
+      return { key, str: unquoteStringLiteral(ctx.strValue[0].image) };
     }
     return { key, int: parseInt(ctx.intValue![0].image, 10) };
   }
@@ -242,7 +237,7 @@ class TriggerCancelVisitor extends BaseVisitor {
   }
 
   timeoutLine(ctx: TimeoutLineContext): TimeoutParseResult {
-    return { timeout: stripQuotes(ctx.timeoutValue[0].image) };
+    return { timeout: unquoteStringLiteral(ctx.timeoutValue[0].image) };
   }
 }
 
@@ -257,25 +252,11 @@ const visitorInstance = new TriggerCancelVisitor();
  * Returns null if the line is not a trigger declaration.
  */
 export function parseTriggerLine(input: string, warnings: string[]): TriggerParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const tokens = lexTaggedLine(input, TriggerTag);
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    return null;
-  }
-
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== TriggerTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.triggerLine();
-
-  if (parserInstance.errors.length > 0) {
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.triggerLine());
+  if (error) {
     // Don't warn here. Return null so domain-specific handlers
     // get a chance to parse the trigger. The caller can warn if nothing handles it.
     return null;
@@ -309,29 +290,13 @@ export function parseTriggerLine(input: string, warnings: string[]): TriggerPars
  * Returns null if the line is not a cancelOn declaration.
  */
 export function parseCancelOnLine(input: string, warnings: string[]): CancelOnParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const tokens = lexTaggedLine(input, CancelOnTag);
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    return null;
-  }
-
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== CancelOnTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.cancelOnLine();
-
-  const expected = '  Expected format: @cancelOn event="name" match="field" timeout="duration"';
-  const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    warnings.push(`Failed to parse cancelOn line: "${truncatedInput}"\n  Error: ${firstError.message}\n${expected}`);
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.cancelOnLine());
+  const expected = '@cancelOn event="name" match="field" timeout="duration"';
+  if (error) {
+    warnings.push(lineFailure('cancelOn', input, error.message, expected));
     return null;
   }
 
@@ -344,7 +309,7 @@ export function parseCancelOnLine(input: string, warnings: string[]): CancelOnPa
         ? 'event="name" is required'
         : null;
   if (problem) {
-    warnings.push(`Failed to parse cancelOn line: "${truncatedInput}"\n  Error: ${problem}\n${expected}`);
+    warnings.push(lineFailure('cancelOn', input, problem, expected));
     return null;
   }
 
@@ -361,32 +326,12 @@ export function parseCancelOnLine(input: string, warnings: string[]): CancelOnPa
  * Returns null if the line is not a retries declaration.
  */
 export function parseRetriesLine(input: string, warnings: string[]): RetriesParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const tokens = lexTaggedLine(input, RetriesTag);
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    return null;
-  }
-
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== RetriesTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.retriesLine();
-
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to parse retries line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @retries <integer>`
-    );
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.retriesLine());
+  if (error) {
+    warnings.push(lineFailure('retries', input, error.message, '@retries <integer>'));
     return null;
   }
 
@@ -405,32 +350,12 @@ export function parseRetriesLine(input: string, warnings: string[]): RetriesPars
  * Returns null if the line is not a timeout declaration.
  */
 export function parseTimeoutLine(input: string, warnings: string[]): TimeoutParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const tokens = lexTaggedLine(input, TimeoutTag);
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    return null;
-  }
-
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== TimeoutTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.timeoutLine();
-
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to parse timeout line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @timeout "duration"`
-    );
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.timeoutLine());
+  if (error) {
+    warnings.push(lineFailure('timeout', input, error.message, '@timeout "duration"'));
     return null;
   }
 
@@ -442,29 +367,13 @@ export function parseTimeoutLine(input: string, warnings: string[]): TimeoutPars
  * Returns null if the line is not a throttle declaration.
  */
 export function parseThrottleLine(input: string, warnings: string[]): ThrottleParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const tokens = lexTaggedLine(input, ThrottleTag);
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    return null;
-  }
-
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== ThrottleTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.throttleLine();
-
-  const expected = '  Expected format: @throttle limit=<number> period="duration"';
-  const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    warnings.push(`Failed to parse throttle line: "${truncatedInput}"\n  Error: ${firstError.message}\n${expected}`);
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.throttleLine());
+  const expected = '@throttle limit=<number> period="duration"';
+  if (error) {
+    warnings.push(lineFailure('throttle', input, error.message, expected));
     return null;
   }
 
@@ -477,7 +386,7 @@ export function parseThrottleLine(input: string, warnings: string[]): ThrottlePa
         ? 'limit=<number> is required'
         : null;
   if (problem) {
-    warnings.push(`Failed to parse throttle line: "${truncatedInput}"\n  Error: ${problem}\n${expected}`);
+    warnings.push(lineFailure('throttle', input, problem, expected));
     return null;
   }
 

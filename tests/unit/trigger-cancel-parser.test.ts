@@ -126,6 +126,13 @@ describe('parseCancelOnLine', () => {
     expect(result).toEqual({ event: 'x', match: 'data.id', timeout: '1h' });
     expect(w).toHaveLength(0);
   });
+
+  it('unescapes an escaped quote inside a quoted value', () => {
+    const w: string[] = [];
+    const result = parseCancelOnLine('@cancelOn event="x" match="data[\\"id\\"]"', w);
+    expect(result).toEqual({ event: 'x', match: 'data["id"]' });
+    expect(w).toHaveLength(0);
+  });
 });
 
 describe('parseRetriesLine', () => {

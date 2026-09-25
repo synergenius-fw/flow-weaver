@@ -118,6 +118,21 @@ describe('Chevrotain Port Parser', () => {
       });
     });
 
+    it('unescapes a quoted default value that contains an escaped quote', () => {
+      const result = parsePortLine('@input [greeting="say \\"hi\\""]', w);
+      expect(result).toEqual({
+        type: 'input',
+        name: 'greeting',
+        isOptional: true,
+        defaultValue: 'say "hi"',
+      });
+    });
+
+    it('unescapes a quoted custom metadata value the same way as a default', () => {
+      const result = parsePortLine('@input x [hint:"a \\"b\\""]', w);
+      expect(result?.customMetadata).toEqual({ hint: 'a "b"' });
+    });
+
     it('should parse @input with arrow function expression in description', () => {
       const result = parsePortLine(
         '@input timeout - Expression: (ctx) => ctx.getVariable({ nodeName: "Start", portName: "maxTimeout", executionIndex: 0 }) || 5000',

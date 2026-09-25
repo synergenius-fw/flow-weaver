@@ -1145,7 +1145,9 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('Invalid @cancelOn format'))).toBe(true);
+      // The parser's own message is the only warning for the line.
+      expect(warnings.filter(w => w.includes('Failed to parse cancelOn line'))).toHaveLength(1);
+      expect(warnings.some(w => w.includes('Invalid @cancelOn format'))).toBe(false);
     });
   });
 
@@ -1173,7 +1175,9 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('Invalid @throttle format'))).toBe(true);
+      // The parser's own message is the only warning for the line.
+      expect(warnings.filter(w => w.includes('Failed to parse throttle line'))).toHaveLength(1);
+      expect(warnings.some(w => w.includes('Invalid @throttle format'))).toBe(false);
     });
   });
 
@@ -1202,7 +1206,9 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('Invalid @coerce tag format'))).toBe(true);
+      // The parser's own message is the only warning for the line.
+      expect(warnings.filter(w => w.includes('Failed to parse @coerce line'))).toHaveLength(1);
+      expect(warnings.some(w => w.includes('Invalid @coerce tag format'))).toBe(false);
     });
   });
 
@@ -1287,7 +1293,9 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('Invalid @map tag format'))).toBe(true);
+      // The parser's own message is the only warning for the line.
+      expect(warnings.filter(w => w.includes('Failed to parse @map line'))).toHaveLength(1);
+      expect(warnings.some(w => w.includes('Invalid @map tag format'))).toBe(false);
     });
   });
 
@@ -1320,7 +1328,9 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('Invalid @path tag format'))).toBe(true);
+      // The parser's own message is the only warning for the line.
+      expect(warnings.filter(w => w.includes('Failed to parse @path line'))).toHaveLength(1);
+      expect(warnings.some(w => w.includes('Invalid @path tag format'))).toBe(false);
     });
   });
 
@@ -1391,7 +1401,9 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('Invalid @scope tag format'))).toBe(true);
+      // The parser's own message is the only warning for the line.
+      expect(warnings.filter(w => w.includes('Failed to parse scope line'))).toHaveLength(1);
+      expect(warnings.some(w => w.includes('Invalid @scope tag format'))).toBe(false);
     });
   });
 

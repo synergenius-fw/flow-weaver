@@ -6,7 +6,6 @@
 
 import { CstParser, type CstNode } from 'chevrotain';
 import {
-  JSDocLexer,
   NodeTag,
   Identifier,
   Dot,
@@ -30,6 +29,13 @@ import {
   Equals,
   allTokens,
 } from './tokens';
+import {
+  lexTaggedLine,
+  lineFailure,
+  runRule,
+  unquoteStringLiteral,
+  type CstNodeWithImage,
+} from './parse-line';
 
 // =============================================================================
 // Parser Result Types
@@ -264,11 +270,6 @@ const parserInstance = new NodeParser();
 // =============================================================================
 
 const BaseVisitor = parserInstance.getBaseCstVisitorConstructor();
-
-// CST Context types for the visitor
-interface CstNodeWithImage {
-  image: string;
-}
 
 interface NodeLineContext {
   instanceId: CstNodeWithImage[];
@@ -554,9 +555,7 @@ class NodeVisitor extends BaseVisitor {
   }
 
   labelAttr(ctx: LabelAttrContext): string {
-    // Remove surrounding quotes and unescape
-    const raw = ctx.labelValue[0].image;
-    return this.unescapeString(raw);
+    return unquoteStringLiteral(ctx.labelValue[0].image);
   }
 
   exprAttr(ctx: ExprAttrContext): Record<string, string> {
@@ -573,7 +572,7 @@ class NodeVisitor extends BaseVisitor {
   exprAssignment(ctx: ExprAssignmentContext): { name: string; value: string } {
     const name = ctx.portName[0].image;
     const rawValue = ctx.portValue[0].image;
-    const value = this.unescapeString(rawValue);
+    const value = unquoteStringLiteral(rawValue);
     return { name, value };
   }
 
@@ -608,7 +607,7 @@ class NodeVisitor extends BaseVisitor {
   portLabelAssignment(ctx: PortLabelAssignmentContext): { name: string; label: string } {
     const name = ctx.portName[0].image;
     const rawLabel = ctx.labelValue[0].image;
-    const label = this.unescapeString(rawLabel);
+    const label = unquoteStringLiteral(rawLabel);
     return { name, label };
   }
 
@@ -627,22 +626,22 @@ class NodeVisitor extends BaseVisitor {
   }
 
   colorAttr(ctx: ColorAttrContext): string {
-    return this.unescapeString(ctx.colorValue[0].image);
+    return unquoteStringLiteral(ctx.colorValue[0].image);
   }
 
   iconAttr(ctx: IconAttrContext): string {
-    return this.unescapeString(ctx.iconValue[0].image);
+    return unquoteStringLiteral(ctx.iconValue[0].image);
   }
 
   customAttr(ctx: CustomAttrContext): { key: string; value: string } {
     return {
       key: ctx.attrKey[0].image,
-      value: this.unescapeString(ctx.attrValue[0].image),
+      value: unquoteStringLiteral(ctx.attrValue[0].image),
     };
   }
 
   suppressAttr(ctx: SuppressAttrContext): string[] {
-    return ctx.suppressCode.map((tok) => this.unescapeString(tok.image));
+    return ctx.suppressCode.map((tok) => unquoteStringLiteral(tok.image));
   }
 
   tagsAttr(ctx: TagsAttrContext): Array<{ label: string; tooltip?: string }> {
@@ -656,16 +655,9 @@ class NodeVisitor extends BaseVisitor {
   }
 
   tagEntry(ctx: TagEntryContext): { label: string; tooltip?: string } {
-    const label = this.unescapeString(ctx.tagLabel[0].image);
-    const tooltip = ctx.tagTooltip?.[0] ? this.unescapeString(ctx.tagTooltip[0].image) : undefined;
+    const label = unquoteStringLiteral(ctx.tagLabel[0].image);
+    const tooltip = ctx.tagTooltip?.[0] ? unquoteStringLiteral(ctx.tagTooltip[0].image) : undefined;
     return { label, ...(tooltip && { tooltip }) };
-  }
-
-  private unescapeString(raw: string): string {
-    // Remove surrounding quotes
-    const inner = raw.slice(1, -1);
-    // Unescape \" to " and *\/ to */ (JSDoc comment-closer escape)
-    return inner.replace(/\\"/g, '"').replace(/\*\\\//g, '*/');
   }
 }
 
@@ -721,40 +713,17 @@ function unquotedValueHint(input: string): string | null {
  * Returns null if the line is not a node declaration.
  */
 export function parseNodeLine(input: string, warnings: string[]): NodeParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const expected = '@node instanceId NodeType';
+  const tokens = lexTaggedLine(input, NodeTag, {
+    onLexError: (message) => {
+      warnings.push(lineFailure('node', input, message, expected, { verb: 'tokenize' }));
+    },
+  });
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to tokenize node line: "${truncatedInput}"\n` +
-        `  Error: ${lexResult.errors[0].message}\n` +
-        `  Expected format: @node instanceId NodeType`
-    );
-    return null;
-  }
-
-  // Check if starts with @node
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== NodeTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.nodeLine();
-
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    const hint = unquotedValueHint(input);
-    warnings.push(
-      `Failed to parse node line: "${truncatedInput}"\n` +
-        `  Error: ${hint ?? firstError.message}\n` +
-        `  Expected format: @node instanceId NodeType`
-    );
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.nodeLine());
+  if (error) {
+    warnings.push(lineFailure('node', input, unquotedValueHint(input) ?? error.message, expected));
     return null;
   }
 

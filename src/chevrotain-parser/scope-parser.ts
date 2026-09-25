@@ -6,7 +6,6 @@
 
 import { CstParser, type CstNode } from 'chevrotain';
 import {
-  JSDocLexer,
   ScopeTag,
   Identifier,
   Dot,
@@ -15,6 +14,7 @@ import {
   Comma,
   allTokens,
 } from './tokens';
+import { lexTaggedLine, lineFailure, runRule, type CstNodeWithImage } from './parse-line';
 
 // =============================================================================
 // Parser Result Types
@@ -72,10 +72,6 @@ const parserInstance = new ScopeParser();
 
 const BaseVisitor = parserInstance.getBaseCstVisitorConstructor();
 
-interface CstNodeWithImage {
-  image: string;
-}
-
 interface ScopeLineContext {
   scopeRef: CstNode[];
   childId: CstNodeWithImage[];
@@ -119,32 +115,12 @@ const visitorInstance = new ScopeVisitor();
  * Returns null if the line is not a scope declaration.
  */
 export function parseScopeLine(input: string, warnings: string[]): ScopeParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const tokens = lexTaggedLine(input, ScopeTag);
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    return null;
-  }
-
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== ScopeTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.scopeLine();
-
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to parse scope line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @scope scopeName [child1, child2]`
-    );
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.scopeLine());
+  if (error) {
+    warnings.push(lineFailure('scope', input, error.message, '@scope scopeName [child1, child2]'));
     return null;
   }
 

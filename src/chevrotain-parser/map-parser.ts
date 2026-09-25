@@ -10,7 +10,6 @@
 
 import { CstParser, type CstNode } from 'chevrotain';
 import {
-  JSDocLexer,
   MapTag,
   OverKeyword,
   Identifier,
@@ -20,6 +19,7 @@ import {
   Arrow,
   allTokens,
 } from './tokens';
+import { lexTaggedLine, lineFailure, runRule, type CstNodeWithImage } from './parse-line';
 
 // =============================================================================
 // Parser Result Types
@@ -90,10 +90,6 @@ const parserInstance = new MapParser();
 // =============================================================================
 
 const BaseVisitor = parserInstance.getBaseCstVisitorConstructor();
-
-interface CstNodeWithImage {
-  image: string;
-}
 
 interface MapLineContext {
   instanceId: CstNodeWithImage[];
@@ -170,32 +166,12 @@ const visitorInstance = new MapVisitor();
  * Returns null if the line is not a valid @map declaration.
  */
 export function parseMapLine(input: string, warnings: string[]): MapParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const tokens = lexTaggedLine(input, MapTag);
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    return null;
-  }
-
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== MapTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.mapLine();
-
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to parse @map line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @map instanceId childNode over source.port`
-    );
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.mapLine());
+  if (error) {
+    warnings.push(lineFailure('@map', input, error.message, '@map instanceId childNode over source.port'));
     return null;
   }
 

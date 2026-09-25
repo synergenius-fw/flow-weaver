@@ -7,7 +7,7 @@
 
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { resolvePackageTypesPath } from './parser/resolve-package-types';
+import { findNodeModulesDirs, resolvePackageTypesPath } from './parser/resolve-package-types';
 import { extractFunctionLikes, type FunctionLike } from './parser/function-like';
 import { inferDataTypeFromTS } from './types/type-mappings';
 import type { TDataType } from './ast/types';
@@ -41,27 +41,6 @@ export type TNpmNodeType = {
   synchronicity: 'SYNC' | 'ASYNC';
   description: string;
 };
-
-/**
- * Find all node_modules directories starting from fromDir and walking up.
- */
-function findNodeModulesDirs(fromDir: string): string[] {
-  const dirs: string[] = [];
-  let current = path.resolve(fromDir);
-  const root = path.parse(current).root;
-
-  while (current !== root) {
-    const candidate = path.join(current, 'node_modules');
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
-      dirs.push(candidate);
-    }
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-
-  return dirs;
-}
 
 /**
  * List all packages in a node_modules directory (including scoped packages).

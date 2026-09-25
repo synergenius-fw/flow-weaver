@@ -11,7 +11,6 @@
 
 import { CstParser } from 'chevrotain';
 import {
-  JSDocLexer,
   CoerceTag,
   Identifier,
   Arrow,
@@ -19,6 +18,7 @@ import {
   AsKeyword,
   allTokens,
 } from './tokens';
+import { lexTaggedLine, lineFailure, runRule, type CstNodeWithImage } from './parse-line';
 import type { TCoerceTargetType } from '../ast/types';
 
 // =============================================================================
@@ -75,10 +75,6 @@ const parserInstance = new CoerceParser();
 
 const BaseVisitor = parserInstance.getBaseCstVisitorConstructor();
 
-interface CstNodeWithImage {
-  image: string;
-}
-
 interface PortRefContext {
   nodeName: CstNodeWithImage[];
   portName: CstNodeWithImage[];
@@ -125,19 +121,15 @@ const visitorInstance = new CoerceVisitor();
  * Returns null if the line is not a valid @coerce declaration.
  */
 export function parseCoerceLine(input: string, warnings: string[]): CoerceParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
-  if (lexResult.errors.length > 0 || lexResult.tokens.length === 0) return null;
-  if (lexResult.tokens[0].tokenType !== CoerceTag) return null;
+  const tokens = lexTaggedLine(input, CoerceTag);
+  if (!tokens) return null;
 
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.coerceLine();
-
-  if (parserInstance.errors.length > 0) {
-    const truncatedInput = input.length > 80 ? input.substring(0, 80) + '...' : input;
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.coerceLine());
+  if (error) {
     warnings.push(
-      `Failed to parse @coerce line: "${truncatedInput}"\n` +
-        `  Error: ${parserInstance.errors[0].message}\n` +
-        `  Expected format: @coerce instanceId source.port -> target.port as type`
+      lineFailure('@coerce', input, error.message, '@coerce instanceId source.port -> target.port as type', {
+        maxLength: 80,
+      })
     );
     return null;
   }

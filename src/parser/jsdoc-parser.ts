@@ -380,6 +380,23 @@ function objectFieldPattern(name: string): RegExp {
   return new RegExp(`(?:^|[{;,\\s])${escaped}\\??\\s*:\\s*([^;},]+)`);
 }
 
+/**
+ * Run a line parser so each bad line is reported once. When the parser already
+ * said why it rejected the line, that warning stands alone; `fallback` is used
+ * only when the line was rejected without one (a line the lexer cannot read).
+ */
+function parseLineOnce<T>(
+  parse: (line: string, warnings: string[]) => T | null,
+  line: string,
+  warnings: string[],
+  fallback: string
+): T | null {
+  const before = warnings.length;
+  const result = parse(line, warnings);
+  if (result === null && warnings.length === before) warnings.push(fallback);
+  return result;
+}
+
 export class JSDocParser {
   /**
    * Parse @flowWeaver nodeType from JSDoc comments.
@@ -778,38 +795,7 @@ export class JSDocParser {
       }
       type = 'STEP';
     } else if (scope) {
-      // For scoped INPUT ports, look up type from the scope callback's return type
-      // The scope name matches a function parameter that is a callback
-      // Scoped INPUT ports become the callback's return values
-      const scopeParam = func.getParameters().find((p) => p.getName() === scope);
-      if (scopeParam) {
-        const scopeParamType = scopeParam.getType();
-
-        // Use ts-morph Type API to extract the return field type
-        // This handles complex types (generics, nested objects) that regex can't
-        const extractedType = extractCallbackReturnFieldType(scopeParamType, name);
-        if (extractedType) {
-          tsType = extractedType;
-          type = inferDataTypeFromTS(tsType);
-        } else {
-          // Emit warning when type inference fails for a scoped INPUT port
-          const nodeTypeName = func.getName() || 'unknown';
-          warnings.push(
-            `Cannot infer type for scoped INPUT port '${name}' in scope '${scope}' of node type '${nodeTypeName}'. ` +
-              `The callback parameter '${scope}' should have a return type that includes '${name}'. ` +
-              `Consider adding an explicit type annotation to the callback signature.`
-          );
-          type = 'ANY';
-        }
-      } else {
-        // Scope callback parameter not found - emit warning
-        const nodeTypeName = func.getName() || 'unknown';
-        warnings.push(
-          `Scoped INPUT port '${name}' references scope '${scope}', but no callback parameter named '${scope}' was found ` +
-            `in node type '${nodeTypeName}'. Add a callback parameter: ${scope}: (...) => { ${name}: YourType }`
-        );
-        type = 'ANY';
-      }
+      ({ type, tsType } = this.typeScopedPort('INPUT', name, scope, func, warnings));
     } else {
       const param = func.getParameters().find((p) => {
         const pName = p.getName();
@@ -889,37 +875,7 @@ export class JSDocParser {
       }
       type = 'STEP';
     } else if (scope) {
-      // For scoped OUTPUT ports, look up type from the scope callback parameter
-      // The scope name matches a function parameter that is a callback
-      // Scoped OUTPUT ports become the callback's parameters
-      const scopeParam = func.getParameters().find((p) => p.getName() === scope);
-      if (scopeParam) {
-        const scopeParamType = scopeParam.getType();
-
-        // Use ts-morph Type API to extract the callback parameter type
-        const extractedType = extractCallbackParamType(scopeParamType, name);
-        if (extractedType) {
-          tsType = extractedType;
-          type = inferDataTypeFromTS(tsType);
-        } else {
-          // Emit warning when type inference fails for a scoped OUTPUT port
-          const nodeTypeName = func.getName() || 'unknown';
-          warnings.push(
-            `Cannot infer type for scoped OUTPUT port '${name}' in scope '${scope}' of node type '${nodeTypeName}'. ` +
-              `The callback parameter '${scope}' should have a parameter named '${name}'. ` +
-              `Consider adding an explicit type annotation to the callback signature.`
-          );
-          type = 'ANY';
-        }
-      } else {
-        // Scope callback parameter not found - emit warning
-        const nodeTypeName = func.getName() || 'unknown';
-        warnings.push(
-          `Scoped OUTPUT port '${name}' references scope '${scope}', but no callback parameter named '${scope}' was found ` +
-            `in node type '${nodeTypeName}'. Add a callback parameter: ${scope}: (${name}: YourType, ...) => { ... }`
-        );
-        type = 'ANY';
-      }
+      ({ type, tsType } = this.typeScopedPort('OUTPUT', name, scope, func, warnings));
     } else {
       // An async node type returns Promise<{...}>; its outputs are the fields
       // of the resolved value.
@@ -955,6 +911,46 @@ export class JSDocParser {
       }),
       ...(tsType && { tsType }),
     };
+  }
+
+  /**
+   * Type a scoped port from the callback parameter its scope names. A scoped
+   * INPUT port is a field of the callback's return value; a scoped OUTPUT port
+   * is one of the callback's parameters. The ts-morph Type API reads both, so
+   * generics and nested objects work. A missing callback or field is a warning
+   * and the port is ANY.
+   */
+  private typeScopedPort(
+    direction: 'INPUT' | 'OUTPUT',
+    name: string,
+    scope: string,
+    func: FunctionLike,
+    warnings: string[],
+  ): { type: TDataType; tsType?: string } {
+    const nodeTypeName = func.getName() || 'unknown';
+    const scopeParam = func.getParameters().find((p) => p.getName() === scope);
+    if (!scopeParam) {
+      const callbackShape =
+        direction === 'INPUT' ? `(...) => { ${name}: YourType }` : `(${name}: YourType, ...) => { ... }`;
+      warnings.push(
+        `Scoped ${direction} port '${name}' references scope '${scope}', but no callback parameter named '${scope}' was found ` +
+          `in node type '${nodeTypeName}'. Add a callback parameter: ${scope}: ${callbackShape}`
+      );
+      return { type: 'ANY' };
+    }
+
+    const extract = direction === 'INPUT' ? extractCallbackReturnFieldType : extractCallbackParamType;
+    const tsType = extract(scopeParam.getType(), name);
+    if (tsType) return { type: inferDataTypeFromTS(tsType), tsType };
+
+    const expectation =
+      direction === 'INPUT' ? `should have a return type that includes '${name}'` : `should have a parameter named '${name}'`;
+    warnings.push(
+      `Cannot infer type for scoped ${direction} port '${name}' in scope '${scope}' of node type '${nodeTypeName}'. ` +
+        `The callback parameter '${scope}' ${expectation}. ` +
+        `Consider adding an explicit type annotation to the callback signature.`
+    );
+    return { type: 'ANY' };
   }
 
   /**
@@ -1295,9 +1291,8 @@ export class JSDocParser {
     const comment = tag.getCommentText() || '';
 
     // Use Chevrotain to parse the connect line
-    const result = parseConnectLine(`@connect ${comment}`, warnings);
+    const result = parseLineOnce(parseConnectLine, `@connect ${comment}`, warnings, `Invalid @connect tag format: @connect ${comment}`);
     if (!result) {
-      warnings.push(`Invalid @connect tag format: @connect ${comment}`);
       return;
     }
 
@@ -1329,9 +1324,8 @@ export class JSDocParser {
   private parseScopeTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
     const comment = tag.getCommentText() || '';
 
-    const result = parseScopeLine(`@scope ${comment}`, warnings);
+    const result = parseLineOnce(parseScopeLine, `@scope ${comment}`, warnings, `Invalid @scope tag format: ${comment}`);
     if (!result) {
-      warnings.push(`Invalid @scope tag format: ${comment}`);
       return;
     }
 
@@ -1346,9 +1340,8 @@ export class JSDocParser {
   private parseMapTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
     const comment = tag.getCommentText() || '';
 
-    const result = parseMapLine(`@map ${comment}`, warnings);
+    const result = parseLineOnce(parseMapLine, `@map ${comment}`, warnings, `Invalid @map tag format: ${comment}`);
     if (!result) {
-      warnings.push(`Invalid @map tag format: ${comment}`);
       return;
     }
 
@@ -1370,9 +1363,8 @@ export class JSDocParser {
   private parsePathTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
     const comment = tag.getCommentText() || '';
 
-    const results = parsePathLine(`@path ${comment}`, warnings);
+    const results = parseLineOnce(parsePathLine, `@path ${comment}`, warnings, `Invalid @path tag format: ${comment}`);
     if (!results) {
-      warnings.push(`Invalid @path tag format: ${comment}`);
       return;
     }
 
@@ -1386,9 +1378,8 @@ export class JSDocParser {
 
   private parseFanOutTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
     const comment = tag.getCommentText() || '';
-    const result = parseFanOutLine(`@fanOut ${comment}`, warnings);
+    const result = parseLineOnce(parseFanOutLine, `@fanOut ${comment}`, warnings, `Invalid @fanOut tag format: ${comment}`);
     if (!result) {
-      warnings.push(`Invalid @fanOut tag format: ${comment}`);
       return;
     }
     if (!result.source.port) {
@@ -1404,9 +1395,8 @@ export class JSDocParser {
 
   private parseFanInTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
     const comment = tag.getCommentText() || '';
-    const result = parseFanInLine(`@fanIn ${comment}`, warnings);
+    const result = parseLineOnce(parseFanInLine, `@fanIn ${comment}`, warnings, `Invalid @fanIn tag format: ${comment}`);
     if (!result) {
-      warnings.push(`Invalid @fanIn tag format: ${comment}`);
       return;
     }
     if (!result.target.port) {
@@ -1422,9 +1412,8 @@ export class JSDocParser {
 
   private parseCoerceTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
     const comment = tag.getCommentText() || '';
-    const result = parseCoerceLine(`@coerce ${comment}`, warnings);
+    const result = parseLineOnce(parseCoerceLine, `@coerce ${comment}`, warnings, `Invalid @coerce tag format: ${comment}`);
     if (!result) {
-      warnings.push(`Invalid @coerce tag format: ${comment}`);
       return;
     }
     config.coercions = config.coercions || [];
@@ -1472,9 +1461,8 @@ export class JSDocParser {
    */
   private parseCancelOnTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
     const comment = tag.getCommentText() || '';
-    const result = parseCancelOnLine(`@cancelOn ${comment}`, warnings);
+    const result = parseLineOnce(parseCancelOnLine, `@cancelOn ${comment}`, warnings, `Invalid @cancelOn format: @cancelOn ${comment}`);
     if (!result) {
-      warnings.push(`Invalid @cancelOn format: @cancelOn ${comment}`);
       return;
     }
     config.cancelOn = result;
@@ -1485,9 +1473,8 @@ export class JSDocParser {
    */
   private parseThrottleTag(tag: JSDocTag, config: JSDocWorkflowConfig, warnings: string[]): void {
     const comment = tag.getCommentText() || '';
-    const result = parseThrottleLine(`@throttle ${comment}`, warnings);
+    const result = parseLineOnce(parseThrottleLine, `@throttle ${comment}`, warnings, `Invalid @throttle format: @throttle ${comment}`);
     if (!result) {
-      warnings.push(`Invalid @throttle format: @throttle ${comment}`);
       return;
     }
     config.throttle = result;

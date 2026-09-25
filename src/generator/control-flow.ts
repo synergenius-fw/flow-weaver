@@ -214,8 +214,7 @@ export function findNodesInBranch(
   branchPort: typeof RESERVED_PORT_NAMES.ON_SUCCESS | typeof RESERVED_PORT_NAMES.ON_FAILURE,
   workflow: TWorkflowAST,
   allNodes: Set<string>,
-  stopAtBranchingNodes: Set<string>,
-  _allParsedNodeTypes?: TNodeTypeAST[]
+  stopAtBranchingNodes: Set<string>
 ): Set<string> {
   const reachable = new Set<string>();
   const visited = new Set<string>();

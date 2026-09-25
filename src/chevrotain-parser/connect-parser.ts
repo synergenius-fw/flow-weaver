@@ -5,7 +5,8 @@
  */
 
 import { CstParser, type CstNode } from 'chevrotain';
-import { JSDocLexer, ConnectTag, Identifier, Arrow, Dot, Colon, AsKeyword, allTokens } from './tokens';
+import { ConnectTag, Identifier, Arrow, Dot, Colon, AsKeyword, allTokens } from './tokens';
+import { lexTaggedLine, lineFailure, runRule, type CstNodeWithImage } from './parse-line';
 import type { TCoerceTargetType } from '../ast/types';
 
 // =============================================================================
@@ -86,11 +87,6 @@ const parserInstance = new ConnectParser();
 
 const BaseVisitor = parserInstance.getBaseCstVisitorConstructor();
 
-// CST Context types for the visitor
-interface CstNodeWithImage {
-  image: string;
-}
-
 interface ConnectLineContext {
   sourceRef: CstNode[];
   targetRef: CstNode[];
@@ -151,33 +147,12 @@ const visitorInstance = new ConnectVisitor();
  * Returns null if the line is not a connect declaration.
  */
 export function parseConnectLine(input: string, warnings: string[]): ConnectParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const tokens = lexTaggedLine(input, ConnectTag);
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    return null;
-  }
-
-  // Check if starts with @connect
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== ConnectTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.connectLine();
-
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to parse connect line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @connect sourceNode.port -> targetNode.port`
-    );
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.connectLine());
+  if (error) {
+    warnings.push(lineFailure('connect', input, error.message, '@connect sourceNode.port -> targetNode.port'));
     return null;
   }
 

@@ -23,7 +23,8 @@
  *   7. expression branching node (single data output)
  *   8. async branching node (await path)
  *
- * Coverage note: the extracted helper (emitBranchNodeCallAndOutputs) is fully
+ * Coverage note: the branching node's call and outputs, now emitted by the
+ * shared emitNodeInvocation in src/generator/node-invocation.ts, are fully
  * covered by these scenarios EXCEPT the sync arm of the MAP_ITERATOR iteration
  * body's `isAsync ? 'await ' : ''` ternary. A MAP_ITERATOR branching node's
  * inline iteration is only generated in async context, so that arm is

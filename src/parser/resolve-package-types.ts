@@ -36,7 +36,7 @@ export function resolvePackageTypesPath(
 /**
  * Walk up from `fromDir` collecting all `node_modules` directories.
  */
-function findNodeModulesDirs(fromDir: string): string[] {
+export function findNodeModulesDirs(fromDir: string): string[] {
   const dirs: string[] = [];
   let current = path.resolve(fromDir);
   const root = path.parse(current).root;

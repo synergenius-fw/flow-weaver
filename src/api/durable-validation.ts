@@ -38,7 +38,6 @@ export function durableBranchPaths(
         workflow,
         allInstanceIds,
         branchingNodes,
-        workflow.nodeTypes,
       ),
       failureNodes: findNodesInBranch(
         branchNodeId,
@@ -46,7 +45,6 @@ export function durableBranchPaths(
         workflow,
         allInstanceIds,
         branchingNodes,
-        workflow.nodeTypes,
       ),
     });
   }
@@ -375,8 +373,8 @@ export function validateDurableClosure(
     const branchReach = new Map<string, Set<string>>();
     for (const branchNodeId of branchingNodes) {
       const reach = new Set<string>([
-        ...findNodesInBranch(branchNodeId, RESERVED_PORT_NAMES.ON_SUCCESS, workflow, allInstanceIds, branchingNodes, workflow.nodeTypes),
-        ...findNodesInBranch(branchNodeId, RESERVED_PORT_NAMES.ON_FAILURE, workflow, allInstanceIds, branchingNodes, workflow.nodeTypes),
+        ...findNodesInBranch(branchNodeId, RESERVED_PORT_NAMES.ON_SUCCESS, workflow, allInstanceIds, branchingNodes),
+        ...findNodesInBranch(branchNodeId, RESERVED_PORT_NAMES.ON_FAILURE, workflow, allInstanceIds, branchingNodes),
       ]);
       branchReach.set(branchNodeId, reach);
     }

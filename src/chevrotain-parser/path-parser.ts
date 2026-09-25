@@ -13,7 +13,6 @@
 
 import { CstParser } from 'chevrotain';
 import {
-  JSDocLexer,
   PathTag,
   Identifier,
   Arrow,
@@ -21,6 +20,7 @@ import {
   Comma,
   allTokens,
 } from './tokens';
+import { lexTaggedLine, lineFailure, runRule, type CstNodeWithImage } from './parse-line';
 
 // =============================================================================
 // Parser Result Types
@@ -86,10 +86,6 @@ const parserInstance = new PathParser();
 // =============================================================================
 
 const BaseVisitor = parserInstance.getBaseCstVisitorConstructor();
-
-interface CstNodeWithImage {
-  image: string;
-}
 
 interface PathStepContext {
   nodeName: CstNodeWithImage[];
@@ -176,32 +172,12 @@ const visitorInstance = new PathVisitor();
  * Returns null if the line is not a valid @path declaration.
  */
 export function parsePathLine(input: string, warnings: string[]): PathParseResult[] | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  const tokens = lexTaggedLine(input, PathTag);
+  if (!tokens) return null;
 
-  if (lexResult.errors.length > 0) {
-    return null;
-  }
-
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (firstToken.tokenType !== PathTag) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.pathLine();
-
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to parse @path line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @path Start -> nodeA -> nodeB:ok -> Exit`
-    );
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.pathLine());
+  if (error) {
+    warnings.push(lineFailure('@path', input, error.message, '@path Start -> nodeA -> nodeB:ok -> Exit'));
     return null;
   }
 
