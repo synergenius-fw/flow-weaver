@@ -142,18 +142,6 @@ describe('INFERRED_NODE_TYPE fallbacks', () => {
   });
 });
 
-describe('UNDEFINED_NODE fallbacks', () => {
-  it('no quoted, uses node field', () => {
-    const r = getFriendlyError({ code: 'UNDEFINED_NODE', message: 'undefined node', node: 'nodeX' });
-    expect(r!.explanation).toContain('nodeX');
-  });
-
-  it('no quoted, no node -> unknown', () => {
-    const r = getFriendlyError({ code: 'UNDEFINED_NODE', message: 'undefined node' });
-    expect(r!.explanation).toContain('unknown');
-  });
-});
-
 describe('MULTIPLE_CONNECTIONS_TO_INPUT fallbacks', () => {
   it('no quoted, uses node field', () => {
     const r = getFriendlyError({ code: 'MULTIPLE_CONNECTIONS_TO_INPUT', message: 'multiple', node: 'nodeZ' });
@@ -164,18 +152,6 @@ describe('MULTIPLE_CONNECTIONS_TO_INPUT fallbacks', () => {
   it('one quoted only, no node -> port from quoted, node unknown', () => {
     const r = getFriendlyError({ code: 'MULTIPLE_CONNECTIONS_TO_INPUT', message: '"portA" has multiple' });
     expect(r!.explanation).toContain('portA');
-    expect(r!.explanation).toContain('unknown');
-  });
-});
-
-describe('SCOPE_CONSISTENCY_ERROR fallbacks', () => {
-  it('no quoted, uses node field', () => {
-    const r = getFriendlyError({ code: 'SCOPE_CONSISTENCY_ERROR', message: 'consistency', node: 'myScope' });
-    expect(r!.explanation).toContain('myScope');
-  });
-
-  it('no quoted, no node -> unknown', () => {
-    const r = getFriendlyError({ code: 'SCOPE_CONSISTENCY_ERROR', message: 'consistency' });
     expect(r!.explanation).toContain('unknown');
   });
 });

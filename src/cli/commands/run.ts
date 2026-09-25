@@ -154,8 +154,11 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
   if (options.timeout) {
     timeoutId = setTimeout(() => {
       timedOut = true;
-      if (!options.json) {
-        logger.error(`Execution timed out after ${options.timeout}ms`);
+      const message = `Execution timed out after ${options.timeout}ms`;
+      if (options.json) {
+        process.stdout.write(JSON.stringify({ success: false, error: message }) + '\n');
+      } else {
+        logger.error(message);
       }
       process.exit(1);
     }, options.timeout);

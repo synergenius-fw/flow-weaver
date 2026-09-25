@@ -13,6 +13,7 @@ import { getPathGrammar } from './path-parser';
 import { getMapGrammar } from './map-parser';
 import { getTriggerCancelGrammar } from './trigger-cancel-parser';
 import { getFanGrammar } from './fan-parser';
+import { getCoerceGrammar } from './coerce-parser';
 
 // =============================================================================
 // EBNF Text Generation
@@ -87,7 +88,11 @@ function itemToEBNF(item: ISerializedGastItem): string {
       if (pattern === 'BOTTOM\\b') return '"BOTTOM"';
 
       // Identifier pattern - use semantic name if available
-      if (pattern === '[a-zA-Z_$][a-zA-Z0-9_$]*' || pattern === '[a-zA-Z_$][a-zA-Z0-9_$\\/-]*') {
+      if (
+        pattern === '[a-zA-Z_$][a-zA-Z0-9_$]*' ||
+        pattern === '[a-zA-Z_$][a-zA-Z0-9_$\\/-]*' ||
+        pattern === '[a-zA-Z_$](?:[a-zA-Z0-9_$\\/]|-(?!>))*'
+      ) {
         const semanticName = item.terminalLabel || 'IDENTIFIER';
         return semanticName;
       }
@@ -155,6 +160,7 @@ export interface GrammarCollection {
   path: ISerializedGast[];
   map: ISerializedGast[];
   fan: ISerializedGast[];
+  coerce: ISerializedGast[];
   triggerCancel: ISerializedGast[];
 }
 
@@ -174,6 +180,7 @@ export function getAllGrammars(): GrammarCollection {
     path: getPathGrammar(),
     map: getMapGrammar(),
     fan: getFanGrammar(),
+    coerce: getCoerceGrammar(),
     triggerCancel: getTriggerCancelGrammar(),
   };
 }
@@ -194,6 +201,7 @@ export function generateGrammarDiagrams(): string {
     ...grammars.path,
     ...grammars.map,
     ...grammars.fan,
+    ...grammars.coerce,
     ...grammars.triggerCancel,
   ];
 

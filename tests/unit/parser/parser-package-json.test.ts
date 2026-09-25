@@ -1,6 +1,6 @@
 /**
  * Tests for parser.ts package.json handling
- * Ensures invalid package.json files are handled gracefully with warnings
+ * Ensures invalid package.json files are handled gracefully with a parse warning
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from "vitest";
@@ -23,7 +23,7 @@ describe("Parser package.json handling", () => {
     consoleSpy.mockRestore();
   });
 
-  it("should log warning for invalid package.json JSON", () => {
+  it("should warn (in the parse result, not on the console) for invalid package.json JSON", () => {
     // Create a directory with invalid package.json
     const pkgDir = path.join(tempDir, "bad-pkg");
     fs.mkdirSync(pkgDir);
@@ -63,10 +63,9 @@ describe("Parser package.json handling", () => {
     // Parse should succeed (fallback to index.ts)
     const result = parser.parse(testFile);
 
-    // Should have logged a warning about the invalid package.json
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("package.json")
-    );
+    // Should have warned about the invalid package.json in the parse result
+    expect(result.warnings.some((w) => w.includes("package.json"))).toBe(true);
+    expect(consoleSpy).not.toHaveBeenCalled();
   });
 
   it("should include file path in package.json warning", () => {
@@ -93,12 +92,10 @@ describe("Parser package.json handling", () => {
     `
     );
 
-    parser.parse(testFile);
+    const result = parser.parse(testFile);
 
     // Warning should include the path to the invalid package.json
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("invalid-json-pkg")
-    );
+    expect(result.warnings.some((w) => w.includes("invalid-json-pkg") && w.includes("package.json"))).toBe(true);
   });
 
   it("should continue resolution after package.json parse error", () => {
@@ -142,7 +139,7 @@ describe("Parser package.json handling", () => {
     expect(result.nodeTypes.find((n) => n.functionName === "fallbackNode")).toBeDefined();
   });
 
-  it("should not log warning for valid package.json", () => {
+  it("should not warn for valid package.json", () => {
     const pkgDir = path.join(tempDir, "good-pkg");
     fs.mkdirSync(pkgDir);
     fs.writeFileSync(
@@ -180,9 +177,10 @@ describe("Parser package.json handling", () => {
     `
     );
 
-    parser.parse(testFile);
+    const result = parser.parse(testFile);
 
-    // Should NOT have logged any warning about package.json
+    // Should NOT have warned about package.json
+    expect(result.warnings.filter((w) => w.includes("package.json"))).toEqual([]);
     expect(consoleSpy).not.toHaveBeenCalled();
   });
 });

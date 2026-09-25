@@ -1,6 +1,3 @@
-// Load built-in extensions before tool registration
-import '../extensions/index.js';
-
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { McpServerOptions } from './types.js';
@@ -12,7 +9,6 @@ import { registerMarketplaceTools } from './tools-marketplace.js';
 import { registerDiagramTools } from './tools-diagram.js';
 import { registerDocsTools } from './tools-docs.js';
 import { registerDebugTools } from './tools-debug.js';
-import { registerWorkflowRunTools } from './tools-workflow-run.js';
 import { registerRunTools } from './tools-run.js';
 import { registerContextTools } from './tools-context.js';
 import { registerResourceTools } from './tools-resources.js';
@@ -65,7 +61,9 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   registerDiagramTools(mcp);
   registerDocsTools(mcp);
   registerDebugTools(mcp);
-  registerWorkflowRunTools(mcp);
+  // The stateless run/resume primitives (tools-workflow-run.ts) are not
+  // registered: they carry the whole continuation envelope, which is for a
+  // coordinator, not a language model. Assistants use fw_run and fw_resume.
   registerRunTools(mcp);
   registerContextTools(mcp);
   registerResourceTools(mcp);

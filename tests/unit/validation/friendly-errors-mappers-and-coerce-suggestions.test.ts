@@ -314,10 +314,6 @@ describe('mapper fallback branches', () => {
     expect(r!.explanation).toContain('myFunc');
   });
 
-  it('UNDEFINED_NODE', () => {
-    const r = getFriendlyError({ code: 'UNDEFINED_NODE', message: '"myNode"' });
-    expect(r!.explanation).toContain('myNode');
-  });
 });
 
 // ── TYPE_INCOMPATIBLE with coerce suggestion ──
@@ -390,14 +386,6 @@ describe('remaining error mappers', () => {
     });
     expect(r!.explanation).toContain('inputPort');
     expect(r!.explanation).toContain('myNode');
-  });
-
-  it('SCOPE_CONSISTENCY_ERROR', () => {
-    const r = getFriendlyError({
-      code: 'SCOPE_CONSISTENCY_ERROR',
-      message: '"iterate" scope error',
-    });
-    expect(r!.explanation).toContain('iterate');
   });
 
   it('SCOPE_MISSING_REQUIRED_INPUT', () => {

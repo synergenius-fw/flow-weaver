@@ -28,12 +28,6 @@ import {
   RBracket,
   Comma,
   Equals,
-  EventEq,
-  CronEq,
-  MatchEq,
-  TimeoutEq,
-  LimitEq,
-  PeriodEq,
   allTokens,
 } from './tokens';
 
@@ -148,25 +142,9 @@ class NodeParser extends CstParser {
   });
 
   // port="value"
-  // Note: Some port names (e.g. "timeout", "match", "event") collide with
-  // Eq-prefix tokens (TimeoutEq, MatchEq, etc.) added for @trigger/@cancelOn.
-  // The lexer greedily matches "timeout=" as TimeoutEq, so we accept both
-  // Identifier+Equals and any XxxEq token as the port name.
   private exprAssignment = this.RULE('exprAssignment', () => {
-    this.OR([
-      {
-        ALT: () => {
-          this.CONSUME(Identifier, { LABEL: 'portName' });
-          this.CONSUME(Equals);
-        },
-      },
-      { ALT: () => this.CONSUME(TimeoutEq, { LABEL: 'portNameEq' }) },
-      { ALT: () => this.CONSUME(MatchEq, { LABEL: 'portNameEq2' }) },
-      { ALT: () => this.CONSUME(EventEq, { LABEL: 'portNameEq3' }) },
-      { ALT: () => this.CONSUME(LimitEq, { LABEL: 'portNameEq4' }) },
-      { ALT: () => this.CONSUME(PeriodEq, { LABEL: 'portNameEq5' }) },
-      { ALT: () => this.CONSUME(CronEq, { LABEL: 'portNameEq6' }) },
-    ]);
+    this.CONSUME(Identifier, { LABEL: 'portName' });
+    this.CONSUME(Equals);
     this.CONSUME(StringLiteral, { LABEL: 'portValue' });
   });
 
@@ -332,13 +310,7 @@ interface ExprAttrContext {
 }
 
 interface ExprAssignmentContext {
-  portName?: CstNodeWithImage[];
-  portNameEq?: CstNodeWithImage[];
-  portNameEq2?: CstNodeWithImage[];
-  portNameEq3?: CstNodeWithImage[];
-  portNameEq4?: CstNodeWithImage[];
-  portNameEq5?: CstNodeWithImage[];
-  portNameEq6?: CstNodeWithImage[];
+  portName: CstNodeWithImage[];
   portValue: CstNodeWithImage[];
 }
 
@@ -599,21 +571,7 @@ class NodeVisitor extends BaseVisitor {
   }
 
   exprAssignment(ctx: ExprAssignmentContext): { name: string; value: string } {
-    let name: string;
-    if (ctx.portName) {
-      name = ctx.portName[0].image;
-    } else {
-      // One of the Eq-prefix tokens matched (e.g. TimeoutEq "timeout=")
-      // Extract the port name by stripping the trailing "="
-      const eqToken =
-        ctx.portNameEq?.[0] ??
-        ctx.portNameEq2?.[0] ??
-        ctx.portNameEq3?.[0] ??
-        ctx.portNameEq4?.[0] ??
-        ctx.portNameEq5?.[0] ??
-        ctx.portNameEq6?.[0];
-      name = eqToken!.image.replace(/=$/, '');
-    }
+    const name = ctx.portName[0].image;
     const rawValue = ctx.portValue[0].image;
     const value = this.unescapeString(rawValue);
     return { name, value };

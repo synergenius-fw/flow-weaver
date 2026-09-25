@@ -5,9 +5,11 @@ import { fileURLToPath } from 'node:url';
 import {
   BundleChangedError,
   createLocalCoordinator,
+  createMemoryRunStore,
   RunNotFoundError,
   RunNotWaitingError,
 } from '../../../src/coordinator/index.js';
+import { ContinuationRefusalError } from '../../../src/mcp/workflow-executor.js';
 
 const fixtures = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'continuation', 'fixtures');
 const approval = path.join(fixtures, 'durable-approval.ts');
@@ -97,6 +99,57 @@ describe('local coordinator run store', () => {
     const again = await coordinator.resume({ runId: paused.runId, input: { answer: 4 } });
     expect(again.result).toEqual({ onSuccess: true, onFailure: false, value: 4 });
     expect((globalThis as Record<string, unknown>)[flag]).toBeUndefined();
+  });
+
+  it('leaves a run waiting when the resume is refused before anything ran', async () => {
+    const coordinator = createLocalCoordinator({ rootDir });
+    const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
+    const contFile = path.join(rootDir, paused.runId, 'continuation.json');
+    // A continuation whose checksum no longer matches is refused by the engine
+    // before a single node runs. Nothing happened, so nothing has failed.
+    const envelope = JSON.parse(fs.readFileSync(contFile, 'utf8'));
+    fs.writeFileSync(contFile, JSON.stringify({ ...envelope, checksum: 'sha256:' + '0'.repeat(64) }));
+
+    await expect(coordinator.resume({ runId: paused.runId, input: { answer: 8 } })).rejects.toBeInstanceOf(ContinuationRefusalError);
+    expect((await coordinator.get(paused.runId))?.status).toBe('waiting');
+    expect(fs.existsSync(contFile)).toBe(true);
+  });
+
+  it('refuses, without failing the run, when the record is a gate behind its continuation', async () => {
+    const coordinator = createLocalCoordinator({ rootDir });
+    const first = await coordinator.start({ filePath: twoGates, params: { value: 1 } });
+    const runFile = path.join(rootDir, first.runId, 'run.json');
+    const recordAtFirstGate = fs.readFileSync(runFile);
+    await coordinator.resume({ runId: first.runId, input: { answer: 2 } });
+    // The process died after the second continuation landed and before the
+    // record did: the record still names the first gate.
+    fs.writeFileSync(runFile, recordAtFirstGate);
+
+    await expect(coordinator.resume({ runId: first.runId, input: { answer: 2 } })).rejects.toThrow(/record names gate/);
+    expect((await coordinator.get(first.runId))?.status).toBe('waiting');
+  });
+
+  it('does not cancel a run that another driver completed while the cancel was on its way', async () => {
+    const store = createMemoryRunStore();
+    const coordinator = createLocalCoordinator({ store });
+    const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
+    // The claim is the last thing before the write; a driver finishing the run
+    // just before it is the race a stale read would lose. The other driver
+    // runs once: its own resume claims the run too, and must reach the store.
+    const claim = store.claim.bind(store);
+    let raced = false;
+    store.claim = async (runId, owner, ttl) => {
+      if (!raced) {
+        raced = true;
+        await coordinator.resume({ runId, input: { answer: 8 } });
+      }
+      return claim(runId, owner, ttl);
+    };
+
+    await expect(coordinator.cancel(paused.runId)).rejects.toBeInstanceOf(RunNotWaitingError);
+    const done = await coordinator.get(paused.runId);
+    expect(done?.status).toBe('completed');
+    expect(done?.result).toEqual({ onSuccess: true, onFailure: false, result: 9 });
   });
 
   it('refuses to resume a completed run', async () => {

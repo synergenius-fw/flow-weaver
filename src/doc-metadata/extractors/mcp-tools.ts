@@ -77,7 +77,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_compile',
     description:
-      'Compile a workflow to executable code. Only regenerates code inside @flow-weaver-runtime and @flow-weaver-body marker sections, so user code outside markers is preserved. Set production: true to strip debug instrumentation. Custom targets are available via registered extensions.',
+      'Compile a workflow to executable code. Only regenerates code inside @flow-weaver-runtime and @flow-weaver-body marker sections, so user code outside markers is preserved. Set production: true to strip debug instrumentation.',
     category: 'query',
     params: [
       {
@@ -102,49 +102,6 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         name: 'workflowName',
         type: 'string',
         description: 'Specific workflow name (default: every workflow in the file)',
-        required: false,
-      },
-      {
-        name: 'target',
-        type: 'string',
-        description: 'Compilation target: typescript (default) or a registered extension target',
-        required: false,
-      },
-      {
-        name: 'cron',
-        type: 'string',
-        description: 'Cron schedule expression (e.g. "0 9 * * *"). Overrides @trigger annotation.',
-        required: false,
-      },
-      {
-        name: 'serve',
-        type: 'boolean',
-        description: 'Generate serve() handler for HTTP framework integration',
-        required: false,
-      },
-      {
-        name: 'framework',
-        type: 'string',
-        description: 'Framework adapter for serve handler (requires serve=true)',
-        required: false,
-        enum: ['next', 'express', 'hono', 'fastify', 'remix'],
-      },
-      {
-        name: 'typedEvents',
-        type: 'boolean',
-        description: 'Generate Zod event schemas from workflow @param annotations',
-        required: false,
-      },
-      {
-        name: 'retries',
-        type: 'number',
-        description: 'Number of retries per function. Overrides @retries annotation.',
-        required: false,
-      },
-      {
-        name: 'timeout',
-        type: 'string',
-        description: 'Function timeout (e.g. "30m", "1h"). Overrides @timeout annotation.',
         required: false,
       },
       {
@@ -531,7 +488,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'template',
         type: 'string',
-        description: 'Template name (e.g. "sequential", "validator", "ai-agent")',
+        description: 'Template name (e.g. "sequential", "validator", "ai-agent"). An existing filePath gets the code appended',
         required: true,
       },
       {
@@ -583,7 +540,7 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
   {
     name: 'fw_export',
     description:
-      'Export workflows as serverless deployments. Generates platform-native config files and deploy instructions. Available targets depend on installed packs.',
+      'Export a workflow to a target an installed pack provides: handler code, the target\'s config files and deploy instructions. Without a target pack installed there is nothing to export to.',
     category: 'execution',
     params: [
       {
@@ -625,7 +582,13 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
       {
         name: 'includeDocs',
         type: 'boolean',
-        description: 'Include OpenAPI/Swagger routes (default: true)',
+        description: 'Include OpenAPI/Swagger routes (default: false, as fw export --docs)',
+        required: false,
+      },
+      {
+        name: 'production',
+        type: 'boolean',
+        description: 'Production code without debug events (default: false, as fw export --production)',
         required: false,
       },
       {
@@ -639,100 +602,6 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         type: 'boolean',
         description: 'Use deep generator with per-node durable steps',
         required: false,
-      },
-    ],
-  },
-  {
-    name: 'fw_workflow_run',
-    description:
-      'Run a workflow until completion or a durable approval, input, agent, or timer gate. For coordinators: returns the raw continuation. Assistants should use fw_run.',
-    category: 'execution',
-    params: [
-      {
-        name: 'filePath',
-        type: 'string',
-        description: 'Path to the workflow .ts file',
-        required: true,
-      },
-      {
-        name: 'params',
-        type: 'object',
-        description: 'Workflow input parameters',
-        required: false,
-      },
-      {
-        name: 'workflowName',
-        type: 'string',
-        description: 'Export name if the file has several workflows',
-        required: false,
-      },
-      {
-        name: 'runId',
-        type: 'string',
-        description: 'Stable run identity, generated when omitted',
-        required: false,
-      },
-      {
-        name: 'bundleDigest',
-        type: 'string',
-        description: 'Verified sha256 identity of the executable bundle',
-        required: false,
-      },
-    ],
-  },
-  {
-    name: 'fw_workflow_resume',
-    description:
-      'Resume one exact durable gate continuation. The prior executor is not retained. For coordinators. Assistants should use fw_resume.',
-    category: 'execution',
-    params: [
-      {
-        name: 'runId',
-        type: 'string',
-        description: 'Run identity the continuation was produced under',
-        required: true,
-      },
-      {
-        name: 'filePath',
-        type: 'string',
-        description: 'Path to the same workflow .ts file',
-        required: true,
-      },
-      {
-        name: 'continuation',
-        type: 'object',
-        description: 'The continuation envelope returned by the yielded outcome, verbatim (any JSON value)',
-        required: true,
-      },
-      {
-        name: 'gateId',
-        type: 'string',
-        description: 'The gate id from the yielded outcome',
-        required: true,
-      },
-      {
-        name: 'resolution',
-        type: 'object',
-        description: 'The gate node\'s full output envelope, control ports included',
-        required: true,
-      },
-      {
-        name: 'params',
-        type: 'object',
-        description: 'Workflow input parameters, as on the first segment',
-        required: false,
-      },
-      {
-        name: 'workflowName',
-        type: 'string',
-        description: 'Export name if the file has several workflows',
-        required: false,
-      },
-      {
-        name: 'bundleDigest',
-        type: 'string',
-        description: 'sha256:<64 hex> identity of the executable bundle',
-        required: true,
       },
     ],
   },

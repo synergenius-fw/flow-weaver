@@ -420,31 +420,34 @@ describe('tools-export (fw_export)', () => {
     expect((result.error as { message: string }).message).toContain('unexpected crash');
   });
 
-  it('passes includeDocs=true by default', async () => {
+  it('leaves docs and production off by default, as the CLI does', async () => {
     const { wfFile } = setupMocks();
 
     await callExport({
       filePath: wfFile,
       target: 'lambda',
       outputDir: path.join(tmpDir, 'out'),
-    });
-
-    const bundleOptions = mockGenerateBundle.mock.calls[0][2];
-    expect(bundleOptions.includeDocs).toBe(true);
-  });
-
-  it('respects includeDocs=false', async () => {
-    const { wfFile } = setupMocks();
-
-    await callExport({
-      filePath: wfFile,
-      target: 'lambda',
-      outputDir: path.join(tmpDir, 'out'),
-      includeDocs: false,
     });
 
     const bundleOptions = mockGenerateBundle.mock.calls[0][2];
     expect(bundleOptions.includeDocs).toBe(false);
+    expect(bundleOptions.production).toBe(false);
+  });
+
+  it('respects includeDocs and production when given', async () => {
+    const { wfFile } = setupMocks();
+
+    await callExport({
+      filePath: wfFile,
+      target: 'lambda',
+      outputDir: path.join(tmpDir, 'out'),
+      includeDocs: true,
+      production: true,
+    });
+
+    const bundleOptions = mockGenerateBundle.mock.calls[0][2];
+    expect(bundleOptions.includeDocs).toBe(true);
+    expect(bundleOptions.production).toBe(true);
   });
 
   it('includes selected node types when nodeTypes option is provided', async () => {

@@ -1,4 +1,3 @@
-vi.mock('../../../src/extensions/index', () => ({}));
 
 let lastMcpConfig: unknown = null;
 const mockConnect = vi.fn().mockResolvedValue(undefined);

@@ -16,7 +16,13 @@ import type {
 } from './types.js';
 
 const DEFAULT_MAX_ITERATIONS = 15;
-const TOOL_RESULT_CAP = 10_000; // bytes
+const TOOL_RESULT_CAP = 10_000; // characters
+
+/** A tool result within the cap, with a note saying what was left out. */
+export function truncateToolResult(result: string, cap = TOOL_RESULT_CAP): string {
+  if (result.length <= cap) return result;
+  return `${result.slice(0, cap)}\n[truncated: ${result.length - cap} more characters]`;
+}
 
 export async function runAgentLoop(
   provider: AgentProvider,
@@ -159,10 +165,11 @@ export async function runAgentLoop(
 
       onToolEvent?.({ type: 'tool_call_result', name: tc.name, args: tc.arguments, result: result.slice(0, 200), isError });
 
-      // Add tool result to conversation (cap size to prevent context overflow)
+      // Add tool result to conversation, capped so one result cannot fill the
+      // context. The model is told when a result was cut, and by how much.
       conversation.push({
         role: 'tool',
-        content: result.slice(0, TOOL_RESULT_CAP),
+        content: truncateToolResult(result),
         toolCallId: tc.id,
       });
     }

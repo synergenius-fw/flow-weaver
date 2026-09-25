@@ -4,8 +4,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
 import type { TMarketplacePackageInfo } from '../../marketplace/types.js';
+import { npmInstall, runNpm } from '../../marketplace/install.js';
 import { logger } from '../utils/logger.js';
 import {
   generateManifest,
@@ -203,7 +203,7 @@ npm publish     # Publish to npm
   logger.success('Created src/node-types/sample.ts');
   logger.success('Created src/index.ts');
   logger.success('Created README.md');
-  logger.success('.gitignore');
+  logger.success('Created .gitignore');
 
   logger.newline();
   logger.section('Next Steps');
@@ -325,7 +325,7 @@ export async function marketPublishCommand(directory?: string, options: MarketPu
 
   try {
     logger.newline();
-    execSync(`npm ${npmArgs.join(' ')}`, { cwd: dir, stdio: 'inherit' });
+    runNpm(npmArgs, { cwd: dir, stdio: 'inherit' });
 
     if (!dryRun) {
       logger.newline();
@@ -356,7 +356,7 @@ export async function marketInstallCommand(packageSpec: string, options: MarketI
 
   // 1. npm install
   try {
-    execSync(`npm install ${packageSpec}`, { stdio: json ? 'pipe' : 'inherit' });
+    npmInstall(packageSpec, { stdio: json ? 'pipe' : 'inherit' });
   } catch (err) {
     if (json) {
       console.log(JSON.stringify({ success: false, error: getErrorMessage(err) }));

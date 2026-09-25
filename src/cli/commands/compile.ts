@@ -5,24 +5,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
-import { parseWorkflow } from '../../api/index.js';
-import { parseWorkflowSourceAtPath } from '../../api/parse.js';
+import { parseWorkflow, validateWorkflow, type ValidationResult } from '../../api/index.js';
+import { parseWorkflowSourceAtPath, isMultipleWorkflows } from '../../api/parse.js';
 import { generateInPlace } from '../../api/generate-in-place.js';
 import { generateCode } from '../../api/generate.js';
-import { validator } from '../../validation/validator.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import { getFriendlyError } from '../../validation/friendly-errors.js';
 import type { TModuleFormat } from '../../ast/types.js';
 import { detectProjectModuleFormat } from './doctor.js';
-import { compileTargetRegistry } from '../../generator/compile-target-registry.js';
-import { AnnotationParser } from '../../parser/annotation-parser.js';
 import { safeWriteFile, safeAppendFile } from '../utils/safe-write.js';
-
-/** The parse failed only because the file declares several workflows and none was picked. */
-function isMultipleWorkflows(errors: unknown[]): boolean {
-  return errors.length > 0 && errors.every((e) => typeof e === 'string' && e.startsWith('[MULTIPLE_WORKFLOWS_FOUND]'));
-}
 
 /**
  * Print a workflow's validation result. Returns false when it must not be
@@ -31,7 +23,7 @@ function isMultipleWorkflows(errors: unknown[]): boolean {
  */
 function reportValidation(
   label: string,
-  validation: ReturnType<typeof validator.validate>,
+  validation: ValidationResult,
   strict: boolean,
   verbose: boolean,
 ): boolean {
@@ -108,20 +100,6 @@ export interface CompileOptions {
    * Omit redundant @param/@returns annotations from compiled output.
    */
   clean?: boolean;
-  /** Compilation target. 'typescript' (default) or a registered extension target. */
-  target?: string;
-  /** Override @trigger cron from CLI */
-  cron?: string;
-  /** Generate serve() handler */
-  serve?: boolean;
-  /** Framework adapter for serve handler */
-  framework?: 'next' | 'express' | 'hono' | 'fastify' | 'remix';
-  /** Generate Zod event schemas from @param annotations */
-  typedEvents?: boolean;
-  /** Override @retries from CLI */
-  retries?: number;
-  /** Override @timeout from CLI */
-  timeout?: string;
 }
 
 /**
@@ -138,12 +116,7 @@ function resolveModuleFormat(format: string | undefined, cwd: string): TModuleFo
 }
 
 export async function compileCommand(input: string, options: CompileOptions = {}): Promise<void> {
-  const { production = false, sourceMap = false, strict = false, verbose = false, workflowName, dryRun = false, format, clean = false, target, output } = options;
-
-  // Handle custom compile target
-  if (target && target !== 'typescript') {
-    return compileCustomTarget(target, input, { production, verbose, workflowName, dryRun, cron: options.cron, serve: options.serve, framework: options.framework, typedEvents: options.typedEvents, retries: options.retries, timeout: options.timeout });
-  }
+  const { production = false, sourceMap = false, strict = false, verbose = false, workflowName, dryRun = false, format, clean = false, output } = options;
 
   // Resolve module format (auto-detect if not specified)
   const cwd = process.cwd();
@@ -246,7 +219,7 @@ export async function compileCommand(input: string, options: CompileOptions = {}
             failed = true;
             break;
           }
-          if (!reportValidation(label, validator.validate(one.ast, { strictMode: strict }), strict, verbose)) {
+          if (!reportValidation(label, validateWorkflow(one.ast, strict ? { mode: 'strict' } : undefined), strict, verbose)) {
             failed = true;
             break;
           }
@@ -293,7 +266,7 @@ export async function compileCommand(input: string, options: CompileOptions = {}
       }
 
       // Validate the AST
-      if (!reportValidation(fileName, validator.validate(parseResult.ast, { strictMode: strict }), strict, verbose)) {
+      if (!reportValidation(fileName, validateWorkflow(parseResult.ast, strict ? { mode: 'strict' } : undefined), strict, verbose)) {
         errorCount++;
         continue;
       }
@@ -365,103 +338,4 @@ export async function compileCommand(input: string, options: CompileOptions = {}
   } else {
     logger.log(`  ${successCount} file${successCount !== 1 ? 's' : ''} compiled${formatNote} in ${elapsed}${dryRunNote}`);
   }
-}
-
-/**
- * Compile a workflow file using a registered custom compile target.
- */
-export async function compileCustomTarget(
-  target: string,
-  input: string,
-  options: {
-    production: boolean; verbose?: boolean; workflowName?: string; dryRun?: boolean;
-    cron?: string; serve?: boolean; framework?: 'next' | 'express' | 'hono' | 'fastify' | 'remix';
-    typedEvents?: boolean; retries?: number; timeout?: string;
-  }
-): Promise<void> {
-  const customTarget = compileTargetRegistry.get(target);
-  if (!customTarget) {
-    const available = compileTargetRegistry.getNames();
-    const hint = available.length > 0
-      ? ` Available targets: typescript, ${available.join(', ')}`
-      : ' No custom targets registered.';
-    throw new Error(`Unknown compile target: ${target}.${hint}`);
-  }
-
-  const filePath = path.resolve(input);
-
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${displayPath(filePath)}`);
-  }
-
-  logger.section(`Compiling to ${target}`);
-  logger.info(`Input: ${displayPath(filePath)}`);
-  logger.info(`Target: ${target}`);
-  logger.newline();
-
-  const annotationParser = new AnnotationParser();
-  await annotationParser.loadPackHandlers(process.cwd());
-  const parseResult = annotationParser.parse(filePath);
-
-  if (parseResult.errors.length > 0) {
-    const msgs = parseResult.errors.map((e) => `  ${e}`).join('\n');
-    throw new Error(`Parse errors:\n${msgs}`);
-  }
-
-  if (parseResult.workflows.length === 0) {
-    throw new Error('No workflows found in file');
-  }
-
-  const workflow = options.workflowName
-    ? parseResult.workflows.find((w) => w.name === options.workflowName || w.functionName === options.workflowName)
-    : parseResult.workflows[0];
-
-  if (!workflow) {
-    const available = parseResult.workflows.map((w) => w.name).join(', ');
-    throw new Error(`Workflow "${options.workflowName}" not found. Available: ${available}`);
-  }
-
-  const allNodeTypes = [...(workflow.nodeTypes || [])];
-
-  // CLI overrides for workflow options
-  if (options.cron) {
-    workflow.options = workflow.options || {};
-    workflow.options.trigger = { ...workflow.options.trigger, cron: options.cron };
-  }
-  if (options.retries !== undefined) {
-    workflow.options = workflow.options || {};
-    workflow.options.retries = options.retries;
-  }
-  if (options.timeout) {
-    workflow.options = workflow.options || {};
-    workflow.options.timeout = options.timeout;
-  }
-
-  const code = customTarget.compile(workflow, allNodeTypes, {
-    production: options.production,
-    typedEvents: options.typedEvents,
-    serveHandler: options.serve,
-    framework: options.framework,
-  });
-
-  const outputPath = filePath.replace(/\.ts$/, `.${target}.ts`);
-
-  if (options.dryRun) {
-    logger.success(`Would generate: ${displayPath(outputPath)}`);
-    logger.newline();
-    logger.section('Preview');
-    const lines = code.split('\n');
-    const preview = lines.slice(0, 50).join('\n');
-    logger.log(preview);
-    if (lines.length > 50) {
-      logger.info(`... (${lines.length - 50} more lines)`);
-    }
-  } else {
-    safeWriteFile(outputPath, code);
-    logger.success(`Compiled: ${displayPath(outputPath)}`);
-  }
-
-  logger.newline();
-  logger.section('Summary');
-  logger.success(`Workflow "${workflow.name}" compiled to ${target} target`);
 }

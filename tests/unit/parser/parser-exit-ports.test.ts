@@ -1,6 +1,6 @@
 /**
  * Tests for parser.ts exit port handling
- * Ensures helpful warnings when return type cannot be determined
+ * Ensures a helpful parse warning when the return type cannot be determined
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from "vitest";
@@ -37,12 +37,11 @@ describe("Parser exit port handling", () => {
     `
     );
 
-    parser.parse(testFile);
+    const result = parser.parse(testFile);
 
-    // Warning should include the function name
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("myWorkflowWithNoReturn")
-    );
+    // The warning is part of the parse result, not console output
+    expect(result.warnings.some((w) => w.includes("myWorkflowWithNoReturn"))).toBe(true);
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
   it("should include file location in return type warning", () => {
@@ -59,12 +58,10 @@ describe("Parser exit port handling", () => {
     `
     );
 
-    parser.parse(testFile);
+    const result = parser.parse(testFile);
 
     // Warning should include the file path or name
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("my-workflow.ts")
-    );
+    expect(result.warnings.some((w) => w.includes("my-workflow.ts"))).toBe(true);
   });
 
   it("should provide actionable suggestion in warning", () => {
@@ -81,12 +78,10 @@ describe("Parser exit port handling", () => {
     `
     );
 
-    parser.parse(testFile);
+    const result = parser.parse(testFile);
 
     // Warning should include a suggestion about return type format
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/Promise<\{|return type/)
-    );
+    expect(result.warnings.some((w) => /Promise<\{|return type/.test(w))).toBe(true);
   });
 
   it("should not warn for workflow with valid return type", () => {
@@ -103,9 +98,10 @@ describe("Parser exit port handling", () => {
     `
     );
 
-    parser.parse(testFile);
+    const result = parser.parse(testFile);
 
-    // Should not have logged any warning about return type
+    // Should not have warned about the return type
+    expect(result.warnings.filter((w) => w.includes("return type"))).toEqual([]);
     expect(warnSpy).not.toHaveBeenCalled();
   });
 

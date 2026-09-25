@@ -53,6 +53,26 @@ describe('run store: mocks, the failed step, removal', () => {
     expect((await coordinator.record(waiting.runId))?.mocks).toBeUndefined();
   }, 60000);
 
+  it('yields for a person when the agents section has no entry for this gate, and reads a node-qualified key first', async () => {
+    const coordinator = createLocalCoordinator({ rootDir });
+    // A section without this agent's key is a wait, not a failure.
+    const waiting = await coordinator.start({
+      filePath: agent,
+      params: { path: 'a.ts', text: 'x' },
+      mocks: { agents: { other: { summary: 'not this one', risk: 'high' } } },
+    });
+    expect(waiting.status).toBe('waiting');
+    expect(waiting.gate).toMatchObject({ kind: 'agent', node: 'agent' });
+    // `node:key` wins over the plain key.
+    const qualified = await coordinator.start({
+      filePath: agent,
+      params: { path: 'a.ts', text: 'x' },
+      mocks: { agents: { 'agent:review': { summary: 'scoped', risk: 'low' }, review: { summary: 'plain', risk: 'high' } } },
+    });
+    expect(qualified.status).toBe('completed');
+    expect(qualified.result).toMatchObject({ report: expect.stringContaining('scoped') });
+  }, 60000);
+
   it('answers an authored gate from `gates`, keyed by node, as a person would have', async () => {
     const coordinator = createLocalCoordinator({ rootDir });
     const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });

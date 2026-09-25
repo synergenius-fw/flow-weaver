@@ -12,8 +12,8 @@ body:
         - Parser
         - Validator
         - MCP Server
-        - Studio
-        - Deployment
+        - Console
+        - Serve / HTTP API
         - Other
     validations:
       required: true

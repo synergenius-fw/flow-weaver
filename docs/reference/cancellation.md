@@ -9,6 +9,8 @@ keywords: [cancel, cancellation, abort, AbortSignal, AbortController, timeout, s
 Flow Weaver accepts one parent-owned `AbortSignal` per public executor request:
 
 ```ts
+import { executeWorkflow } from '@synergenius/flow-weaver/coordinator';
+
 await executeWorkflow({
   filePath,
   params,
@@ -17,10 +19,10 @@ await executeWorkflow({
 ```
 
 - The engine never aborts the caller's signal
-- The signal is forwarded to the generated root context, nested workflow calls, child scopes, first-party engine-owned waits, and the deployment executor's derived timeout signal
+- The signal is forwarded to the generated root context, nested workflow calls, child scopes and first-party engine-owned waits. The coordinator takes the same `abortSignal` option on `start` and `resume`, which is how `fw serve` stops a segment in flight on `POST /runs/:id/cancel` and on shutdown
 - Cancellation is observed before execution and at compiler-generated node boundaries
 - The built-in `delay` wait stops promptly; local workflow invocation forwards the same signal
-- Gates (`waitForEvent`, `waitForAgent`, declared `@durableGate` nodes) never wait, so there is nothing to cancel — they yield a continuation and the process is free to exit; see [Durable Gates](durable-gates)
+- Gates (`waitForEvent`, `waitForAgent`, declared `@durableGate` nodes) never wait, so there is nothing to cancel — they yield a continuation and the process is free to exit; see [Durable Gates](durable-gates.md)
 
 Cancellation is cooperative, not preemptive. A node that blocks synchronously
 or awaits work that ignores cancellation continues until it returns; the engine
@@ -34,5 +36,5 @@ Electron-only serialization.
 
 ## Related Topics
 
-- [Durable Gates](durable-gates) — Pausing without a process
-- [Debugging](debugging) — `--timeout` on `fw run`
+- [Durable Gates](durable-gates.md) — Pausing without a process
+- [Debugging](debugging.md) — `--timeout` on `fw run`

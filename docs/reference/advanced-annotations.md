@@ -6,7 +6,7 @@ keywords: [pullExecution, executeWhen, mergeStrategy, autoConnect, strictTypes, 
 
 # Advanced Annotations
 
-This guide covers annotations that go beyond the basics in [Concepts](concepts). Each feature is fully supported by the parser, validator, and compiler.
+This guide covers annotations that go beyond the basics in [Concepts](concepts.md). Each feature is fully supported by the parser, validator, and compiler.
 
 ## Pull Execution
 
@@ -398,7 +398,7 @@ Set port values via JavaScript expressions instead of connections:
 @node wait delay [expr: duration="'30s'"]
 ```
 
-Each assignment is `portName="expression"`. Multiple assignments are comma-separated. (`waitForEvent` and `waitForAgent` accept expressions the same way, but using either makes the workflow a gated one — see [Durable Gates](durable-gates).)
+Each assignment is `portName="expression"`. Multiple assignments are comma-separated. (`waitForEvent` and `waitForAgent` accept expressions the same way, but using either makes the workflow a gated one — see [Durable Gates](durable-gates.md).)
 
 #### Referencing upstream ports
 
@@ -574,7 +574,7 @@ These annotations go on `@flowWeaver nodeType` blocks:
 
 `@resilience` is an explicit static-analysis contract; it does not implement retries itself. Use it only when the node's shared adapter already performs the declared bounded retries or fallback. An unconnected `onFailure` port still remains an error because exhausted attempts must be handled.
 
-The three `@durable…` tags are a closed classification: once a workflow's reachable closure contains a gate, every node in it must carry exactly one of them, or compilation fails. An effect node also changes its signature — a trailing `operationKey: string` parameter and a `{ result, receipt }` return. See [Durable Gates](durable-gates).
+The three `@durable…` tags are a closed classification: once a workflow's reachable closure contains a gate, every node in it must carry exactly one of them, or compilation fails. An effect node also changes its signature — a trailing `operationKey: string` parameter and a `{ result, receipt }` return. See [Durable Gates](durable-gates.md).
 
 ---
 
@@ -616,9 +616,9 @@ Any [Material Symbols](https://fonts.google.com/icons) name is valid, in the fon
 
 ## Related Topics
 
-- [Concepts](concepts) — Core workflow fundamentals
-- [Durable Gates](durable-gates) — The `@durablePure` / `@durableGate` / `@durableEffect` classification
-- [JSDoc Grammar](jsdoc-grammar) — Formal EBNF syntax for all annotations
-- [Compilation](compilation) — How annotations affect code generation
-- [Error Codes](error-codes) — Validation errors for annotation issues
-- [CLI Reference](cli-reference) — All command flags
+- [Concepts](concepts.md) — Core workflow fundamentals
+- [Durable Gates](durable-gates.md) — The `@durablePure` / `@durableGate` / `@durableEffect` classification
+- [JSDoc Grammar](jsdoc-grammar.md) — Formal EBNF syntax for all annotations
+- [Compilation](compilation.md) — How annotations affect code generation
+- [Error Codes](error-codes.md) — Validation errors for annotation issues
+- [CLI Reference](cli-reference.md) — All command flags

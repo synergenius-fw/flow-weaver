@@ -13,8 +13,8 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Commands that do not belong in a page: they run until stopped, sign in
- * and out of accounts, or start the very thing that is already running.
+ * Commands that do not belong in a page: they run until stopped, or start
+ * the very thing that is already running.
  */
 export const NOT_FROM_CONSOLE = new Set([
   'console', 'mcp-server', 'mcp-setup', 'dev', 'watch', 'serve',

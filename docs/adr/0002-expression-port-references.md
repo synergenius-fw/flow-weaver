@@ -8,7 +8,7 @@
 
 Every data edge in a Flow Weaver workflow is declared: `@connect a.x -> b.y`,
 or a `@path` that resolves ports by name. That is the model, and it is what
-the validator, the visual editor, the durable graph and the packs all read.
+the validator, the visual editor (since removed), the durable graph and the packs all read.
 
 Writing an agent-driven workflow against that model showed one recurring
 cost. A node's input often has to be a small reshaping of values that

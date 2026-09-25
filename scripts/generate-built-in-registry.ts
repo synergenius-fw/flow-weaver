@@ -69,17 +69,9 @@ function extractMockHelpers(): string {
   return `${getMockJS}\n\n${lookupMockJS}`;
 }
 
-let _mockHelpers: string | null = null;
-function getMockHelpers(): string {
-  if (!_mockHelpers) _mockHelpers = extractMockHelpers();
-  return _mockHelpers;
-}
-
-// Back-compat accessor
-const MOCK_HELPERS = (() => {
-  try { return extractMockHelpers(); }
-  catch { return ''; }
-})();
+// Extracted once, and loudly: an empty helper text would compile into every
+// workflow that uses a built-in node and fail there instead of here.
+const MOCK_HELPERS = extractMockHelpers();
 
 // ---------------------------------------------------------------------------
 // Source file processing

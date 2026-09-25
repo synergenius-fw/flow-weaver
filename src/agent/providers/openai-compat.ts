@@ -63,18 +63,15 @@ export class OpenAICompatProvider implements AgentProvider {
       ],
       max_tokens: maxTokens,
       stream: true,
+      // Without this OpenAI sends no usage on a stream, and token totals stay 0.
+      stream_options: { include_usage: true },
     };
 
     if (apiTools && apiTools.length > 0) {
       body.tools = apiTools;
     }
 
-    // Determine the completions endpoint
-    const url = this.baseUrl.includes('/v1/')
-      ? `${this.baseUrl}chat/completions`
-      : `${this.baseUrl}/v1/chat/completions`;
-
-    const response = await fetch(url, {
+    const response = await fetch(completionsUrl(this.baseUrl), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -197,6 +194,17 @@ export class OpenAICompatProvider implements AgentProvider {
     }
     yield { type: 'message_stop', finishReason: hasToolCalls ? 'tool_calls' : 'stop' };
   }
+}
+
+/**
+ * The chat completions endpoint for a base URL. Servers differ in where the
+ * version lives: OpenAI is `https://api.openai.com` (+ `/v1`), Groq is
+ * `https://api.groq.com/openai/v1`, Ollama is `http://localhost:11434/v1`.
+ * A base that already ends in `/v1` gets the path appended as is.
+ */
+export function completionsUrl(baseUrl: string): string {
+  const base = baseUrl.replace(/\/+$/, '');
+  return /\/v\d+$/.test(base) ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
 }
 
 function formatMessage(m: AgentMessage): Record<string, unknown> {

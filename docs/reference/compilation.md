@@ -74,21 +74,15 @@ export function myWorkflow(params: { data: string }) {
 
 ---
 
-## Compile Targets
+## Other Platforms
 
-`fw compile` and `fw_compile` default to the `typescript` target described above. Any other `--target` name must be registered by an installed pack; core ships none, and an unknown name fails before parsing:
-
-```
-✗ Unknown compile target: <name>. No custom targets registered.
-```
-
-A pack target receives the parsed workflow and its node types and returns the code to write, so what it generates is documented by the pack. Find target packs with `fw market search`; see [Marketplace](marketplace).
+`fw compile` and `fw_compile` always produce the TypeScript described above. Generating code for another platform is an export: `fw export --target <name>` hands the parsed workflow to a target an installed pack provides, and the pack documents what it writes. See [Deployment](deployment.md) and [Marketplace](marketplace.md).
 
 ---
 
 ## Deployment Annotations
 
-These workflow-level annotations are parsed by core into the workflow's options. The default `typescript` target ignores them; a pack target reads the ones it supports. They go inside `@flowWeaver workflow` blocks.
+These workflow-level annotations are parsed by core into the workflow's options. The compiler ignores them; an export target reads the ones it supports. They go inside `@flowWeaver workflow` blocks.
 
 ### `@trigger`
 
@@ -254,31 +248,11 @@ fw compile workflow.ts --dry-run
 
 ---
 
-## Target Options
-
-These `fw compile` flags exist for pack targets. They are handed to the target unchanged; the default `typescript` target does not use them.
-
-| Flag | Meaning for a target that supports it |
-|------|---------------------------------------|
-| `--serve` | Also generate an HTTP serve handler |
-| `--framework <name>` | Framework for that handler: `next`, `express`, `hono`, `fastify`, `remix` |
-| `--typed-events` | Generate Zod event schemas from the workflow's `@param` annotations |
-| `--cron <schedule>` | Override `@trigger cron=` |
-| `--retries <n>` | Override `@retries` |
-| `--timeout <duration>` | Override `@timeout` |
-
-```bash
-fw compile workflow.ts --target <pack-target> --serve --framework next
-fw compile workflow.ts --target <pack-target> --retries 5 --timeout "1h"
-```
-
----
-
 ## Related Topics
 
-- [CLI Reference](cli-reference) — Full compile command flags
-- [Deployment](deployment) — Export targets, HTTP serve mode, OpenAPI
-- [Advanced Annotations](advanced-annotations) — Annotations that affect compilation
-- [Debugging](debugging) — Debug instrumentation and WebSocket events
-- [Built-in Nodes](built-in-nodes) — delay, waitForEvent, invokeWorkflow, waitForAgent
-- [Durable Gates](durable-gates) — Workflows that pause and resume across processes
+- [CLI Reference](cli-reference.md) — Full compile command flags
+- [Deployment](deployment.md) — Export targets, HTTP serve mode, OpenAPI
+- [Advanced Annotations](advanced-annotations.md) — Annotations that affect compilation
+- [Debugging](debugging.md) — Debug instrumentation and WebSocket events
+- [Built-in Nodes](built-in-nodes.md) — delay, waitForEvent, invokeWorkflow, waitForAgent
+- [Durable Gates](durable-gates.md) — Workflows that pause and resume across processes

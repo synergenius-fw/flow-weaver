@@ -9,6 +9,7 @@
  * and the console tick every few seconds, `fw_runs` before it lists.
  */
 import type { DurableGateKind } from '../runtime/continuation.js';
+import { parseDuration } from '../built-in-nodes/delay.js';
 
 export interface RunDue {
   /** When the clock acts, ISO 8601. */
@@ -17,18 +18,13 @@ export interface RunDue {
   action: 'wake' | 'timeout';
 }
 
-const UNITS: Record<string, number> = { ms: 1, s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 };
-
 /**
- * `<number><unit>` with unit `ms`, `s`, `m`, `h` or `d`, as `delay` reads it;
- * `undefined` for anything else, including an empty string.
+ * `<number><unit>` with unit `ms`, `s`, `m`, `h` or `d`; `undefined` for
+ * anything else. The function is the `delay` node's own, so the clock reads
+ * a `sleep` duration or a gate `timeout` exactly as a compiled `delay` reads
+ * its input.
  */
-export function parseDuration(text: unknown): number | undefined {
-  if (typeof text !== 'string') return undefined;
-  const match = /^\s*(\d+)\s*(ms|s|m|h|d)\s*$/.exec(text);
-  if (!match) return undefined;
-  return Number(match[1]) * UNITS[match[2]];
-}
+export { parseDuration };
 
 /**
  * When the clock will move a run that just paused at `gate`, if ever.

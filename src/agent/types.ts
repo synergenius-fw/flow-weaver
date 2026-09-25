@@ -7,7 +7,7 @@
 import type { ChildProcess } from 'node:child_process';
 
 // ---------------------------------------------------------------------------
-// Stream events (canonical union, adopted from platform)
+// Stream events: the one union every provider's stream is converted to.
 // ---------------------------------------------------------------------------
 
 export type StreamEvent =
@@ -65,7 +65,7 @@ export interface ToolEvent {
  * The suffix (per-task context) varies per call but rides on the cached prefix.
  *
  * Providers that support structured system blocks (Anthropic) use both parts.
- * Providers that only accept strings (CLI, OpenAI, platform) concatenate them.
+ * Providers that only accept strings (CLI, OpenAI-compatible) concatenate them.
  */
 export interface SplitPrompt {
   /** Stable prefix, identical across calls. Cacheable. */

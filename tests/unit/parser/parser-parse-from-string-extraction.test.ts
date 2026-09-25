@@ -249,7 +249,7 @@ describe('AnnotationParser.parseFromString branch coverage', () => {
       expect(result.workflows[0].connections.length).toBe(2);
     });
 
-    it('returns errors when referencing a non-existent node type', () => {
+    it('does not report a non-existent node type as a parse error', () => {
       const parser = freshParser();
       const result = parser.parseFromString(`
         /**
@@ -258,8 +258,9 @@ describe('AnnotationParser.parseFromString branch coverage', () => {
          */
         function badWorkflow() {}
       `);
-      expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors.some(e => e.includes('nonExistentType'))).toBe(true);
+      // That is the validator's UNKNOWN_NODE_TYPE; the parser keeps the instance.
+      expect(result.errors).toEqual([]);
+      expect(result.workflows[0].instances[0].nodeType).toBe('nonExistentType');
     });
 
     it('detects async workflow functions', () => {

@@ -2432,7 +2432,7 @@ describe('parser branch coverage 3', () => {
   // ── Workflow: node type not found error ──
 
   describe('workflow node type validation', () => {
-    it('errors when referenced node type does not exist', () => {
+    it('keeps an instance whose node type does not exist, leaving the report to the validator', () => {
       const parser = freshParser();
       const result = parser.parseFromString(`
         /**
@@ -2443,7 +2443,11 @@ describe('parser branch coverage 3', () => {
           return { onSuccess: true };
         }
       `);
-      expect(result.errors.some((e) => e.includes('nonExistentType') || e.includes('not found'))).toBe(true);
+      // The validator reports this once as UNKNOWN_NODE_TYPE, with a hint.
+      expect(result.errors).toEqual([]);
+      expect(result.workflows[0].instances).toEqual([
+        expect.objectContaining({ id: 'A', nodeType: 'nonExistentType' }),
+      ]);
     });
   });
 

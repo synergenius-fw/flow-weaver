@@ -7,10 +7,18 @@ import * as fs from 'fs';
 import { exec } from 'child_process';
 import { logger } from '../utils/logger.js';
 import { announceService } from '../../service-registry.js';
+import { isLoopback } from '../../server/api.js';
 
 export interface ConsoleOptions {
   port?: number;
+  /** Host to bind. Default 127.0.0.1. Anything else needs `insecure`. */
   host?: string;
+  /**
+   * Listen beyond loopback. The console has no login and lets a visitor run
+   * workflows, edit files, start services and install packages, so it is
+   * refused on a reachable host unless this is set.
+   */
+  insecure?: boolean;
   /** Open the console in the default browser once it is listening. */
   open?: boolean;
   /** Re-list and re-validate when project files change. */
@@ -34,11 +42,15 @@ export async function consoleCommand(dir: string | undefined, options: ConsoleOp
   if (!fs.existsSync(projectDir) || !fs.statSync(projectDir).isDirectory()) {
     throw new Error(`Directory not found: ${projectDir}`);
   }
+  const host = options.host ?? '127.0.0.1';
+  if (!isLoopback(host) && !options.insecure) {
+    throw new Error(`Refusing to listen on ${host}: the console has no login, so anyone who can reach the port could run workflows, edit files and install packages in this project. Bind to 127.0.0.1 (the default) or pass --insecure.`);
+  }
 
   const { createConsoleServer } = await import('../../console/server.js');
   let announced: ReturnType<typeof announceService> | undefined;
   const server = await createConsoleServer({
-    projectDir, port: options.port, host: options.host, watch: options.watch,
+    projectDir, port: options.port, host, watch: options.watch,
     onProject: (dir) => announced?.update({ project: dir }),
   });
   announced = announceService({ kind: 'console', transport: 'http', url: server.url, project: projectDir });

@@ -788,4 +788,182 @@ function myNode(execute: boolean): { onSuccess: boolean } {
       expect(config!.name).toBe('SecondBlock');
     });
   });
+
+  // ── Output types of async node types ────────────────────────
+
+  describe('@output on an async node type', () => {
+    it('reads the field type through Promise<{...}> instead of typing it ANY', () => {
+      const { config, warnings } = parseNodeType(`
+/**
+ * @flowWeaver nodeType
+ * @output count
+ * @output name
+ */
+export async function fetchStuff(execute: boolean): Promise<{ count: number; name: string; onSuccess: boolean }> {
+  return { count: 1, name: 'x', onSuccess: true };
+}
+`);
+      expect(warnings).toEqual([]);
+      expect(config!.outputs!['count']).toMatchObject({ type: 'NUMBER', tsType: 'number' });
+      expect(config!.outputs!['name']).toMatchObject({ type: 'STRING', tsType: 'string' });
+    });
+  });
+
+  // ── The [type:X] port modifier ───────────────────────────────
+
+  describe('[type:X] modifier', () => {
+    it('is honoured when the signature gives no usable type', () => {
+      const { config, warnings } = parseNodeType(`
+/**
+ * @flowWeaver nodeType
+ * @input count [type:NUMBER]
+ * @input virtualFlag [type:BOOLEAN]
+ * @output total [type:NUMBER]
+ */
+function n(execute: boolean, count: any): any {
+  return { total: count };
+}
+`);
+      expect(warnings).toEqual([]);
+      expect(config!.inputs!['count'].type).toBe('NUMBER');
+      expect(config!.inputs!['virtualFlag'].type).toBe('BOOLEAN');
+      expect(config!.outputs!['total'].type).toBe('NUMBER');
+    });
+
+    it('warns and keeps the signature type when the modifier disagrees with it', () => {
+      const { config, warnings } = parseNodeType(`
+/**
+ * @flowWeaver nodeType
+ * @input count [type:STRING]
+ */
+function n(execute: boolean, count: number): { onSuccess: boolean } {
+  return { onSuccess: true };
+}
+`);
+      expect(config!.inputs!['count']).toMatchObject({ type: 'NUMBER', tsType: 'number' });
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('[type:STRING]');
+      expect(warnings[0]).toContain('NUMBER');
+    });
+
+    it('warns and ignores a modifier that is not a port type', () => {
+      const { config, warnings } = parseNodeType(`
+/**
+ * @flowWeaver nodeType
+ * @input count [type:INTEGER]
+ */
+function n(execute: boolean, count: any): { onSuccess: boolean } {
+  return { onSuccess: true };
+}
+`);
+      expect(config!.inputs!['count'].type).toBe('ANY');
+      expect(warnings.some((w) => w.includes('[type:INTEGER]') && w.includes('not a port type'))).toBe(true);
+    });
+  });
+
+  // ── @returns / @param field lookup is anchored at a field boundary ──
+
+  describe('@returns and @param field lookup', () => {
+    it('does not match @returns id inside the field "valid"', () => {
+      const { config, warnings } = parseWorkflow(`
+/**
+ * @flowWeaver workflow
+ * @returns id
+ */
+export function wf(execute: boolean, params: {}): { valid: boolean; id: string; onSuccess: boolean; onFailure: boolean } {
+  return { valid: true, id: '', onSuccess: true, onFailure: false };
+}
+`);
+      expect(warnings).toEqual([]);
+      expect(config!.returnPorts!['id'].dataType).toBe('STRING');
+    });
+
+    it('warns for @returns id when only "valid" exists', () => {
+      const { config, warnings } = parseWorkflow(`
+/**
+ * @flowWeaver workflow
+ * @returns id
+ */
+export function wf(execute: boolean, params: {}): { valid: boolean; onSuccess: boolean; onFailure: boolean } {
+  return { valid: true, onSuccess: true, onFailure: false };
+}
+`);
+      expect(config!.returnPorts!['id'].dataType).toBe('ANY');
+      expect(warnings.some((w) => w.includes('Could not infer type for @returns "id"'))).toBe(true);
+    });
+
+    it('does not match @param id inside the params field "valid"', () => {
+      const { config, warnings } = parseWorkflow(`
+/**
+ * @flowWeaver workflow
+ * @param id
+ */
+export function wf(execute: boolean, params: { valid: boolean; id: string }): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+`);
+      expect(warnings).toEqual([]);
+      expect(config!.startPorts!['id'].dataType).toBe('STRING');
+    });
+  });
+
+  // ── @retries and @timeout go through the grammar ─────────────
+
+  describe('@retries and @timeout', () => {
+    it('rejects @retries 3abc with a warning instead of reading 3', () => {
+      const { config, warnings } = parseWorkflow(`
+/**
+ * @flowWeaver workflow
+ * @retries 3abc
+ */
+export function wf(execute: boolean, params: {}): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+`);
+      expect(config!.retries).toBeUndefined();
+      expect(warnings.some((w) => w.includes('@retries 3abc'))).toBe(true);
+    });
+
+    it('rejects a negative @retries with a warning', () => {
+      const { config, warnings } = parseWorkflow(`
+/**
+ * @flowWeaver workflow
+ * @retries -1
+ */
+export function wf(execute: boolean, params: {}): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+`);
+      expect(config!.retries).toBeUndefined();
+      expect(warnings.some((w) => w.includes('Invalid @retries value'))).toBe(true);
+    });
+
+    it('accepts @retries 5 and both quoted and bare @timeout values', () => {
+      const quoted = parseWorkflow(`
+/**
+ * @flowWeaver workflow
+ * @retries 5
+ * @timeout "30m"
+ */
+export function wf(execute: boolean, params: {}): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+`);
+      expect(quoted.warnings).toEqual([]);
+      expect(quoted.config!.retries).toBe(5);
+      expect(quoted.config!.timeout).toBe('30m');
+
+      const bare = parseWorkflow(`
+/**
+ * @flowWeaver workflow
+ * @timeout 7d
+ */
+export function wf(execute: boolean, params: {}): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+`);
+      expect(bare.warnings).toEqual([]);
+      expect(bare.config!.timeout).toBe('7d');
+    });
+  });
 });

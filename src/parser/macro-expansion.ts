@@ -1,11 +1,9 @@
 /**
- * Workflow macro expansion, extracted from AnnotationParser (debt #4).
+ * Workflow macro expansion.
  *
- * These functions expand the @map / @path / @fanout / @fanin / @coerce macros
- * and generate implicit auto-connections. They were previously private methods
- * of AnnotationParser. They use no instance state (all inputs/outputs are
- * explicit parameters), so extracting them as free functions is behavior-neutral
- * and shrinks the parser god-class.
+ * These functions expand the @map / @path / @fanOut / @fanIn / @coerce macros
+ * into instances, connections and scopes, and generate the implicit
+ * @autoConnect connections. All inputs and outputs are explicit parameters.
  */
 
 import type {
@@ -306,7 +304,8 @@ export function expandPathMacros(
 
       // Control flow connection
       if (currentId === 'Start') {
-        addConnection('Start', 'execute', nextId, 'execute');
+        // Exit has no execute port: a path straight from Start ends on its onSuccess.
+        addConnection('Start', 'execute', nextId, nextId === 'Exit' ? 'onSuccess' : 'execute');
       } else if (nextId === 'Exit') {
         if (route === 'fail') {
           addConnection(currentId, 'onFailure', 'Exit', 'onFailure');

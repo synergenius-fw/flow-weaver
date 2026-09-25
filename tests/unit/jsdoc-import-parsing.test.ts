@@ -410,3 +410,56 @@ export async function testWorkflow(execute: boolean, params: { data: unknown[] }
     expect(reduceType?.importSource).toBe('lodash');
   });
 });
+
+describe('relative imports of non-source files', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-json-import-'));
+
+  afterAll(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('skips `import cfg from "./data.json"` instead of aborting the parse', () => {
+    fs.writeFileSync(path.join(dir, 'data.json'), '{ "greeting": "hi" }');
+    const workflowFile = path.join(dir, 'wf.ts');
+    fs.writeFileSync(workflowFile, `import cfg from './data.json';
+import './styles.css';
+
+/**
+ * @flowWeaver nodeType
+ * @output greeting
+ */
+function greet(execute: boolean): { greeting: string; onSuccess: boolean } {
+  return { greeting: cfg.greeting, onSuccess: true };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node g greet
+ * @connect Start.execute -> g.execute
+ * @connect g.onSuccess -> Exit.onSuccess
+ */
+export function wf(execute: boolean, params: {}): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+`);
+
+    const result = parser.parse(workflowFile);
+    expect(result.errors).toEqual([]);
+    expect(result.workflows).toHaveLength(1);
+    expect(result.nodeTypes.some((nt) => nt.functionName === 'greet')).toBe(true);
+  });
+
+  it('still reports a missing TypeScript module', () => {
+    const workflowFile = path.join(dir, 'wf-missing.ts');
+    fs.writeFileSync(workflowFile, `import { helper } from './missing-module.js';
+
+/**
+ * @flowWeaver workflow
+ */
+export function wf(execute: boolean, params: {}): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+`);
+    expect(() => parser.parse(workflowFile)).toThrow(/File not found/);
+  });
+});

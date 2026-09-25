@@ -29,6 +29,7 @@ import { refuseCallbackUrl, type CallbackPolicy } from './callback-url.js';
 import type { ExecutionTraceEvent } from '../mcp/workflow-executor.js';
 import {
   createLocalCoordinator,
+  defaultRunsDir,
   buildGateResolution,
   computeBundleDigest,
   answerAgentGate,
@@ -97,7 +98,7 @@ export interface WorkflowApiOptions {
   trace?: boolean;
   /** Error stacks in responses; `mocks` accepted in a start body. */
   dev?: boolean;
-  /** Where runs are stored. Defaults to the shared `~/.fw/runs`. */
+  /** Where runs are stored. Default: the project's `.fw/runs` next to `dir`, the store `fw console` and `fw_run` use too. */
   runsDir?: string;
   /** A run store of your own -- a database, for several instances -- in place of the directory. */
   store?: RunStore;
@@ -312,7 +313,7 @@ function coerce(value: string, schema: Record<string, unknown> | undefined): unk
 export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
   const dir = path.resolve(options.dir);
   const registry = new WorkflowRegistry(dir);
-  const coordinator: LocalCoordinator = createLocalCoordinator(options.store ? { store: options.store } : options.runsDir ? { rootDir: options.runsDir } : {});
+  const coordinator: LocalCoordinator = createLocalCoordinator(options.store ? { store: options.store } : { rootDir: options.runsDir ?? defaultRunsDir(dir) });
   const live = new Map<string, Live>();
   const agentEvents = new Map<string, AgentEntry[]>();
   const subs = new Map<string, Set<ServerResponse>>();
@@ -408,12 +409,32 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
     return Array.isArray(v) ? v[0] : v;
   }
 
-  function cors(res: ServerResponse): void {
-    const origin = options.cors;
+  /**
+   * CORS headers for the configured origin(s). A browser accepts one origin
+   * in the header, so with a list the request's own Origin is echoed when it
+   * is on the list, and the response varies by Origin so a cache never
+   * serves one origin's answer to another.
+   */
+  function cors(req: ServerRequest, res: ServerResponse): void {
+    const allowed = options.cors;
+    if (!allowed) return;
+    let origin: string | undefined;
+    if (Array.isArray(allowed)) {
+      const requested = header(req, 'origin');
+      origin = requested !== undefined && allowed.includes(requested) ? requested : undefined;
+      res.setHeader('Vary', 'Origin');
+    } else {
+      origin = allowed;
+    }
     if (!origin) return;
-    res.setHeader('Access-Control-Allow-Origin', Array.isArray(origin) ? origin.join(', ') : origin);
+    res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Prefer, Idempotency-Key, X-Callback-Url');
+  }
+
+  /** A path segment decoded, or 400 when the percent-encoding is malformed. */
+  function decodeSegment(raw: string): string {
+    try { return decodeURIComponent(raw); } catch { throw new HttpError(400, 'BAD_PATH', `the path segment "${raw}" is not valid percent-encoding`); }
   }
 
   function json(res: ServerResponse, status: number, body: unknown, extra: Record<string, string> = {}): void {
@@ -755,7 +776,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
         params[k] = form && typeof v === 'string' ? coerce(v, props[k]) : v;
       }
     }
-    c.keys.forEach((k, i) => { params[k] = coerce(decodeURIComponent(m[i + 1]), props[k]); });
+    c.keys.forEach((k, i) => { params[k] = coerce(decodeSegment(m[i + 1]), props[k]); });
     const missing = ((c.endpoint.inputSchema?.required as string[] | undefined) ?? []).filter((k) => params[k] === undefined);
     if (missing.length) throw new HttpError(400, 'VALIDATION_ERROR', `missing parameter${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}`, missing.map((k) => ({ path: k, message: 'required' })));
     for (const [k, v] of Object.entries(params)) {
@@ -881,16 +902,16 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
         if (c.route.method !== method) continue;
         const m = p.match(c.regex);
         if (!m) continue;
-        cors(res);
+        cors(req, res);
         await declaredRoute(req, res, c, m, url, base, opts.body);
         return true;
       }
       if (method === 'OPTIONS' && (compiled.some((c) => p.match(c.regex)) || RESERVED.some((r) => p === r || p.startsWith(`${r}/`)))) {
-        cors(res); res.writeHead(204); res.end(); return true;
+        cors(req, res); res.writeHead(204); res.end(); return true;
       }
       const ours = RESERVED.some((r) => p === r || p.startsWith(`${r}/`));
       if (!ours) return false;
-      cors(res);
+      cors(req, res);
       // Swagger UI is a page in a browser, which cannot send the token; when
       // the docs are on, the page and the document it loads are readable.
       const open = p === '/health' || (options.docs && (p === '/docs' || p === '/openapi.json'));
@@ -906,7 +927,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
 
       let m = p.match(/^\/workflows\/([^/]+)$/);
       if (m) {
-        const endpoint = registry.getEndpoint(decodeURIComponent(m[1]));
+        const endpoint = registry.getEndpoint(decodeSegment(m[1]));
         if (!endpoint) throw new HttpError(404, 'WORKFLOW_NOT_FOUND', `Workflow "${m[1]}" not found`);
         if (method === 'GET') { json(res, 200, describeEndpoint(endpoint)); return true; }
         if (method === 'POST') {

@@ -245,7 +245,7 @@ console.log(result);
 // }
 ```
 
-The first argument (`execute: boolean`) is the `Start.execute` signal — pass `true`. The runtime names the run (`runId` is any string of yours) and carries optional services: mocks, a cancellation signal, a debugger. [Using the library](library) lists them.
+The first argument (`execute: boolean`) is the `Start.execute` signal — pass `true`. The runtime names the run (`runId` is any string of yours) and carries optional services: mocks, a cancellation signal, a debugger. [Using the library](library.md) lists them.
 
 Test edge cases:
 

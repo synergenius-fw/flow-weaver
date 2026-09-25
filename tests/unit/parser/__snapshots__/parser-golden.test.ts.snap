@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/advanced/example-dependencies.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/advanced/example-dependencies.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -913,7 +913,7 @@ Demonstrates: Importing and composing reusable nodes",
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/advanced/example-execution-strategies.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/advanced/example-execution-strategies.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -9671,7 +9671,7 @@ function conjunctionNode(execute: boolean, signal3: any, signalOr: any) {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/advanced/example-foreach.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/advanced/example-foreach.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -9803,11 +9803,12 @@ async function forEach(
           },
         },
         "results": {
-          "dataType": "ANY",
+          "dataType": "ARRAY",
           "label": "Results",
           "metadata": {
             "order": 2,
           },
+          "tsType": "any[]",
         },
         "start": {
           "dataType": "STEP",
@@ -10487,11 +10488,12 @@ async function forEach(
               },
             },
             "results": {
-              "dataType": "ANY",
+              "dataType": "ARRAY",
               "label": "Results",
               "metadata": {
                 "order": 2,
               },
+              "tsType": "any[]",
             },
             "start": {
               "dataType": "STEP",
@@ -10776,7 +10778,7 @@ function double(execute: boolean, value: number) {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/advanced/example-port-configs.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/advanced/example-port-configs.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -10910,6 +10912,17 @@ function fetchDataStatic(execute: boolean, url: string, timeout: number) {
           "metadata": {
             "order": -1,
           },
+        },
+        "timeout": {
+          "dataType": "NUMBER",
+          "default": 3000,
+          "expression": undefined,
+          "label": "Static default",
+          "metadata": {
+            "order": 1,
+          },
+          "optional": true,
+          "tsType": "number",
         },
         "url": {
           "dataType": "STRING",
@@ -11403,13 +11416,7 @@ function fetchB(execute: boolean, url: string) {
       "variant": "IMPORTED_WORKFLOW",
     },
   ],
-  "warnings": [
-    "Failed to parse port line: "@input [timeout=3000] - Static default" in rule "inputPort"
-  Error: Expecting token of type --> Identifier <-- but found --> 'timeout=' <--
-  Expected format: @input <name> [scope:scopeName] [order:N] - description
-                   @output <name> - description
-                   @step <name> - description",
-  ],
+  "warnings": [],
   "workflows": [
     {
       "availableFunctionNames": [
@@ -11925,6 +11932,17 @@ function fetchDataStatic(execute: boolean, url: string, timeout: number) {
               "metadata": {
                 "order": -1,
               },
+            },
+            "timeout": {
+              "dataType": "NUMBER",
+              "default": 3000,
+              "expression": undefined,
+              "label": "Static default",
+              "metadata": {
+                "order": 1,
+              },
+              "optional": true,
+              "tsType": "number",
             },
             "url": {
               "dataType": "STRING",
@@ -12461,7 +12479,7 @@ function fetchB(execute: boolean, url: string) {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/advanced/example-pull.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/advanced/example-pull.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -13325,7 +13343,7 @@ function add(execute: boolean, a: number, b: number) {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/advanced/example-scoped.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/advanced/example-scoped.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -14173,7 +14191,7 @@ Execution flow:
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/advanced/example-scoped-ports.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/advanced/example-scoped-ports.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -15070,7 +15088,7 @@ Execution flow:
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/advanced/example-sync-pull.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/advanced/example-sync-pull.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -15734,7 +15752,7 @@ All nodes are sync, workflow is sync",
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/basic/example.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/basic/example.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -16494,7 +16512,7 @@ function multiply(execute: boolean, value: number, factor: number) {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/basic/example-autoconnect.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/basic/example-autoconnect.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -17263,7 +17281,7 @@ function wrapInBox(decorated: string): { boxed: string } {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/basic/example-branching.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/basic/example-branching.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -18269,7 +18287,7 @@ function buildError(execute: boolean, errors: string[]) {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/basic/example-error.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/basic/example-error.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -18924,7 +18942,7 @@ Will fail if input is < 0 or > 100",
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/basic/example-error-onFailure.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/basic/example-error-onFailure.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -19827,7 +19845,7 @@ function handleError(execute: boolean) {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/basic/example-expression-mode.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/basic/example-expression-mode.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -20795,7 +20813,7 @@ function getLength(text: string): number {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/basic/example-expressions.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/basic/example-expressions.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -21519,7 +21537,7 @@ function format(execute: boolean, value: number, label?: string) {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/basic/example-pipeline.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/basic/example-pipeline.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -22407,7 +22425,7 @@ function formatOutput(execute: boolean, result: string): {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/basic/minimal-hello-world.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/basic/minimal-hello-world.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -23023,7 +23041,7 @@ function shout(text: string): { result: string } {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: fixtures/real-world/example-invalid.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: fixtures/real-world/example-invalid.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -23748,7 +23766,7 @@ function unused(execute: boolean, value: number) {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: use-cases/data-pipeline.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: use-cases/data-pipeline.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -24857,7 +24875,7 @@ function formatRecord(email: string, name: string): { record: string } {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: use-cases/hello-world.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: use-cases/hello-world.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -25503,7 +25521,7 @@ function buildGreeting(fullName: string): { message: string } {
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: use-cases/human-approval.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: use-cases/human-approval.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [
@@ -25898,11 +25916,12 @@ async function retryUntilValid(
           "tsType": "string",
         },
         "result": {
-          "dataType": "ANY",
+          "dataType": "OBJECT",
           "label": "Final result from the successful attempt",
           "metadata": {
             "order": 0,
           },
+          "tsType": "object",
         },
         "start": {
           "dataType": "STEP",
@@ -26031,11 +26050,12 @@ async function promptReviewer(
           },
         },
         "result": {
-          "dataType": "ANY",
+          "dataType": "OBJECT",
           "label": "Review decision object ({approved, reviewer, note})",
           "metadata": {
             "order": 0,
           },
+          "tsType": "object",
         },
       },
       "scope": undefined,
@@ -27269,11 +27289,12 @@ async function retryUntilValid(
               "tsType": "string",
             },
             "result": {
-              "dataType": "ANY",
+              "dataType": "OBJECT",
               "label": "Final result from the successful attempt",
               "metadata": {
                 "order": 0,
               },
+              "tsType": "object",
             },
             "start": {
               "dataType": "STEP",
@@ -27402,11 +27423,12 @@ async function promptReviewer(
               },
             },
             "result": {
-              "dataType": "ANY",
+              "dataType": "OBJECT",
               "label": "Review decision object ({approved, reviewer, note})",
               "metadata": {
                 "order": 0,
               },
+              "tsType": "object",
             },
           },
           "scope": undefined,
@@ -27746,7 +27768,7 @@ prompt until the reviewer provides valid input, then finalizes the outcome.",
 }
 `;
 
-exports[`AnnotationParser golden (debt #4) > parse output is stable: use-cases/parallel-enrichment.ts 1`] = `
+exports[`AnnotationParser golden > parse output is stable: use-cases/parallel-enrichment.ts 1`] = `
 {
   "errors": [],
   "nodeTypes": [

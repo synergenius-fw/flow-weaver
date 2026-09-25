@@ -1,9 +1,7 @@
 /**
  * Claude CLI provider: spawns the Claude Code CLI with stream-json output
- * and MCP bridge for tool execution.
- *
- * Adapted from platform's streamClaudeCliChat. Platform-specific dependencies
- * (spawnSandboxed, getBinPath, config) are replaced with injectable options.
+ * and MCP bridge for tool execution. How the process is spawned and where
+ * the binary is found are injectable options.
  */
 
 import { spawn as nodeSpawn, type ChildProcess } from 'node:child_process';

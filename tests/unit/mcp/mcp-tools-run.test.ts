@@ -97,11 +97,34 @@ describe('coordinated run MCP tools', () => {
     expect(inspect.body.error.code).toBe('RUN_NOT_FOUND');
   });
 
+  it('finds a run from an earlier session in the working directory\'s store, with no filePath given', async () => {
+    // Session one starts a run in the project store under FW_RUNS_DIR.
+    const previous = process.env.FW_RUNS_DIR;
+    process.env.FW_RUNS_DIR = path.join(rootDir, 'runs');
+    try {
+      const first = createFakeMcpServer();
+      registerRunTools(first.mcp as never);
+      const paused = await call(first.tools.fw_run, { filePath: agentFixture, params: { path: 'n.md', text: 'x' } });
+      expect(paused.body.data.status).toBe('waiting');
+
+      // Session two (a restarted MCP server) has touched no file yet.
+      const second = createFakeMcpServer();
+      registerRunTools(second.mcp as never);
+      const listed = await call(second.tools.fw_runs, {});
+      expect(listed.body.data.map((r: { runId: string }) => r.runId)).toEqual([paused.body.data.runId]);
+      const done = await call(second.tools.fw_resume, { runId: paused.body.data.runId, answer: { summary: 's', risk: 'low' } });
+      expect(done.body.data.status).toBe('completed');
+    } finally {
+      if (previous === undefined) delete process.env.FW_RUNS_DIR; else process.env.FW_RUNS_DIR = previous;
+    }
+  });
+
   it('maps a parse failure to PARSE_ERROR', async () => {
     const { mcp, tools } = createFakeMcpServer();
     registerRunTools(mcp as never, createLocalCoordinator({ rootDir }));
+    // A file with no @flowWeaver workflow in it does not parse as one.
     const broken = path.join(rootDir, 'broken.ts');
-    fs.writeFileSync(broken, '/** @flowWeaver workflow\n * @node x nope\n */\nexport async function w(execute: boolean) {}\n');
+    fs.writeFileSync(broken, 'export async function w(execute: boolean) {}\n');
     const result = await call(tools.fw_run, { filePath: broken });
     expect(result.isError).toBe(true);
     expect(result.body.error.code).toBe('PARSE_ERROR');

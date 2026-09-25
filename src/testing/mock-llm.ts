@@ -3,7 +3,7 @@
  *
  * Usage in vitest/jest tests:
  * ```typescript
- * import { createMockLlmProvider } from 'flow-weaver/testing';
+ * import { createMockLlmProvider } from '@synergenius/flow-weaver/testing';
  *
  * const mockLlm = createMockLlmProvider([
  *   { match: /search/, response: { content: null, toolCalls: [{ id: '1', name: 'search', arguments: { q: 'test' } }], finishReason: 'tool_calls' } },

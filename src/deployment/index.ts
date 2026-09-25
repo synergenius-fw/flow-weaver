@@ -1,83 +1,11 @@
 /**
- * Flow Weaver Deployment System
+ * Flow Weaver Export Targets
  *
- * Unified abstractions for deploying workflows across CLI, HTTP, and serverless contexts.
+ * The base class every export target extends, the registry that holds
+ * them, and the discovery of targets from installed marketplace packs.
  *
  * @module deployment
  */
-
-// Types
-export type {
-  ExecutionSource,
-  Environment,
-  ExecutionContext,
-  WorkflowRequest,
-  WorkflowResponse,
-  WorkflowError,
-  WorkflowErrorCode,
-  ValidationResult,
-  ValidationError,
-  CliInput,
-  HttpInput,
-  AdapterInput,
-} from './types.js';
-
-// Core - Executor
-export { UnifiedWorkflowExecutor, createExecutor, type ExecutorOptions } from './core/executor.js';
-
-// Core - Adapters
-export {
-  type RequestAdapter,
-  CliRequestAdapter,
-  HttpRequestAdapter,
-  createAdapter,
-} from './core/adapters.js';
-
-// Core - Formatters
-export {
-  formatCliResponse,
-  formatHttpResponse,
-  formatError,
-  type CliOutputOptions,
-} from './core/formatters.js';
-
-// Config
-export type {
-  DeploymentConfig,
-  ServerConfig,
-  ExecutionConfig,
-  SecretsConfig,
-  CorsConfig,
-  RetryConfig,
-  PartialDeploymentConfig,
-  CliConfigOverrides,
-} from './config/types.js';
-
-export {
-  DEFAULT_CONFIG,
-  DEFAULT_SERVER_CONFIG,
-  DEFAULT_EXECUTION_CONFIG,
-  getDefaultConfig,
-} from './config/defaults.js';
-
-export { loadConfig, loadConfigSync, getConfigValue } from './config/loader.js';
-
-// OpenAPI
-export {
-  OpenAPIGenerator,
-  generateOpenAPIJson,
-  generateOpenAPIYaml,
-  type OpenAPIDocument,
-  type OpenAPIInfo,
-  type OpenAPIServer,
-  type GeneratorOptions,
-} from './openapi/generator.js';
-
-export {
-  SchemaConverter,
-  schemaConverter,
-  type OpenAPISchema,
-} from './openapi/schema-converter.js';
 
 // Export Targets
 export {
@@ -100,8 +28,6 @@ export {
   ExportTargetRegistry,
 } from './targets/base.js';
 
-export { generateStandaloneRuntimeModule } from '../api/inline-runtime.js';
-
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { ExportTargetRegistry } from './targets/base.js';
@@ -113,6 +39,10 @@ import { ExportTargetRegistry } from './targets/base.js';
  * `flowweaver.manifest.json` -- that declare `exportTargets` in it.
  * Each target class is eagerly imported (to resolve the async import) but
  * lazily instantiated. The constructor only runs when `registry.get()` is called.
+ *
+ * A target whose module does not export the declared class is skipped with
+ * a warning naming the pack and file, so one broken pack does not take the
+ * others down.
  *
  * @param projectDir project root to scan for installed packs.
  *   When omitted, returns an empty registry (useful for tests).
@@ -130,6 +60,11 @@ export async function createTargetRegistry(projectDir?: string): Promise<ExportT
         // but defer instantiation to the lazy factory
         const mod = await import(pathToFileURL(filePath).href);
         const TargetClass = def.exportName ? mod[def.exportName] : mod.default;
+        if (typeof TargetClass !== 'function') {
+          const what = def.exportName ? `export "${def.exportName}"` : 'a default export';
+          console.warn(`Export target "${def.name}" of pack ${pkg.name} skipped: ${filePath} has no ${what} that is a class or function`);
+          continue;
+        }
         registry.register(def.name, () => new TargetClass());
       }
     }

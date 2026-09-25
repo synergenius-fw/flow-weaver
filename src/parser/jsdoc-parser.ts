@@ -13,13 +13,14 @@ import type {
   TNodeTagAST,
   TSerializableValue,
   THttpRoute,
+  TCoerceTargetType,
 } from '../ast/types';
 import {
   isExecutePort, isSuccessPort, isFailurePort, isScopedMandatoryPort,
   KNOWN_NODETYPE_TAGS, STANDARD_JSDOC_TAGS,
   getKnownWorkflowTags,
 } from '../constants';
-import { inferDataTypeFromTS, stripOptionalUndefined } from '../types/type-mappings';
+import { inferDataTypeFromTS, stripOptionalUndefined, isValidPortType } from '../types/type-mappings';
 import { findClosestMatches } from '../utils/string-distance';
 import type { TagHandlerRegistry } from './tag-registry';
 import {
@@ -35,18 +36,25 @@ import {
   parseTriggerLine,
   parseCancelOnLine,
   parseThrottleLine,
+  parseRetriesLine,
+  parseTimeoutLine,
 } from '../chevrotain-parser';
 
 /**
- * Extract the type of a field from a callback's return type using ts-morph Type API.
- *
- * For scoped INPUT ports, we need to find the return type of the callback and extract
- * the type of a specific field from that return type object.
- *
- * @param callbackType - The Type of the callback parameter
- * @param fieldName - The name of the field to extract from the return type
- * @returns The TypeScript type string, or undefined if extraction fails
+ * `Promise<T>` becomes `T`; any other type is returned as is. An async node
+ * type or callback returns a Promise, and its data ports are the fields of the
+ * resolved value, not of the Promise.
  */
+function unwrapPromise(type: Type): Type {
+  if (type.getText().startsWith('Promise<')) {
+    const typeArgs = type.getTypeArguments();
+    if (typeArgs.length > 0) {
+      return typeArgs[0];
+    }
+  }
+  return type;
+}
+
 /**
  * Get a callback type's call signatures deterministically.
  *
@@ -94,6 +102,16 @@ function resolveCallSignatures(callbackType: Type): ReturnType<Type['getCallSign
   return sigs;
 }
 
+/**
+ * Extract the type of a field from a callback's return type using ts-morph Type API.
+ *
+ * For scoped INPUT ports, we need to find the return type of the callback and extract
+ * the type of a specific field from that return type object.
+ *
+ * @param callbackType - The Type of the callback parameter
+ * @param fieldName - The name of the field to extract from the return type
+ * @returns The TypeScript type string, or undefined if extraction fails
+ */
 function extractCallbackReturnFieldType(callbackType: Type, fieldName: string): string | undefined {
   // Get call signatures from the callback type (cold-checker-safe).
   const callSignatures = resolveCallSignatures(callbackType);
@@ -101,17 +119,9 @@ function extractCallbackReturnFieldType(callbackType: Type, fieldName: string): 
     return undefined;
   }
 
-  // Use the first call signature (callbacks typically have one)
-  let returnType = callSignatures[0].getReturnType();
-
-  // Unwrap Promise<T> to get T - async callbacks return Promise<{...}>
-  const returnTypeText = returnType.getText();
-  if (returnTypeText.startsWith('Promise<')) {
-    const typeArgs = returnType.getTypeArguments();
-    if (typeArgs.length > 0) {
-      returnType = typeArgs[0];
-    }
-  }
+  // Use the first call signature (callbacks typically have one); an async
+  // callback returns Promise<{...}>, so read the resolved value's fields.
+  const returnType = unwrapPromise(callSignatures[0].getReturnType());
 
   // Get the property from the return type
   const property = returnType.getProperty(fieldName);
@@ -234,13 +244,13 @@ export interface JSDocNodeTypeConfig {
   deploy?: Record<string, Record<string, unknown>>;
 }
 
+/** The methods an `@http` route may declare. */
+const HTTP_METHODS: ReadonlySet<string> = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+
 /**
  * `position: x y` as it was written on @node lines: a bracket of its own,
  * or first, last or between other attributes in a shared bracket.
  */
-/** The methods an `@http` route may declare. */
-const HTTP_METHODS: ReadonlySet<string> = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
-
 const POSITION_ATTR = /\s*\[position:\s*-?\d+\s+-?\d+\]|,\s*position:\s*-?\d+\s+-?\d+(?=\s*[,\]])|(?<=\[)\s*position:\s*-?\d+\s+-?\d+\s*,\s*/g;
 const positionGone = (where: string): string =>
   `${where}: node positions are no longer part of the grammar and this was ignored. Remove it, or run \`fw compile\` / \`fw migrate\` to rewrite the block without it.`;
@@ -268,8 +278,6 @@ export interface JSDocWorkflowConfig {
     tags?: TNodeTagAST[];
     width?: number;
     height?: number;
-    x?: number;
-    y?: number;
     sourceLocation?: { line: number; column: number };
     /** Generic `[key: "value"]` bracket attributes, kept for packs to read. */
     attributes?: Record<string, string>;
@@ -279,9 +287,10 @@ export interface JSDocWorkflowConfig {
     from: { node: string; port: string; scope?: string };
     to: { node: string; port: string; scope?: string };
     sourceLocation?: { line: number; column: number };
+    /** Explicit coercion from `@connect a.b -> c.d as <type>`. */
+    coerce?: TCoerceTargetType;
   }>;
   scopes?: Record<string, string[]>;
-  layout?: Record<string, { x: number; y: number }>;
   startPorts?: Record<
     string,
     {
@@ -360,6 +369,15 @@ function workflowParameterDefault(tagText: string, name: string): string | undef
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
   const match = tagText.match(new RegExp(`\\[\\s*${escaped}\\s*=\\s*([^\\]\\r\\n]*)\\]`, 'u'));
   return match?.[1]?.trim();
+}
+
+/**
+ * The `name: type` field of an object type's text, with the type as group 1.
+ * Anchored at a field boundary so `id` does not match inside `valid: boolean`.
+ */
+function objectFieldPattern(name: string): RegExp {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|[{;,\\s])${escaped}\\??\\s*:\\s*([^;},]+)`);
 }
 
 export class JSDocParser {
@@ -667,15 +685,19 @@ export class JSDocParser {
           break;
 
         case 'retries': {
-          const n = parseInt(comment.trim(), 10);
-          if (!isNaN(n) && n >= 0) config.retries = n;
-          else warnings.push(`Invalid @retries value: "${comment.trim()}". Expected non-negative integer.`);
+          // The grammar rejects `3abc` and warns; a negative value also warns.
+          const result = parseRetriesLine(`@retries ${comment.trim()}`, warnings);
+          if (result && result.retries >= 0) config.retries = result.retries;
           break;
         }
 
         case 'timeout': {
-          const val = comment.trim().replace(/^["']|["']$/g, '');
-          if (val) config.timeout = val;
+          // The duration is a quoted string in the grammar (`@timeout "30m"`);
+          // an unquoted value is accepted as the same string.
+          const raw = comment.trim();
+          const quoted = /^"(?:[^"\\]|\\.)*"$/.test(raw) ? raw : `"${raw.replace(/^['"]|['"]$/g, '')}"`;
+          const result = parseTimeoutLine(`@timeout ${quoted}`, warnings);
+          if (result && result.timeout) config.timeout = result.timeout;
           break;
         }
 
@@ -803,6 +825,7 @@ export class JSDocParser {
       } else {
         type = 'ANY';
       }
+      type = this.applyDeclaredType('input', name, result.dataType, type, tsType, func, warnings);
     }
 
     // Check if description contains an expression
@@ -898,7 +921,9 @@ export class JSDocParser {
         type = 'ANY';
       }
     } else {
-      const returnType = func.getReturnType();
+      // An async node type returns Promise<{...}>; its outputs are the fields
+      // of the resolved value.
+      const returnType = unwrapPromise(func.getReturnType());
       // Use ts-morph API to extract property type (handles generics with commas correctly)
       const property = returnType.getProperty(name);
       if (property) {
@@ -912,6 +937,7 @@ export class JSDocParser {
       } else {
         type = 'ANY';
       }
+      type = this.applyDeclaredType('output', name, result.dataType, type, tsType, func, warnings);
     }
 
     // B: Duplicate port detection
@@ -929,6 +955,43 @@ export class JSDocParser {
       }),
       ...(tsType && { tsType }),
     };
+  }
+
+  /**
+   * Reconcile a `[type:X]` modifier with the type inferred from the signature.
+   *
+   * The signature is the interface, so when it gives a usable type that type
+   * stands and a disagreeing modifier is a warning. When the signature gives
+   * nothing usable (no matching parameter or return field, or `any`), the
+   * modifier is the only type information there is and it is honoured.
+   * A modifier that is not a port type is a warning and ignored.
+   */
+  private applyDeclaredType(
+    direction: 'input' | 'output',
+    name: string,
+    declared: string | undefined,
+    inferred: TDataType,
+    tsType: string | undefined,
+    func: FunctionLike,
+    warnings: string[],
+  ): TDataType {
+    if (!declared) return inferred;
+    const nodeTypeName = func.getName() || 'unknown';
+    if (!isValidPortType(declared)) {
+      warnings.push(
+        `@${direction} ${name} in node type '${nodeTypeName}' declares [type:${declared}], which is not a port type. ` +
+          `Use one of STRING, NUMBER, BOOLEAN, ARRAY, OBJECT, FUNCTION, ANY or STEP.`
+      );
+      return inferred;
+    }
+    if (inferred === 'ANY') return declared;
+    if (declared !== inferred && declared !== 'ANY') {
+      warnings.push(
+        `@${direction} ${name} in node type '${nodeTypeName}' declares [type:${declared}] but the signature ` +
+          `gives ${inferred}${tsType ? ` (${tsType})` : ''}. The signature type is used; change one to match.`
+      );
+    }
+    return inferred;
   }
 
   /**
@@ -996,7 +1059,7 @@ export class JSDocParser {
     } else if (func) {
       const returnType = func.getReturnType();
       const returnTypeText = returnType.getText();
-      const fieldMatch = returnTypeText.match(new RegExp(`${name}\\??\\s*:\\s*([^;},]+)`));
+      const fieldMatch = returnTypeText.match(objectFieldPattern(name));
       if (fieldMatch) {
         type = inferDataTypeFromTS(fieldMatch[1].trim());
       } else {
@@ -1076,7 +1139,7 @@ export class JSDocParser {
           /^\{\s*\[[\w]+:\s*string\]:\s*(never|any|unknown);\s*\}$/.test(paramTypeText)
         );
         if (!isCatchAllRecord) {
-          const fieldMatch = paramTypeText.match(new RegExp(`${name}\\??\\s*:\\s*([^;},]+)`));
+          const fieldMatch = paramTypeText.match(objectFieldPattern(name));
           if (fieldMatch) {
             type = inferDataTypeFromTS(fieldMatch[1].trim());
           } else {
@@ -1475,9 +1538,8 @@ export class JSDocParser {
    * Format: @deploy <target> key=value key2="value with spaces" key3=123 key4=true
    *
    * Examples:
-   *   @deploy github-actions action="actions/checkout@v4"
    *   @deploy my-target durableSteps=true framework="next" retries=3
-   *   @deploy another-target memory=256 timeout=30
+   *   @deploy another-target memory=256 timeout=30 tags="a,b"
    *
    * Values are auto-coerced: "true"/"false" → boolean, numeric strings → number.
    */

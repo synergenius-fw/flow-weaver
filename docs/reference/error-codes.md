@@ -432,15 +432,6 @@ const myNode = (execute: boolean, input: string) => { ... };
 >
 > **What to do:** Check that the function name in `@node instanceId functionName` exactly matches a function annotated with `@flowWeaver nodeType` in the same file (or imported).
 
-#### UNDEFINED_NODE
-
-| Field         | Value                                                                                                                                                       |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Severity      | Error                                                                                                                                                       |
-| Meaning       | A connection references a node name that appears in the graph but has no corresponding instance definition.                                                 |
-| Common Causes | A `@connect` or `@path` line references a node that was never declared with `@node`. The `@node` line was removed but connections still reference it.       |
-| Fix           | Either add the missing `@node <id> <nodeType>` line or remove/update the connections that reference the undefined node.                                     |
-
 #### MISSING_REQUIRED_INPUT
 
 | Field         | Value                                                                                                                                                                                                                                                                   |
@@ -722,6 +713,15 @@ These rules detect common workflow design problems that compile fine but indicat
 
 ---
 
+## Parse-Level Codes
+
+Two codes come from parsing the file, before validation runs. `fw_validate`, `fw_describe` and the other MCP tools return them as the error `code`; `fw validate --json` prints them as parse errors.
+
+| Code | Meaning | What to do |
+|------|---------|------------|
+| `MULTIPLE_WORKFLOWS_FOUND` | The file declares several workflows and none was named | Pass `workflowName` (`-w` on the CLI), or let the tool handle every workflow in turn where it offers to |
+| `NO_WORKFLOW_FOUND` | The file has node types but no `@flowWeaver workflow` function | Add the workflow annotation above an exported function, or validate the file as node types only (which `fw_validate` does on its own) |
+
 ## Quick Reference: Error Severity Summary
 
 ### Errors (must fix)
@@ -734,6 +734,7 @@ These rules detect common workflow design problems that compile fine but indicat
 | DUPLICATE_NODE_NAME | Two node types share a function name |
 | RESERVED_NODE_NAME | Node type uses "Start" or "Exit" |
 | RESERVED_INSTANCE_ID | Instance ID is "Start" or "Exit" |
+| INVALID_SCOPE_NAME | A scoped port names a scope that is not a JavaScript identifier (scope names become identifiers in generated code) |
 | UNKNOWN_SOURCE_NODE | Connection from nonexistent node |
 | UNKNOWN_TARGET_NODE | Connection to nonexistent node |
 | UNKNOWN_SOURCE_PORT | Connection from nonexistent output port |
@@ -742,7 +743,6 @@ These rules detect common workflow design problems that compile fine but indicat
 | STEP_PORT_TYPE_MISMATCH | STEP port connected to data port or vice versa |
 | TYPE_INCOMPATIBLE | Type mismatch with @strictTypes enabled |
 | UNKNOWN_NODE_TYPE | Instance references nonexistent node type |
-| UNDEFINED_NODE | Connection references node with no instance |
 | MISSING_REQUIRED_INPUT | Required input has no connection/default/expression |
 | CYCLE_DETECTED | Graph contains a loop |
 | INVALID_EXIT_PORT_TYPE | Exit onSuccess/onFailure is not STEP type |

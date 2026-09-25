@@ -154,7 +154,7 @@ async function exportSingleWorkflowViaRegistry(
     displayName: workflow.name,
     outputDir,
     description: workflow.description,
-    production: options.production ?? true,
+    production: options.production ?? false,
     includeDocs: options.includeDocs,
     targetOptions: {
       ...(options.durableSteps && { durableSteps: true }),
@@ -274,7 +274,7 @@ async function exportMultiWorkflowViaRegistry(
     workflowName: serviceName,
     displayName: serviceName,
     outputDir,
-    production: options.production ?? true,
+    production: options.production ?? false,
     includeDocs: options.includeDocs,
     targetOptions: {
       ...(options.durableSteps && { durableSteps: true }),
@@ -326,7 +326,7 @@ async function compileToOutput(
     write: true,
     inPlace: true,
     parse: { workflowName: functionName },
-    generate: { production: production ?? true },
+    generate: { production: production ?? false },
   });
 
   return outputPath;

@@ -77,4 +77,14 @@ describe('the console on a store of its own', () => {
     const status = await api<{ console: { runsDir: string } }>('GET', '/api/status');
     expect(status.body.console.runsDir).toBe('a run store of your own');
   }, 60000);
+
+  it('answers 400, not 500, to a body that is not a JSON object', async () => {
+    const raw = async (text: string) => fetch(server.url + '/api/project', { method: 'POST', headers: { 'content-type': 'application/json' }, body: text });
+    const broken = await raw('{ not json');
+    expect(broken.status).toBe(400);
+    expect(((await broken.json()) as { error: string }).error).toContain('not valid JSON');
+    const list = await raw('[1, 2]');
+    expect(list.status).toBe(400);
+    expect(((await list.json()) as { error: string }).error).toContain('JSON object');
+  });
 });

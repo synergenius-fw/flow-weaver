@@ -1,7 +1,7 @@
 ---
 name: Deployment
 description: Export workflows through target packs, serve them over HTTP, generate OpenAPI specs, and export multi-workflow services
-keywords: [deploy, export, target, serve, openapi, swagger, serverless, multi-workflow, durable-steps, webhook, http, cors, packs, marketplace, dry-run]
+keywords: [deploy, export, target, serve, openapi, swagger, multi-workflow, durable-steps, webhook, http, cors, packs, marketplace, dry-run]
 ---
 
 # Deployment
@@ -23,7 +23,7 @@ fw export workflow.ts --target <name> --output dist/
 - `--production` compiles without trace instrumentation
 - An unknown target name returns `INVALID_TARGET` naming the installed targets; with no target pack installed that list is empty
 
-What a target generates, the deploy instructions it prints, and any annotations it reads (`@deploy` keys, platform-specific tags) are documented by the pack. Once installed, the pack's topics appear in `fw docs`. Writing a target is covered in [Marketplace](marketplace).
+What a target generates, the deploy instructions it prints, and any annotations it reads (`@deploy` keys, platform-specific tags) are documented by the pack. Once installed, the pack's topics appear in `fw docs`. Writing a target is covered in [Marketplace](marketplace.md).
 
 ---
 
@@ -103,7 +103,7 @@ A request waits at most 60 s for its run (`maxWaitMs`); a `Prefer: wait=<seconds
 
 At most 32 segments started by requests run at once (`maxInFlight`); past that a start or a resolve is `503 BUSY` with `Retry-After`. Agent answers and callbacks are not counted.
 
-The API also keeps the clock. Its sweep, every few seconds (`callbacks.sweepMs`), first wakes every run whose `sleep` is over and times out every gate whose `timeout` has passed — then delivers callbacks, so a run the clock finished still posts its result. A waiting run's JSON carries `due: { at, action }` when the clock will act on it. Embedding the API, `api.tick()` is the same pass on demand. See [Time](durable-gates#time).
+The API also keeps the clock. Its sweep, every few seconds (`callbacks.sweepMs`), first wakes every run whose `sleep` is over and times out every gate whose `timeout` has passed — then delivers callbacks, so a run the clock finished still posts its result. A waiting run's JSON carries `due: { at, action }` when the clock will act on it. Embedding the API, `api.tick()` is the same pass on demand. See [Time](durable-gates.md#time).
 
 **Retries.** An `Idempotency-Key` header makes the same request the same run: a retry after a timeout returns whatever that run has reached, with `Idempotent-Replayed: true`, instead of starting another. The key is scoped to the route.
 
@@ -152,7 +152,7 @@ Add `?async=1` (or `Prefer: respond-async`) to be answered at once with `202` an
 | `GET /runs?workflow=<name>` | Lists runs, newest first — those in flight here and those in the store |
 | `GET /runs/:id` | The run: `status`, `gate` while waiting, `agent` when a profile is involved, `result` or `error` |
 | `GET /runs/:id/result` | The declared answer: `202` while waiting or running, `200`/`422` with the return ports, `500`, `410` when cancelled |
-| `POST /runs/:id/resolve` | Body `{ "answer": … }` or `{ "reject": "why" }`. The rules for `answer` are the ones under [Durable Gates](durable-gates): one output → the value; several → an object with every one; none → `null`. Answers `200` on completion, `202` at the next gate, `409` when the run is not waiting, the file changed since it paused (`BUNDLE_CHANGED`), or an agent is answering |
+| `POST /runs/:id/resolve` | Body `{ "answer": … }` or `{ "reject": "why" }`. The rules for `answer` are the ones under [Durable Gates](durable-gates.md): one output → the value; several → an object with every one; none → `null`. Answers `200` on completion, `202` at the next gate, `409` when the run is not waiting, the file changed since it paused (`BUNDLE_CHANGED`), or an agent is answering |
 | `POST /runs/:id/cancel` | Stops a segment in flight or drops a waiting continuation |
 | `GET /runs/:id/events` | Server-sent events: the run (`type: "run"`), each step when the server keeps a trace (`type: "event"`), what an agent says while it answers (`type: "agent"`), then `synced` and whatever happens next |
 | `GET /runs/:id/agent` | The transcript of the agent that answered the run's latest agent gate |
@@ -161,7 +161,7 @@ Errors are `{ "error": { "code", "message" } }`; `--dev` adds the stack. Codes: 
 
 ### Agent gates
 
-When the project has `.flowweaver/agents.yaml`, a run that pauses at a `waitForAgent` gate is answered by the matching profile in the background: the server records `agent: { profile, status: "answering" }` on the run, streams the model's words on `/runs/:id/events`, and resumes with the answer. The caller sees `202 waiting` and, a moment later, `completed` — or `waiting` with `agent.status: "failed"` and the reason, when the profile could not answer and a person must. `--no-agents` turns this off. See [Agent profiles](durable-gates#agent-profiles).
+When the project has `.flowweaver/agents.yaml`, a run that pauses at a `waitForAgent` gate is answered by the matching profile in the background: the server records `agent: { profile, status: "answering" }` on the run, streams the model's words on `/runs/:id/events`, and resumes with the answer. The caller sees `202 waiting` and, a moment later, `completed` — or `waiting` with `agent.status: "failed"` and the reason, when the profile could not answer and a person must. `--no-agents` turns this off. See [Agent profiles](durable-gates.md#agent-profiles).
 
 While a profile is answering, a resolve from elsewhere is refused with `409 AGENT_ANSWERING`, so two answers never race. The note records which process is answering; if that process dies mid-answer, the next server or console to start marks the note failed and the gate is open again, and a resolve in the meantime ignores a note whose process is gone.
 
@@ -246,7 +246,7 @@ What comes up when the API goes into an existing code base, and what the API doe
 - **Long workflows.** Reverse proxies and load balancers cut a request after a minute or so. The API answers `202` with the result URL after `maxWaitMs` (60 s by default) on its own; set it under your proxy's timeout, or declare `mode=async` on a route whose workflow always runs long.
 - **Back-pressure.** `maxInFlight` (32) caps the segments running at once; past it callers get `503` and `Retry-After`. Size it to what one process can run, and to the model calls agent gates will make.
 - **Shutdown.** Call `api.close()` on `SIGTERM`. A run paused at a gate is safe, it lives in the store. A segment in flight is aborted and the run recorded as failed; a client that used an `Idempotency-Key` can simply repeat the request.
-- **Where runs live.** By default the run store is a directory on the host, which is right for one process, or a few on one machine: they share it, and a claim keeps two from driving the same run. Past one host — instances behind a balancer, a container without a disk — pass a `RunStore` of your own (`createWorkflowApi({ store })`, nine methods over a database; see [Run stores](library#run-stores)) and every instance sees every run. Either way the workflows are parsed with the TypeScript compiler at startup, which takes seconds and needs Node: edge runtimes and short-lived functions are out; a long-running Node service is the shape.
+- **Where runs live.** By default the run store is a directory on the host, which is right for one process, or a few on one machine: they share it, and a claim keeps two from driving the same run. Past one host — instances behind a balancer, a container without a disk — pass a `RunStore` of your own (`createWorkflowApi({ store })`, nine methods over a database; see [Run stores](library.md#run-stores)) and every instance sees every run. Either way the workflows are parsed with the TypeScript compiler at startup, which takes seconds and needs Node: edge runtimes and short-lived functions are out; a long-running Node service is the shape.
 - **Logs and metrics.** `onRun(run)` fires on every state change of a run the API drives; `onCallback(outcome)` on every delivery attempt. Nothing is written to the console otherwise.
 - **Module format.** The package is ESM. From CommonJS, `const { createWorkflowApi } = await import('@synergenius/flow-weaver/server')`.
 - **Limits.** Bodies over 1 MiB are refused with `413` (`maxBodyBytes` changes it). A JSON string where a number is declared is `400`; only form posts are coerced.
@@ -290,7 +290,7 @@ Generate an OpenAPI specification from all workflows in a directory:
 fw openapi <directory> [options]
 ```
 
-The specification is derived from workflow `@param` and `@returns` annotations.
+It is the same document `fw serve` publishes at `/openapi.json`, built by the same code, so the two never disagree. The schemas come from each workflow's `@param` and `@returns` annotations, and the summary from its description.
 
 ### Options
 
@@ -303,15 +303,19 @@ fw openapi ./workflows --format yaml --output api-spec.yaml
 
 # With server URL
 fw openapi ./workflows --server https://api.example.com --title "My API" --version "2.0.0"
+
+# For a server without a token, and without the run resources
+fw openapi ./workflows --no-auth --no-legacy
 ```
 
 ### Generated Spec
 
-Each workflow becomes an endpoint with:
-- **Path** — `POST /workflow-name`
-- **Request body** — JSON schema from `@param` types
-- **Response** — JSON schema from `@returns` types
-- **Description** — From `@description` or JSDoc comment text
+The document (OpenAPI 3.0.3) describes:
+
+- **Declared routes**: every `@http METHOD /path` that could be mounted, with `:name` segments as path parameters, the remaining parameters as query parameters (`GET`, `DELETE`) or a JSON or form request body (the other methods), the `Idempotency-Key` and `Prefer` headers, `callbackUrl` on a `callback` route, and the answers: `200` with the return ports, `202` when paused at a gate (with `Location`), `400`, `409`, `422` on the failure path, `500`. A route marked `auth=none` carries no security requirement
+- **The run resource**: `GET` and `POST /workflows/<name>` for every workflow, unless `--no-legacy`
+- **The run endpoints**: `/runs`, `/runs/{runId}`, `/runs/{runId}/resolve`, `/runs/{runId}/cancel`, `/runs/{runId}/events`, `/runs/{runId}/agent`, and `/health`
+- **Components**: the `Run` and `Error` schemas, and the bearer security scheme applied to every operation, unless `--no-auth`
 
 ---
 
@@ -327,7 +331,7 @@ Each workflow becomes an endpoint with:
 
 ## Related Topics
 
-- [Marketplace](marketplace) — Finding target packs and writing an export target
-- [CLI Reference](cli-reference) — Full command flags for export, serve, openapi
-- [Compilation](compilation) — Compile targets and target options
-- [Built-in Nodes](built-in-nodes) — Mock system for local testing
+- [Marketplace](marketplace.md) — Finding target packs and writing an export target
+- [CLI Reference](cli-reference.md) — Full command flags for export, serve, openapi
+- [Compilation](compilation.md) — Compile targets and target options
+- [Built-in Nodes](built-in-nodes.md) — Mock system for local testing

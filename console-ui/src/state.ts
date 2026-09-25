@@ -173,7 +173,6 @@ export interface Pack {
   engineVersion: string | null; compatible: boolean | null;
   nodeTypes: Array<{ name: string; functionName: string; description: string; inputs: PackPort[]; outputs: PackPort[]; color: string | null; icon: string | null }>;
   workflows: Array<{ name: string; description: string; params: PackPort[]; returns: PackPort[]; nodes: number }>;
-  patterns: Array<{ name: string; description: string; nodes: number }>;
   exportTargets: Array<{ name: string; description: string }>;
   tagHandlers: Array<{ tags: string[]; namespace: string; scope: string }>;
   validationRuleSets: Array<{ name: string; namespace: string }>;

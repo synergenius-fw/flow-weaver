@@ -1,6 +1,5 @@
 /**
- * Tests for src/cli/commands/doctor.ts
- * Tests: 667, 696, 767-802
+ * Tests for the doctor command's report output.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -25,44 +24,7 @@ function writeFixture(relativePath: string, content: string): string {
   return fullPath;
 }
 
-describe('checkDeploymentProfiles: manifest invalid (line 667)', () => {
-  it('returns pass with "Manifest invalid" when manifest has no profiles array', async () => {
-    const { checkDeploymentProfiles } = await import('../../../src/cli/commands/doctor');
-
-    // Create deployment dir with an invalid manifest (no profiles array)
-    const deployDir = path.join(TEMP_DIR, '.flowweaver', 'deployment');
-    fs.mkdirSync(deployDir, { recursive: true });
-    fs.writeFileSync(path.join(deployDir, 'manifest.yaml'), 'activeProfile: default\n');
-
-    const result = checkDeploymentProfiles(TEMP_DIR);
-    expect(result.status).toBe('pass');
-    expect(result.message).toContain('Manifest invalid');
-  });
-});
-
-describe('checkDeploymentProfiles: target must be a string (line 696)', () => {
-  it('reports invalid profile when target is not a string', async () => {
-    const { checkDeploymentProfiles } = await import('../../../src/cli/commands/doctor');
-
-    const deployDir = path.join(TEMP_DIR, '.flowweaver', 'deployment');
-    fs.mkdirSync(deployDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(deployDir, 'manifest.yaml'),
-      'activeProfile: default\nprofiles:\n  - default\n',
-    );
-    // Profile with target as a number (invalid)
-    fs.writeFileSync(
-      path.join(deployDir, 'default.yaml'),
-      'target: 123\n',
-    );
-
-    const result = checkDeploymentProfiles(TEMP_DIR);
-    expect(result.status).toBe('fail');
-    expect(result.message).toContain('target must be a string');
-  });
-});
-
-describe('doctorCommand: non-JSON output (lines 767-802)', () => {
+describe('doctorCommand: non-JSON output', () => {
   let originalCwd: () => string;
   let originalExit: (code?: number) => never;
 

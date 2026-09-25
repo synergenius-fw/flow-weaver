@@ -16,8 +16,6 @@ import { validateMockConfig } from '../../src/cli/commands/run';
 import { lookupMock } from '../../src/built-in-nodes/mock-types';
 import { logger } from '../../src/cli/utils/logger';
 import { invokeWorkflow } from '../../src/built-in-nodes/invoke-workflow';
-import { waitForEvent } from '../../src/built-in-nodes/wait-for-event';
-import { waitForAgent } from '../../src/built-in-nodes/wait-for-agent';
 import { WorkflowValidator } from '../../src/validation/validator';
 import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
 import { createNestedWorkflowRuntime, type NodeExecutionRuntime } from '../../src/runtime/durable-execution';
@@ -202,27 +200,9 @@ describe('Built-in nodes with scoped mocks', () => {
     expect(result.result).toEqual({ result: 'from-A' });
   });
 
-  it('waitForEvent uses instance-qualified mock key', async () => {
-    const mocks = {
-      events: {
-        'evt1:app/order': { orderId: 'scoped' },
-        'app/order': { orderId: 'default' },
-      },
-    };
-    const result = await waitForEvent(true, 'app/order', undefined, undefined, nodeRuntime('evt1', mocks));
-    expect(result.eventData).toEqual({ orderId: 'scoped' });
-  });
-
-  it('waitForAgent uses instance-qualified mock key', async () => {
-    const mocks = {
-      agents: {
-        'agent1:reviewer': { approved: true },
-        reviewer: { approved: false },
-      },
-    };
-    const result = await waitForAgent(true, 'reviewer', {}, undefined, undefined, nodeRuntime('agent1', mocks));
-    expect(result.agentResult).toEqual({ approved: true });
-  });
+  // The gates (waitForEvent, waitForAgent) are answered by the engine, not by
+  // their bodies; their instance-qualified keys are pinned in
+  // tests/unit/coordinator/coordinator-mocks.test.ts.
 
   it('falls back to unscoped key when no instance match', async () => {
     const mocks = {

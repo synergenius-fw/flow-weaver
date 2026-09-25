@@ -6,7 +6,14 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { generator } from "../../src/generator/workflow-generator";
+import { parseWorkflow } from "../../src/api/parse";
+import { validateWorkflow } from "../../src/api/validate";
+
+/** The validation warnings of one workflow, as one text. */
+async function warningsOf(file: string, workflowName: string): Promise<string> {
+  const parsed = await parseWorkflow(file, { workflowName });
+  return validateWorkflow(parsed.ast).warnings.map((w) => w.message).join("\n");
+}
 
 const TEST_DIR = path.join(os.tmpdir(), `flow-weaver-multi-exit-${process.pid}`);
 
@@ -63,25 +70,11 @@ describe("Multiple Exit Connections Warning", () => {
     const testFile = path.join(TEST_DIR, "multi-exit-warning.ts");
     fs.writeFileSync(testFile, sourceCode);
 
-    // Capture console.log (warnings are output via console.log in generator)
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (...args: any[]) => {
-      logs.push(args.join(" "));
-    };
-
-    try {
-      await generator.generate(testFile, "testWorkflow");
-      console.log = originalLog;
-
-      const allLogs = logs.join("\n");
-      expect(allLogs).toMatch(/has \d+ incoming connections/i);
-      expect(allLogs).toMatch(/output/);
-      expect(allLogs).toMatch(/a\.result/);
-      expect(allLogs).toMatch(/b\.result/);
-    } finally {
-      console.log = originalLog;
-    }
+    const warnings = await warningsOf(testFile, "testWorkflow");
+    expect(warnings).toMatch(/has \d+ incoming connections/i);
+    expect(warnings).toMatch(/output/);
+    expect(warnings).toMatch(/a\.result/);
+    expect(warnings).toMatch(/b\.result/);
   });
 
   it("should NOT warn when each Exit port has only one connection", async () => {
@@ -114,21 +107,6 @@ describe("Multiple Exit Connections Warning", () => {
     const testFile = path.join(TEST_DIR, "multi-exit-no-warning.ts");
     fs.writeFileSync(testFile, sourceCode);
 
-    // Capture console.log
-    const logs: string[] = [];
-    const originalLog = console.log;
-    console.log = (...args: any[]) => {
-      logs.push(args.join(" "));
-    };
-
-    try {
-      await generator.generate(testFile, "testWorkflow");
-      console.log = originalLog;
-
-      const allLogs = logs.join("\n");
-      expect(allLogs).not.toMatch(/has \d+ incoming connections/i);
-    } finally {
-      console.log = originalLog;
-    }
+    expect(await warningsOf(testFile, "testWorkflow")).not.toMatch(/has \d+ incoming connections/i);
   });
 });

@@ -2,7 +2,7 @@
  * The packs installed in a project, as the console shows them.
  *
  * A pack's manifest already says everything: what it adds (node types,
- * workflows, patterns), what it plugs into (export targets, tags, rule
+ * workflows), what it plugs into (export targets, tags, rule
  * sets, docs, CLI commands, MCP tools) and which engine it expects. What
  * is added here is the reading of it for a person: the namespace a pack's
  * commands live under, whether this engine is new enough, and which pack a

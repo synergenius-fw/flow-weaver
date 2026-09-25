@@ -19,7 +19,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { generateInlineRuntime } from '../../src/api/inline-runtime.js';
-import { generateNodeWithExecutionContext } from '../../src/generator/index.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -886,70 +885,6 @@ describe('generateInlineRuntime: method declaration uniqueness', () => {
     // Match only declaration forms (followed by `(` that starts the param list)
     const matches = [...prodRuntime.matchAll(/\bsendStatusChangedEvent\s*\(/g)];
     expect(matches).toHaveLength(1);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 51 to 54: generateNodeWithExecutionContext (code-utils.ts): awaitPrefix contract
-// ---------------------------------------------------------------------------
-
-describe('generateNodeWithExecutionContext: awaitPrefix on all sendStatusChangedEvent calls', () => {
-  // Minimal AST objects sufficient for the function to run without errors.
-  // This function is a public API in generator/index.ts used by external tooling.
-  const minimalNode = {
-    type: 'NodeType' as const,
-    name: 'myNode',
-    functionName: 'myNode',
-    inputs: { execute: { dataType: 'STEP' as const } },
-    outputs: { result: { dataType: 'ANY' as const } },
-    hasSuccessPort: false,
-    hasFailurePort: false,
-    executeWhen: 'always' as const,
-    isAsync: false,
-  };
-
-  const minimalWorkflow = {
-    type: 'Workflow' as const,
-    sourceFile: 'test.ts',
-    name: 'test',
-    functionName: 'test',
-    nodeTypes: [],
-    instances: [],
-    connections: [],
-    startPorts: {},
-    exitPorts: {},
-    imports: [],
-  };
-
-  test('51: async mode: all three sendStatusChangedEvent calls use await', () => {
-    const lines: string[] = [];
-    generateNodeWithExecutionContext(minimalNode as any, minimalWorkflow as any, lines, true);
-    const output = lines.join('\n');
-    const awaitedCalls = [...output.matchAll(/await ctx\.sendStatusChangedEvent\(/g)];
-    // RUNNING + SUCCEEDED + FAILED = 3 call sites
-    expect(awaitedCalls.length).toBeGreaterThanOrEqual(3);
-  });
-
-  test('52: async mode: zero un-awaited sendStatusChangedEvent calls', () => {
-    const lines: string[] = [];
-    generateNodeWithExecutionContext(minimalNode as any, minimalWorkflow as any, lines, true);
-    const output = lines.join('\n');
-    const unAwaited = unAwaitedCallSiteLines(output);
-    expect(unAwaited).toHaveLength(0);
-  });
-
-  test('53: sync mode: sendStatusChangedEvent calls are NOT awaited', () => {
-    const lines: string[] = [];
-    generateNodeWithExecutionContext(minimalNode as any, minimalWorkflow as any, lines, false);
-    const output = lines.join('\n');
-    expect(output).not.toMatch(/await ctx\.sendStatusChangedEvent\(/);
-  });
-
-  test('54: sync mode: sendStatusChangedEvent IS still emitted (just sync)', () => {
-    const lines: string[] = [];
-    generateNodeWithExecutionContext(minimalNode as any, minimalWorkflow as any, lines, false);
-    const output = lines.join('\n');
-    expect(output).toContain('ctx.sendStatusChangedEvent(');
   });
 });
 

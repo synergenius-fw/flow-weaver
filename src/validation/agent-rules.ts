@@ -20,29 +20,11 @@ import type {
   TNodeInstanceAST,
 } from '../ast/types';
 import { detectNodeRole, detectNodeRoleSignal } from './agent-detection';
+import { resolveNodeType, getOutgoing } from './validator-helpers';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/** Resolve a node instance to its node type definition */
-function resolveNodeType(
-  ast: TWorkflowAST,
-  instance: TNodeInstanceAST,
-): TNodeTypeAST | undefined {
-  return ast.nodeTypes.find(
-    (nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType,
-  );
-}
-
-/** Get all outgoing connections from a specific port of a node */
-function getOutgoing(ast: TWorkflowAST, nodeId: string, portName?: string) {
-  return ast.connections.filter((c) => {
-    if (c.from.node !== nodeId) return false;
-    if (portName && c.from.port !== portName) return false;
-    return true;
-  });
-}
 
 /**
  * The agent role a node type is known to have -- or null when the only signal

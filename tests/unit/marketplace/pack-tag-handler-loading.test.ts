@@ -276,12 +276,12 @@ export function myWorkflow(
 // ---------------------------------------------------------------------------
 
 describe('loadPackHandlers in CLI commands', () => {
-  it('compile.ts calls loadPackHandlers before parsing', () => {
+  it('compile.ts parses with a projectDir, so the pack handlers load before parsing', () => {
     const source = fs.readFileSync(
       new URL('../../../src/cli/commands/compile.ts', import.meta.url),
       'utf8',
     );
-    expect(source).toContain('loadPackHandlers');
+    expect(source).toMatch(/parseWorkflow\(file, \{[^}]*projectDir: cwd/);
   });
 
   // Commands that use parseWorkflow() pass projectDir derived from the input file path.

@@ -18,6 +18,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { parseWorkflow } from '../../src/api/parse';
+import { validateWorkflow } from '../../src/api/validate';
 import { parser, type TExternalNodeType } from '../../src/parser/annotation-parser';
 
 describe('parseWorkflow with externalNodeTypes', () => {
@@ -76,10 +77,15 @@ export function usesForeign(
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('errors on the foreign node when externalNodeTypes is NOT supplied', async () => {
+  it('reports the foreign node as an unknown node type when externalNodeTypes is NOT supplied', async () => {
     const result = await parseWorkflow(tempFile, { workflowName: 'usesForeign' });
-    // Baseline: with no external types the foreign node cannot resolve.
-    expect(result.errors.join('\n')).toMatch(/foreignApproval/);
+    // Baseline: with no external types the foreign node cannot resolve. The
+    // parser keeps the instance and the validator names it, once.
+    expect(result.errors).toEqual([]);
+    const validation = validateWorkflow(result.ast);
+    const unknown = validation.errors.filter((e) => e.code === 'UNKNOWN_NODE_TYPE');
+    expect(unknown).toHaveLength(1);
+    expect(unknown[0].message).toMatch(/foreignApproval/);
   });
 
   it('resolves the foreign node when externalNodeTypes IS supplied', async () => {

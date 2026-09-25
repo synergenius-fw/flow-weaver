@@ -20,6 +20,7 @@ import type {
   TPackCliOptionValue,
 } from '../marketplace/types.js';
 import { VERSION } from '../generated-version.js';
+import { logger } from './utils/logger.js';
 
 function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map(Number);
@@ -39,12 +40,7 @@ function checkPackEngineVersion(pkg: TInstalledPackage): void {
   const current = VERSION;
 
   if (compareVersions(current, minVersion) < 0) {
-    console.warn(
-      `\x1b[33mWarning: ${pkg.name} requires flow-weaver >=${minVersion} but ${current} is installed.\x1b[0m`,
-    );
-    console.warn(
-      `\x1b[33mRun: npm install @synergenius/flow-weaver@latest\x1b[0m`,
-    );
+    logger.warn(`${pkg.name} requires flow-weaver >=${minVersion} but ${current} is installed. Run: npm install @synergenius/flow-weaver@latest`);
   }
 }
 
@@ -76,6 +72,13 @@ export async function registerPackCommands(program: Command): Promise<void> {
     const namespace = deriveNamespace(pkg.name);
     const entrypointPath = path.join(pkg.path, manifest.cliEntrypoint);
 
+    // A namespace that is already a command (a built-in, or another pack's)
+    // cannot be added; commander throws. That pack loses its commands, the
+    // rest of the CLI must still work.
+    if (program.commands.some((c) => c.name() === namespace || c.aliases().includes(namespace))) {
+      logger.warn(`${pkg.name}: its command namespace "${namespace}" is already taken, so its commands are not available`);
+      continue;
+    }
     const group = program
       .command(namespace)
       .description(`Commands from ${pkg.name}`);

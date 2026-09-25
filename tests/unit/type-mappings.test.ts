@@ -94,6 +94,32 @@ describe('inferDataTypeFromTS', () => {
     it("should map 'Function' to FUNCTION", () => {
       expect(inferDataTypeFromTS('Function')).toBe('FUNCTION');
     });
+
+    it('should map a generic arrow to FUNCTION', () => {
+      expect(inferDataTypeFromTS('<T>(x: T) => T')).toBe('FUNCTION');
+    });
+
+    it('should map an optional parenthesised arrow to FUNCTION', () => {
+      expect(inferDataTypeFromTS('(() => void) | undefined')).toBe('FUNCTION');
+    });
+
+    it('should map an object with a callback member to OBJECT, not FUNCTION', () => {
+      expect(inferDataTypeFromTS('{ cb: () => void; id: string }')).toBe('OBJECT');
+    });
+
+    it('should map a generic whose argument is a function to OBJECT, not FUNCTION', () => {
+      expect(inferDataTypeFromTS('Map<string, () => void>')).toBe('OBJECT');
+      expect(inferDataTypeFromTS('Record<string, (x: number) => void>')).toBe('OBJECT');
+    });
+
+    it('should map an array of functions to ARRAY', () => {
+      expect(inferDataTypeFromTS('Array<() => void>')).toBe('ARRAY');
+      expect(inferDataTypeFromTS('(() => void)[]')).toBe('ARRAY');
+    });
+
+    it('should map Promise of a function to FUNCTION', () => {
+      expect(inferDataTypeFromTS('Promise<() => void>')).toBe('FUNCTION');
+    });
   });
 
   describe('Promise types (unwrapping)', () => {

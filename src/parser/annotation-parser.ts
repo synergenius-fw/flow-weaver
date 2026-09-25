@@ -15,7 +15,6 @@ import type {
   TWorkflowMacro,
 } from '../ast/types';
 import { EXECUTION_STRATEGIES, isControlFlowPort } from '../constants';
-import { getErrorMessage } from '../utils/error-utils';
 import { stripGeneratedSections, hasInPlaceMarkers } from '../api/generate-in-place';
 import { generateJSDocPortTag } from '../generator/annotation-generator';
 import { resolvePackageTypesPath } from './resolve-package-types';
@@ -201,7 +200,27 @@ function externalToAST(ext: TExternalNodeType): TNodeTypeAST {
   };
 }
 
-// Port ordering functions imported from ./utils/port-ordering
+/**
+ * Extensions of files that can carry `@flowWeaver` annotations. A relative
+ * import of anything else (`./data.json`, `./styles.css`) is application data
+ * the workflow uses, not a node-type source, and is skipped by the parser.
+ */
+const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs']);
+
+/** A file the parse read, with the mtime it had. Cache entries are valid only while every one is unchanged. */
+type FileDependency = { path: string; mtime: number };
+
+/** True when every recorded dependency still has the mtime it had when the entry was cached. */
+function dependenciesUnchanged(deps: FileDependency[]): boolean {
+  for (const dep of deps) {
+    try {
+      if (fs.statSync(dep.path).mtimeMs !== dep.mtime) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
 
 /**
  * Is `nt` the generic import stub `createImportStub` emits when an
@@ -226,7 +245,10 @@ export function getParserProject(): Project {
 
 export class AnnotationParser {
   private project: Project;
-  private importCache = new LRUCache<string, { mtime: number; nodeTypes: TNodeTypeAST[] }>(200);
+  private importCache = new LRUCache<
+    string,
+    { mtime: number; nodeTypes: TNodeTypeAST[]; deps: FileDependency[] }
+  >(200);
   private importStack: Set<string> = new Set();
   private parseCache = new LRUCache<
     string,
@@ -234,8 +256,17 @@ export class AnnotationParser {
       mtime: number;
       contentHash: string;
       result: ParseResult;
+      /** Every other file the parse read (imported node-type sources, package .d.ts files). */
+      deps: FileDependency[];
     }
   >(100);
+  /**
+   * Dependency recorders for the parses in progress: the outer entry belongs to
+   * the workflow file, and each imported file being processed pushes its own so
+   * its importCache entry can list what it read. A file read while any recorder
+   * is active is added to all of them.
+   */
+  private dependencyRecorders: Map<string, number>[] = [];
 
   /** Tag handler registry. Defaults to the global singleton (pre-populated by extensions). */
   tagRegistry: TagHandlerRegistry = tagHandlerRegistry;
@@ -318,66 +349,10 @@ export class AnnotationParser {
     return createHash('sha256').update(content).digest('hex').slice(0, 16);
   }
 
-  private detectMinorEdit(
-    original: string,
-    updated: string
-  ): { isMinor: boolean; affectedFunctions: string[] } {
-    let start = 0;
-    const minLen = Math.min(original.length, updated.length);
-    while (start < minLen && original[start] === updated[start]) start++;
-
-    let endOrig = original.length;
-    let endNew = updated.length;
-    while (endOrig > start && endNew > start && original[endOrig - 1] === updated[endNew - 1]) {
-      endOrig--;
-      endNew--;
-    }
-
-    const changedRegion = updated.slice(start, endNew);
-
-    // Structural patterns require full re-parse
-    const structural =
-      /import\b|export\b|@flowWeaver|@input\b|@output\b|function\s+\w+\s*\(|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|@node\b|@connect\b/;
-    if (structural.test(changedRegion)) {
-      return { isMinor: false, affectedFunctions: [] };
-    }
-
-    // For now, return isMinor: true but no affected functions (conservative approach)
-    // This means we'll still do a full parse but the infrastructure is in place
-    return { isMinor: true, affectedFunctions: [] };
-  }
-
-  private patchAST(
-    filePath: string,
-    cached: { mtime: number; contentHash: string; result: ParseResult; sourceText: string },
-    newContent: string,
-    _affectedFunctions: string[]
-  ): ParseResult | null {
-    try {
-      const sourceFile = this.project.getSourceFile(filePath);
-      if (!sourceFile) return null;
-
-      sourceFile.replaceWithText(newContent);
-
-      // Re-extract all node types (conservative approach for now)
-      const warnings: string[] = [];
-      const nodeTypes = extractNodeTypes(sourceFile, warnings, this.tagRegistry);
-
-      const result = {
-        ...cached.result,
-        nodeTypes,
-        warnings: [...cached.result.warnings, ...warnings],
-      };
-
-      this.parseCache.set(filePath, {
-        mtime: fs.statSync(filePath).mtimeMs,
-        contentHash: this.computeHash(newContent),
-        result,
-      });
-
-      return result;
-    } catch {
-      return null;
+  /** Note that the parse in progress read `filePath`, so cache entries built from it can be invalidated when it changes. */
+  private recordDependency(filePath: string, mtime: number): void {
+    for (const recorder of this.dependencyRecorders) {
+      recorder.set(filePath, mtime);
     }
   }
 
@@ -388,9 +363,12 @@ export class AnnotationParser {
     // Skip cache when external node types are provided (cache was built without them)
     if (!hasExternalTypes) {
       const cached = this.parseCache.get(filePath);
+      // A cached result is only reusable while the files it was built from
+      // (imported node-type sources included) are unchanged.
+      const reusable = cached !== undefined && dependenciesUnchanged(cached.deps);
 
       // FAST PATH 1: mtime unchanged
-      if (cached && cached.mtime === stats.mtimeMs) {
+      if (cached && reusable && cached.mtime === stats.mtimeMs) {
         return cached.result;
       }
 
@@ -401,13 +379,10 @@ export class AnnotationParser {
       const hash = this.computeHash(content);
 
       // FAST PATH 2: content hash unchanged (save without edit)
-      if (cached && cached.contentHash === hash) {
+      if (cached && reusable && cached.contentHash === hash) {
         cached.mtime = stats.mtimeMs;
         return cached.result;
       }
-
-      // FAST PATH 3: Incremental patching disabled. Re-enable when detectMinorEdit
-      // returns affected functions. Infrastructure preserved in detectMinorEdit/patchAST.
 
       // FALLBACK: Full parse
       return this.fullParse(filePath, content, hash, stats.mtimeMs);
@@ -456,6 +431,8 @@ export class AnnotationParser {
   ): ParseResult {
     // Reset import tracking for new parse
     this.importStack.clear();
+    const deps = new Map<string, number>();
+    this.dependencyRecorders = [deps];
 
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -479,7 +456,7 @@ export class AnnotationParser {
     // `any`. Normal filesystem parsing keeps the historical order.
     const importedNodeTypes = sourceLoader === undefined
       ? []
-      : this.extractImportedNodeTypes(sourceFile, filePath, importResolver, sourceLoader);
+      : this.extractImportedNodeTypes(sourceFile, filePath, importResolver, sourceLoader, warnings);
     const localNodeTypes = extractNodeTypes(sourceFile, warnings, this.tagRegistry);
     if (sourceLoader === undefined) {
       importedNodeTypes.push(...this.extractImportedNodeTypes(
@@ -487,6 +464,7 @@ export class AnnotationParser {
         filePath,
         importResolver,
         sourceLoader,
+        warnings,
       ));
     }
 
@@ -543,6 +521,7 @@ export class AnnotationParser {
     // Clean up source file to prevent ts-morph Project bloat
     // (results are captured in the returned AST, source file is no longer needed)
     this.project.removeSourceFile(sourceFile);
+    this.dependencyRecorders = [];
 
     // Only cache when no external types were used (cache should reflect file-only state)
     if (cacheResult && !externalNodeTypes?.length) {
@@ -550,6 +529,7 @@ export class AnnotationParser {
         mtime: mtimeMs,
         contentHash: hash,
         result,
+        deps: [...deps].map(([path, mtime]) => ({ path, mtime })),
       });
     }
 
@@ -647,7 +627,7 @@ export class AnnotationParser {
     this.parseCache.clear();
   }
 
-  private resolveModulePath(moduleSpecifier: string, currentDir: string): string | null {
+  private resolveModulePath(moduleSpecifier: string, currentDir: string, warnings?: string[]): string | null {
     const extensions = ['.ts', '.tsx', '.js', '.jsx'];
 
     // If already has extension, check if exists (with ESM .js → .ts fallback)
@@ -694,7 +674,8 @@ export class AnnotationParser {
             }
           }
         } catch (e) {
-          console.warn(`Failed to parse package.json at ${pkgPath}: ${getErrorMessage(e)}`);
+          // Not a resolution: fall through to the index files, and say why.
+          warnings?.push(`Could not read ${pkgPath} while resolving "${moduleSpecifier}": ${e instanceof Error ? e.message : String(e)}`);
         }
       }
 
@@ -715,6 +696,7 @@ export class AnnotationParser {
     currentFilePath: string,
     importResolver?: SourceImportResolver,
     sourceLoader?: SourceOverrideLoader,
+    warnings?: string[],
   ): TNodeTypeAST[] {
     const importedNodeTypes: TNodeTypeAST[] = [];
     const imports = sourceFile.getImportDeclarations();
@@ -740,10 +722,15 @@ export class AnnotationParser {
 
       const currentDir = path.dirname(currentFilePath);
       const importedFilePath = importResolver?.(moduleSpecifier, currentFilePath)
-        ?? this.resolveModulePath(moduleSpecifier, currentDir);
+        ?? this.resolveModulePath(moduleSpecifier, currentDir, warnings);
 
       // Validate import path exists
       if (!importedFilePath) {
+        // `./data.json`, `./styles.css`: data the workflow uses, never a node-type source.
+        const ext = path.extname(moduleSpecifier);
+        if (ext && !SOURCE_EXTENSIONS.has(ext)) {
+          continue;
+        }
         throw new Error(
           `Import error: File not found for "${moduleSpecifier}"\n` +
             `  Imported from: ${currentFilePath}\n` +
@@ -758,20 +745,26 @@ export class AnnotationParser {
       }
 
       try {
-        // Check cache first — validate mtime to detect file changes
+        // Check cache first, validating the mtime of the file and of everything it imported
         let nodeTypes: TNodeTypeAST[];
         const overriddenSource = sourceLoader?.(importedFilePath);
         const importStats = overriddenSource === undefined
           ? fs.statSync(importedFilePath)
           : { mtimeMs: 0 };
+        if (overriddenSource === undefined) {
+          this.recordDependency(importedFilePath, importStats.mtimeMs);
+        }
         const cached = overriddenSource === undefined
           ? this.importCache.get(importedFilePath)
           : undefined;
-        if (cached && cached.mtime === importStats.mtimeMs) {
+        if (cached && cached.mtime === importStats.mtimeMs && dependenciesUnchanged(cached.deps)) {
           nodeTypes = cached.nodeTypes;
+          for (const dep of cached.deps) this.recordDependency(dep.path, dep.mtime);
         } else {
           // Add to import stack for circular dependency detection
           this.importStack.add(importedFilePath);
+          const importDeps = new Map<string, number>();
+          this.dependencyRecorders.push(importDeps);
 
           try {
             const importedRaw = overriddenSource
@@ -790,6 +783,7 @@ export class AnnotationParser {
               importedFilePath,
               importResolver,
               sourceLoader,
+              warnings,
             );
             // Also extract workflows and convert them to node types
             const workflows = this.extractWorkflows(
@@ -812,10 +806,15 @@ export class AnnotationParser {
             }
 
             // Cache the parsed node types with mtime for invalidation
-            this.importCache.set(importedFilePath, { mtime: importStats.mtimeMs, nodeTypes });
+            this.importCache.set(importedFilePath, {
+              mtime: importStats.mtimeMs,
+              nodeTypes,
+              deps: [...importDeps].map(([path, mtime]) => ({ path, mtime })),
+            });
           } finally {
             // Remove from stack after processing
             this.importStack.delete(importedFilePath);
+            this.dependencyRecorders.pop();
           }
         }
 
@@ -877,9 +876,10 @@ export class AnnotationParser {
         try {
           const dtsStats = fs.statSync(resolvedDts);
           if (npmCached.mtime === dtsStats.mtimeMs) {
+            this.recordDependency(resolvedDts, dtsStats.mtimeMs);
             return npmCached.nodeTypes.filter((nt) => importedNames.has(nt.functionName));
           }
-        } catch { /* file gone — re-parse */ }
+        } catch { /* file gone: re-parse */ }
       } else {
         return npmCached.nodeTypes.filter((nt) => importedNames.has(nt.functionName));
       }
@@ -892,6 +892,7 @@ export class AnnotationParser {
 
     try {
       const dtsContent = fs.readFileSync(dtsPath, 'utf-8');
+      this.recordDependency(dtsPath, fs.statSync(dtsPath).mtimeMs);
       const dtsFile = this.project.createSourceFile(
         `__npm_dts__/${moduleSpecifier}.d.ts`,
         dtsContent,
@@ -921,7 +922,7 @@ export class AnnotationParser {
 
       // Cache all node types from this package (with mtime of the .d.ts file)
       const dtsMtime = fs.statSync(dtsPath).mtimeMs;
-      this.importCache.set(cacheKey, { mtime: dtsMtime, nodeTypes: allNodeTypes });
+      this.importCache.set(cacheKey, { mtime: dtsMtime, nodeTypes: allNodeTypes, deps: [] });
 
       // Return only the ones in the import statement
       return allNodeTypes.filter((nt) => importedNames.has(nt.functionName));
@@ -966,14 +967,14 @@ export class AnnotationParser {
     currentDir: string,
     warnings: string[]
   ): TNodeTypeAST {
-    const importedFilePath = this.resolveModulePath(imp.importSource, currentDir);
+    const importedFilePath = this.resolveModulePath(imp.importSource, currentDir, warnings);
     if (!importedFilePath) {
-      // Gap 3: Warn when relative path doesn't resolve
+      // A relative path that does not resolve is a warning plus a stub, not a failed parse
       warnings.push(`@fwImport: Could not resolve "${imp.importSource}" from ${currentDir}`);
       return this.createImportStub(imp);
     }
 
-    // Gap 1: Circular dependency detection
+    // Circular dependency detection
     if (this.importStack.has(importedFilePath)) {
       const cycle = Array.from(this.importStack).concat(importedFilePath);
       warnings.push(`@fwImport: Circular dependency detected:\n  ${cycle.join('\n  -> ')}`);
@@ -985,6 +986,7 @@ export class AnnotationParser {
 
     try {
       const importedContent = fs.readFileSync(importedFilePath, 'utf-8');
+      this.recordDependency(importedFilePath, fs.statSync(importedFilePath).mtimeMs);
       const importedFile = this.project.createSourceFile(importedFilePath, importedContent, {
         overwrite: true,
       });
@@ -1075,7 +1077,8 @@ export class AnnotationParser {
 
       // Cache all node types from this package (with mtime of the .d.ts file)
       const dtsMtime2 = fs.statSync(dtsPath).mtimeMs;
-      this.importCache.set(cacheKey, { mtime: dtsMtime2, nodeTypes: allNodeTypes });
+      this.recordDependency(dtsPath, dtsMtime2);
+      this.importCache.set(cacheKey, { mtime: dtsMtime2, nodeTypes: allNodeTypes, deps: [] });
 
       // Find the specific function we need
       const found = allNodeTypes.find((nt) => nt.functionName === imp.functionName);
@@ -1237,7 +1240,7 @@ export class AnnotationParser {
 
       const functionName = fn.getName() || 'anonymous';
       const startPorts = parseStartPorts(fn, config);
-      const exitPorts = parseExitPorts(fn, config);
+      const exitPorts = parseExitPorts(fn, config, warnings);
       const userSpecifiedAsync = fn.isAsync();
 
       workflows.push({
@@ -1333,7 +1336,7 @@ export class AnnotationParser {
       // Detect async keyword on workflow function declaration
       const userSpecifiedAsync = fn.isAsync();
       const startPorts = parseStartPorts(fn, config);
-      const exitPorts = parseExitPorts(fn, config);
+      const exitPorts = parseExitPorts(fn, config, warnings);
 
       // Convert @fwImport annotations to properly inferred node types
       // These are persisted in JSDoc so they survive file re-parsing
@@ -1368,20 +1371,10 @@ export class AnnotationParser {
       // Combine available node types with imported npm types for validation
       const allAvailableNodeTypes = [...availableNodeTypes, ...importedNpmNodeTypes];
 
-      // Convert instances to NodeInstanceAST
+      // Convert instances to NodeInstanceAST. An instance whose node type does
+      // not exist is kept as written: the validator reports it once, as
+      // UNKNOWN_NODE_TYPE, with a hint about the closest name.
       const instances: TNodeInstanceAST[] = (config.instances || []).map((inst) => {
-        // Validate node type exists — push error instead of throwing so that
-        // partial parse results remain usable (defense-in-depth for race conditions)
-        const nodeTypeExists = allAvailableNodeTypes.some(
-          (nt) => nt.name === inst.type || nt.functionName === inst.type
-        );
-        if (!nodeTypeExists) {
-          errors.push(
-            `Node type "${inst.type}" not found in workflow "${functionName}". ` +
-              `Available types: ${allAvailableNodeTypes.map((nt) => nt.functionName).join(', ') || '(none)'}`
-          );
-        }
-
         // Convert parentScope string "nodeName.scope" to parent object
         let parent: { id: string; scope: string } | undefined;
         if (inst.parentScope) {
@@ -1428,6 +1421,7 @@ export class AnnotationParser {
         from: conn.from,
         to: conn.to,
         ...(conn.sourceLocation && { sourceLocation: { file: filePath, ...conn.sourceLocation } }),
+        ...(conn.coerce && { coerce: conn.coerce }),
       }));
 
       // Auto-connect: when @autoConnect is set and no explicit @connect annotations exist,

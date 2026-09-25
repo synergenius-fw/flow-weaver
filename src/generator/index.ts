@@ -22,18 +22,5 @@ export {
   getCoercionWrapper,
   buildMergeExpression,
   buildNodeArgumentsWithContext,
-  generateNodeWithExecutionContext,
-  buildExecutionContextReturnForBranch,
   type TBuildNodeArgsOptions,
 } from './code-utils.js';
-
-export {
-  compileTargetRegistry,
-  type CompileTarget,
-} from './compile-target-registry.js';
-
-export {
-  devModeRegistry,
-  type DevModeProvider,
-  type DevModeOptions,
-} from './dev-mode-registry.js';

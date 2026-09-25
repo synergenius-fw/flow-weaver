@@ -6,7 +6,7 @@
  *
  * Usage in vitest/jest tests:
  * ```typescript
- * import { createMockApprovalProvider } from 'flow-weaver/testing';
+ * import { createMockApprovalProvider } from '@synergenius/flow-weaver/testing';
  *
  * const mockApproval = createMockApprovalProvider([
  *   { match: /expense/, response: { approved: true, reviewer: 'alice' } },

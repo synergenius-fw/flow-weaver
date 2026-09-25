@@ -69,26 +69,16 @@ fw compile <input> [options]
 | `-f, --format <format>` | Module format: `esm`, `cjs`, `auto` | `auto` |
 | `--strict` | Type coercion warnings become errors | `false` |
 | `--clean` | Omit redundant @param/@returns | `false` |
-| `--target <target>` | `typescript`, or a target registered by an installed pack | `typescript` |
-| `--cron <schedule>` | Cron schedule; overrides `@trigger cron=` for a pack target | — |
-| `--serve` | Generate serve() handler | `false` |
-| `--framework <name>` | `next`, `express`, `hono`, `fastify`, `remix` | — |
-| `--typed-events` | Generate Zod event schemas | `false` |
-| `--retries <n>` | Retries per function; overrides `@retries` for a pack target | — |
-| `--timeout <duration>` | Function timeout (e.g. `"30m"`) | — |
 
 **Examples:**
 ```bash
 fw compile my-workflow.ts
 fw compile '**/*.ts' -o .output
 fw compile my-workflow.ts --format cjs
-fw compile workflow.ts --target <pack-target> --serve --framework next
 fw compile workflow.ts --production --clean
 ```
 
-> See also: [Compilation](compilation) for details on targets and target options.
-
-`--target` other than `typescript` needs a pack that provides it; core ships none, and an unknown name reports `Unknown compile target: <name>. No custom targets registered.` The `--cron`, `--serve`, `--framework`, `--typed-events`, `--retries` and `--timeout` flags are handed to the pack target; the default `typescript` target does not use them.
+> See also: [Compilation](compilation.md) for what the compiler installs and how markers work. Exporting to another platform is `fw export`, through a target an installed pack provides.
 
 ---
 
@@ -251,7 +241,7 @@ fw run workflow.ts --debug
 fw run workflow.ts --debug --breakpoint processData --breakpoint validate
 ```
 
-> See also: [Built-in Nodes](built-in-nodes) for mock configuration details and [Debugging](debugging) for live debug REPL commands.
+> See also: [Built-in Nodes](built-in-nodes.md) for mock configuration details and [Debugging](debugging.md) for live debug REPL commands.
 
 **Gated workflows are refused.** A workflow containing `waitForEvent`, `waitForAgent`, or any `@durableGate` node yields a continuation instead of finishing, and `fw run` is not a coordinator that can persist one:
 
@@ -260,7 +250,7 @@ fw run workflow.ts --debug --breakpoint processData --breakpoint validate
   coordinator-verified whole-bundle identity before execution
 ```
 
-Drive such a workflow with the `fw_run` / `fw_resume` MCP tools (see [mcp-server](#mcp-server)) or from code via `executeWorkflow`. `--mocks` does not resolve a gate. See [Durable Gates](durable-gates).
+Drive such a workflow with the `fw_run` / `fw_resume` MCP tools (see [mcp-server](#mcp-server)) or from code via `createLocalCoordinator` (or `executeWorkflow`) from `@synergenius/flow-weaver/coordinator`. `--mocks` does not resolve a gate. See [Durable Gates](durable-gates.md).
 
 ---
 
@@ -309,22 +299,21 @@ fw dev <input> [options]
 | `--clean` | Omit redundant annotations | `false` |
 | `--once` | Run once then exit | `false` |
 | `--json` | Output result as JSON | `false` |
-| `--target <target>` | `typescript`, or a target registered by an installed pack | `typescript` |
-| `--framework <framework>` | Framework for the serve handler (pack targets) | `express` |
-| `--port <port>` | Port for the dev server (pack targets) | `3000` |
+| `--mocks <json>` | Mock config as JSON: `gates` (answers by node id), `events`, `agents`, `invocations`, `fast` | — |
+| `--mocks-file <path>` | Path to JSON file with mock config for built-in nodes | — |
 
 **Examples:**
 ```bash
 fw dev workflow.ts --params '{"input": "hello"}'
 fw dev workflow.ts --once --json
-fw dev workflow.ts --target <pack-target> --port 8080
+fw dev workflow.ts --mocks '{"fast": true}'
 ```
 
 ---
 
 ### serve
 
-Start an HTTP server exposing workflows as REST endpoints. Supports hot reload, CORS, and Swagger UI.
+Serve the workflows as HTTP endpoints: the routes they declare with `@http`, a run resource for every workflow, and the run endpoints. Gated runs pause, resume and stream over the same API. Supports hot reload, CORS, and Swagger UI.
 
 ```bash
 fw serve [directory] [options]
@@ -333,21 +322,26 @@ fw serve [directory] [options]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-p, --port <port>` | Server port | `3000` |
-| `-H, --host <host>` | Server host | `0.0.0.0` |
-| `--no-watch` | Disable file watching | watch enabled |
-| `--production` | No trace events | `false` |
-| `--precompile` | Precompile all workflows on startup | `false` |
-| `--cors <origin>` | CORS origin | `*` |
+| `-H, --host <host>` | Server host. Beyond loopback needs `--token` or `--insecure` | `127.0.0.1` |
+| `--token <token>` | Bearer token every request must carry (also `FW_SERVE_TOKEN`) | — |
+| `--no-agents` | Do not answer agent gates from `.flowweaver/agents.yaml` | agents on |
+| `--trace` | Keep a step trace for every run and stream it on `/runs/:id/events` | `false` |
+| `--dev` | Error stacks in responses, and mocks accepted when starting a run | `false` |
+| `--insecure` | Listen beyond loopback without a token | `false` |
+| `--no-watch` | Disable file watching for hot reload | watch enabled |
+| `--cors <origin>` | Send CORS headers for this origin | off |
 | `--swagger` | Enable Swagger UI at `/docs` | `false` |
+| `--production` | Deprecated: the same as leaving `--trace` off | `false` |
 
 **Examples:**
 ```bash
 fw serve ./workflows
 fw serve ./workflows --port 8080 --swagger
-fw serve --production --precompile --no-watch
+fw serve --host 0.0.0.0 --token "$FW_SERVE_TOKEN"
+fw serve --trace --dev --no-watch
 ```
 
-> See also: [Deployment](deployment) for production serving and export.
+> See also: [Deployment](deployment.md) for the routes, the run resource, callbacks and embedding the API.
 
 ---
 
@@ -362,7 +356,8 @@ fw console [directory] [options]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-p, --port <port>` | Port | `4311` |
-| `-H, --host <host>` | Host to bind | `127.0.0.1` |
+| `-H, --host <host>` | Host to bind. A host beyond loopback is refused without `--insecure` | `127.0.0.1` |
+| `--insecure` | Listen beyond loopback. The console has no authentication, so anyone who reaches the port can run your workflows | `false` |
 | `--open` | Open the browser once listening | `false` |
 | `--no-watch` | Do not reload when project files change | watch enabled |
 
@@ -374,7 +369,7 @@ fw console ./workflows --open
 
 Runs started here stream real execution events, so the process lights up step by step and a paused gate offers a form built from the port's TypeScript type. Runs live in the same store as `fw_run` and `fw_resume` (the project's `.fw/runs`, or `FW_RUNS_DIR`): a gate reached in the console can be answered by an assistant over MCP and the other way round, a run waiting at a gate survives a restart of the console, and effects get receipts. The step trace is kept beside the record, so a run opened later still shows what each step did; a segment resumed over MCP keeps no trace, and the console says so rather than guessing. The console binds to localhost and re-reads a file as you save it.
 
-> See also: [Durable Gates](durable-gates) for what pauses a run and how it resumes.
+> See also: [Durable Gates](durable-gates.md) for what pauses a run and how it resumes.
 
 ---
 
@@ -398,7 +393,7 @@ fw agents
 fw agents --init
 ```
 
-> See also: [Durable Gates](durable-gates) for the `agents.yaml` format and how a profile is matched to a gate.
+> See also: [Durable Gates](durable-gates.md) for the `agents.yaml` format and how a profile is matched to a gate.
 
 ---
 
@@ -532,9 +527,14 @@ fw init [directory] [options]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-n, --name <name>` | Project name | directory name |
-| `-t, --template <template>` | Workflow template | `simple` |
+| `-t, --template <template>` | Workflow template | `sequential` |
 | `-f, --format <format>` | `esm` or `cjs` | `esm` |
 | `-y, --yes` | Skip prompts, use defaults | `false` |
+| `--preset <persona>` | User preset: `nocode`, `vibecoder`, `lowcode`, `expert` | — |
+| `--use-case <category>` | Use case: `data`, `ai`, `api`, `automation`, `minimal` | — |
+| `--mcp` | Auto-configure MCP for AI editors after scaffolding | — |
+| `--no-mcp` | Skip the MCP setup prompt | — |
+| `--no-agent` | Skip the post-init agent launch prompt | — |
 | `--install` | Run npm install | — |
 | `--no-install` | Skip npm install | — |
 | `--git` | Initialize git repo | — |
@@ -592,7 +592,7 @@ fw create node <name> <file> [options]
 | Flag | Description | Default |
 |------|-------------|---------|
 | `-l, --line <number>` | Insert at specific line | end of file |
-| `-t, --template <template>` | Node template | `processor` |
+| `-t, --template <template>` | Node template | `transformer` |
 | `-p, --preview` | Preview without writing | `false` |
 | `--strategy <strategy>` | Template strategy (e.g. `mock`, `callback`, `webhook`) | — |
 | `--config <json>` | Additional configuration | — |
@@ -608,7 +608,7 @@ fw create node checker my-workflow.ts --template validator
 
 ### modify
 
-Modify workflow structure programmatically. Parses the file, applies the operation, and regenerates the JSDoc annotations in place. Useful for scripting, CI pipelines, and the genesis self-evolution system.
+Modify workflow structure programmatically. Parses the file, applies the operation, and regenerates the JSDoc annotations in place. Useful for scripting and CI pipelines.
 
 #### modify addNode
 
@@ -724,7 +724,7 @@ fw templates [options]
 |------|-------------|---------|
 | `--json` | Output as JSON | `false` |
 
-> See also: [Scaffold](scaffold) for template details.
+> See also: [Scaffold](scaffold.md) for template details.
 
 ---
 
@@ -743,7 +743,8 @@ fw export <input> [options]
 | `-t, --target <target>` | Target name registered by an installed pack **(required)** | — |
 | `-o, --output <path>` | Output directory **(required)** | — |
 | `-w, --workflow <name>` | Specific workflow | — |
-| `-p, --production` | Production mode | `true` |
+| `-p, --production` | Production mode (no debug events) | `false` |
+| `--bundle` | Bundle node types into the output | `false` |
 | `--dry-run` | Preview without writing | `false` |
 | `--multi` | Export all workflows as single service | `false` |
 | `--workflows <names>` | Comma-separated workflow subset (with `--multi`) | all |
@@ -758,7 +759,7 @@ fw export workflow.ts --target <name> --output dist/ --durable-steps
 fw export workflow.ts --target <name> --output dist/ --dry-run
 ```
 
-> Available targets depend on the installed packs (any package with a `flowweaver.manifest.json`; the package names stay as-is). See [Deployment](deployment) for installation instructions and target-specific details.
+> Available targets depend on the installed packs (any package with a `flowweaver.manifest.json`; the package names stay as-is). See [Deployment](deployment.md) for installation instructions and target-specific details.
 
 ---
 
@@ -778,11 +779,14 @@ fw openapi <directory> [options]
 | `--description <desc>` | API description | — |
 | `-f, --format <format>` | `json` or `yaml` | `json` |
 | `--server <url>` | Server URL | — |
+| `--no-auth` | Leave out the bearer scheme, for a server without a token | auth included |
+| `--no-legacy` | Leave out `POST /workflows/<name>`, and declare `@http` routes only | legacy included |
 
 **Examples:**
 ```bash
 fw openapi ./workflows --output api-spec.json
 fw openapi ./workflows --format yaml --server https://api.example.com
+fw openapi ./workflows --no-auth --no-legacy
 ```
 
 ---
@@ -903,7 +907,7 @@ fw market list [options]
 |------|-------------|---------|
 | `--json` | Output as JSON | `false` |
 
-> See also: [Marketplace](marketplace) for the full package lifecycle guide.
+> See also: [Marketplace](marketplace.md) for the full package lifecycle guide.
 
 ---
 
@@ -978,7 +982,7 @@ fw context [preset] [options]
 | `-o, --output <path>` | Write to file instead of stdout | stdout |
 | `--list` | List available presets and exit | — |
 
-Built-in presets: `core` (the `orientation` map alone, plus the list of every other topic to read on demand), `authoring` (orientation, concepts, grammar, annotations, built-in nodes, durable gates, scaffold, node-conversion), `ops` (orientation, library, CLI, MCP tools, compilation, deployment, export-interface, debugging, error-codes), `full` (all 20 topics).
+Built-in presets: `core` (the `orientation` map alone, plus the list of every other topic to read on demand), `authoring` (orientation, concepts, grammar, annotations, built-in nodes, durable gates, scaffold, node-conversion), `ops` (orientation, library, CLI, MCP tools, compilation, deployment, export-interface, debugging, error-codes), `full` (20 topics: every reference topic except `console` and `visual-reference`). `fw docs list` names all 22 topics.
 
 **Examples:**
 ```bash
@@ -1006,19 +1010,17 @@ fw mcp-server [options]
 |------|-------------|---------|
 | `--stdio` | Run in MCP stdio mode | `false` |
 
-**Running workflows over MCP.** Two tool families execute workflows; pick by who is calling.
+**Running workflows over MCP.**
 
-| Tool | For | Notes |
-|------|-----|-------|
-| `fw_run` | AI assistants | Runs to completion or pauses at a gate, returning `{ runId, gate }` with inputs named by port |
-| `fw_resume` | AI assistants | Continues a paused run with `answer` or `reject`; control ports are filled in |
-| `fw_runs` | AI assistants | Lists runs, or inspects one |
-| `fw_workflow_run` | Coordinators | Stateless; returns the raw continuation envelope |
-| `fw_workflow_resume` | Coordinators | Stateless; requires the envelope, `gateId`, full resolution, and `bundleDigest` |
+| Tool | Notes |
+|------|-------|
+| `fw_run` | Runs to completion or pauses at a gate, returning `{ runId, gate }` with inputs named by port |
+| `fw_resume` | Continues a paused run with `answer` or `reject`; control ports are filled in |
+| `fw_runs` | Lists runs, or inspects one |
 
-The `fw_run` family stores runs under the workflow's project, in `.fw/runs/<runId>/` (`FW_RUNS_DIR` overrides). Results carry no trace events or continuation. See [Durable Gates](durable-gates).
+Runs are stored under the workflow's project, in `.fw/runs/<runId>/` (`FW_RUNS_DIR` overrides). Results carry no trace events or continuation. See [Durable Gates](durable-gates.md). A coordinator of your own uses `createLocalCoordinator` from the library, not MCP.
 
-The full list of 35 tools, with which to prefer and how large their results are, is in [MCP Tools](mcp-tools).
+The full list of 30 tools, with which to prefer and how large their results are, is in [MCP Tools](mcp-tools.md).
 
 ---
 
@@ -1048,10 +1050,10 @@ fw mcp-setup [options]
 
 ## Related Topics
 
-- [Concepts](concepts) — Fundamental workflow concepts
-- [Compilation](compilation) — Compile targets and target options
-- [Deployment](deployment) — Export, serve, and OpenAPI
-- [Built-in Nodes](built-in-nodes) — delay, waitForEvent, invokeWorkflow, and mocks
-- [Scaffold](scaffold) — Template details
-- [Marketplace](marketplace) — Package ecosystem
-- [Advanced Annotations](advanced-annotations) — Pull execution, merge strategies, and more
+- [Concepts](concepts.md) — Fundamental workflow concepts
+- [Compilation](compilation.md) — Compile targets and target options
+- [Deployment](deployment.md) — Export, serve, and OpenAPI
+- [Built-in Nodes](built-in-nodes.md) — delay, waitForEvent, invokeWorkflow, and mocks
+- [Scaffold](scaffold.md) — Template details
+- [Marketplace](marketplace.md) — Package ecosystem
+- [Advanced Annotations](advanced-annotations.md) — Pull execution, merge strategies, and more

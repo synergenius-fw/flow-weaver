@@ -1,4 +1,3 @@
-import { getMockConfig } from './mock-types.js';
 import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 /**
@@ -13,16 +12,14 @@ export async function sleep(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; wokeAt: string }> {
   if (!execute) return { onSuccess: false, onFailure: false, wokeAt: '' };
 
-  const mocks = getMockConfig(runtime);
-  if (mocks) {
-    // Mock mode -- `fast` wakes at once, as it makes `delay` return at once
-    if (mocks.fast) return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
-  }
-
-  // A timer gate: in a compiled workflow this body is never called. The run
-  // yields here and whoever keeps it -- the coordinator, or a host of its
-  // own -- resumes it once `duration` has passed. Called directly, it does
-  // not hold the process: that is what `delay` is for.
+  // A timer gate. The compiler replaces this call with a durable yield, and
+  // whoever keeps the run (the coordinator's clock, or a host of its own)
+  // resumes it once `duration` has passed; under test `fast` wakes it at
+  // once (see `FwMockConfig` in `src/built-in-nodes/mock-types.ts`).
+  // Reaching this body means the generated program did not apply the gate
+  // boundary, so it fails closed. A wait that holds the process is what
+  // `delay` is for.
   void duration;
-  return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
+  void runtime;
+  throw new Error('sleep requires a generated durable timer gate');
 }

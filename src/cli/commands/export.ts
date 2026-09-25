@@ -14,9 +14,9 @@ export interface ExportOptions {
   output: string;
   /** Specific workflow name to export */
   workflow?: string;
-  /** Production mode (default: true) */
+  /** Production mode (default: false) */
   production?: boolean;
-  /** Bundle into single file (future feature) */
+  /** Bundle into a single file, when the target supports it */
   bundle?: boolean;
   /** Dry run - preview without writing files */
   dryRun?: boolean;

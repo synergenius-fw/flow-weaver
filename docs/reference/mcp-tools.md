@@ -6,7 +6,7 @@ keywords: [mcp, tools, fw_run, fw_resume, fw_runs, fw_docs, fw_validate, fw_desc
 
 # MCP Tools
 
-`fw mcp-server --stdio` exposes 32 tools and one prompt. Every tool definition is sent to the assistant on every turn — about 27 KB, or roughly 6,700 tokens, before any work happens — so this page also says which tools to reach for and which results are large.
+`fw mcp-server --stdio` exposes 30 tools and one prompt. Every tool definition is sent to the assistant on every turn — about 27 KB, or roughly 6,700 tokens, before any work happens — so this page also says which tools to reach for and which results are large.
 
 - Register with an editor: `fw mcp-setup` (Claude Code, Cursor, VS Code, Windsurf, Codex, OpenClaw)
 - Every result is JSON: `{ success: true, data }` or `{ success: false, error: { code, message } }`. The one exception is `fw_context`, whose result is the bundle itself as markdown
@@ -21,7 +21,7 @@ keywords: [mcp, tools, fw_run, fw_resume, fw_runs, fw_docs, fw_validate, fw_desc
 | What nodes and connections are there? | `fw_query` with one query type (~300 B) | `fw_describe` (~2.3 KB) |
 | Show the graph in chat | `fw_diagram` with `format: "ascii-compact"` (~240 B) | The default `svg` (markup, not readable) |
 | Look something up | `fw_docs` with `action: "search"`, then `read` with `compact: true` | The `authoring`, `ops` and `full` presets of `fw_context` (75–195 KB) |
-| Run a workflow | `fw_run`, then `fw_resume` if it pauses | `fw_workflow_run` (returns the raw continuation) |
+| Run a workflow | `fw_run`, then `fw_resume` if it pauses | `fw_debug_workflow`, unless you need to step |
 | Change structure | `fw_modify_batch` for several edits, `fw_modify` for one | Rewriting the annotations by hand |
 | Create a workflow | Write the file (node type functions + workflow stub), then `fw_validate` | A generator; there is none |
 
@@ -31,11 +31,9 @@ keywords: [mcp, tools, fw_run, fw_resume, fw_runs, fw_docs, fw_validate, fw_desc
 |------|-----------|---------|-------|
 | `fw_run` | `filePath`, `workflowName?`, `params?` | `completed` + `result`, or `waiting` + `runId` + `gate` | Gate inputs are named by port. ~300–400 B |
 | `fw_resume` | `runId`, one of `answer` / `reject` | Same shape | Control ports are filled in for you |
-| `fw_runs` | `runId?`, `filePath?` | One run, or a list newest first | Re-read a pause without resuming |
-| `fw_workflow_run` | `filePath`, `params?`, `workflowName?`, `runId?`, `bundleDigest?` | `{ kind, gate, continuation }` | For coordinators. The continuation is ~800 tokens per gate and must be sent back verbatim |
-| `fw_workflow_resume` | `runId`, `filePath`, `continuation`, `gateId`, `resolution`, `bundleDigest`, … | Same | For coordinators |
+| `fw_runs` | `runId?`, `filePath?`, `status?`, `limit?` | One run, or a list newest first | Re-read a pause without resuming. `status` is one of `waiting`, `completed`, `failed`, `cancelled` (`waiting` is the one that needs you); `limit` is how many to list, 1 to 200, default 20. When more exist the result says how many older runs were left out |
 
-See [Durable Gates](durable-gates) for what a gate is and the `answer` rules.
+See [Durable Gates](durable-gates.md) for what a gate is and the `answer` rules. A coordinator of your own does not go through MCP: it calls `createLocalCoordinator` (see [Library](library.md)).
 
 ## Inspecting a workflow
 
@@ -54,11 +52,11 @@ See [Durable Gates](durable-gates) for what a gate is and the `answer` rules.
 |------|-----------|---------|-------|
 | `fw_modify` | `filePath`, `operation`, `params`, `workflowName?`, `preview?` | Updated file + validation | `addNode`, `removeNode`, `renameNode`, `addConnection`, `removeConnection`, `setNodeLabel`. Rewrites the JSDoc annotations only; a file that was already compiled in place is recompiled so its body stays consistent |
 | `fw_modify_batch` | `filePath`, `operations`, `workflowName?`, `preview?` | Same | One parse/write/validate cycle for many operations. An `addConnection` that already exists is skipped with a warning, not an error |
-| `fw_scaffold` | `template`, `filePath`, `name?`, `config?`, `preview?` | New workflow or node from a template | Templates are listed in [Scaffold](scaffold) |
+| `fw_scaffold` | `template`, `filePath`, `name?`, `config?`, `preview?` | New workflow or node from a template | Templates are listed in [Scaffold](scaffold.md). When `filePath` exists the code is appended to it |
 | `fw_list_templates` | `type?` | Template catalogue (~4 KB) | Same content as the Scaffold topic |
 | `fw_migrate` | `glob`, `dryRun?` | Files rewritten to current syntax | Parse → regenerate round-trip; use `dryRun` first |
-| `fw_compile` | `filePath`, `write?`, `production?`, `target?`, … | Compiled output path or code | Only marker sections are regenerated. `cron`, `serve`, `framework`, `typedEvents`, `retries`, `timeout` are handed to a pack target; the default `typescript` target does not use them |
-| `fw_export` | `filePath`, `target`, `outputDir?`, `preview?`, … | Deployment files | Targets come from installed packs; with none installed every target is `INVALID_TARGET` |
+| `fw_compile` | `filePath`, `write?`, `production?`, `workflowName?`, `draft?` | Compiled output path and the validation warnings | Only marker sections are regenerated. `draft` lets a workflow with stub nodes compile |
+| `fw_export` | `filePath`, `target`, `outputDir?`, `production?`, `includeDocs?`, `preview?`, … | Deployment files | Targets come from installed packs; with none installed every target is `INVALID_TARGET`. `production` and `includeDocs` are off unless given, as on the CLI |
 
 ## Debugging
 
@@ -74,7 +72,7 @@ Six tools share one in-memory session; the session ends with the server process 
 | `fw_debug_breakpoint` | `debugId`, `action`, `nodeId?` | `add`, `remove`, `list` |
 | `fw_list_debug_sessions` | — | Active sessions |
 
-See [Debugging](debugging).
+See [Debugging](debugging.md).
 
 ## Documentation and environment
 
@@ -82,7 +80,7 @@ See [Debugging](debugging).
 |------|-----------|---------|-------|
 | `fw_docs` | `action` (`list` / `read` / `search`), `topic?`, `query?`, `compact?`, `limit?` | Topics, one topic, or matching sections | `list` returns slug, name and description (~4 KB for 20 topics). `search` returns the 8 best sections by default (`limit` up to 20, `total` says how many matched), each with an excerpt of at most 300 characters; `read` with `compact: true` drops prose and keeps headings, tables, lists, and code. Topics declared by installed packs are included |
 | `fw_context` | `preset?`, `profile?`, `topics?`, `addTopics?`, `includeGrammar?` | The orientation bundle as markdown, ending with every other topic and its size | `core` (default) is the `orientation` topic plus the on-demand topic list, ~6 KB — the intended session start. `authoring` ≈ 75 KB, `ops` ≈ 100 KB, `full` ≈ 195 KB bundle whole references; prefer reading single topics with `fw_docs`. `includeGrammar` appends the generated EBNF (~3 KB), which `jsdoc-grammar` already covers |
-| `fw_list_resources` | `type?` | Icons, colors, tags (~3.7 KB) | Same content as the Available Colors / Icons sections of [Advanced Annotations](advanced-annotations) |
+| `fw_list_resources` | `type?` | Icons, colors, tags (~3.7 KB) | Same content as the Available Colors / Icons sections of [Advanced Annotations](advanced-annotations.md) |
 | `fw_doctor` | `directory?` | Environment checks | Which install is running (version and path), Node version, config, dependencies; warns when the directory is a different Flow Weaver checkout than the running server |
 | `fw_market_search` | `query`, `limit?`, `registryUrl?` | npm packages tagged as Flow Weaver packs | |
 | `fw_market_install` | `package` | Installs via npm | Pack tools register on the next server start |
@@ -94,7 +92,7 @@ The server also publishes one prompt, `flow-weaver-nocode`. It instructs the ass
 
 ## Related Topics
 
-- [Durable Gates](durable-gates) — Running and resuming gated workflows
-- [CLI Reference](cli-reference) — `mcp-server` and `mcp-setup`; most tools mirror a CLI command
-- [Debugging](debugging) — The debug session tools in context
-- [Scaffold](scaffold) — Template catalogue behind `fw_scaffold`
+- [Durable Gates](durable-gates.md) — Running and resuming gated workflows
+- [CLI Reference](cli-reference.md) — `mcp-server` and `mcp-setup`; most tools mirror a CLI command
+- [Debugging](debugging.md) — The debug session tools in context
+- [Scaffold](scaffold.md) — Template catalogue behind `fw_scaffold`

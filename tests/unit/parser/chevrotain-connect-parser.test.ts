@@ -111,5 +111,23 @@ describe('Chevrotain Connect Parser', () => {
       expect(result?.source.nodeId).toBe('A');
       expect(result?.target.nodeId).toBe('B');
     });
+
+    it('should parse the arrow with no spaces around it', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect a.x->b.y', warnings);
+      expect(warnings).toEqual([]);
+      expect(result).toEqual({
+        source: { nodeId: 'a', portName: 'x', scope: undefined },
+        target: { nodeId: 'b', portName: 'y', scope: undefined },
+      });
+    });
+
+    it('should still accept dashes inside identifiers', () => {
+      const warnings: string[] = [];
+      const result = parseConnectLine('@connect npm/react-window/areEqual.result->my-node.in', warnings);
+      expect(warnings).toEqual([]);
+      expect(result?.source.nodeId).toBe('npm/react-window/areEqual');
+      expect(result?.target.nodeId).toBe('my-node');
+    });
   });
 });

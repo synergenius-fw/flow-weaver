@@ -1,8 +1,8 @@
 /**
  * MCP Export Tool - fw_export
  *
- * Allows Claude Code to export workflows as serverless deployments
- * without the GUI. Generates handler code, platform config, and deploy instructions.
+ * Exports a workflow through a target an installed pack provides: handler
+ * code, the target's config files, and deploy instructions.
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -16,7 +16,7 @@ import { makeToolResult, makeErrorResult } from './response-utils.js';
 export function registerExportTools(mcp: McpServer): void {
   mcp.tool(
     'fw_export',
-    'Export workflows as serverless deployments. Generates platform-native config files and deploy instructions. Available targets depend on installed packs.',
+    'Export a workflow to a target an installed pack provides: handler code, the target\'s config files and deploy instructions. Without a target pack installed there is nothing to export to.',
     {
       filePath: z.string().describe('Path to the workflow .ts file'),
       target: z
@@ -38,7 +38,11 @@ export function registerExportTools(mcp: McpServer): void {
       includeDocs: z
         .boolean()
         .optional()
-        .describe('Include OpenAPI/Swagger routes (default: true)'),
+        .describe('Include OpenAPI/Swagger routes (default: false, as fw export --docs)'),
+      production: z
+        .boolean()
+        .optional()
+        .describe('Production code without debug events (default: false, as fw export --production)'),
       preview: z
         .boolean()
         .optional()
@@ -56,6 +60,7 @@ export function registerExportTools(mcp: McpServer): void {
       workflows?: string[];
       nodeTypes?: string[];
       includeDocs?: boolean;
+      production?: boolean;
       preview?: boolean;
       durableSteps?: boolean;
     }) => {
@@ -65,7 +70,9 @@ export function registerExportTools(mcp: McpServer): void {
           args.outputDir || path.join(path.dirname(filePath), 'dist'),
         );
         const preview = args.preview ?? false;
-        const includeDocs = args.includeDocs ?? true;
+        // The CLI's defaults: both are opt-in there, so they are here too.
+        const includeDocs = args.includeDocs ?? false;
+        const production = args.production ?? false;
 
         // 1. Validate file exists
         try {
@@ -128,7 +135,7 @@ export function registerExportTools(mcp: McpServer): void {
             workflowName: args.workflows?.[0] || serviceName,
             displayName: serviceName,
             outputDir,
-            production: true,
+            production,
           });
 
           // Write files if not preview
@@ -223,7 +230,7 @@ export function registerExportTools(mcp: McpServer): void {
             workflowName: serviceName,
             displayName: serviceName,
             outputDir,
-            production: true,
+            production,
             includeDocs,
             targetOptions: {
               ...(args.durableSteps && { durableSteps: true }),

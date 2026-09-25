@@ -151,8 +151,10 @@ export async function compileWorkflow(
       branchingNodes: [],
       branchRegions: [],
       mergeNodes: [],
-      errors: [],
-      warnings: [],
+      // What validation said about the workflow it just compiled: the
+      // warnings a caller (fw_compile, the console) shows next to the code.
+      errors: validationResult.errors,
+      warnings: validationResult.warnings,
       unusedNodes: [],
       inlineCandidates: [],
     },

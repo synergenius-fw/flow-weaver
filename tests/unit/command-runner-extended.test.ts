@@ -6,7 +6,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import yaml from 'js-yaml';
 import { runCommand, getAvailableCommands } from '../../src/api/command-runner.js';
+import { VERSION } from '../../src/generated-version.js';
 
 function createTempWorkflow(dir: string, name: string, content: string): string {
   const filePath = path.join(dir, name);
@@ -33,6 +35,35 @@ export function helloWorld(
   params: { name: string }
 ): { onSuccess: boolean; onFailure: boolean; message: string } {
   throw new Error('Compile me');
+}
+`;
+
+/** A workflow with declared \`@http\` routes, the shape tests/unit/server/workflow-api.test.ts uses. */
+const HTTP_WORKFLOW = `
+/**
+ * @flowWeaver nodeType
+ * @input n - A number
+ * @output out - Twice the number
+ */
+function dbl(execute: boolean, n: number): { onSuccess: boolean; onFailure: boolean; out: number } {
+  return { onSuccess: execute && n >= 0, onFailure: execute && n < 0, out: n * 2 };
+}
+
+/**
+ * Doubles a number.
+ * @flowWeaver workflow
+ * @http POST /double
+ * @http GET /double/:n
+ * @param n - The number
+ * @returns out - Twice the number
+ * @node d dbl
+ * @connect Start.n -> d.n
+ * @connect d.out -> Exit.out
+ * @connect d.onSuccess -> Exit.onSuccess
+ * @connect d.onFailure -> Exit.onFailure
+ */
+export async function double(execute: boolean, params: { n: number }): Promise<{ onSuccess: boolean; onFailure: boolean; out: number }> {
+  throw new Error('generated body was not installed');
 }
 `;
 
@@ -455,7 +486,12 @@ function testNode(x: number): { y: number } { return { y: x * 2 }; }
   });
 
   // ─── openapi ──────────────────────────────────────────────────────
+  // The runner returns the document `fw serve` publishes at /openapi.json:
+  // declared @http routes, a run resource per workflow, the run endpoints.
   describe('openapi', () => {
+    type OpenApiData = { spec: string; format: string; workflowCount: number; routeCount: number; problems: string[] };
+    type OpenApiDoc = { openapi: string; info: { title: string; version: string; description: string }; servers: Array<{ url: string }>; paths: Record<string, Record<string, unknown>>; security?: unknown };
+
     it('should generate JSON spec with correct structure', async () => {
       createTempWorkflow(tmpDir, 'api-wf.ts', VALID_WORKFLOW);
       const result = await runCommand('openapi', {
@@ -464,28 +500,72 @@ function testNode(x: number): { y: number } { return { y: x * 2 }; }
         version: '2.0.0',
         format: 'json',
       });
-      const data = result.data as { spec: string; format: string; workflowCount: number };
+      const data = result.data as OpenApiData;
       expect(data.format).toBe('json');
       expect(data.workflowCount).toBe(1);
-      const parsed = JSON.parse(data.spec);
+      expect(data.routeCount).toBe(0);
+      expect(data.problems).toEqual([]);
+      const parsed = JSON.parse(data.spec) as OpenApiDoc;
       expect(parsed.openapi).toBe('3.0.3');
       expect(parsed.info.title).toBe('Test API');
       expect(parsed.info.version).toBe('2.0.0');
-      expect(parsed.paths).toBeDefined();
+      // The run resource of the workflow, and the run endpoints
+      expect(parsed.paths['/workflows/helloWorld']).toHaveProperty('post');
+      expect(parsed.paths['/runs/{runId}']).toHaveProperty('get');
+      expect(parsed.paths['/health']).toHaveProperty('get');
     });
 
-    it('should generate YAML spec', async () => {
-      createTempWorkflow(tmpDir, 'yaml-wf.ts', VALID_WORKFLOW);
+    it('should mount the declared @http routes', async () => {
+      createTempWorkflow(tmpDir, 'routed.ts', HTTP_WORKFLOW);
+      const result = await runCommand('openapi', { directory: tmpDir, format: 'json' });
+      const data = result.data as OpenApiData;
+      expect(data.workflowCount).toBe(1);
+      expect(data.routeCount).toBe(2);
+      expect(data.problems).toEqual([]);
+      const parsed = JSON.parse(data.spec) as OpenApiDoc;
+      expect(parsed.paths['/double']).toHaveProperty('post');
+      expect(parsed.paths['/double/{n}']).toHaveProperty('get');
+      const byPath = parsed.paths['/double/{n}'].get as { parameters: Array<{ name: string; in: string }> };
+      expect(byPath.parameters).toContainEqual(expect.objectContaining({ name: 'n', in: 'path' }));
+    });
+
+    it('should generate YAML spec that parses back to the same document', async () => {
+      createTempWorkflow(tmpDir, 'yaml-wf.ts', HTTP_WORKFLOW);
       const result = await runCommand('openapi', {
         directory: tmpDir,
         title: 'YAML API',
-        version: '1.0.0',
+        version: '1.0',
         format: 'yaml',
       });
-      const data = result.data as { spec: string; format: string };
+      const data = result.data as OpenApiData;
       expect(data.format).toBe('yaml');
       expect(data.spec).toContain('openapi:');
-      expect(data.spec).toContain('YAML API');
+      const parsed = yaml.load(data.spec) as OpenApiDoc;
+      expect(parsed.openapi).toBe('3.0.3');
+      expect(parsed.info.title).toBe('YAML API');
+      // A string in the document stays a string in YAML
+      expect(parsed.info.version).toBe('1.0');
+      expect(Object.keys(parsed.paths)).toEqual(expect.arrayContaining(['/double', '/double/{n}', '/workflows/double', '/runs/{runId}']));
+      const json = await runCommand('openapi', { directory: tmpDir, title: 'YAML API', version: '1.0', format: 'json' });
+      expect(parsed).toEqual(JSON.parse((json.data as OpenApiData).spec));
+    });
+
+    it('should map serverUrl, description, auth and legacy', async () => {
+      createTempWorkflow(tmpDir, 'opts.ts', HTTP_WORKFLOW);
+      const result = await runCommand('openapi', {
+        directory: tmpDir,
+        format: 'json',
+        description: 'Doubles numbers',
+        serverUrl: 'https://api.example.com/api',
+        auth: false,
+        legacy: false,
+      });
+      const parsed = JSON.parse((result.data as OpenApiData).spec) as OpenApiDoc;
+      expect(parsed.info.description).toBe('Doubles numbers');
+      expect(parsed.servers).toEqual([{ url: 'https://api.example.com/api' }]);
+      expect(parsed.security).toBeUndefined();
+      expect(parsed.paths['/workflows/double']).toBeUndefined();
+      expect(parsed.paths['/double']).toHaveProperty('post');
     });
 
     it('should find workflows across multiple files', async () => {
@@ -497,28 +577,31 @@ function testNode(x: number): { y: number } { return { y: x * 2 }; }
         .replace(/greeting/g, 'farewell_msg');
       createTempWorkflow(tmpDir, 'wf2.ts', wf2);
       const result = await runCommand('openapi', { directory: tmpDir, format: 'json' });
-      const data = result.data as { workflowCount: number };
+      const data = result.data as OpenApiData;
       expect(data.workflowCount).toBe(2);
+      const parsed = JSON.parse(data.spec) as OpenApiDoc;
+      expect(parsed.paths['/workflows/helloWorld']).toBeDefined();
+      expect(parsed.paths['/workflows/goodbyeWorld']).toBeDefined();
     });
 
     it('should return zero workflows for empty directory', async () => {
       const emptyDir = path.join(tmpDir, 'empty');
       fs.mkdirSync(emptyDir, { recursive: true });
       const result = await runCommand('openapi', { directory: emptyDir, format: 'json' });
-      const data = result.data as { workflowCount: number; spec: string };
+      const data = result.data as OpenApiData;
       expect(data.workflowCount).toBe(0);
       // Spec is still valid OpenAPI, just with no workflow-derived paths
-      const parsed = JSON.parse(data.spec);
+      const parsed = JSON.parse(data.spec) as OpenApiDoc;
       expect(parsed.openapi).toBe('3.0.3');
+      expect(parsed.paths['/runs']).toBeDefined();
     });
 
     it('should use default title and version when not provided', async () => {
       createTempWorkflow(tmpDir, 'defaults.ts', VALID_WORKFLOW);
       const result = await runCommand('openapi', { directory: tmpDir, format: 'json' });
-      const data = result.data as { spec: string };
-      const parsed = JSON.parse(data.spec);
+      const parsed = JSON.parse((result.data as OpenApiData).spec) as OpenApiDoc;
       expect(parsed.info.title).toBe('Flow Weaver API');
-      expect(parsed.info.version).toBe('1.0.0');
+      expect(parsed.info.version).toBe(VERSION);
     });
 
     it('should skip non-ts files', async () => {
@@ -526,7 +609,7 @@ function testNode(x: number): { y: number } { return { y: x * 2 }; }
       fs.writeFileSync(path.join(tmpDir, 'readme.md'), '# Hello');
       fs.writeFileSync(path.join(tmpDir, 'config.json'), '{}');
       const result = await runCommand('openapi', { directory: tmpDir, format: 'json' });
-      const data = result.data as { workflowCount: number };
+      const data = result.data as OpenApiData;
       expect(data.workflowCount).toBe(1); // Only the .ts file
     });
   });

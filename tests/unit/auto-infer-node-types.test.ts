@@ -315,9 +315,10 @@ export function myWorkflow(execute: boolean): { onSuccess: boolean } {
 }
 `);
 
-    // Parser emits an error about unknown node type
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors.some((e) => e.includes('nonExistent'))).toBe(true);
+    // The parser keeps the instance; the validator names the unknown type.
+    expect(result.errors).toEqual([]);
+    const validation = new WorkflowValidator().validate(result.workflows[0]);
+    expect(validation.errors.some((e) => e.code === 'UNKNOWN_NODE_TYPE' && e.message.includes('nonExistent'))).toBe(true);
   });
 
   // ── 12. Multiple workflows referencing same function ───────────────

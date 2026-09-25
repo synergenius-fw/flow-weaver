@@ -3,8 +3,7 @@
  * isWorkflowBlock, generateWorkflowStructureSuggestion,
  * extractExistingAnnotatedPorts, resolveNpmNodeTypes, externalToAST,
  * parseStartPorts, parseExitPorts, extractTypeSchema, isExpandableObjectType,
- * autoConnect, path macros, fanOut/fanIn macros, coerce macros, pattern
- * extraction, and detectMinorEdit.
+ * autoConnect, path macros, fanOut/fanIn macros and coerce macros.
  */
 
 import { AnnotationParser, resolveNpmNodeTypes, type TExternalNodeType } from '../../../src/parser/annotation-parser';
@@ -320,6 +319,27 @@ describe('parser branch coverage 2', () => {
       expect(wf.connections.length).toBeGreaterThan(0);
       expect(wf.macros).toBeDefined();
       expect(wf.macros!.some((m) => m.type === 'path')).toBe(true);
+    });
+
+    it('wires `@path Start -> Exit` to Exit.onSuccess, since Exit has no execute port', () => {
+      const parser = freshParser();
+      const result = parser.parseFromString(`
+        /**
+         * @flowWeaver workflow
+         * @path Start -> Exit
+         */
+        function passThrough(execute: boolean): { onSuccess: boolean; onFailure: boolean } {
+          return { onSuccess: true, onFailure: false };
+        }
+      `);
+      expect(result.errors).toEqual([]);
+      expect(result.workflows[0].connections).toEqual([
+        {
+          type: 'Connection',
+          from: { node: 'Start', port: 'execute' },
+          to: { node: 'Exit', port: 'onSuccess' },
+        },
+      ]);
     });
 
     it('reports error for @path with fewer than 2 steps', () => {
@@ -807,7 +827,7 @@ describe('parser branch coverage 2', () => {
     // type flow indirectly by verifying the parser handles external types.
     // We'll just verify the node type format expectations.
 
-    it('converts external node type with ports', () => {
+    it('keeps an instance of an unknown type for the validator to report', () => {
       const parser = freshParser();
       const result = parser.parseFromString(`
         /**
@@ -816,8 +836,9 @@ describe('parser branch coverage 2', () => {
          */
         function wf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
-      // Will produce error since customExternal doesn't exist
-      expect(result.errors.some((e) => e.includes('customExternal'))).toBe(true);
+      // No parse error: the validator reports the missing type once, as UNKNOWN_NODE_TYPE.
+      expect(result.errors).toEqual([]);
+      expect(result.workflows[0].instances[0]).toMatchObject({ id: 'A', nodeType: 'customExternal' });
     });
   });
 

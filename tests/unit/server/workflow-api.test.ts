@@ -358,6 +358,31 @@ describe('declared routes', () => {
     expect(gone.body.error.code).toBe('RUN_CANCELLED');
   });
 
+  it('answers 400, not 500, to a path segment that is not valid percent-encoding', async () => {
+    const bad = await call('GET', '/workflows/%E0');
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe('BAD_PATH');
+    const badRoute = await call('GET', '/double/%E0');
+    expect(badRoute.status).toBe(400);
+  });
+
+  it('sends one allowed origin at a time when several are configured, and varies on Origin', async () => {
+    const withCors = new WebhookServer({ port: 0, host: '127.0.0.1', workflowDir: dir, watchEnabled: false, token: TOKEN, runsDir, agents: false, corsOrigin: ['https://a.example', 'https://b.example'] });
+    await withCors.start();
+    try {
+      const b = await fetch(`${withCors.url}/health`, { headers: { Origin: 'https://b.example' } });
+      expect(b.headers.get('access-control-allow-origin')).toBe('https://b.example');
+      expect(b.headers.get('vary')).toContain('Origin');
+      const other = await fetch(`${withCors.url}/health`, { headers: { Origin: 'https://evil.example' } });
+      expect(other.headers.get('access-control-allow-origin')).toBeNull();
+      const preflight = await fetch(`${withCors.url}/double`, { method: 'OPTIONS', headers: { Origin: 'https://a.example' } });
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers.get('access-control-allow-origin')).toBe('https://a.example');
+    } finally {
+      await withCors.stop();
+    }
+  }, 30000);
+
   it('serves Swagger and the document without the token only when docs are on', async () => {
     expect((await call('GET', '/docs')).status).toBe(404);
     const withDocs = new WebhookServer({ port: 0, host: '127.0.0.1', workflowDir: dir, watchEnabled: false, token: TOKEN, runsDir, agents: false, swaggerEnabled: true });

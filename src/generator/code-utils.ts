@@ -1,4 +1,4 @@
-import type { TNodeTypeAST, TWorkflowAST, TMergeStrategy, TCoerceTargetType, TConnectionAST, TDataType } from '../ast';
+import type { TNodeTypeAST, TWorkflowAST, TMergeStrategy, TConnectionAST, TDataType } from '../ast';
 import {
   RESERVED_PORT_NAMES,
   isStartNode,
@@ -7,6 +7,7 @@ import {
   isSuccessPort,
   isFailurePort,
 } from '../constants';
+import { COERCE_EXPRESSIONS, COERCE_TYPE_MAP } from '../built-in-nodes/coercion-types';
 import { findAllBranchingNodes, findNodesInBranch } from './control-flow';
 
 /**
@@ -20,15 +21,6 @@ export function buildDurableGatePayload(arguments_: readonly string[]): string {
 import { generateScopeFunctionClosure } from './scope-function-generator';
 import { mapToTypeScript } from '../types/type-mappings';
 import { findExpressionReferences, rewriteExpressionReferences } from '../parser/expression-references';
-
-/** Map coercion target type to inline JS expression */
-const COERCION_EXPRESSIONS: Record<TCoerceTargetType, string> = {
-  string: 'String',
-  number: 'Number',
-  boolean: 'Boolean',
-  json: 'JSON.stringify',
-  object: 'JSON.parse',
-};
 
 
 /**
@@ -145,9 +137,10 @@ export function getCoercionWrapper(
   sourceDataType: TDataType | undefined,
   targetDataType: TDataType | undefined,
 ): string | null {
-  // Explicit coerce on connection
+  // Explicit coerce on connection: the same expression the coercion node type
+  // for that target emits, so `as string` and `@coerce string` agree.
   if (connection.coerce) {
-    return COERCION_EXPRESSIONS[connection.coerce];
+    return COERCE_EXPRESSIONS[COERCE_TYPE_MAP[connection.coerce]];
   }
 
   // No auto-coercion if types are unknown or same
@@ -745,140 +738,4 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
   }
 
   return args;
-}
-
-export function generateNodeWithExecutionContext(
-  node: TNodeTypeAST,
-  workflow: TWorkflowAST,
-  lines: string[],
-  isAsync: boolean,
-  indent: string = '  ',
-): void {
-  const nodeName = node.functionName;
-  const safeNodeName = toValidIdentifier(nodeName); // Sanitize for use as JS variable name
-  const awaitPrefix = isAsync ? 'await ' : '';
-  const getCall = isAsync ? 'await ctx.getVariable' : 'ctx.getVariable';
-  const setCall = isAsync ? 'await ctx.setVariable' : 'ctx.setVariable';
-  lines.push(`${indent}const ${safeNodeName}Idx = ctx.addExecution('${nodeName}');`);
-  lines.push(`${indent}${awaitPrefix}ctx.sendStatusChangedEvent({`);
-  lines.push(`${indent}  nodeTypeName: '${nodeName}',`);
-  lines.push(`${indent}  id: '${nodeName}',`);
-  lines.push(`${indent}  executionIndex: ${safeNodeName}Idx,`);
-  lines.push(`${indent}  status: 'RUNNING',`);
-  lines.push(`${indent}});`);
-  lines.push(`${indent}try {`);
-  const args = buildNodeArgumentsWithContext({
-    node,
-    workflow,
-    id: nodeName,
-    lines,
-    indent: `${indent}  `,
-    getCall,
-    isAsync,
-  });
-  const resultVar = nodeResultVar(safeNodeName, node.functionName);
-  lines.push(`${indent}  const ${resultVar} = ${awaitPrefix}${node.functionName}(${args.join(', ')});`);
-  Object.keys(node.outputs).forEach((portName) => {
-    if (isSuccessPort(portName) || isFailurePort(portName)) return;
-    lines.push(
-      `${indent}  ${setCall}({ id: '${nodeName}', portName: '${portName}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, ${resultVar}.${portName});`,
-    );
-  });
-  lines.push(`${indent}  ${awaitPrefix}ctx.sendStatusChangedEvent({`);
-  lines.push(`${indent}    nodeTypeName: '${nodeName}',`);
-  lines.push(`${indent}    id: '${nodeName}',`);
-  lines.push(`${indent}    executionIndex: ${safeNodeName}Idx,`);
-  lines.push(`${indent}    status: 'SUCCEEDED',`);
-  lines.push(`${indent}  });`);
-  const hasOnSuccess = Object.prototype.hasOwnProperty.call(node.outputs, RESERVED_PORT_NAMES.ON_SUCCESS);
-  const hasOnFailure = Object.prototype.hasOwnProperty.call(node.outputs, RESERVED_PORT_NAMES.ON_FAILURE);
-  if (hasOnSuccess || hasOnFailure) {
-    if (hasOnSuccess) {
-      lines.push(
-        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_SUCCESS}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, true);`,
-      );
-    }
-    if (hasOnFailure) {
-      lines.push(
-        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_FAILURE}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, false);`,
-      );
-    }
-  }
-  lines.push(`${indent}} catch (error: unknown) {`);
-  lines.push(`${indent}  ${awaitPrefix}ctx.sendStatusChangedEvent({`);
-  lines.push(`${indent}    nodeTypeName: '${nodeName}',`);
-  lines.push(`${indent}    id: '${nodeName}',`);
-  lines.push(`${indent}    executionIndex: ${safeNodeName}Idx,`);
-  lines.push(`${indent}    status: 'FAILED',`);
-  lines.push(`${indent}  });`);
-  lines.push(`${indent}  ctx.sendLogErrorEvent({`);
-  lines.push(`${indent}    nodeTypeName: '${nodeName}',`);
-  lines.push(`${indent}    id: '${nodeName}',`);
-  lines.push(`${indent}    executionIndex: ${safeNodeName}Idx,`);
-  lines.push(`${indent}    error: error instanceof Error ? error.message : String(error),`);
-  lines.push(
-    `${indent}    code: typeof (error as { code?: unknown }).code === 'string' ? ((error as { code?: unknown }).code as string) : undefined,`,
-  );
-  lines.push(`${indent}  });`);
-  if (hasOnSuccess || hasOnFailure) {
-    if (hasOnSuccess) {
-      lines.push(
-        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_SUCCESS}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, false);`,
-      );
-    }
-    if (hasOnFailure) {
-      lines.push(
-        `${indent}  ${setCall}({ id: '${nodeName}', portName: '${RESERVED_PORT_NAMES.ON_FAILURE}', executionIndex: ${safeNodeName}Idx, nodeTypeName: '${nodeName}' }, true);`,
-      );
-    }
-  }
-  const hasOnFailureConnection = workflow.connections.some(
-    (conn) => conn.from.node === nodeName && isFailurePort(conn.from.port),
-  );
-  if (hasOnFailureConnection) {
-    lines.push(`${indent}  `);
-  } else {
-    lines.push(`${indent}  throw error;`);
-  }
-  lines.push(`${indent}}`);
-}
-
-export function buildExecutionContextReturnForBranch(
-  workflow: TWorkflowAST,
-  lines: string[],
-  isAsync: boolean,
-  branchName: string,
-  indent: string,
-  executedNodes: string[],
-): string {
-  const getCall = isAsync ? 'await ctx.getVariable' : 'ctx.getVariable';
-  const exitConnections = workflow.connections.filter((conn) => isExitNode(conn.to.node));
-  const returnProps: string[] = [];
-  exitConnections.forEach((conn) => {
-    const exitPort = conn.to.port;
-    const sourceNode = conn.from.node;
-    const sourcePort = conn.from.port;
-    const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
-    const sourceInstance = workflow.instances.find((candidate) => candidate.id === sourceNode);
-    const sourceNodeType = workflow.nodeTypes.find(
-      (candidate) => candidate.name === sourceInstance?.nodeType || candidate.functionName === sourceInstance?.nodeType,
-    );
-    const sourceNodeTypeName = isStartNode(sourceNode)
-      ? 'Start'
-      : (sourceNodeType?.functionName ?? sourceInstance?.nodeType ?? sourceNode);
-    // Get exit port type for type casting
-    const exitPortDef = workflow.exitPorts[exitPort];
-    const exitPortType = exitPortDef?.tsType || (exitPortDef ? mapToTypeScript(exitPortDef.dataType) : 'unknown');
-    if (!executedNodes.includes(sourceNode) && !isStartNode(sourceNode)) {
-      returnProps.push(`${exitPort}: undefined`);
-    } else {
-      const varName = `exit_${exitPort}_${branchName}`;
-      lines.push(
-        `${indent}const ${varName} = ${sourceIdx} !== undefined ? ${getCall}({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${sourceNodeTypeName}' }) : undefined;`,
-      );
-      // Cast to the exit port's declared type for type safety
-      returnProps.push(`${exitPort}: ${varName} as ${exitPortType}`);
-    }
-  });
-  return `{ ${returnProps.join(', ')} }`;
 }

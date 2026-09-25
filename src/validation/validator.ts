@@ -13,7 +13,7 @@ import {
   validateReservedNames,
   validateConnections,
   validateDuplicateConnections,
-  validateNodeReferences,
+  validateScopeNames,
   validateTypeCompatibility,
   validateRequiredInputs,
   detectUnusedNodes,
@@ -44,9 +44,7 @@ const ERROR_DOC_URLS: Record<string, string> = {
   UNKNOWN_SOURCE_PORT: doc('error-codes'),
   UNKNOWN_TARGET_PORT: doc('error-codes'),
   TYPE_MISMATCH: doc('error-codes'),
-  UNREACHABLE_NODE: doc('error-codes'),
-  MISSING_START_CONNECTION: doc('error-codes'),
-  MISSING_EXIT_CONNECTION: doc('error-codes'),
+  INVALID_SCOPE_NAME: doc('error-codes'),
   INFERRED_NODE_TYPE: doc('node-conversion'),
   DUPLICATE_CONNECTION: doc('error-codes'),
   STUB_NODE: doc('scaffold'),
@@ -59,44 +57,29 @@ export class WorkflowValidator {
   private ctx: ValidationContext = { errors: [], warnings: [], strictMode: false, draftMode: false };
 
   /**
-   * Validate a single node type for scoped port requirements
+   * The scope-name problems of a single node type, as messages. The same
+   * check runs inside validate() as the INVALID_SCOPE_NAME rule; this is the
+   * standalone form for callers that hold a node type and no workflow.
    *
-   * Scoped Port Architecture Rules:
-   * - Scope names must be valid JavaScript identifiers
-   *
-   * Per-Port Scope Architecture:
-   * - Scoped OUTPUT ports become callback PARAMETERS (data flows to children)
-   * - Scoped INPUT ports become callback RETURN VALUES (data flows from children)
-   * - Scoped ports can be ANY data type - they're not functions themselves
-   * - The callback function is passed as a function parameter (e.g., forEach's itemProcessor)
-   *
-   * NOTE: execute/onSuccess/onFailure ports are mandatory base interface ports
-   * that are auto-added to ALL nodes - no validation needed for those.
+   * Scoped OUTPUT ports become callback parameters (data flows to children)
+   * and scoped INPUT ports become callback return values (data flows from
+   * children); the ports may carry any data type.
    */
   validateNodeType(nodeType: TNodeTypeAST): string[] {
-    const errors: string[] = [];
-
-    // Get all scoped ports (both INPUT and OUTPUT)
-    const scopedPorts = [
-      ...Object.entries(nodeType.inputs).filter(([_, portDef]) => portDef.scope !== undefined),
-      ...Object.entries(nodeType.outputs).filter(([_, portDef]) => portDef.scope !== undefined),
-    ];
-
-    // Rule: Validate scope names are valid JavaScript identifiers
-    const scopeNameRegex = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
-
-    scopedPorts.forEach(([portName, portDef]) => {
-      if (portDef.scope && !scopeNameRegex.test(portDef.scope)) {
-        errors.push(
-          `Port "${portName}" has invalid scope name "${portDef.scope}". Scope names must be valid JavaScript identifiers (letters, numbers, underscore, dollar sign, and cannot start with a number).`
-        );
-      }
+    const ctx: ValidationContext = { errors: [], warnings: [], strictMode: false, draftMode: false };
+    validateScopeNames(ctx, {
+      type: 'Workflow',
+      name: nodeType.name,
+      functionName: nodeType.functionName,
+      sourceFile: nodeType.sourceLocation?.file ?? '',
+      nodeTypes: [nodeType],
+      instances: [],
+      connections: [],
+      startPorts: {},
+      exitPorts: {},
+      imports: [],
     });
-
-    // Note: Scoped ports can be ANY data type in the per-port scope architecture
-    // They become callback parameters/returns, not functions themselves
-
-    return errors;
+    return ctx.errors.map((e) => e.message);
   }
 
   validate(workflow: TWorkflowAST, options?: { strictMode?: boolean; mode?: 'strict' | 'draft' }): {
@@ -193,7 +176,7 @@ export class WorkflowValidator {
       { name: 'reservedNames', run: () => validateReservedNames(ctx, workflow, nodeTypeMap) },
       { name: 'connections', run: () => validateConnections(ctx, workflow, instanceMap) },
       { name: 'duplicateConnections', run: () => validateDuplicateConnections(ctx, workflow) },
-      { name: 'nodeReferences', run: () => validateNodeReferences(ctx, workflow, instanceMap) },
+      { name: 'scopeNames', run: () => validateScopeNames(ctx, workflow) },
       { name: 'typeCompatibility', run: () => validateTypeCompatibility(ctx, workflow, instanceMap) },
       { name: 'requiredInputs', run: () => validateRequiredInputs(ctx, workflow, instanceMap) },
       { name: 'unusedNodes', run: () => detectUnusedNodes(ctx, workflow, instanceMap) },
@@ -214,7 +197,7 @@ export class WorkflowValidator {
     }
 
     // Deduplicate cascading errors: if a node has UNKNOWN_NODE_TYPE,
-    // suppress UNKNOWN_SOURCE_NODE, UNKNOWN_TARGET_NODE, and UNDEFINED_NODE
+    // suppress UNKNOWN_SOURCE_NODE, UNKNOWN_TARGET_NODE and MISSING_REQUIRED_INPUT
     // that reference the same node IDs (they're just noise).
     const unknownTypeInstanceIds = new Set(
       workflow.instances.filter((inst) => !nodeTypeMap.has(inst.nodeType)).map((inst) => inst.id)
@@ -228,7 +211,6 @@ export class WorkflowValidator {
         const cascadingCodes = new Set([
           'UNKNOWN_SOURCE_NODE',
           'UNKNOWN_TARGET_NODE',
-          'UNDEFINED_NODE',
           'MISSING_REQUIRED_INPUT',
         ]);
         if (!cascadingCodes.has(error.code)) return true;

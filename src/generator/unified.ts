@@ -1,6 +1,7 @@
 import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST, TPortDefinition } from '../ast/types';
 import { extractStartPorts } from '../ast/workflow-utils';
 import { mapToTypeScript } from '../types/type-mappings';
+import { COERCE_EXPRESSIONS } from '../built-in-nodes/coercion-types';
 import { buildDurableGatePayload, buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
 import {
   buildControlFlowGraph,
@@ -429,13 +430,6 @@ export function generateControlFlowWithExecutionContext(
   }
 
   const generatedNodes = new Set<string>();
-  const availableVars = new Map<string, string>();
-  Object.entries(extractStartPorts(workflow)).forEach(([portName, port]) => {
-    availableVars.set(
-      `${RESERVED_NODE_NAMES.START}.${portName}`,
-      isExecutePort(portName) ? 'execute' : startPortValue(portName, port),
-    );
-  });
   executionOrder.forEach((instanceId) => {
     if (isStartNode(instanceId) || isExitNode(instanceId) || generatedNodes.has(instanceId)) {
       return;
@@ -466,7 +460,6 @@ export function generateControlFlowWithExecutionContext(
           ungeneratedGroup,
           workflow,
           nodeTypes,
-          availableVars,
           lines,
           generatedNodes,
           '  ',
@@ -488,7 +481,6 @@ export function generateControlFlowWithExecutionContext(
             workflow,
             nodeTypes,
             generatedNodes,
-            availableVars,
             lines,
             '  ',
             branchingNodes,
@@ -538,7 +530,6 @@ export function generateControlFlowWithExecutionContext(
           nodeTypes,
           branchingNodes,
           branchRegions,
-          availableVars,
           generatedNodes,
           lines,
           chainIndent,
@@ -587,7 +578,6 @@ export function generateControlFlowWithExecutionContext(
         workflow,
         nodeTypes,
         nodeRegion,
-        availableVars,
         generatedNodes,
         lines,
         branchIndent,
@@ -614,7 +604,6 @@ export function generateControlFlowWithExecutionContext(
         workflow,
         nodeTypes,
         generatedNodes,
-        availableVars,
         lines,
         '  ',
         branchingNodes,
@@ -638,7 +627,6 @@ export function generateControlFlowWithExecutionContext(
           instance,
           nodeType,
           workflow,
-          availableVars,
           lines,
           nodeTypes,
           '  ',
@@ -660,7 +648,6 @@ export function generateControlFlowWithExecutionContext(
           workflow,
           nodeTypes,
           generatedNodes,
-          availableVars,
           lines,
           '  ',
           branchingNodes,
@@ -868,7 +855,6 @@ function generateScopedChildrenExecution(
   workflow: TWorkflowAST,
   allNodeTypes: TNodeTypeAST[],
   generatedNodes: Set<string>,
-  availableVars: Map<string, string>,
   lines: string[],
   indent: string,
   branchingNodes: Set<string>,
@@ -943,7 +929,6 @@ function generateScopedChildrenExecution(
         workflow,
         allNodeTypes,
         branchRegions.get(childInstanceId)!,
-        availableVars,
         generatedNodes,
         lines,
         indent,
@@ -964,7 +949,6 @@ function generateScopedChildrenExecution(
         childInstance,
         childNodeType,
         workflow,
-        availableVars,
         lines,
         allNodeTypes,
         indent,
@@ -998,7 +982,6 @@ function generateParallelGroupWithContext(
   nodeIds: string[],
   workflow: TWorkflowAST,
   nodeTypes: TNodeTypeAST[],
-  availableVars: Map<string, string>,
   lines: string[],
   generatedNodes: Set<string>,
   indent: string,
@@ -1029,7 +1012,6 @@ function generateParallelGroupWithContext(
         node.instance,
         node.nodeType,
         workflow,
-        availableVars,
         lines,
         nodeTypes,
         indent,
@@ -1054,7 +1036,6 @@ function generateParallelGroupWithContext(
       node.instance,
       node.nodeType,
       workflow,
-      availableVars,
       nodeLines,
       nodeTypes,
       `${indent}    `,
@@ -1250,7 +1231,6 @@ function generateBranchingChainCode(
   nodeTypes: TNodeTypeAST[],
   branchingNodes: Set<string>,
   branchRegions: Map<string, { successNodes: Set<string>; failureNodes: Set<string> }>,
-  availableVars: Map<string, string>,
   generatedNodes: Set<string>,
   lines: string[],
   indent: string,
@@ -1318,7 +1298,6 @@ function generateBranchingChainCode(
       workflow,
       nodeTypes,
       effectiveRegion,
-      availableVars,
       generatedNodes,
       lines,
       nodeIndent,
@@ -1339,7 +1318,6 @@ function generateBranchingChainCode(
       workflow,
       nodeTypes,
       generatedNodes,
-      availableVars,
       lines,
       nodeIndent,
       branchingNodes,
@@ -1393,7 +1371,6 @@ function emitBranchNodeCallAndOutputs(params: {
   setCall: string;
   indent: string;
   isAsync: boolean;
-  abortSignalExpression: string;
   ctxVar: string;
   lines: string[];
 }): void {
@@ -1571,7 +1548,6 @@ function generateBranchingNodeCode(
   workflow: TWorkflowAST,
   allNodeTypes: TNodeTypeAST[],
   region: { successNodes: Set<string>; failureNodes: Set<string> },
-  availableVars: Map<string, string>,
   generatedNodes: Set<string>,
   lines: string[],
   indent: string,
@@ -1627,12 +1603,9 @@ function generateBranchingNodeCode(
   lines.push('');
 
   if (trackSuccess) {
-    if (preDeclaredSuccessFlags.has(safeId) || trackSuccess) {
-      // Flag was pre-declared (by chain code or hoisted for debug hooks) — assignment only
-      lines.push(`${indent}${safeId}_success = false;`);
-    } else {
-      lines.push(`${indent}let ${safeId}_success = false;`);
-    }
+    // The flag is always declared by now: above, or earlier by chain code or
+    // a hoist for debug hooks. Only the reset is emitted here.
+    lines.push(`${indent}${safeId}_success = false;`);
     lines.push('');
   }
 
@@ -1667,7 +1640,6 @@ function generateBranchingNodeCode(
     setCall,
     indent,
     isAsync,
-    abortSignalExpression: `${ctxVar}.getAbortSignal()`,
     ctxVar,
     lines,
   });
@@ -1770,10 +1742,6 @@ function generateBranchingNodeCode(
         isAsync,
       );
     }
-    const successVars = new Map(availableVars);
-    Object.keys(branchNode.outputs).forEach((portName) => {
-      successVars.set(`${instanceId}.${portName}`, `${resultVar}.${portName}`);
-    });
     // Sort success branch nodes topologically to ensure correct execution order
     const successInstanceIds = sortBranchNodesTopologically(region.successNodes, workflow);
     const successExecutedNodes = [instance.id];
@@ -1804,7 +1772,6 @@ function generateBranchingNodeCode(
           workflow,
           allNodeTypes,
           nestedRegion,
-          successVars,
           generatedNodes,
           lines,
           `${indent}  `,
@@ -1825,7 +1792,6 @@ function generateBranchingNodeCode(
           inst,
           nodeType,
           workflow,
-          successVars,
           lines,
           allNodeTypes,
           `${indent}  `,
@@ -1838,9 +1804,6 @@ function generateBranchingNodeCode(
           branchingNodes,
           production,
         );
-        Object.keys(nodeType.outputs).forEach((portName) => {
-          successVars.set(`${instanceId}.${portName}`, `${toValidIdentifier(instanceId)}Result.${portName}`);
-        });
         successExecutedNodes.push(instanceId);
         generatedNodes.add(instanceId);
       }
@@ -1863,10 +1826,6 @@ function generateBranchingNodeCode(
           isAsync,
         );
       }
-      const failureVars = new Map(availableVars);
-      Object.keys(branchNode.outputs).forEach((portName) => {
-        failureVars.set(`${instanceId}.${portName}`, `${resultVar}.${portName}`);
-      });
       // Sort failure branch nodes topologically to ensure correct execution order
       const failureInstanceIds = sortBranchNodesTopologically(region.failureNodes, workflow);
       const failureExecutedNodes = [instance.id];
@@ -1895,7 +1854,6 @@ function generateBranchingNodeCode(
             workflow,
             allNodeTypes,
             nestedRegion,
-            failureVars,
             generatedNodes,
             lines,
             `${indent}  `,
@@ -1916,7 +1874,6 @@ function generateBranchingNodeCode(
             inst,
             nodeType,
             workflow,
-            failureVars,
             lines,
             allNodeTypes,
             `${indent}  `,
@@ -1929,9 +1886,6 @@ function generateBranchingNodeCode(
             branchingNodes,
             production,
           );
-          Object.keys(nodeType.outputs).forEach((portName) => {
-            failureVars.set(`${instanceId}.${portName}`, `${toValidIdentifier(instanceId)}Result.${portName}`);
-          });
           failureExecutedNodes.push(instanceId);
           generatedNodes.add(instanceId);
         }
@@ -2137,7 +2091,6 @@ function generateNodeCallWithContext(
   instance: { id: string; nodeType: string },
   nodeType: TNodeTypeAST,
   workflow: TWorkflowAST,
-  _availableVars: Map<string, string>,
   lines: string[],
   _allNodeTypes: TNodeTypeAST[],
   indent: string,
@@ -2370,14 +2323,7 @@ function generateNodeCallWithContext(
     );
   } else if (nodeType.variant === 'COERCION') {
     // Coercion node: inline JS expression instead of function call
-    const coerceExprMap: Record<string, string> = {
-      __fw_toString: 'String',
-      __fw_toNumber: 'Number',
-      __fw_toBoolean: 'Boolean',
-      __fw_toJSON: 'JSON.stringify',
-      __fw_parseJSON: 'JSON.parse',
-    };
-    const coerceExpr = coerceExprMap[functionName] || 'String';
+    const coerceExpr = COERCE_EXPRESSIONS[functionName] || 'String';
     // args[0] is the value input (execute is skipped for expression nodes)
     const valueArg = args[0] || 'undefined';
     lines.push(`${indent}  const ${resultVar} = ${coerceExpr}(${valueArg});`);

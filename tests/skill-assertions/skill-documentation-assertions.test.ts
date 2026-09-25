@@ -7,6 +7,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { generator } from '../../src/generator/workflow-generator';
+import { parseWorkflow } from '../../src/api/parse';
+import { validateWorkflow } from '../../src/api/validate';
 
 const TEST_DIR = path.join(os.tmpdir(), `flow-weaver-skill-assertions-${process.pid}`);
 
@@ -35,30 +37,25 @@ afterAll(() => {
   }
 });
 
-// Helper to capture logs/warnings and generate+write code
+// Helper: the workflow's validation warnings, and its generated code written
+// beside it.
 async function generateAndWrite(
   testFile: string,
   workflowName: string,
-): Promise<{ logs: string[]; generatedFile: string }> {
-  const logs: string[] = [];
-  const originalLog = console.log;
-  console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+): Promise<{ warnings: string[]; generatedFile: string }> {
+  const parsed = await parseWorkflow(testFile, { workflowName });
+  const warnings = validateWorkflow(parsed.ast).warnings.map((w) => w.message);
 
-  try {
-    const code = await generator.generate(testFile, workflowName, {
-      production: true,
-    });
-    console.log = originalLog;
+  const code = await generator.generate(testFile, workflowName, {
+    production: true,
+  });
 
-    const generatedFile = testFile.replace('.ts', '.generated.ts');
-    // Ensure directory exists before writing (handles parallel test cleanup)
-    fs.mkdirSync(path.dirname(generatedFile), { recursive: true });
-    fs.writeFileSync(generatedFile, code as string);
+  const generatedFile = testFile.replace('.ts', '.generated.ts');
+  // Ensure directory exists before writing (handles parallel test cleanup)
+  fs.mkdirSync(path.dirname(generatedFile), { recursive: true });
+  fs.writeFileSync(generatedFile, code as string);
 
-    return { logs, generatedFile };
-  } finally {
-    console.log = originalLog;
-  }
+  return { warnings, generatedFile };
 }
 
 // Helper to load generated module
@@ -458,10 +455,9 @@ describe('ASSERTION GROUP 3: Connection Rules', () => {
     const testFile = path.join(TEST_DIR, 'multi-exit-warning.ts');
     fs.writeFileSync(testFile, sourceCode);
 
-    const { logs } = await generateAndWrite(testFile, 'testWorkflow');
+    const { warnings } = await generateAndWrite(testFile, 'testWorkflow');
 
-    const allLogs = logs.join('\n');
-    expect(allLogs).toMatch(/has \d+ incoming connections/i);
+    expect(warnings.join('\n')).toMatch(/has \d+ incoming connections/i);
   });
 
   it('ASSERTION: Port names must match exactly (case-sensitive)', async () => {

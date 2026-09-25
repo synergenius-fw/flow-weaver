@@ -12,7 +12,7 @@
  *   expectAgentResult,
  *   expectMockLlm,
  *   TokenTracker,
- * } from 'flow-weaver/testing';
+ * } from '@synergenius/flow-weaver/testing';
  * ```
  */
 

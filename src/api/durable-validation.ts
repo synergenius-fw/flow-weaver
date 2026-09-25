@@ -221,9 +221,9 @@ function scopeOwnerInvokesConcurrently(
  * Whether a scope's parent node exposes a visible attempt limit, so a durable
  * resume cannot re-run the loop forever.
  *
- * A durable loop is numbered by an iteration ordinal reconstructed from
- * committed continuation state on resume (see
- * `DurableExecution.resumedScopeHighWater`). That makes each iteration
+ * A durable loop is numbered by an iteration ordinal that a resume reaches
+ * again by replaying the body from its first node, skipping what the
+ * continuation already holds. That makes each iteration
  * addressable and idempotent, but it does not by itself stop a loop whose
  * termination the engine cannot see from diverging on replay. Requiring a
  * declared bound (a `max`/`limit`/`attempts`/`retries`/`count`/`iterations`

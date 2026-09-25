@@ -5,6 +5,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { WebhookServer } from '../../server/webhook-server.js';
+import { isLoopback } from '../../server/api.js';
 import { logger } from '../utils/logger.js';
 import { announceService } from '../../service-registry.js';
 import { defaultRunsDir } from '../../coordinator/index.js';
@@ -36,8 +37,6 @@ export interface ServeOptions {
   /** Listen beyond loopback without a token. */
   insecure?: boolean;
 }
-
-const isLoopback = (host: string) => ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host);
 
 /**
  * Start the HTTP server.

@@ -94,6 +94,19 @@ describe('claims', () => {
     expect((await coordinator.resume({ runId: paused.runId, input: { answer: 4 } })).status).toBe('completed');
   });
 
+  it('take over a lapsed claim by moving it aside, never by deleting it', async () => {
+    const store = createFileRunStore(dir);
+    fs.mkdirSync(path.join(dir, 'r1'), { recursive: true });
+    const lapsed = { owner: 'dead-process', pid: 1, host: 'elsewhere', expiresAt: new Date(Date.now() - 1000).toISOString() };
+    fs.writeFileSync(path.join(dir, 'r1', 'claim.json'), JSON.stringify(lapsed));
+
+    expect(await store.claim('r1', 'me', 60_000)).toBe(true);
+    expect(await store.claim('r1', 'someone-else', 60_000)).toBe(false);
+    // The lapsed claim was renamed, not unlinked, so a second taker's rename
+    // fails instead of deleting the winner's claim; and nothing is left behind.
+    expect(fs.readdirSync(path.join(dir, 'r1')).filter((f) => f.startsWith('claim'))).toEqual(['claim.json']);
+  });
+
   it('are released after a segment, including one that failed', async () => {
     const store = createMemoryRunStore();
     const coordinator = createLocalCoordinator({ store });

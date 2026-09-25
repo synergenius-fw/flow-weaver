@@ -843,10 +843,20 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
     res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache' });
     res.end(fs.readFileSync(p));
   };
+  /** A request body that is not a JSON object is the client's mistake, answered with 400 rather than 500. */
+  class BadRequest extends Error {}
+  const MAX_BODY = 1024 * 1024;
   const body = async (req: http.IncomingMessage): Promise<Json> => {
     let s = '';
-    for await (const c of req) s += c;
-    return s ? (JSON.parse(s) as Json) : {};
+    for await (const c of req) {
+      s += c;
+      if (s.length > MAX_BODY) throw new BadRequest(`the body may not exceed ${MAX_BODY} bytes`);
+    }
+    if (!s.trim()) return {};
+    let parsed: unknown;
+    try { parsed = JSON.parse(s); } catch { throw new BadRequest('the body is not valid JSON'); }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new BadRequest('the body must be a JSON object');
+    return parsed as Json;
   };
   /**
    * The absolute path, if it is inside the project; null otherwise.
@@ -1285,7 +1295,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
       }
       json(res, 404, { error: 'not found' });
     } catch (err) {
-      json(res, 500, { error: err instanceof Error ? err.message : String(err) });
+      json(res, err instanceof BadRequest ? 400 : 500, { error: err instanceof Error ? err.message : String(err) });
     }
   });
 

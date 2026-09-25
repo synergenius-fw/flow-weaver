@@ -24,13 +24,6 @@ describe('Windows ESM import compatibility', () => {
     expect(source).not.toMatch(/await import\(filePath\)/);
   });
 
-  it('deployment/config/loader.ts uses pathToFileURL for dynamic imports', () => {
-    const source = fs.readFileSync(path.join(SRC_ROOT, 'deployment/config/loader.ts'), 'utf8');
-    expect(source).toContain("import { pathToFileURL } from 'url'");
-    expect(source).toContain('pathToFileURL(absolutePath).href');
-    expect(source).not.toMatch(/await import\(absolutePath\)/);
-  });
-
   it('mcp/workflow-executor.ts already uses pathToFileURL (reference)', () => {
     const source = fs.readFileSync(path.join(SRC_ROOT, 'mcp/workflow-executor.ts'), 'utf8');
     expect(source).toContain("import { pathToFileURL } from 'url'");

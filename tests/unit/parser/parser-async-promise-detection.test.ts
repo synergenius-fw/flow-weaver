@@ -112,4 +112,40 @@ describe('isAsync detection for Promise return types', () => {
     expect(nodeType).toBeDefined();
     expect(nodeType!.isAsync).toBe(false);
   });
+
+  it('annotated non-async function returning Promise gives isAsync: true', () => {
+    // The generated call must be awaited whether the Promise comes from the
+    // async keyword or from a plain function that builds one itself.
+    const workflowPath = writeFile('wf-async-4.ts', `
+      /**
+       * @flowWeaver nodeType
+       * @input url
+       * @output data
+       */
+      function fetchLater(execute: boolean, url: string): Promise<{ data: string; onSuccess: boolean }> {
+        return Promise.resolve({ data: url, onSuccess: true });
+      }
+
+      /**
+       * @flowWeaver workflow
+       * @node f fetchLater
+       * @connect Start.execute -> f.execute
+       * @connect Start.url -> f.url
+       * @connect f.data -> Exit.output
+       * @connect f.onSuccess -> Exit.onSuccess
+       */
+      export function promiseWorkflow(
+        execute: boolean,
+        params: { url: string }
+      ): { onSuccess: boolean; onFailure: boolean; output: string } {
+        throw new Error('stub');
+      }
+    `);
+
+    const result = parser.parse(workflowPath);
+    const nodeType = result.nodeTypes.find(nt => nt.functionName === 'fetchLater');
+    expect(nodeType).toBeDefined();
+    expect(nodeType!.isAsync).toBe(true);
+    expect(nodeType!.outputs.data).toMatchObject({ dataType: 'STRING', tsType: 'string' });
+  });
 });

@@ -7,13 +7,13 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { execSync } from 'child_process';
 import {
   searchPackages,
   listInstalledPackages,
   getInstalledPackageManifest,
   searchAllRegistries,
 } from '../marketplace/index.js';
+import { npmInstall } from '../marketplace/install.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
 
 export function registerMarketplaceTools(mcp: McpServer): void {
@@ -65,17 +65,13 @@ export function registerMarketplaceTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_market_install',
-    'Install a Flow Weaver marketplace package via npm. After installation, the package\'s node types, workflows, and patterns become available for use.',
+    'Install a Flow Weaver marketplace package via npm. After installation, the package\'s node types and workflows become available for use.',
     {
       package: z.string().describe('Package name or specifier (e.g., "flow-weaver-pack-openai" or "flow-weaver-pack-openai@1.0.0")'),
     },
     async (args: { package: string }) => {
       try {
-        // Run npm install
-        execSync(`npm install ${args.package}`, {
-          cwd: process.cwd(),
-          stdio: 'pipe',
-        });
+        npmInstall(args.package, { cwd: process.cwd(), stdio: 'pipe' });
 
         // Try to read the manifest
         const packageName = resolvePackageName(args.package);
@@ -115,7 +111,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_market_list',
-    'List installed Flow Weaver marketplace packages in the current project. Shows available node types, workflows, and patterns from each package.',
+    'List installed Flow Weaver marketplace packages in the current project. Shows available node types and workflows from each package.',
     {},
     async () => {
       try {

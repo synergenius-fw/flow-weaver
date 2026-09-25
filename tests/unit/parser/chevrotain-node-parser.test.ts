@@ -413,4 +413,31 @@ describe('Chevrotain Node Parser', () => {
       expect(warnings[0]).toContain('Failed to parse');
     });
   });
+
+  describe('port names that are also option keys on other tags', () => {
+    it('accepts timeout/event/limit in [portOrder:] and [portLabel:]', () => {
+      const warnings: string[] = [];
+      expect(parseNodeLine('@node a B [portOrder: timeout=1, event=2]', warnings)).toEqual({
+        instanceId: 'a',
+        nodeType: 'B',
+        portOrder: { timeout: 1, event: 2 },
+      });
+      expect(parseNodeLine('@node a B [portLabel: limit="Max", period="Window"]', warnings)).toEqual({
+        instanceId: 'a',
+        nodeType: 'B',
+        portLabel: { limit: 'Max', period: 'Window' },
+      });
+      expect(warnings).toEqual([]);
+    });
+
+    it('accepts them in [expr:] as before', () => {
+      const warnings: string[] = [];
+      expect(parseNodeLine(`@node a B [expr: timeout="'1h'", match="x.y", cron="'* * * * *'"]`, warnings)).toEqual({
+        instanceId: 'a',
+        nodeType: 'B',
+        expressions: { timeout: "'1h'", match: 'x.y', cron: "'* * * * *'" },
+      });
+      expect(warnings).toEqual([]);
+    });
+  });
 });

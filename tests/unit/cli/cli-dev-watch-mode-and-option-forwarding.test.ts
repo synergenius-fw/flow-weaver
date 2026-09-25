@@ -223,16 +223,6 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     stdoutSpy.mockRestore();
   });
 
-  it('should handle the case when no providers are registered for unknown target', async () => {
-    // Clear all registered providers by attempting a fresh import scenario
-    const { devCommand } = await import('../../../src/cli/commands/dev');
-    const filePath = writeFixture('no-providers.ts', SIMPLE_WORKFLOW);
-
-    await expect(
-      devCommand(filePath, { target: 'totally-nonexistent-xyz' })
-    ).rejects.toThrow(/Unknown dev target/);
-  });
-
   it('should show success message with elapsed time from compile in non-json mode', async () => {
     const { devCommand } = await import('../../../src/cli/commands/dev');
     const { logger } = await import('../../../src/cli/utils/logger');

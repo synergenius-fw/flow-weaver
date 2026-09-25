@@ -1,12 +1,10 @@
 /**
- * Core validation rules for WorkflowValidator (debt #3 step 2b).
+ * Core validation rules for WorkflowValidator.
  *
  * Each rule is a free function taking a ValidationContext (the mutable
  * errors/warnings arrays + mode flags) plus the workflow and any precomputed
- * maps. They were previously private methods of WorkflowValidator. Extracting
- * them behind an explicit context removes the god-class while preserving
- * behavior exactly (same logic, same emission order). WorkflowValidator.validate()
- * builds the context and invokes these in a fixed order.
+ * maps. WorkflowValidator.validate() builds the context and invokes these in
+ * a fixed order; the cascading-error filter there depends on that order.
  */
 
 import type {
@@ -27,7 +25,7 @@ import {
 import * as ts from 'typescript';
 import { findClosestMatches } from '../utils/string-distance.js';
 import { parseFunctionSignature } from '../jsdoc-port-sync/signature-parser.js';
-import { checkTypeCompatibilityFromStrings } from './type-checker.js';
+import { checkTypeCompatibilityFromStrings, SAFE_COERCIONS } from './type-checker.js';
 import { isValidPortType } from '../types/type-mappings.js';
 import { VALID_NODE_ICONS } from '../diagram/theme.js';
 import { MATERIAL_SYMBOLS, isMaterialSymbol } from '../diagram/material-symbols.js';
@@ -37,34 +35,18 @@ import {
   formatType as formatTypeHelper,
   normalizeTypeString as normalizeTypeStringHelper,
   areMutuallyExclusive as areMutuallyExclusiveHelper,
+  COERCE_OUTPUT_TYPE,
+  suggestCoerceType,
 } from './validator-helpers.js';
 
 /**
- * Mutable state shared across validation rules. Replaces the instance fields
- * of the former WorkflowValidator god-class.
+ * Mutable state shared across validation rules.
  */
 export interface ValidationContext {
   errors: TValidationError[];
   warnings: TValidationError[];
   strictMode: boolean;
   draftMode: boolean;
-}
-
-/** Map coerce type to the dataType it produces */
-const COERCE_OUTPUT_TYPE: Record<string, string> = {
-  string: 'STRING', number: 'NUMBER', boolean: 'BOOLEAN',
-  json: 'STRING', object: 'OBJECT',
-};
-
-/** Suggest the correct `as <type>` for a given target dataType */
-function suggestCoerceType(targetType: string): string {
-  switch (targetType) {
-    case 'STRING': return 'string';
-    case 'NUMBER': return 'number';
-    case 'BOOLEAN': return 'boolean';
-    case 'OBJECT': return 'object';
-    default: return '<type>';
-  }
 }
 
 export function validateStructure(ctx: ValidationContext, workflow: TWorkflowAST): void {
@@ -425,12 +407,7 @@ export function validateTypeCompatibility(
     }
 
     // Safe coercions (no warning)
-    const safeCoercions = [
-      ['NUMBER', 'STRING'],
-      ['BOOLEAN', 'STRING'],
-    ];
-
-    for (const [from, to] of safeCoercions) {
+    for (const [from, to] of SAFE_COERCIONS) {
       if (sourceType === from && targetType === to) {
         return; // Safe coercion, no warning
       }
@@ -502,33 +479,27 @@ export function validateTypeCompatibility(
   });
 }
 
-export function validateNodeReferences(
-  ctx: ValidationContext,
-  workflow: TWorkflowAST,
-  instanceMap: Map<string, TNodeTypeAST>
-): void {
-  const referencedNodes = new Set<string>();
-  workflow.connections.forEach((conn) => {
-    const fromNode = conn.from.node;
-    const toNode = conn.to.node;
-    if (!isStartNode(fromNode) && !isExitNode(fromNode) && !isPseudoNode(fromNode)) {
-      referencedNodes.add(fromNode);
-    }
-    if (!isStartNode(toNode) && !isExitNode(toNode)) {
-      referencedNodes.add(toNode);
-    }
-  });
-  referencedNodes.forEach((nodeName) => {
-    if (!instanceMap.has(nodeName)) {
+/**
+ * Scope names become identifiers in generated code (`l_<scope>_scopeFn`), so
+ * a `scope:my-scope` port would compile into a syntax error.
+ */
+export function validateScopeNames(ctx: ValidationContext, workflow: TWorkflowAST): void {
+  const identifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+  for (const nodeType of workflow.nodeTypes) {
+    const ports = [...Object.entries(nodeType.inputs), ...Object.entries(nodeType.outputs)];
+    for (const [portName, portDef] of ports) {
+      if (portDef.scope === undefined || identifier.test(portDef.scope)) continue;
       ctx.errors.push({
         type: 'error',
-        code: 'UNDEFINED_NODE',
-        message: `Workflow references undefined node: "${nodeName}"`,
-        node: nodeName,
+        code: 'INVALID_SCOPE_NAME',
+        message: `Port "${portName}" on node type "${nodeType.functionName}" has invalid scope name "${portDef.scope}". Scope names must be valid JavaScript identifiers (letters, numbers, underscore, dollar sign, and cannot start with a number).`,
+        node: nodeType.functionName,
+        location: nodeType.sourceLocation,
       });
     }
-  });
+  }
 }
+
 export function validateRequiredInputs(
   ctx: ValidationContext,
   workflow: TWorkflowAST,
@@ -537,6 +508,10 @@ export function validateRequiredInputs(
   instanceMap.forEach((nodeType, instanceId) => {
     // Find the instance to check for port-level constant expressions
     const instance = workflow.instances.find((inst) => inst.id === instanceId);
+
+    // A scoped child's inputs are checked by validateScopeTopology
+    // (SCOPE_MISSING_REQUIRED_INPUT), which knows the scope it lives in.
+    if (instance?.parent) return;
 
     Object.entries(nodeType.inputs).forEach(([portName, portConfig]) => {
       if (isExecutePort(portName)) return;
@@ -913,15 +888,18 @@ export function validateMultipleInputConnections(
     // connection into the same target, and the expression is the single value
     if (conn.derived) continue;
 
-    // Get target port type to check if it's STEP or has mergeStrategy
+    // An edge touching a node that is not an instance is already an
+    // UNKNOWN_SOURCE_NODE / UNKNOWN_TARGET_NODE error; counting it here would
+    // report the same mistake a second time.
     const targetNodeType = instanceMap.get(conn.to.node);
-    if (targetNodeType) {
-      const targetPortDef = targetNodeType.inputs[conn.to.port];
-      // STEP ports can have multiple connections (control flow)
-      if (targetPortDef?.dataType === 'STEP') continue;
-      // Ports with mergeStrategy can have multiple connections (fan-in)
-      if (targetPortDef?.mergeStrategy) continue;
-    }
+    if (!targetNodeType) continue;
+    if (!isStartNode(conn.from.node) && !isPseudoNode(conn.from.node) && !instanceMap.has(conn.from.node)) continue;
+
+    // STEP ports can have multiple connections (control flow)
+    const targetPortDef = targetNodeType.inputs[conn.to.port];
+    if (targetPortDef?.dataType === 'STEP') continue;
+    // Ports with mergeStrategy can have multiple connections (fan-in)
+    if (targetPortDef?.mergeStrategy) continue;
 
     if (!inputConnections.has(targetKey)) {
       inputConnections.set(targetKey, []);
@@ -1005,11 +983,6 @@ export function validateAnnotationSignatureConsistency(ctx: ValidationContext, w
     }
   }
 }
-
-/**
- * Check if a set of source nodes are mutually exclusive — i.e., they descend
- * from opposite branches (onSuccess vs onFailure) of the same branching node.
- */
 
 /**
  * Validate inner graph topology for nodes that have scoped ports.

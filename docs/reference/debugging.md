@@ -262,7 +262,7 @@ Mock config structure:
 - `invocations: { "function-id": result }` — Mock results for `invokeWorkflow`
 - `events` and `agents` — Accepted and validated, but they do not resolve a gate; `waitForEvent` and `waitForAgent` yield regardless
 
-A workflow containing `waitForEvent`, `waitForAgent`, or any `@durableGate` node cannot be run by `fw run` at all — it is refused before execution. Drive it with the `fw_run` / `fw_resume` MCP tools, or call `executeWorkflow` with a resolution. See [Durable Gates](durable-gates).
+A workflow containing `waitForEvent`, `waitForAgent`, or any `@durableGate` node cannot be run by `fw run` at all — it is refused before execution. Drive it with the `fw_run` / `fw_resume` MCP tools, or from code with `createLocalCoordinator` (or `executeWorkflow` with a resolution) from `@synergenius/flow-weaver/coordinator`. See [Durable Gates](durable-gates.md).
 
 `--timeout <ms>` bounds a run whose nodes take too long; it has no role in gates, which never wait.
 
@@ -326,7 +326,7 @@ fw run workflow.ts --debug --breakpoint processData --breakpoint formatOutput
 
 ### In the console
 
-`fw console` drives the same controller from the browser: tick **Step through** on the run form, set breakpoints by clicking a step's tile, and use Step (`F10`), Continue (`F5`) and To breakpoint (`⇧F5`). The step it is paused at is marked in the process, and a paused step's outputs are editable in its Step card — the equivalent of `set <node>.<port> <json>`. See [Console](console).
+`fw console` drives the same controller from the browser: tick **Step through** on the run form, set breakpoints by clicking a step's tile, and use Step (`F10`), Continue (`F5`) and To breakpoint (`⇧F5`). The step it is paused at is marked in the process, and a paused step's outputs are editable in its Step card — the equivalent of `set <node>.<port> <json>`. See [Console](console.md).
 
 ### MCP Debug Tools
 
@@ -377,7 +377,7 @@ fingerprint, gate, and resolution.
 
 - To step through a gated workflow's nodes, resolve its gates with `fw_run` / `fw_resume` and inspect each segment's result
 - The debugger rejects continuation and gate fields; a run that yields inside `--debug` ends there
-- Details: [Durable Gates](durable-gates) and `docs/adr/0001-durable-gate-continuation.md`
+- Details: [Durable Gates](durable-gates.md) and `docs/adr/0001-durable-gate-continuation.md`
 
 ---
 

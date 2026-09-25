@@ -33,6 +33,7 @@ export async function diffCommand(
     throw new Error(`File not found: ${filePath2}`);
   }
 
+  let diff;
   try {
     // Parse both workflows
     const [result1, result2] = await Promise.all([
@@ -48,25 +49,24 @@ export async function diffCommand(
       throw new Error(`Parse errors in ${file2}:\n${result2.errors.map((err) => `  ${err}`).join('\n')}`);
     }
 
-    // Compare workflows
-    const diff = WorkflowDiffer.compare(result1.ast, result2.ast);
-
-    // Output based on format
-    if (diff.identical) {
-      if (format === 'json') {
-        console.log(JSON.stringify({ identical: true }));
-      } else {
-        logger.success('Workflows are identical');
-      }
-    } else {
-       
-      console.log(formatDiff(diff, format));
-      // Throw if there are differences (useful for CI)
-      if (!exitZero) {
-        throw new Error('Workflows have differences');
-      }
-    }
+    diff = WorkflowDiffer.compare(result1.ast, result2.ast);
   } catch (error) {
     throw new Error(`Failed to diff workflows: ${getErrorMessage(error)}`);
+  }
+
+  if (diff.identical) {
+    if (format === 'json') {
+      console.log(JSON.stringify({ identical: true }));
+    } else {
+      logger.success('Workflows are identical');
+    }
+    return;
+  }
+
+  console.log(formatDiff(diff, format));
+  // A difference is the answer, not a failure: exit 1 for CI without the
+  // "failed" prefix a real failure gets.
+  if (!exitZero) {
+    throw new Error('Workflows have differences');
   }
 }

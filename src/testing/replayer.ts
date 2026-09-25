@@ -3,7 +3,7 @@
  *
  * Usage:
  * ```typescript
- * import { createReplayProvider, loadRecording } from 'flow-weaver/testing';
+ * import { createReplayProvider, loadRecording } from '@synergenius/flow-weaver/testing';
  *
  * const recording = loadRecording(jsonFixture);
  * const replay = createReplayProvider(recording);

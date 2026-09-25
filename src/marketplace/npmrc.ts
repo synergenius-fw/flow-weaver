@@ -81,7 +81,8 @@ function authorizationFor(url: string, config: Map<string, string>): string | un
   const dart = nerfDart(url);
   let best: { len: number; value: string } | undefined;
   for (const [key, value] of config) {
-    const m = key.match(/^(\/\/[^:]+\/):(_authToken|_auth|_password)$/);
+    // The dart may carry a port (`//localhost:4873/`), so match up to the last `/:`.
+    const m = key.match(/^(\/\/.+\/):(_authToken|_auth|_password)$/);
     if (!m || !dart.startsWith(m[1]) || !value) continue;
     if (best && m[1].length <= best.len) continue;
     if (m[2] === '_authToken') best = { len: m[1].length, value: `Bearer ${value}` };
