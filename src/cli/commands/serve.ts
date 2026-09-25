@@ -119,7 +119,7 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
     await server.start();
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
-      throw new Error(`Port ${port} is already in use. Try a different port with --port <number>`);
+      throw new Error(`Port ${port} is already in use. Try a different port with --port <number>`, { cause: error });
     }
     throw error;
   }

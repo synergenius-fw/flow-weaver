@@ -157,7 +157,7 @@ export function buildDiffView(before: TWorkflowAST, after: TWorkflowAST): DiffVi
   const afterConn = new Set(after.connections.map(connKey));
   const removedConnections = before.connections.filter((c) => !afterConn.has(connKey(c)) && (c.from.node === 'Start' || unionIds.has(c.from.node)) && (c.to.node === 'Exit' || unionIds.has(c.to.node)));
   const union: TWorkflowAST = { ...after, nodeTypes: unionTypes, instances: [...after.instances, ...removedInstances], connections: [...after.connections, ...removedConnections] };
-  let model: ProcessModel | null = null;
+  let model: ProcessModel | null;
   try { model = buildProcessModel(union); } catch { model = null; }
   // As the workflow endpoint does: the label rule and pull execution live on
   // the instance, not in the process model, so the rows read the same here.

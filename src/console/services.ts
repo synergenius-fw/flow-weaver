@@ -124,7 +124,7 @@ export class Supervisor {
 
   settings(): ServiceSettings {
     if (this.cache) return this.cache;
-    let stored: Partial<ServiceSettings> = {};
+    let stored: Partial<ServiceSettings>;
     try { stored = JSON.parse(fs.readFileSync(this.file, 'utf8')) as Partial<ServiceSettings>; } catch { stored = {}; }
     this.cache = {
       serve: { ...DEFAULT_SETTINGS.serve, ...(stored.serve ?? {}) },
@@ -229,7 +229,7 @@ export class Supervisor {
     if (pid !== undefined) {
       const other = this.registryFor(kind).find((r) => r.pid === pid);
       if (!other) throw new Error(`no ${kind} with pid ${pid} for this project`);
-      try { process.kill(pid, 'SIGTERM'); } catch (e) { throw new Error(`could not stop pid ${pid}: ${(e as Error).message}`); }
+      try { process.kill(pid, 'SIGTERM'); } catch (e) { throw new Error(`could not stop pid ${pid}: ${(e as Error).message}`, { cause: e }); }
       const end = Date.now() + STOP_GRACE_MS;
       while (Date.now() < end && isAlive(pid)) await sleep(100);
       if (isAlive(pid)) { try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } }

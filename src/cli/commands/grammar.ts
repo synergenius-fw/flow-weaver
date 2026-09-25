@@ -40,6 +40,6 @@ export async function grammarCommand(options: GrammarOptions = {}): Promise<void
       process.stdout.write(content);
     }
   } catch (error) {
-    throw new Error(`Grammar generation failed: ${getErrorMessage(error)}`);
+    throw new Error(`Grammar generation failed: ${getErrorMessage(error)}`, { cause: error });
   }
 }

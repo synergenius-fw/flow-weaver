@@ -123,7 +123,7 @@ export async function createWorkflowCommand(
     }
     logger.info(`  Workflow function: ${workflowName}`);
   } catch (error) {
-    throw new Error(`Failed to create workflow: ${getErrorMessage(error)}`);
+    throw new Error(`Failed to create workflow: ${getErrorMessage(error)}`, { cause: error });
   }
 }
 
@@ -176,6 +176,6 @@ export async function createNodeCommand(
     }
     logger.info(`  Node function: ${nodeName}`);
   } catch (error) {
-    throw new Error(`Failed to create node: ${getErrorMessage(error)}`);
+    throw new Error(`Failed to create node: ${getErrorMessage(error)}`, { cause: error });
   }
 }

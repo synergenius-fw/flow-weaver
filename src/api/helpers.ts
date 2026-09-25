@@ -105,7 +105,7 @@ export function withMinimalValidation<T extends TWorkflowAST>(
       checks.forEach(check => check(result));
     } catch (error: unknown) {
       const context = operationName ? ` during ${operationName}` : "";
-      throw new Error(`${getErrorMessage(error)}${context}`);
+      throw new Error(`${getErrorMessage(error)}${context}`, { cause: error });
     }
   }
 

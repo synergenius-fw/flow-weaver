@@ -841,7 +841,7 @@ export class AnnotationParser {
       } catch (error) {
         // Re-throw with better context
         if (error instanceof Error) {
-          throw new Error(`Failed to process import from ${importedFilePath}:\n  ${error.message}`);
+          throw new Error(`Failed to process import from ${importedFilePath}:\n  ${error.message}`, { cause: error });
         }
         throw error;
       }

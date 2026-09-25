@@ -332,7 +332,7 @@ export async function marketPublishCommand(directory?: string, options: MarketPu
       logger.success(`Published ${pkg.name}@${pkg.version} to npm`);
     }
   } catch (err) {
-    throw new Error(`npm publish failed: ${getErrorMessage(err)}`);
+    throw new Error(`npm publish failed: ${getErrorMessage(err)}`, { cause: err });
   }
 }
 

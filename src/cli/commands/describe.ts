@@ -486,6 +486,6 @@ export async function describeCommand(input: string, options: DescribeOptions = 
     if (error instanceof Error && error.message.startsWith('Node not found:')) {
       throw error;
     }
-    throw new Error(`Failed to describe workflow: ${getErrorMessage(error)}`);
+    throw new Error(`Failed to describe workflow: ${getErrorMessage(error)}`, { cause: error });
   }
 }
