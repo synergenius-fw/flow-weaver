@@ -2,46 +2,45 @@
 
 This folder does not mean the library ships a runtime. Generated workflows have zero
 dependencies on `@synergenius/flow-weaver` at execution time. The files here serve
-three purposes that happen to share types.
+two purposes that happen to share types.
 
 ---
 
-## The execution context, in two copies
+## The inlined runtime
 
-`ExecutionContext.ts`, `CancellationError.ts`, `events.ts`
+`ExecutionContext.ts`, `continuation-core.ts`, `durable-execution.ts`
 
-None of these are imported by generated code. A compiled file carries its own
-`GeneratedExecutionContext`, and that one is not derived from this folder: it is
-written out line by line in `src/api/inline-runtime.ts` (`generateInlineRuntime`),
-which also emits the event types and `CancellationError`. The result is a standalone
-`.ts` file with no external imports, in a `production` variant (no debug
-instrumentation, no-op event stubs) and a `development` variant (full debug event
-stream).
+Generated code imports none of these; a compiled file carries their text instead, and
+here the source *is* the text. `scripts/generate-inline-engine.ts` reads the three
+files, drops their `import` statements and `export` modifiers, turns doc comments into
+plain block comments, and writes `src/api/inline-engine.generated.ts` (gitignored,
+produced by `prebuild` and by the vitest global setup). `generateInlineRuntime` in
+`src/api/inline-runtime.ts` prepends what the imports provided (the package version,
+the event and debugger types, `CancellationError`), writes the execution context and
+then the engine, and appends the `export` list a compiled file offers
+(`INLINE_ENGINE_EXPORTS`).
 
-`ExecutionContext.ts` here is the library-side class: the one the package exports
-(`GeneratedExecutionContext` from the root), the one `debug-controller.ts` types
-against, and the one the tests drive directly. Compiled workflows never run it. A
-change to it does not reach compiled files; a change meant for them goes in
-`inline-runtime.ts`, and the two are kept in step by hand.
+So there is one `GeneratedExecutionContext`: the class the package exports (from the
+root, typed against by `debug-controller.ts`, driven by the tests) is the class a
+compiled workflow runs, and the package's coordinator runs the same engine modules. A
+change to either reaches compiled files on the next compile, and the generator goldens
+pin the copied text.
 
-## The inlined durable engine
+A compiled file comes in a `development` variant (full debug event stream) and a
+`production` variant (no debug instrumentation). `ExecutionContext.ts` marks what the
+production variant leaves out with comment lines: a region between
+`// inline: development only` and `// inline: end` is removed, and a region opened by
+`// inline: development only, a no-op stub in production` becomes one
+`name(_args: unknown): void` stub per method, so generated calls still resolve. The
+package and the development variant keep both kinds of region.
 
-`continuation-core.ts`, `durable-execution.ts`
-
-The engine behind gates and effects is inlined too, and here the source *is* the text:
-`scripts/generate-inline-engine.ts` reads these two files, drops their `import`
-statements and `export` modifiers, turns doc comments into plain block comments, and
-writes `src/api/inline-engine.generated.ts` (gitignored, produced by `prebuild` and by
-the vitest global setup). `generateInlineRuntime` prepends what the imports provided,
-the package version and aliases for the three host types, and appends the `export`
-list a compiled file offers (`INLINE_ENGINE_EXPORTS`). The package's coordinator runs
-the same modules, so there is one engine and it cannot drift.
-
-Because they are copied into user files, these two modules follow rules the rest of the
+Because they are copied into user files, these modules follow rules the rest of the
 package does not:
 
-- import values only from each other and `generated-version.ts`. Types may be imported
-  (`FwMockConfig`, `TDebugger`, `DebugController`) because the inliner aliases them.
+- import values only from each other and `generated-version.ts`, plus
+  `CancellationError` in `ExecutionContext.ts`, which the inlined runtime declares
+  ahead of the class. Types may be imported (`FwMockConfig`, `TDebugger`,
+  `DebugController`, the event types) because the inlined runtime provides them.
 - no Node API. `sha256Hex` is SHA-256 in plain JavaScript, UTF-8 lengths are counted by
   hand, and nothing past ES2020 is allowed (`Object.hasOwn`, `.at()` are out).
 - module-private helpers carry distinctive names (`durableAddressKey`, `canonicalJson`),
@@ -49,6 +48,10 @@ package does not:
 - `WorkflowRuntime.durable` is the `DurableEngine` interface, never the class, so a
   runtime built by the package and one built by a compiled file's copy are
   interchangeable to the type checker.
+
+`CancellationError.ts` and the event types in `events.ts` are not inlined from source:
+`generateInlineRuntime` still writes its own `CancellationError` and event types, so
+those are the one pair left to keep in step by hand.
 
 `continuation.ts` adds `decodeContinuation` (the strict parse and the checks that need
 the compiled graph) on top of the core, for the coordinator only.

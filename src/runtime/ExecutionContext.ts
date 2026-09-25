@@ -1,3 +1,29 @@
+/**
+ * The execution context a generated workflow body runs against: variable
+ * storage, per-node execution indices, scopes, pull execution, debug events,
+ * and the calls into the durable engine.
+ *
+ * This module is written to be inlined, and there is one copy of the class:
+ * `scripts/generate-inline-engine.ts` turns this file into text, and
+ * `generateInlineRuntime` in `src/api/inline-runtime.ts` writes that text
+ * into every compiled file. The class the package exports and the one a
+ * compiled workflow runs are therefore the same code. The rules of
+ * `durable-execution.ts` apply here too: no Node API, nothing past ES2020,
+ * and imports of types only, except `CancellationError`, which the inlined
+ * runtime declares ahead of this class. Every comment below this header is
+ * copied into compiled files; this header is the one comment the inliner
+ * drops.
+ *
+ * A production build of a compiled file carries no debug instrumentation,
+ * and two comment markers say what it leaves out:
+ * - a region opened by `inline: development only` and closed by
+ *   `inline: end` is removed;
+ * - a region opened by `inline: development only, a no-op stub in
+ *   production` becomes one `name(_args: unknown): void` stub for each
+ *   method in it, so generated calls to those methods still resolve.
+ * The package and the development build keep both kinds of region and drop
+ * only the marker lines.
+ */
 import type { TDebugger, TStatusType, TVariableIdentification } from './events';
 import { CancellationError } from './CancellationError';
 import type { WorkflowRuntime } from './durable-execution.js';
@@ -5,21 +31,8 @@ import type { DurableGateKind, ExecutionAddress, WireValue } from './continuatio
 import type { BranchAddress } from './continuation.js';
 
 /**
- * Address for accessing a variable in the execution context
- *
- * Variables are stored with key format: `nodeName:portName:executionIndex`
- *
- * @example
- * ```typescript
- * const address: VariableAddress = {
- *   nodeName: 'adder1',
- *   portName: 'result',
- *   executionIndex: 0,
- *   nodeTypeName: 'Add'
- * };
- * const value = await ctx.getVariable(address);
- * // Key used internally: "adder1:result:0"
- * ```
+ * Address of a variable in the execution context. Variables are stored under
+ * the key `id:portName:executionIndex`.
  */
 export interface VariableAddress {
   id: string;
@@ -42,70 +55,47 @@ export interface ExecutionInfo {
 type VariableValue = unknown | (() => unknown) | (() => Promise<unknown>);
 
 /**
- * The execution context, library side.
+ * Variable storage with execution-scoped addressing, per-node execution
+ * indices, pull execution (lazy evaluation), scopes and parallel lanes, debug
+ * events, and the durable engine calls a generated body makes.
  *
- * Manages variable storage, execution tracking, and pull execution (lazy evaluation).
- * A compiled workflow does not run this class: it carries its own copy, written
- * out by `generateInlineRuntime` in `src/api/inline-runtime.ts`, so that the
- * compiled file has no import from this package. This one is what the package
- * exports, what `debug-controller.ts` types against, and what the tests drive
- * directly. The two are kept in step by hand; a change meant for compiled
- * files goes in `inline-runtime.ts`.
- *
- * Key Features:
- * - Variable storage with execution-scoped addressing
- * - Pull execution support (lazy evaluation)
- * - Debug event emission
- * - Async and sync execution modes
- *
- * @example
- * ```typescript
- * const ctx = new GeneratedExecutionContext(true, runtime);
- * const execIndex = ctx.addExecution('node1');
- * ctx.setVariable({ nodeName: 'node1', portName: 'result', executionIndex: execIndex }, 42);
- * const value = await ctx.getVariable({ nodeName: 'node1', portName: 'result', executionIndex: execIndex });
- * ```
+ * Scope counters start at 0 on every construction. A resume replays the body
+ * from its first node, skipping what the continuation holds, and so reaches
+ * the same iteration ordinals the first run assigned
+ * (`tests/continuation/durable-loops.test.ts`).
  */
 export class GeneratedExecutionContext {
   private variables: Map<string, VariableValue> = new Map();
   private executions: Map<string, ExecutionInfo> = new Map();
   private executionCounter: number = 0;
+  private nodeExecutionCounts: Map<string, number> = new Map();
   private isAsync: boolean;
+  // inline: development only
   private flowWeaverDebugger?: TDebugger | undefined;
+  // inline: end
   private pullExecutors: Map<string, () => void | Promise<void>> = new Map();
   private nodeExecutionIndices: Map<string, number> = new Map();
-  private nodeExecutionCounts: Map<string, number> = new Map();
   private runtime: WorkflowRuntime;
   private scopeInvocationCounts: Map<string, number> = new Map();
   private nestedInvocationCounts: Map<string, number> = new Map();
   private branchStack: BranchAddress[];
   private allowAncestorDurableVariables = true;
 
-  /**
-   * Create a new execution context
-   * @param isAsync - Whether the workflow runs in async mode (default: true)
-   * @param runtime - Required execution-scoped runtime
-   */
+  /** `isAsync` is the workflow's async mode; `runtime` is the execution-scoped runtime. */
   constructor(isAsync: boolean = true, runtime: WorkflowRuntime) {
     this.isAsync = isAsync;
+    // inline: development only
     this.flowWeaverDebugger = runtime.services.debugger;
+    // inline: end
     this.runtime = runtime;
     this.branchStack = [...runtime.branches];
-    // Library side only. This seeds a re-entered scope's counter to one past
-    // the highest iteration the continuation holds. The copy of this class
-    // inside a compiled file (see `src/api/inline-runtime.ts`) does not seed:
-    // it starts every counter at 0 and reaches the same ordinals by replaying
-    // the body from its first node, skipping what the continuation holds
-    // (`tests/continuation/durable-loops.test.ts`). The two copies are kept
-    // apart on purpose; this is the class the package exports and the tests
-    // drive, not what a compiled workflow runs.
-    for (const [scopeKey, maxIteration] of runtime.durable.resumedScopeHighWater()) {
-      this.scopeInvocationCounts.set(scopeKey, maxIteration + 1);
-    }
   }
+
   registerPullExecutor(id: string, executor: () => void | Promise<void>): void {
     this.pullExecutors.set(id, executor);
   }
+
+  /** Record one execution of a node; each node counts its own executions from 0. */
   addExecution(id: string, parentIndex?: number, scopeName?: string): number {
     const index = this.nodeExecutionCounts.get(id) ?? 0;
     this.nodeExecutionCounts.set(id, index + 1);
@@ -119,12 +109,14 @@ export class GeneratedExecutionContext {
     this.nodeExecutionIndices.set(id, index);
     return index;
   }
+
   setVariable(address: VariableAddress, value: VariableValue): void | Promise<void> {
     const key = this.getVariableKey(address);
     this.variables.set(key, value);
     if (typeof value !== 'function' && address.durable !== false) {
       this.runtime.durable.setVariable(this.executionAddress(address), address.portName, value);
     }
+    // inline: development only
     if (this.flowWeaverDebugger) {
       const actualValue = typeof value === 'function' ? value() : value;
       this.sendVariableSetEvent({
@@ -134,21 +126,21 @@ export class GeneratedExecutionContext {
           portName: address.portName,
           executionIndex: address.executionIndex,
           key: 'default',
-          ...(address.scope !== undefined && { scope: address.scope }),
-          ...(address.side !== undefined && { side: address.side }),
+          ...(address.scope && { scope: address.scope }),
+          ...(address.side && { side: address.side }),
         },
         value: actualValue,
       });
     }
+    // inline: end
     return this.isAsync ? Promise.resolve() : undefined;
   }
+
   getVariable(address: VariableAddress): unknown | Promise<unknown> {
     const executor = this.pullExecutors.get(address.id);
-
     if (executor) {
       if (!this.hasVariable(address)) {
         const result = executor();
-
         // Handle async executor (returns Promise)
         if (result instanceof Promise) {
           return result.then(() => {
@@ -157,16 +149,15 @@ export class GeneratedExecutionContext {
             return this.retrieveVariable(finalAddress);
           });
         }
-
         // Handle sync executor (returns void)
         const trackedIndex = this.nodeExecutionIndices.get(address.id);
         const finalAddress = trackedIndex !== undefined ? { ...address, executionIndex: trackedIndex } : address;
         return this.retrieveVariable(finalAddress);
       }
     }
-
     return this.retrieveVariable(address);
   }
+
   private retrieveVariable(address: VariableAddress): unknown | Promise<unknown> {
     const key = this.getVariableKey(address);
     let value = this.variables.get(key);
@@ -190,6 +181,7 @@ export class GeneratedExecutionContext {
     }
     return this.isAsync ? Promise.resolve(value) : value;
   }
+
   hasVariable(address: VariableAddress): boolean {
     const key = this.getVariableKey(address);
     return (
@@ -200,165 +192,6 @@ export class GeneratedExecutionContext {
         this.allowAncestorDurableVariables,
       ) !== undefined
     );
-  }
-  getExecution(id: string, index: number): ExecutionInfo | undefined {
-    return this.executions.get(this.getExecutionKey(id, index));
-  }
-
-  /**
-   * Create an isolated execution scope for container nodes
-   *
-   * Scopes provide isolated variable storage for nodes like ForEach loops.
-   * Child nodes execute within the scope, then variables are merged back.
-   *
-   * @param _parentNodeName - ID of the container node creating the scope
-   * @param _parentIndex - Execution index of the container
-   * @param _scopeName - Name of the scope (e.g., 'iteration')
-   * @param cleanScope - If true, create fresh scope without parent variables (per-port scopes). If false, inherit parent variables (node-level scopes).
-   * @returns New ExecutionContext for the scoped execution
-   *
-   * @example
-   * ```typescript
-   * // Per-port scope (clean=true): isolated variables
-   * const scopedCtx = ctx.createScope('forEach1', 0, 'iteration', true);
-   *
-   * // Node-level scope (clean=false): inherited variables
-   * const scopedCtx = ctx.createScope('container1', 0, 'block', false);
-   * ```
-   */
-  createScope(
-    _parentNodeName: string,
-    _parentIndex: number,
-    _scopeName: string,
-    cleanScope: boolean = false,
-  ): GeneratedExecutionContext {
-    const scopeKey = `${_parentNodeName}:${_parentIndex}:${_scopeName}`;
-    const invocation = this.scopeInvocationCounts.get(scopeKey) ?? 0;
-    this.scopeInvocationCounts.set(scopeKey, invocation + 1);
-    const parentRuntime = this.getRuntime();
-    const scopedRuntime: WorkflowRuntime = {
-      ...parentRuntime,
-      scopes: [
-        ...parentRuntime.scopes,
-        {
-          parentNodeId: _parentNodeName,
-          parentExecutionIndex: _parentIndex,
-          scopeName: _scopeName,
-          invocation,
-          loopIteration: invocation,
-        },
-      ],
-    };
-    const scopedContext = new GeneratedExecutionContext(this.isAsync, scopedRuntime);
-    scopedContext.allowAncestorDurableVariables = this.allowAncestorDurableVariables && !cleanScope;
-
-    if (cleanScope) {
-      // Fresh scope - don't copy parent variables (per-port scopes)
-      scopedContext.executionCounter = this.executionCounter;
-    } else {
-      // Inherited scope - copy parent variables (node-level scopes)
-      scopedContext.variables = new Map(this.variables);
-      scopedContext.executions = new Map(this.executions);
-      scopedContext.executionCounter = this.executionCounter;
-    }
-
-    return scopedContext;
-  }
-
-  /**
-   * Merge a scoped execution context back into the parent context
-   *
-   * Copies all variables and execution info from the scoped context to this context.
-   * Updates the execution counter to maintain unique execution indices.
-   *
-   * @param scopedContext - The scoped context to merge
-   */
-  mergeScope(scopedContext: GeneratedExecutionContext): void {
-    scopedContext.executions.forEach((info, key) => {
-      this.executions.set(key, info);
-    });
-    scopedContext.variables.forEach((value, key) => {
-      this.variables.set(key, value);
-    });
-    this.executionCounter = Math.max(this.executionCounter, scopedContext.executionCounter);
-    scopedContext.nodeExecutionCounts.forEach((count, id) => {
-      this.nodeExecutionCounts.set(id, Math.max(this.nodeExecutionCounts.get(id) ?? 0, count));
-    });
-  }
-
-  /**
-   * Forks the mutable generated-code bookkeeping used by one Promise.all lane.
-   * Durable state remains execution-scoped and shared through `runtime`, while
-   * branch/scoped address stacks are copied so concurrent lanes cannot corrupt
-   * one another's continuation addresses.
-   */
-  forkParallel(): GeneratedExecutionContext {
-    const parallelContext = new GeneratedExecutionContext(this.isAsync, this.getRuntime());
-    parallelContext.variables = new Map(this.variables);
-    parallelContext.executions = new Map(this.executions);
-    parallelContext.executionCounter = this.executionCounter;
-    parallelContext.pullExecutors = new Map(this.pullExecutors);
-    parallelContext.nodeExecutionIndices = new Map(this.nodeExecutionIndices);
-    parallelContext.nodeExecutionCounts = new Map(this.nodeExecutionCounts);
-    parallelContext.scopeInvocationCounts = new Map(this.scopeInvocationCounts);
-    parallelContext.nestedInvocationCounts = new Map(this.nestedInvocationCounts);
-    parallelContext.allowAncestorDurableVariables = this.allowAncestorDurableVariables;
-    return parallelContext;
-  }
-
-  mergeParallel(parallelContext: GeneratedExecutionContext): void {
-    this.mergeScope(parallelContext);
-    parallelContext.nodeExecutionIndices.forEach((index, id) => {
-      this.nodeExecutionIndices.set(id, index);
-    });
-    parallelContext.scopeInvocationCounts.forEach((count, key) => {
-      this.scopeInvocationCounts.set(key, Math.max(this.scopeInvocationCounts.get(key) ?? 0, count));
-    });
-    parallelContext.nestedInvocationCounts.forEach((count, key) => {
-      this.nestedInvocationCounts.set(key, Math.max(this.nestedInvocationCounts.get(key) ?? 0, count));
-    });
-  }
-
-  private getVariableKey(address: VariableAddress): string {
-    return `${address.id}:${address.portName}:${address.executionIndex}`;
-  }
-  private getExecutionKey(id: string, index: number): string {
-    return `${id}:${index}`;
-  }
-  getExecutionCount(): number {
-    return this.executionCounter;
-  }
-  reset(): void {
-    this.variables.clear();
-    this.executions.clear();
-    this.executionCounter = 0;
-    this.nodeExecutionCounts.clear();
-  }
-
-  /**
-   * Check if the workflow has been aborted
-   */
-  isAborted(): boolean {
-    return this.runtime.abortSignal?.aborted ?? false;
-  }
-
-  /** Return the parent-owned signal without transferring ownership. */
-  getAbortSignal(): AbortSignal | undefined {
-    return this.runtime.abortSignal;
-  }
-
-  /**
-   * Throw CancellationError if the workflow has been aborted
-   * @param nodeId - Optional node ID to include in the error
-   */
-  checkAborted(nodeId?: string): void {
-    if (this.runtime.abortSignal?.aborted) {
-      throw new CancellationError(
-        `Workflow execution cancelled${nodeId ? ` at ${nodeId}` : ''}`,
-        this.executionCounter,
-        nodeId,
-      );
-    }
   }
 
   executionAddress(address: Pick<VariableAddress, 'id' | 'executionIndex' | 'nodeTypeName'>): ExecutionAddress {
@@ -389,13 +222,7 @@ export class GeneratedExecutionContext {
     payload: WireValue,
   ): WireValue {
     const runtime = this.getRuntime();
-    return runtime.durable.resolveGate(runtime, {
-      kind,
-      nodeId,
-      nodeType,
-      executionIndex,
-      payload,
-    });
+    return runtime.durable.resolveGate(runtime, { kind, nodeId, nodeType, executionIndex, payload });
   }
 
   executeEffect<T extends WireValue>(
@@ -419,52 +246,172 @@ export class GeneratedExecutionContext {
     };
   }
 
-  getRuntime(): WorkflowRuntime {
-    return { ...this.runtime, branches: [...this.branchStack] };
-  }
-
   enterBranch(nodeId: string, executionIndex: number, arm: string): void {
     const frameDepth = this.runtime.frames.length - 1;
     const workflowId = this.runtime.frames[frameDepth].workflowId;
-    this.branchStack.push({
-      workflowId,
-      frameDepth,
-      nodeId,
-      executionIndex,
-      arm,
-    });
+    this.branchStack.push({ workflowId, frameDepth, nodeId, executionIndex, arm });
   }
 
   exitBranch(): void {
     this.branchStack.pop();
   }
 
-  sendStatusChangedEvent(args: {
+  getRuntime(): WorkflowRuntime {
+    return { ...this.runtime, branches: [...this.branchStack] };
+  }
+
+  /**
+   * Fork the mutable bookkeeping for one lane of a parallel group. Durable
+   * state stays execution-scoped and shared through `runtime`, while the
+   * branch and scope address stacks are copied so concurrent lanes cannot
+   * corrupt one another's continuation addresses.
+   */
+  forkParallel(): GeneratedExecutionContext {
+    const parallelContext = new GeneratedExecutionContext(this.isAsync, this.getRuntime());
+    parallelContext.variables = new Map(this.variables);
+    parallelContext.executions = new Map(this.executions);
+    parallelContext.executionCounter = this.executionCounter;
+    parallelContext.pullExecutors = new Map(this.pullExecutors);
+    parallelContext.nodeExecutionIndices = new Map(this.nodeExecutionIndices);
+    parallelContext.nodeExecutionCounts = new Map(this.nodeExecutionCounts);
+    parallelContext.scopeInvocationCounts = new Map(this.scopeInvocationCounts);
+    parallelContext.nestedInvocationCounts = new Map(this.nestedInvocationCounts);
+    parallelContext.allowAncestorDurableVariables = this.allowAncestorDurableVariables;
+    return parallelContext;
+  }
+
+  mergeParallel(parallelContext: GeneratedExecutionContext): void {
+    this.mergeScope(parallelContext);
+    parallelContext.nodeExecutionIndices.forEach((index, id) => {
+      this.nodeExecutionIndices.set(id, index);
+    });
+    parallelContext.scopeInvocationCounts.forEach((count, key) => {
+      this.scopeInvocationCounts.set(key, Math.max(this.scopeInvocationCounts.get(key) ?? 0, count));
+    });
+    parallelContext.nestedInvocationCounts.forEach((count, key) => {
+      this.nestedInvocationCounts.set(key, Math.max(this.nestedInvocationCounts.get(key) ?? 0, count));
+    });
+  }
+
+  getExecution(id: string, index: number): ExecutionInfo | undefined {
+    return this.executions.get(this.getExecutionKey(id, index));
+  }
+
+  /**
+   * Create the execution context for one invocation of a scope (a loop body,
+   * a per-port function). Each call is the next invocation of that scope key.
+   * A clean scope (a per-port scope) starts with no variables and cannot read
+   * its ancestors' durable variables; any other (a node-level scope) inherits
+   * the parent's variables. `isAsyncOverride` is the scope's own async mode,
+   * when it differs from the parent's.
+   */
+  createScope(
+    _parentNodeName: string,
+    _parentIndex: number,
+    _scopeName: string,
+    cleanScope: boolean = false,
+    isAsyncOverride?: boolean,
+  ): GeneratedExecutionContext {
+    const effectiveIsAsync = isAsyncOverride !== undefined ? isAsyncOverride : this.isAsync;
+    const scopeKey = `${_parentNodeName}:${_parentIndex}:${_scopeName}`;
+    const scopeInvocation = this.scopeInvocationCounts.get(scopeKey) ?? 0;
+    this.scopeInvocationCounts.set(scopeKey, scopeInvocation + 1);
+    const parentRuntime = this.getRuntime();
+    const scopedRuntime: WorkflowRuntime = {
+      ...parentRuntime,
+      scopes: [
+        ...parentRuntime.scopes,
+        {
+          parentNodeId: _parentNodeName,
+          parentExecutionIndex: _parentIndex,
+          scopeName: _scopeName,
+          invocation: scopeInvocation,
+          loopIteration: scopeInvocation,
+        },
+      ],
+    };
+    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, scopedRuntime);
+    scopedContext.variables = cleanScope ? new Map() : new Map(this.variables);
+    scopedContext.allowAncestorDurableVariables = this.allowAncestorDurableVariables && !cleanScope;
+    scopedContext.executions = new Map(this.executions);
+    scopedContext.executionCounter = this.executionCounter;
+    scopedContext.nodeExecutionCounts = new Map(this.nodeExecutionCounts);
+    return scopedContext;
+  }
+
+  /** Merge a scope's variables, executions and counters back into this context. */
+  mergeScope(scopedContext: GeneratedExecutionContext): void {
+    scopedContext.executions.forEach((info, key) => {
+      this.executions.set(key, info);
+    });
+    scopedContext.variables.forEach((value, key) => {
+      this.variables.set(key, value);
+    });
+    this.executionCounter = Math.max(this.executionCounter, scopedContext.executionCounter);
+    scopedContext.nodeExecutionCounts.forEach((count, id) => {
+      this.nodeExecutionCounts.set(id, Math.max(this.nodeExecutionCounts.get(id) ?? 0, count));
+    });
+  }
+
+  private getVariableKey(address: VariableAddress): string {
+    return `${address.id}:${address.portName}:${address.executionIndex}`;
+  }
+
+  private getExecutionKey(id: string, index: number): string {
+    return `${id}:${index}`;
+  }
+
+  getExecutionCount(): number {
+    return this.executionCounter;
+  }
+
+  reset(): void {
+    this.variables.clear();
+    this.executions.clear();
+    this.executionCounter = 0;
+    this.nodeExecutionCounts.clear();
+  }
+
+  isAborted(): boolean {
+    return this.runtime.abortSignal?.aborted ?? false;
+  }
+
+  /** Return the parent-owned signal without transferring ownership. */
+  getAbortSignal(): AbortSignal | undefined {
+    return this.runtime.abortSignal;
+  }
+
+  /** Throw a CancellationError, naming `nodeId` when given, if the run was aborted. */
+  checkAborted(nodeId?: string): void {
+    if (this.runtime.abortSignal?.aborted) {
+      throw new CancellationError(
+        `Workflow execution cancelled${nodeId ? ` at ${nodeId}` : ''}`,
+        this.executionCounter,
+        nodeId,
+      );
+    }
+  }
+
+  // inline: development only, a no-op stub in production
+  /** Awaited by generated code, so a debugger can hold a node at a breakpoint. */
+  async sendStatusChangedEvent(args: {
     nodeTypeName: string;
     id: string;
     scope?: string;
     side?: 'start' | 'exit';
     executionIndex: number;
     status: TStatusType;
-  }): void {
+  }): Promise<void> {
     if (this.flowWeaverDebugger) {
-      this.flowWeaverDebugger.sendEvent({
+      await this.flowWeaverDebugger.sendEvent({
         type: 'STATUS_CHANGED',
         ...args,
         innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,
       });
     }
   }
-  sendVariableSetEvent(args: { identifier: TVariableIdentification; value: unknown }): void {
-    if (this.flowWeaverDebugger) {
-      this.flowWeaverDebugger.sendEvent({
-        type: 'VARIABLE_SET',
-        ...args,
-        innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,
-      });
-    }
-  }
-  sendLogErrorEvent(args: {
+
+  async sendLogErrorEvent(args: {
     nodeTypeName: string;
     id: string;
     scope?: string;
@@ -472,23 +419,36 @@ export class GeneratedExecutionContext {
     executionIndex: number;
     error: string;
     code?: string;
-  }): void {
+  }): Promise<void> {
     if (this.flowWeaverDebugger) {
-      this.flowWeaverDebugger.sendEvent({
+      await this.flowWeaverDebugger.sendEvent({
         type: 'LOG_ERROR',
         ...args,
         innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,
       });
     }
   }
-  sendWorkflowCompletedEvent(args: {
+
+  async sendWorkflowCompletedEvent(args: {
     executionIndex: number;
     status: 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
     result?: unknown;
-  }): void {
+  }): Promise<void> {
     if (this.flowWeaverDebugger) {
-      this.flowWeaverDebugger.sendEvent({
+      await this.flowWeaverDebugger.sendEvent({
         type: 'WORKFLOW_COMPLETED',
+        ...args,
+        innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,
+      });
+    }
+  }
+  // inline: end
+  // inline: development only
+
+  private async sendVariableSetEvent(args: { identifier: TVariableIdentification; value: unknown }): Promise<void> {
+    if (this.flowWeaverDebugger) {
+      await this.flowWeaverDebugger.sendEvent({
+        type: 'VARIABLE_SET',
         ...args,
         innerFlowInvocation: this.flowWeaverDebugger.innerFlowInvocation,
       });
@@ -503,4 +463,5 @@ export class GeneratedExecutionContext {
     }
     return vars;
   }
+  // inline: end
 }

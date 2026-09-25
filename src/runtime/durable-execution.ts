@@ -13,15 +13,11 @@
  * generator goldens pin the copied text; this header is the one comment the
  * inliner drops.
  *
- * Two execution contexts talk to this engine. A compiled file runs the copy
- * that `src/api/inline-runtime.ts` writes out, whose scope counters start at
- * 0 on every construction: a resume replays the body from its first node,
+ * One execution context talks to this engine, `src/runtime/ExecutionContext.ts`,
+ * inlined into compiled files the same way. Its scope counters start at 0
+ * on every construction: a resume replays the body from its first node,
  * skipping what the continuation holds, and so reaches the same iteration
- * ordinals again (`tests/continuation/durable-loops.test.ts`). The package's
- * own `src/runtime/ExecutionContext.ts` is the library-side class, exported
- * and driven by the tests, and the only caller of `resumedScopeHighWater`;
- * the doc comment on that method describes its seeding, which compiled
- * files do not perform.
+ * ordinals again (`tests/continuation/durable-loops.test.ts`).
  */
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import type { DebugController } from './debug-controller.js';
@@ -111,7 +107,6 @@ export interface DurableEngine {
   bind(runtime: Pick<WorkflowRuntime, 'frames'>, workflowId: string, graphFingerprint: string): void;
   shouldExecute(address: ExecutionAddress): boolean;
   commitNode(address: ExecutionAddress): void;
-  resumedScopeHighWater(): ReadonlyMap<string, number>;
   setVariable(address: ExecutionAddress, portName: string, value: unknown): void;
   getVariable(address: ExecutionAddress, portName: string, allowAncestorLookup?: boolean): unknown;
   resolveGate(runtime: WorkflowRuntime, boundary: GateBoundary): WireValue;
@@ -446,35 +441,6 @@ export class DurableExecution implements DurableEngine {
 
   commitNode(address: ExecutionAddress): void {
     this.completed.set(durableAddressKey(address), cloneExecutionAddress(address));
-  }
-
-  /**
-   * The highest committed loop iteration for each scope in the resumed
-   * continuation, keyed as `${parentNodeId}:${parentExecutionIndex}:${scopeName}`.
-   *
-   * A fresh-process resume rebuilds its execution context with empty scope
-   * counters, so a re-entered loop would restart at iteration 0 and collide
-   * with, or forge, iterations that already committed. The engine already
-   * holds every committed address (`completed`) and each carries its full
-   * `scopes` array, so the next-ordinal-to-assign is a pure function of that
-   * persisted state: one past the highest iteration ever committed for the
-   * scope. `GeneratedExecutionContext` seeds `scopeInvocationCounts` from this
-   * on construction so the ordinal a resumed process assigns matches the one
-   * the original process would have. Every scope depth is walked so a nested
-   * loop (a loop inside a loop) seeds each level. This is the authentication
-   * the durable closure validator's refusal message calls out as missing.
-   */
-  resumedScopeHighWater(): ReadonlyMap<string, number> {
-    const highWater = new Map<string, number>();
-    for (const address of this.completed.values()) {
-      for (const scope of address.scopes) {
-        const iteration = scope.loopIteration ?? scope.invocation;
-        const key = `${scope.parentNodeId}:${scope.parentExecutionIndex}:${scope.scopeName}`;
-        const seen = highWater.get(key);
-        if (seen === undefined || iteration > seen) highWater.set(key, iteration);
-      }
-    }
-    return highWater;
   }
 
   setVariable(address: ExecutionAddress, portName: string, value: unknown): void {
