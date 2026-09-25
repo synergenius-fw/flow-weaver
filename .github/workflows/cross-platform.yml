@@ -31,7 +31,7 @@ jobs:
     steps:
       # ── 1. Checkout ────────────────────────────────────────────────
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # ── 2. Setup Node 22 ──────────────────────────────────────────
       - name: Setup Node.js 22

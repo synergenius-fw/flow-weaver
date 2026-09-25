@@ -18,7 +18,7 @@ jobs:
       # npm provenance: lets npm link each published version to this workflow run.
       id-token: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Extract version from branch name
         id: version
