@@ -6,7 +6,7 @@
  *   so the execution-scoped debugger's sendEvent (which is async) can be awaited.
  * - inline-runtime.ts: TDebugger.sendEvent type accepts `void | Promise<void>` so
  *   an async implementation is assignable without a type error.
- * - Generators (unified / code-utils / scope-function-generator): every call to
+ * - Generators (unified / node-arguments): every call to
  *   sendStatusChangedEvent in async-mode code is prefixed with `await`, ensuring
  *   the breakpoint pause propagates back to the caller.
  * - Sync-mode code must NOT have `await sendStatusChangedEvent` (would be a syntax error).
