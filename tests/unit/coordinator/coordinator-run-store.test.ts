@@ -134,10 +134,15 @@ describe('local coordinator run store', () => {
     const coordinator = createLocalCoordinator({ store });
     const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
     // The claim is the last thing before the write; a driver finishing the run
-    // just before it is the race a stale read would lose.
+    // just before it is the race a stale read would lose. The other driver
+    // runs once: its own resume claims the run too, and must reach the store.
     const claim = store.claim.bind(store);
+    let raced = false;
     store.claim = async (runId, owner, ttl) => {
-      await coordinator.resume({ runId, input: { answer: 8 } });
+      if (!raced) {
+        raced = true;
+        await coordinator.resume({ runId, input: { answer: 8 } });
+      }
       return claim(runId, owner, ttl);
     };
 
