@@ -3,6 +3,7 @@
  * Covers the debounced 'all' event handler and stopWatching timer cleanup.
  */
 
+import { glob } from 'glob';
 import { WorkflowRegistry } from '../../../src/server/workflow-registry';
 
 // Mock chokidar with controllable event emitter
@@ -93,6 +94,34 @@ describe('WorkflowRegistry file watcher', () => {
 
     // Should only fire once despite multiple rapid changes
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a failed rediscovery to onError instead of leaking a rejection', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const onChange = vi.fn();
+      const onError = vi.fn();
+      await registry.startWatching(onChange, onError);
+
+      const allHandler = mockWatcher.on.mock.calls.find(
+        (call: any[]) => call[0] === 'all'
+      )?.[1] as Function;
+
+      const failure = new Error('EACCES: permission denied');
+      vi.mocked(glob).mockRejectedValueOnce(failure);
+      allHandler('change', '/tmp/workflows/test.ts');
+      await vi.advanceTimersByTimeAsync(600);
+      vi.useRealTimers();
+      await new Promise((r) => setTimeout(r, 20));
+
+      expect(onError).toHaveBeenCalledWith(failure);
+      expect(onChange).not.toHaveBeenCalled();
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
   });
 
   it('stopWatching clears pending debounce timers', async () => {
