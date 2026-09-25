@@ -2,8 +2,7 @@
  * The default run store: one directory per run under a root, `~/.fw/runs`
  * unless told otherwise.
  *
- *   <root>/<runId>/run.json            the record
- *   <root>/<runId>/continuation.json   what a waiting run resumes from
+ *   <root>/<runId>/run.json            the record, with what a waiting run resumes from
  *   <root>/<runId>/trace.json          the kept step trace
  *   <root>/<runId>/effects/<sha>.json  effect receipts
  *   <root>/<runId>/<name>.json         any other document

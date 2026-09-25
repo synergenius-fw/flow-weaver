@@ -16,6 +16,7 @@
  */
 import * as os from 'node:os';
 import type { LocalCoordinator, RunRecord, RunView, DriveOptions, AgentNote } from './run-store.js';
+import { RunBusyError } from './store.js';
 import { MissingOutputsError, InvalidAnswerError } from './gate-resolution.js';
 import { loadAgentProfiles, profileForGate, readiness, DEFAULT_MODEL, type AgentProfile, type AgentProfiles } from '../agent/profiles.js';
 import { answerGate, type AgentGateEvent, type FieldSchema, type GateOutcome, type GateUsage } from '../agent/gate.js';
@@ -98,7 +99,13 @@ export async function reclaimStaleAgentAnswers(coordinator: LocalCoordinator): P
     if (s.status !== 'waiting' || s.agent?.status !== 'answering') continue;
     const rec = await coordinator.record(s.runId);
     if (!rec?.agent || rec.agent.status !== 'answering' || !agentOwnerDead(rec.agent)) continue;
-    await coordinator.setAgent(s.runId, { ...rec.agent, status: 'failed', endedAt: new Date().toISOString(), error: 'the process answering this gate ended before it could answer' });
+    try {
+      await coordinator.setAgent(s.runId, { ...rec.agent, status: 'failed', endedAt: new Date().toISOString(), error: 'the process answering this gate ended before it could answer' });
+    } catch (e) {
+      // A run being driven right now is moving past the gate anyway.
+      if (e instanceof RunBusyError) continue;
+      throw e;
+    }
     reclaimed.push(s.runId);
   }
   return reclaimed;

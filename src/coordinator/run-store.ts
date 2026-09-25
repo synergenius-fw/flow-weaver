@@ -161,7 +161,11 @@ export interface LocalCoordinator {
   trace(runId: string): Promise<TraceEntry[]>;
   /** Forget a finished run: its record, trace and receipts. A waiting run must be cancelled first. */
   remove(runId: string): Promise<void>;
-  /** Record what an agent profile is doing, or did, about the run's current gate. */
+  /**
+   * Record what an agent profile is doing, or did, about the run's current
+   * gate. Takes the run's claim for the write, so it throws `RunBusyError`
+   * while a segment of the run is being driven.
+   */
   setAgent(runId: string, note: AgentNote | undefined): Promise<RunRecord>;
   /** Keep a named JSON document beside the run -- an agent transcript, say. The name is a plain slug. */
   keep(runId: string, name: string, data: unknown): Promise<void>;
@@ -186,7 +190,7 @@ export interface TickResult {
   skipped: { runId: string; reason: 'busy' | 'not-waiting' | 'bundle-changed' | 'failed'; message?: string }[];
 }
 
-/** Everything persisted about one run. The continuation is a document beside it. */
+/** Everything persisted about one run. */
 export interface RunRecord {
   formatVersion: 1;
   runId: string;
@@ -206,6 +210,12 @@ export interface RunRecord {
     hasSuccessPort: boolean;
     hasFailurePort: boolean;
   };
+  /**
+   * What the run resumes from, while it waits. Kept in the record, not in a
+   * document beside it, so the single `put` that moves the run to a gate
+   * commits the gate and its continuation together. Cleared with the gate.
+   */
+  continuation?: ContinuationEnvelope;
   /** When the clock will move the run, while it waits. Set with the gate, cleared with it. */
   due?: RunDue;
   result?: unknown;
@@ -327,22 +337,31 @@ const effectDoc = (operationKey: string) => `${EFFECT_DOC_PREFIX}${createHash('s
 export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): LocalCoordinator {
   const store = options.store ?? createFileRunStore(options.rootDir ?? defaultRunsDir());
   const claimTtl = options.claimTtlMs ?? 60 * 60 * 1000;
-  // One owner per coordinator instance: a claim is this process's, not this call's.
-  const owner = `${os.hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`;
+  const instance = `${os.hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`;
+  let uses = 0;
 
+  /**
+   * Do `work` holding the run's claim. Each use is its own owner, so two
+   * operations of this coordinator on one run exclude each other as two
+   * processes do: a store lets the same owner claim again, and with one
+   * owner per coordinator a second use would share the claim and its
+   * `release` would drop the first use's claim early.
+   */
   async function claimed<T>(runId: string, work: () => Promise<T>): Promise<T> {
+    const owner = `${instance}:${++uses}`;
     if (!(await store.claim(runId, owner, claimTtl))) throw new RunBusyError(runId);
     try { return await work(); }
     finally { await store.release(runId, owner); }
   }
 
   /**
-   * Commit an outcome. The continuation lands first, then the record; the
-   * record is the commit point. A run with documents and no record is an
-   * unacknowledged yield and is ignored everywhere. On a later segment a
-   * death between the two writes leaves the record one gate behind the
-   * continuation; `resume` notices the disagreement and refuses without
-   * failing the run.
+   * Commit an outcome with one `put`: the gate and the continuation it
+   * resumes from are in the same record, so a process that dies before the
+   * write leaves the run at its previous gate with that gate's continuation,
+   * and a resume with that gate's answer moves it on again. A run with
+   * documents and no record is an unacknowledged yield and is ignored
+   * everywhere. Runs paused by an older version keep the envelope in a
+   * `continuation` document instead; a terminal outcome drops it.
    */
   async function commit(record: RunRecord, outcome: WorkflowExecutionOutcome, ast: TWorkflowAST, kept?: TraceEntry[]): Promise<RunRecord> {
     const now = new Date().toISOString();
@@ -350,7 +369,6 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
 
     if (outcome.kind === 'yielded') {
       const labeled = labelGate(outcome.gate, ast);
-      await store.putDoc(record.runId, 'continuation', outcome.continuation);
       const gate = {
         id: outcome.gate.id,
         kind: outcome.gate.kind,
@@ -363,6 +381,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
         traced,
         status: 'waiting',
         gate,
+        continuation: outcome.continuation,
         due: dueFor(gate),
         result: undefined,
         error: undefined,
@@ -378,6 +397,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
       traced,
       status: 'completed',
       gate: undefined,
+      continuation: undefined,
       due: undefined,
       result: outcome.result,
       error: undefined,
@@ -402,6 +422,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
       traced,
       status: cancelled ? 'cancelled' : 'failed',
       gate: undefined,
+      continuation: undefined,
       due: undefined,
       result: undefined,
       error: cancelled ? undefined : message,
@@ -551,11 +572,12 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
         // or moved it to a later gate, between the check above and now.
         const current = await readRecord(record.runId);
         if (!current || current.status !== 'waiting' || !current.gate) throw new RunNotWaitingError(current?.status ?? 'cancelled');
-        const continuation = (await store.getDoc(record.runId, 'continuation')) as ContinuationEnvelope | undefined;
+        // A run paused by an older version keeps the envelope in a document.
+        const continuation = current.continuation ?? ((await store.getDoc(record.runId, 'continuation')) as ContinuationEnvelope | undefined);
         if (!continuation) throw new RunNotWaitingError(current.status);
         if (continuation.gateId !== current.gate.id) {
-          // The continuation was written but the record was not (the process
-          // died between the two). The run is left waiting: nothing ran.
+          // Only an older version's two-write commit can leave these apart.
+          // The run is left waiting: nothing ran.
           throw new ContinuationRefusalError({ accepted: false, reason: 'stale-gate', message: `the run's record names gate ${current.gate.id} but its continuation is at gate ${continuation.gateId}` });
         }
         const resolution = buildGateResolution(current.gate, current.gate.id, request.input);
@@ -608,6 +630,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
           ...current,
           status: 'cancelled',
           gate: undefined,
+          continuation: undefined,
           due: undefined,
           updatedAt: new Date().toISOString(),
         };
@@ -634,12 +657,17 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
     },
 
     async setAgent(runId, note) {
-      const record = await readRecord(runId);
-      if (!record) throw new RunNotFoundError(runId);
-      const next: RunRecord = { ...record, agent: note, updatedAt: new Date().toISOString() };
-      if (note === undefined) delete next.agent;
-      await store.put(next);
-      return next;
+      if (!(await readRecord(runId))) throw new RunNotFoundError(runId);
+      // Under the claim, so a segment committing between the read and the
+      // write cannot be overwritten with the record it replaced.
+      return claimed(runId, async () => {
+        const record = await readRecord(runId);
+        if (!record) throw new RunNotFoundError(runId);
+        const next: RunRecord = { ...record, agent: note, updatedAt: new Date().toISOString() };
+        if (note === undefined) delete next.agent;
+        await store.put(next);
+        return next;
+      });
     },
 
     async keep(runId, name, data) {

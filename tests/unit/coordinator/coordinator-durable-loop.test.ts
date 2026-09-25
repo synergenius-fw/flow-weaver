@@ -61,7 +61,7 @@ describe('durable loop through the persisted coordinator', () => {
     const results = (view.result as { results: unknown[] }).results;
     expect(results).toHaveLength(3);
     // The continuation is cleared once the run completes.
-    expect(fs.existsSync(path.join(rootDir, view.runId, 'continuation.json'))).toBe(false);
+    expect((await createLocalCoordinator({ rootDir }).record(view.runId))?.continuation).toBeUndefined();
   });
 
   it('walks an agent loop with a two-node scope body across fresh coordinators', async () => {

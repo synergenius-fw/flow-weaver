@@ -49,21 +49,23 @@ describe('a coordinator on the memory store', () => {
 
     const paused = await coordinator.start({ filePath: approval, params: { value: 4 } }, { trace: true });
     expect(paused.status).toBe('waiting');
-    expect(await store.getDoc(paused.runId, 'continuation')).toBeDefined();
+    expect((await store.get(paused.runId))?.continuation).toBeDefined();
     expect((await coordinator.trace(paused.runId)).length).toBeGreaterThan(0);
     expect((await coordinator.list()).map((r) => r.runId)).toEqual([paused.runId]);
 
     const done = await coordinator.resume({ runId: paused.runId, input: { answer: 8 } });
     expect(done).toMatchObject({ status: 'completed', result: { result: 9 } });
-    expect(await store.getDoc(paused.runId, 'continuation')).toBeUndefined();
+    expect((await store.get(paused.runId))?.continuation).toBeUndefined();
     expect(fs.readdirSync(dir)).toEqual([]);   // nothing touched the disk
 
     const flag = '__a2_effect_gate_called__';
     delete (globalThis as Record<string, unknown>)[flag];
     const withEffect = await coordinator.start({ filePath: effectGate, params: { params: {} } });
     expect((globalThis as Record<string, unknown>)[flag]).toBe(true);
-    const receipts = (await Promise.all(['continuation', 'trace'].map((n) => store.getDoc(withEffect.runId, n)))).filter(Boolean).length;
-    expect(receipts).toBe(1);
+    // The continuation rides in the record, and no trace was asked for.
+    const docs = (await Promise.all(['continuation', 'trace'].map((n) => store.getDoc(withEffect.runId, n)))).filter(Boolean).length;
+    expect(docs).toBe(0);
+    expect((await store.get(withEffect.runId))?.continuation?.receipts).toHaveLength(1);
     const finished = await coordinator.resume({ runId: withEffect.runId, input: { answer: 4 } });
     expect(finished.result).toEqual({ onSuccess: true, onFailure: false, value: 4 });
   });

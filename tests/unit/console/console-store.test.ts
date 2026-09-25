@@ -56,7 +56,7 @@ describe('the console on a store of its own', () => {
     const id = started.body.id as string;
     await until(async () => (await api('GET', `/api/runs/${id}`)).body.status === 'waiting');
     expect((await store.get(id))?.status).toBe('waiting');
-    expect(await store.getDoc(id, 'continuation')).toBeDefined();
+    expect((await store.get(id))?.continuation).toBeDefined();
     // The gate card gets the author's words beside the types: each handed-over
     // input and each output by its @input/@output label, and the gate
     // function's description as what is being asked.
