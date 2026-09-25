@@ -23,7 +23,7 @@ type PositionalArgument = { value: unknown } | { absent: true };
  *
  * The generator emits `{ arguments: [ {value}|{absent}, ... ] }` in declared
  * input order, skipping `execute` and any trailing runtime arguments
- * (`src/generator/code-utils.ts:16-18`, slice at `unified.ts:2015-2019`). An
+ * (buildDurableGatePayload in `src/generator/node-invocation.ts`, slice at `unified.ts:2015-2019`). An
  * assistant reading `{"arguments":[{"value":"review"},...]}` would have to
  * open the workflow to learn which position is which. The names come from
  * the parsed node type instead, so the tool result is self-describing.

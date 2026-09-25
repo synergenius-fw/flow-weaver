@@ -1,7 +1,8 @@
 import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST, TPortDefinition } from '../ast/types';
 import { extractStartPorts } from '../ast/workflow-utils';
 import { mapToTypeScript } from '../types/type-mappings';
-import { buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
+import { nodeResultVar, toValidIdentifier } from './code-utils';
+import { buildNodeArgumentsWithContext } from './node-arguments';
 import { emitDurableNodeCall, emitNodeInvocation, emitPlainNodeCall, emitResultOutputs } from './node-invocation';
 import {
   buildControlFlowGraph,

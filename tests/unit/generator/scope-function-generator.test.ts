@@ -3,7 +3,7 @@
  * Tests generateScopeFunctionClosure
  */
 
-import { generateScopeFunctionClosure } from '../../../src/generator/scope-function-generator';
+import { generateScopeFunctionClosure } from '../../../src/generator/node-arguments';
 import type { TWorkflowAST, TNodeTypeAST } from '../../../src/ast/types';
 
 describe('Scope Function Generator', () => {

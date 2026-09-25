@@ -3,7 +3,7 @@
  * Tests buildNodeArgumentsWithContext
  */
 
-import { buildNodeArgumentsWithContext } from '../../src/generator/code-utils';
+import { buildNodeArgumentsWithContext } from '../../src/generator/node-arguments';
 import type { TWorkflowAST, TNodeTypeAST } from '../../src/ast/types';
 
 describe('Code Generation Utilities', () => {

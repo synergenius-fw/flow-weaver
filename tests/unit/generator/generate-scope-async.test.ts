@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { generateScopeFunctionClosure } from '../../../src/generator/scope-function-generator';
+import { generateScopeFunctionClosure } from '../../../src/generator/node-arguments';
 import type { TWorkflowAST, TNodeTypeAST, TNodeInstanceAST } from '../../../src/ast/types';
 
 function makeForEachAsyncNodeType(): TNodeTypeAST {
