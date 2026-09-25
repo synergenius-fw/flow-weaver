@@ -12,8 +12,8 @@ body:
         - Parser
         - Validator
         - MCP Server
-        - Studio
-        - Deployment
+        - Console
+        - Serve / HTTP API
     validations:
       required: true
   - type: textarea
@@ -50,7 +50,7 @@ body:
     id: version
     attributes:
       label: Flow Weaver version
-      placeholder: "0.1.0"
+      placeholder: "0.42.2"
     validations:
       required: true
   - type: dropdown

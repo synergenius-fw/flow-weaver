@@ -12,9 +12,9 @@ Flow Weaver provides five built-in node types. They need no import and no `@flow
 |------|----------------|--------------------------------|
 | `delay` | `@durablePure` | Yes — `fast: true` |
 | `invokeWorkflow` | `@durablePure` | Yes — `invocations` |
-| `sleep` | `@durableGate timer` | Yes — `fast: true` wakes it at once; see [Durable Gates](durable-gates) |
-| `waitForEvent` | `@durableGate input` | Yes — `events`; see [Durable Gates](durable-gates) |
-| `waitForAgent` | `@durableGate agent` | Yes — `agents`; see [Durable Gates](durable-gates) |
+| `sleep` | `@durableGate timer` | Yes — `fast: true` wakes it at once; see [Durable Gates](durable-gates.md) |
+| `waitForEvent` | `@durableGate input` | Yes — `events`; see [Durable Gates](durable-gates.md) |
+| `waitForAgent` | `@durableGate agent` | Yes — `agents`; see [Durable Gates](durable-gates.md) |
 
 Using any gate node makes the whole workflow a gated workflow: every other node must then carry `@durablePure`, `@durableGate`, or `@durableEffect`, and `fw run` will refuse it. The other two are ordinary nodes.
 
@@ -87,7 +87,7 @@ async function sleep(execute: boolean, duration: string)
 
 - The coordinator records the wake time on the run (`due: { at, action: 'wake' }`) and its clock resumes the run when it comes: `fw serve` and the console tick every few seconds, `fw_runs` ticks before it lists. `wokeAt` is the time the clock acted.
 - A person can cut the sleep short: the console's gate card has **Wake now**; over MCP or HTTP, resolve the gate with any time as the answer (`fw_resume { runId, answer: "2026-09-21T09:00:00Z" }`).
-- A host of its own reads `gate.inputs.duration` (or the first positional argument of the gate payload) and resumes with `{ onSuccess: true, onFailure: false, wokeAt }` when it sees fit; see [A host of your own](library#a-host-of-your-own).
+- A host of its own reads `gate.inputs.duration` (or the first positional argument of the gate payload) and resumes with `{ onSuccess: true, onFailure: false, wokeAt }` when it sees fit; see [A host of your own](library.md#a-host-of-your-own).
 - An unreadable duration wakes at once rather than never.
 
 ### Mock Behavior
@@ -283,11 +283,11 @@ const runtime = createWorkflowRuntime({
 await syncCatalog(true, { amount: 500 }, runtime);
 ```
 
-The public command runner (`runCommand('run', …)` from `./api`) takes no mocks option and refuses a gated workflow. See [Using the library](library) for the rest of what the runtime carries.
+The public command runner (`runCommand('run', …)` from `./api`) takes no mocks option and refuses a gated workflow. See [Using the library](library.md) for the rest of what the runtime carries.
 
 ### Testing a gated workflow
 
-Two ways. Mock the gate with `gates` (or `events` / `agents`) and the run goes straight through it — the quickest way to exercise everything after the gate, from the console's New run card or `fw run --mocks`. Or drive the gate for real, through the MCP tools or `executeWorkflow` in a test, when the pause itself is what you are testing. See [Durable Gates](durable-gates) for the resolution shape.
+Two ways. Mock the gate with `gates` (or `events` / `agents`) and the run goes straight through it — the quickest way to exercise everything after the gate, from the console's New run card or `fw run --mocks`. Or drive the gate for real, through the MCP tools or `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` in a test, when the pause itself is what you are testing. See [Durable Gates](durable-gates.md) for the resolution shape.
 
 - Success path: `fw_resume { runId, answer: { status: 'approved' } }`
 - Failure path: `fw_resume { runId, reject: 'declined' }` — the run continues along `onFailure` and reports `completed`
@@ -296,8 +296,8 @@ Two ways. Mock the gate with `gates` (or `events` / `agents`) and the run goes s
 
 ## Related Topics
 
-- [Durable Gates](durable-gates) — What a gate is, classification rules, resuming, and the MCP tools
-- [CLI Reference](cli-reference) — `run` command with `--mocks` flags
-- [Compilation](compilation) — Compile targets
-- [Debugging](debugging) — Tracing and troubleshooting
-- [Advanced Annotations](advanced-annotations) — Expression bindings for node inputs
+- [Durable Gates](durable-gates.md) — What a gate is, classification rules, resuming, and the MCP tools
+- [CLI Reference](cli-reference.md) — `run` command with `--mocks` flags
+- [Compilation](compilation.md) — Compile targets
+- [Debugging](debugging.md) — Tracing and troubleshooting
+- [Advanced Annotations](advanced-annotations.md) — Expression bindings for node inputs

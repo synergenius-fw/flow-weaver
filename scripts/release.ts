@@ -14,10 +14,11 @@
  *   3. Creates a PR with auto-merge enabled
  *
  * What CI does after the PR merges:
- *   - Release Drafter creates/updates a draft GitHub release
- *   - Publishing the draft triggers npm publish via the npm-publish workflow
+ *   .github/workflows/create-release.yml runs when a PR from a `release/v*`
+ *   branch is merged into main. It tags the release, creates the GitHub
+ *   release with generated notes, and publishes the package to npm.
  *
- * After the PR merges, publish the draft release at:
+ * Nothing to do by hand after the merge. Check the result at:
  *   https://github.com/synergenius-fw/flow-weaver/releases
  */
 

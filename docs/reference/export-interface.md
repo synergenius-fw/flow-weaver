@@ -147,7 +147,7 @@ The forEach node owns a scope, which is one of the reasons for normal mode: it t
 > cannot prove on resume that the iteration it is servicing is the one that
 > paused. To loop over work that pauses, run the loop **outside** the workflow
 > and invoke the gated workflow once per item, or write the passes out in full
-> if there are few and the count is fixed. See [Durable Gates](durable-gates).
+> if there are few and the count is fixed. See [Durable Gates](durable-gates.md).
 
 ## 1. Define ForEach Node Type
 

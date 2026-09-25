@@ -35,24 +35,25 @@ const docsDir = path.resolve(__dirname, '..', 'docs', 'reference');
 
 // ── Friendly-errors cross-check ──────────────────────────────────────
 
+/**
+ * Every catalogued validation code must have a friendly-error mapper; a code
+ * without one prints as a bare code and message. This fails the build rather
+ * than warning so a new code cannot ship half-documented.
+ */
 async function crossCheckFriendlyErrors(): Promise<void> {
-  // Dynamic import to avoid issues if the file doesn't exist
-  try {
-    const { getFriendlyError } = await import('../src/validation/friendly-errors.js');
-    const missing: string[] = [];
-    for (const code of VALIDATION_CODES) {
-      const friendly = getFriendlyError({ code: code.code, message: 'test', node: 'test' });
-      if (!friendly) {
-        missing.push(code.code);
-      }
+  const { getFriendlyError } = await import('../src/validation/friendly-errors.js');
+  const missing: string[] = [];
+  for (const code of VALIDATION_CODES) {
+    const friendly = getFriendlyError({ code: code.code, message: 'test', node: 'test' });
+    if (!friendly) {
+      missing.push(code.code);
     }
-    if (missing.length > 0) {
-      console.warn(
-        `Warning: ${missing.length} validation code(s) have no friendly-error mapping:\n  ${missing.join(', ')}`
-      );
-    }
-  } catch {
-    // Ignore — friendly-errors may not be importable in all contexts
+  }
+  if (missing.length > 0) {
+    console.error(
+      `${missing.length} validation code(s) have no friendly-error mapping in src/validation/friendly-errors.ts:\n  ${missing.join(', ')}`
+    );
+    process.exit(1);
   }
 }
 
@@ -92,9 +93,30 @@ function generateNodeTemplatesTable(): string {
   return lines.join('\n');
 }
 
+/** The default of `fw create node --template`, read from the Commander registration in src/cli/index.ts. */
+function readDefaultNodeTemplate(): string {
+  const cliSource = fs.readFileSync(
+    path.resolve(__dirname, '..', 'src', 'cli', 'index.ts'),
+    'utf-8',
+  );
+  const nodeCommand = cliSource.match(
+    /\.command\(\s*(['"])node <name> <file>\1\s*\)([\s\S]*?)\.action\(/,
+  );
+  const option = nodeCommand?.[2].match(
+    /\.option\(\s*(['"])-t, --template <template>\1\s*,\s*(['"]).*?\2\s*,\s*(['"])([^'"]+)\3\s*\)/,
+  );
+  if (!option) {
+    throw new Error('Could not read the default of `fw create node --template` from src/cli/index.ts');
+  }
+  const id = option[4];
+  if (!nodeTemplates.some((t) => t.id === id)) {
+    throw new Error(`The default node template "${id}" in src/cli/index.ts is not a registered node template`);
+  }
+  return id;
+}
+
 function generateDefaultNodeTemplate(): string {
-  // The default is 'processor' — read from create.ts default value
-  return '- `--template T` / `-t T` - Use specific template (default: processor)';
+  return `- \`--template T\` / \`-t T\` - Use specific template (default: ${readDefaultNodeTemplate()})`;
 }
 
 /** Build the top-level command index from the same Commander registrations used by the CLI. */

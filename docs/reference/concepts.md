@@ -301,8 +301,8 @@ export async function myWorkflow(execute: boolean): Promise<{ onSuccess: boolean
 }
 ```
 
-- `waitForEvent` and `waitForAgent` are durable gates: using either makes the workflow pause and yield, and every other node must then be classified `@durablePure`, `@durableGate`, or `@durableEffect`. See [Durable Gates](durable-gates)
-- The full signatures are in [Built-in Nodes](built-in-nodes)
+- `waitForEvent` and `waitForAgent` are durable gates: using either makes the workflow pause and yield, and every other node must then be classified `@durablePure`, `@durableGate`, or `@durableEffect`. See [Durable Gates](durable-gates.md)
+- The full signatures are in [Built-in Nodes](built-in-nodes.md)
 
 ## Port Types
 

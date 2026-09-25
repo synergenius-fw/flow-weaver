@@ -22,13 +22,13 @@ The Flow Weaver marketplace is an npm-based ecosystem for sharing reusable node 
 
 A single package can contain any combination of these.
 
-`fw console` shows the packs installed in a project and everything each one contributes, exports a workflow through a pack's target, searches the marketplace, and — when the open project is itself a pack — runs the `market pack` validation and shows the manifest it would write. See [Console](console).
+`fw console` shows the packs installed in a project and everything each one contributes, exports a workflow through a pack's target, searches the marketplace, and — when the open project is itself a pack — runs the `market pack` validation and shows the manifest it would write. See [Console](console.md).
 
 ## Export Target Packs
 
-Flow Weaver core ships no export target. Every target comes from a pack's `exportTargets` manifest field, resolved from `node_modules` each time `fw export`, `fw compile --target` or `fw_export` runs. Find target packs with `fw market search`, install one, and its target name becomes valid for `--target`. What a target generates, and any annotations it reads, is documented by the pack itself — once installed, its topics appear in `fw docs`.
+Flow Weaver core ships no export target. Every target comes from a pack's `exportTargets` manifest field, resolved from `node_modules` each time `fw export` or `fw_export` runs. Find target packs with `fw market search`, install one, and its target name becomes valid for `--target`. What a target generates, and any annotations it reads, is documented by the pack itself — once installed, its topics appear in `fw docs`.
 
-Without a target pack installed, `fw export` and `fw_export` return `INVALID_TARGET` for every name, and `fw compile --target <name>` reports `Unknown compile target: <name>. No custom targets registered.`
+Without a target pack installed, `fw export` and `fw_export` return `INVALID_TARGET` for every name.
 
 ---
 
@@ -106,7 +106,7 @@ Everything the manifest points at is a **compiled** file under `dist/`, so `npm 
 
 ### Write node types
 
-A node type in a pack is exactly a node type anywhere else — see [Concepts](concepts). Two things matter more in a pack:
+A node type in a pack is exactly a node type anywhere else — see [Concepts](concepts.md). Two things matter more in a pack:
 
 - Every `@flowWeaver nodeType` function under `src/` becomes an entry in the manifest, named after its function. Helpers a node calls must not carry the annotation, and two node types may not share a name (`UNIT-002`).
 - Give each one `@description`, and a `@color`, `@icon` or `@tag`; a workflow author sees these in the console and in `fw market list`, and `fw market pack` warns when they are missing (`PKG-008`, `PKG-009`).
@@ -249,7 +249,7 @@ export async function registerMcpTools(mcp: McpServer): Promise<void> {
 ```
 
 - Pack tools are registered after the core tools, so a name collision with a core tool is the pack's to avoid; prefix with the pack namespace
-- Every tool definition is sent to the assistant on every turn — keep descriptions short (see [MCP Tools](mcp-tools))
+- Every tool definition is sent to the assistant on every turn — keep descriptions short (see [MCP Tools](mcp-tools.md))
 - A failing import is reported on stderr and the server keeps running without that pack
 
 ### Export targets
@@ -260,7 +260,7 @@ export async function registerMcpTools(mcp: McpServer): Promise<void> {
 }
 ```
 
-Targets are resolved per call from the current working directory's `node_modules`, so `fw_export` with no target packs installed returns `INVALID_TARGET` for every name. `file` is the compiled module; `exportName` names the class export (the default export when omitted). The class is instantiated lazily with no constructor arguments. What each target generates is described in [Deployment](deployment).
+Targets are resolved per call from the current working directory's `node_modules`, so `fw_export` with no target packs installed returns `INVALID_TARGET` for every name. `file` is the compiled module; `exportName` names the class export (the default export when omitted). The class is instantiated lazily with no constructor arguments. What each target generates is described in [Deployment](deployment.md).
 
 #### Writing an export target
 
@@ -311,7 +311,7 @@ Both generators return artifacts of the shape `{ files, target, workflowName, en
 }
 ```
 
-`fw init` offers the use case among its prompts and, when it is picked, the listed templates. The templates themselves are read from a `templates.js` beside the manifest (`<pack>/templates.js`), which exports `workflowTemplates: WorkflowTemplate[]` — the same shape as the core templates listed in [Scaffold](scaffold); only the ids named in `templates` are taken.
+`fw init` offers the use case among its prompts and, when it is picked, the listed templates. The templates themselves are read from a `templates.js` beside the manifest (`<pack>/templates.js`), which exports `workflowTemplates: WorkflowTemplate[]` — the same shape as the core templates listed in [Scaffold](scaffold.md); only the ids named in `templates` are taken.
 
 ---
 
@@ -443,6 +443,6 @@ When `parseWorkflow()` is called with a `projectDir` (the CLI and the console al
 
 ## Related Topics
 
-- [CLI Reference](cli-reference) — Full marketplace command flags
-- [Scaffold](scaffold) — Template system for node types and workflows
-- [Concepts](concepts) — Core workflow fundamentals
+- [CLI Reference](cli-reference.md) — Full marketplace command flags
+- [Scaffold](scaffold.md) — Template system for node types and workflows
+- [Concepts](concepts.md) — Core workflow fundamentals

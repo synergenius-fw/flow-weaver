@@ -100,7 +100,7 @@ Its Project page is the front door: the project's HTTP server with Start, Stop a
 The MCP server exposes the full compiler, validator, debugger, and diagram surface to any MCP-compatible editor. Scaffold, add nodes, wire connections, validate, compile, run, and diff, all through conversation.
 
 ```bash
-fw mcp-setup     # register the server with Claude, Cursor, VS Code, Windsurf, or Codex
+fw mcp-setup     # register the server with Claude, Cursor, VS Code, Windsurf, Codex, or OpenClaw
 fw mcp-server    # or start it manually
 ```
 
@@ -196,9 +196,11 @@ fw docs jsdoc-grammar    # annotation syntax
 fw docs search <query>   # search across all docs
 ```
 
+Upgrading between versions: [MIGRATION.md](./MIGRATION.md) explains how `fw migrate` rewrites workflow files in the current syntax.
+
 ## Project status
 
-Flow Weaver is in **beta**. The compiler, validator, CLI, console, and MCP tools are stable and thoroughly tested, and CI runs on every commit across Linux, macOS, and Windows. Breaking changes may still occur between minor versions during beta, so pin your version if stability matters.
+Flow Weaver is in **beta**. The compiler, validator, CLI, console, and MCP tools are stable and thoroughly tested. CI runs the full test suite on Linux for every push and pull request, and a smoke test installs the packed CLI on Linux, macOS, and Windows on every push to `main`. Breaking changes may still occur between minor versions during beta, so pin your version if stability matters.
 
 ## Community
 

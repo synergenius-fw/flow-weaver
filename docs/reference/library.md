@@ -50,12 +50,12 @@ result.score;     // 85
 
 | Field | Read by | Effect |
 |-------|---------|--------|
-| `abortSignal` | Every node boundary | Cooperative cancellation: the run stops at the next boundary with `CancellationError` — see [Cancellation](cancellation) |
-| `services.mocks` | `delay`, `invokeWorkflow` | `{ fast: true }` skips real delays; `invocations` fakes `invokeWorkflow` results by function id — the same `FwMockConfig` as `fw run --mocks` ([Built-in Nodes](built-in-nodes)) |
+| `abortSignal` | Every node boundary | Cooperative cancellation: the run stops at the next boundary with `CancellationError` — see [Cancellation](cancellation.md) |
+| `services.mocks` | `delay`, `invokeWorkflow` | `{ fast: true }` skips real delays; `invocations` fakes `invokeWorkflow` results by function id — the same `FwMockConfig` as `fw run --mocks` ([Built-in Nodes](built-in-nodes.md)) |
 | `services.workflowRegistry` | `invokeWorkflow` | The functions it may call, by name |
 | `services.debugger` | Trace emission | Receives every trace event (`sendEvent`) — what `fw run --trace` and the console read |
-| `services.debugController` | Step-through | A `DebugController` from `@synergenius/flow-weaver/runtime` pauses before and after each node — see [Debugging](debugging) |
-| `services.effectAdapter` | `@durableEffect` nodes | The effect contract a coordinator implements — see [Durable Gates](durable-gates) |
+| `services.debugController` | Step-through | A `DebugController` from `@synergenius/flow-weaver/runtime` pauses before and after each node — see [Debugging](debugging.md) |
+| `services.effectAdapter` | `@durableEffect` nodes | The effect contract a coordinator implements — see [Durable Gates](durable-gates.md) |
 
 ```typescript
 const ac = new AbortController();
@@ -100,9 +100,9 @@ run.result;   // the workflow's return value
 
 - `start` takes the **source** file. The coordinator compiles a private copy and runs it, so the file does not have to be compiled in place, and the bundle digest it records is what protects a paused run from a changed file.
 - A run that pauses is written to its store — by default `<rootDir>/<runId>/` (`run.json`, `continuation.json`) — so `resume` can happen in another process, or tomorrow. `FW_RUNS_DIR` moves the default directory. The console and the MCP tools read the same store: a gate your service reaches can be answered by a person in `fw console`, and the other way round.
-- `input` follows the answer rules in [Durable Gates](durable-gates): one data output → `answer` is the value; several → an object with every one; none → `null`.
+- `input` follows the answer rules in [Durable Gates](durable-gates.md): one data output → `answer` is the value; several → an object with every one; none → `null`.
 - `await runs.get(runId)`, `runs.list({ filePath? })`, `runs.record(runId)` (everything persisted), `runs.trace(runId)` (the kept step trace), `runs.cancel(runId)`, `runs.remove(runId)`, `runs.keep(runId, name, data)` / `runs.kept(runId, name)` for a document of your own beside the run. Every method returns a promise, because a store may be remote.
-- `await runs.tick()` is the clock: it wakes every run whose `sleep` is over and times out every gate whose `timeout` has passed, and returns `{ woke, timedOut, skipped }`. `fw serve` and the console call it every few seconds; a service of your own that drives runs should call it on a timer too, or nothing sleeping ever wakes. A waiting run says when the clock will act in `due: { at, action: 'wake' | 'timeout' }`. See [Time](durable-gates#time).
+- `await runs.tick()` is the clock: it wakes every run whose `sleep` is over and times out every gate whose `timeout` has passed, and returns `{ woke, timedOut, skipped }`. `fw serve` and the console call it every few seconds; a service of your own that drives runs should call it on a timer too, or nothing sleeping ever wakes. A waiting run says when the clock will act in `due: { at, action: 'wake' | 'timeout' }`. See [Time](durable-gates.md#time).
 - The second argument to `start`/`resume` watches the run: `{ onEvent(event) {…}, trace: true, abortSignal }`. `trace: true` keeps the step trace beside the record so a later reader has it — the console asks for it; an assistant over MCP does not.
 - While a segment runs, the run is **claimed** in the store; a second coordinator resuming or cancelling the same run gets `RunBusyError` until the claim is released, or lapses (`claimTtlMs`, one hour by default). Two processes on one store never drive the same run at once.
 - Errors are classes you can `instanceof`: `ParseError`, `AmbiguousWorkflowError`, `RunNotFoundError`, `RunNotWaitingError`, `RunBusyError`, `BundleChangedError`, `MissingOutputsError`, `InvalidAnswerError`.
@@ -169,11 +169,11 @@ runtime.durable.assertResumeResolutionConsumed();
 ```
 
 - `error.gate` is what to show whoever answers: its kind, the node, and the inputs it was given (`payload.arguments`, positional, each `{ value }` or `{ absent: true }`). `error.continuation` is a closed JSON value — under 1 MiB, checksummed — and is all the host has to keep; `params` are yours to keep beside it, since a resume replays the body from the start with completed nodes skipped.
-- The resolution `value` is the gate node's whole output envelope, control ports included: `{ onSuccess: true, onFailure: false, ...outputs }` to continue, `{ onSuccess: false, onFailure: true }` to take the failure path. The answer rules in [Durable Gates](durable-gates#what-happens-at-a-gate) apply.
-- `acceptContinuation(json, { runId, workflowId, gateId? })` returns `{ accepted: true, envelope }` or `{ accepted: false, reason, message }` with the reasons in the [refusal table](durable-gates#what-happens-at-a-gate): a tampered or truncated envelope, one from another run, workflow or gate, one written by another engine version. Only an accepted envelope is taken by `createWorkflowRuntime`; a raw one throws. The graph check happens when the body starts: a continuation from a workflow whose graph has since changed is refused with `continuation belongs to another workflow graph` before any node runs.
+- The resolution `value` is the gate node's whole output envelope, control ports included: `{ onSuccess: true, onFailure: false, ...outputs }` to continue, `{ onSuccess: false, onFailure: true }` to take the failure path. The answer rules in [Durable Gates](durable-gates.md#what-happens-at-a-gate) apply.
+- `acceptContinuation(json, { runId, workflowId, gateId? })` returns `{ accepted: true, envelope }` or `{ accepted: false, reason, message }` with the reasons in the [refusal table](durable-gates.md#what-happens-at-a-gate): a tampered or truncated envelope, one from another run, workflow or gate, one written by another engine version. Only an accepted envelope is taken by `createWorkflowRuntime`; a raw one throws. The graph check happens when the body starts: a continuation from a workflow whose graph has since changed is refused with `continuation belongs to another workflow graph` before any node runs.
 - `bundleDigest` is optional. Give `createWorkflowRuntime` your build's digest (`sha256:<64 hex>` over the artifact you deploy) on both segments and a continuation from another build is refused. Without it the engine derives one from the workflow's graph and the engine version, which tells a recompiled graph apart but not a changed node body under the same graph.
 - Two engines, one source: the package's coordinator runs the same code, so a continuation is the same format on both sides. A continuation the coordinator wrote resumes in your host when you pass its `bundleDigest` from the run record; one your host wrote is refused by the coordinator, which cannot vouch for a bundle it did not hash.
-- Time is yours to keep. A `timer` gate (`sleep`) yields like any other; `error.gate.inputs` is not labelled in a host, so read the duration from `error.gate.payload.arguments[0].value` and resume when it has passed with `{ onSuccess: true, onFailure: false, wokeAt: <ISO time> }`. A gate with a `timeout` input is the same, the other way: resume with `{ onSuccess: false, onFailure: true }` and `null` for each output when the time is up. See [Time](durable-gates#time).
+- Time is yours to keep. A `timer` gate (`sleep`) yields like any other; `error.gate.inputs` is not labelled in a host, so read the duration from `error.gate.payload.arguments[0].value` and resume when it has passed with `{ onSuccess: true, onFailure: false, wokeAt: <ISO time> }`. A gate with a `timeout` input is the same, the other way: resume with `{ onSuccess: false, onFailure: true }` and `null` for each output when the time is up. See [Time](durable-gates.md#time).
 - What the compiled file does not do: keep anything between segments, run a clock, answer agent gates, or check a continuation against the compiled graph structure the way the coordinator's decoder does. That decoder, and the store, the claims, the clock, the console and `fw serve`, are the package's part.
 
 ## The tooling API
@@ -205,14 +205,14 @@ await compileWorkflow('/abs/order.ts');              // parse → validate → g
 | Ask about structure | `getNode`, `getConnections`, `getDependencies`, `getTopologicalOrder`, `findIsolatedNodes`, … | What `fw_query` answers |
 | Build an AST from nothing | `new WorkflowBuilder(name).addNodeType(…).addNode(…).connect(…).build()` | Rare; annotations are the intended source |
 | Compare two versions | `WorkflowDiffer.compare(before, after)`, `formatDiff` | What `fw diff` prints |
-| Run a CLI command in process | `runCommand('validate', { file })` | Same names as the CLI; it refuses to run a gated workflow — use the coordinator |
+| Run a CLI command in process | `runCommand('validate', { file })` | Names are hyphenated (`add-node`, `market-install`, …); `getAvailableCommands()` lists them. It refuses to run a gated workflow — use the coordinator |
 
 Beside it:
 
 - `@synergenius/flow-weaver/diagram` — `workflowToSVG(ast)` (the console's spine as an image), `workflowToASCII(ast, { format })`, `buildProcessModel(ast)` (steps in run order, pauses, arms), `buildLanes(model)` (the lane layout)
 - `@synergenius/flow-weaver/docs` — `listTopics()`, `readTopic(slug)`, `searchDocs(query)`: this guide, from code
 - `@synergenius/flow-weaver/console` — `createConsoleServer({ projectDir, port?, store? })`: the server behind `fw console`, to embed or to run on a port of your own; with `store`, it shows and drives the runs in a store of yours
-- `@synergenius/flow-weaver/server` — `createWorkflowApi({ dir, token? })`: the workflows' declared `@http` routes and run resources as a handler with `node()`, `express()` and `fetch()` adapters, the same one `fw serve` runs. See [Embedding the API](deployment#embedding-the-api)
+- `@synergenius/flow-weaver/server` — `createWorkflowApi({ dir, token? })`: the workflows' declared `@http` routes and run resources as a handler with `node()`, `express()` and `fetch()` adapters, the same one `fw serve` runs. See [Embedding the API](deployment.md#embedding-the-api)
 - `@synergenius/flow-weaver/testing` — `createMockLlmProvider`, `createMockApprovalProvider`, recorders and replayers for the agent templates' adapters, and `checkRunStore` for a run store of your own
 
 ## Entry points
@@ -223,20 +223,20 @@ Beside it:
 | `@synergenius/flow-weaver` | The same names, plus the AST types and everything `./api` exports |
 | `…/api` | Parse, validate, compile, generate, query, modify |
 | `…/runtime` | `createWorkflowRuntime`, `acceptContinuation`, `decodeContinuation`, `DebugController`, `CancellationError`, `DurableGateYield`, the runtime types |
-| `…/coordinator` | `createLocalCoordinator`, the `RunStore` interface with `createFileRunStore` and `createMemoryRunStore`, and the request, view and error types |
+| `…/coordinator` | `createLocalCoordinator`, the `RunStore` interface with `createFileRunStore` and `createMemoryRunStore`, the request, view and error types, and `executeWorkflow`, the engine's own one-segment boundary for a coordinator of your own |
 | `…/server` | `createWorkflowApi`, `WebhookServer`, `planRoutes`, the request and response types |
 | `…/diagram`, `…/docs`, `…/console`, `…/diff`, `…/testing` | As above |
-| `…/marketplace`, `…/deployment`, `…/built-in-nodes`, `…/compiler`, `…/generator`, `…/agent` | What packs and export targets build on — see [Marketplace](marketplace) and [Deployment](deployment) |
+| `…/marketplace`, `…/deployment`, `…/built-in-nodes`, `…/compiler`, `…/generator`, `…/agent` | What packs and export targets build on — see [Marketplace](marketplace.md) and [Deployment](deployment.md) |
 | `…/cli`, `…/context`, `…/editor`, `…/doc-metadata`, `…/describe`, `…/ast`, `…/constants`, `…/version`, `…/browser`, `…/npm-packages`, `…/generated-branding` | Tooling surfaces used by the CLI, the MCP server and editor integrations |
 
 Anything not on this list is internal and can move between releases.
 
 ## Related Topics
 
-- [Tutorial](tutorial) — From an empty file to a compiled workflow; its last step calls the result the way this page describes
-- [Durable Gates](durable-gates) — What a gate is, the answer rules, and the contract behind a coordinator
-- [Built-in Nodes](built-in-nodes) — `FwMockConfig` and which nodes read it
-- [Debugging](debugging) — `DebugController` and trace events
-- [Cancellation](cancellation) — What `abortSignal` does at a node boundary
-- [Console](console) — The same runs, watched and answered by a person
-- [MCP Tools](mcp-tools) — The same operations, from an assistant
+- [Tutorial](tutorial.md) — From an empty file to a compiled workflow; its last step calls the result the way this page describes
+- [Durable Gates](durable-gates.md) — What a gate is, the answer rules, and the contract behind a coordinator
+- [Built-in Nodes](built-in-nodes.md) — `FwMockConfig` and which nodes read it
+- [Debugging](debugging.md) — `DebugController` and trace events
+- [Cancellation](cancellation.md) — What `abortSignal` does at a node boundary
+- [Console](console.md) — The same runs, watched and answered by a person
+- [MCP Tools](mcp-tools.md) — The same operations, from an assistant

@@ -62,7 +62,7 @@ fw create node <name> <file> [--template T] [--line N] [--preview]
 
 Options:
 <!-- AUTO:START default_node_template -->
-- `--template T` / `-t T` - Use specific template (default: processor)
+- `--template T` / `-t T` - Use specific template (default: transformer)
 <!-- AUTO:END default_node_template -->
 - `--line N` / `-l N` - Insert at specific line
 - `--preview` / `-p` - Preview generated code without writing

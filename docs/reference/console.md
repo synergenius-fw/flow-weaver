@@ -47,9 +47,9 @@ The **New run** card has three parts.
 
 **Parameters** is a form built from the workflow's TypeScript types: a `boolean` is a yes/no, a union of literals a choice, an object its fields, a list of objects rows to add and remove, and anything the type checker cannot name a JSON box with a *tidy* button. A port's description sits under its field. The whole thing can be switched to JSON, cleared, and kept under a name with **save** — presets live in this browser, per workflow, and are picked from the menu beside the title.
 
-**Mocks** lists every gate and every call to another workflow. Ticking one gives it an answer here — the gate's own outputs, as a form from their types — and the run goes through it without pausing, as if a person had answered that. A workflow with delays gets a *skip delays* switch. What is not ticked pauses as usual. This is the same mock config `fw run --mocks` takes (see [Built-in Nodes](built-in-nodes)); **copy as CLI** puts the run, parameters and mocks included, on the clipboard as an `fw run` command.
+**Mocks** lists every gate and every call to another workflow. Ticking one gives it an answer here — the gate's own outputs, as a form from their types — and the run goes through it without pausing, as if a person had answered that. A workflow with delays gets a *skip delays* switch. What is not ticked pauses as usual. This is the same mock config `fw run --mocks` takes (see [Built-in Nodes](built-in-nodes.md)); **copy as CLI** puts the run, parameters and mocks included, on the clipboard as an `fw run` command.
 
-**Agents** appears when the workflow has an agent gate that is not mocked. It names the profile each gate would go to — from `.flowweaver/agents.yaml`, see [Agent profiles](durable-gates#agent-profiles) — with a dot for whether that profile can run from here, and a switch: *Let a profile answer the agent gates*. On, the run does not stop at those gates; off, they wait for you as any gate does. The choice is kept per workflow.
+**Agents** appears when the workflow has an agent gate that is not mocked. It names the profile each gate would go to — from `.flowweaver/agents.yaml`, see [Agent profiles](durable-gates.md#agent-profiles) — with a dot for whether that profile can run from here, and a switch: *Let a profile answer the agent gates*. On, the run does not stop at those gates; off, they wait for you as any gate does. The choice is kept per workflow.
 
 **How** is *Run* or *Step through*. Stepping pauses before the first step, or runs to the first breakpoint when there is one; the breakpoints are listed there and can be removed. `⌘↵` (`Ctrl+↵`) starts the run from anywhere in the card.
 
@@ -75,9 +75,9 @@ A run started in the console is a real execution of the workflow, through the sa
 
 The gate form is built from the port's TypeScript type: a `boolean` is a yes/no, a union of literals a choice, an object its fields. The words around it are the author's: the gate function's JSDoc description is shown at the top of the card as what is being asked, each input the gate hands over is named by its `@input` label, and each field to fill carries its `@output` label. Write those lines for the person who will answer, not for the compiler. **Reject** is offered when the gate has an `onFailure` port.
 
-A run asleep at a `sleep` node shows when it wakes and a **Wake now** button instead of a form; a gate with a `timeout` says when it times out and takes its failure path. The console's clock ticks every few seconds while it is open, as `fw serve`'s does, so a sleep that is over wakes without anyone at the page. The Project page's *Needs you* list says *sleeping until* or *times out at* on those rows. See [Time](durable-gates#time).
+A run asleep at a `sleep` node shows when it wakes and a **Wake now** button instead of a form; a gate with a `timeout` says when it times out and takes its failure path. The console's clock ticks every few seconds while it is open, as `fw serve`'s does, so a sleep that is over wakes without anyone at the page. The Project page's *Needs you* list says *sleeping until* or *times out at* on those rows. See [Time](durable-gates.md#time).
 
-If the file changed since the run paused, the answer is refused with a message saying so; start a new run. See [Durable Gates](durable-gates) for what pauses a run and how an answer is shaped.
+If the file changed since the run paused, the answer is refused with a message saying so; start a new run. See [Durable Gates](durable-gates.md) for what pauses a run and how an answer is shaped.
 
 When an agent profile is answering a gate, its panel sits on the step's row in the process: the profile's name and model, the model's words as they stream, the tools it calls, and the tokens so far. The form is out of the way until it is done. Then one line stays on the row — *answered in 3.2 s, 1.4k tokens* — and the run goes on. If the profile could not answer — no key in the environment, a model that never submitted, an answer that did not fit — the line says why in red, the form is back, and *ask the agent again* is beside it. A run started with the switch off can still be handed to the agent from that button.
 
@@ -87,11 +87,11 @@ The Agents page — the robot glyph on the left bar — is the project's `.floww
 
 ## Serve
 
-The **Serve** pane is the open workflow as an HTTP endpoint. It says whether the server is running for this project, with **Start** and **Stop** right there (the settings are on the Project page) and **Logs** opening the drawer, and lists the routes the workflow declares with `@http`, each with the request to copy as `curl`, the parameters coming from the run form, and what the route answers with. A workflow with no route has one button, **Expose as endpoint**, which writes `@http POST /<name>` on the workflow; **Edit** opens the same small editor for a workflow that has routes: a method, a path (`:param` binds a parameter), and three switches — answer at once, no token, accept a callback URL. Saving rewrites only the `@http` lines. When this console started the server, *copy request* fills in its token. Under the routes, the run resource every workflow has regardless, and the run URLs to resolve, follow and cancel a run. Runs made over the API are the same runs as the console's, so a gate a caller reached can be answered on this page; a run started elsewhere says so in the run list (`http`, `mcp`). See [Deployment](deployment#workflows-as-endpoints).
+The **Serve** pane is the open workflow as an HTTP endpoint. It says whether the server is running for this project, with **Start** and **Stop** right there (the settings are on the Project page) and **Logs** opening the drawer, and lists the routes the workflow declares with `@http`, each with the request to copy as `curl`, the parameters coming from the run form, and what the route answers with. A workflow with no route has one button, **Expose as endpoint**, which writes `@http POST /<name>` on the workflow; **Edit** opens the same small editor for a workflow that has routes: a method, a path (`:param` binds a parameter), and three switches — answer at once, no token, accept a callback URL. Saving rewrites only the `@http` lines. When this console started the server, *copy request* fills in its token. Under the routes, the run resource every workflow has regardless, and the run URLs to resolve, follow and cancel a run. Runs made over the API are the same runs as the console's, so a gate a caller reached can be answered on this page; a run started elsewhere says so in the run list (`http`, `mcp`). See [Deployment](deployment.md#workflows-as-endpoints).
 
 ## Endpoints
 
-The Endpoints page — the API glyph on the left bar — is every declared route in the project on one page: method, path, what it answers with, the flags it carries, and the request to copy, grouped by workflow; the routes that could not be mounted and why; and whether the server is up, with **Start server** when it is not. A project with no routes yet is told what a route adds over the run resource and shown the workflows to start with. The side has the response contract in short, and the snippets to mount the same API in an Express app or a fetch host. See [Embedding the API](deployment#embedding-the-api).
+The Endpoints page — the API glyph on the left bar — is every declared route in the project on one page: method, path, what it answers with, the flags it carries, and the request to copy, grouped by workflow; the routes that could not be mounted and why; and whether the server is up, with **Start server** when it is not. A project with no routes yet is told what a route adds over the run resource and shown the workflows to start with. The side has the response contract in short, and the snippets to mount the same API in an Express app or a fetch host. See [Embedding the API](deployment.md#embedding-the-api).
 
 ## Debugging
 
@@ -106,7 +106,7 @@ Choose **Step through** on the New run card and the workflow pauses before its f
 
 A breakpoint is set by clicking a step's tile, as in an editor's gutter; they are kept per workflow and can be changed while a session is paused. The step the run is paused at is marked in the process, with *before* or *after*. When it is paused after a step, that step's outputs are editable in its Step card: the new value is what the next node reads, which is how a branch is forced or a bad value patched without a rerun.
 
-A debug session is a held process, not a run in the store: it is not listed by `fw_runs`, does not survive the console closing, and cannot hold a gate — a gated workflow can be stepped as far as its first gate, where the session ends and says so. See [Debugging](debugging) for the same facility from the CLI and MCP.
+A debug session is a held process, not a run in the store: it is not listed by `fw_runs`, does not survive the console closing, and cannot hold a gate — a gated workflow can be stepped as far as its first gate, where the session ends and says so. See [Debugging](debugging.md) for the same facility from the CLI and MCP.
 
 ## Packs
 
@@ -118,7 +118,7 @@ Three more things live under Packs:
 - **Find a pack** — a search of the npm registry narrowed to packs. Installing one is `fw market install`, put on the command line for you to run; a private registry is reached with `fw market search --registry`.
 - **This pack** — when the open project is itself a pack, the console shows what `fw market pack` would do before it does it: the manifest generated from the sources, the marketplace rules over it, and what writing `flowweaver.manifest.json` would change. `fw market pack` and `fw market publish --dry-run` are on the command line.
 
-See [Marketplace](marketplace) for what a pack can contain and how one is made.
+See [Marketplace](marketplace.md) for what a pack can contain and how one is made.
 
 ## The guide
 
@@ -137,7 +137,7 @@ The **CLI** tab of the drawer runs `fw` commands in the project — as an argume
 
 ## The console on a store of your own
 
-`fw console` shows the runs in the project's `.fw/runs`, the same directory `fw serve` and `fw_run` use for that project. Your own code joins them with `createLocalCoordinator({ rootDir: defaultRunsDir(projectDir) })`. A service in production keeps its runs in a [run store](library#run-stores) of its own instead; to answer those gates from the console, run it from code on the same store:
+`fw console` shows the runs in the project's `.fw/runs`, the same directory `fw serve` and `fw_run` use for that project. Your own code joins them with `createLocalCoordinator({ rootDir: defaultRunsDir(projectDir) })`. A service in production keeps its runs in a [run store](library.md#run-stores) of its own instead; to answer those gates from the console, run it from code on the same store:
 
 ```typescript
 import { createConsoleServer } from '@synergenius/flow-weaver/console';
@@ -159,6 +159,6 @@ Everything on this page then reads and writes that store: the run list, the gate
 
 ## Related Topics
 
-- [CLI Reference](cli-reference) — `fw console` flags
-- [Durable Gates](durable-gates) — gates, answers, and driving a run from an assistant
-- [Debugging](debugging) — reading traces and fixing validation errors
+- [CLI Reference](cli-reference.md) — `fw console` flags
+- [Durable Gates](durable-gates.md) — gates, answers, and driving a run from an assistant
+- [Debugging](debugging.md) — reading traces and fixing validation errors

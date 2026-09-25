@@ -405,14 +405,9 @@ A paused gate is matched by `workflow/node` first, then by its `agentId` input, 
 
 ## Driving a run as a coordinator
 
-Most code does not need to be a coordinator: `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` starts and resumes runs from code, persists them under `~/.fw/runs` by default, and shares them with the console and the MCP tools when given the project's store (`rootDir: defaultRunsDir(projectDir)`) — see [Using the library](library).
+Most code does not need to be a coordinator: `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` starts and resumes runs from code, persists them under `~/.fw/runs` by default, and shares them with the console and the MCP tools when given the project's store (`rootDir: defaultRunsDir(projectDir)`) — see [Using the library](library.md).
 
-A coordinator is any caller that persists continuations itself and vouches for the bundle. The smallest one is a host with the compiled file and nothing else: the file exports `createWorkflowRuntime`, throws `DurableGateYield` with the continuation at a gate, and exports `acceptContinuation` to take it back — see [A host of your own](library#a-host-of-your-own). The engine's continuation boundary inside the package is `executeWorkflow` (`src/mcp/workflow-executor.ts`); it is not in the package's export map, so the supported way to reach it from outside the CLI is the stateless MCP tool pair:
-
-| Tool | Arguments | Returns |
-|------|-----------|---------|
-| `fw_workflow_run` | `filePath`, `params?`, `workflowName?`, `runId?`, `bundleDigest?` | `{ kind: 'completed', result }` or `{ kind: 'yielded', gate, continuation }` |
-| `fw_workflow_resume` | `runId`, `filePath`, `continuation`, `gateId`, `resolution`, `bundleDigest`, `params?`, `workflowName?` | Same |
+A coordinator is any caller that persists continuations itself and vouches for the bundle. The smallest one is a host with the compiled file and nothing else: the file exports `createWorkflowRuntime`, throws `DurableGateYield` with the continuation at a gate, and exports `acceptContinuation` to take it back — see [A host of your own](library.md#a-host-of-your-own). Inside the package the engine's continuation boundary is `executeWorkflow`, exported from `@synergenius/flow-weaver/coordinator`: one segment of a run, from the start or from a continuation, with no store behind it. It returns `{ kind: 'completed', result }` or `{ kind: 'yielded', gate, continuation }`, and throws `ContinuationRefusalError` before running anything when the bundle, the continuation or the effect adapter is not acceptable.
 
 The request shape is the engine's:
 
@@ -442,9 +437,9 @@ The request shape is the engine's:
 
 ## Related Topics
 
-- [Built-in Nodes](built-in-nodes) — `waitForAgent` and `waitForEvent` signatures, and which mocks still apply
-- [Advanced Annotations](advanced-annotations) — The full node-type annotation table
-- [Debugging](debugging) — Why the debugger cannot resume a gate
-- [Cancellation](cancellation) — Cooperative cancellation at node boundaries
-- [CLI Reference](cli-reference) — `run` and `mcp-server`
-- [MCP Tools](mcp-tools) — The whole tool surface and result sizes
+- [Built-in Nodes](built-in-nodes.md) — `waitForAgent` and `waitForEvent` signatures, and which mocks still apply
+- [Advanced Annotations](advanced-annotations.md) — The full node-type annotation table
+- [Debugging](debugging.md) — Why the debugger cannot resume a gate
+- [Cancellation](cancellation.md) — Cooperative cancellation at node boundaries
+- [CLI Reference](cli-reference.md) — `run` and `mcp-server`
+- [MCP Tools](mcp-tools.md) — The whole tool surface and result sizes

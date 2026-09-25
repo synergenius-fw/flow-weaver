@@ -3,8 +3,8 @@
 //
 // Demonstrates:
 //   - Scoped retry node: loops the prompt until the reviewer provides valid input
-//   - Agent channel for interactive human-in-the-loop (maps to step.waitForEvent
-//     on Inngest targets)
+//   - A durable gate for interactive human-in-the-loop: the run pauses until
+//     the reviewer answers, and resumes in any process
 //   - Validation with early-exit failure routing
 //   - Mock system for non-interactive testing
 //

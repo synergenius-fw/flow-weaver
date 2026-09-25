@@ -1,61 +1,45 @@
-# Flow Weaver Migration & Versioning
+# Flow Weaver Migration
 
 ## Philosophy
 
-Flow Weaver's migration system is built on a key insight: the existing **parse → generate round-trip** handles ~95% of migrations automatically. The parser is backward-compatible (adds defaults for missing fields), and the generator always writes current syntax. Custom migrations are only needed for rare edge cases.
+Flow Weaver's migration system is built on one insight: the existing **parse then generate round-trip** handles nearly every migration on its own. The parser is backward-compatible (it adds defaults for missing fields), and the generator always writes current syntax. Custom migrations are only needed for rare edge cases.
 
 This means:
 - No `@version` annotations in workflow files
 - No per-version migration scripts
 - No grammar changes needed for migration support
-- Adding a new optional annotation tag "just works": old files parse fine, new files get the tag
+- Adding a new optional annotation tag just works: old files parse fine, new files get the tag
 
 ---
 
-## Quick Reference
-
-```bash
-# Migrate workflow files to current syntax
-fw migrate '**/*.ts'
-fw migrate '**/*.ts' --dry-run
-fw migrate 'src/**/*.ts' --diff
-
-# Generate a changelog from git history
-fw changelog --last-tag
-fw changelog --range v0.1.0..HEAD
-fw changelog --since 2024-01-01
-
-# Package the app for distribution
-npm run package
-npm run package -- v0.2.0
-
-# Run grammar compatibility tests
-npm run test:integration
-```
-
----
-
-## Migration
-
-### How It Works
+## How It Works
 
 ```
   Old workflow file
         |
         v
-  parser.parse()          ← backward-compatible, adds defaults
+  parser.parse()          <- backward-compatible, adds defaults
         |
         v
-  applyMigrations(ast)    ← edge-case registry (usually empty)
+  applyMigrations(ast)    <- edge-case registry (usually empty)
         |
         v
-  generateInPlace()       ← writes current syntax, preserves user code
+  generateInPlace()       <- writes current syntax, preserves user code
         |
         v
   Updated workflow file
 ```
 
-### CLI Usage
+## CLI Usage
+
+```bash
+fw migrate <glob> [options]
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--dry-run` | Preview changes without writing files | `false` |
+| `--diff` | Show semantic diff before/after | `false` |
 
 ```bash
 # Preview what would change (no files written)
@@ -64,27 +48,23 @@ fw migrate 'src/**/*.ts' --dry-run
 # Migrate with semantic diff output
 fw migrate 'src/**/*.ts' --diff
 
-# Migrate in-place
+# Migrate in place
 fw migrate 'src/**/*.ts'
 ```
 
-### MCP Tool
+`**/node_modules/**` and `**/*.generated.ts` are ignored.
 
-The `fw_migrate` tool exposes the same logic for Claude Code:
+## MCP Tool
+
+The `fw_migrate` tool exposes the same logic to an assistant:
 
 ```
 fw_migrate(glob: "src/**/*.ts", dryRun: true)
 ```
 
-### Edge-Case Migration Registry
+## Edge-Case Migration Registry
 
-Located at `src/migration/registry.ts`. Starts **empty**. Only add entries when the parse → generate round-trip can't handle a change automatically.
-
-Example of when you'd add one:
-- A tag was renamed (e.g., `@executeWhen` → `@branchingStrategy`) and old files need the AST field moved
-- A feature was removed and old files reference it
-
-Expected growth: ~1-2 entries per year.
+Located at `src/migration/registry.ts`. Starts **empty**. Only add an entry when the parse then generate round-trip cannot handle a change on its own, for example when a tag was renamed and old files need the AST field moved, or when a feature was removed and old files still reference it.
 
 ```ts
 // In src/migration/registry.ts
@@ -103,61 +83,13 @@ const migrations: Migration[] = [
 
 ## Breaking Change Detection
 
-### What It Tests
+`tests/integration/grammar-compatibility.test.ts` discovers every example file and verifies:
 
-`tests/integration/grammar-compatibility.test.ts` automatically discovers all example files and verifies:
+1. **Parse test**: every example parses without errors
+2. **Round-trip test**: parse, generate, re-parse produces no structural breaks (no removed instances, connections, or ports)
 
-1. **Parse test** — every example parses without errors
-2. **Round-trip test** — parse → generate → re-parse produces no structural breaks (no removed instances, connections, or ports)
-
-### Zero Maintenance
-
-- Files discovered via glob — no list to maintain
-- Adding new example files = automatic test coverage
-- Non-breaking changes (new optional fields, new tags with defaults) pass silently
-- Only actual structural breaks trigger failures
-
-### Running
+Files are discovered by glob, so a new example file is covered without a list to maintain. Non-breaking changes (new optional fields, new tags with defaults) pass silently. Only a structural break fails the test.
 
 ```bash
 npm run test:integration
 ```
-
----
-
-## Changelog
-
-Generates a categorized changelog from git history using file-path heuristics. No conventional commit discipline needed.
-
-### Categories
-
-Commits are categorized by which files they touch:
-
-| Category | File Pattern |
-|----------|-------------|
-| Grammar | `parser`, `chevrotain`, `grammar` |
-| Code Generation | `generator`, `body-generator`, `generate` |
-| Differ | `diff/` |
-| CLI | `cli/commands/` |
-| MCP Tools | `mcp/` |
-| Deployment | `deployment`, `export` |
-| Runtime | `runtime/` |
-| Migration | `migration/` |
-| Tests | `tests/`, `.test.` |
-| Documentation | `doc`, `readme`, `changelog` |
-
-### Example Output
-
-```markdown
-## Changes (last tag)
-
-### Grammar (2 commits)
-
-- e15cc39 Fix parser handling of optional ports
-- 7987f81 Add @async annotation support
-
-### CLI (1 commit)
-
-- 8d83048 Add migrate command
-```
-
