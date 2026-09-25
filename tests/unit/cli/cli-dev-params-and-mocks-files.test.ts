@@ -204,34 +204,7 @@ export function brokenWf(execute: boolean): Promise<{ onSuccess: boolean }> {
     await devCommand(filePath, { once: true });
   });
 
-  // ── Dev mode target delegation ─────────────────────────────────────
-  it('should delegate to a registered dev mode provider', async () => {
-    const { devCommand } = await import('../../../src/cli/commands/dev');
-    const { devModeRegistry } = await import('../../../src/generator/dev-mode-registry');
-
-    const runFn = vi.fn().mockResolvedValue(undefined);
-    devModeRegistry.register({ name: 'test-dev-target', run: runFn });
-
-    const filePath = writeFixture('target.ts', VALID_WORKFLOW);
-
-    await devCommand(filePath, { target: 'test-dev-target', once: true });
-
-    expect(runFn).toHaveBeenCalledWith(
-      path.resolve(filePath),
-      expect.objectContaining({ target: 'test-dev-target' })
-    );
-  });
-
-  it('should throw for unknown dev target', async () => {
-    const { devCommand } = await import('../../../src/cli/commands/dev');
-    const filePath = writeFixture('unknown-target.ts', VALID_WORKFLOW);
-
-    await expect(
-      devCommand(filePath, { target: 'nonexistent-target', once: true })
-    ).rejects.toThrow(/Unknown dev target/);
-  });
-
-  // ── Lines 198-235: watch mode with chokidar ────────────────────────
+  // ── Watch mode with chokidar ────────────────────────
   it('should start watch mode and respond to file changes', async () => {
     const { devCommand } = await import('../../../src/cli/commands/dev');
 

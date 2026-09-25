@@ -10,6 +10,14 @@ import {
 } from '../parser/annotation-parser';
 import { getErrorMessage } from '../utils/error-utils';
 
+/** Prefix of the parse error raised when a file declares several workflows and none was named. */
+export const MULTIPLE_WORKFLOWS_MARKER = '[MULTIPLE_WORKFLOWS_FOUND]';
+
+/** The parse failed only because the file declares several workflows and none was picked. */
+export function isMultipleWorkflows(errors: readonly unknown[]): boolean {
+  return errors.length > 0 && errors.every((e) => typeof e === 'string' && e.startsWith(MULTIPLE_WORKFLOWS_MARKER));
+}
+
 export interface ParseOptions extends Partial<ASTParseOptions> {
   /**
    * Name of the workflow to parse from the file.
@@ -142,7 +150,7 @@ export async function parseWorkflow(
 
       if (parsed.workflows.length > 1) {
         errors.push(
-          `[MULTIPLE_WORKFLOWS_FOUND] Multiple workflows found: ${availableWorkflows.join(', ')}. Please specify workflowName in options.`
+          `${MULTIPLE_WORKFLOWS_MARKER} Multiple workflows found: ${availableWorkflows.join(', ')}. Please specify workflowName in options.`
         );
         throw new Error('Multiple workflows found, workflowName required');
       }

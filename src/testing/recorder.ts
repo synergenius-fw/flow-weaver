@@ -3,7 +3,7 @@
  *
  * Usage:
  * ```typescript
- * import { createRecordingProvider } from 'flow-weaver/testing';
+ * import { createRecordingProvider } from '@synergenius/flow-weaver/testing';
  *
  * const recorder = createRecordingProvider(realLlmProvider);
  *

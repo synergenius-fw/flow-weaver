@@ -22,7 +22,8 @@ async function build() {
     entryPoints: [path.join(__dirname, '../src/cli/index.ts')],
     bundle: true,
     platform: 'node',
-    target: 'node18',
+    // Matches package.json engines.node.
+    target: 'node22',
     format: 'esm',
     outfile,
     // One readable file. No sourcemap goes out (package.json `files` already
@@ -40,9 +41,6 @@ async function build() {
       // binary, which does not exist in an ESM bundle. It is a runtime
       // dependency, so consumers always have it installed.
       'esbuild',
-      // Optional dependencies - dynamically imported at runtime
-      'fastify',
-      '@fastify/cors',
     ],
     banner: {
       js: [

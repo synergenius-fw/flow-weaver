@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as path from 'path';
 import { parseWorkflow, validateWorkflow, compileWorkflow } from '../api/index.js';
+import { isMultipleWorkflows, MULTIPLE_WORKFLOWS_MARKER } from '../api/parse.js';
 import {
   getNodes,
   getConnections,
@@ -19,17 +20,10 @@ import { WorkflowDiffer } from '../diff/WorkflowDiffer.js';
 import { formatDiff } from '../diff/formatDiff.js';
 import { makeToolResult, makeErrorResult, addHintsToItems } from './response-utils.js';
 import { getFriendlyError } from '../validation/friendly-errors.js';
-import { compileTargetRegistry } from '../generator/compile-target-registry.js';
-import { AnnotationParser } from '../parser/annotation-parser.js';
-
-/** The parse failed only because the file declares several workflows and none was picked. */
-function isMultipleWorkflows(errors: unknown[]): boolean {
-  return errors.length > 0 && errors.every((e) => typeof e === 'string' && e.startsWith('[MULTIPLE_WORKFLOWS_FOUND]'));
-}
 
 /** Detect MULTIPLE_WORKFLOWS_FOUND marker in parse errors and return the right error code */
 function parseErrorCode(errors: string[]): string {
-  if (errors.some((e) => e.includes('[MULTIPLE_WORKFLOWS_FOUND]'))) {
+  if (errors.some((e) => e.includes(MULTIPLE_WORKFLOWS_MARKER))) {
     return 'MULTIPLE_WORKFLOWS_FOUND';
   }
   return 'PARSE_ERROR';
@@ -113,21 +107,18 @@ export function registerQueryTools(mcp: McpServer): void {
       return { valid: false, errors: parseResult.errors, warnings: parseResult.warnings };
     }
     const result = validateWorkflow(parseResult.ast, draft ? { mode: 'draft' } : undefined);
-    const errors = result.errors.map((e) => ({
+    // The same item shape `fw validate --json` prints: a location lets an
+    // editor place the finding on its line, a docUrl names the reference.
+    const item = (e: (typeof result.errors)[number]) => ({
       message: e.message,
       severity: e.type,
       nodeId: e.node,
       code: e.code,
-    }));
-    const warnings = [
-      ...parseResult.warnings,
-      ...result.warnings.map((w) => ({
-        message: w.message,
-        severity: w.type,
-        nodeId: w.node,
-        code: w.code,
-      })),
-    ];
+      ...(e.location && { location: e.location }),
+      ...(e.docUrl && { docUrl: e.docUrl }),
+    });
+    const errors = result.errors.map(item);
+    const warnings = [...parseResult.warnings, ...result.warnings.map(item)];
     return {
       valid: result.valid,
       errors: addHintsToItems(errors, getFriendlyError),
@@ -202,7 +193,7 @@ export function registerQueryTools(mcp: McpServer): void {
     'fw_compile',
     'Compile a workflow to executable code. Only regenerates code inside @flow-weaver-runtime ' +
       'and @flow-weaver-body marker sections, so user code outside markers is preserved. ' +
-      'Set production: true to strip debug instrumentation. Custom targets are available via registered extensions.',
+      'Set production: true to strip debug instrumentation.',
     {
       filePath: z.string().describe('Path to the workflow file'),
       write: z.boolean().optional().describe('Whether to write the output file (default: true)'),
@@ -211,16 +202,6 @@ export function registerQueryTools(mcp: McpServer): void {
         .optional()
         .describe('Production mode, meaning no debug events (default: false)'),
       workflowName: z.string().optional().describe('Specific workflow name (default: every workflow in the file)'),
-      target: z
-        .string()
-        .optional()
-        .describe('Compilation target: typescript (default) or a registered extension target'),
-      cron: z.string().optional().describe('Cron schedule expression (e.g. "0 9 * * *"). Overrides @trigger annotation.'),
-      serve: z.boolean().optional().describe('Generate serve() handler for HTTP framework integration'),
-      framework: z.enum(['next', 'express', 'hono', 'fastify', 'remix']).optional().describe('Framework adapter for serve handler (requires serve=true)'),
-      typedEvents: z.boolean().optional().describe('Generate Zod event schemas from workflow @param annotations'),
-      retries: z.number().int().min(0).optional().describe('Number of retries per function. Overrides @retries annotation.'),
-      timeout: z.string().optional().describe('Function timeout (e.g. "30m", "1h"). Overrides @timeout annotation.'),
       draft: z.boolean().optional().describe('Draft mode - suppresses STUB_NODE validation errors so partially implemented workflows can compile (default: false)'),
     },
     async (args: {
@@ -228,83 +209,10 @@ export function registerQueryTools(mcp: McpServer): void {
       write?: boolean;
       production?: boolean;
       workflowName?: string;
-      target?: string;
-      cron?: string;
-      serve?: boolean;
-      framework?: 'next' | 'express' | 'hono' | 'fastify' | 'remix';
-      typedEvents?: boolean;
-      retries?: number;
-      timeout?: string;
       draft?: boolean;
     }) => {
       try {
         const filePath = path.resolve(args.filePath);
-
-        const customTarget = args.target && args.target !== 'typescript'
-          ? compileTargetRegistry.get(args.target)
-          : undefined;
-
-        if (args.target && args.target !== 'typescript') {
-          if (!customTarget) {
-            const available = compileTargetRegistry.getNames();
-            return makeErrorResult('COMPILE_ERROR', `Unknown compile target: ${args.target}. Available: typescript${available.length ? ', ' + available.join(', ') : ''}`);
-          }
-
-          const annotationParser = new AnnotationParser();
-          const parseResult = annotationParser.parse(filePath);
-
-          if (parseResult.errors.length > 0) {
-            return makeErrorResult('PARSE_ERROR', `Parse errors:\n${parseResult.errors.join('\n')}`);
-          }
-          if (parseResult.workflows.length === 0) {
-            return makeErrorResult('PARSE_ERROR', 'No workflows found in file');
-          }
-
-          const workflow = args.workflowName
-            ? parseResult.workflows.find((w) => w.name === args.workflowName || w.functionName === args.workflowName)
-            : parseResult.workflows[0];
-
-          if (!workflow) {
-            const available = parseResult.workflows.map((w) => w.name).join(', ');
-            return makeErrorResult('PARSE_ERROR', `Workflow "${args.workflowName}" not found. Available: ${available}`);
-          }
-
-          const allNodeTypes = [...(workflow.nodeTypes || [])];
-
-          // Apply CLI overrides to workflow options
-          if (args.cron) {
-            workflow.options = workflow.options || {};
-            workflow.options.trigger = { ...workflow.options.trigger, cron: args.cron };
-          }
-          if (args.retries !== undefined) {
-            workflow.options = workflow.options || {};
-            workflow.options.retries = args.retries;
-          }
-          if (args.timeout) {
-            workflow.options = workflow.options || {};
-            workflow.options.timeout = args.timeout;
-          }
-
-          const code = customTarget.compile(workflow, allNodeTypes, {
-            production: args.production ?? false,
-            typedEvents: args.typedEvents,
-            serveHandler: args.serve,
-            framework: args.framework,
-          });
-
-          const outputFile = filePath.replace(/\.ts$/, `.${args.target}.ts`);
-          if (args.write !== false) {
-            const fs = await import('fs');
-            fs.writeFileSync(outputFile, code, 'utf8');
-          }
-
-          return makeToolResult({
-            target: args.target,
-            outputFile,
-            workflowName: workflow.name,
-            code: args.write === false ? code : undefined,
-          });
-        }
 
         const compileOne = (workflowName: string | undefined) =>
           compileWorkflow(filePath, {
@@ -320,7 +228,7 @@ export function registerQueryTools(mcp: McpServer): void {
         } catch (err) {
           // Several workflows and none named: compile each one in turn. Each
           // compile reads the file the previous one wrote, so the bodies stack.
-          if (args.workflowName || !String(err instanceof Error ? err.message : err).includes('[MULTIPLE_WORKFLOWS_FOUND]')) throw err;
+          if (args.workflowName || !String(err instanceof Error ? err.message : err).includes(MULTIPLE_WORKFLOWS_MARKER)) throw err;
           const { availableWorkflows } = await parseWorkflow(filePath, { projectDir: path.dirname(filePath) });
           const warnings = [];
           for (const name of availableWorkflows) {

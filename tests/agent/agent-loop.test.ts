@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runAgentLoop } from '../../src/agent/agent-loop.js';
+import { runAgentLoop, truncateToolResult } from '../../src/agent/agent-loop.js';
 import type { AgentProvider, AgentMessage, ToolDefinition, StreamEvent, StreamOptions } from '../../src/agent/types.js';
 
 /** Create a mock provider that yields a predetermined sequence of events. */
@@ -30,6 +30,16 @@ const testTools: ToolDefinition[] = [
     },
   },
 ];
+
+describe('truncateToolResult', () => {
+  it('leaves a result within the cap alone and marks one that was cut', () => {
+    expect(truncateToolResult('short', 10)).toBe('short');
+    const cut = truncateToolResult('x'.repeat(25), 10);
+    expect(cut.startsWith('x'.repeat(10))).toBe(true);
+    expect(cut).toContain('[truncated: 15 more characters]');
+    expect(cut).not.toContain('x'.repeat(11));
+  });
+});
 
 describe('runAgentLoop', () => {
   it('should complete when provider returns stop (no tool calls)', async () => {

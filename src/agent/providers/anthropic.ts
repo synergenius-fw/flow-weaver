@@ -1,11 +1,10 @@
 /**
  * Anthropic API provider: streams messages via raw fetch + SSE parsing.
- * No SDK dependency. Uses only Node.js native fetch (available since Node 18).
- *
- * Adapted from pack-weaver's streamAnthropicWithTools.
+ * No SDK dependency. Uses only Node.js native fetch.
  */
 
 import type { AgentProvider, AgentMessage, ToolDefinition, StreamEvent, StreamOptions, SplitPrompt } from '../types.js';
+import { DEFAULT_MODEL } from '../profiles.js';
 
 export interface AnthropicProviderOptions {
   apiKey: string;
@@ -41,7 +40,7 @@ export class AnthropicProvider implements AgentProvider {
       throw new Error('AnthropicProvider requires an API key');
     }
     this.apiKey = options.apiKey;
-    this.model = options.model ?? 'claude-sonnet-4-20250514';
+    this.model = options.model ?? DEFAULT_MODEL.anthropic;
     this.maxTokens = options.maxTokens ?? 8192;
     this.baseUrl = options.baseUrl ?? 'https://api.anthropic.com';
   }

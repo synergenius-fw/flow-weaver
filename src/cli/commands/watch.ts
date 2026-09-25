@@ -26,14 +26,25 @@ export async function watchCommand(input: string, options: WatchOptions = {}): P
   logger.info('Press Ctrl+C to stop');
   logger.newline();
 
-  // Initial compilation
+  // Initial compilation. A file that does not compile yet is the usual reason
+  // to watch it, so a failure here is reported and watching goes on.
   logger.info('Initial compilation...');
-  await compileCommand(input, options);
+  try {
+    await compileCommand(input, options);
+  } catch (error) {
+    const errorMsg = getErrorMessage(error);
+    logger.error(`${timestamp()} Initial compilation failed: ${errorMsg}`);
+    options.onRecompile?.(input, false, [errorMsg]);
+  }
   logger.newline();
   logger.success('Watching for file changes...');
 
-  // Find files to watch
+  // Find files to watch. Nothing matching is a mistake in the argument, not
+  // a file that will compile later.
   const files = await glob(input, { absolute: true });
+  if (files.length === 0) {
+    throw new Error(`No files match ${input}; nothing to watch`);
+  }
 
   // Use chokidar for reliable cross-platform file watching
   const chokidar = await import('chokidar');

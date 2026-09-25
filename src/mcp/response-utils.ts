@@ -42,7 +42,7 @@ export const ERROR_HINTS: Record<string, string> = {
   MISSING_REQUIRED_INPUT:
     'Add a @connect to this port, or make it optional with @input portName [optional]',
   CYCLE_DETECTED:
-    'Use a scoped forEach node instead of graph loops. See flow-weaver:flow-weaver-export-interface',
+    'Use a scoped forEach node instead of graph loops. See fw_docs "advanced-annotations"',
   STEP_PORT_TYPE_MISMATCH:
     'STEP ports (execute, onSuccess, onFailure) can only connect to other STEP ports',
   MULTIPLE_CONNECTIONS_TO_INPUT:
@@ -60,7 +60,6 @@ export const ERROR_HINTS: Record<string, string> = {
   RESERVED_INSTANCE_ID: 'Rename the instance. "Start" and "Exit" are reserved IDs',
   MULTIPLE_WORKFLOWS_FOUND: 'Specify workflowName parameter to select which workflow to use',
   DUPLICATE_NODE_NAME: 'Rename one of the duplicate node type functions to be unique',
-  UNDEFINED_NODE: 'Add a @node annotation for the referenced instance, or fix the connection',
   INVALID_EXIT_PORT_TYPE: 'Ensure Exit onSuccess/onFailure ports are STEP type (auto-generated)',
 
   // Agent-specific rules

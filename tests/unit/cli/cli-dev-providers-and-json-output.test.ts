@@ -1,7 +1,6 @@
 /**
- * Tests for src/cli/commands/dev.ts
- * Tests: 169-174 (dev mode registry delegation),
- * 198-235 (watch mode setup with chokidar, cleanup handlers).
+ * Tests for src/cli/commands/dev.ts: params parsing, once mode, JSON output,
+ * and the watch loop's setup and cleanup handlers.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -53,49 +52,6 @@ describe('devCommand coverage', () => {
     await expect(
       devCommand('/nonexistent/file.ts', { once: true })
     ).rejects.toThrow(/File not found/);
-  });
-
-  it('should delegate to a registered dev mode provider when target matches', async () => {
-    const { devCommand } = await import('../../../src/cli/commands/dev');
-    const { devModeRegistry } = await import('../../../src/generator/dev-mode-registry');
-
-    const runFn = vi.fn().mockResolvedValue(undefined);
-    devModeRegistry.register({ name: 'test-dev-target', run: runFn });
-
-    const filePath = writeFixture('dev-target.ts', SIMPLE_WORKFLOW);
-
-    await devCommand(filePath, { target: 'test-dev-target', once: true });
-
-    expect(runFn).toHaveBeenCalledWith(
-      path.resolve(filePath),
-      expect.objectContaining({ target: 'test-dev-target', once: true })
-    );
-  });
-
-  it('should throw for unknown dev target with no providers registered', async () => {
-    const { devCommand } = await import('../../../src/cli/commands/dev');
-
-    const filePath = writeFixture('dev-unknown.ts', SIMPLE_WORKFLOW);
-
-    await expect(
-      devCommand(filePath, { target: 'nonexistent-target', once: true })
-    ).rejects.toThrow(/Unknown dev target/);
-  });
-
-  it('should throw for unknown dev target and list available providers', async () => {
-    const { devCommand } = await import('../../../src/cli/commands/dev');
-    const { devModeRegistry } = await import('../../../src/generator/dev-mode-registry');
-
-    devModeRegistry.register({
-      name: 'available-target',
-      run: vi.fn().mockResolvedValue(undefined),
-    });
-
-    const filePath = writeFixture('dev-avail.ts', SIMPLE_WORKFLOW);
-
-    await expect(
-      devCommand(filePath, { target: 'wrong-target', once: true })
-    ).rejects.toThrow(/Available.*available-target/);
   });
 
   it('should parse --params JSON and run once', async () => {

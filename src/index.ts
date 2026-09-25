@@ -172,9 +172,6 @@ export { generator, WorkflowGenerator } from './generator/workflow-generator';
 export { AnnotationGenerator } from './generator/annotation-generator';
 export type { GenerateAnnotationsOptions } from './generator/annotation-generator';
 
-// Generator Utilities (for advanced use)
-export * as GeneratorUtils from './generator/workflow-generator';
-
 // JSDoc Port Sync (browser-compatible parsing/updating)
 export {
   parsePortsFromFunctionText,

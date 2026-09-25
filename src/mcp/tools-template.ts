@@ -60,10 +60,10 @@ export function registerTemplateTools(mcp: McpServer): void {
 
   mcp.tool(
     'fw_scaffold',
-    'Create a workflow or node from a template -- what `fw create` does on the CLI. fw_list_templates names the templates; "approval" is the gated one.',
+    'Create a workflow or node from a template -- what `fw create` does on the CLI. fw_list_templates names the templates; "approval" is the gated one. Writes a new file, or appends to filePath when it already exists.',
     {
       template: z.string().describe('Template name (e.g. "sequential", "validator", "ai-agent")'),
-      filePath: z.string().describe('Output file path'),
+      filePath: z.string().describe('Output file path. An existing file gets the code appended'),
       name: z.string().optional().describe('Workflow/node function name'),
       preview: z
         .boolean()

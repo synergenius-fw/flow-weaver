@@ -88,8 +88,9 @@ export function registerWorkflowTools(mcp: McpServer): void {
         const filePath = path.resolve(args.filePath);
         const sourceCode = fs.readFileSync(filePath, 'utf8');
 
-        // Parse the workflow
-        const parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName });
+        // Parse the workflow, with the project's pack tag handlers loaded,
+        // as fw_validate and fw_describe do.
+        const parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName, projectDir: path.dirname(filePath) });
         if (parseResult.errors.length > 0) {
           return makeErrorResult('PARSE_ERROR', `Parse errors:\n${parseResult.errors.join('\n')}`);
         }
@@ -298,6 +299,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
           try {
             const reParseResult = await parseWorkflow(filePath, {
               workflowName: args.workflowName,
+              projectDir: path.dirname(filePath),
             });
             if (reParseResult.errors.length === 0) {
               const valResult = validateWorkflow(reParseResult.ast);
@@ -416,7 +418,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
         const sourceCode = fs.readFileSync(filePath, 'utf8');
 
         // Parse once
-        const parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName });
+        const parseResult = await parseWorkflow(filePath, { workflowName: args.workflowName, projectDir: path.dirname(filePath) });
         if (parseResult.errors.length > 0) {
           return makeErrorResult('PARSE_ERROR', `Parse errors:\n${parseResult.errors.join('\n')}`);
         }
@@ -466,7 +468,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
         let description: string | undefined;
 
         try {
-          const reParseResult = await parseWorkflow(filePath, { workflowName: args.workflowName });
+          const reParseResult = await parseWorkflow(filePath, { workflowName: args.workflowName, projectDir: path.dirname(filePath) });
           if (reParseResult.errors.length === 0) {
             const valResult = validateWorkflow(reParseResult.ast);
             const errors = valResult.errors.map((e) => ({
@@ -555,7 +557,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
           const filePath = path.resolve(file);
           try {
             const sourceCode = fs.readFileSync(filePath, 'utf8');
-            const parseResult = await parseWorkflow(filePath);
+            const parseResult = await parseWorkflow(filePath, { projectDir: path.dirname(filePath) });
 
             if (parseResult.errors.length > 0) {
               results.push({ file, status: 'error', error: parseResult.errors.join('; ') });

@@ -11,6 +11,7 @@ import * as YAML from 'js-yaml';
 import { logger } from '../utils/logger.js';
 import type { TModuleFormat } from '../../ast/types.js';
 import { VERSION } from '../../generated-version.js';
+import { MIN_NODE_MAJOR } from '../../constants.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -221,20 +222,20 @@ export function checkServerInstall(cwd: string): CheckResult {
 
 // ── Check functions ──────────────────────────────────────────────────────────
 
-export function checkNodeVersion(): CheckResult {
-  const major = parseInt(process.version.slice(1), 10);
-  if (major >= 18) {
+export function checkNodeVersion(version: string = process.version): CheckResult {
+  const major = parseInt(version.slice(1), 10);
+  if (major >= MIN_NODE_MAJOR) {
     return {
       name: 'Node.js version',
       status: 'pass',
-      message: `Node.js ${process.version} (>= 18 required)`,
+      message: `Node.js ${version} (>= ${MIN_NODE_MAJOR} required)`,
     };
   }
   return {
     name: 'Node.js version',
     status: 'fail',
-    message: `Node.js ${process.version} is below the minimum (18)`,
-    fix: 'Install Node.js 18 or later: https://nodejs.org',
+    message: `Node.js ${version} is below the minimum (${MIN_NODE_MAJOR})`,
+    fix: `Install Node.js ${MIN_NODE_MAJOR} or later: https://nodejs.org`,
   };
 }
 
@@ -698,153 +699,6 @@ export function checkProjectConfig(cwd: string): CheckResult {
   };
 }
 
-export function checkDeploymentManifest(cwd: string): CheckResult {
-  const deployDir = path.join(cwd, '.flowweaver', 'deployment');
-
-  if (!fs.existsSync(deployDir)) {
-    return {
-      name: 'Deployment manifest',
-      status: 'pass',
-      message: 'No deployment directory (deployment profiles are optional)',
-    };
-  }
-
-  const manifestPath = path.join(deployDir, 'manifest.yaml');
-  if (!fs.existsSync(manifestPath)) {
-    return {
-      name: 'Deployment manifest',
-      status: 'fail',
-      message: '.flowweaver/deployment/ exists but manifest.yaml is missing',
-      fix: 'Create manifest.yaml with activeProfile and profiles list',
-    };
-  }
-
-  const { data, error } = readYaml(manifestPath);
-  if (error || data == null) {
-    return {
-      name: 'Deployment manifest',
-      status: 'fail',
-      message: `Could not parse manifest.yaml: ${error}`,
-      fix: 'Fix YAML syntax in .flowweaver/deployment/manifest.yaml',
-    };
-  }
-
-  const manifest = data as Record<string, unknown>;
-
-  if (typeof manifest.activeProfile !== 'string') {
-    return {
-      name: 'Deployment manifest',
-      status: 'fail',
-      message: 'manifest.yaml is missing required field: activeProfile',
-      fix: 'Add activeProfile: default to manifest.yaml',
-    };
-  }
-
-  if (!Array.isArray(manifest.profiles)) {
-    return {
-      name: 'Deployment manifest',
-      status: 'fail',
-      message: 'manifest.yaml is missing required field: profiles (must be an array)',
-      fix: 'Add profiles: [default] to manifest.yaml',
-    };
-  }
-
-  if (!manifest.profiles.includes(manifest.activeProfile)) {
-    return {
-      name: 'Deployment manifest',
-      status: 'warn',
-      message: `Active profile "${manifest.activeProfile}" is not in the profiles list`,
-      fix: `Add "${manifest.activeProfile}" to the profiles array or change activeProfile`,
-    };
-  }
-
-  return {
-    name: 'Deployment manifest',
-    status: 'pass',
-    message: `Deployment manifest valid (${manifest.profiles.length} profile${manifest.profiles.length === 1 ? '' : 's'})`,
-  };
-}
-
-export function checkDeploymentProfiles(cwd: string): CheckResult {
-  const deployDir = path.join(cwd, '.flowweaver', 'deployment');
-
-  if (!fs.existsSync(deployDir)) {
-    return {
-      name: 'Deployment profiles',
-      status: 'pass',
-      message: 'No deployment directory (profiles are optional)',
-    };
-  }
-
-  const manifestPath = path.join(deployDir, 'manifest.yaml');
-  if (!fs.existsSync(manifestPath)) {
-    return {
-      name: 'Deployment profiles',
-      status: 'pass',
-      message: 'No manifest to validate against',
-    };
-  }
-
-  const { data: manifestData } = readYaml(manifestPath);
-  if (!manifestData || !Array.isArray((manifestData as Record<string, unknown>).profiles)) {
-    return {
-      name: 'Deployment profiles',
-      status: 'pass',
-      message: 'Manifest invalid (checked separately)',
-    };
-  }
-
-  const profiles = (manifestData as Record<string, unknown>).profiles as string[];
-  const missing: string[] = [];
-  const invalid: string[] = [];
-
-  for (const profile of profiles) {
-    const profilePath = path.join(deployDir, `${profile}.yaml`);
-
-    if (!fs.existsSync(profilePath)) {
-      missing.push(profile);
-      continue;
-    }
-
-    const { data, error } = readYaml(profilePath);
-    if (error || data == null) {
-      invalid.push(`${profile} (parse error)`);
-      continue;
-    }
-
-    const config = data as Record<string, unknown>;
-    // Target names are validated at export time via the target registry.
-    // We only check that the value is a non-empty string here.
-    if (config.target && typeof config.target !== 'string') {
-      invalid.push(`${profile} (target must be a string)`);
-    }
-  }
-
-  if (invalid.length > 0) {
-    return {
-      name: 'Deployment profiles',
-      status: 'fail',
-      message: `Invalid profiles: ${invalid.join(', ')}`,
-      fix: 'Fix the listed profile files in .flowweaver/deployment/',
-    };
-  }
-
-  if (missing.length > 0) {
-    return {
-      name: 'Deployment profiles',
-      status: 'warn',
-      message: `Missing profile files: ${missing.join(', ')}`,
-      fix: `Create the missing .yaml files in .flowweaver/deployment/`,
-    };
-  }
-
-  return {
-    name: 'Deployment profiles',
-    status: 'pass',
-    message: `All ${profiles.length} deployment profiles are valid`,
-  };
-}
-
 // ── Orchestrator ─────────────────────────────────────────────────────────────
 
 /**
@@ -888,8 +742,6 @@ export function runDoctorChecks(cwd: string): DoctorReport {
     checkTypesNodeInstalled(cwd),
     checkTsxAvailable(cwd),
     checkProjectConfig(cwd),
-    checkDeploymentManifest(cwd),
-    checkDeploymentProfiles(cwd),
     checkRunningServices(services),
   ];
 

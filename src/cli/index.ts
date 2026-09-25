@@ -9,10 +9,6 @@
 // Must be imported first: sets up env vars before picocolors reads them
 import './env-setup.js';
 
-
-// Load built-in extensions before any commands run
-import '../extensions/index.js';
-
 import { Command, Option } from 'commander';
 import { parseIntStrict } from './utils/parse-int-strict.js';
 import { logger } from './utils/logger.js';
@@ -92,13 +88,6 @@ program
   .addOption(new Option('-f, --format <format>', 'Module format').choices(['esm', 'cjs', 'auto']).default('auto'))
   .option('--strict', 'Treat type coercion warnings as errors', false)
   .option('--clean', 'Omit redundant @param/@returns annotations from compiled output', false)
-  .option('--target <target>', 'Compilation target: typescript (default) or a registered extension target')
-  .option('--cron <schedule>', 'Set cron trigger schedule')
-  .option('--serve', 'Generate serve() handler for HTTP event reception')
-  .option('--framework <name>', 'Framework adapter for serve handler (next, express, hono, fastify, remix)')
-  .option('--typed-events', 'Generate Zod event schemas from workflow @param annotations')
-  .option('--retries <n>', 'Number of retries per function', parseIntStrict)
-  .option('--timeout <duration>', 'Function timeout (e.g. "30m", "1h")')
   .action(wrapAction(async (input: string, options) => {
     const { compileCommand } = await import('./commands/compile.js');
     if (options.workflow) options.workflowName = options.workflow;
@@ -217,8 +206,9 @@ program
   .description('Create a new flow-weaver project')
   .option('-n, --name <name>', 'Project name (defaults to directory name)')
   .option('-t, --template <template>', 'Workflow template (default: sequential)')
-  .option('-f, --format <format>', 'Module format: esm or cjs (default: esm)')
+  .addOption(new Option('-f, --format <format>', 'Module format (default: esm)').choices(['esm', 'cjs']))
   .option('-y, --yes', 'Skip prompts and use defaults', false)
+  .option('--json', 'Output a report as JSON', false)
   .option('--preset <persona>', 'User preset: nocode, vibecoder, lowcode, expert')
   .option('--use-case <category>', 'Use case: data, ai, api, automation, minimal')
   .option('--mcp', 'Auto-configure MCP for AI editors after scaffolding')
@@ -243,7 +233,7 @@ program
   .option('-s, --source-map', 'Generate source maps', false)
   .option('--verbose', 'Verbose output', false)
   .option('-w, --workflow <name>', 'Specific workflow name to compile')
-  .option('-f, --format <format>', 'Module format: esm, cjs, or auto', 'auto')
+  .addOption(new Option('-f, --format <format>', 'Module format').choices(['esm', 'cjs', 'auto']).default('auto'))
   .action(wrapAction(async (input: string, options) => {
       const { watchCommand } = await import('./commands/watch.js');
       if (options.workflow) options.workflowName = options.workflow;
@@ -258,11 +248,10 @@ program
   .option('--params-file <path>', 'Path to JSON file with input parameters')
   .option('-w, --workflow <name>', 'Specific workflow name to run')
   .option('-p, --production', 'Run in production mode (no trace events)', false)
-  .option('-f, --format <format>', 'Module format: esm, cjs, or auto', 'auto')
+  .addOption(new Option('-f, --format <format>', 'Module format').choices(['esm', 'cjs', 'auto']).default('auto'))
   .option('--clean', 'Omit redundant @param/@returns annotations', false)
   .option('--once', 'Run once then exit', false)
   .option('--json', 'Output result as JSON', false)
-  .option('--target <target>', 'Compilation target (default: typescript)')
   .option('--mocks <json>', 'Mock config as JSON: gates (answers by node id), events, agents, invocations, fast')
   .option('--mocks-file <path>', 'Path to JSON file with mock config for built-in nodes')
   .action(wrapAction(async (input: string, options) => {
@@ -475,7 +464,8 @@ program
   .command('console [directory]')
   .description('Open the local operator console: workflows as processes, issues, code, live runs and gates')
   .option('-p, --port <port>', 'Port', '4311')
-  .option('-H, --host <host>', 'Host to bind (local by default)', '127.0.0.1')
+  .option('-H, --host <host>', 'Host to bind. Beyond loopback needs --insecure', '127.0.0.1')
+  .option('--insecure', 'Listen beyond loopback. The console has no login: anyone who reaches it controls the project', false)
   .option('--open', 'Open the browser once listening', false)
   .option('--no-watch', 'Do not reload when project files change')
   .action(wrapAction(async (directory: string | undefined, options) => {
@@ -483,6 +473,7 @@ program
       await consoleCommand(directory, {
         port: parseIntStrict(options.port),
         host: options.host,
+        insecure: options.insecure,
         open: options.open,
         watch: options.watch,
       });
@@ -515,7 +506,7 @@ program
   .option('--title <title>', 'API title', 'Flow Weaver API')
   .option('--version <version>', 'API version', '1.0.0')
   .option('--description <desc>', 'API description')
-  .option('-f, --format <format>', 'Output format: json, yaml', 'json')
+  .addOption(new Option('-f, --format <format>', 'Output format').choices(['json', 'yaml']).default('json'))
   .option('--server <url>', 'Server URL')
   .option('--no-auth', 'Leave out the bearer scheme, for a server without a token')
   .option('--no-legacy', 'Leave out POST /workflows/<name>, and declare @http routes only')
@@ -524,7 +515,6 @@ program
       await openapiCommand(directory, options);
   }));
 
-// Plugin command group
 // Migrate command
 program
   .command('migrate <glob>')
@@ -682,7 +672,7 @@ Examples:
 if (!process.argv.slice(2).length) {
   logger.banner(version);
   console.log();
-  console.log('  Usage: flow-weaver <command> [options]');
+  console.log('  Usage: fw <command> [options]');
   console.log();
   console.log('  Get started:');
   console.log('    init [dir]        Create a new project');
@@ -704,5 +694,8 @@ if (!process.env['VITEST']) {
     await registerPackCommands(program);
 
     program.parse(process.argv);
-  })();
+  })().catch((error) => {
+    logger.error(getErrorMessage(error));
+    process.exit(1);
+  });
 }

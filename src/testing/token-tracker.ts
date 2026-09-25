@@ -6,7 +6,7 @@
  *
  * Usage:
  * ```typescript
- * import { TokenTracker, createMockLlmProvider } from 'flow-weaver/testing';
+ * import { TokenTracker, createMockLlmProvider } from '@synergenius/flow-weaver/testing';
  *
  * const tracker = new TokenTracker();
  * const mockLlm = createMockLlmProvider([...]);

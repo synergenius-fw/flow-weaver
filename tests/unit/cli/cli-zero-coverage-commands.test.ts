@@ -259,6 +259,18 @@ describe('watchCommand', () => {
     expect(logger.error).toHaveBeenCalled();
   });
 
+  it('keeps watching when the initial compilation fails', async () => {
+    const onRecompile = vi.fn();
+    mockCompileCommand.mockRejectedValueOnce(new Error('3 errors'));
+
+    void watchCommand('src/**/*.flow', { onRecompile });
+    await vi.waitFor(() => expect(mockWatcherOn).toHaveBeenCalledWith('change', expect.any(Function)));
+
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Initial compilation failed: 3 errors'));
+    expect(onRecompile).toHaveBeenCalledWith('src/**/*.flow', false, ['3 errors']);
+    expect(mockChokidarWatch).toHaveBeenCalled();
+  });
+
   it('logs watched files when verbose is set', async () => {
     const watchPromise = watchCommand('src/**/*.flow', { verbose: true });
     await vi.waitFor(() => expect(mockWatcherOn).toHaveBeenCalled());

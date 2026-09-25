@@ -1,7 +1,7 @@
 /**
  * Base export target interface and abstract class
  *
- * Defines the contract for serverless export targets and provides
+ * Defines the contract for export targets (provided by packs) and provides
  * shared utilities for generating deployment artifacts.
  */
 
@@ -1125,9 +1125,10 @@ export abstract class BaseExportTarget implements ExportTarget {
   }
 
   /**
-   * Generate real runtime files from the Flow Weaver runtime source.
-   * Includes the function registry, builtin functions, and parameter resolver.
-   * These replace the placeholder files that were previously generated.
+   * Generate placeholder runtime files under `runtime/`: a function registry
+   * listing the bundled workflows and node types, a builtin-functions module
+   * that only imports it, and a trivial parameter resolver. They are not the
+   * Flow Weaver runtime; a target that needs the real one must bundle it.
    */
   protected generateRuntimeFiles(
     outputDir: string,

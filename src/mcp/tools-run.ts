@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
@@ -11,12 +12,12 @@ import { makeErrorResult, makeToolResult } from './response-utils.js';
 /**
  * Coordinated workflow runs for an AI assistant.
  *
- * `fw_workflow_run` / `fw_workflow_resume` are the stateless primitives: they
- * hand the caller the whole continuation envelope and expect it back. That
- * is correct for a real coordinator and hopeless for a language model, which
- * would carry ~800 tokens of addresses and variables per gate in each
- * direction. These three tools put a local coordinator in between so the
- * assistant only ever sees `{ runId, gate }` and answers with
+ * The stateless primitives (`runWorkflow` / `resumeWorkflow` in
+ * tools-workflow-run.ts) hand the caller the whole continuation envelope and
+ * expect it back. That is right for a coordinator and hopeless for a
+ * language model, which would carry ~800 tokens of addresses and variables
+ * per gate in each direction. These three tools put a local coordinator in
+ * between so the assistant only ever sees `{ runId, gate }` and answers with
  * `{ runId, answer }`.
  *
  * Nothing here returns trace events, progress, or the envelope. Fewer tokens
@@ -48,10 +49,13 @@ export function registerRunTools(
   /**
    * Every coordinator this session might hold a run in: the injected one, or
    * each project store touched so far. `fw_resume` and an unfiltered `fw_runs`
-   * only have a runId, so they search across these.
+   * only have a runId, so they search across these. A fresh server has
+   * touched nothing yet, but the project it was started in still holds the
+   * runs of the last session, so that store is always in the set.
    */
   function allCoordinators(): LocalCoordinator[] {
     if (injectedCoordinator) return [injectedCoordinator];
+    if (byDir.size === 0) coordinatorForFile(path.join(process.cwd(), 'workflow.ts'));
     return [...byDir.values()];
   }
 

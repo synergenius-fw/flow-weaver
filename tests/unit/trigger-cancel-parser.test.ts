@@ -48,6 +48,61 @@ describe('parseTriggerLine', () => {
     const result = parseTriggerLine('@connect a.b -> c.d', w);
     expect(result).toBeNull();
   });
+
+  it.each([
+    '*/15 * * * *',
+    '0 9 * * MON-FRI',
+    '0 0 1 JAN *',
+    '0 9,17 * * 1-5',
+    '30 */2 1-15 * *',
+    '0 0 * * SUN,SAT',
+  ])('accepts the cron expression "%s"', (cron) => {
+    const w: string[] = [];
+    const result = parseTriggerLine(`@trigger cron="${cron}"`, w);
+    expect(result).toEqual({ cron });
+    expect(w).toEqual([]);
+  });
+
+  it.each(['0 9 * *', '0 9 * * * *', 'every-monday', '0 9 * * MON FRI'])(
+    'rejects the cron expression "%s"',
+    (cron) => {
+      const w: string[] = [];
+      parseTriggerLine(`@trigger cron="${cron}"`, w);
+      expect(w).toHaveLength(1);
+      expect(w[0]).toContain('Invalid cron expression');
+    },
+  );
+
+  it('returns null for an option core does not know, so a pack can claim the line', () => {
+    const w: string[] = [];
+    expect(parseTriggerLine('@trigger branch="main"', w)).toBeNull();
+    expect(w).toEqual([]);
+  });
+});
+
+describe('option keys as identifiers', () => {
+  it('lexes event=, cron=, match=, timeout=, limit=, period= as Identifier "=" value', () => {
+    // These keys are ordinary identifiers, so the same words remain usable as
+    // port names on @input and @node lines.
+    const w: string[] = [];
+    expect(parseCancelOnLine('@cancelOn timeout="1h" event="x" match="d.id"', w)).toEqual({
+      event: 'x',
+      match: 'd.id',
+      timeout: '1h',
+    });
+    expect(parseThrottleLine('@throttle period="1m" limit=3', w)).toEqual({ limit: 3, period: '1m' });
+    expect(w).toEqual([]);
+  });
+
+  it('warns on an unknown @cancelOn or @throttle option and on a wrong value kind', () => {
+    const w: string[] = [];
+    expect(parseCancelOnLine('@cancelOn event="x" retry="y"', w)).toBeNull();
+    expect(w[0]).toContain('unknown option "retry"');
+    expect(parseThrottleLine('@throttle limit="ten"', w)).toBeNull();
+    expect(w[1]).toContain('limit takes an integer');
+    expect(parseCancelOnLine('@cancelOn match="d.id"', w)).toBeNull();
+    expect(w[2]).toContain('event="name" is required');
+  });
 });
 
 describe('parseCancelOnLine', () => {

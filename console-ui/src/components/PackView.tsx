@@ -66,9 +66,6 @@ export function PackBody({ p }: { p: Pack }) {
             <tbody>{p.workflows.map((w) => <tr key={w.name}><td><code>{w.name}</code><div class="hint">{w.description}</div></td><td><Ports list={w.params} /></td><td><Ports list={w.returns} /></td><td>{w.nodes}</td></tr>)}</tbody>
           </table></div>
         </Section>
-        <Section title="Patterns" count={p.patterns.length} what="patterns">
-          <ul>{p.patterns.map((x) => <li key={x.name}><code>{x.name}</code>, {x.nodes} nodes{x.description ? `: ${x.description}` : ''}</li>)}</ul>
-        </Section>
         <Section title="Export targets" count={p.exportTargets.length} what="export targets">
           <ul>{p.exportTargets.map((t) => (
             <li key={t.name}><code>{t.name}</code>{t.description ? `: ${t.description}` : ''} <button class="linkish" onClick={() => stageCli(`fw export <input> --target ${t.name}`)}>▶ export with it</button></li>

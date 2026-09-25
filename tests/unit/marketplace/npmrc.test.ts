@@ -54,6 +54,13 @@ describe('resolveRegistries', () => {
     expect(resolveRegistries('/nowhere', c)[1].authorization).toBe('Bearer narrow');
   });
 
+  it('finds the token of a registry on a port, as npm writes it', () => {
+    const c = parseNpmrc('registry=http://localhost:4873/\n//localhost:4873/:_authToken=tok\n');
+    expect(resolveRegistries('/nowhere', c)).toEqual([
+      { url: 'http://localhost:4873/', scopes: [], isDefault: true, authorization: 'Bearer tok' },
+    ]);
+  });
+
   it('reads basic credentials too', () => {
     const c = parseNpmrc('@a:registry=https://r.example/\n//r.example/:username=me\n//r.example/:_password=cGFzcw==\n');
     expect(resolveRegistries('/nowhere', c)[1].authorization).toBe(`Basic ${Buffer.from('me:cGFzcw==').toString('base64')}`);

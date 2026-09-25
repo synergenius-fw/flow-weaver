@@ -16,8 +16,8 @@ vi.mock('../../../src/marketplace/index.js', () => ({
 // ── Mock child_process ────────────────────────────────────────────────────────
 const mockExecSync = vi.fn();
 
-vi.mock('child_process', () => ({
-  execSync: (...args: unknown[]) => mockExecSync(...args),
+vi.mock('node:child_process', () => ({
+  execFileSync: (...args: unknown[]) => mockExecSync(...args),
 }));
 
 // ── Mock MCP SDK ──────────────────────────────────────────────────────────────
@@ -163,6 +163,16 @@ describe('tools-marketplace', () => {
       expect(data.version).toBe('2.0.0');
       expect(data.nodeTypes).toHaveLength(1);
       expect(data.workflows).toHaveLength(1);
+      // npm gets the spec as one argument, never as a shell string.
+      expect(mockExecSync.mock.calls[0][1]).toEqual(['install', 'flow-weaver-pack-openai']);
+    });
+
+    it('refuses a spec that is not a package name without running npm', async () => {
+      const result = parseResult(await callInstall({ package: 'x; rm -rf ~' }));
+      expect(result.success).toBe(false);
+      expect((result.error as { code: string }).code).toBe('INSTALL_FAILED');
+      expect((result.error as { message: string }).message).toContain('not a package name');
+      expect(mockExecSync).not.toHaveBeenCalled();
     });
 
     it('handles package without manifest', async () => {

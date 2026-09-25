@@ -17,7 +17,7 @@ export interface CliFlag {
 }
 
 export interface CliCommand {
-  /** As the heading names it: `compile`, `create workflow`, `pattern list`. */
+  /** As the heading names it: `compile`, `create workflow`, `market list`. */
   name: string;
   /** The words after `fw` that select it, from the usage line. */
   words: string[];

@@ -101,7 +101,8 @@ describe('diffCommand', () => {
     console.log = () => {};
 
     try {
-      await expect(diffCommand(file1, file2, {})).rejects.toThrow(/differences/);
+      // A difference is the answer, not a failure to diff.
+      await expect(diffCommand(file1, file2, {})).rejects.toThrow(/^Workflows have differences$/);
     } finally {
       console.log = origLog;
     }

@@ -12,7 +12,6 @@ import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import { getFriendlyError } from '../../validation/friendly-errors.js';
-import { devModeRegistry, type DevModeOptions } from '../../generator/dev-mode-registry.js';
 
 function timestamp(): string {
   const now = new Date();
@@ -31,7 +30,15 @@ function cycleSeparator(file?: string): void {
   }
 }
 
-export interface DevOptions extends DevModeOptions {
+export interface DevOptions {
+  /** Specific workflow to run when the file has several */
+  workflow?: string;
+  /** No trace events */
+  production?: boolean;
+  /** Run once, then exit */
+  once?: boolean;
+  /** Print the result as JSON */
+  json?: boolean;
   /** Input parameters as JSON string */
   params?: string;
   /** Path to JSON file containing input parameters */
@@ -40,8 +47,6 @@ export interface DevOptions extends DevModeOptions {
   format?: 'esm' | 'cjs' | 'auto';
   /** Omit redundant @param/@returns annotations */
   clean?: boolean;
-  /** Compilation target (default: typescript in-place) */
-  target?: string;
   /** Mock config for built-in nodes as JSON string */
   mocks?: string;
   /** Path to JSON file with mock config */
@@ -205,18 +210,6 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
 
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
-  }
-
-  // Delegate to a registered dev mode provider if one exists for the target
-  if (options.target) {
-    const provider = devModeRegistry.get(options.target);
-    if (provider) {
-      return provider.run(filePath, options);
-    }
-    const available = devModeRegistry.getNames();
-    throw new Error(
-      `Unknown dev target "${options.target}". ${available.length ? `Available: ${available.join(', ')}` : 'No dev mode providers registered. Install a pack that provides one.'}`
-    );
   }
 
   const params = parseParams(options);

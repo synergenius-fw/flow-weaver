@@ -49,6 +49,12 @@
  * ```
  */
 
+/**
+ * The oldest Node.js major the package supports. Mirrors `engines.node` in
+ * package.json (a test keeps the two equal); `fw doctor` checks against it.
+ */
+export const MIN_NODE_MAJOR = 22;
+
 export const RESERVED_NODE_NAMES = {
   START: "Start",
   EXIT: "Exit",

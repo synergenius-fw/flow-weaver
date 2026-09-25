@@ -488,45 +488,22 @@ const handlers: Record<string, CommandHandler> = {
 
   // ─── openapi ────────────────────────────────────────────────────
   openapi: async (args) => {
+    // The document `fw serve` publishes at /openapi.json and `fw openapi`
+    // writes to a file: declared @http routes, run resources, run endpoints.
     const directory = path.resolve(String(args.directory));
-    const { generateOpenAPIJson, generateOpenAPIYaml } = await import('../deployment/openapi/generator.js');
-    const format = (args.format as string) || 'json';
+    const { openApiForDirectory, formatOpenApi } = await import('../server/openapi-document.js');
+    const format = args.format === 'yaml' ? 'yaml' : 'json';
 
-    // Scan directory for .ts files and parse each for workflows
-    const files = fs.readdirSync(directory).filter((f) => f.endsWith('.ts'));
-    const endpoints: Array<{
-      name: string; functionName: string; filePath: string;
-      method: 'POST'; path: string; description?: string;
-    }> = [];
+    const { doc, workflowCount, routeCount, problems } = await openApiForDirectory(directory, {
+      title: args.title as string | undefined,
+      version: args.version as string | undefined,
+      description: args.description as string | undefined,
+      serverUrl: (args.serverUrl ?? args.server) as string | undefined,
+      auth: args.auth === undefined ? undefined : Boolean(args.auth),
+      legacy: args.legacy === undefined ? undefined : Boolean(args.legacy),
+    });
 
-    for (const file of files) {
-      const filePath = path.join(directory, file);
-      try {
-        const parsed = await parseWorkflow(filePath);
-        if (parsed.errors.length === 0) {
-          endpoints.push({
-            name: parsed.ast.name,
-            functionName: parsed.ast.name,
-            filePath,
-            method: 'POST',
-            path: `/${parsed.ast.name}`,
-          });
-        }
-      } catch {
-        // Skip unparseable files
-      }
-    }
-
-    const genOptions = {
-      title: (args.title as string) || 'Flow Weaver API',
-      version: (args.version as string) || '1.0.0',
-    };
-
-    const spec = format === 'yaml'
-      ? generateOpenAPIYaml(endpoints, genOptions)
-      : generateOpenAPIJson(endpoints, genOptions);
-
-    return { data: { spec, format, workflowCount: endpoints.length } };
+    return { data: { spec: formatOpenApi(doc, format), format, workflowCount, routeCount, problems } };
   },
 
   // ─── export ──────────────────────────────────────────────────────

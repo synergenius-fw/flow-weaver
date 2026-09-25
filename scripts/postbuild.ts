@@ -1,20 +1,17 @@
 #!/usr/bin/env tsx
 /**
- * Postbuild script
- * 1. Rewrites extensionless relative imports in dist/ for Node.js ESM compat
- * 2. Refreshes bin symlinks in monorepo context
+ * Postbuild script: rewrites extensionless relative imports in dist/ so the
+ * emitted ESM resolves under Node.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const libraryDir = path.resolve(__dirname, '..');
-const monorepoRoot = path.resolve(libraryDir, '..');
 const distDir = path.join(libraryDir, 'dist');
 
 // ---------------------------------------------------------------------------
@@ -89,86 +86,4 @@ function fixEsmImports(): void {
   );
 }
 
-function isMonorepoContext(): boolean {
-  // Check if we're in a monorepo by looking for:
-  // 1. Parent directory has package.json with workspaces
-  // 2. Parent's node_modules has symlink to this library
-  const parentPackageJson = path.join(monorepoRoot, 'package.json');
-  const symlinkPath = path.join(monorepoRoot, 'node_modules', '@synergenius', 'flow-weaver');
-
-  if (!fs.existsSync(parentPackageJson)) {
-    return false;
-  }
-
-  try {
-    const parentPkg = JSON.parse(fs.readFileSync(parentPackageJson, 'utf-8'));
-    if (!parentPkg.workspaces) {
-      return false;
-    }
-
-    // Check if the symlink exists and points to this library
-    if (fs.existsSync(symlinkPath)) {
-      const linkTarget = fs.readlinkSync(symlinkPath);
-      const resolvedTarget = path.resolve(path.dirname(symlinkPath), linkTarget);
-      return resolvedTarget === libraryDir;
-    }
-  } catch {
-    return false;
-  }
-
-  return false;
-}
-
-function refreshBinSymlinks(): void {
-  console.log('Refreshing bin symlinks in monorepo...');
-
-  try {
-    // Run npm rebuild from monorepo root to update bin links
-    execSync('npm rebuild @synergenius/flow-weaver --ignore-scripts', {
-      cwd: monorepoRoot,
-      stdio: 'inherit',
-    });
-    console.log('Bin symlinks updated successfully');
-  } catch (error) {
-    console.error('Warning: failed to refresh bin symlinks:', error);
-    // Don't fail the build - this is a nice-to-have
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Copy non-TS assets from src/extensions/ to dist/extensions/
-// ---------------------------------------------------------------------------
-
-function copyExtensionAssets(): void {
-  const srcExtensions = path.join(libraryDir, 'src', 'extensions');
-  const distExtensions = path.join(distDir, 'extensions');
-
-  if (!fs.existsSync(srcExtensions)) return;
-
-  const assetExts = ['.md', '.json', '.yaml', '.yml'];
-  const assets = collectFiles(srcExtensions, assetExts);
-
-  let copied = 0;
-  for (const asset of assets) {
-    // Skip test fixtures
-    if (asset.split(path.sep).includes('tests')) continue;
-
-    const relative = path.relative(srcExtensions, asset);
-    const dest = path.join(distExtensions, relative);
-    fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.copyFileSync(asset, dest);
-    copied++;
-  }
-
-  if (copied > 0) {
-    console.log(`Extension assets: ${copied} file(s) copied to dist/`);
-  }
-}
-
-// Main
 fixEsmImports();
-copyExtensionAssets();
-
-if (isMonorepoContext()) {
-  refreshBinSymlinks();
-}

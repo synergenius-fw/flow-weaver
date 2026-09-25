@@ -21,7 +21,7 @@
  *
  * Externals: esbuild, typescript, ts-morph, chokidar, fsevents stay external
  * (native or problematic to bundle, and always installed alongside the
- * package). Optional runtime deps (fastify) stay external too.
+ * package).
  */
 
 import * as esbuild from 'esbuild';
@@ -44,9 +44,6 @@ const EXTERNAL = [
   'chokidar',
   'fsevents',
   'esbuild',
-  // Optional deps, dynamically imported at runtime.
-  'fastify',
-  '@fastify/cors',
 ];
 
 /**
@@ -102,7 +99,6 @@ const PATH_ANCHORED = [
   'agent/mcp-bridge.ts',
   'docs/index.ts', // also an export entry; listed there
   'cli/commands/doctor.ts',
-  'mcp/auto-registration.ts',
   'console/cli-run.ts',
   'console/server.ts',
 ];
@@ -121,7 +117,8 @@ function collect(dir: string, exts: string[]): string[] {
 const COMMON: esbuild.BuildOptions = {
   bundle: true,
   platform: 'node',
-  target: 'node18',
+  // Matches package.json engines.node.
+  target: 'node22',
   format: 'esm',
   minify: false,
   sourcemap: false,

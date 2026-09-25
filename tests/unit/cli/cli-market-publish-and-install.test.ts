@@ -10,11 +10,13 @@ import * as path from 'path';
 import * as os from 'os';
 
 // Module-level mocks (required for ESM with isolate: false)
+// npm runs through execFileSync(npm, [args]); the mock records the argument list.
 const mockExecSync = vi.fn();
-vi.mock('child_process', async (importOriginal) => {
-  const orig = await importOriginal<typeof import('child_process')>();
-  return { ...orig, execSync: (...args: unknown[]) => mockExecSync(...args) };
+vi.mock('node:child_process', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('node:child_process')>();
+  return { ...orig, execFileSync: (...args: unknown[]) => mockExecSync(...args) };
 });
+const npmArgsOf = (call: unknown[]) => (call[1] as string[]).join(' ');
 
 const mockGenerateManifest = vi.fn();
 const mockValidatePackage = vi.fn();
@@ -87,7 +89,7 @@ describe('marketPublishCommand coverage', () => {
     await marketPublishCommand(dir, {});
 
     const npmCall = mockExecSync.mock.calls.find(
-      (c: unknown[]) => String(c[0]).includes('npm') && String(c[0]).includes('publish'),
+      (c: unknown[]) => /^npm(\.cmd)?$/.test(String(c[0])) && npmArgsOf(c).includes('publish'),
     );
     expect(npmCall).toBeDefined();
   });
@@ -107,19 +109,17 @@ describe('marketPublishCommand coverage', () => {
     await marketPublishCommand(dir, { dryRun: true, tag: 'beta' });
 
     const npmCall = mockExecSync.mock.calls.find(
-      (c: unknown[]) => String(c[0]).includes('publish'),
+      (c: unknown[]) => npmArgsOf(c).includes('publish'),
     );
-    expect(String(npmCall![0])).toContain('--dry-run');
-    expect(String(npmCall![0])).toContain('--tag');
-    expect(String(npmCall![0])).toContain('beta');
+    expect(npmCall![1]).toEqual(['publish', '--dry-run', '--tag', 'beta']);
   });
 
   it('should exit with code 1 when npm publish fails', async () => {
     const { marketPublishCommand } = await import('../../../src/cli/commands/market');
     const dir = setupDir('pub-fail');
 
-    mockExecSync.mockImplementation((cmd: string) => {
-      if (String(cmd).includes('publish')) throw new Error('npm publish 403');
+    mockExecSync.mockImplementation((_cmd: string, args: string[]) => {
+      if (args.includes('publish')) throw new Error('npm publish 403');
       return Buffer.from('');
     });
 
@@ -187,6 +187,15 @@ describe('marketInstallCommand coverage', () => {
 
     await marketInstallCommand('bad-package', { json: false });
     expect(process.exitCode).toBe(1);
+  });
+
+  it('refuses a spec with shell metacharacters without running npm', async () => {
+    const { marketInstallCommand } = await import('../../../src/cli/commands/market');
+    process.exitCode = 0;
+
+    await marketInstallCommand('pack; rm -rf ~', { json: true });
+    expect(process.exitCode).toBe(1);
+    expect(mockExecSync).not.toHaveBeenCalled();
   });
 
   it('should resolve package name from .tgz tarball path', async () => {

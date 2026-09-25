@@ -18,7 +18,6 @@
 const {
   mockParseWorkflow,
   mockValidate,
-  mockGetAgentValidationRules,
   mockGetFriendlyError,
   mockGetErrorMessage,
   mockGlob,
@@ -27,7 +26,6 @@ const {
 } = vi.hoisted(() => ({
   mockParseWorkflow: vi.fn(),
   mockValidate: vi.fn(),
-  mockGetAgentValidationRules: vi.fn(),
   mockGetFriendlyError: vi.fn(),
   mockGetErrorMessage: vi.fn((e: unknown) =>
     e instanceof Error ? e.message : String(e)
@@ -50,16 +48,11 @@ vi.mock('fs', async () => {
   };
 });
 
+// The command runs the one validation pipeline (validateWorkflow), which
+// already folds in the agent, design, pack and durable rules.
 vi.mock('../../../src/api/index.js', () => ({
   parseWorkflow: mockParseWorkflow,
-}));
-
-vi.mock('../../../src/validation/validator.js', () => ({
-  validator: { validate: mockValidate },
-}));
-
-vi.mock('../../../src/validation/agent-rules.js', () => ({
-  getAgentValidationRules: mockGetAgentValidationRules,
+  validateWorkflow: mockValidate,
 }));
 
 vi.mock('../../../src/validation/friendly-errors.js', () => ({
@@ -104,7 +97,6 @@ beforeEach(() => {
   mockGlob.mockResolvedValue(['/fake/workflow.ts']);
   mockExistsSync.mockReturnValue(false);
   mockStatSync.mockReturnValue({ isDirectory: () => false, isFile: () => true });
-  mockGetAgentValidationRules.mockReturnValue([]);
   mockGetFriendlyError.mockReturnValue(null);
 });
 
@@ -119,25 +111,20 @@ afterEach(() => {
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('validateCommand coverage round 3', () => {
-  describe('agent validation rules producing errors and warnings', () => {
-    it('should merge agent rule errors into validation result', async () => {
+  describe('agent rule errors and warnings from the pipeline', () => {
+    it('reports an agent rule error in the JSON result', async () => {
       mockParseWorkflow.mockResolvedValue({
         ast: { instances: [], nodeTypes: [], connections: [] },
         warnings: [],
         errors: [],
       });
       mockValidate.mockReturnValue({
-        valid: true,
-        errors: [],
+        valid: false,
+        errors: [
+          { type: 'error', message: 'Agent LLM missing error handler', node: 'llm1', code: 'AGENT_LLM_MISSING_ERROR_HANDLER' },
+        ],
         warnings: [],
       });
-      mockGetAgentValidationRules.mockReturnValue([
-        {
-          validate: () => [
-            { type: 'error', message: 'Agent LLM missing error handler', node: 'llm1', code: 'AGENT_LLM_MISSING_ERROR_HANDLER' },
-          ],
-        },
-      ]);
 
       await validateCommand('/fake/pattern', { json: true });
 
@@ -149,7 +136,7 @@ describe('validateCommand coverage round 3', () => {
       expect(output.results[0].errors[0].code).toBe('AGENT_LLM_MISSING_ERROR_HANDLER');
     });
 
-    it('should merge agent rule warnings into validation result', async () => {
+    it('reports an agent rule warning in the JSON result', async () => {
       mockParseWorkflow.mockResolvedValue({
         ast: { instances: [], nodeTypes: [], connections: [] },
         warnings: [],
@@ -158,15 +145,10 @@ describe('validateCommand coverage round 3', () => {
       mockValidate.mockReturnValue({
         valid: true,
         errors: [],
-        warnings: [],
+        warnings: [
+          { type: 'warning', message: 'Unguarded tool executor', node: 'tool1', code: 'AGENT_UNGUARDED' },
+        ],
       });
-      mockGetAgentValidationRules.mockReturnValue([
-        {
-          validate: () => [
-            { type: 'warning', message: 'Unguarded tool executor', node: 'tool1', code: 'AGENT_UNGUARDED' },
-          ],
-        },
-      ]);
 
       await validateCommand('/fake/pattern', { json: true });
 
@@ -816,16 +798,13 @@ describe('validateCommand coverage round 3', () => {
   });
 
   describe('strict mode', () => {
-    it('should pass strictMode to validator', async () => {
+    it('should pass strict mode to the validation pipeline', async () => {
       mockParseWorkflow.mockResolvedValue({ ast: { instances: [], nodeTypes: [] }, warnings: [], errors: [] });
       mockValidate.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
       await validateCommand('/fake/pattern', { strict: true });
 
-      expect(mockValidate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ strictMode: true })
-      );
+      expect(mockValidate).toHaveBeenCalledWith(expect.anything(), { mode: 'strict' });
     });
   });
 

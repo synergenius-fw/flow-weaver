@@ -16,12 +16,14 @@ vi.mock('../../../src/generated-version.js', () => ({
   VERSION: '0.10.0',
 }));
 
+import { logger } from '../../../src/cli/utils/logger.js';
+
 describe('registerPackCommands', () => {
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -93,6 +95,35 @@ describe('registerPackCommands', () => {
 
     // No warning should have been printed
     expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips a pack whose namespace is already a command, and keeps the CLI usable', async () => {
+    const { listInstalledPackages } = await import('../../../src/marketplace/registry.js');
+    const { registerPackCommands } = await import('../../../src/cli/pack-commands');
+
+    const pack = (name: string) => ({
+      name, version: '1.0.0', path: `/fake/node_modules/${name}`,
+      manifest: {
+        manifestVersion: 2, name, version: '1.0.0', nodeTypes: [], workflows: [],
+        cliEntrypoint: 'dist/cli.js', cliCommands: [{ name: 'go', description: 'Go' }],
+      },
+    });
+    (listInstalledPackages as ReturnType<typeof vi.fn>).mockResolvedValue([
+      pack('flow-weaver-pack-run'),      // collides with the built-in `run`
+      pack('flow-weaver-pack-tools'),
+      pack('@other/flow-weaver-pack-tools'), // collides with the pack above
+    ]);
+
+    const program = new Command();
+    program.command('run <input>').description('built-in');
+    await expect(registerPackCommands(program)).resolves.toBeUndefined();
+
+    const names = program.commands.map((c) => c.name());
+    expect(names.filter((n) => n === 'run')).toHaveLength(1);
+    expect(names.filter((n) => n === 'tools')).toHaveLength(1);
+    const warnings = consoleWarnSpy.mock.calls.map((c: unknown[]) => String(c[0]));
+    expect(warnings.some((m: string) => m.includes('flow-weaver-pack-run') && m.includes('"run"'))).toBe(true);
+    expect(warnings.some((m: string) => m.includes('@other/flow-weaver-pack-tools') && m.includes('"tools"'))).toBe(true);
   });
 
   it('silently returns when listInstalledPackages throws', async () => {

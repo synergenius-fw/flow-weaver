@@ -3,7 +3,7 @@
  *
  * Usage:
  * ```typescript
- * import { expectAgentResult } from 'flow-weaver/testing';
+ * import { expectAgentResult } from '@synergenius/flow-weaver/testing';
  *
  * const result = await myAgentWorkflow(true, { query: 'hello' });
  *

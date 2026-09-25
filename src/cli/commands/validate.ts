@@ -5,13 +5,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
-import { parseWorkflow } from '../../api/index.js';
-import { validator } from '../../validation/validator.js';
+import { parseWorkflow, validateWorkflow } from '../../api/index.js';
+import { isMultipleWorkflows } from '../../api/parse.js';
 import { getFriendlyError } from '../../validation/friendly-errors.js';
 import { logger } from '../utils/logger.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
-import { getAgentValidationRules } from '../../validation/agent-rules.js';
-import { validateDurableClosure } from '../../api/durable-validation.js';
 
 export interface ValidateOptions {
   verbose?: boolean;
@@ -50,11 +48,6 @@ interface JsonValidationResult {
   valid: boolean;
   errors: JsonValidationItem[];
   warnings: JsonValidationItem[];
-}
-
-/** The parse failed only because the file declares several workflows and none was picked. */
-function isMultipleWorkflows(errors: unknown[]): boolean {
-  return errors.length > 0 && errors.every((e) => typeof e === 'string' && e.startsWith('[MULTIPLE_WORKFLOWS_FOUND]'));
 }
 
 export async function validateCommand(input: string, options: ValidateOptions = {}): Promise<void> {
@@ -172,45 +165,10 @@ export async function validateCommand(input: string, options: ValidateOptions = 
           continue;
         }
 
-        // Validate the AST (built-in rules)
-        const validation = validator.validate(parseResult.ast, { strictMode: strict });
-
-        // Run agent-specific validation rules
-        const agentRules = getAgentValidationRules();
-        for (const rule of agentRules) {
-          const ruleErrors = rule.validate(parseResult.ast);
-          for (const err of ruleErrors) {
-            if (err.type === 'warning') {
-              validation.warnings.push(err);
-            } else {
-              validation.errors.push(err);
-              validation.valid = false;
-            }
-          }
-        }
-
-        // The durable-closure rules (scopes, branch regions, pull, gate
-        // classification, effect contracts) live outside the validator, so
-        // this command reported a gated workflow with a scope in it as valid
-        // and `fw compile` then refused the same file. Run them here too.
-        const ast = parseResult.ast;
-        if (
-          ast.instances.some(
-            (inst) => inst.nodeType === 'waitForAgent' || inst.nodeType === 'waitForEvent',
-          ) ||
-          ast.nodeTypes.some((nt) => nt.durableGate !== undefined || nt.durableEffect === true)
-        ) {
-          try {
-            validateDurableClosure(ast);
-          } catch (e) {
-            validation.errors.push({
-              type: 'error',
-              code: 'DURABLE_CLOSURE_INVALID',
-              message: e instanceof Error ? e.message : String(e),
-            });
-            validation.valid = false;
-          }
-        }
+        // The one validation pipeline (core, agent, design, pack and durable
+        // rules), shared with fw compile, fw_validate and the console, so the
+        // same file gets the same verdict everywhere.
+        const validation = validateWorkflow(parseResult.ast, strict ? { mode: 'strict' } : undefined);
 
         if (json) {
           jsonResults.push({

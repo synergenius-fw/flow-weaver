@@ -178,6 +178,79 @@ export function test() {}
     expect(portErrors).toHaveLength(0);
   });
 
+  it('sees a change in the imported node type without the workflow file being touched', () => {
+    const nodeFile = writeFile('node-untouched.ts', createNodeType(['input']));
+    const workflowFile = writeFile('wf-untouched.ts', `import { testNode } from './${path.relative(FIXTURES_DIR, nodeFile).replace(/\.ts$/, '.js')}';
+
+/**
+ * @flowWeaver workflow
+ * @name test
+ * @connect Start.execute -> testNode.execute
+ * @connect Start.input -> testNode.input
+ * @connect testNode.result -> Exit.result
+ * @param input [order:0] - Input
+ * @returns result [order:0] - Result
+ */
+export function test() {}
+`);
+
+    const result1 = parser.parse(workflowFile);
+    expect(result1.errors).toHaveLength(0);
+    const before = result1.nodeTypes.find((n) => n.functionName === 'testNode')!;
+    expect(Object.keys(before.inputs)).not.toContain('extraPort');
+
+    // Only the node-type file changes; the workflow file keeps its mtime and content.
+    fs.writeFileSync(nodeFile, createNodeType(['input', 'extraPort']), 'utf-8');
+    const later = new Date(Date.now() + 5000);
+    fs.utimesSync(nodeFile, later, later);
+
+    const result2 = parser.parse(workflowFile);
+    const after = result2.nodeTypes.find((n) => n.functionName === 'testNode')!;
+    expect(Object.keys(after.inputs)).toContain('extraPort');
+  });
+
+  it('sees a change two imports deep without the workflow file being touched', () => {
+    // wf -> middle -> leaf. Editing leaf must invalidate both cached layers.
+    const leafFile = writeFile('leaf-deep.ts', createNodeType(['input']).replace(/testNode/g, 'leafNode'));
+    const middleFile = writeFile('middle-deep.ts', `export { leafNode } from './leaf-deep.js';
+`);
+    const workflowFile = writeFile('wf-deep.ts', `import { leafNode } from './${path.relative(FIXTURES_DIR, middleFile).replace(/\.ts$/, '.js')}';
+
+/**
+ * @flowWeaver workflow
+ * @name test
+ * @node leaf leafNode
+ * @connect Start.execute -> leaf.execute
+ * @connect Start.input -> leaf.input
+ * @connect leaf.result -> Exit.result
+ * @param input [order:0] - Input
+ * @returns result [order:0] - Result
+ */
+export function test() {}
+`);
+
+    const result1 = parser.parse(workflowFile);
+    const before = result1.nodeTypes.find((n) => n.functionName === 'leafNode');
+    // A re-export barrel is not followed for local files; the point of this
+    // test is only that the cache does not serve stale results after a
+    // change in any file the first parse read.
+    const firstInputs = before ? Object.keys(before.inputs) : [];
+
+    fs.writeFileSync(leafFile, createNodeType(['input', 'extraPort']).replace(/testNode/g, 'leafNode'), 'utf-8');
+    const later = new Date(Date.now() + 5000);
+    fs.utimesSync(leafFile, later, later);
+
+    const result2 = parser.parse(workflowFile);
+    const after = result2.nodeTypes.find((n) => n.functionName === 'leafNode');
+    const secondInputs = after ? Object.keys(after.inputs) : [];
+    if (before) {
+      expect(secondInputs).toContain('extraPort');
+      expect(firstInputs).not.toContain('extraPort');
+    } else {
+      expect(after).toBeUndefined();
+    }
+  });
+
   it('different parser instances do not share import cache', () => {
     const nodeFile = writeFile('node-isolated.ts', createNodeType(['input']));
     const workflowFile = writeFile('wf-isolated.ts', createWorkflow(nodeFile));

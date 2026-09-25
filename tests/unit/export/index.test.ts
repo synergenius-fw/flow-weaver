@@ -304,12 +304,12 @@ describe('export/index', () => {
       );
     });
 
-    it('defaults production to true', async () => {
+    it('defaults production to false, as fw export --production is opt-in', async () => {
       await exportWorkflow(baseOptions);
 
       expect(mockGenerateFn).toHaveBeenCalledWith(
         expect.objectContaining({
-          production: true,
+          production: false,
         })
       );
     });
@@ -331,7 +331,7 @@ describe('export/index', () => {
     });
 
     it('calls compileWorkflow to produce compiled output', async () => {
-      await exportWorkflow(baseOptions);
+      await exportWorkflow({ ...baseOptions, production: true });
 
       expect(compileWorkflow).toHaveBeenCalledWith(
         expect.any(String),
@@ -475,7 +475,7 @@ describe('export/index', () => {
         [], // empty node types array
         expect.objectContaining({
           sourceFile: path.resolve(multiOptions.input),
-          production: true,
+          production: false,
         })
       );
     });

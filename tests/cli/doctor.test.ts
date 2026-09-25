@@ -19,12 +19,11 @@ import {
   checkTypesNodeInstalled,
   checkTsxAvailable,
   checkProjectConfig,
-  checkDeploymentProfiles,
-  checkDeploymentManifest,
   runDoctorChecks,
   doctorCommand,
   detectProjectModuleFormat,
 } from '../../src/cli/commands/doctor';
+import { MIN_NODE_MAJOR } from '../../src/constants';
 
 const DOCTOR_TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-doctor-${process.pid}`);
 
@@ -145,10 +144,18 @@ describe('detectProjectModuleFormat', () => {
 // ── Individual check functions ───────────────────────────────────────────────
 
 describe('checkNodeVersion', () => {
-  it('should pass for the current Node.js version (test requires Node >= 18)', () => {
+  it('should pass for the current Node.js version (the suite runs on a supported Node)', () => {
     const result = checkNodeVersion();
     expect(result.status).toBe('pass');
     expect(result.name).toBe('Node.js version');
+  });
+
+  it('fails below the floor that package.json engines declares', () => {
+    const engines = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../package.json'), 'utf-8')).engines.node as string;
+    const floor = Number(/>=\s*(\d+)/.exec(engines)![1]);
+    expect(MIN_NODE_MAJOR).toBe(floor);
+    expect(checkNodeVersion(`v${floor - 1}.19.0`)).toMatchObject({ status: 'fail', fix: expect.stringContaining(`Node.js ${floor}`) });
+    expect(checkNodeVersion(`v${floor}.0.0`).status).toBe('pass');
   });
 });
 
@@ -459,11 +466,11 @@ beforeAll(() => {
 // ── runDoctorChecks orchestrator ─────────────────────────────────────────────
 
 describe('runDoctorChecks', () => {
-  it('should run all 14 checks, leading with the running install', () => {
+  it('should run all 12 checks, leading with the running install', () => {
     const report = runDoctorChecks(emptyDir);
-    expect(report.checks).toHaveLength(14);
+    expect(report.checks).toHaveLength(12);
     expect(report.checks[0].name).toBe('Running install');
-    expect(report.summary.pass + report.summary.warn + report.summary.fail).toBe(14);
+    expect(report.summary.pass + report.summary.warn + report.summary.fail).toBe(12);
   });
 
   it('should report ok=false when failures exist (missing TypeScript)', () => {
@@ -526,7 +533,7 @@ describe('doctorCommand --json', () => {
     expect(report).toHaveProperty('server');
     expect(typeof report.server.installPath).toBe('string');
     expect(Array.isArray(report.checks)).toBe(true);
-    expect(report.checks).toHaveLength(14);
+    expect(report.checks).toHaveLength(12);
     expect(typeof report.summary.pass).toBe('number');
     expect(typeof report.summary.warn).toBe('number');
     expect(typeof report.summary.fail).toBe('number');
@@ -610,125 +617,4 @@ describe('checkProjectConfig', () => {
     const result = checkProjectConfig(dir);
     expect(result.status).toBe('pass');
   });
-});
-
-describe('checkDeploymentManifest', () => {
-  it('should pass when manifest.yaml is valid', () => {
-    const dir = makeFixture('manifest-valid', {
-      '.flowweaver/deployment/manifest.yaml': YAML.dump({
-        activeProfile: 'default',
-        profiles: ['default'],
-      }),
-    });
-    const result = checkDeploymentManifest(dir);
-    expect(result.status).toBe('pass');
-    expect(result.name).toBe('Deployment manifest');
-  });
-
-  it('should pass when no deployment directory exists (deployment is optional)', () => {
-    const dir = makeFixture('manifest-no-dir', {});
-    const result = checkDeploymentManifest(dir);
-    expect(result.status).toBe('pass');
-    expect(result.message).toContain('No deployment');
-  });
-
-  it('should fail when manifest.yaml has invalid YAML', () => {
-    const dir = makeFixture('manifest-bad-yaml', {
-      '.flowweaver/deployment/manifest.yaml': '{ broken: [',
-    });
-    const result = checkDeploymentManifest(dir);
-    expect(result.status).toBe('fail');
-  });
-
-  it('should fail when manifest is missing activeProfile', () => {
-    const dir = makeFixture('manifest-no-active', {
-      '.flowweaver/deployment/manifest.yaml': YAML.dump({
-        profiles: ['default'],
-      }),
-    });
-    const result = checkDeploymentManifest(dir);
-    expect(result.status).toBe('fail');
-    expect(result.message).toContain('activeProfile');
-  });
-
-  it('should fail when manifest is missing profiles array', () => {
-    const dir = makeFixture('manifest-no-profiles', {
-      '.flowweaver/deployment/manifest.yaml': YAML.dump({
-        activeProfile: 'default',
-      }),
-    });
-    const result = checkDeploymentManifest(dir);
-    expect(result.status).toBe('fail');
-    expect(result.message).toContain('profiles');
-  });
-
-  it('should warn when activeProfile is not in profiles list', () => {
-    const dir = makeFixture('manifest-orphan-active', {
-      '.flowweaver/deployment/manifest.yaml': YAML.dump({
-        activeProfile: 'staging',
-        profiles: ['default', 'production'],
-      }),
-    });
-    const result = checkDeploymentManifest(dir);
-    expect(result.status).toBe('warn');
-    expect(result.message).toContain('staging');
-  });
-});
-
-describe('checkDeploymentProfiles', () => {
-  it('should pass when all profiles in manifest have valid YAML files', () => {
-    const dir = makeFixture('profiles-valid', {
-      '.flowweaver/deployment/manifest.yaml': YAML.dump({
-        activeProfile: 'default',
-        profiles: ['default', 'staging'],
-      }),
-      '.flowweaver/deployment/default.yaml': YAML.dump({
-        target: 'lambda',
-        serviceName: 'my-api',
-      }),
-      '.flowweaver/deployment/staging.yaml': YAML.dump({
-        target: 'vercel',
-        serviceName: 'my-api-staging',
-      }),
-    });
-    const result = checkDeploymentProfiles(dir);
-    expect(result.status).toBe('pass');
-    expect(result.name).toBe('Deployment profiles');
-  });
-
-  it('should pass when no deployment directory exists', () => {
-    const dir = makeFixture('profiles-no-dir', {});
-    const result = checkDeploymentProfiles(dir);
-    expect(result.status).toBe('pass');
-  });
-
-  it('should warn when a profile file listed in manifest is missing', () => {
-    const dir = makeFixture('profiles-missing-file', {
-      '.flowweaver/deployment/manifest.yaml': YAML.dump({
-        activeProfile: 'default',
-        profiles: ['default', 'staging'],
-      }),
-      '.flowweaver/deployment/default.yaml': YAML.dump({ target: 'lambda' }),
-      // staging.yaml is missing
-    });
-    const result = checkDeploymentProfiles(dir);
-    expect(result.status).toBe('warn');
-    expect(result.message).toContain('staging');
-  });
-
-  it('should fail when a profile file has invalid YAML', () => {
-    const dir = makeFixture('profiles-bad-yaml', {
-      '.flowweaver/deployment/manifest.yaml': YAML.dump({
-        activeProfile: 'default',
-        profiles: ['default'],
-      }),
-      '.flowweaver/deployment/default.yaml': '{ broken: [',
-    });
-    const result = checkDeploymentProfiles(dir);
-    expect(result.status).toBe('fail');
-    expect(result.message).toContain('default');
-  });
-
-  // Target validation is now dynamic (checked at export time via target registry),
-  // so any non-empty string target passes the doctor check.
 });

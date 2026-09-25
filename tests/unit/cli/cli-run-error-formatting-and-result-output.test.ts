@@ -487,6 +487,31 @@ describe('timeout handling (lines 154-166)', () => {
 
     expect(logger.success).toHaveBeenCalled();
   });
+
+  it('prints a JSON error line when the timeout fires in --json mode', async () => {
+    const { runCommand } = await import('../../../src/cli/commands/run');
+    const { executeWorkflow } = await import('../../../src/mcp/workflow-executor');
+    const filePath = writeFixture('timeout-json.ts', DUMMY_SOURCE);
+
+    let release!: () => void;
+    (executeWorkflow as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      () => new Promise<unknown>((resolve) => { release = () => resolve(makeResult()); }),
+    );
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    const outSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    const running = runCommand(filePath, { json: true, timeout: 20 });
+    await vi.waitFor(() => expect(exitSpy).toHaveBeenCalledWith(1));
+
+    const line = outSpy.mock.calls.map((c) => String(c[0])).find((s) => s.includes('timed out'));
+    expect(line).toBeDefined();
+    expect(JSON.parse(line!)).toEqual({ success: false, error: 'Execution timed out after 20ms' });
+
+    release();
+    await running;
+    exitSpy.mockRestore();
+    outSpy.mockRestore();
+  });
 });
 
 describe('displayPath helper (lines 22-28)', () => {
