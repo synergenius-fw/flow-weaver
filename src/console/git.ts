@@ -22,9 +22,9 @@ export interface FileHistory {
 function git(cwd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile('git', args, { cwd, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (err, stdout) => {
-      // execFile's error is always an Error; its declared type is built with
-      // Omit<>, which drops what marks it as one for the checker.
-      if (err) reject(err as Error); else resolve(String(stdout));
+      // execFile's error is always an Error at runtime, but its declared type
+      // is built with Omit<> and does not read as one.
+      if (err) reject(err instanceof Error ? err : new Error(String(err))); else resolve(String(stdout));
     });
   });
 }
