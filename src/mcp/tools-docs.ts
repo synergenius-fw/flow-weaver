@@ -55,7 +55,7 @@ export function registerDocsTools(mcp: McpServer): void {
 
           case 'read': {
             if (!args.topic) {
-              return makeErrorResult('MISSING_PARAM', 'The "topic" parameter is required for action="read"');
+              return makeErrorResult('INVALID_INPUT', 'The "topic" parameter is required for action="read"');
             }
             const doc = readTopic(args.topic, args.compact ?? false);
             if (!doc) {
@@ -74,7 +74,7 @@ export function registerDocsTools(mcp: McpServer): void {
 
           case 'search': {
             if (!args.query) {
-              return makeErrorResult('MISSING_PARAM', 'The "query" parameter is required for action="search"');
+              return makeErrorResult('INVALID_INPUT', 'The "query" parameter is required for action="search"');
             }
             const results = searchDocs(args.query);
             // Every hit is paid for in the assistant's context, and the top

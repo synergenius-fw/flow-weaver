@@ -1,7 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as path from 'path';
-import * as fs from 'fs';
 import { parseWorkflow } from '../api/index.js';
 import { getTopologicalOrder } from '../api/query.js';
 import { DebugController } from '../runtime/debug-controller.js';
@@ -80,20 +79,10 @@ async function raceDebugPause(
 }
 
 /**
- * Helper: clean up a debug session after completion or abort.
+ * Helper: forget a debug session after completion or abort. The executor
+ * removes its own temp files when the execution ends.
  */
 function cleanupDebugSession(debugId: string): void {
-  const session = getDebugSession(debugId);
-  if (!session) return;
-
-  for (const tmpFile of session.tmpFiles) {
-    try {
-      fs.unlinkSync(tmpFile);
-    } catch {
-      /* ignore */
-    }
-  }
-
   removeDebugSession(debugId);
 }
 
@@ -185,7 +174,6 @@ export function registerDebugTools(mcp: McpServer): void {
           controller,
           executionPromise: execPromise,
           createdAt: Date.now(),
-          tmpFiles: [],
         };
         storeDebugSession(session);
 
@@ -474,12 +462,12 @@ export function registerDebugTools(mcp: McpServer): void {
 
       if (args.action === 'add') {
         if (!args.nodeId) {
-          return makeErrorResult('MISSING_PARAM', 'nodeId is required to add a breakpoint');
+          return makeErrorResult('INVALID_INPUT', 'nodeId is required to add a breakpoint');
         }
         session.controller.addBreakpoint(args.nodeId);
       } else if (args.action === 'remove') {
         if (!args.nodeId) {
-          return makeErrorResult('MISSING_PARAM', 'nodeId is required to remove a breakpoint');
+          return makeErrorResult('INVALID_INPUT', 'nodeId is required to remove a breakpoint');
         }
         session.controller.removeBreakpoint(args.nodeId);
       }

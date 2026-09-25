@@ -90,6 +90,10 @@ See [Debugging](debugging.md).
 
 The server also publishes one prompt, `flow-weaver-nocode`. It instructs the assistant to build workflows from plain-language descriptions by writing the workflow file itself, then `fw_validate` → `fw_diagram`, showing step summaries and ASCII diagrams instead of code unless asked.
 
+## Error codes
+
+A failed result's `error.code` is one of three kinds. `INVALID_INPUT` means an argument was wrong: missing, malformed, or not one of the allowed values; fix the call and send it again. `<TOOL>_ERROR` means the tool itself failed on good input, named after the tool (`COMPILE_ERROR`, `VALIDATE_ERROR`, `MODIFY_ERROR`, `MARKET_SEARCH_ERROR`); the message says why. The rest name a state worth branching on and keep their names: `PARSE_ERROR`, `FILE_NOT_FOUND`, `INVALID_TARGET`, `CYCLE_DETECTED`, `EXECUTION_ERROR`, `SESSION_NOT_FOUND` and `NOT_PAUSED` for the debugger, and for runs `RUN_NOT_FOUND`, `RUN_NOT_WAITING`, `RUN_BUSY`, `BUNDLE_CHANGED`, `AMBIGUOUS_WORKFLOW`, `MISSING_OUTPUTS` and `AMBIGUOUS_EFFECT`.
+
 ## Related Topics
 
 - [Durable Gates](durable-gates.md) — Running and resuming gated workflows

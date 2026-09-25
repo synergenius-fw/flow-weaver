@@ -622,14 +622,14 @@ describe('tools-query', () => {
       expect(result.data).toEqual(['Start', 'step1']);
     });
 
-    it('query=deps returns MISSING_PARAM without nodeId', async () => {
+    it('query=deps returns INVALID_INPUT without nodeId', async () => {
       setupParse();
 
       const result = parseResult(
         await callQuery({ filePath: '/tmp/wf.ts', query: 'deps' }),
       );
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('MISSING_PARAM');
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
     });
 
     it('query=dependents returns downstream nodes', async () => {
@@ -643,14 +643,14 @@ describe('tools-query', () => {
       expect(result.data).toEqual(['step2', 'Exit']);
     });
 
-    it('query=dependents returns MISSING_PARAM without nodeId', async () => {
+    it('query=dependents returns INVALID_INPUT without nodeId', async () => {
       setupParse();
 
       const result = parseResult(
         await callQuery({ filePath: '/tmp/wf.ts', query: 'dependents' }),
       );
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('MISSING_PARAM');
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
     });
 
     it('query=data-deps returns data-only dependencies', async () => {
@@ -664,14 +664,14 @@ describe('tools-query', () => {
       expect(result.data).toEqual(['step1']);
     });
 
-    it('query=data-deps returns MISSING_PARAM without nodeId', async () => {
+    it('query=data-deps returns INVALID_INPUT without nodeId', async () => {
       setupParse();
 
       const result = parseResult(
         await callQuery({ filePath: '/tmp/wf.ts', query: 'data-deps' }),
       );
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('MISSING_PARAM');
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
     });
 
     it('query=execution-order returns topological sort', async () => {
@@ -795,14 +795,14 @@ describe('tools-query', () => {
       expect(data[0].name).toBe('Solo');
     });
 
-    it('returns UNKNOWN_QUERY for unknown query type', async () => {
+    it('returns INVALID_INPUT for unknown query type', async () => {
       setupParse();
 
       const result = parseResult(
         await callQuery({ filePath: '/tmp/wf.ts', query: 'nonexistent' }),
       );
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('UNKNOWN_QUERY');
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
     });
 
     it('returns PARSE_ERROR when file cannot be parsed', async () => {

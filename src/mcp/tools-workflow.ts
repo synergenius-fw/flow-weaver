@@ -82,7 +82,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
         // Validate params against schema for the operation
         const paramValidation = validateModifyParams(args.operation, args.params);
         if (!paramValidation.success) {
-          return makeErrorResult('INVALID_PARAMS', paramValidation.error);
+          return makeErrorResult('INVALID_INPUT', paramValidation.error);
         }
 
         const filePath = path.resolve(args.filePath);
@@ -106,7 +106,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
             const nodeId = p.nodeId as string;
             const nodeType = p.nodeType as string;
             if (!nodeId || !nodeType) {
-              return makeErrorResult('INVALID_PARAMS', 'addNode requires params: nodeId, nodeType');
+              return makeErrorResult('INVALID_INPUT', 'addNode requires params: nodeId, nodeType');
             }
             const nodeTypeExists = parseResult.ast.nodeTypes.some(
               (nt: { name: string; functionName: string }) =>
@@ -129,7 +129,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
           case 'removeNode': {
             const nodeId = p.nodeId as string;
             if (!nodeId)
-              return makeErrorResult('INVALID_PARAMS', 'removeNode requires params: nodeId');
+              return makeErrorResult('INVALID_INPUT', 'removeNode requires params: nodeId');
             // Snapshot connections that will be removed along with the node
             const removedConnections = parseResult.ast.connections
               .filter((c) => c.from.node === nodeId || c.to.node === nodeId)
@@ -147,7 +147,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
             const oldId = p.oldId as string;
             const newId = p.newId as string;
             if (!oldId || !newId) {
-              return makeErrorResult('INVALID_PARAMS', 'renameNode requires params: oldId, newId');
+              return makeErrorResult('INVALID_INPUT', 'renameNode requires params: oldId, newId');
             }
             modifiedAST = manipRenameNode(modifiedAST, oldId, newId);
             break;
@@ -157,7 +157,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
             const to = p.to as string;
             if (!from || !to) {
               return makeErrorResult(
-                'INVALID_PARAMS',
+                'INVALID_INPUT',
                 'addConnection requires params: from, to (format: "node.port")'
               );
             }
@@ -167,7 +167,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
 
             if (!fromPort || !toPort) {
               return makeErrorResult(
-                'INVALID_PARAMS',
+                'INVALID_INPUT',
                 'Connection format must be "node.port" (e.g., "Start.execute")'
               );
             }
@@ -244,7 +244,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
             const to = p.to as string;
             if (!from || !to) {
               return makeErrorResult(
-                'INVALID_PARAMS',
+                'INVALID_INPUT',
                 'removeConnection requires params: from, to (format: "node.port")'
               );
             }
@@ -261,7 +261,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
             const label = p.label as string;
             if (!nodeId || typeof label !== 'string') {
               return makeErrorResult(
-                'INVALID_PARAMS',
+                'INVALID_INPUT',
                 'setNodeLabel requires params: nodeId, label'
               );
             }
@@ -269,7 +269,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
             break;
           }
           default:
-            return makeErrorResult('UNKNOWN_OPERATION', `Unknown operation: ${args.operation}`);
+            return makeErrorResult('INVALID_INPUT', `Unknown operation: ${args.operation}`);
         }
 
         // Rewrite the annotations. Only a file that is already compiled in
@@ -408,7 +408,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
           const paramValidation = validateModifyParams(op.operation, op.params);
           if (!paramValidation.success) {
             return makeErrorResult(
-              'INVALID_PARAMS',
+              'INVALID_INPUT',
               `Operation ${i} (${op.operation}): ${paramValidation.error}`
             );
           }

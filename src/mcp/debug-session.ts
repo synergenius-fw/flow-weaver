@@ -12,14 +12,28 @@ export interface DebugSession {
   controller: DebugController;
   /** The still-pending execution promise. Resolves when workflow completes. */
   executionPromise: Promise<unknown>;
+  /** When the session started. One older than `DEBUG_SESSION_MAX_AGE_MS` is dropped. */
   createdAt: number;
-  /** Temp files to clean up when the session ends. */
-  tmpFiles: string[];
   /** Most recent pause state (updated on each pause) */
   lastPauseState?: DebugPauseState;
 }
 
 const debugSessions = new Map<string, DebugSession>();
+
+/** A session this old is taken as abandoned: nothing else ever ends one that is never stepped to the end. */
+export const DEBUG_SESSION_MAX_AGE_MS = 30 * 60 * 1000;
+
+/**
+ * Drop abandoned sessions. Each is paused mid-run, so it is aborted too:
+ * its execution then ends and the executor removes its temp files.
+ */
+function sweepAbandoned(now: number): void {
+  for (const [debugId, session] of debugSessions) {
+    if (now - session.createdAt <= DEBUG_SESSION_MAX_AGE_MS) continue;
+    debugSessions.delete(debugId);
+    try { session.controller.resume({ type: 'abort' }); } catch { /* already ended */ }
+  }
+}
 
 export function storeDebugSession(session: DebugSession): void {
   const candidate = session as DebugSession & Record<string, unknown>;
@@ -32,6 +46,7 @@ export function storeDebugSession(session: DebugSession): void {
       'Live debug sessions cannot retain durable continuation or gate state',
     );
   }
+  sweepAbandoned(Date.now());
   debugSessions.set(session.debugId, session);
 }
 

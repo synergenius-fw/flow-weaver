@@ -372,11 +372,11 @@ export function registerQueryTools(mcp: McpServer): void {
             );
           case 'deps':
             if (!args.nodeId)
-              return makeErrorResult('MISSING_PARAM', 'nodeId is required for "deps" query');
+              return makeErrorResult('INVALID_INPUT', 'nodeId is required for "deps" query');
             return makeToolResult(getDependencies(ast, args.nodeId));
           case 'dependents':
             if (!args.nodeId)
-              return makeErrorResult('MISSING_PARAM', 'nodeId is required for "dependents" query');
+              return makeErrorResult('INVALID_INPUT', 'nodeId is required for "dependents" query');
             return makeToolResult(getDependents(ast, args.nodeId));
           case 'execution-order':
             try {
@@ -400,7 +400,7 @@ export function registerQueryTools(mcp: McpServer): void {
             return makeToolResult(findIsolatedNodes(ast));
           case 'data-deps':
             if (!args.nodeId)
-              return makeErrorResult('MISSING_PARAM', 'nodeId is required for "data-deps" query');
+              return makeErrorResult('INVALID_INPUT', 'nodeId is required for "data-deps" query');
             return makeToolResult(getDataDependencies(ast, args.nodeId));
           case 'dead-ends':
             return makeToolResult(findDeadEndDetails(ast));
@@ -416,7 +416,7 @@ export function registerQueryTools(mcp: McpServer): void {
               }))
             );
           default:
-            return makeErrorResult('UNKNOWN_QUERY', `Unknown query type: ${args.query}`);
+            return makeErrorResult('INVALID_INPUT', `Unknown query type: ${args.query}`);
         }
       } catch (err) {
         return makeErrorResult(
