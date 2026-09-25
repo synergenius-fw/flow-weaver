@@ -137,6 +137,42 @@ describe('createMcpBridge', () => {
     expect(parsed.result).toBe('swapped');
   });
 
+  it('still answers, and leaks no rejection, when reporting a failed tool throws', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      bridge = await createMcpBridge(
+        testTools,
+        async () => { throw new Error('tool broke'); },
+        undefined,
+        {
+          info: () => {}, warn: () => {},
+          error: () => { throw new Error('logger broke'); },
+        },
+      );
+
+      const config = JSON.parse(fs.readFileSync(bridge.configPath, 'utf-8'));
+      const socketPath = config.mcpServers['fw-agent'].env.FW_TOOL_SOCKET;
+
+      const response = await new Promise<string>((resolve, reject) => {
+        const client = net.createConnection(socketPath, () => {
+          client.write(JSON.stringify({ name: 'test_tool', args: {} }) + '\n');
+        });
+        let buf = '';
+        client.on('data', (chunk) => { buf += chunk.toString(); });
+        client.on('close', () => resolve(buf));
+        client.on('error', reject);
+      });
+      await new Promise((r) => setTimeout(r, 20));
+
+      expect(JSON.parse(response)).toEqual({ result: 'tool broke', isError: true });
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
   it('should cleanup temp files', async () => {
     bridge = await createMcpBridge(
       testTools,
