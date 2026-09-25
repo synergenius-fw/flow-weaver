@@ -4,7 +4,7 @@
  * Parses the current line to detect what type of completion is expected.
  */
 
-import type { CompletionContext, CompletionContextType } from './types';
+import type { CompletionContext } from './types';
 
 // =============================================================================
 // Patterns for detecting completion context
@@ -407,11 +407,12 @@ export function getWordAtPosition(
 /**
  * Detect what kind of symbol is at the given position.
  * Used for go-to-definition to determine navigation target.
+ * Only these three kinds of symbol have a definition to go to.
  */
 export function detectSymbolType(
   lineText: string,
   offset: number
-): { type: CompletionContextType; name: string; nodeId?: string } | null {
+): { type: 'nodeType' | 'nodeId' | 'port'; name: string; nodeId?: string } | null {
   const wordInfo = getWordAtPosition(lineText, offset);
   if (!wordInfo) {
     return null;

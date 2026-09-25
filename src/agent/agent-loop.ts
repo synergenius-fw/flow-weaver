@@ -72,6 +72,11 @@ export async function runAgentLoop(
           text += event.text;
           break;
 
+        case 'thinking_delta':
+          // Reasoning reaches the caller through onStreamEvent above; it is
+          // not part of the assistant message kept in the conversation.
+          break;
+
         case 'tool_use_start':
           activeToolNames.set(event.id, event.name);
           break;

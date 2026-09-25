@@ -112,7 +112,8 @@ export function getFlowWeaverCompletions(
         completionContext.prefix
       );
 
-    default:
+    case null:
+      // A context without a kind has nothing to complete.
       return [];
   }
 }

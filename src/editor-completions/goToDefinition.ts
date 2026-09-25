@@ -46,9 +46,6 @@ export function getDefinitionLocation(
 
     case "port":
       return findPortDefinition(symbolInfo.name, symbolInfo.nodeId, context);
-
-    default:
-      return null;
   }
 }
 

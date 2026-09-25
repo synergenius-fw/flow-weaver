@@ -274,7 +274,8 @@ export class DebugController {
     });
   }
 
-  private applyAction(action: DebugResumeAction): void {
+  /** Set the mode for the next nodes. An abort never gets here: each caller throws or skips it first. */
+  private applyAction(action: Exclude<DebugResumeAction, { type: 'abort' }>): void {
     switch (action.type) {
       case 'step':
         this.mode = 'step';
@@ -285,7 +286,6 @@ export class DebugController {
       case 'continueToBreakpoint':
         this.mode = 'continueToBreakpoint';
         break;
-      // 'abort' is handled by the caller (throws)
     }
   }
 
@@ -301,7 +301,9 @@ export class DebugController {
           portName: parts[1],
           executionIndex: parseInt(parts[2], 10),
         };
-        ctx.setVariable(address, value);
+        // setVariable stores the value before it returns; the promise it gives
+        // an async workflow is already resolved, so there is nothing to wait for.
+        void ctx.setVariable(address, value);
       }
     }
     this.pendingModifications.clear();
