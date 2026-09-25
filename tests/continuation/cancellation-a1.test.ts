@@ -73,7 +73,9 @@ export async function outerWait(
 }
 `);
     const controller = new AbortController();
-    const startedAt = Date.now();
+    // Timed from the abort, not the call: compiling the file first can take
+    // over a second under coverage, and the 10s delay is what must be cut short.
+    let abortedAt = 0;
     const execution = executeWorkflow({
       runId: "a1-nested-delay",
       filePath,
@@ -83,6 +85,7 @@ export async function outerWait(
       production: false,
       onEvent: (event) => {
         if (event.type === "STATUS_CHANGED" && event.data?.id === "wait") {
+          abortedAt = Date.now();
           controller.abort();
         }
       },
@@ -91,7 +94,8 @@ export async function outerWait(
     await expect(execution).rejects.toSatisfy((error: unknown) =>
       CancellationError.isCancellationError(error),
     );
-    expect(Date.now() - startedAt).toBeLessThan(1_000);
+    expect(abortedAt).toBeGreaterThan(0);
+    expect(Date.now() - abortedAt).toBeLessThan(1_000);
   });
 
   it("retains the exact signal in nested execution scopes", () => {
