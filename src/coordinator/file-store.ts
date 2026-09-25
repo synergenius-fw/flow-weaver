@@ -40,8 +40,18 @@ function samePath(a: string, b: string): boolean {
 
 interface Claim { owner: string; pid: number; host: string; expiresAt: string }
 
+/**
+ * Whether a run id can name a directory under the root: one path segment,
+ * so a record is never written, and a removal never deletes, outside it.
+ */
+const isRunSegment = (runId: string) =>
+  runId.length > 0 && runId.length <= 200 && runId !== '.' && runId !== '..' && !/[/\\\0]/.test(runId);
+
 export function createFileRunStore(rootDir: string): RunStore {
-  const runDir = (runId: string) => path.join(rootDir, runId);
+  const runDir = (runId: string) => {
+    if (!isRunSegment(runId)) throw new Error(`not a valid run id for the file store: ${JSON.stringify(runId)}`);
+    return path.join(rootDir, runId);
+  };
   const recordFile = (runId: string) => path.join(runDir(runId), 'run.json');
   const claimFile = (runId: string) => path.join(runDir(runId), 'claim.json');
   const docFile = (runId: string, name: string) => {
@@ -74,7 +84,8 @@ export function createFileRunStore(rootDir: string): RunStore {
 
   return {
     async get(runId) {
-      return readJson<RunRecord>(recordFile(runId));
+      // An id that cannot name a directory here names no run.
+      return isRunSegment(runId) ? readJson<RunRecord>(recordFile(runId)) : undefined;
     },
     async put(record) {
       writeAtomic(recordFile(record.runId), record);
@@ -95,7 +106,7 @@ export function createFileRunStore(rootDir: string): RunStore {
       fs.rmSync(runDir(runId), { recursive: true, force: true });
     },
     async getDoc(runId, name) {
-      return readJson<unknown>(docFile(runId, name));
+      return isRunSegment(runId) ? readJson<unknown>(docFile(runId, name)) : undefined;
     },
     async putDoc(runId, name, data) {
       writeAtomic(docFile(runId, name), data);
