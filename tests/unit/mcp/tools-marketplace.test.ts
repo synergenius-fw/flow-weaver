@@ -127,7 +127,7 @@ describe('tools-marketplace', () => {
 
       const result = parseResult(await callSearch({ query: 'test' }));
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('SEARCH_FAILED');
+      expect((result.error as { code: string }).code).toBe('MARKET_SEARCH_ERROR');
       expect((result.error as { message: string }).message).toContain('network timeout');
     });
   });
@@ -170,7 +170,7 @@ describe('tools-marketplace', () => {
     it('refuses a spec that is not a package name without running npm', async () => {
       const result = parseResult(await callInstall({ package: 'x; rm -rf ~' }));
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('INSTALL_FAILED');
+      expect((result.error as { code: string }).code).toBe('MARKET_INSTALL_ERROR');
       expect((result.error as { message: string }).message).toContain('not a package name');
       expect(mockExecSync).not.toHaveBeenCalled();
     });
@@ -223,7 +223,7 @@ describe('tools-marketplace', () => {
 
       const result = parseResult(await callInstall({ package: 'nonexistent-pkg' }));
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('INSTALL_FAILED');
+      expect((result.error as { code: string }).code).toBe('MARKET_INSTALL_ERROR');
     });
   });
 
@@ -300,7 +300,7 @@ describe('tools-marketplace', () => {
 
       const result = parseResult(await callList());
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('LIST_FAILED');
+      expect((result.error as { code: string }).code).toBe('MARKET_LIST_ERROR');
     });
   });
 });

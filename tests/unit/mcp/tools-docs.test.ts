@@ -115,7 +115,7 @@ describe('tools-docs (fw_docs)', () => {
     it('returns error when topic param is missing', async () => {
       const result = parseResult(await callDocs({ action: 'read' }));
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('MISSING_PARAM');
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
     });
 
     it('returns error when topic is not found', async () => {
@@ -195,7 +195,7 @@ describe('tools-docs (fw_docs)', () => {
     it('returns error when query param is missing', async () => {
       const result = parseResult(await callDocs({ action: 'search' }));
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('MISSING_PARAM');
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
     });
   });
 

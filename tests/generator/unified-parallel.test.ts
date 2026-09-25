@@ -5,6 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { generatedWorkflowCode } from '../helpers/generated-code';
 
 describe('Unified Generator Parallel Execution', () => {
   it('should wrap two independent nodes in Promise.all', async () => {
@@ -103,7 +104,7 @@ export async function sequentialDeps(execute: boolean, params: { num: number }):
 
     try {
       const code = await global.testHelpers.generateFast(testFile, 'sequentialDeps');
-      expect(code).not.toContain('Promise.all');
+      expect(generatedWorkflowCode(code, 'sequentialDeps')).not.toContain('Promise.all');
     } finally {
       global.testHelpers.cleanupOutput('sequential-deps.ts');
     }
@@ -211,7 +212,7 @@ export async function singleNode(execute: boolean, params: { num: number }): Pro
 
     try {
       const code = await global.testHelpers.generateFast(testFile, 'singleNode');
-      expect(code).not.toContain('Promise.all');
+      expect(generatedWorkflowCode(code, 'singleNode')).not.toContain('Promise.all');
     } finally {
       global.testHelpers.cleanupOutput('single-node-no-parallel.ts');
     }
@@ -549,7 +550,7 @@ export function syncParallel(execute: boolean, params: { num: number }): {
         production: true,
       });
       // Sync workflows must not use Promise.all since there's no event loop concurrency
-      expect(code).not.toContain('Promise.all');
+      expect(generatedWorkflowCode(code, 'syncParallel')).not.toContain('Promise.all');
       // Both nodes should still be called
       expect(code).toContain('syncDouble(');
       expect(code).toContain('syncTriple(');

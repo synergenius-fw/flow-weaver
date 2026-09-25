@@ -99,12 +99,12 @@ run.result;   // the workflow's return value
 ```
 
 - `start` takes the **source** file. The coordinator compiles a private copy and runs it, so the file does not have to be compiled in place, and the bundle digest it records is what protects a paused run from a changed file.
-- A run that pauses is written to its store — by default `<rootDir>/<runId>/` (`run.json`, `continuation.json`) — so `resume` can happen in another process, or tomorrow. `FW_RUNS_DIR` moves the default directory. The console and the MCP tools read the same store: a gate your service reaches can be answered by a person in `fw console`, and the other way round.
+- A run that pauses is written to its store, by default `<rootDir>/<runId>/run.json`, so `resume` can happen in another process, or tomorrow. One record holds the gate and the continuation it resumes from, so one write commits both. `FW_RUNS_DIR` moves the default directory. The console and the MCP tools read the same store: a gate your service reaches can be answered by a person in `fw console`, and the other way round.
 - `input` follows the answer rules in [Durable Gates](durable-gates.md): one data output → `answer` is the value; several → an object with every one; none → `null`.
 - `await runs.get(runId)`, `runs.list({ filePath? })`, `runs.record(runId)` (everything persisted), `runs.trace(runId)` (the kept step trace), `runs.cancel(runId)`, `runs.remove(runId)`, `runs.keep(runId, name, data)` / `runs.kept(runId, name)` for a document of your own beside the run. Every method returns a promise, because a store may be remote.
 - `await runs.tick()` is the clock: it wakes every run whose `sleep` is over and times out every gate whose `timeout` has passed, and returns `{ woke, timedOut, skipped }`. `fw serve` and the console call it every few seconds; a service of your own that drives runs should call it on a timer too, or nothing sleeping ever wakes. A waiting run says when the clock will act in `due: { at, action: 'wake' | 'timeout' }`. See [Time](durable-gates.md#time).
 - The second argument to `start`/`resume` watches the run: `{ onEvent(event) {…}, trace: true, abortSignal }`. `trace: true` keeps the step trace beside the record so a later reader has it — the console asks for it; an assistant over MCP does not.
-- While a segment runs, the run is **claimed** in the store; a second coordinator resuming or cancelling the same run gets `RunBusyError` until the claim is released, or lapses (`claimTtlMs`, one hour by default). Two processes on one store never drive the same run at once.
+- While a segment runs, the run is **claimed** in the store; a second resume, cancel or `setAgent` of the same run, from this coordinator or another, gets `RunBusyError` until the claim is released, or lapses (`claimTtlMs`, one hour by default). Two processes on one store never drive the same run at once.
 - Errors are classes you can `instanceof`: `ParseError`, `AmbiguousWorkflowError`, `RunNotFoundError`, `RunNotWaitingError`, `RunBusyError`, `BundleChangedError`, `MissingOutputsError`, `InvalidAnswerError`.
 
 ### Run stores
@@ -121,9 +121,9 @@ A store is nine methods over three kinds of thing — a run's record, named JSON
 
 | Method | Contract |
 |--------|----------|
-| `get(runId)`, `put(record)`, `remove(runId)` | `put` is all or nothing: a concurrent `get` sees the old record or the new one, never a mix. `get` returns a copy. `remove` takes the documents and the claim too. |
+| `get(runId)`, `put(record)`, `remove(runId)` | `put` is all or nothing: a concurrent `get` sees the old record or the new one, never a mix. It is the commit point of every step, so it keeps the whole record, including the `continuation` a waiting run carries. `get` returns a copy. `remove` takes the documents and the claim too. |
 | `list({ filePath? })` | Every record, newest first by `updatedAt`; only one file's when asked. |
-| `getDoc`, `putDoc`, `deleteDoc(runId, name)` | JSON documents under a slug name: `continuation`, `trace`, `effect-<sha>` receipts, and whatever a driver keeps (`agent-*` transcripts, `http`). A document may precede its record. |
+| `getDoc`, `putDoc`, `deleteDoc(runId, name)` | JSON documents under a slug name: `trace`, `effect-<sha>` receipts, and whatever a driver keeps (`agent-*` transcripts, `http`). A document may precede its record. |
 | `claim(runId, owner, ttlMs)`, `release(runId, owner)` | Atomic: of two claimers at once, one gets `true`. The holder may claim again. A claim lapses after `ttlMs`, or when released by its owner. A store that can tell the owner's process is gone may lapse it sooner, as the file store does on one host. |
 
 In SQL that is a `runs` table with the record as JSON, a `run_docs` table keyed by run and name, and a `run_claims` table where `claim` is one conditional insert-or-update. Before relying on a store, run the contract against it:
@@ -220,7 +220,7 @@ Beside it:
 | Import from | For |
 |-------------|-----|
 | the compiled file itself | `createWorkflowRuntime`, `acceptContinuation`, `isDurableGateYield`, `DurableGateYield`, `CancellationError`, `createContinuationEnvelope`, `ENGINE_VERSION`, and the `WorkflowRuntime`, `ContinuationEnvelope`, `DurableGate` and `GateResolution` types — everything a host needs, with no package installed |
-| `@synergenius/flow-weaver` | The same names, plus the AST types and everything `./api` exports |
+| `@synergenius/flow-weaver` | The same names, plus the AST types and everything `./api` exports, and the pieces the CLI and the console are built from: the validator (`WorkflowValidator`, `getFriendlyError`, `formatFriendlyDiagnostics`), `WorkflowGenerator` and `AnnotationGenerator`, the AST builders, the parser (`parser`, `TagHandlerRegistry`, `ValidationRuleRegistry`), the port-sync helpers that rewrite a node type's signature and JSDoc together, the workflow and node templates, `WorkflowDiffer` with `formatDiff`, the type mappings and the constants |
 | `…/api` | Parse, validate, compile, generate, query, modify |
 | `…/runtime` | `createWorkflowRuntime`, `acceptContinuation`, `decodeContinuation`, `DebugController`, `CancellationError`, `DurableGateYield`, the runtime types |
 | `…/coordinator` | `createLocalCoordinator`, the `RunStore` interface with `createFileRunStore` and `createMemoryRunStore`, the request, view and error types, and `executeWorkflow`, the engine's own one-segment boundary for a coordinator of your own |

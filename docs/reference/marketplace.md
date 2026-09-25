@@ -46,6 +46,8 @@ fw market search llm --limit 5
 
 The search reads `.npmrc` the way `npm install` does — the user's file, then the project's — and asks the default registry and every scoped one (`@acme:registry=https://npm.internal.com/`), each with its own token (`//npm.internal.com/:_authToken=…`). A private pack is found wherever an install would find it; the output names each registry searched and whether it answered. `fw_market_search` and the console's marketplace page do the same.
 
+A result marked **official** is published under the maintainers' `@synergenius/` npm scope. Every other scope is a third-party pack: review it as you would any npm dependency before installing, since a pack's code runs in your project.
+
 A registry that is not in `.npmrc` can be asked directly, by its search URL:
 
 ```bash

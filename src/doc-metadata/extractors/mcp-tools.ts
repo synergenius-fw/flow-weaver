@@ -302,6 +302,12 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         description: 'Return compact LLM-friendly version (default: false)',
         required: false,
       },
+      {
+        name: 'limit',
+        type: 'number',
+        description: 'Number of search hits to return (for action="search")',
+        required: false,
+      },
     ],
   },
   {
@@ -673,6 +679,19 @@ export const MCP_TOOLS: TMcpToolDoc[] = [
         name: 'filePath',
         type: 'string',
         description: 'Only runs of this workflow file',
+        required: false,
+      },
+      {
+        name: 'status',
+        type: 'string',
+        description: 'Only runs in this state. waiting is the one that needs you',
+        required: false,
+        enum: ['waiting', 'completed', 'failed', 'cancelled'],
+      },
+      {
+        name: 'limit',
+        type: 'number',
+        description: 'How many, newest first. Default 20, at most 200',
         required: false,
       },
     ],

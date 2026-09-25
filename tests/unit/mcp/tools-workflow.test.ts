@@ -379,7 +379,7 @@ describe('tools-workflow', () => {
       expect((result.error as { code: string }).code).toBe('UNKNOWN_TARGET_PORT');
     });
 
-    it('addConnection: returns INVALID_PARAMS for missing port format', async () => {
+    it('addConnection: returns INVALID_INPUT for missing port format', async () => {
       const { wfFile } = setupModifyMocks();
 
       const result = parseResult(
@@ -391,7 +391,7 @@ describe('tools-workflow', () => {
       );
 
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('INVALID_PARAMS');
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
     });
 
     it('removeConnection: removes a connection and reports isolated nodes', async () => {
@@ -453,7 +453,7 @@ describe('tools-workflow', () => {
       expect(fs.readFileSync(wfFile, 'utf-8')).toBe('// source');
     });
 
-    it('returns INVALID_PARAMS for invalid operation params', async () => {
+    it('returns INVALID_INPUT for invalid operation params', async () => {
       const wfFile = path.join(tmpDir, 'wf2.ts');
       fs.writeFileSync(wfFile, '// source');
 
@@ -466,7 +466,7 @@ describe('tools-workflow', () => {
       );
 
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('INVALID_PARAMS');
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
     });
 
     it('returns PARSE_ERROR when file cannot be parsed', async () => {
@@ -490,7 +490,7 @@ describe('tools-workflow', () => {
       expect((result.error as { code: string }).code).toBe('PARSE_ERROR');
     });
 
-    it('returns UNKNOWN_OPERATION for invalid operation', async () => {
+    it('returns INVALID_INPUT for an unknown operation', async () => {
       const { wfFile } = setupModifyMocks();
 
       const result = parseResult(
@@ -502,8 +502,7 @@ describe('tools-workflow', () => {
       );
 
       expect(result.success).toBe(false);
-      // INVALID_PARAMS from schema validation, or UNKNOWN_OPERATION from the switch default
-      expect((result.error as { code: string }).code).toMatch(/INVALID_PARAMS|UNKNOWN_OPERATION/);
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
     });
 
     it('returns MODIFY_ERROR on unexpected exception', async () => {
@@ -694,7 +693,7 @@ describe('tools-workflow', () => {
       );
 
       expect(result.success).toBe(false);
-      expect((result.error as { code: string }).code).toBe('INVALID_PARAMS');
+      expect((result.error as { code: string }).code).toBe('INVALID_INPUT');
       expect((result.error as { message: string }).message).toContain('Operation 1');
       // No manipulations should have been called
       expect(mockManipAddNode).not.toHaveBeenCalled();

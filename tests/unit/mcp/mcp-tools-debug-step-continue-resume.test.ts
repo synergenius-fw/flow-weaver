@@ -90,7 +90,6 @@ function createPausedSession(
     controller,
     executionPromise: opts?.executionPromise ?? new Promise(() => {}),
     createdAt: Date.now(),
-    tmpFiles: [],
     lastPauseState: {
       currentNodeId: 'nodeA',
       phase: 'before',

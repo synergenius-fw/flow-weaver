@@ -21,6 +21,7 @@ import { compileWorkflow } from '../../src/api/compile.js';
 import { parseWorkflow } from '../../src/api/parse.js';
 import { generateCode } from '../../src/api/generate.js';
 import { generateInPlace } from '../../src/api/generate-in-place.js';
+import { generatedWorkflowCode } from '../helpers/generated-code.js';
 
 const fixture = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'durable-approval.ts');
 const bundleDigest = digestContract.bundleDigest;
@@ -792,13 +793,15 @@ describe('A2 durable gate continuation', () => {
       allWorkflows: parallel.allWorkflows,
       durableSequential: false,
     } as never);
-    expect(generated).not.toContain('Promise.all');
+    // The generator must not emit a parallel group for a durable closure. Only
+    // what it wrote for the workflow is checked, not the inlined runtime.
+    expect(generatedWorkflowCode(String(generated), 'durableParallel')).not.toContain('Promise.all');
     const generatedInPlace = generateInPlace(fs.readFileSync(parallelFixture, 'utf8'), parallel.ast, {
       production: true,
       allWorkflows: parallel.allWorkflows,
       durableSequential: false,
     } as never);
-    expect(generatedInPlace.code).not.toContain('Promise.all');
+    expect(generatedWorkflowCode(generatedInPlace.code, 'durableParallel')).not.toContain('Promise.all');
 
     const scoped = await parseWorkflow(scopedGateFixture, {
       workflowName: 'durableScopedGate',
@@ -922,7 +925,7 @@ describe('A2 durable gate continuation', () => {
       parse: { workflowName: 'durableParallel' },
       generate: { production: true },
     });
-    expect(generated.code).not.toContain('Promise.all([');
+    expect(generatedWorkflowCode(generated.code, 'durableParallel')).not.toContain('Promise.all');
 
     delete (globalThis as Record<string, unknown>).__a2_late_parallel_effect_called__;
     const outcome = await executeWorkflow({

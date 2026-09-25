@@ -6,7 +6,6 @@
 
 import { CstParser, type IToken, type CstNode } from 'chevrotain';
 import {
-  JSDocLexer,
   InputTag,
   OutputTag,
   StepTag,
@@ -45,6 +44,13 @@ import {
   Asterisk,
   allTokens,
 } from './tokens';
+import {
+  lexTaggedLine,
+  lineFailure,
+  runRule,
+  unquoteStringLiteral,
+  type CstNodeWithImage,
+} from './parse-line';
 
 // =============================================================================
 // Parser Result Types
@@ -281,11 +287,6 @@ const parserInstance = new PortParser();
 
 const BaseVisitor = parserInstance.getBaseCstVisitorConstructor();
 
-// CST Context types for the visitor
-interface CstNodeWithImage {
-  image: string;
-}
-
 interface PortLineContext {
   inputPort?: CstNode[];
   outputPort?: CstNode[];
@@ -387,9 +388,7 @@ class PortVisitor extends BaseVisitor {
     } else if (ctx.defaultValueInt?.[0]) {
       defaultValue = ctx.defaultValueInt[0].image;
     } else if (ctx.defaultValueStr?.[0]) {
-      // Remove quotes from string literal
-      const raw = ctx.defaultValueStr[0].image;
-      defaultValue = raw.slice(1, -1);
+      defaultValue = unquoteStringLiteral(ctx.defaultValueStr[0].image);
     }
 
     let scope: string | undefined;
@@ -585,9 +584,7 @@ class PortVisitor extends BaseVisitor {
     let value: string | boolean | number;
 
     if (ctx.customStrVal) {
-      // Remove quotes from string literal
-      const raw = ctx.customStrVal[0].image;
-      value = raw.slice(1, -1);
+      value = unquoteStringLiteral(ctx.customStrVal[0].image);
     } else if (ctx.customTrue) {
       value = true;
     } else if (ctx.customFalse) {
@@ -622,40 +619,25 @@ const visitorInstance = new PortVisitor();
  * Returns null if the line is not a port declaration.
  */
 export function parsePortLine(input: string, warnings: string[]): PortParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
+  // Lexer errors are ignored: the free-text description can hold characters
+  // the lexer does not know.
+  const tokens = lexTaggedLine(input, [InputTag, OutputTag, StepTag], { ignoreLexErrors: true });
+  if (!tokens) return null;
 
-  // Ignore lexer errors for now - we may have special chars in description
-  // Just ensure we have at least one token
-
-  // Check if starts with @input, @output, or @step
-  if (lexResult.tokens.length === 0) {
-    return null;
-  }
-
-  const firstToken = lexResult.tokens[0];
-  if (
-    firstToken.tokenType !== InputTag &&
-    firstToken.tokenType !== OutputTag &&
-    firstToken.tokenType !== StepTag
-  ) {
-    return null;
-  }
-
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.portLine();
-
-  if (parserInstance.errors.length > 0) {
-    const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    const expectedTokens = firstError.context?.ruleStack?.length
-      ? ` in rule "${firstError.context.ruleStack[firstError.context.ruleStack.length - 1]}"`
-      : '';
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.portLine());
+  if (error) {
+    const ruleStack = error.context?.ruleStack;
+    const context = ruleStack?.length ? ` in rule "${ruleStack[ruleStack.length - 1]}"` : '';
     warnings.push(
-      `Failed to parse port line: "${truncatedInput}"${expectedTokens}\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @input <name> [scope:scopeName] [order:N] - description\n` +
-        `                   @output <name> - description\n` +
-        `                   @step <name> - description`
+      lineFailure(
+        'port',
+        input,
+        error.message,
+        '@input <name> [scope:scopeName] [order:N] - description\n' +
+          '                   @output <name> - description\n' +
+          '                   @step <name> - description',
+        { context }
+      )
     );
     return null;
   }

@@ -1,6 +1,7 @@
 import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST } from '../ast';
 import { isSuccessPort, isFailurePort } from '../constants';
-import { buildDurableGatePayload, buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
+import { buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
+import { emitDurableNodeCall } from './node-invocation';
 import { performKahnsTopologicalSort, buildControlFlowGraph } from './control-flow';
 import { mapToTypeScript } from '../types/type-mappings';
 
@@ -309,26 +310,20 @@ export function generateScopeFunctionClosure(
       // Add argument building lines
       argLines.forEach((line) => lines.push(line));
 
-      // Call the child node function
-      if (childNodeType.durableGate) {
-        const trailingRuntimeArgs =
-          (childNodeType.receivesAbortSignal ? 1 : 0) + (childNodeType.receivesRuntime ? 1 : 0);
-        const gateArgs = args.slice(
-          childNodeType.expression ? 0 : 1,
-          trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
-        );
-        lines.push(
-          `${tryIndent}const ${childResultVar} = scopedCtx.resolveGate('${childNodeType.durableGate}', '${child.id}', '${child.nodeType}', ${safeChildId}Idx, ${buildDurableGatePayload(gateArgs)} as unknown as WireValue) as any;`,
-        );
-      } else if (childNodeType.durableEffect) {
-        lines.push(
-          `${tryIndent}const ${childResultVar} = await scopedCtx.executeEffect('${child.id}', '${child.nodeType}', ${safeChildId}Idx, async (__operationKey__) => ${child.nodeType}(${[...args, '__operationKey__'].join(', ')}));`,
-        );
-      } else if (childNodeType.expression) {
-        // Expression nodes use original signature (positional args, no execute)
-        lines.push(`${tryIndent}const ${childResultVar} = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`);
-      } else {
-        // Regular node call with positional arguments
+      // Call the child node function. Expression and regular children alike
+      // take positional arguments (an expression has no execute argument).
+      const childCall = {
+        nodeType: childNodeType,
+        instanceId: child.id,
+        safeId: safeChildId,
+        functionName: child.nodeType,
+        resultVar: childResultVar,
+        args,
+        ctxVar: 'scopedCtx',
+        indent: tryIndent,
+        lines,
+      };
+      if (!emitDurableNodeCall(childCall, 'any')) {
         lines.push(`${tryIndent}const ${childResultVar} = ${awaitPrefix}${child.nodeType}(${args.join(', ')});`);
       }
 

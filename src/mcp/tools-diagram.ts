@@ -54,7 +54,7 @@ export function registerDiagramTools(mcp: McpServer): void {
     }) => {
       try {
         if (!args.filePath && !args.source) {
-          return makeErrorResult('MISSING_PARAM', 'Provide either filePath or source parameter');
+          return makeErrorResult('INVALID_INPUT', 'Provide either filePath or source parameter');
         }
 
         const format = args.format ?? 'svg';

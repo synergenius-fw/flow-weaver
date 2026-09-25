@@ -15,10 +15,85 @@ import type {
   TPortDefinition,
 } from '../ast/types';
 import { isControlFlowPort } from '../constants';
-import { isPathImpliedDataEdge, pathDataEdgesSatisfied } from '../parser/path-data-resolution';
+import {
+  isPathImpliedDataEdge,
+  pathDataEdgesSatisfied,
+  type PathPortLookup,
+} from '../parser/path-data-resolution';
 
 export interface DetectedSugar {
   paths: TPathMacro[];
+}
+
+type PathStep = { node: string; route?: 'ok' | 'fail' };
+
+// =============================================================================
+// Shared helpers
+// =============================================================================
+
+/** Keys (`from.port->to.port`) of every connection with no scope on either end. */
+function unscopedConnectionKeys(connections: TConnectionAST[]): Set<string> {
+  const keys = new Set<string>();
+  for (const conn of connections) {
+    if (!conn.from.scope && !conn.to.scope) {
+      keys.add(`${conn.from.node}.${conn.from.port}->${conn.to.node}.${conn.to.port}`);
+    }
+  }
+  return keys;
+}
+
+/**
+ * The key of the control-flow connection a path implies between two
+ * consecutive steps: Start runs the next step, a `:fail` step leaves through
+ * onFailure and any other through onSuccess, and a step into Exit lands on the
+ * Exit port of the same name.
+ */
+function stepPairEdgeKey(current: PathStep, next: PathStep): string {
+  if (current.node === 'Start') return `Start.execute->${next.node}.execute`;
+  const fromPort = current.route === 'fail' ? 'onFailure' : 'onSuccess';
+  const toPort = next.node === 'Exit' ? fromPort : 'execute';
+  return `${current.node}.${fromPort}->${next.node}.${toPort}`;
+}
+
+/** The control-flow connection keys a path implies, one per consecutive pair of steps. */
+function pathEdgeKeys(steps: PathStep[]): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < steps.length - 1; i++) {
+    keys.push(stepPairEdgeKey(steps[i], steps[i + 1]));
+  }
+  return keys;
+}
+
+/**
+ * Port lookup for path data edges: a step's ports come from its node type
+ * (by name or function name), Start's outputs are the workflow's start ports
+ * and Exit's inputs are its exit ports.
+ */
+function workflowPortLookup(
+  instances: TNodeInstanceAST[],
+  nodeTypes: TNodeTypeAST[],
+  startPorts: Record<string, TPortDefinition>,
+  exitPorts: Record<string, TPortDefinition>,
+): PathPortLookup {
+  const instanceMap = new Map(instances.map((inst) => [inst.id, inst]));
+  const nodeTypeMap = new Map<string, TNodeTypeAST>();
+  for (const nt of nodeTypes) {
+    nodeTypeMap.set(nt.name, nt);
+    if (nt.functionName !== nt.name) {
+      nodeTypeMap.set(nt.functionName, nt);
+    }
+  }
+
+  const getNodeType = (nodeId: string): TNodeTypeAST | undefined => {
+    const inst = instanceMap.get(nodeId);
+    if (!inst) return undefined;
+    return nodeTypeMap.get(inst.nodeType);
+  };
+
+  return {
+    inputs: (nodeId) => (nodeId === 'Exit' ? exitPorts : getNodeType(nodeId)?.inputs || {}),
+    outputs: (nodeId) => (nodeId === 'Start' ? startPorts : getNodeType(nodeId)?.outputs || {}),
+  };
 }
 
 // =============================================================================
@@ -53,41 +128,10 @@ export function validatePathMacro(
     if (!instanceIds.has(step.node)) return false;
   }
 
-  // Build a quick lookup set for unscoped connections
-  const connKeys = new Set<string>();
-  for (const conn of connections) {
-    if (!conn.from.scope && !conn.to.scope) {
-      connKeys.add(`${conn.from.node}.${conn.from.port}->${conn.to.node}.${conn.to.port}`);
-    }
-  }
-
-  // For each consecutive pair, compute expected control-flow connection
-  for (let i = 0; i < path.steps.length - 1; i++) {
-    const current = path.steps[i];
-    const next = path.steps[i + 1];
-    const route = current.route || 'ok';
-
-    let expectedKey: string;
-
-    if (current.node === 'Start') {
-      expectedKey = `Start.execute->${next.node}.execute`;
-    } else if (next.node === 'Exit') {
-      if (route === 'fail') {
-        expectedKey = `${current.node}.onFailure->Exit.onFailure`;
-      } else {
-        expectedKey = `${current.node}.onSuccess->Exit.onSuccess`;
-      }
-    } else {
-      if (route === 'fail') {
-        expectedKey = `${current.node}.onFailure->${next.node}.execute`;
-      } else {
-        expectedKey = `${current.node}.onSuccess->${next.node}.execute`;
-      }
-    }
-
-    if (!connKeys.has(expectedKey)) {
-      return false;
-    }
+  // Every consecutive pair needs its control-flow connection
+  const connKeys = unscopedConnectionKeys(connections);
+  if (!pathEdgeKeys(path.steps).every((key) => connKeys.has(key))) {
+    return false;
   }
 
   // Validate data connections (scope walking) — same algorithm as
@@ -95,37 +139,11 @@ export function validatePathMacro(
   // If any data connection that the path would auto-generate is missing,
   // the path is stale (a connection was explicitly removed).
   if (nodeTypes && startPorts && exitPorts) {
-    const instanceMap = new Map(instances.map(inst => [inst.id, inst]));
-    const nodeTypeMap = new Map<string, TNodeTypeAST>();
-    for (const nt of nodeTypes) {
-      nodeTypeMap.set(nt.name, nt);
-      if (nt.functionName !== nt.name) {
-        nodeTypeMap.set(nt.functionName, nt);
-      }
-    }
-
-    const getNodeType = (nodeId: string): TNodeTypeAST | undefined => {
-      const inst = instanceMap.get(nodeId);
-      if (!inst) return undefined;
-      return nodeTypeMap.get(inst.nodeType);
-    };
-
-    const getOutputPorts = (nodeId: string): Record<string, TPortDefinition> => {
-      if (nodeId === 'Start') return startPorts;
-      const nt = getNodeType(nodeId);
-      return nt?.outputs || {};
-    };
-
-    const getInputPorts = (nodeId: string): Record<string, TPortDefinition> => {
-      if (nodeId === 'Exit') return exitPorts;
-      const nt = getNodeType(nodeId);
-      return nt?.inputs || {};
-    };
-
     // Every data edge the path implies (Exit included) must still be present,
     // or explicitly overridden, in the connection set.
+    const ports = workflowPortLookup(instances, nodeTypes, startPorts, exitPorts);
     const unscoped = connections.filter((c) => !c.from.scope && !c.to.scope);
-    if (!pathDataEdgesSatisfied(path.steps, { inputs: getInputPorts, outputs: getOutputPorts }, unscoped)) {
+    if (!pathDataEdgesSatisfied(path.steps, ports, unscoped)) {
       return false;
     }
   }
@@ -150,13 +168,7 @@ export function filterStaleMacros(
   instanceIds.add('Start');
   instanceIds.add('Exit');
 
-  // Build connection key set for quick lookup
-  const connKeys = new Set<string>();
-  for (const conn of connections) {
-    if (!conn.from.scope && !conn.to.scope) {
-      connKeys.add(`${conn.from.node}.${conn.from.port}->${conn.to.node}.${conn.to.port}`);
-    }
-  }
+  const connKeys = unscopedConnectionKeys(connections);
 
   return macros.filter(macro => {
     if (macro.type === 'path') return validatePathMacro(macro, connections, instances, nodeTypes, startPorts, exitPorts);
@@ -193,8 +205,6 @@ export function filterStaleMacros(
 // Path Detection (auto-detect @path routes from connections)
 // =============================================================================
 
-type PathStep = { node: string; route?: 'ok' | 'fail' };
-
 /**
  * Detect @path routes from a set of connections.
  *
@@ -217,33 +227,7 @@ export function detectSugarPatterns(
   // Filter out scoped connections — never optimize those
   const unscopedConns = connections.filter((c) => !c.from.scope && !c.to.scope);
 
-  // Build lookup helpers
-  const instanceMap = new Map(instances.map((inst) => [inst.id, inst]));
-  const nodeTypeMap = new Map<string, TNodeTypeAST>();
-  for (const nt of nodeTypes) {
-    nodeTypeMap.set(nt.name, nt);
-    if (nt.functionName !== nt.name) {
-      nodeTypeMap.set(nt.functionName, nt);
-    }
-  }
-
-  const getNodeType = (nodeId: string): TNodeTypeAST | undefined => {
-    const inst = instanceMap.get(nodeId);
-    if (!inst) return undefined;
-    return nodeTypeMap.get(inst.nodeType);
-  };
-
-  const getOutputPorts = (nodeId: string): Record<string, TPortDefinition> => {
-    if (nodeId === 'Start') return startPorts;
-    const nt = getNodeType(nodeId);
-    return nt?.outputs || {};
-  };
-
-  const getInputPorts = (nodeId: string): Record<string, TPortDefinition> => {
-    if (nodeId === 'Exit') return exitPorts;
-    const nt = getNodeType(nodeId);
-    return nt?.inputs || {};
-  };
+  const ports = workflowPortLookup(instances, nodeTypes, startPorts, exitPorts);
 
   // ---- Step 1: Build control-flow adjacency ----
   // adj[node] = { ok?: targetNode, fail?: targetNode }
@@ -354,7 +338,7 @@ export function detectSugarPatterns(
     // A candidate is only a valid @path if every data edge it would imply
     // (Exit included) already exists or was explicitly overridden; otherwise
     // emitting it would create connections the author never wrote.
-    return pathDataEdgesSatisfied(route, { inputs: getInputPorts, outputs: getOutputPorts }, unscopedConns);
+    return pathDataEdgesSatisfied(route, ports, unscopedConns);
   });
 
   // ---- Step 4: Greedy route selection (cover all control-flow edges) ----
@@ -379,47 +363,8 @@ export function detectSugarPatterns(
   // Remove edges already covered by existing macros
   for (const macro of existingMacros) {
     if (macro.type === 'path') {
-      for (let i = 0; i < macro.steps.length - 1; i++) {
-        const current = macro.steps[i];
-        const next = macro.steps[i + 1];
-        const route = current.route || 'ok';
-        let key: string;
-        if (current.node === 'Start') {
-          key = `Start.execute->${next.node}.execute`;
-        } else if (next.node === 'Exit') {
-          const fromPort = route === 'fail' ? 'onFailure' : 'onSuccess';
-          const toPort = route === 'fail' ? 'onFailure' : 'onSuccess';
-          key = `${current.node}.${fromPort}->Exit.${toPort}`;
-        } else {
-          const fromPort = route === 'fail' ? 'onFailure' : 'onSuccess';
-          key = `${current.node}.${fromPort}->${next.node}.execute`;
-        }
-        allCFEdges.delete(key);
-      }
+      for (const key of pathEdgeKeys(macro.steps)) allCFEdges.delete(key);
     }
-  }
-
-  // Compute edges covered by each candidate route
-  function getRouteEdges(route: PathStep[]): CFEdge[] {
-    const edges: CFEdge[] = [];
-    for (let i = 0; i < route.length - 1; i++) {
-      const current = route[i];
-      const next = route[i + 1];
-      const routeVal = current.route || 'ok';
-      let key: string;
-      if (current.node === 'Start') {
-        key = `Start.execute->${next.node}.execute`;
-      } else if (next.node === 'Exit') {
-        const fromPort = routeVal === 'fail' ? 'onFailure' : 'onSuccess';
-        const toPort = routeVal === 'fail' ? 'onFailure' : 'onSuccess';
-        key = `${current.node}.${fromPort}->Exit.${toPort}`;
-      } else {
-        const fromPort = routeVal === 'fail' ? 'onFailure' : 'onSuccess';
-        key = `${current.node}.${fromPort}->${next.node}.execute`;
-      }
-      edges.push(key);
-    }
-    return edges;
   }
 
   // Sort by length (longest first) for greedy selection
@@ -428,7 +373,7 @@ export function detectSugarPatterns(
   const coveredEdges = new Set<CFEdge>();
 
   for (const route of sortedRoutes) {
-    const routeEdges = getRouteEdges(route);
+    const routeEdges = pathEdgeKeys(route);
     const newEdges = routeEdges.filter(e => allCFEdges.has(e) && !coveredEdges.has(e));
 
     if (newEdges.length > 0) {

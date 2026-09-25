@@ -155,7 +155,7 @@ export type TMarketplacePackageInfo = {
   publisher?: string;
   /** Package keywords */
   keywords?: string[];
-  /** Whether this is an official @synergenius package */
+  /** Published under the maintainers' `@synergenius/` npm scope. Any other scope is a third-party pack. */
   official: boolean;
 };
 

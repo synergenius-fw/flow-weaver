@@ -3,9 +3,24 @@
  * Tests generateInlineRuntime
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { generateInlineRuntime } from '../../src/api/inline-runtime';
 import { createWorkflowRuntime } from '../../src/runtime/durable-execution';
 import * as ts from 'typescript';
+
+const EXECUTION_CONTEXT_SOURCE = fs.readFileSync(
+  path.resolve(__dirname, '../../src/runtime/ExecutionContext.ts'),
+  'utf8',
+);
+
+/** A method of the package class, from its signature to its closing brace at member depth. */
+function packageMethod(name: string): string {
+  const start = EXECUTION_CONTEXT_SOURCE.indexOf(`\n  ${name}(`);
+  const end = EXECUTION_CONTEXT_SOURCE.indexOf('\n  }\n', start);
+  if (start < 0 || end < 0) throw new Error(`${name} not found in ExecutionContext.ts`);
+  return EXECUTION_CONTEXT_SOURCE.slice(start + 1, end + 4);
+}
 
 interface GeneratedContext {
   setVariable(address: {
@@ -248,6 +263,38 @@ describe('Inline Runtime API', () => {
         expect(code).toContain('getVariableKey(address: VariableAddress): string');
         expect(code).toContain('${address.id}:${address.portName}:${address.executionIndex}');
       });
+    });
+  });
+
+  describe('one source for the execution context', () => {
+    // A compiled file's GeneratedExecutionContext is src/runtime/ExecutionContext.ts
+    // as text, not a second copy typed out in inline-runtime.ts.
+    it('writes the package class verbatim into a development build, markers and doc-comment openers aside', () => {
+      const classStart = EXECUTION_CONTEXT_SOURCE.indexOf('export class GeneratedExecutionContext {');
+      const expected = EXECUTION_CONTEXT_SOURCE.slice(classStart)
+        .replace(/^export /, '')
+        .replace(/^[ \t]*\/\/ inline: .*\n/gm, '')
+        .replace(/^(\s*)\/\*\*/gm, '$1/*')
+        .trimEnd();
+      const code = generateInlineRuntime(false);
+      expect(code).toContain(expected);
+      expect(code.match(/class GeneratedExecutionContext\b/g)).toHaveLength(1);
+    });
+
+    it('carries the same scope, merge and fork logic into a production build', () => {
+      const code = generateInlineRuntime(true);
+      for (const name of ['createScope', 'mergeScope', 'forkParallel', 'mergeParallel', 'private retrieveVariable', 'addExecution']) {
+        expect(code).toContain(packageMethod(name));
+      }
+      expect(packageMethod('createScope')).toContain('isAsyncOverride?: boolean');
+      expect(packageMethod('createScope')).toContain('scopedContext.nodeExecutionCounts = new Map(this.nodeExecutionCounts);');
+      expect(code).not.toContain('// inline:');
+      expect(code).not.toContain('resumedScopeHighWater');
+    });
+
+    it('exports the class by keyword for a shared runtime module', () => {
+      expect(generateInlineRuntime(true, true)).toContain('export class GeneratedExecutionContext {');
+      expect(generateInlineRuntime(true, false)).not.toContain('export class GeneratedExecutionContext');
     });
   });
 

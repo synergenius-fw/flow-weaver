@@ -6,6 +6,7 @@ import {
   BundleChangedError,
   createLocalCoordinator,
   createMemoryRunStore,
+  RunBusyError,
   RunNotFoundError,
   RunNotWaitingError,
 } from '../../../src/coordinator/index.js';
@@ -31,8 +32,10 @@ describe('local coordinator run store', () => {
 
     expect(view.status).toBe('waiting');
     expect(view.gate).toEqual({ kind: 'approval', node: 'approval', inputs: { value: 8 }, absent: [] });
-    expect(fs.existsSync(path.join(rootDir, view.runId, 'run.json'))).toBe(true);
-    expect(fs.existsSync(path.join(rootDir, view.runId, 'continuation.json'))).toBe(true);
+    // One file holds the gate and the continuation, so one write commits both.
+    const stored = JSON.parse(fs.readFileSync(path.join(rootDir, view.runId, 'run.json'), 'utf8'));
+    expect(stored.continuation).toMatchObject({ runId: view.runId, gateId: stored.gate.id });
+    expect(fs.existsSync(path.join(rootDir, view.runId, 'continuation.json'))).toBe(false);
   });
 
   it('resumes to completion and removes the continuation', async () => {
@@ -42,7 +45,7 @@ describe('local coordinator run store', () => {
 
     expect(done.status).toBe('completed');
     expect(done.result).toEqual({ onSuccess: true, onFailure: false, result: 9 });
-    expect(fs.existsSync(path.join(rootDir, paused.runId, 'continuation.json'))).toBe(false);
+    expect((await coordinator.record(paused.runId))?.continuation).toBeUndefined();
   });
 
   it('holds nothing in memory: a fresh coordinator on the same directory resumes the run', async () => {
@@ -58,13 +61,13 @@ describe('local coordinator run store', () => {
     const coordinator = createLocalCoordinator({ rootDir });
     const first = await coordinator.start({ filePath: twoGates, params: { value: 1 } });
     expect(first.gate?.kind).toBe('approval');
-    const before = fs.readFileSync(path.join(rootDir, first.runId, 'continuation.json'), 'utf8');
+    const before = (await coordinator.record(first.runId))?.continuation;
 
     const second = await coordinator.resume({ runId: first.runId, input: { answer: 2 } });
     expect(second.status).toBe('waiting');
     expect(second.gate?.kind).toBe('input');
-    const after = fs.readFileSync(path.join(rootDir, first.runId, 'continuation.json'), 'utf8');
-    expect(after).not.toBe(before);
+    const after = (await coordinator.record(first.runId))?.continuation;
+    expect(after?.gateId).not.toBe(before?.gateId);
 
     const done = await coordinator.resume({ runId: first.runId, input: { answer: 3 } });
     expect(done.status).toBe('completed');
@@ -85,15 +88,12 @@ describe('local coordinator run store', () => {
     // back: this is the window between the engine returning and the
     // coordinator writing, if the process had died there.
     const runFile = path.join(rootDir, paused.runId, 'run.json');
-    const contFile = path.join(rootDir, paused.runId, 'continuation.json');
     const runSnapshot = fs.readFileSync(runFile);
-    const contSnapshot = fs.readFileSync(contFile);
 
     const done = await coordinator.resume({ runId: paused.runId, input: { answer: 4 } });
     expect(done.result).toEqual({ onSuccess: true, onFailure: false, value: 4 });
 
     fs.writeFileSync(runFile, runSnapshot);
-    fs.writeFileSync(contFile, contSnapshot);
     delete (globalThis as Record<string, unknown>)[flag];
 
     const again = await coordinator.resume({ runId: paused.runId, input: { answer: 4 } });
@@ -104,29 +104,46 @@ describe('local coordinator run store', () => {
   it('leaves a run waiting when the resume is refused before anything ran', async () => {
     const coordinator = createLocalCoordinator({ rootDir });
     const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
-    const contFile = path.join(rootDir, paused.runId, 'continuation.json');
+    const runFile = path.join(rootDir, paused.runId, 'run.json');
     // A continuation whose checksum no longer matches is refused by the engine
     // before a single node runs. Nothing happened, so nothing has failed.
-    const envelope = JSON.parse(fs.readFileSync(contFile, 'utf8'));
-    fs.writeFileSync(contFile, JSON.stringify({ ...envelope, checksum: 'sha256:' + '0'.repeat(64) }));
+    const stored = JSON.parse(fs.readFileSync(runFile, 'utf8'));
+    fs.writeFileSync(runFile, JSON.stringify({ ...stored, continuation: { ...stored.continuation, checksum: 'sha256:' + '0'.repeat(64) } }));
 
     await expect(coordinator.resume({ runId: paused.runId, input: { answer: 8 } })).rejects.toBeInstanceOf(ContinuationRefusalError);
     expect((await coordinator.get(paused.runId))?.status).toBe('waiting');
-    expect(fs.existsSync(contFile)).toBe(true);
+    expect((await coordinator.record(paused.runId))?.continuation).toBeDefined();
   });
 
-  it('refuses, without failing the run, when the record is a gate behind its continuation', async () => {
+  it('recovers a yield whose commit was cut short: the gate the stored continuation is at can be answered', async () => {
     const coordinator = createLocalCoordinator({ rootDir });
     const first = await coordinator.start({ filePath: twoGates, params: { value: 1 } });
     const runFile = path.join(rootDir, first.runId, 'run.json');
     const recordAtFirstGate = fs.readFileSync(runFile);
     await coordinator.resume({ runId: first.runId, input: { answer: 2 } });
-    // The process died after the second continuation landed and before the
-    // record did: the record still names the first gate.
+    // The process died while committing the second yield, before the write
+    // that commits it landed: the store still holds the first gate.
     fs.writeFileSync(runFile, recordAtFirstGate);
 
-    await expect(coordinator.resume({ runId: first.runId, input: { answer: 2 } })).rejects.toThrow(/record names gate/);
-    expect((await coordinator.get(first.runId))?.status).toBe('waiting');
+    const again = await coordinator.resume({ runId: first.runId, input: { answer: 2 } });
+    expect(again).toMatchObject({ status: 'waiting', gate: { kind: 'input', node: 'second', inputs: { value: 2 } } });
+    const done = await coordinator.resume({ runId: first.runId, input: { answer: 3 } });
+    expect(done.status).toBe('completed');
+    expect(done.result).toMatchObject({ value: 3 });
+  });
+
+  it('still resumes a run paused before the continuation moved into the record', async () => {
+    const coordinator = createLocalCoordinator({ rootDir });
+    const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
+    // The layout an older version wrote: the envelope in its own document.
+    const runFile = path.join(rootDir, paused.runId, 'run.json');
+    const { continuation, ...legacy } = JSON.parse(fs.readFileSync(runFile, 'utf8'));
+    fs.writeFileSync(runFile, JSON.stringify(legacy));
+    fs.writeFileSync(path.join(rootDir, paused.runId, 'continuation.json'), JSON.stringify(continuation));
+
+    const done = await coordinator.resume({ runId: paused.runId, input: { answer: 8 } });
+    expect(done.result).toEqual({ onSuccess: true, onFailure: false, result: 9 });
+    expect(fs.existsSync(path.join(rootDir, paused.runId, 'continuation.json'))).toBe(false);
   });
 
   it('does not cancel a run that another driver completed while the cancel was on its way', async () => {
@@ -150,6 +167,43 @@ describe('local coordinator run store', () => {
     const done = await coordinator.get(paused.runId);
     expect(done?.status).toBe('completed');
     expect(done?.result).toEqual({ onSuccess: true, onFailure: false, result: 9 });
+  });
+
+  it.each([
+    ['another coordinator on the store', true],
+    ['the same coordinator', false],
+  ])('does not lose a commit by %s that lands while an agent note is written', async (_label, separate) => {
+    const store = createMemoryRunStore();
+    const coordinator = createLocalCoordinator({ store });
+    const racer = separate ? createLocalCoordinator({ store }) : coordinator;
+    const paused = await coordinator.start({ filePath: approval, params: { value: 4 } });
+    // The other driver resumes once, after setAgent has read the record and
+    // just before it writes. Its own writes go through the same wrapper, so
+    // the flag is cleared before it starts.
+    const put = store.put.bind(store);
+    let armed = false;
+    let raced: unknown;
+    store.put = async (record) => {
+      if (armed) {
+        armed = false;
+        raced = await racer.resume({ runId: record.runId, input: { answer: 8 } }).catch((error: unknown) => error);
+      }
+      return put(record);
+    };
+
+    armed = true;
+    const note = { gateId: 'g', node: 'approval', profile: 'p', provider: 'fake', status: 'answering' as const, startedAt: new Date().toISOString() };
+    await coordinator.setAgent(paused.runId, note);
+
+    // Either the commit went in and stays, or it was refused and nothing moved.
+    const after = await coordinator.record(paused.runId);
+    if (raced instanceof RunBusyError) {
+      expect(after).toMatchObject({ status: 'waiting', agent: note });
+      const done = await racer.resume({ runId: paused.runId, input: { answer: 8 } });
+      expect(done).toMatchObject({ status: 'completed', result: { result: 9 } });
+    } else {
+      expect(after).toMatchObject({ status: 'completed', result: { result: 9 } });
+    }
   });
 
   it('refuses to resume a completed run', async () => {
@@ -255,7 +309,7 @@ describe('local coordinator run store', () => {
     const cancelled = await coordinator.cancel(paused.runId);
     expect(cancelled.status).toBe('cancelled');
     expect(cancelled.error).toBeUndefined();
-    expect(fs.existsSync(path.join(rootDir, paused.runId, 'continuation.json'))).toBe(false);
+    expect((await coordinator.record(paused.runId))?.continuation).toBeUndefined();
     await expect(coordinator.resume({ runId: paused.runId, input: { answer: 8 } })).rejects.toMatchObject({
       name: 'RunNotWaitingError',
       status: 'cancelled',

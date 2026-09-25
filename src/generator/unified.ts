@@ -1,8 +1,8 @@
 import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST, TPortDefinition } from '../ast/types';
 import { extractStartPorts } from '../ast/workflow-utils';
 import { mapToTypeScript } from '../types/type-mappings';
-import { COERCE_EXPRESSIONS } from '../built-in-nodes/coercion-types';
-import { buildDurableGatePayload, buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
+import { buildNodeArgumentsWithContext, nodeResultVar, toValidIdentifier } from './code-utils';
+import { emitDurableNodeCall, emitNodeInvocation, emitPlainNodeCall, emitResultOutputs } from './node-invocation';
 import {
   buildControlFlowGraph,
   computeParallelLevels,
@@ -201,7 +201,6 @@ export function generateControlFlowWithExecutionContext(
       workflow,
       allInstanceIds,
       branchingNodes,
-      nodeTypes,
     );
     const failureNodes = findNodesInBranch(
       branchInstanceId,
@@ -209,7 +208,6 @@ export function generateControlFlowWithExecutionContext(
       workflow,
       allInstanceIds,
       branchingNodes,
-      nodeTypes,
     );
     branchRegions.set(branchInstanceId, { successNodes, failureNodes });
   });
@@ -1354,194 +1352,6 @@ function generateBranchingChainCode(
   }
 }
 
-/**
- * Emits, into the branching node's `try` block, the node invocation and the
- * extraction of its output ports into the execution context. Handles the five
- * variants: expression, MAP_ITERATOR, IMPORTED_WORKFLOW/WORKFLOW, scoped, and
- * regular. Extracted verbatim from generateBranchingNodeCode to reduce its
- * length; behavior is identical (pure line emission).
- */
-function emitBranchNodeCallAndOutputs(params: {
-  branchNode: TNodeTypeAST;
-  safeId: string;
-  instanceId: string;
-  functionName: string;
-  awaitKeyword: string;
-  argNames: string[];
-  setCall: string;
-  indent: string;
-  isAsync: boolean;
-  ctxVar: string;
-  lines: string[];
-}): void {
-  const {
-    branchNode,
-    safeId,
-    instanceId,
-    functionName,
-    awaitKeyword,
-    argNames,
-    setCall,
-    indent,
-    isAsync,
-    ctxVar,
-    lines,
-  } = params;
-  // Never let the result local shadow the function it calls (see nodeResultVar).
-  const resultVar = nodeResultVar(safeId, functionName);
-
-  if (branchNode.durableGate) {
-    const trailingRuntimeArgs = (branchNode.receivesAbortSignal ? 1 : 0) + (branchNode.receivesRuntime ? 1 : 0);
-    const gateArgs = argNames.slice(
-      branchNode.expression ? 0 : 1,
-      trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
-    );
-    lines.push(
-      `${indent}  const ${resultVar} = ${ctxVar}.resolveGate('${branchNode.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as unknown as WireValue) as any;`,
-    );
-    Object.keys(branchNode.outputs).forEach((portName) => {
-      const portConfig = branchNode.outputs[portName];
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else if (branchNode.durableEffect) {
-    lines.push(
-      `${indent}  const ${resultVar} = await ${ctxVar}.executeEffect('${instanceId}', '${functionName}', ${safeId}Idx, async (__operationKey__) => ${functionName}(${[...argNames, '__operationKey__'].join(', ')}));`,
-    );
-    Object.keys(branchNode.outputs).forEach((portName) => {
-      const portConfig = branchNode.outputs[portName];
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else if (branchNode.expression) {
-    // Expression branching node: call without execute, auto-set onSuccess/onFailure
-    lines.push(`${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${argNames.join(', ')});`);
-
-    // Determine data output ports (exclude control flow and scoped ports)
-    const dataOutputPorts = Object.keys(branchNode.outputs).filter((portName) => {
-      const portConfig = branchNode.outputs[portName];
-      if (portConfig.scope) return false;
-      if (isSuccessPort(portName) || isFailurePort(portName)) return false;
-      if (portConfig.isControlFlow || portConfig.failure) return false;
-      return true;
-    });
-
-    if (dataOutputPorts.length === 1) {
-      // Single data output: destructure if result is an object with the port key, else use raw value
-      // Extract to unknown-typed variable to prevent TypeScript from narrowing
-      // specific return types (e.g. boolean) to `never` in the typeof check
-      const portName = dataOutputPorts[0];
-      const rawVar = `${resultVar}_raw`;
-      lines.push(`${indent}  const ${rawVar}: unknown = ${resultVar};`);
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, typeof ${rawVar} === 'object' && ${rawVar} !== null && '${portName}' in ${rawVar} ? ${rawVar}.${portName} : ${rawVar});`,
-      );
-    } else {
-      // Multiple data outputs: destructure from object return
-      dataOutputPorts.forEach((portName) => {
-        lines.push(
-          `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-        );
-      });
-    }
-
-    // Auto-set onSuccess/onFailure
-    lines.push(
-      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'onSuccess', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, true);`,
-    );
-    lines.push(
-      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'onFailure', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, false);`,
-    );
-  } else if (branchNode.variant === 'MAP_ITERATOR') {
-    // MAP_ITERATOR: inline iteration — no user function to call
-    // argNames: [execute, items, scopeFn]
-    const executeArg = argNames[0];
-    const itemsArg = argNames[1];
-    const scopeFnArg = argNames[2];
-    lines.push(`${indent}  let ${resultVar}: { onSuccess: boolean; onFailure: boolean; results: unknown[] };`);
-    lines.push(`${indent}  if (!${executeArg}) {`);
-    lines.push(`${indent}    ${resultVar} = { onSuccess: false, onFailure: false, results: [] };`);
-    lines.push(`${indent}  } else {`);
-    lines.push(`${indent}    const __results: unknown[] = [];`);
-    lines.push(`${indent}    for (const __item of ${itemsArg}) {`);
-    lines.push(`${indent}      __results.push((${isAsync ? 'await ' : ''}${scopeFnArg}(true, __item)).processed);`);
-    lines.push(`${indent}    }`);
-    lines.push(`${indent}    ${resultVar} = { onSuccess: true, onFailure: false, results: __results };`);
-    lines.push(`${indent}  }`);
-
-    // Set output ports from result
-    Object.keys(branchNode.outputs).forEach((portName) => {
-      const portConfig = branchNode.outputs[portName];
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else if (branchNode.variant === 'IMPORTED_WORKFLOW' || branchNode.variant === 'WORKFLOW') {
-    // Check if this is a workflow call (IMPORTED_WORKFLOW or WORKFLOW variant)
-    // Workflows use (execute, params) signature where params is an object
-    // Regular nodes use (execute, arg1, arg2, ...) positional signature
-    // For workflow calls, wrap data args in an object and include recursion depth
-    const executeArg = argNames[0]; // First arg is always execute
-    const dataArgs = argNames.slice(1); // Rest are data inputs
-    const inputPortNames = Object.keys(branchNode.inputs).filter((p) => !isExecutePort(p));
-
-    // Build params object: { portName1: value1, portName2: value2, ..., __rd__: __rd__ + 1 }
-    // Assign to variable first to avoid TypeScript excess property checking on object literals
-    const paramsEntries = inputPortNames.map((portName, i) => `${portName}: ${dataArgs[i]}`);
-    paramsEntries.push('__rd__: __rd__ + 1');
-    const paramsObj = `{ ${paramsEntries.join(', ')} }`;
-    const paramsVar = `__${safeId}Params__`;
-
-    lines.push(`${indent}  const ${paramsVar} = ${paramsObj};`);
-    lines.push(
-      `${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar}, ${ctxVar}.createNestedRuntime('${functionName}', '${instanceId}', ${safeId}Idx));`,
-    );
-
-    // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
-    // Skip scoped OUTPUT ports - they're parameters to scope functions, not return values
-    Object.keys(branchNode.outputs).forEach((portName) => {
-      const portConfig = branchNode.outputs[portName];
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else if (branchNode.scope || (branchNode.scopes && branchNode.scopes.length > 0)) {
-    // Scoped node call with positional arguments (uses _impl signature)
-    // Scoped nodes have callback parameters that can't be passed via params object
-    lines.push(`${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${argNames.join(', ')});`);
-
-    // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
-    // Skip scoped OUTPUT ports - they're parameters to scope functions, not return values
-    Object.keys(branchNode.outputs).forEach((portName) => {
-      const portConfig = branchNode.outputs[portName];
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else {
-    // Regular node call - always use positional args
-    // In bundle mode we import _impl which takes (execute, ...positional_args)
-    lines.push(`${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${argNames.join(', ')});`);
-
-    // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
-    // Skip scoped OUTPUT ports - they're parameters to scope functions, not return values
-    Object.keys(branchNode.outputs).forEach((portName) => {
-      const portConfig = branchNode.outputs[portName];
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  }
-}
-
 function generateBranchingNodeCode(
   instance: { id: string; nodeType: string },
   branchNode: TNodeTypeAST,
@@ -1630,19 +1440,10 @@ function generateBranchingNodeCode(
   });
   const awaitKeyword = branchNode.isAsync ? 'await ' : '';
 
-  emitBranchNodeCallAndOutputs({
-    branchNode,
-    safeId,
-    instanceId,
-    functionName,
-    awaitKeyword,
-    argNames,
-    setCall,
-    indent,
-    isAsync,
-    ctxVar,
-    lines,
-  });
+  emitNodeInvocation(
+    { nodeType: branchNode, instanceId, safeId, functionName, resultVar, args: argNames, ctxVar, indent: `${indent}  `, lines },
+    { setCall, isAsync, awaitKeyword, gateResultType: 'any', inlineStubAndCoercion: false },
+  );
   lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);
@@ -1981,76 +1782,13 @@ function generatePullNodeWithContext(
   });
 
   const resultVar = nodeResultVar(safeId, functionName);
-
-  // Check if this is a workflow call (IMPORTED_WORKFLOW or WORKFLOW variant)
-  // Workflows use (execute, params) signature where params is an object
-  // Regular nodes use (execute, arg1, arg2, ...) positional signature
-  if (nodeType.durableGate) {
-    const trailingRuntimeArgs = (nodeType.receivesAbortSignal ? 1 : 0) + (nodeType.receivesRuntime ? 1 : 0);
-    const gateArgs = args.slice(
-      nodeType.expression ? 0 : 1,
-      trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
-    );
-    lines.push(
-      `${indent}    const ${resultVar} = ${ctxVar}.resolveGate('${nodeType.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as unknown as WireValue) as any;`,
-    );
-  } else if (nodeType.durableEffect) {
-    lines.push(
-      `${indent}    const ${resultVar} = await ${ctxVar}.executeEffect('${instanceId}', '${functionName}', ${safeId}Idx, async (__operationKey__) => ${functionName}(${[...args, '__operationKey__'].join(', ')}));`,
-    );
-  } else if (nodeType.variant === 'MAP_ITERATOR') {
-    // MAP_ITERATOR: inline iteration in pull executor
-    const executeArg = args[0];
-    const itemsArg = args[1];
-    const scopeFnArg = args[2];
-    lines.push(`${indent}    let ${resultVar}: { onSuccess: boolean; onFailure: boolean; results: unknown[] };`);
-    lines.push(`${indent}    if (!${executeArg}) {`);
-    lines.push(`${indent}      ${resultVar} = { onSuccess: false, onFailure: false, results: [] };`);
-    lines.push(`${indent}    } else {`);
-    lines.push(`${indent}      const __results: unknown[] = [];`);
-    lines.push(`${indent}      for (const __item of ${itemsArg}) {`);
-    lines.push(
-      `${indent}        __results.push((${executorIsAsync ? 'await ' : ''}${scopeFnArg}(true, __item)).processed);`,
-    );
-    lines.push(`${indent}      }`);
-    lines.push(`${indent}      ${resultVar} = { onSuccess: true, onFailure: false, results: __results };`);
-    lines.push(`${indent}    }`);
-  } else if (nodeType.variant === 'IMPORTED_WORKFLOW' || nodeType.variant === 'WORKFLOW') {
-    // For workflow calls, wrap data args in an object and include recursion depth
-    const executeArg = args[0]; // First arg is always execute
-    const dataArgs = args.slice(1); // Rest are data inputs
-    const inputPortNames = Object.keys(nodeType.inputs).filter((p) => !isExecutePort(p));
-
-    // Build params object: { portName1: value1, portName2: value2, ..., __rd__: __rd__ + 1 }
-    // Assign to variable first to avoid TypeScript excess property checking on object literals
-    const paramsEntries = inputPortNames.map((portName, i) => `${portName}: ${dataArgs[i]}`);
-    paramsEntries.push('__rd__: __rd__ + 1');
-    const paramsObj = `{ ${paramsEntries.join(', ')} }`;
-    const paramsVar = `__${safeId}Params__`;
-
-    lines.push(`${indent}    const ${paramsVar} = ${paramsObj};`);
-    lines.push(
-      `${indent}    const ${resultVar} = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar}, ${ctxVar}.createNestedRuntime('${functionName}', '${instanceId}', ${safeId}Idx));`,
-    );
-  } else if (nodeType.scope || (nodeType.scopes && nodeType.scopes.length > 0)) {
-    // Scoped node call with positional arguments (uses _impl signature)
-    // Scoped nodes have callback parameters that can't be passed via params object
-    lines.push(`${indent}    const ${resultVar} = ${awaitKeyword}${functionName}(${args.join(', ')});`);
-  } else {
-    // Regular node call - always use positional args
-    // In bundle mode we import _impl which takes (execute, ...positional_args)
-    lines.push(`${indent}    const ${resultVar} = ${awaitKeyword}${functionName}(${args.join(', ')});`);
+  const call = { nodeType, instanceId, safeId, functionName, resultVar, args, ctxVar, indent: `${indent}    `, lines };
+  // A pull executor has no expression case: every node is called for its
+  // result object. onSuccess and onFailure are not stored here.
+  if (!emitDurableNodeCall(call, 'any')) {
+    emitPlainNodeCall(call, executorIsAsync, awaitKeyword);
   }
-
-  Object.keys(nodeType.outputs).forEach((portName) => {
-    if (isSuccessPort(portName) || isFailurePort(portName)) return;
-    // Skip scoped OUTPUT ports - they don't exist in the function return value
-    const portConfig = nodeType.outputs[portName];
-    if (portConfig.scope) return;
-    lines.push(
-      `${indent}    ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-    );
-  });
+  emitResultOutputs(call, setCall, (portName) => isSuccessPort(portName) || isFailurePort(portName));
 
   lines.push(`${indent}    ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}      nodeTypeName: '${functionName}',`);
@@ -2289,184 +2027,10 @@ function generateNodeCallWithContext(
   const resultVar = nodeResultVar(safeId, functionName);
   const awaitKeyword = nodeType.isAsync ? 'await ' : '';
 
-  if (nodeType.durableGate) {
-    const trailingRuntimeArgs = (nodeType.receivesAbortSignal ? 1 : 0) + (nodeType.receivesRuntime ? 1 : 0);
-    const gateArgs = args.slice(
-      nodeType.expression ? 0 : 1,
-      trailingRuntimeArgs > 0 ? -trailingRuntimeArgs : undefined,
-    );
-    lines.push(
-      `${indent}  const ${resultVar} = ${ctxVar}.resolveGate('${nodeType.durableGate}', '${instanceId}', '${functionName}', ${safeId}Idx, ${buildDurableGatePayload(gateArgs)} as unknown as WireValue) as Record<string, unknown>;`,
-    );
-    Object.keys(nodeType.outputs).forEach((portName) => {
-      const portConfig = nodeType.outputs[portName];
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else if (nodeType.durableEffect) {
-    lines.push(
-      `${indent}  const ${resultVar} = await ${ctxVar}.executeEffect('${instanceId}', '${functionName}', ${safeId}Idx, async (__operationKey__) => ${functionName}(${[...args, '__operationKey__'].join(', ')}));`,
-    );
-    Object.keys(nodeType.outputs).forEach((portName) => {
-      const portConfig = nodeType.outputs[portName];
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else if (nodeType.variant === 'STUB') {
-    // Stub node: emit a runtime throw. The workflow was generated with generateStubs: true.
-    lines.push(
-      `${indent}  throw new Error('Node "${instanceId}" uses stub type "${functionName}" which has no implementation.');`,
-    );
-  } else if (nodeType.variant === 'COERCION') {
-    // Coercion node: inline JS expression instead of function call
-    const coerceExpr = COERCE_EXPRESSIONS[functionName] || 'String';
-    // args[0] is the value input (execute is skipped for expression nodes)
-    const valueArg = args[0] || 'undefined';
-    lines.push(`${indent}  const ${resultVar} = ${coerceExpr}(${valueArg});`);
-
-    // Set the single result output port
-    lines.push(
-      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'result', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar});`,
-    );
-
-    // Auto-set onSuccess/onFailure
-    lines.push(
-      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'onSuccess', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, true);`,
-    );
-    lines.push(
-      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'onFailure', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, false);`,
-    );
-  } else if (nodeType.expression) {
-    // Expression node: call without execute, map raw return to output ports
-    // _impl returns data only; onSuccess/onFailure are auto-set in the workflow body
-    lines.push(`${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${args.join(', ')});`);
-
-    // Determine data output ports (exclude control flow and scoped ports)
-    const dataOutputPorts = Object.keys(nodeType.outputs).filter((portName) => {
-      const portConfig = nodeType.outputs[portName];
-      if (portConfig.scope) return false;
-      if (isSuccessPort(portName) || isFailurePort(portName)) return false;
-      if (portConfig.isControlFlow || portConfig.failure) return false;
-      return true;
-    });
-
-    if (dataOutputPorts.length === 1) {
-      // Single data output: destructure if result is an object with the port key, else use raw value
-      // Extract to unknown-typed variable to prevent TypeScript from narrowing
-      // specific return types (e.g. boolean) to `never` in the typeof check
-      const portName = dataOutputPorts[0];
-      const rawVar = `${resultVar}_raw`;
-      lines.push(`${indent}  const ${rawVar}: unknown = ${resultVar};`);
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, typeof ${rawVar} === 'object' && ${rawVar} !== null && '${portName}' in ${rawVar} ? ${rawVar}.${portName} : ${rawVar});`,
-      );
-    } else {
-      // Multiple data outputs: destructure from object return
-      dataOutputPorts.forEach((portName) => {
-        lines.push(
-          `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-        );
-      });
-    }
-
-    // Auto-set onSuccess/onFailure
-    lines.push(
-      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'onSuccess', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, true);`,
-    );
-    lines.push(
-      `${indent}  ${setCall}({ id: '${instanceId}', portName: 'onFailure', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, false);`,
-    );
-  } else if (nodeType.variant === 'MAP_ITERATOR') {
-    // MAP_ITERATOR: inline iteration — no user function to call
-    // args: [execute, items, scopeFn]
-    const executeArg = args[0];
-    const itemsArg = args[1];
-    const scopeFnArg = args[2];
-    lines.push(`${indent}  let ${resultVar}: { onSuccess: boolean; onFailure: boolean; results: unknown[] };`);
-    lines.push(`${indent}  if (!${executeArg}) {`);
-    lines.push(`${indent}    ${resultVar} = { onSuccess: false, onFailure: false, results: [] };`);
-    lines.push(`${indent}  } else {`);
-    lines.push(`${indent}    const __results: unknown[] = [];`);
-    lines.push(`${indent}    for (const __item of ${itemsArg}) {`);
-    lines.push(`${indent}      __results.push((${isAsync ? 'await ' : ''}${scopeFnArg}(true, __item)).processed);`);
-    lines.push(`${indent}    }`);
-    lines.push(`${indent}    ${resultVar} = { onSuccess: true, onFailure: false, results: __results };`);
-    lines.push(`${indent}  }`);
-
-    // Set output ports from result
-    Object.keys(nodeType.outputs).forEach((portName) => {
-      const portConfig = nodeType.outputs[portName];
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else if (nodeType.variant === 'IMPORTED_WORKFLOW' || nodeType.variant === 'WORKFLOW') {
-    // Check if this is a workflow call (IMPORTED_WORKFLOW or WORKFLOW variant)
-    // Workflows use (execute, params) signature where params is an object
-    // Regular nodes use (execute, arg1, arg2, ...) positional signature
-    // For workflow calls, wrap data args in an object and include recursion depth
-    const executeArg = args[0]; // First arg is always execute
-    const dataArgs = args.slice(1); // Rest are data inputs
-    const inputPortNames = Object.keys(nodeType.inputs).filter((p) => !isExecutePort(p));
-
-    // Build params object: { portName1: value1, portName2: value2, ..., __rd__: __rd__ + 1 }
-    // Assign to variable first to avoid TypeScript excess property checking on object literals
-    const paramsEntries = inputPortNames.map((portName, i) => `${portName}: ${dataArgs[i]}`);
-    paramsEntries.push('__rd__: __rd__ + 1');
-    const paramsObj = `{ ${paramsEntries.join(', ')} }`;
-    const paramsVar = `__${safeId}Params__`;
-
-    lines.push(`${indent}  const ${paramsVar} = ${paramsObj};`);
-    lines.push(
-      `${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${executeArg}, ${paramsVar}, ${ctxVar}.createNestedRuntime('${functionName}', '${instanceId}', ${safeId}Idx));`,
-    );
-
-    // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
-    // Skip scoped OUTPUT ports - they're parameters to scope functions, not return values
-    Object.keys(nodeType.outputs).forEach((portName) => {
-      const portConfig = nodeType.outputs[portName];
-      // Skip scoped OUTPUT ports - they don't exist in the function return value
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else if (nodeType.scope || (nodeType.scopes && nodeType.scopes.length > 0)) {
-    // Scoped node call with positional arguments (uses _impl signature)
-    // Scoped nodes have callback parameters that can't be passed via params object
-    lines.push(`${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${args.join(', ')});`);
-
-    // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
-    // Skip scoped OUTPUT ports - they're parameters to scope functions, not return values
-    Object.keys(nodeType.outputs).forEach((portName) => {
-      const portConfig = nodeType.outputs[portName];
-      // Skip scoped OUTPUT ports - they don't exist in the function return value
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  } else {
-    // Regular node call - always use positional args
-    // In bundle mode we import _impl which takes (execute, ...positional_args)
-    lines.push(`${indent}  const ${resultVar} = ${awaitKeyword}${functionName}(${args.join(', ')});`);
-
-    // STEP Port Architecture: Extract ALL outputs from result, including onSuccess/onFailure
-    // Skip scoped OUTPUT ports - they're parameters to scope functions, not return values
-    Object.keys(nodeType.outputs).forEach((portName) => {
-      const portConfig = nodeType.outputs[portName];
-      // Skip scoped OUTPUT ports - they don't exist in the function return value
-      if (portConfig.scope) return;
-      lines.push(
-        `${indent}  ${setCall}({ id: '${instanceId}', portName: '${portName}', executionIndex: ${safeId}Idx, nodeTypeName: '${functionName}' }, ${resultVar}.${portName});`,
-      );
-    });
-  }
+  emitNodeInvocation(
+    { nodeType, instanceId, safeId, functionName, resultVar, args, ctxVar, indent: `${indent}  `, lines },
+    { setCall, isAsync, awaitKeyword, gateResultType: 'Record<string, unknown>', inlineStubAndCoercion: true },
+  );
   lines.push(`${indent}  ${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}    nodeTypeName: '${functionName}',`);
   lines.push(`${indent}    id: '${instanceId}',`);

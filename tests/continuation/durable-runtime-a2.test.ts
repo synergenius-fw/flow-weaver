@@ -1562,7 +1562,6 @@ describe('A2 durable runtime state machine', () => {
         controller: {} as never,
         executionPromise: Promise.resolve(),
         createdAt: 0,
-        tmpFiles: [],
         continuation: {},
       } as never),
     ).toThrow(/cannot retain durable continuation or gate state/);

@@ -2,9 +2,10 @@
  * Where runs live.
  *
  * The coordinator keeps three kinds of thing per run: the record (what the
- * run is and where it stands), named documents beside it (the continuation
- * it resumes from, its step trace, effect receipts, an agent's transcript,
- * a callback's state), and a claim while a process is driving it. A store
+ * run is, where it stands, and the continuation it resumes from while it
+ * waits), named documents beside it (its step trace, effect receipts, an
+ * agent's transcript, a callback's state), and a claim while a process is
+ * driving it. A store
  * is anything that can hold those. The file store under `~/.fw/runs` is the
  * default, the memory store serves tests, and a database store is yours to
  * write against this interface, with `checkRunStore` from
@@ -49,7 +50,11 @@ export interface RunStore {
 /** A document name: a plain slug, so a file store can use it as a file name as it is. */
 export const DOC_NAME = /^[a-z0-9][a-z0-9_-]{0,80}$/i;
 
-/** The documents the coordinator itself keeps; `keep()` refuses these names. */
+/**
+ * The documents the coordinator itself keeps; `keep()` refuses these names.
+ * `continuation` is where an older version kept a waiting run's envelope;
+ * such a run still resumes from it.
+ */
 export const RESERVED_DOCS = ['continuation', 'trace', 'claim', 'run'] as const;
 /** Effect receipts are documents named `effect-<sha256 of the operation key>`. */
 export const EFFECT_DOC_PREFIX = 'effect-';

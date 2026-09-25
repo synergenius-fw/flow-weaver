@@ -19,6 +19,9 @@ function record(runId: string, over: Partial<RunRecord> = {}): RunRecord {
     formatVersion: 1, runId, filePath: '/project/order.ts', workflowName: 'placeOrder', params: { amount: 3 },
     bundleDigest: 'digest', status: 'waiting',
     gate: { id: 'g1', kind: 'approval', node: 'approve', nodeType: 'waitForApproval', inputs: { amount: 3 }, absent: [], outputs: ['ok'], hasSuccessPort: true, hasFailurePort: true },
+    // A waiting run carries its continuation in the record: a store that
+    // keeps only the fields it knows would lose it.
+    continuation: { formatVersion: 1, runId, gateId: 'g1', state: { completed: [], variables: [] }, receipts: [] } as unknown as RunRecord['continuation'],
     createdAt: now, updatedAt: now, ...over,
   };
 }

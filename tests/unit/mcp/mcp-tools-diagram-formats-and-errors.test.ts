@@ -46,7 +46,7 @@ describe('fw_diagram tool', () => {
     const result = await toolHandler({});
     const parsed = parseResult(result);
     expect(parsed.success).toBe(false);
-    expect(parsed.error.code).toBe('MISSING_PARAM');
+    expect(parsed.error.code).toBe('INVALID_INPUT');
   });
 
   it('generates SVG from source (default format)', async () => {

@@ -171,7 +171,6 @@ describe('registerDebugTools coverage', () => {
       controller,
       executionPromise: new Promise(() => {}), // never resolves
       createdAt: Date.now(),
-      tmpFiles: [],
     });
 
     try {
@@ -200,7 +199,6 @@ describe('registerDebugTools coverage', () => {
       controller,
       executionPromise: new Promise(() => {}),
       createdAt: Date.now(),
-      tmpFiles: [],
     });
 
     try {
@@ -234,7 +232,6 @@ describe('registerDebugTools coverage', () => {
       controller,
       executionPromise: new Promise(() => {}),
       createdAt: Date.now(),
-      tmpFiles: [],
       lastPauseState: {
         currentNodeId: 'p',
         phase: 'before' as const,
@@ -277,7 +274,6 @@ describe('registerDebugTools coverage', () => {
       controller,
       executionPromise: new Promise(() => {}),
       createdAt: Date.now(),
-      tmpFiles: [],
       lastPauseState: {
         currentNodeId: 'p',
         phase: 'after' as const,
@@ -321,7 +317,6 @@ describe('registerDebugTools coverage', () => {
       controller,
       executionPromise: new Promise(() => {}),
       createdAt: Date.now(),
-      tmpFiles: [],
       lastPauseState: {
         currentNodeId: 'p',
         phase: 'after' as const,
@@ -365,7 +360,6 @@ describe('registerDebugTools coverage', () => {
       controller,
       executionPromise: new Promise(() => {}),
       createdAt: Date.now(),
-      tmpFiles: [],
       lastPauseState: {
         currentNodeId: 'p',
         phase: 'after' as const,
@@ -411,7 +405,6 @@ describe('registerDebugTools coverage', () => {
       controller,
       executionPromise: new Promise(() => {}),
       createdAt: Date.now(),
-      tmpFiles: [],
     });
 
     try {

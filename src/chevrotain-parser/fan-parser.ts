@@ -12,7 +12,6 @@
 
 import { CstParser } from 'chevrotain';
 import {
-  JSDocLexer,
   FanOutTag,
   FanInTag,
   Identifier,
@@ -21,6 +20,7 @@ import {
   Comma,
   allTokens,
 } from './tokens';
+import { lexTaggedLine, lineFailure, runRule, type CstNodeWithImage } from './parse-line';
 
 // =============================================================================
 // Parser Result Types
@@ -100,10 +100,6 @@ const parserInstance = new FanParser();
 
 const BaseVisitor = parserInstance.getBaseCstVisitorConstructor();
 
-interface CstNodeWithImage {
-  image: string;
-}
-
 interface PortRefContext {
   nodeName: CstNodeWithImage[];
   portName?: CstNodeWithImage[];
@@ -172,19 +168,15 @@ const visitorInstance = new FanVisitor();
  * Returns null if the line is not a valid @fanOut declaration.
  */
 export function parseFanOutLine(input: string, warnings: string[]): FanOutParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
-  if (lexResult.errors.length > 0 || lexResult.tokens.length === 0) return null;
-  if (lexResult.tokens[0].tokenType !== FanOutTag) return null;
+  const tokens = lexTaggedLine(input, FanOutTag);
+  if (!tokens) return null;
 
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.fanOutLine();
-
-  if (parserInstance.errors.length > 0) {
-    const truncatedInput = input.length > 80 ? input.substring(0, 80) + '...' : input;
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.fanOutLine());
+  if (error) {
     warnings.push(
-      `Failed to parse @fanOut line: "${truncatedInput}"\n` +
-        `  Error: ${parserInstance.errors[0].message}\n` +
-        `  Expected format: @fanOut source.port -> target1, target2, target3`
+      lineFailure('@fanOut', input, error.message, '@fanOut source.port -> target1, target2, target3', {
+        maxLength: 80,
+      })
     );
     return null;
   }
@@ -197,19 +189,15 @@ export function parseFanOutLine(input: string, warnings: string[]): FanOutParseR
  * Returns null if the line is not a valid @fanIn declaration.
  */
 export function parseFanInLine(input: string, warnings: string[]): FanInParseResult | null {
-  const lexResult = JSDocLexer.tokenize(input);
-  if (lexResult.errors.length > 0 || lexResult.tokens.length === 0) return null;
-  if (lexResult.tokens[0].tokenType !== FanInTag) return null;
+  const tokens = lexTaggedLine(input, FanInTag);
+  if (!tokens) return null;
 
-  parserInstance.input = lexResult.tokens;
-  const cst = parserInstance.fanInLine();
-
-  if (parserInstance.errors.length > 0) {
-    const truncatedInput = input.length > 80 ? input.substring(0, 80) + '...' : input;
+  const { cst, error } = runRule(parserInstance, tokens, () => parserInstance.fanInLine());
+  if (error) {
     warnings.push(
-      `Failed to parse @fanIn line: "${truncatedInput}"\n` +
-        `  Error: ${parserInstance.errors[0].message}\n` +
-        `  Expected format: @fanIn source1.port, source2.port -> target.port`
+      lineFailure('@fanIn', input, error.message, '@fanIn source1.port, source2.port -> target.port', {
+        maxLength: 80,
+      })
     );
     return null;
   }

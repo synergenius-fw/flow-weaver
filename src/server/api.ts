@@ -657,7 +657,9 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
     } catch (err) {
       const rec2 = await coordinator.record(id);
       if (rec2?.agent && (err instanceof MissingOutputsError || err instanceof InvalidAnswerError)) {
-        await coordinator.setAgent(id, { ...rec2.agent, status: 'failed', error: `the answer did not fit the gate: ${err.message}` });
+        // Busy: another driver has the run, and its commit says what happened.
+        await coordinator.setAgent(id, { ...rec2.agent, status: 'failed', error: `the answer did not fit the gate: ${err.message}` })
+          .catch((e: unknown) => { if (!(e instanceof RunBusyError)) throw e; });
         await announce(id);
       }
     }

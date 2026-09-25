@@ -54,7 +54,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
         });
       } catch (err) {
         return makeErrorResult(
-          'SEARCH_FAILED',
+          'MARKET_SEARCH_ERROR',
           err instanceof Error ? err.message : String(err)
         );
       }
@@ -100,7 +100,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
         });
       } catch (err) {
         return makeErrorResult(
-          'INSTALL_FAILED',
+          'MARKET_INSTALL_ERROR',
           err instanceof Error ? err.message : String(err)
         );
       }
@@ -138,7 +138,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
         });
       } catch (err) {
         return makeErrorResult(
-          'LIST_FAILED',
+          'MARKET_LIST_ERROR',
           err instanceof Error ? err.message : String(err)
         );
       }

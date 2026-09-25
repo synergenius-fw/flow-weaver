@@ -114,7 +114,6 @@ function sourceMayNotHaveExecuted(
         workflow,
         allInstanceIds,
         branchingNodes,
-        nodeTypes,
       );
       if (inBranch.has(sourceNodeId)) return true;
     }

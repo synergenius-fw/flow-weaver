@@ -24,7 +24,7 @@ import { hasInPlaceMarkers } from '../api/generate-in-place.js';
 import { buildProcessModel } from '../diagram/index.js';
 import { stepLabel } from '../diagram/labels.js';
 import type { ExecutionTraceEvent } from '../mcp/workflow-executor.js';
-import { buildGateResolution, computeBundleDigest, createLocalCoordinator, defaultRunsDir, answerAgentGate, transcriptName, isAnswering, reclaimStaleAgentAnswers, type RunRecord, type RunSummary, type RunStore, type TraceEntry } from '../coordinator/index.js';
+import { buildGateResolution, computeBundleDigest, createLocalCoordinator, defaultRunsDir, answerAgentGate, transcriptName, isAnswering, reclaimStaleAgentAnswers, RunBusyError, type RunRecord, type RunSummary, type RunStore, type TraceEntry } from '../coordinator/index.js';
 import { loadAgentProfiles, saveAgentProfiles, validateProfile, readiness, keyEnvOf, agentsFile, STARTER_AGENTS_YAML, DEFAULT_MODEL, SUGGESTED_MODELS, type AgentProfiles, type AgentProfile } from '../agent/profiles.js';
 import { tryProfile, type AgentGateEvent } from '../agent/gate.js';
 import { VERSION } from '../generated-version.js';
@@ -623,11 +623,11 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
   async function afterSegment(id: string, asked = false): Promise<void> {
     const rec = await coordinator.record(id);
     if (!rec || rec.status !== 'waiting' || rec.gate?.kind !== 'agent' || (rec.agents === 'manual' && !asked)) return;
-    // A run started manual is answered only when a person asks for it; the
-    // coordinator's own guard is the record's mode, so lift it for this gate.
-    if (asked && rec.agents === 'manual') await coordinator.setAgent(id, rec.agent);
     const note = async () => { listed = undefined; await pushRun(id); broadcast({ type: 'runs' }); };
     try {
+      // A run started manual is answered only when a person asks for it; the
+      // coordinator's own guard is the record's mode, so lift it for this gate.
+      if (asked && rec.agents === 'manual') await coordinator.setAgent(id, rec.agent);
       const step = await answerAgentGate(coordinator, id, {
         projectDir,
         profiles: profilesFor(),
@@ -649,7 +649,9 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
       // A malformed answer is the model's failure, not the run's.
       const rec2 = await coordinator.record(id);
       if (rec2?.agent?.status === 'answered' || rec2?.agent?.status === 'rejected') {
-        await coordinator.setAgent(id, { ...rec2.agent, status: 'failed', error: `the answer did not fit the gate: ${err instanceof Error ? err.message : String(err)}` });
+        // Busy: another driver has the run, and its commit says what happened.
+        await coordinator.setAgent(id, { ...rec2.agent, status: 'failed', error: `the answer did not fit the gate: ${err instanceof Error ? err.message : String(err)}` })
+          .catch((e: unknown) => { if (!(e instanceof RunBusyError)) throw e; });
       }
       await note();
     }
