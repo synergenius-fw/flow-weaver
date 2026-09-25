@@ -16,6 +16,8 @@ fw console --open     # and open the browser
 
 It binds to `127.0.0.1:4311` by default and re-reads a file as you save it.
 
+The console has no login, so it guards against the other pages open in your browser. It answers only to a loopback host name, which defeats DNS rebinding. It refuses a change sent from any origin but its own. Scripts and `curl` send no origin, so they keep working.
+
 ## What is on screen
 
 | Where | What |
