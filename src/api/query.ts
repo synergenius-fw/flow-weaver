@@ -11,7 +11,7 @@ import type {
   TNodeTypeAST,
 } from '../ast/types';
 import type { NodeFilter } from './helpers';
-import { portReferencesEqual } from './helpers';
+import { portReferencesEqual } from './port-references';
 import { isPerPortScopedChild } from '../generator/control-flow';
 import { glob } from 'glob';
 import { AnnotationParser } from '../parser/annotation-parser';

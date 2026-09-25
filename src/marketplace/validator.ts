@@ -5,7 +5,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseWorkflow, validateWorkflow } from '../api/index.js';
+import { parseWorkflow } from '../api/parse.js';
+import { validateWorkflow } from '../api/validate.js';
 import type { TMarketplaceManifest } from './types.js';
 import type { TPackageValidationResult, TValidationIssue, TValidationSeverity } from './types.js';
 

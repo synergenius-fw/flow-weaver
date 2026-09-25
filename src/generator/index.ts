@@ -21,6 +21,9 @@ export {
   toValidIdentifier,
   getCoercionWrapper,
   buildMergeExpression,
+} from './code-utils.js';
+
+export {
   buildNodeArgumentsWithContext,
   type TBuildNodeArgsOptions,
-} from './code-utils.js';
+} from './node-arguments.js';

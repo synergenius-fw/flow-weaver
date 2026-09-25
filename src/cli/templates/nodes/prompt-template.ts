@@ -1,5 +1,5 @@
 import type { NodeTemplate } from '../index';
-import { toPascalCase } from '../index';
+import { toPascalCase } from '../shared/case';
 
 export const promptTemplateNodeTemplate: NodeTemplate = {
   id: 'prompt-template',

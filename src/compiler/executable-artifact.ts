@@ -10,12 +10,9 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import ts from 'typescript';
-import {
-  compileWorkflow,
-  getAvailableWorkflows,
-  parseWorkflow,
-  parseWorkflowSourceAtPath,
-} from '../api/index.js';
+import { compileWorkflow } from '../api/compile.js';
+import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
+import { parseWorkflow, parseWorkflowSourceAtPath } from '../api/parse.js';
 import { validateDurableClosure } from '../api/durable-validation.js';
 import { graphIdentity } from '../api/graph-identity.js';
 import type { TExternalNodeType } from '../parser/annotation-parser.js';

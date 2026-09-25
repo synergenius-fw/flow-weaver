@@ -8,7 +8,7 @@ import * as path from 'path';
 import * as os from 'os';
 import confirm from '@inquirer/confirm';
 import { ExitPromptError } from '@inquirer/core';
-import { isNonInteractive } from './init.js';
+import { isNonInteractive } from '../utils/interactive.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

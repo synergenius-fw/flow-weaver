@@ -1,7 +1,7 @@
 /**
  * WU1, B2: Scoped expression nodes missing onSuccess/onFailure
  *
- * Bug: scope-function-generator.ts extracts result.onSuccess from expression
+ * Bug: the scope function generator (node-arguments.ts) extracts result.onSuccess from expression
  * node return (undefined). Non-scoped code correctly hardcodes true/false.
  *
  * Fix: When child is an expression node, hardcode onSuccess=true/onFailure=false
@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { generateScopeFunctionClosure } from '../../src/generator/scope-function-generator';
+import { generateScopeFunctionClosure } from '../../src/generator/node-arguments';
 import type { TNodeTypeAST, TWorkflowAST } from '../../src/ast/types';
 
 describe('scoped expression codegen', () => {

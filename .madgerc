@@ -1,0 +1,1 @@
+{"fileExtensions":["ts"],"tsConfig":"tsconfig.build.json","detectiveOptions":{"ts":{"skipTypeImports":true},"es6":{"skipTypeImports":true}}}

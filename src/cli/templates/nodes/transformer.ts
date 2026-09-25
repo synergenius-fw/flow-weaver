@@ -4,7 +4,7 @@
  */
 
 import type { NodeTemplate } from "../index";
-import { toPascalCase } from "../index";
+import { toPascalCase } from "../shared/case";
 
 export const transformerNodeTemplate: NodeTemplate = {
   id: "transformer",

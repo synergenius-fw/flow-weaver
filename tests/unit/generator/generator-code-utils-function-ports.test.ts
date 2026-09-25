@@ -1,5 +1,5 @@
 /**
- * Tests for code-utils.ts:
+ * Tests for buildNodeArgumentsWithContext (generator/node-arguments.ts):
  * - FUNCTION dataType port with multiple connections
  * - Non-function expression on an input port
  */

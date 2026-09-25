@@ -10,7 +10,15 @@
 import type { TNodeTypeAST } from '../ast/types';
 import { COERCE_EXPRESSIONS } from '../built-in-nodes/coercion-types';
 import { isExecutePort, isFailurePort, isSuccessPort } from '../constants';
-import { buildDurableGatePayload } from './code-utils';
+
+/**
+ * Encode positional durable-gate inputs without admitting JavaScript
+ * `undefined` into the wire payload. The tagged representation preserves the
+ * distinction between an omitted optional argument and an explicit null.
+ */
+function buildDurableGatePayload(arguments_: readonly string[]): string {
+  return `{ arguments: [${arguments_.join(', ')}].map((value) => value === undefined ? { absent: true } : { value }) }`;
+}
 
 /** One node invocation as the emitters see it. */
 export interface NodeInvocation {

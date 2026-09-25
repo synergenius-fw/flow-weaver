@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { parseWorkflow } from '../api/index.js';
+import { parseWorkflow } from '../api/parse.js';
 import type { TWorkflowAST } from '../ast/types.js';
 import type { ContinuationEnvelope, DurableGateKind } from '../runtime/continuation.js';
 import type { EffectAdapter } from '../runtime/durable-execution.js';
@@ -484,9 +484,8 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
     const first = await parseWorkflow(filePath, { workflowName: requested, projectDir });
     if (first.errors.length > 0) throw new ParseError(first.errors.join('\n'));
 
-    // The engine silently runs the first workflow in a file
-    // (`workflow-executor.ts:210-212`). A driver cannot see which one it got,
-    // so ambiguity is refused here instead.
+    // Given no name, the executor runs the first workflow in the file. A
+    // driver cannot see which one it got, so ambiguity is refused here instead.
     const available = first.availableWorkflows;
     let workflowName = requested;
     if (workflowName === undefined) {
