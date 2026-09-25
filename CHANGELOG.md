@@ -4,6 +4,40 @@ All notable changes to this project are documented in [GitHub Releases](https://
 
 This project follows [Semantic Versioning](https://semver.org/) during beta. Breaking changes may occur between minor versions until v1.0.
 
+## 0.43.0
+
+The first release since the project went public under Apache-2.0: a pass over every subsystem that fixes what was wrong, removes what was dead or contradicted the docs, and adds tests that keep the documentation in step with the code.
+
+### Removed
+
+These had no working implementation in the package, or were superseded. Their docs are updated.
+
+- **Compile targets.** `fw compile --target`, `--cron`, `--serve`, `--framework`, `--typed-events`, `--retries` and `--timeout`, `fw dev --target`, `compileTargetRegistry`, `devModeRegistry`, `compileCustomTarget` and the matching `fw_compile` parameters. Nothing shipped could register a target, so every value errored. Generating for another platform is `fw export` through a pack's export target.
+- **Two MCP tools**, `fw_workflow_run` and `fw_workflow_resume`. They carried the whole continuation envelope, which an assistant cannot use. A coordinator of your own now calls `executeWorkflow`, exported from `@synergenius/flow-weaver/coordinator`. The server exposes 30 tools.
+- **Dead modules:** `src/deployment/{core,config,openapi,types}` (no importer; `runCommand('openapi')` now builds the same document as `fw openapi`), the no-op extensions loader, the MCP barrel and Claude auto-registration, `fw doctor`'s `.flowweaver/deployment` checks, the `UNDEFINED_NODE` code (it duplicated `UNKNOWN_SOURCE_NODE` and `UNKNOWN_TARGET_NODE`), the branded port types and `resumedScopeHighWater` on the durable engine.
+
+### Security
+
+- `fw market install` and `fw_market_install` ran `npm install <spec>` through a shell with the spec as given, including from an MCP client. npm now runs with an argument list after the spec is checked against npm's package-spec shapes.
+- `fw console` bound to any `--host` without a login, exposing directory browsing, `fw` commands and file writes. A host beyond loopback now needs `--insecure`, as `fw serve` needs a token.
+- A multi-origin `cors` list produced an invalid header; the API now echoes the request's origin when it is allowed and varies on it.
+
+### Fixed
+
+- **Parser:** data outputs of `async` node types were typed `ANY`; `@connect a.b -> c.d as <type>` was parsed and then dropped; a relative import of a non-source file aborted the parse; a function returning a `Promise` without `async` compiled without `await`; any type mentioning `=>` became `FUNCTION`; the `[type:X]` port modifier did nothing; attributes named `timeout`, `limit`, `event`, `match`, `period` or `cron` failed to lex; cron steps and day names were rejected; the parse cache ignored changes to imported files; scope names were never validated (`INVALID_SCOPE_NAME`).
+- **Validation:** one mistake no longer produces two or three diagnostics; friendly errors name the right node and port; `fw validate`, `fw compile`, `fw_validate` and the console run the same rules, so a file gets one verdict everywhere.
+- **Durable runs:** a yield commits in one write, so a crash between two writes can no longer leave a run a gate behind; a resume refused before any node ran leaves the run waiting instead of failing it; a lapsed claim is taken over safely; `cancel` and agent notes no longer overwrite a concurrent commit; `executeWorkflow` with an unknown `workflowName` no longer runs the first workflow. The execution context compiled files run is now generated from the class the package exports, so the two cannot differ.
+- **CLI:** `fw watch` keeps watching when the first compile fails; `fw diff` reports a difference as a difference, not a failure; `fw run --timeout --json` prints JSON; a pack whose namespace collides with a command no longer breaks every invocation; `--format` values are validated; `fw doctor` checks for Node 22; `fw init --json` works.
+- **MCP:** `fw_compile` returns the validation warnings; `fw_resume` and `fw_runs` find runs after a restart; error codes follow one scheme (`<TOOL>_ERROR`, `INVALID_INPUT`, and unchanged domain codes); abandoned debug sessions expire.
+- **Agents and marketplace:** the OpenAI-compatible provider built `/v1/v1/` URLs for bases ending in `/v1`; `.npmrc` credentials for a registry on a port were ignored.
+- **Export:** `production` and `includeDocs` default to off everywhere, as on the CLI.
+
+### Changed
+
+- The run record keeps the continuation while a run waits. Runs paused by an older version still resume. A custom `RunStore` must keep unknown record fields; `checkRunStore` now checks that.
+- A port default written with escaped quotes (`"{\"a\":1}"`) is unescaped like every other quoted value.
+- Dependencies: chevrotain 13, js-yaml 5, source-map 0.8, the inquirer 12 prompts, ESLint 10 and vitest 5. `@types/node` follows the Node 22 floor.
+
 ## 0.42.2
 
 - **The spine keeps a scope owner above its body.** When a loop wired its scoped children's failure arms into its own `failure` input, the diagram's shared-failure-join pass treated the owner as a join and drew it below its own body, inverting the loop. A node entered only by its own scoped children is the loop reporting failure, not a join, so it now keeps its place at the head of its body.
