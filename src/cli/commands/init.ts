@@ -13,6 +13,7 @@ import { ExitPromptError } from '@inquirer/core';
 import { getWorkflowTemplate, getAllWorkflowTemplates } from '../templates/index.js';
 import { loadPackTemplates } from '../templates/pack-loader.js';
 import { logger } from '../utils/logger.js';
+import { isNonInteractive } from '../utils/interactive.js';
 import { compileCommand } from './compile.js';
 import { runMcpSetupFromInit, CLI_TOOL_BINARY, detectCliTools } from './mcp-setup.js';
 import type { ToolId } from './mcp-setup.js';
@@ -100,9 +101,8 @@ export function toWorkflowName(projectName: string): string {
   return (camel || 'myProject') + 'Workflow';
 }
 
-export function isNonInteractive(): boolean {
-  return !process.stdin.isTTY;
-}
+// Shared with mcp-setup, which init itself imports; re-exported for callers.
+export { isNonInteractive };
 
 // Dynamic: includes core templates plus any registered by extensions/packs
 function getValidTemplates(): string[] {
