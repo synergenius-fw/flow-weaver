@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 const mockInitialize = vi.fn().mockResolvedValue(undefined);
 const mockGetAllEndpoints = vi.fn().mockReturnValue([]);

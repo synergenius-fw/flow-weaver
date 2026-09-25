@@ -4,7 +4,7 @@
  * same builder, so a document written to a file, returned by the command
  * runner or served at `/openapi.json` never disagree.
  */
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { WorkflowRegistry } from './workflow-registry.js';
 import { planRoutes } from './api.js';
 import { buildOpenApi } from './openapi.js';
