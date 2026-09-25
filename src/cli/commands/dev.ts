@@ -209,12 +209,16 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
     ignoreInitial: true,
   });
 
-  watcher.on('change', async (file) => {
+  watcher.on('change', (file) => {
     if (!options.json) {
       cycleSeparator(file);
     }
 
-    await compileAndRun(filePath, params, mocks, options);
+    // compileAndRun reports compile and run failures itself; what reaches
+    // this catch is a failure in that reporting. Say so and keep watching.
+    compileAndRun(filePath, params, mocks, options).catch((error: unknown) => {
+      logger.error(`Dev cycle failed: ${getErrorMessage(error)}`);
+    });
   });
 
   // Handle process termination
@@ -223,7 +227,9 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
       logger.newline();
       logger.info('Stopping dev mode...');
     }
-    watcher.close();
+    // The process exits on the next line, which releases the watcher
+    // whether or not close() has finished, so there is nothing to wait for.
+    void watcher.close();
     process.exit(0);
   };
 
