@@ -5,7 +5,7 @@ import { generateControlFlowWithExecutionContext, type GraphIdentityStamp } from
  * Generates executable function body code from workflow ASTs.
  * Delegates to the unified control-flow generator for code emission.
  */
-export class BodyGenerator {
+class BodyGenerator {
   /**
    * Generates a workflow function body that uses an execution context for
    * tracing, error handling, and runtime state management.

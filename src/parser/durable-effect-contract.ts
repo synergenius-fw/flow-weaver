@@ -7,7 +7,7 @@ export interface DurableEffectContractAnalysis {
   readonly diagnostics: string[];
 }
 
-export function jsDocTagComment(
+function jsDocTagComment(
   fn: FunctionLike,
   tagName: string,
 ): string | undefined {

@@ -238,11 +238,6 @@ function isImportStub(nt: TNodeTypeAST): boolean {
   return inputKeys.length === 0 && outputKeys.length === 1 && outputKeys[0] === 'result';
 }
 
-/** Exposed for tests that need direct access to the shared ts-morph Project */
-export function getParserProject(): Project {
-  return getSharedProject();
-}
-
 export class AnnotationParser {
   private project: Project;
   private importCache = new LRUCache<

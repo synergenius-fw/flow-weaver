@@ -15,11 +15,10 @@ export const PORT_GAP = 8;               // matches port column gap
 export const PORT_PADDING_Y = 18;        // matches inputsStyle paddingTop/Bottom
 export const NODE_MIN_WIDTH = 90;         // matches NODE_MIN_WIDTH in styles.ts
 export const NODE_MIN_HEIGHT = 90;        // matches NODE_MIN_HEIGHT in styles.ts
-export const BORDER_RADIUS = 6;           // matches wrapperStyle borderRadius
-export const LAYER_GAP_X = 300;              // target center-to-center; actual gap adapts to port labels
-export const LABEL_CLEARANCE = 42;           // breathing room between opposing port label badges
-export const MIN_EDGE_GAP = 112;             // minimum edge-to-edge gap between node boxes
-export const NODE_GAP_Y = 60;
+const LAYER_GAP_X = 300;              // target center-to-center; actual gap adapts to port labels
+const LABEL_CLEARANCE = 42;           // breathing room between opposing port label badges
+const MIN_EDGE_GAP = 112;             // minimum edge-to-edge gap between node boxes
+const NODE_GAP_Y = 60;
 export const LABEL_HEIGHT = 24;           // 18px font + breathing room
 export const LABEL_GAP = 12;             // matches labelRootStyle bottom: calc(100% + 12px)
 
@@ -39,7 +38,7 @@ export const ORTHOGONAL_DISTANCE_THRESHOLD = 300;
 export const STUB_DISTANCE_THRESHOLD = 500;
 
 // Stub length for long-distance connections (short segment from port center outward)
-export const STUB_LENGTH = 30;
+const STUB_LENGTH = 30;
 
 // ---- Font metrics (Montserrat 600-weight, 10px, measured via SVG getBBox) ----
 

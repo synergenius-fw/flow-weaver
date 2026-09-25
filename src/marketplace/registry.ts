@@ -34,7 +34,7 @@ const PACK_NAME_RE = /^(@[^/]+\/)?flow-weaver-pack-.+$/;
  * requires and what identifies a pack whatever it is called. The name
  * pattern is kept for packs published before the keyword was required.
  */
-export function isPackResult(pkg: { name: string; keywords?: string[] }): boolean {
+function isPackResult(pkg: { name: string; keywords?: string[] }): boolean {
   return (pkg.keywords ?? []).includes(MARKETPLACE_KEYWORD) || PACK_NAME_RE.test(pkg.name);
 }
 

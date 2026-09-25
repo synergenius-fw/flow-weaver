@@ -97,7 +97,7 @@ interface Child {
   stopping?: boolean;
 }
 
-export function consoleSettingsDir(): string {
+function consoleSettingsDir(): string {
   return process.env.FW_CONSOLE_DIR ?? path.join(os.homedir(), '.fw', 'console');
 }
 

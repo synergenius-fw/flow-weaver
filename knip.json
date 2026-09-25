@@ -1,0 +1,30 @@
+{
+  "entry": [
+    "src/index.ts",
+    "src/{runtime,compiler,built-in-nodes,diagram,doc-metadata,docs,ast,api,diff,editor-completions,jsdoc-port-sync,deployment,marketplace,testing,generator,context,agent,console,coordinator,server}/index.ts",
+    "src/cli/commands/describe.ts",
+    "src/cli/exports.ts",
+    "src/cli/index.ts",
+    "src/{generated-branding,npm-packages,constants,generated-version}.ts",
+    "scripts/*.{ts,mjs}",
+    "console-ui/src/main.tsx",
+    // Spawned by path from src/agent/mcp-bridge.ts and bundled by scripts/build-lib.ts, never imported.
+    "src/agent/mcp-tool-server.ts"
+  ],
+  "project": ["src/**/*.ts", "console-ui/src/**/*.{ts,tsx}", "scripts/**/*.{ts,mjs}"],
+  "ignore": ["src/cli/templates/**/*.ts"],
+  // The package's own bin, run by the cross-platform workflow after install.
+  "ignoreBinaries": ["flow-weaver"],
+  "ignoreIssues": {
+    // Inlined engine and built-in node sources are copied as text into compiled
+    // workflows; editing them changes golden output, so their exports stay as is.
+    "src/runtime/durable-execution.ts": ["exports"],
+    "src/built-in-nodes/coercion-types.ts": ["exports"]
+  },
+  // Exported types are out of scope for the dead-code check.
+  "rules": {
+    "types": "off",
+    "nsTypes": "off",
+    "enumMembers": "off"
+  }
+}

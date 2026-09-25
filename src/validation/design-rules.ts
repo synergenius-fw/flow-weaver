@@ -435,7 +435,7 @@ export const pullUnusedRule: TValidationRule = {
 // Public API
 // ---------------------------------------------------------------------------
 
-export const designValidationRules: TValidationRule[] = [
+const designValidationRules: TValidationRule[] = [
   asyncNoErrorPathRule,
   scopeNoFailureExitRule,
   unboundedRetryRule,

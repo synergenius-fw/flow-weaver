@@ -28,7 +28,7 @@ const SCHEMA_TYPE: Record<string, string> = {
  * The schema of one port. A value of any type carries no `type`: OpenAPI
  * 3.0 has no `any`, and a schema without `type` accepts every value.
  */
-export function portSchema(name: string, port: OpenApiPort): Record<string, unknown> {
+function portSchema(name: string, port: OpenApiPort): Record<string, unknown> {
   const type = port.dataType ? SCHEMA_TYPE[port.dataType] : undefined;
   return {
     ...(type && { type }),
@@ -38,7 +38,7 @@ export function portSchema(name: string, port: OpenApiPort): Record<string, unkn
 }
 
 /** The data ports of a node type as schema properties, control ports (STEP) left out, with the names that are required. */
-export function portProperties(ports: Record<string, OpenApiPort>): { properties: Record<string, object>; required: string[] } {
+function portProperties(ports: Record<string, OpenApiPort>): { properties: Record<string, object>; required: string[] } {
   const properties: Record<string, object> = {};
   const required: string[] = [];
   for (const [name, port] of Object.entries(ports)) {
@@ -52,7 +52,7 @@ export function portProperties(ports: Record<string, OpenApiPort>): { properties
 const jsonBody = (schema: object) => ({ content: { 'application/json': { schema } } });
 
 /** The POST operation that runs one workflow or node type, with its three responses. */
-export function executeOperation(op: {
+function executeOperation(op: {
   operationId: string;
   summary: string;
   description: string;

@@ -59,7 +59,7 @@ export function runRule(parser: CstParser, tokens: IToken[], rule: () => CstNode
 }
 
 /** Shorten a line for a warning, keeping `maxLength` characters. */
-export function truncateLine(input: string, maxLength = 60): string {
+function truncateLine(input: string, maxLength = 60): string {
   return input.length > maxLength ? input.substring(0, maxLength) + '...' : input;
 }
 

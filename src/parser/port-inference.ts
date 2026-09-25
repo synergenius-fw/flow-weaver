@@ -204,7 +204,7 @@ export function parseExitPorts(
  * Extract schema breakdown for complex types (interfaces/objects).
  * Returns a map of property names to their TypeScript type strings.
  */
-export function extractTypeSchema(tsType: Type): Record<string, string> | undefined {
+function extractTypeSchema(tsType: Type): Record<string, string> | undefined {
   const schema: Record<string, string> = {};
   const properties = tsType.getProperties();
 
@@ -238,7 +238,7 @@ export function extractTypeSchema(tsType: Type): Record<string, string> | undefi
  * Returns true for object literals and interfaces, false for primitives, arrays,
  * and built-in types whose properties are prototype methods (string, number, etc.).
  */
-export function isExpandableObjectType(tsType: Type): boolean {
+function isExpandableObjectType(tsType: Type): boolean {
   const typeText = tsType.getText();
   const primitiveTypes = new Set(['string', 'number', 'boolean', 'any', 'unknown', 'never', 'object', 'Object']);
   if (primitiveTypes.has(typeText)) return false;
@@ -246,7 +246,7 @@ export function isExpandableObjectType(tsType: Type): boolean {
   return tsType.isObject() && tsType.getProperties().length > 0;
 }
 
-export function inferPortType(tsType: Type): TDataType {
+function inferPortType(tsType: Type): TDataType {
   const typeText = tsType.getText();
   // Delegate to inferDataTypeFromTS for consistent type mapping
   // This handles all cases: primitives, any, unknown, never, arrays, functions, etc.

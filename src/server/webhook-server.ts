@@ -10,7 +10,6 @@ import * as http from 'node:http';
 import { createWorkflowApi, type WorkflowApi } from './api.js';
 import type { WebhookServerConfig } from './types.js';
 
-export { HttpError, errorToHttp, isLoopback } from './api.js';
 export type { CallbackPolicy } from './callback-url.js';
 
 export class WebhookServer {

@@ -36,7 +36,7 @@ import {
  * to return `Promise<...>` (a `declare function` in a .d.ts, or one that
  * returns a promise it built itself) is the other.
  */
-export function returnsPromise(fn: FunctionLike): boolean {
+function returnsPromise(fn: FunctionLike): boolean {
   return fn.isAsync() || fn.getReturnType().getText().startsWith('Promise<');
 }
 

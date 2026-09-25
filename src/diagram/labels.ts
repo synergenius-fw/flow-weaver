@@ -13,7 +13,7 @@ import type { TNodeInstanceAST, TNodeTypeAST } from '../ast/types';
 const GENERIC_TYPES = new Set(['waitForEvent', 'waitForAgent', 'delay', 'invokeWorkflow']);
 
 /** `aggregateBuildSpec` → `Aggregate Build Spec`; `wait_for_link` → `Wait for link`. */
-export const humanize = (s: string): string =>
+const humanize = (s: string): string =>
   s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
 export function stepLabel(inst: TNodeInstanceAST, nt: TNodeTypeAST | undefined): string {

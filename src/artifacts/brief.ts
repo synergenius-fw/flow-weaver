@@ -147,7 +147,7 @@ const BASE_CSS = `
  * its first paragraph, cut at a sentence when that is still long; the
  * reader this page is for wants the gist, not the rationale.
  */
-export function lede(description: string | undefined): string {
+function lede(description: string | undefined): string {
   const first = (description ?? '').split(/\n\s*\n/)[0].replace(/\s+/g, ' ').trim();
   if (first.length <= 280) return first;
   const cut = first.slice(0, 280);

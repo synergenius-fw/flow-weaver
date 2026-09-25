@@ -8,7 +8,7 @@
  */
 const ua = typeof navigator === 'undefined' ? '' : `${(navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? ''} ${navigator.platform ?? ''} ${navigator.userAgent ?? ''}`;
 
-export const isMac = /Mac|iPhone|iPad|iPod/i.test(ua);
+const isMac = /Mac|iPhone|iPad|iPod/i.test(ua);
 
 /** A key combination as the local keyboard writes it: `mod+K` → `⌘K` or `Ctrl+K`, `shift+F5` → `⇧F5` or `Shift+F5`. */
 export function keys(combo: string): string {
