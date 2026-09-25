@@ -247,8 +247,10 @@ export function myWorkflow(execute: boolean): { onSuccess: boolean } {
     const parser = new AnnotationParser();
     const result = parser.parse(workflowPath);
 
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors.some((e) => e.includes('notImported'))).toBe(true);
+    // The parser keeps the instance; the validator names the unknown type.
+    expect(result.errors).toEqual([]);
+    const validation = new WorkflowValidator().validate(result.workflows[0]);
+    expect(validation.errors.some((e) => e.code === 'UNKNOWN_NODE_TYPE' && e.message.includes('notImported'))).toBe(true);
   });
 
   // ── 7. sourceLocation points to original file ─────────────────────
@@ -337,9 +339,11 @@ export function myWorkflow(execute: boolean): { onSuccess: boolean } {
     const parser = new AnnotationParser();
     const result = parser.parse(workflowPath);
 
-    // subtract is NOT in the named imports, so it should error
-    expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors.some((e) => e.includes('subtract'))).toBe(true);
+    // subtract is NOT in the named imports, so it is not inferred and the
+    // validator reports the instance's type as unknown.
+    expect(result.workflows[0].nodeTypes.some((nt) => nt.functionName === 'subtract')).toBe(false);
+    const validation = new WorkflowValidator().validate(result.workflows[0]);
+    expect(validation.errors.some((e) => e.code === 'UNKNOWN_NODE_TYPE' && e.message.includes('subtract'))).toBe(true);
   });
 
   // ── 10. File-level JSDoc mentioning @flowWeaver should not block inference ──

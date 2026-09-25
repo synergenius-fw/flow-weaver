@@ -111,7 +111,7 @@ describe('coordinated run MCP tools', () => {
       const second = createFakeMcpServer();
       registerRunTools(second.mcp as never);
       const listed = await call(second.tools.fw_runs, {});
-      expect(listed.body.data.map((r: { id: string }) => r.id)).toEqual([paused.body.data.runId]);
+      expect(listed.body.data.map((r: { runId: string }) => r.runId)).toEqual([paused.body.data.runId]);
       const done = await call(second.tools.fw_resume, { runId: paused.body.data.runId, answer: { summary: 's', risk: 'low' } });
       expect(done.body.data.status).toBe('completed');
     } finally {
@@ -122,8 +122,9 @@ describe('coordinated run MCP tools', () => {
   it('maps a parse failure to PARSE_ERROR', async () => {
     const { mcp, tools } = createFakeMcpServer();
     registerRunTools(mcp as never, createLocalCoordinator({ rootDir }));
+    // A file with no @flowWeaver workflow in it does not parse as one.
     const broken = path.join(rootDir, 'broken.ts');
-    fs.writeFileSync(broken, '/** @flowWeaver workflow\n * @node x nope\n */\nexport async function w(execute: boolean) {}\n');
+    fs.writeFileSync(broken, 'export async function w(execute: boolean) {}\n');
     const result = await call(tools.fw_run, { filePath: broken });
     expect(result.isError).toBe(true);
     expect(result.body.error.code).toBe('PARSE_ERROR');

@@ -7,6 +7,14 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { generator } from "../../src/generator/workflow-generator";
+import { parseWorkflow } from "../../src/api/parse";
+import { validateWorkflow } from "../../src/api/validate";
+
+/** The validation warnings of one workflow, as one text. */
+async function warningsOf(file: string, workflowName: string): Promise<string> {
+  const parsed = await parseWorkflow(file, { workflowName });
+  return validateWorkflow(parsed.ast).warnings.map((w) => w.message).join("\n");
+}
 
 const TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-validation-${process.pid}`);
 
@@ -246,25 +254,15 @@ describe("Workflow Validation Errors", () => {
       fs.mkdirSync(path.dirname(testFile), { recursive: true });
       fs.writeFileSync(testFile, sourceCode);
 
-      const warnings: string[] = [];
-      const originalLog = console.log;
-      console.log = (...args: any[]) => {
-        warnings.push(args.join(" "));
-      };
-
       try {
-        const code = await generator.generate(testFile, "noExitConnection");
-        console.log = originalLog;
-
         // Should have warning about no Exit connections
-        const allWarnings = warnings.join("\\n");
-        expect(allWarnings).toMatch(/no connections to Exit node/i);
+        expect(await warningsOf(testFile, "noExitConnection")).toMatch(/no connections to Exit node/i);
 
         // Code should still be generated and include default return values
+        const code = await generator.generate(testFile, "noExitConnection");
         expect(code).toContain("onSuccess: true");
         expect(code).toContain("onFailure: false");
       } finally {
-        console.log = originalLog;
         if (fs.existsSync(testFile)) {
           fs.unlinkSync(testFile);
         }
@@ -302,19 +300,9 @@ describe("Workflow Validation Errors", () => {
       fs.mkdirSync(path.dirname(testFile), { recursive: true });
       fs.writeFileSync(testFile, sourceCode);
 
-      const warnings: string[] = [];
-      const originalLog = console.log;
-      console.log = (...args: any[]) => {
-        warnings.push(args.join(" "));
-      };
-
       try {
-        await generator.generate(testFile, "unusedOutput");
-        console.log = originalLog;
-        const allWarnings = warnings.join("\\n");
-        expect(allWarnings).toMatch(/output.*port.*"unused".*never.*connected/i);
+        expect(await warningsOf(testFile, "unusedOutput")).toMatch(/output.*port.*"unused".*never.*connected/i);
       } finally {
-        console.log = originalLog;
         if (fs.existsSync(testFile)) {
           fs.unlinkSync(testFile);
         }
@@ -349,19 +337,9 @@ describe("Workflow Validation Errors", () => {
       fs.mkdirSync(path.dirname(testFile), { recursive: true });
       fs.writeFileSync(testFile, sourceCode);
 
-      const warnings: string[] = [];
-      const originalLog = console.log;
-      console.log = (...args: any[]) => {
-        warnings.push(args.join(" "));
-      };
-
       try {
-        await generator.generate(testFile, "unreachableExit");
-        console.log = originalLog;
-        const allWarnings = warnings.join("\\n");
-        expect(allWarnings).toMatch(/unreachable.*exit.*port|exit.*port.*no.*connection/i);
+        expect(await warningsOf(testFile, "unreachableExit")).toMatch(/unreachable.*exit.*port|exit.*port.*no.*connection/i);
       } finally {
-        console.log = originalLog;
         if (fs.existsSync(testFile)) {
           fs.unlinkSync(testFile);
         }
