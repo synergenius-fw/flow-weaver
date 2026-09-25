@@ -5,27 +5,6 @@
  * Provides structured parsing for @input, @output, @node, @connect and the sugar tags.
  */
 
-// Token exports (for advanced use cases)
-export {
-  JSDocLexer,
-  allTokens,
-  InputTag,
-  OutputTag,
-  NodeTag,
-  ConnectTag,
-  ScopeTag,
-  MapTag,
-  PathTag,
-  FanOutTag,
-  FanInTag,
-  CoerceTag,
-  TriggerTag,
-  CancelOnTag,
-  RetriesTag,
-  TimeoutTag,
-  ThrottleTag,
-} from './tokens';
-
 // Port parser
 export { parsePortLine, getPortGrammar } from './port-parser';
 export type { PortParseResult } from './port-parser';
@@ -43,11 +22,11 @@ export { parseScopeLine, getScopeGrammar } from './scope-parser';
 export type { ScopeParseResult } from './scope-parser';
 
 // Map parser
-export { parseMapLine, getMapGrammar } from './map-parser';
+export { parseMapLine } from './map-parser';
 export type { MapParseResult } from './map-parser';
 
 // Path parser
-export { parsePathLine, getPathGrammar } from './path-parser';
+export { parsePathLine } from './path-parser';
 export type { PathParseResult, PathStep } from './path-parser';
 
 // Fan-out / Fan-in parser

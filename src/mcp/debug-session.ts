@@ -21,7 +21,7 @@ export interface DebugSession {
 const debugSessions = new Map<string, DebugSession>();
 
 /** A session this old is taken as abandoned: nothing else ever ends one that is never stepped to the end. */
-export const DEBUG_SESSION_MAX_AGE_MS = 30 * 60 * 1000;
+const DEBUG_SESSION_MAX_AGE_MS = 30 * 60 * 1000;
 
 /**
  * Drop abandoned sessions. Each is paused mid-run, so it is aborted too:

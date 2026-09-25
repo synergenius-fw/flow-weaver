@@ -38,7 +38,7 @@ export interface ServiceRecord {
   activityCount: number;
 }
 
-export function servicesDir(): string {
+function servicesDir(): string {
   return process.env.FW_SERVICES_DIR ?? path.join(os.homedir(), '.fw', 'services');
 }
 

@@ -11,13 +11,13 @@ import { createToken, Lexer } from 'chevrotain';
 // Whitespace & Structure
 // =============================================================================
 
-export const WhiteSpace = createToken({
+const WhiteSpace = createToken({
   name: 'WhiteSpace',
   pattern: /[ \t]+/,
   group: Lexer.SKIPPED,
 });
 
-export const Newline = createToken({
+const Newline = createToken({
   name: 'Newline',
   pattern: /\r?\n/,
   group: Lexer.SKIPPED,

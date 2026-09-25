@@ -44,7 +44,7 @@ function answerFields(node: Node | undefined, step: Step): Record<string, FieldS
 }
 
 /** The mock config the server takes, from what is switched on. */
-export function buildMocks(w: ParsedWorkflow, m: Mocking): Record<string, unknown> {
+function buildMocks(w: ParsedWorkflow, m: Mocking): Record<string, unknown> {
   const { gates, calls, delays } = mockable(w);
   const out: Record<string, unknown> = {};
   const g: Record<string, unknown> = {};

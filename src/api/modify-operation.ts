@@ -14,7 +14,7 @@ import { findIsolatedNodes } from './query.js';
 // param (a string or a function of the issue). For these fields the message is
 // the same regardless of whether the value is missing or the wrong type, so a
 // plain string is the faithful translation.
-export const modifyParamsSchemas: Record<string, z.ZodType> = {
+const modifyParamsSchemas: Record<string, z.ZodType> = {
   addNode: z.object({
     nodeId: z.string({ error: 'nodeId is required' }),
     nodeType: z.string({ error: 'nodeType is required' }),

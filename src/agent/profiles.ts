@@ -81,7 +81,7 @@ export const DEFAULT_MODEL: Record<AgentProviderKind, string> = {
   'claude-cli': '',
 };
 
-export const DEFAULT_KEY_ENV: Record<AgentProviderKind, string | undefined> = {
+const DEFAULT_KEY_ENV: Record<AgentProviderKind, string | undefined> = {
   anthropic: 'ANTHROPIC_API_KEY',
   openai: 'OPENAI_API_KEY',
   'claude-cli': undefined,

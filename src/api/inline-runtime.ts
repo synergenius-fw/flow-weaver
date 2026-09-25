@@ -23,7 +23,7 @@ export const INLINE_ENGINE_EXPORTS: readonly string[] = [
 ];
 
 /** The types a host of a compiled file needs, exported beside the values. */
-export const INLINE_ENGINE_TYPE_EXPORTS: readonly string[] = [
+const INLINE_ENGINE_TYPE_EXPORTS: readonly string[] = [
   'WorkflowRuntime',
   'WorkflowRuntimeServices',
   'CreateWorkflowRuntimeOptions',
@@ -84,7 +84,7 @@ const CLASS_METHOD = /^ {2}(?:async\s+)?([A-Za-z_$][\w$]*)\(/gm;
  * method of a stub region into a no-op, so it carries no debug
  * instrumentation while generated calls to those methods still resolve.
  */
-export function inlineExecutionContext(production: boolean, exportClasses: boolean): string {
+function inlineExecutionContext(production: boolean, exportClasses: boolean): string {
   let source = INLINE_EXECUTION_CONTEXT_SOURCE.replace(
     DEVELOPMENT_REGION,
     (_region, indent: string, stubbed: string | undefined, body: string) => {

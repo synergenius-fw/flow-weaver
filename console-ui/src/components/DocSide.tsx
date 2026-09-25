@@ -3,7 +3,7 @@ import { slugify } from '../format';
 import { PaneTab } from './PaneTab';
 
 /** The page's headings. The one in view is marked, and each scrolls to itself. */
-export function Contents() {
+function Contents() {
   const d = doc.value;
   if (!d) return null;
   // The page's own title heading is the title above the article, not a section.
@@ -49,7 +49,7 @@ const Row = WorkflowRow;
  * validator is raising right now. The facets come from the guide manifest
  * and the workflow listing, so nothing is parsed for this.
  */
-export function InProject() {
+function InProject() {
   const d = doc.value;
   const entry = guide.value.flatMap((g) => g.topics).find((t) => t.slug === d?.slug);
   const rel = entry?.related;

@@ -46,7 +46,7 @@ export interface TLocalFunctionNodeType {
   parameters: string[];
 }
 
-export class NodeTypesGenerator {
+class NodeTypesGenerator {
   generateNodeType(
     node: TNodeTypeAST,
     filePath: string,

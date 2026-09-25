@@ -12,8 +12,8 @@ import { renderBrief, type BriefOptions } from './brief.js';
 import { htmlToPdf, type PdfOptions } from './pdf.js';
 import { workflowToSVG } from '../diagram/index.js';
 
-export { renderBrief, type BriefOptions } from './brief.js';
-export { htmlToPdf, findBrowser, BrowserNotFoundError, type PdfOptions } from './pdf.js';
+export type { BriefOptions } from './brief.js';
+export type { PdfOptions } from './pdf.js';
 
 export type ArtifactKind = 'brief' | 'pdf' | 'svg';
 export const ARTIFACT_KINDS: readonly ArtifactKind[] = ['brief', 'pdf', 'svg'];

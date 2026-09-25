@@ -397,7 +397,7 @@ function parseLineOnce<T>(
   return result;
 }
 
-export class JSDocParser {
+class JSDocParser {
   /**
    * Parse @flowWeaver nodeType from JSDoc comments.
    * When a TagHandlerRegistry is provided, unknown tags are checked against it

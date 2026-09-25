@@ -313,7 +313,7 @@ export const toolNoOutputHandlingRule: TValidationRule = {
 // ---------------------------------------------------------------------------
 
 /** All agent validation rules */
-export const agentValidationRules: TValidationRule[] = [
+const agentValidationRules: TValidationRule[] = [
   missingErrorHandlerRule,
   unguardedToolExecutorRule,
   missingMemoryInLoopRule,

@@ -779,7 +779,7 @@ export function validateCycles(ctx: ValidationContext, workflow: TWorkflowAST): 
   }
 }
 
-export function detectCyclesInLayer(
+function detectCyclesInLayer(
   ctx: ValidationContext,
   parentId: string | null,
   instances: TWorkflowAST['instances'],

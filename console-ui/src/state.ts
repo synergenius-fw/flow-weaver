@@ -89,9 +89,9 @@ export interface AgentLog {
   reason?: string;
   ms?: number;
 }
-export const emptyAgentLog = (): AgentLog => ({ phase: 'idle', text: '', thinking: '', tools: [] });
+const emptyAgentLog = (): AgentLog => ({ phase: 'idle', text: '', thinking: '', tools: [] });
 /** Fold one `agent` event from the run's stream into the log. */
-export function applyAgentEvent(log: AgentLog, e: any): void {
+function applyAgentEvent(log: AgentLog, e: any): void {
   switch (e.phase) {
     case 'start': Object.assign(log, emptyAgentLog(), { phase: 'answering', profile: e.profile, provider: e.provider, model: e.model }); break;
     case 'text': log.text += e.text; break;
@@ -330,7 +330,7 @@ function settleLoading(): void {
   }, wait);
 }
 
-export async function loadWorkflows(): Promise<void> {
+async function loadWorkflows(): Promise<void> {
   startLoading();
   try {
     workflows.value = await get('/api/workflows');
@@ -338,7 +338,7 @@ export async function loadWorkflows(): Promise<void> {
     settleLoading();
   }
 }
-export async function refreshRuns() {
+async function refreshRuns() {
   const w = wf.value; if (!w) return;
   runs.value = await get(`/api/runs?${q({ file: w.file, name: w.name })}`);
 }
@@ -475,7 +475,7 @@ export async function openProject(dir: string): Promise<void> {
 const workflowHash = (rel: string, name: string) => `${encodeURIComponent(rel)}/${name}`;
 
 // ------------------------------------------------------------- docs + cli
-export async function loadGuide(): Promise<void> {
+async function loadGuide(): Promise<void> {
   guide.value = await get('/api/docs/guide');
 }
 
@@ -504,7 +504,7 @@ export function closeDoc(): void {
   location.hash = w ? workflowHash(w.rel, w.name) : '';
 }
 
-export async function loadPacks(): Promise<void> {
+async function loadPacks(): Promise<void> {
   packs.value = await get('/api/packs');
   targets.value = await get('/api/export/targets').catch(() => []);
   packProject.value = await get('/api/pack-project').catch(() => ({ isPack: false }));

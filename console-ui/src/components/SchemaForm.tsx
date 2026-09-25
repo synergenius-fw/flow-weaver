@@ -6,7 +6,7 @@ import { JsonEditor } from './JsonEditor';
 export type Errors = Record<string, string>;
 
 /** Validate a value against a schema. Keys are dotted paths, one message each. */
-export function validate(schema: FieldSchema, value: unknown, path = ''): Errors {
+function validate(schema: FieldSchema, value: unknown, path = ''): Errors {
   const errs: Errors = {};
   const missing = value === undefined || value === null || value === '';
   if (missing) { if (!schema.optional) errs[path || '.'] = 'required'; return errs; }

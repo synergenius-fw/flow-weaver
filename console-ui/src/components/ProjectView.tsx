@@ -73,7 +73,7 @@ function ServerSettings({ s, running, onDone }: { s: ServeSettings; running: boo
 }
 
 /** The project's server: whether it runs, where, and the controls. */
-export function ServerCard() {
+function ServerCard() {
   const s = serviceOf('serve');
   const settings = services.value?.settings.serve;
   const [busy, setBusy] = useState('');

@@ -520,7 +520,7 @@ export function checkFlowWeaverInstalled(cwd: string): CheckResult {
   };
 }
 
-export function checkFlowWeaverVersion(cwd: string): CheckResult {
+function checkFlowWeaverVersion(cwd: string): CheckResult {
   const libraryPath = path.join(cwd, 'node_modules', '@synergenius', 'flow-weaver');
   const pkgPath = path.join(libraryPath, 'package.json');
 
@@ -706,7 +706,7 @@ export function checkProjectConfig(cwd: string): CheckResult {
  * failure: an MCP server answering from another install is reported as a
  * warning, since edits here do not reach it.
  */
-export function checkRunningServices(services: ServiceRecord[] = listServices()): CheckResult {
+function checkRunningServices(services: ServiceRecord[] = listServices()): CheckResult {
   if (!services.length) return { name: 'Running services', status: 'pass', message: 'none' };
   const here = serverInstallInfo().installPath;
   const lines = services.map((s) => {

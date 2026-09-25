@@ -72,7 +72,7 @@ const CRON_FIELD = `${CRON_ITEM}(?:,${CRON_ITEM})*`;
 const CRON_REGEX = new RegExp(`^${CRON_FIELD}(?:\\s+${CRON_FIELD}){4}$`);
 
 /** True when `expression` has five cron fields of the accepted shape. */
-export function isValidCronExpression(expression: string): boolean {
+function isValidCronExpression(expression: string): boolean {
   return CRON_REGEX.test(expression.trim());
 }
 

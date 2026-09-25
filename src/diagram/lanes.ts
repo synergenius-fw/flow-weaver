@@ -82,7 +82,7 @@ export interface LaneGraph<S extends LaneStep = LaneStep> {
  * off the trunk, and its data edges are the only thing attaching it to the
  * process -- without them the tile floats, indented against nothing.
  */
-export function demandDriven(step: LaneStep | null | undefined): boolean {
+function demandDriven(step: LaneStep | null | undefined): boolean {
   if (!step) return false;
   if (step.pull) return true;
   const wired = step.entered.length > 0 || step.successTo.length > 0 || step.failureTo.length > 0;

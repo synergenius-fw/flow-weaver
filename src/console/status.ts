@@ -83,7 +83,7 @@ export function mcpRegistrations(projectDir: string, home: string = os.homedir()
 export interface Probe { url: string; ok: boolean; status?: number; ms?: number; error?: string }
 
 /** Ask a URL once, briefly. */
-export async function probe(url: string, init?: RequestInit, timeoutMs = 2500): Promise<Probe> {
+async function probe(url: string, init?: RequestInit, timeoutMs = 2500): Promise<Probe> {
   const started = Date.now();
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), timeoutMs);

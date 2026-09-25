@@ -21,7 +21,7 @@ const MCP_ENTRY = { command: MCP_COMMAND, args: [...MCP_ARGS] };
 export type ToolId = 'claude' | 'cursor' | 'vscode' | 'windsurf' | 'codex' | 'openclaw';
 
 /** Tools that can be spawned as interactive CLI sessions */
-export const CLI_TOOL_IDS: ReadonlySet<ToolId> = new Set(['claude', 'codex']);
+const CLI_TOOL_IDS: ReadonlySet<ToolId> = new Set(['claude', 'codex']);
 
 /** Binary name to spawn for each CLI tool */
 export const CLI_TOOL_BINARY: Partial<Record<ToolId, string>> = {
@@ -70,7 +70,7 @@ interface ConfigResult {
 
 // ── Deps ─────────────────────────────────────────────────────────────────────
 
-export function defaultDeps(): McpSetupDeps {
+function defaultDeps(): McpSetupDeps {
   return {
     execCommand: async (cmd: string) => {
       try {

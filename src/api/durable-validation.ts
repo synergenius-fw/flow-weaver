@@ -173,7 +173,7 @@ export function durableBranchPaths(
  * Both the closure validator and the compile-time check call this, so the
  * rule cannot drift between them.
  */
-export function durableClassificationCount(
+function durableClassificationCount(
   nodeType: Pick<TNodeTypeAST, 'durableGate' | 'durableEffect' | 'durablePure' | 'expression'> | undefined,
 ): number {
   const isGate = nodeType?.durableGate !== undefined;
