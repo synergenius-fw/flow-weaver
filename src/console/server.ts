@@ -50,6 +50,7 @@ import { workflowParamsSchema, gateOutputSchemas, type FieldSchema } from './sch
 import { scanWorkflowNames, checkWorkflows, invalidateListing, toPosix } from './scan.js';
 import { workflowSource } from './source.js';
 import { terminalWiring } from './terminals.js';
+import { refusal } from './request-guard.js';
 import { isConnectionCoveredByMacroStatic, httpRouteText } from '../generator/annotation-generator.js';
 import { planRoutes, RESERVED_PATHS } from '../server/api.js';
 import type { THttpRoute } from '../ast/types.js';
@@ -877,6 +878,8 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
   };
 
   const server = http.createServer(async (req, res) => {
+    const refused = refusal(req, host);
+    if (refused) return json(res, 403, { error: refused });
     const url = new URL(req.url ?? '/', `http://${host}`);
     const q = (k: string) => url.searchParams.get(k) ?? '';
     try {

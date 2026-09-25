@@ -4,6 +4,16 @@ All notable changes to this project are documented in [GitHub Releases](https://
 
 This project follows [Semantic Versioning](https://semver.org/) during beta. Breaking changes may occur between minor versions until v1.0.
 
+## Unreleased
+
+### Security
+
+- **The console refuses requests a web page could send it.** A page open in the same browser could post a plain-text body to `fw console` without a preflight, and so switch its project, start runs or run `fw` commands such as `fw market install`. It could also read the console's answers through DNS rebinding. The console now answers only to a loopback host name, and it refuses any change sent from an origin other than its own.
+
+### Fixed
+
+- **Export targets write valid OpenAPI 3.0.** A port of type `ANY`, or of a data type the builder did not know, was written as `type: any`, which validators reject. It is now left untyped. A bundle that exposes nothing no longer describes itself with an empty count. Its function-registry schema now matches the multi-workflow one.
+
 ## 0.43.0
 
 The first release since the project went public under Apache-2.0: a pass over every subsystem that fixes what was wrong, removes what was dead or contradicted the docs, and adds tests that keep the documentation in step with the code.
