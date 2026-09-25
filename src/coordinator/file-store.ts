@@ -112,8 +112,18 @@ export function createFileRunStore(rootDir: string): RunStore {
         const current = readJson<Claim>(file);
         if (standing(current) && current.owner !== owner) return false;
         if (standing(current) && current.owner === owner) { writeAtomic(file, mine); return true; }
-        // Nobody stands on it: take it exclusively, so two takers cannot both win.
-        if (current) fs.rmSync(file, { force: true });
+        // Nobody stands on it. A lapsed claim is moved aside, not deleted:
+        // only one of two takers can rename it, and the loser's rename fails
+        // with ENOENT, so it looks again instead of deleting the winner's
+        // fresh claim (which a delete-then-create would do).
+        if (current) {
+          const aside = `${file}.lapsed-${randomUUID().slice(0, 8)}`;
+          try { fs.renameSync(file, aside); } catch (e) {
+            if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+            continue;
+          }
+          fs.rmSync(aside, { force: true });
+        }
         try {
           fs.writeFileSync(file, JSON.stringify(mine), { flag: 'wx' });
           return true;

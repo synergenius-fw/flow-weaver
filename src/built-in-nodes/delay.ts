@@ -20,7 +20,16 @@ export async function delay(
     // Fast mode: skip real sleep, keep async behavior with 1ms
     await waitForDuration(1, abortSignal);
   } else {
-    const ms = parseDuration(duration);
+    const ms = parseDuration(duration) ?? 0;
+    // setTimeout holds a signed 32-bit delay. Past 2^31-1 ms (24.8 days) it
+    // fires at once with a warning instead of waiting, so a longer duration
+    // is refused rather than silently cut short. A run that waits that long
+    // wants `sleep`, which holds no process.
+    if (ms > 2147483647) {
+      throw new Error(
+        'delay: "' + duration + '" is longer than setTimeout can wait (24.8 days); use sleep for a wait this long',
+      );
+    }
     await waitForDuration(ms, abortSignal);
   }
 
@@ -51,10 +60,16 @@ function waitForDuration(ms: number, abortSignal?: AbortSignal): Promise<void> {
   });
 }
 
-function parseDuration(duration: string): number {
-  const match = duration.match(/^(\d+)(ms|s|m|h|d)$/);
-  if (!match) return 0;
-  const [, value, unit] = match;
-  const multipliers: Record<string, number> = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
-  return parseInt(value) * (multipliers[unit] || 0);
+// `<number><unit>` with unit `ms`, `s`, `m`, `h` or `d`, whitespace around
+// either allowed; `undefined` for anything else, including an empty string.
+// This is the one reading of a duration string in the package: the
+// coordinator's clock (`src/coordinator/time.ts`) re-exports it for a
+// `sleep` duration and a gate `timeout`, and this file's body is inlined into
+// compiled workflows, which is why the function lives here and not there.
+export function parseDuration(text: unknown): number | undefined {
+  if (typeof text !== 'string') return undefined;
+  const match = /^\s*(\d+)\s*(ms|s|m|h|d)\s*$/.exec(text);
+  if (!match) return undefined;
+  const units: Record<string, number> = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
+  return Number(match[1]) * units[match[2]];
 }

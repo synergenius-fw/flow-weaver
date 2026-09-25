@@ -9,7 +9,19 @@
  * every compiled file after `continuation-core.ts` (see
  * `src/api/inline-runtime.ts`). It imports values only from that module,
  * and its type imports are aliased by the inliner. No Node API, nothing
- * past ES2020.
+ * past ES2020. Every comment below this header is copied too, and the
+ * generator goldens pin the copied text; this header is the one comment the
+ * inliner drops.
+ *
+ * Two execution contexts talk to this engine. A compiled file runs the copy
+ * that `src/api/inline-runtime.ts` writes out, whose scope counters start at
+ * 0 on every construction: a resume replays the body from its first node,
+ * skipping what the continuation holds, and so reaches the same iteration
+ * ordinals again (`tests/continuation/durable-loops.test.ts`). The package's
+ * own `src/runtime/ExecutionContext.ts` is the library-side class, exported
+ * and driven by the tests, and the only caller of `resumedScopeHighWater`;
+ * the doc comment on that method describes its seeding, which compiled
+ * files do not perform.
  */
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import type { DebugController } from './debug-controller.js';

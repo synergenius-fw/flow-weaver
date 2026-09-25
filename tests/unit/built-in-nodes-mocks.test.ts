@@ -1,8 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { delay } from '../../src/built-in-nodes/delay';
+import { delay, parseDuration } from '../../src/built-in-nodes/delay';
+import { parseDuration as coordinatorParseDuration } from '../../src/coordinator/time';
 import { waitForEvent } from '../../src/built-in-nodes/wait-for-event';
 import { invokeWorkflow } from '../../src/built-in-nodes/invoke-workflow';
 import { waitForAgent } from '../../src/built-in-nodes/wait-for-agent';
+import { sleep } from '../../src/built-in-nodes/sleep';
 import type { FwMockConfig } from '../../src/built-in-nodes/mock-types';
 import { createNestedWorkflowRuntime, type NodeExecutionRuntime, type WorkflowRuntime } from '../../src/runtime/durable-execution';
 
@@ -81,76 +83,70 @@ describe('delay with mocks', () => {
       elapsed: false,
     });
   });
+
+  it('reads a duration with the same function the coordinator clock uses', () => {
+    expect(coordinatorParseDuration).toBe(parseDuration);
+    expect(parseDuration('500ms')).toBe(500);
+    expect(parseDuration('30s')).toBe(30_000);
+    expect(parseDuration(' 2h ')).toBe(7_200_000);
+    expect(parseDuration('3d')).toBe(259_200_000);
+    for (const bad of ['', 'soon', '5 weeks', 42, null, undefined, '1.5h']) {
+      expect(parseDuration(bad)).toBeUndefined();
+    }
+  });
+
+  it('refuses a wait longer than setTimeout can hold instead of returning at once', async () => {
+    const start = Date.now();
+    await expect(runDelay(true, '30d')).rejects.toThrow(/longer than setTimeout can wait/);
+    await expect(runDelay(true, '99999999999999999999ms')).rejects.toThrow(/longer than setTimeout can wait/);
+    expect(Date.now() - start).toBeLessThan(200);
+  });
 });
 
 // ---------------------------------------------------------------------------
-// waitForEvent
+// The gates: waitForEvent, waitForAgent, sleep
+//
+// A compiled workflow never calls these bodies; the generator emits a durable
+// gate in their place and the engine answers it from the mocks (pinned in
+// tests/unit/coordinator/coordinator-mocks.test.ts and coordinator-time.test.ts).
+// The bodies fail closed, mocks or not.
 // ---------------------------------------------------------------------------
 
-describe('waitForEvent with mocks', () => {
-  it('returns mock data when event name matches', async () => {
-    mocks = {
-      events: { 'app/expense.approved': { expenseId: '123', amount: 500 } },
-    };
-    const result = await runWaitForEvent(true, 'app/expense.approved');
-    expect(result).toEqual({
-      onSuccess: true,
-      onFailure: false,
-      eventData: { expenseId: '123', amount: 500 },
-    });
+describe('gate bodies fail closed', () => {
+  it('waitForEvent throws even when the mocks would answer the gate', async () => {
+    mocks = { events: { 'app/expense.approved': { expenseId: '123' } } };
+    await expect(runWaitForEvent(true, 'app/expense.approved')).rejects.toThrow(
+      'requires a generated durable input gate',
+    );
+    mocks = undefined;
+    await expect(runWaitForEvent(true, 'app/expense.approved')).rejects.toThrow(
+      'requires a generated durable input gate',
+    );
   });
 
-  it('returns onFailure when mocks active but event not found', async () => {
-    mocks = {
-      events: { 'app/other-event': { data: 'x' } },
-    };
-    const result = await runWaitForEvent(true, 'app/expense.approved');
-    expect(result).toEqual({
-      onSuccess: false,
-      onFailure: true,
-      eventData: {},
-    });
+  it('waitForAgent throws even when the mocks would answer the gate', async () => {
+    mocks = { agents: { 'human-reviewer': { approved: true } } };
+    await expect(runWaitForAgent(true, 'human-reviewer', {})).rejects.toThrow(
+      'requires a generated durable agent gate',
+    );
+    mocks = undefined;
+    await expect(runWaitForAgent(true, 'human-reviewer', {})).rejects.toThrow(
+      'requires a generated durable agent gate',
+    );
   });
 
-  it('returns onFailure when mocks active with empty events', async () => {
-    mocks = { events: {} };
-    const result = await runWaitForEvent(true, 'app/expense.approved');
-    expect(result).toEqual({
-      onSuccess: false,
-      onFailure: true,
-      eventData: {},
-    });
+  it('sleep throws even under fast mocks', async () => {
+    mocks = { fast: true };
+    await expect(sleep(true, '3d', nodeRuntime('sleep'))).rejects.toThrow(
+      'requires a generated durable timer gate',
+    );
   });
 
-  it('returns onFailure when mocks active with no events key', async () => {
-    mocks = {};
-    const result = await runWaitForEvent(true, 'app/expense.approved');
-    expect(result).toEqual({
-      onSuccess: false,
-      onFailure: true,
-      eventData: {},
-    });
-  });
-
-  it('uses original no-op behavior when no mocks', async () => {
-    const result = await runWaitForEvent(true, 'app/expense.approved');
-    expect(result).toEqual({
-      onSuccess: true,
-      onFailure: false,
-      eventData: {},
-    });
-  });
-
-  it('returns inactive when execute=false', async () => {
-    mocks = {
-      events: { 'app/test': { data: 'x' } },
-    };
-    const result = await runWaitForEvent(false, 'app/test');
-    expect(result).toEqual({
-      onSuccess: false,
-      onFailure: false,
-      eventData: {},
-    });
+  it('each returns inactive when execute=false', async () => {
+    mocks = { events: { 'app/test': { data: 'x' } }, agents: { a: { ok: true } }, fast: true };
+    expect(await runWaitForEvent(false, 'app/test')).toEqual({ onSuccess: false, onFailure: false, eventData: {} });
+    expect(await runWaitForAgent(false, 'a', {})).toEqual({ onSuccess: false, onFailure: false, agentResult: {} });
+    expect(await sleep(false, '1s', nodeRuntime('sleep'))).toEqual({ onSuccess: false, onFailure: false, wokeAt: '' });
   });
 });
 
@@ -218,81 +214,19 @@ describe('invokeWorkflow with mocks', () => {
 });
 
 // ---------------------------------------------------------------------------
-// waitForAgent
-// ---------------------------------------------------------------------------
-
-describe('waitForAgent with mocks', () => {
-  it('returns mock result when agentId matches', async () => {
-    mocks = {
-      agents: { 'human-reviewer': { approved: true, note: 'LGTM' } },
-    };
-    const result = await runWaitForAgent(true, 'human-reviewer', {
-      data: 'test',
-    });
-    expect(result).toEqual({
-      onSuccess: true,
-      onFailure: false,
-      agentResult: { approved: true, note: 'LGTM' },
-    });
-  });
-
-  it('returns onFailure when agentId not found in mocks', async () => {
-    mocks = {
-      agents: { 'other-agent': { data: 'x' } },
-    };
-    const result = await runWaitForAgent(true, 'human-reviewer', {});
-    expect(result).toEqual({
-      onSuccess: false,
-      onFailure: true,
-      agentResult: {},
-    });
-  });
-
-  it('returns onFailure when mocks active with empty agents', async () => {
-    mocks = { agents: {} };
-    const result = await runWaitForAgent(true, 'human-reviewer', {});
-    expect(result).toEqual({
-      onSuccess: false,
-      onFailure: true,
-      agentResult: {},
-    });
-  });
-
-  it('fails closed without a generated durable gate or mock', async () => {
-    await expect(runWaitForAgent(true, 'human-reviewer', {})).rejects.toThrow(
-      'requires a generated durable agent gate',
-    );
-  });
-
-  it('returns inactive when execute=false', async () => {
-    mocks = {
-      agents: { 'human-reviewer': { approved: true } },
-    };
-    const result = await runWaitForAgent(false, 'human-reviewer', {});
-    expect(result).toEqual({
-      onSuccess: false,
-      onFailure: false,
-      agentResult: {},
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
 // combined mocks
 // ---------------------------------------------------------------------------
 
 describe('combined mocks', () => {
-  it('handles events + invocations + fast simultaneously', async () => {
+  it('handles invocations + fast simultaneously', async () => {
     mocks = {
-      events: { 'app/approved': { id: '1' } },
       invocations: { 'svc/fn': { ok: true } },
       fast: true,
     };
 
     const start = Date.now();
-    const [delayResult, eventResult, invokeResult] = await Promise.all([
+    const [delayResult, invokeResult] = await Promise.all([
       runDelay(true, '1h'),
-      runWaitForEvent(true, 'app/approved'),
       runInvokeWorkflow(true, 'svc/fn', {}),
     ]);
     expect(Date.now() - start).toBeLessThan(50);
@@ -302,29 +236,6 @@ describe('combined mocks', () => {
       onFailure: false,
       elapsed: true,
     });
-    expect(eventResult.eventData).toEqual({ id: '1' });
     expect(invokeResult.result).toEqual({ ok: true });
-  });
-
-  it('multiple events for different nodes', async () => {
-    mocks = {
-      events: {
-        'app/approved': { id: '1' },
-        'app/payment.confirmed': { txId: 'tx-789' },
-      },
-    };
-
-    const [r1, r2, r3] = await Promise.all([
-      runWaitForEvent(true, 'app/approved'),
-      runWaitForEvent(true, 'app/payment.confirmed'),
-      runWaitForEvent(true, 'app/unknown'), // not in mocks
-    ]);
-
-    expect(r1.onSuccess).toBe(true);
-    expect(r1.eventData).toEqual({ id: '1' });
-    expect(r2.onSuccess).toBe(true);
-    expect(r2.eventData).toEqual({ txId: 'tx-789' });
-    expect(r3.onSuccess).toBe(false);
-    expect(r3.onFailure).toBe(true);
   });
 });

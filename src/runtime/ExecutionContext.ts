@@ -42,10 +42,15 @@ export interface ExecutionInfo {
 type VariableValue = unknown | (() => unknown) | (() => Promise<unknown>);
 
 /**
- * Runtime execution context for generated workflows
+ * The execution context, library side.
  *
  * Manages variable storage, execution tracking, and pull execution (lazy evaluation).
- * This class is used internally by generated workflow code.
+ * A compiled workflow does not run this class: it carries its own copy, written
+ * out by `generateInlineRuntime` in `src/api/inline-runtime.ts`, so that the
+ * compiled file has no import from this package. This one is what the package
+ * exports, what `debug-controller.ts` types against, and what the tests drive
+ * directly. The two are kept in step by hand; a change meant for compiled
+ * files goes in `inline-runtime.ts`.
  *
  * Key Features:
  * - Variable storage with execution-scoped addressing
@@ -86,12 +91,14 @@ export class GeneratedExecutionContext {
     this.flowWeaverDebugger = runtime.services.debugger;
     this.runtime = runtime;
     this.branchStack = [...runtime.branches];
-    // Resume-safety: a re-entered scope must continue at the iteration the
-    // original process reached, not restart at 0. The next ordinal to assign
-    // is one past the highest iteration committed to the continuation. Without
-    // this seed a fresh-process resume would recount from 0 and collide with
-    // already-committed loop iterations. Every scoped context is built through
-    // this constructor with the same shared `runtime`, so nested loops seed too.
+    // Library side only. This seeds a re-entered scope's counter to one past
+    // the highest iteration the continuation holds. The copy of this class
+    // inside a compiled file (see `src/api/inline-runtime.ts`) does not seed:
+    // it starts every counter at 0 and reaches the same ordinals by replaying
+    // the body from its first node, skipping what the continuation holds
+    // (`tests/continuation/durable-loops.test.ts`). The two copies are kept
+    // apart on purpose; this is the class the package exports and the tests
+    // drive, not what a compiled workflow runs.
     for (const [scopeKey, maxIteration] of runtime.durable.resumedScopeHighWater()) {
       this.scopeInvocationCounts.set(scopeKey, maxIteration + 1);
     }

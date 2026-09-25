@@ -67,7 +67,16 @@ async function delay(
     // Fast mode: skip real sleep, keep async behavior with 1ms
     await __fw_waitForDuration(1, abortSignal);
   } else {
-    const ms = __fw_parseDuration(duration);
+    const ms = __fw_parseDuration(duration) ?? 0;
+    // setTimeout holds a signed 32-bit delay. Past 2^31-1 ms (24.8 days) it
+    // fires at once with a warning instead of waiting, so a longer duration
+    // is refused rather than silently cut short. A run that waits that long
+    // wants \`sleep\`, which holds no process.
+    if (ms > 2147483647) {
+      throw new Error(
+        'delay: "' + duration + '" is longer than setTimeout can wait (24.8 days); use sleep for a wait this long',
+      );
+    }
     await __fw_waitForDuration(ms, abortSignal);
   }
 
@@ -98,12 +107,18 @@ function __fw_waitForDuration(ms: number, abortSignal?: AbortSignal): Promise<vo
   });
 }
 
-function __fw_parseDuration(duration: string): number {
-  const match = duration.match(/^(\\d+)(ms|s|m|h|d)$/);
-  if (!match) return 0;
-  const [, value, unit] = match;
-  const multipliers: Record<string, number> = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
-  return parseInt(value) * (multipliers[unit] || 0);
+// \`<number><unit>\` with unit \`ms\`, \`s\`, \`m\`, \`h\` or \`d\`, whitespace around
+// either allowed; \`undefined\` for anything else, including an empty string.
+// This is the one reading of a duration string in the package: the
+// coordinator's clock (\`src/coordinator/time.ts\`) re-exports it for a
+// \`sleep\` duration and a gate \`timeout\`, and this file's body is inlined into
+// compiled workflows, which is why the function lives here and not there.
+function __fw_parseDuration(text: unknown): number | undefined {
+  if (typeof text !== 'string') return undefined;
+  const match = /^\\s*(\\d+)\\s*(ms|s|m|h|d)\\s*$/.exec(text);
+  if (!match) return undefined;
+  const units: Record<string, number> = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
+  return Number(match[1]) * units[match[2]];
 }
 `.trim(),
     functionTextProduction: `
@@ -115,7 +130,16 @@ async function delay(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; elapsed: boolean }> {
   if (!execute) return { onSuccess: false, onFailure: false, elapsed: false };
 
-const ms = __fw_parseDuration(duration);
+const ms = __fw_parseDuration(duration) ?? 0;
+  // setTimeout holds a signed 32-bit delay. Past 2^31-1 ms (24.8 days) it
+  // fires at once with a warning instead of waiting, so a longer duration
+  // is refused rather than silently cut short. A run that waits that long
+  // wants \`sleep\`, which holds no process.
+  if (ms > 2147483647) {
+    throw new Error(
+      'delay: "' + duration + '" is longer than setTimeout can wait (24.8 days); use sleep for a wait this long',
+    );
+  }
   await __fw_waitForDuration(ms, abortSignal);
 
   return { onSuccess: true, onFailure: false, elapsed: true };
@@ -145,12 +169,18 @@ function __fw_waitForDuration(ms: number, abortSignal?: AbortSignal): Promise<vo
   });
 }
 
-function __fw_parseDuration(duration: string): number {
-  const match = duration.match(/^(\\d+)(ms|s|m|h|d)$/);
-  if (!match) return 0;
-  const [, value, unit] = match;
-  const multipliers: Record<string, number> = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
-  return parseInt(value) * (multipliers[unit] || 0);
+// \`<number><unit>\` with unit \`ms\`, \`s\`, \`m\`, \`h\` or \`d\`, whitespace around
+// either allowed; \`undefined\` for anything else, including an empty string.
+// This is the one reading of a duration string in the package: the
+// coordinator's clock (\`src/coordinator/time.ts\`) re-exports it for a
+// \`sleep\` duration and a gate \`timeout\`, and this file's body is inlined into
+// compiled workflows, which is why the function lives here and not there.
+function __fw_parseDuration(text: unknown): number | undefined {
+  if (typeof text !== 'string') return undefined;
+  const match = /^\\s*(\\d+)\\s*(ms|s|m|h|d)\\s*$/.exec(text);
+  if (!match) return undefined;
+  const units: Record<string, number> = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 };
+  return Number(match[1]) * units[match[2]];
 }
 `.trim(),
   },
@@ -207,18 +237,16 @@ async function sleep(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; wokeAt: string }> {
   if (!execute) return { onSuccess: false, onFailure: false, wokeAt: '' };
 
-  const mocks = __fw_getMockConfig(runtime);
-  if (mocks) {
-    // Mock mode -- \`fast\` wakes at once, as it makes \`delay\` return at once
-    if (mocks.fast) return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
-  }
-
-  // A timer gate: in a compiled workflow this body is never called. The run
-  // yields here and whoever keeps it -- the coordinator, or a host of its
-  // own -- resumes it once \`duration\` has passed. Called directly, it does
-  // not hold the process: that is what \`delay\` is for.
+  // A timer gate. The compiler replaces this call with a durable yield, and
+  // whoever keeps the run (the coordinator's clock, or a host of its own)
+  // resumes it once \`duration\` has passed; under test \`fast\` wakes it at
+  // once (see \`FwMockConfig\` in \`src/built-in-nodes/mock-types.ts\`).
+  // Reaching this body means the generated program did not apply the gate
+  // boundary, so it fails closed. A wait that holds the process is what
+  // \`delay\` is for.
   void duration;
-  return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
+  void runtime;
+  throw new Error('sleep requires a generated durable timer gate');
 }
 `.trim(),
     functionTextProduction: `
@@ -229,13 +257,15 @@ async function sleep(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; wokeAt: string }> {
   if (!execute) return { onSuccess: false, onFailure: false, wokeAt: '' };
 
-
-  // A timer gate: in a compiled workflow this body is never called. The run
-  // yields here and whoever keeps it -- the coordinator, or a host of its
-  // own -- resumes it once \`duration\` has passed. Called directly, it does
-  // not hold the process: that is what \`delay\` is for.
+  // A timer gate. The compiler replaces this call with a durable yield, and
+  // whoever keeps the run (the coordinator's clock, or a host of its own)
+  // resumes it once \`duration\` has passed; under test \`fast\` wakes it at
+  // Reaching this body means the generated program did not apply the gate
+  // boundary, so it fails closed. A wait that holds the process is what
+  // \`delay\` is for.
   void duration;
-  return { onSuccess: true, onFailure: false, wokeAt: new Date().toISOString() };
+  void runtime;
+  throw new Error('sleep requires a generated durable timer gate');
 }
 `.trim(),
   },
@@ -296,19 +326,16 @@ async function waitForEvent(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; eventData: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, eventData: {} };
 
-  const mocks = __fw_getMockConfig(runtime);
-  if (mocks) {
-    // Mock mode: look up event data by name (supports instance-qualified keys)
-    const mockData = __fw_lookupMock(mocks.events, eventName, runtime);
-    if (mockData !== undefined) {
-      return { onSuccess: true, onFailure: false, eventData: mockData };
-    }
-    // No mock data for this event, so simulate timeout
-    return { onSuccess: false, onFailure: true, eventData: {} };
-  }
-
-  // No mocks: original no-op behavior (always succeeds)
-  return { onSuccess: true, onFailure: false, eventData: {} };
+  // An input gate. The compiler replaces this call with a durable yield, and
+  // the engine answers the gate: from a person, or under test from the run's
+  // canned answers (see \`FwMockConfig\` in \`src/built-in-nodes/mock-types.ts\`
+  // for how those are read). Reaching this body means the generated program
+  // did not apply the gate boundary, so it fails closed.
+  void eventName;
+  void match;
+  void timeout;
+  void runtime;
+  throw new Error('waitForEvent requires a generated durable input gate');
 }
 `.trim(),
     functionTextProduction: `
@@ -321,8 +348,15 @@ async function waitForEvent(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; eventData: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, eventData: {} };
 
-
-  return { onSuccess: true, onFailure: false, eventData: {} };
+  // An input gate. The compiler replaces this call with a durable yield, and
+  // the engine answers the gate: from a person, or under test from the run's
+  // for how those are read). Reaching this body means the generated program
+  // did not apply the gate boundary, so it fails closed.
+  void eventName;
+  void match;
+  void timeout;
+  void runtime;
+  throw new Error('waitForEvent requires a generated durable input gate');
 }
 `.trim(),
   },
@@ -541,22 +575,15 @@ async function waitForAgent(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, agentResult: {} };
 
-  // 1. Check mocks first (supports instance-qualified keys)
-  const mocks = __fw_getMockConfig(runtime);
-  const mockResult = __fw_lookupMock(mocks?.agents, agentId, runtime);
-  if (mockResult !== undefined) {
-    return { onSuccess: true, onFailure: false, agentResult: mockResult };
-  }
-  // Mocks section exists but key not found, so fail like waitForEvent/invokeWorkflow
-  if (mocks?.agents) {
-    return { onSuccess: false, onFailure: true, agentResult: {} };
-  }
-
-  // The compiler replaces this declared agent gate with a terminal durable
-  // yield. Reaching the implementation without a mock means the generated
-  // program did not apply the durable-gate boundary and must fail closed.
+  // An agent gate. The compiler replaces this call with a durable yield, and
+  // the engine answers the gate: from a person, or under test from the run's
+  // canned answers (see \`FwMockConfig\` in \`src/built-in-nodes/mock-types.ts\`
+  // for how those are read). Reaching this body means the generated program
+  // did not apply the gate boundary, so it fails closed.
+  void agentId;
   void context;
   void prompt;
+  void runtime;
   throw new Error('waitForAgent requires a generated durable agent gate');
 }
 `.trim(),
@@ -571,11 +598,14 @@ async function waitForAgent(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, agentResult: {} };
 
-
-  // The compiler replaces this declared agent gate with a terminal durable
-  // program did not apply the durable-gate boundary and must fail closed.
+  // An agent gate. The compiler replaces this call with a durable yield, and
+  // the engine answers the gate: from a person, or under test from the run's
+  // for how those are read). Reaching this body means the generated program
+  // did not apply the gate boundary, so it fails closed.
+  void agentId;
   void context;
   void prompt;
+  void runtime;
   throw new Error('waitForAgent requires a generated durable agent gate');
 }
 `.trim(),

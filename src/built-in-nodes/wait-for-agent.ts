@@ -1,4 +1,3 @@
-import { getMockConfig, lookupMock } from './mock-types.js';
 import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 /**
@@ -18,21 +17,14 @@ export async function waitForAgent(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, agentResult: {} };
 
-  // 1. Check mocks first (supports instance-qualified keys)
-  const mocks = getMockConfig(runtime);
-  const mockResult = lookupMock(mocks?.agents, agentId, runtime);
-  if (mockResult !== undefined) {
-    return { onSuccess: true, onFailure: false, agentResult: mockResult };
-  }
-  // Mocks section exists but key not found, so fail like waitForEvent/invokeWorkflow
-  if (mocks?.agents) {
-    return { onSuccess: false, onFailure: true, agentResult: {} };
-  }
-
-  // The compiler replaces this declared agent gate with a terminal durable
-  // yield. Reaching the implementation without a mock means the generated
-  // program did not apply the durable-gate boundary and must fail closed.
+  // An agent gate. The compiler replaces this call with a durable yield, and
+  // the engine answers the gate: from a person, or under test from the run's
+  // canned answers (see `FwMockConfig` in `src/built-in-nodes/mock-types.ts`
+  // for how those are read). Reaching this body means the generated program
+  // did not apply the gate boundary, so it fails closed.
+  void agentId;
   void context;
   void prompt;
+  void runtime;
   throw new Error('waitForAgent requires a generated durable agent gate');
 }

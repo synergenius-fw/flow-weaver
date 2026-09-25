@@ -487,15 +487,7 @@ export function generateInlineRuntime(
   lines.push('    this.scopeInvocationCounts.set(scopeKey, scopeInvocation + 1);');
   lines.push('    const parentRuntime = this.getRuntime();');
   lines.push('    const scopedRuntime: WorkflowRuntime = { ...parentRuntime, scopes: [...parentRuntime.scopes, { parentNodeId: _parentNodeName, parentExecutionIndex: _parentIndex, scopeName: _scopeName, invocation: scopeInvocation, loopIteration: scopeInvocation }] };');
-  if (production) {
-    lines.push(
-      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, scopedRuntime);'
-    );
-  } else {
-    lines.push(
-      '    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, scopedRuntime);'
-    );
-  }
+  lines.push('    const scopedContext = new GeneratedExecutionContext(effectiveIsAsync, scopedRuntime);');
   lines.push('    // For per-port function scopes (cleanScope=true), start with empty variables');
   lines.push('    // For node-level scopes (cleanScope=false), inherit parent variables');
   lines.push('    scopedContext.variables = cleanScope ? new Map() : new Map(this.variables);');

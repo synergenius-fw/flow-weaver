@@ -1,4 +1,3 @@
-import { getMockConfig, lookupMock } from './mock-types.js';
 import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 /**
@@ -17,17 +16,14 @@ export async function waitForEvent(
 ): Promise<{ onSuccess: boolean; onFailure: boolean; eventData: object }> {
   if (!execute) return { onSuccess: false, onFailure: false, eventData: {} };
 
-  const mocks = getMockConfig(runtime);
-  if (mocks) {
-    // Mock mode: look up event data by name (supports instance-qualified keys)
-    const mockData = lookupMock(mocks.events, eventName, runtime);
-    if (mockData !== undefined) {
-      return { onSuccess: true, onFailure: false, eventData: mockData };
-    }
-    // No mock data for this event, so simulate timeout
-    return { onSuccess: false, onFailure: true, eventData: {} };
-  }
-
-  // No mocks: original no-op behavior (always succeeds)
-  return { onSuccess: true, onFailure: false, eventData: {} };
+  // An input gate. The compiler replaces this call with a durable yield, and
+  // the engine answers the gate: from a person, or under test from the run's
+  // canned answers (see `FwMockConfig` in `src/built-in-nodes/mock-types.ts`
+  // for how those are read). Reaching this body means the generated program
+  // did not apply the gate boundary, so it fails closed.
+  void eventName;
+  void match;
+  void timeout;
+  void runtime;
+  throw new Error('waitForEvent requires a generated durable input gate');
 }

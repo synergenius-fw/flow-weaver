@@ -1,15 +1,35 @@
 /**
- * Type definitions for the mock configuration used during local testing.
- * Built-in nodes receive this data through one execution-scoped runtime.
+ * Canned answers for a run under test, carried by the execution-scoped
+ * runtime (`runtime.services.mocks`).
+ *
+ * Who reads them is the point. A compiled workflow never calls the bodies of
+ * `waitForEvent`, `waitForAgent` or `sleep`: the generator emits a durable
+ * gate in their place, and the engine (`mockedGateAnswer` in
+ * `src/runtime/durable-execution.ts`) answers that gate from here before it
+ * yields. The bodies of those three nodes throw if reached. `invokeWorkflow`
+ * and `delay` do run as functions and read `invocations` and `fast`
+ * themselves.
+ *
+ * How a gate is answered, in this order:
+ *
+ * - `gates[nodeId]` answers any gate, built-in or authored, with the gate's
+ *   data outputs; control ports are filled in as for a person's answer.
+ * - `waitForAgent` also reads `agents` and `waitForEvent` reads `events`,
+ *   keyed by the node's first input (the agent id, the event name), by
+ *   `nodeId:key`, or by `nodeId:*` (the lookup `lookupMock` describes).
+ * - `sleep` wakes at once under `fast`, as `delay` returns at once.
+ * - A gate no entry answers yields for a person, whether or not its section
+ *   exists: an `agents` section without this agent's key is a wait, not a
+ *   failure. Nothing takes the failure path on a missing key.
  */
 import type { NodeExecutionRuntime } from '../runtime/durable-execution.js';
 
 export interface FwMockConfig {
-  /** Mock event data keyed by event name. Used by waitForEvent to answer the gate without pausing. */
+  /** Event payloads keyed by event name (or `nodeId:name`, `nodeId:*`). Answers a `waitForEvent` gate. */
   events?: Record<string, object>;
-  /** Mock invocation results keyed by functionId. Used by invokeWorkflow. */
+  /** Invocation results keyed by functionId (or `nodeId:functionId`, `nodeId:*`). Read by `invokeWorkflow` itself. */
   invocations?: Record<string, object>;
-  /** Mock agent results keyed by agentId. Used by waitForAgent to answer the gate without pausing. */
+  /** Agent results keyed by agent id (or `nodeId:agentId`, `nodeId:*`). Answers a `waitForAgent` gate. */
   agents?: Record<string, object>;
   /**
    * An answer for any durable gate, keyed by the node's instance id: the
@@ -17,7 +37,7 @@ export interface FwMockConfig {
    * The run goes through the gate as if a person had answered that.
    */
   gates?: Record<string, object>;
-  /** When true, delay nodes skip the real sleep (1ms instead of full duration). */
+  /** When true, `delay` waits 1ms instead of its duration and a `sleep` gate wakes at once. */
   fast?: boolean;
 }
 

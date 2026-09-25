@@ -46,3 +46,14 @@ export { RunBusyError, DOC_NAME, RESERVED_DOCS, EFFECT_DOC_PREFIX, checkDocName,
 export { missingParams, MissingParamsError } from './params.js';
 export { createFileRunStore } from './file-store.js';
 export { createMemoryRunStore } from './memory-store.js';
+// The engine's own boundary, for a coordinator of your own: one segment of a
+// run, from the start or from a continuation, with no store behind it.
+export {
+  executeWorkflow,
+  ContinuationRefusalError,
+  type WorkflowExecutionRequest,
+  type WorkflowExecutionOutcome,
+  type CompletedExecutionOutcome,
+  type YieldedExecutionOutcome,
+  type ExecutionTraceEvent,
+} from '../mcp/workflow-executor.js';

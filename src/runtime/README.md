@@ -6,22 +6,23 @@ three purposes that happen to share types.
 
 ---
 
-## The inlined execution kernel
+## The execution context, in two copies
 
 `ExecutionContext.ts`, `CancellationError.ts`, `events.ts`
 
-None of these are imported by generated code. Instead, `src/api/inline-runtime.ts`
-emits their logic as source code directly into every generated output file. The
-result is a standalone `.ts` file with no external imports.
+None of these are imported by generated code. A compiled file carries its own
+`GeneratedExecutionContext`, and that one is not derived from this folder: it is
+written out line by line in `src/api/inline-runtime.ts` (`generateInlineRuntime`),
+which also emits the event types and `CancellationError`. The result is a standalone
+`.ts` file with no external imports, in a `production` variant (no debug
+instrumentation, no-op event stubs) and a `development` variant (full debug event
+stream).
 
-These source files are the canonical source of truth for what gets inlined. Change
-`ExecutionContext.ts` and all future generated files will reflect it. Existing generated
-files are unaffected until you regenerate them.
-
-The compiler generates two variants: a `production` build (no debug instrumentation,
-no-op event stubs) and a `development` build (full debug event stream). The source files
-here always represent the full development version. Production stripping happens at
-code-generation time inside `inline-runtime.ts`.
+`ExecutionContext.ts` here is the library-side class: the one the package exports
+(`GeneratedExecutionContext` from the root), the one `debug-controller.ts` types
+against, and the one the tests drive directly. Compiled workflows never run it. A
+change to it does not reach compiled files; a change meant for them goes in
+`inline-runtime.ts`, and the two are kept in step by hand.
 
 ## The inlined durable engine
 

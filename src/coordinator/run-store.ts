@@ -7,7 +7,7 @@ import type { TWorkflowAST } from '../ast/types.js';
 import type { ContinuationEnvelope, DurableGateKind } from '../runtime/continuation.js';
 import type { EffectAdapter } from '../runtime/durable-execution.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
-import { executeWorkflow, type ExecutionTraceEvent, type WorkflowExecutionOutcome } from '../mcp/workflow-executor.js';
+import { executeWorkflow, ContinuationRefusalError, type ExecutionTraceEvent, type WorkflowExecutionOutcome } from '../mcp/workflow-executor.js';
 import { computeBundleDigest } from './bundle-digest.js';
 import { labelGate } from './gate-labeling.js';
 import { buildGateResolution, type ResolveInput } from './gate-resolution.js';
@@ -339,7 +339,10 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
   /**
    * Commit an outcome. The continuation lands first, then the record; the
    * record is the commit point. A run with documents and no record is an
-   * unacknowledged yield and is ignored everywhere.
+   * unacknowledged yield and is ignored everywhere. On a later segment a
+   * death between the two writes leaves the record one gate behind the
+   * continuation; `resume` notices the disagreement and refuses without
+   * failing the run.
    */
   async function commit(record: RunRecord, outcome: WorkflowExecutionOutcome, ast: TWorkflowAST, kept?: TraceEntry[]): Promise<RunRecord> {
     const now = new Date().toISOString();
@@ -540,15 +543,22 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
       const digest = await computeBundleDigest(record.filePath, record.workflowName);
       if (digest !== record.bundleDigest) throw new BundleChangedError();
 
-      const resolution = buildGateResolution(record.gate, record.gate.id, request.input);
+      // Built before the claim so a bad answer is refused without taking it.
+      buildGateResolution(record.gate, record.gate.id, request.input);
 
       return claimed(record.runId, async () => {
-        // Read again under the claim: another process may have finished it
-        // between the check above and now.
+        // Read again under the claim: another process may have finished it,
+        // or moved it to a later gate, between the check above and now.
         const current = await readRecord(record.runId);
-        if (!current || current.status !== 'waiting') throw new RunNotWaitingError(current?.status ?? 'cancelled');
+        if (!current || current.status !== 'waiting' || !current.gate) throw new RunNotWaitingError(current?.status ?? 'cancelled');
         const continuation = (await store.getDoc(record.runId, 'continuation')) as ContinuationEnvelope | undefined;
         if (!continuation) throw new RunNotWaitingError(current.status);
+        if (continuation.gateId !== current.gate.id) {
+          // The continuation was written but the record was not (the process
+          // died between the two). The run is left waiting: nothing ran.
+          throw new ContinuationRefusalError({ accepted: false, reason: 'stale-gate', message: `the run's record names gate ${current.gate.id} but its continuation is at gate ${continuation.gateId}` });
+        }
+        const resolution = buildGateResolution(current.gate, current.gate.id, request.input);
         const { ast } = await parseSelected(record.filePath, record.workflowName);
 
         // If this process dies after the engine returns but before `commit`
@@ -574,10 +584,14 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
             effectAdapter: createStoreEffectAdapter(store, record.runId),
           });
         } catch (error) {
-          await fail(record, error, options, kept);
+          // A refusal is thrown before any node runs (the bundle, the
+          // continuation or the adapter was not acceptable). The run is
+          // still exactly where it paused, so it stays waiting.
+          if (error instanceof ContinuationRefusalError) throw error;
+          await fail(current, error, options, kept);
           throw error;
         }
-        return toView(await commit(record, outcome, ast, kept));
+        return toView(await commit(current, outcome, ast, kept));
       });
     },
 
@@ -586,8 +600,12 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
       if (!record) throw new RunNotFoundError(runId);
       if (record.status !== 'waiting') throw new RunNotWaitingError(record.status);
       return claimed(runId, async () => {
+        // Read again under the claim: a driver may have completed the run
+        // since the check above, and its result must not become "cancelled".
+        const current = await readRecord(runId);
+        if (!current || current.status !== 'waiting') throw new RunNotWaitingError(current?.status ?? 'cancelled');
         const next: RunRecord = {
-          ...record,
+          ...current,
           status: 'cancelled',
           gate: undefined,
           due: undefined,

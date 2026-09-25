@@ -202,11 +202,16 @@ export async function executeWorkflow(
     // Discover all workflows in the file
     const source = fs.readFileSync(resolvedPath, 'utf8');
     const allWorkflows = getAvailableWorkflows(source);
-    const selectedWorkflow =
-      allWorkflows.find((workflow) => workflow.functionName === workflowName) ??
-      allWorkflows[0];
-    if (!selectedWorkflow) {
+    if (allWorkflows.length === 0) {
       throw new Error('No workflow definition found in file');
+    }
+    // A name that is given must match: running the first workflow instead
+    // would answer a different question than the one asked.
+    const selectedWorkflow = workflowName
+      ? allWorkflows.find((workflow) => workflow.functionName === workflowName)
+      : allWorkflows[0];
+    if (!selectedWorkflow) {
+      throw new Error(`Workflow "${workflowName}" not found in file. Available: ${allWorkflows.map((w) => w.functionName).join(', ')}`);
     }
     const effectiveWorkflowId = selectedWorkflow.functionName;
     const parsed = await parseWorkflow(resolvedPath, {
