@@ -1,6 +1,6 @@
 {
   "name": "@synergenius/flow-weaver",
-  "version": "0.42.2",
+  "version": "0.43.0",
   "description": "Flow Weaver: deterministic TypeScript workflow compiler. Define workflows with JSDoc annotations, compile to standalone functions with zero runtime dependencies.",
   "private": false,
   "type": "module",
