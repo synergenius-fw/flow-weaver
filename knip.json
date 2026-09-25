@@ -12,7 +12,7 @@
     "src/agent/mcp-tool-server.ts"
   ],
   "project": ["src/**/*.ts", "console-ui/src/**/*.{ts,tsx}", "scripts/**/*.{ts,mjs}"],
-  "ignore": ["fixtures/**", "examples/**", "site/**", "templates/**", "src/cli/templates/**/*.ts"],
+  "ignore": ["src/cli/templates/**/*.ts"],
   // The package's own bin, run by the cross-platform workflow after install.
   "ignoreBinaries": ["flow-weaver"],
   "ignoreIssues": {
