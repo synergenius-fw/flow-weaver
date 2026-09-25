@@ -25,7 +25,7 @@ import * as fs from 'node:fs';
 import { WorkflowRegistry } from './workflow-registry.js';
 import { VERSION } from '../generated-version.js';
 import { buildOpenApi } from './openapi.js';
-import { refuseCallbackUrl, type CallbackPolicy } from './callback-url.js';
+import { callbackTarget, postCallback, refuseCallbackUrl, type CallbackPolicy } from './callback-url.js';
 import type { ExecutionTraceEvent } from '../mcp/workflow-executor.js';
 import {
   createLocalCoordinator,
@@ -712,9 +712,11 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
    *
    * One attempt per call: a failure records when the next may be made and
    * the sweep comes back to it, with growing delays, until the last attempt
-   * gives up and says why. Redirects are not followed -- a redirect to a
-   * private address would undo the URL check. Signed when the server has a
-   * token, with an HMAC of the body.
+   * gives up and says why. The URL is checked again at each attempt and the
+   * post goes to the address that check resolved, so a name re-pointed at a
+   * private address since the run began is refused. Redirects are not
+   * followed, for the same reason. Signed when the server has a token, with
+   * an HMAC of the body.
    */
   async function deliverCallback(id: string): Promise<void> {
     const note = await coordinator.kept<HttpNote>(id, 'http');
@@ -736,15 +738,18 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
       let error = '';
       let status: number | undefined;
       try {
-        const r = await fetch(note.callbackUrl, { method: 'POST', headers, body: text, redirect: 'manual', signal: AbortSignal.timeout(10_000) });
-        status = r.status;
-        if (r.ok) {
+        // Checked again now, and posted to the address checked: the name may
+        // point somewhere else than when the run was accepted.
+        const target = await callbackTarget(note.callbackUrl, options.callbacks);
+        if ('refused' in target) throw new Error(`callbackUrl refused at delivery: ${target.refused}`);
+        status = await postCallback(target, headers, text, 10_000);
+        if (status >= 200 && status < 300) {
           await coordinator.keep(id, 'http', { ...note, attempts: attempt, delivered: new Date().toISOString() });
           pending.delete(id);
           options.onCallback?.({ runId: id, url: note.callbackUrl, ok: true, status, attempt });
           return;
         }
-        error = r.status >= 300 && r.status < 400 ? `callback answered ${r.status}, redirects are not followed` : `callback answered ${r.status}`;
+        error = status >= 300 && status < 400 ? `callback answered ${status}, redirects are not followed` : `callback answered ${status}`;
       } catch (e) { error = e instanceof Error ? e.message : String(e); }
       const gaveUp = attempt >= CALLBACK_BACKOFF_MS.length;
       const next: HttpNote = { ...note, attempts: attempt, lastError: error, ...(gaveUp ? { gaveUp: new Date().toISOString() } : { nextAt: new Date(Date.now() + CALLBACK_BACKOFF_MS[attempt - 1]).toISOString() }) };
