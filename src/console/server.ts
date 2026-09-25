@@ -246,17 +246,30 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
   const routes: Route[] = [...projectRoutes(ctx), ...toolRoutes(ctx), ...agentRoutes(ctx), ...serviceRoutes(ctx), ...runRoutes(ctx)];
 
   // ---- http
-  const server = http.createServer(async (req, res) => {
+  const handle = async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
     const refused = refusal(req, host);
     if (refused) return json(res, 403, { error: refused });
-    const url = new URL(req.url ?? '/', `http://${host}`);
+    let url: URL;
+    try {
+      url = new URL(req.url ?? '/', `http://${host}`);
+    } catch {
+      return json(res, 400, { error: 'the request target is not a valid URL' });
+    }
     try {
       const found = findRoute(routes, req.method ?? 'GET', url.pathname);
       if (!found) return json(res, 404, { error: 'not found' });
       await found.route.handle({ req, res, url, match: found.match, q: (k) => url.searchParams.get(k) ?? '', body: () => readBody(req) });
     } catch (err) {
+      // A stream that already started (an event stream) cannot turn into an
+      // error response; closing it is the only answer left.
+      if (res.headersSent) { res.destroy(); return; }
       json(res, err instanceof BadRequest ? 400 : 500, { error: messageOf(err) });
     }
+  };
+  const server = http.createServer((req, res) => {
+    // handle() answers every failure itself; this catch is the last guard, so
+    // nothing a request does can become an unhandled rejection that stops the console.
+    handle(req, res).catch(() => res.destroy());
   });
 
   await new Promise<void>((resolve, reject) => {
