@@ -10,6 +10,8 @@
  * addresses outright for development.
  */
 import { lookup } from 'node:dns/promises';
+import * as http from 'node:http';
+import * as https from 'node:https';
 import { isIP } from 'node:net';
 
 export interface CallbackPolicy {
@@ -45,31 +47,113 @@ const hostMatches = (host: string, pattern: string) => {
   return host === p;
 };
 
-/** The reason a callback URL is refused, or undefined when it may be used. */
-export async function refuseCallbackUrl(raw: string, policy: CallbackPolicy = {}): Promise<string | undefined> {
+/** Resolves a host name to its addresses; the system resolver unless a test hands in its own. */
+export type Resolve = (host: string) => Promise<Array<{ address: string; family: number }>>;
+const systemResolve: Resolve = (host) => lookup(host, { all: true });
+
+/** Where a callback is posted: the URL, and the one address it connects to. */
+export interface CallbackTarget {
+  url: URL;
+  address: string;
+  family: number;
+}
+
+/**
+ * What the policy says about the URL alone, before any lookup: a refusal,
+ * or whether the addresses the host resolves to must still be public.
+ */
+function judgeUrl(raw: string, policy: CallbackPolicy): { refused: string } | { url: URL; host: string; publicOnly: boolean } {
   let url: URL;
-  try { url = new URL(raw); } catch { return 'not a valid URL'; }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return 'only http and https callbacks are delivered';
-  if (url.username || url.password) return 'credentials in the URL are not allowed';
+  try { url = new URL(raw); } catch { return { refused: 'not a valid URL' }; }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return { refused: 'only http and https callbacks are delivered' };
+  if (url.username || url.password) return { refused: 'credentials in the URL are not allowed' };
   const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
   if (policy.allow) {
     const verdict = policy.allow(url);
-    if (verdict !== true) return typeof verdict === 'string' ? verdict : 'refused by the server\'s callback policy';
-    return undefined;
+    if (verdict !== true) return { refused: typeof verdict === 'string' ? verdict : 'refused by the server\'s callback policy' };
+    return { url, host, publicOnly: false };
   }
   if (policy.hosts) {
-    return policy.hosts.some((h) => hostMatches(host, h)) ? undefined : `${host} is not among the hosts this server delivers callbacks to`;
+    return policy.hosts.some((h) => hostMatches(host, h))
+      ? { url, host, publicOnly: false }
+      : { refused: `${host} is not among the hosts this server delivers callbacks to` };
   }
-  if (policy.allowPrivate) return undefined;
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return `${host} is a private host, and callbacks go to public addresses only`;
-  if (isIP(host)) return isPrivateAddress(host) ? `${host} is a private address, and callbacks go to public addresses only` : undefined;
-  try {
-    const found = await lookup(host, { all: true });
-    if (!found.length) return `${host} does not resolve`;
-    const bad = found.find((a) => isPrivateAddress(a.address));
-    if (bad) return `${host} resolves to ${bad.address}, a private address, and callbacks go to public addresses only`;
-  } catch {
-    return `${host} does not resolve`;
+  if (policy.allowPrivate) return { url, host, publicOnly: false };
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return { refused: `${host} is a private host, and callbacks go to public addresses only` };
+  return { url, host, publicOnly: true };
+}
+
+/**
+ * The addresses of a host, or why a callback may not go there. A literal
+ * address is its own answer; a name is looked up.
+ */
+async function addressesOf(host: string, publicOnly: boolean, resolve: Resolve): Promise<{ refused: string } | Array<{ address: string; family: number }>> {
+  const literal = isIP(host);
+  let found: Array<{ address: string; family: number }>;
+  if (literal) found = [{ address: host, family: literal }];
+  else {
+    try { found = await resolve(host); } catch { return { refused: `${host} does not resolve` }; }
+    if (!found.length) return { refused: `${host} does not resolve` };
   }
-  return undefined;
+  const bad = publicOnly ? found.find((a) => isPrivateAddress(a.address)) : undefined;
+  if (bad) {
+    return { refused: literal ? `${host} is a private address, and callbacks go to public addresses only` : `${host} resolves to ${bad.address}, a private address, and callbacks go to public addresses only` };
+  }
+  return found;
+}
+
+/**
+ * The reason a callback URL is refused, or undefined when it may be used.
+ * Checked when a run is accepted; delivery checks again with
+ * `callbackTarget`. A host named by the policy is not looked up here.
+ */
+export async function refuseCallbackUrl(raw: string, policy: CallbackPolicy = {}, resolve: Resolve = systemResolve): Promise<string | undefined> {
+  const judged = judgeUrl(raw, policy);
+  if ('refused' in judged) return judged.refused;
+  if (!judged.publicOnly) return undefined;
+  const found = await addressesOf(judged.host, true, resolve);
+  return 'refused' in found ? found.refused : undefined;
+}
+
+/**
+ * Where to deliver a callback now: the URL checked again, its host resolved
+ * once, and every address checked. The post then connects to the address
+ * returned here, so a name that has since been pointed at a private
+ * address (DNS rebinding) is refused rather than fetched.
+ */
+export async function callbackTarget(raw: string, policy: CallbackPolicy = {}, resolve: Resolve = systemResolve): Promise<CallbackTarget | { refused: string }> {
+  const judged = judgeUrl(raw, policy);
+  if ('refused' in judged) return judged;
+  const found = await addressesOf(judged.host, judged.publicOnly, resolve);
+  if ('refused' in found) return found;
+  return { url: judged.url, address: found[0].address, family: found[0].family };
+}
+
+/**
+ * POST a callback to the target's address, naming the URL's host in the
+ * Host header and, over https, in the certificate check. Redirects are not
+ * followed. Resolves with the status; rejects on a network error or when
+ * `timeoutMs` passes.
+ */
+export function postCallback(target: CallbackTarget, headers: Record<string, string>, body: string, timeoutMs: number): Promise<number> {
+  const { url, address, family } = target;
+  const send = url.protocol === 'https:' ? https.request : http.request;
+  return new Promise((resolve, reject) => {
+    const req = send(url, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Length': String(Buffer.byteLength(body)) },
+      signal: AbortSignal.timeout(timeoutMs),
+      // Every connection goes to the checked address, whatever the name resolves to now.
+      lookup: (_host, options, callback) => {
+        if ((options as { all?: boolean }).all) (callback as (e: null, a: Array<{ address: string; family: number }>) => void)(null, [{ address, family }]);
+        else (callback as (e: null, a: string, f: number) => void)(null, address, family);
+      },
+    }, (res) => {
+      res.resume();
+      res.on('end', () => resolve(res.statusCode ?? 0));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
 }

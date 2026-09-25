@@ -9,6 +9,7 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 ### Security
 
 - **The console refuses requests a web page could send it.** A page open in the same browser could post a plain-text body to `fw console` without a preflight, and so switch its project, start runs or run `fw` commands such as `fw market install`. It could also read the console's answers through DNS rebinding. The console now answers only to a loopback host name, and it refuses any change sent from an origin other than its own.
+- **Callbacks cannot be re-pointed at a private address.** A callback URL was checked when the run started and fetched by name when it finished, which could be days later. A name that resolved to a public address at the check and a private one at delivery reached the private address. Each delivery attempt now checks the URL again and connects to the address it checked.
 
 ### Fixed
 
