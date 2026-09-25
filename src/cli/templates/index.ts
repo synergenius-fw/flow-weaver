@@ -189,28 +189,6 @@ export function registerWorkflowTemplates(templates: WorkflowTemplate[]): void {
 // loadPackTemplates has been moved to ./pack-loader.ts to keep Node.js-only
 // imports (marketplace, fs, child_process) out of the browser bundle.
 
-/**
- * Convert a string to camelCase
- */
-export function toCamelCase(str: string): string {
-  // Preserve leading underscores/dollar signs
-  const leadingMatch = str.match(/^[_$]+/);
-  const leading = leadingMatch ? leadingMatch[0] : '';
-  const rest = leading ? str.slice(leading.length) : str;
-
-  const result = rest
-    .replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''))
-    .replace(/^[^a-zA-Z_$]+/, '') // Strip leading non-identifier chars
-    .replace(/^./, (c) => c.toLowerCase());
-
-  const final = leading + result;
-  return final || '_' + str.replace(/[^a-zA-Z0-9_$]/g, '');
-}
-
-/**
- * Convert a string to PascalCase (for labels)
- */
-export function toPascalCase(str: string): string {
-  const camel = toCamelCase(str);
-  return camel.charAt(0).toUpperCase() + camel.slice(1);
-}
+// The case helpers live in ./shared/case so node templates can use them
+// without importing this registry, which imports them.
+export { toCamelCase, toPascalCase } from './shared/case';
