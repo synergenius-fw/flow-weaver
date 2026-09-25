@@ -7,6 +7,15 @@
 
 import * as path from 'path';
 import { getGeneratedBranding } from '../../generated-branding.js';
+import {
+  FUNCTION_REFERENCE_SCHEMA,
+  TAGS,
+  functionsEndpoint,
+  nodeTypeOperation,
+  openApiDocument,
+  specEndpoint,
+  workflowOperation,
+} from './openapi-parts.js';
 
 /**
  * Export options passed to targets
@@ -425,644 +434,96 @@ export abstract class BaseExportTarget implements ExportTarget {
   }
 
   /**
-   * Generate OpenAPI spec for node types as HTTP endpoints
+   * The OpenAPI document of a node-type service: one POST per node type.
    */
   protected generateNodeTypeOpenAPI(
     nodeTypes: NodeTypeInfo[],
     options: { title: string; version: string; baseUrl?: string }
   ): object {
     const paths: Record<string, object> = {};
-
     for (const nodeType of nodeTypes) {
-      // Build request schema from inputs
-      const inputProperties: Record<string, object> = {};
-      const requiredInputs: string[] = [];
-
-      for (const [portName, portDef] of Object.entries(nodeType.inputs)) {
-        // Skip control flow ports (execute)
-        if (portDef.dataType === 'STEP') continue;
-
-        inputProperties[portName] = {
-          type: this.mapDataTypeToJsonSchema(portDef.dataType || 'any'),
-          description: portDef.label || portName,
-          ...(portDef.tsType && { 'x-ts-type': portDef.tsType }),
-        };
-
-        if (!portDef.optional) {
-          requiredInputs.push(portName);
-        }
-      }
-
-      // Build response schema from outputs
-      const outputProperties: Record<string, object> = {};
-
-      for (const [portName, portDef] of Object.entries(nodeType.outputs)) {
-        // Skip control flow ports (onSuccess, onFailure)
-        if (portDef.dataType === 'STEP') continue;
-
-        outputProperties[portName] = {
-          type: this.mapDataTypeToJsonSchema(portDef.dataType || 'any'),
-          description: portDef.label || portName,
-          ...(portDef.tsType && { 'x-ts-type': portDef.tsType }),
-        };
-      }
-
-      paths[`/api/${nodeType.name}`] = {
-        post: {
-          operationId: `execute_${nodeType.functionName}`,
-          summary: `Execute ${nodeType.name}`,
-          description: nodeType.description || `Execute the ${nodeType.name} node type function`,
-          tags: ['node-types'],
-          requestBody: {
-            description: 'Node type input parameters',
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: inputProperties,
-                  required: requiredInputs.length > 0 ? requiredInputs : undefined,
-                },
-              },
-            },
-          },
-          responses: {
-            '200': {
-              description: 'Successful execution',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      success: { type: 'boolean' },
-                      result: {
-                        type: 'object',
-                        properties: outputProperties,
-                      },
-                      executionTime: { type: 'number' },
-                      requestId: { type: 'string' },
-                    },
-                  },
-                },
-              },
-            },
-            '404': {
-              description: 'Node type not found',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      error: { type: 'string' },
-                    },
-                  },
-                },
-              },
-            },
-            '500': {
-              description: 'Execution error',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      success: { type: 'boolean' },
-                      error: { type: 'string' },
-                      requestId: { type: 'string' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      };
+      paths[`/api/${nodeType.name}`] = nodeTypeOperation(nodeType, `execute_${nodeType.functionName}`);
     }
-
-    // Add OpenAPI spec endpoint
-    paths['/api/openapi.json'] = {
-      get: {
-        operationId: 'get_openapi',
-        summary: 'OpenAPI Specification',
-        description: 'Returns this OpenAPI 3.0 specification',
-        tags: ['documentation'],
-        responses: {
-          '200': {
-            description: 'OpenAPI specification',
-            content: {
-              'application/json': {},
-            },
-          },
-        },
-      },
-    };
-
-    return {
-      openapi: '3.0.3',
-      info: {
-        title: options.title,
-        version: options.version,
-        description: `Node type service with ${nodeTypes.length} endpoints`,
-      },
-      servers: [{ url: options.baseUrl || '/', description: 'Current deployment' }],
+    paths['/api/openapi.json'] = specEndpoint();
+    return openApiDocument({
+      ...options,
+      description: `Node type service with ${nodeTypes.length} endpoints`,
       paths,
-      tags: [
-        { name: 'node-types', description: 'Node type execution endpoints' },
-        { name: 'documentation', description: 'API documentation' },
-      ],
-    };
+      tags: [TAGS.nodeTypes, TAGS.documentation],
+    });
   }
 
   /**
-   * Map Flow Weaver data types to JSON Schema types
-   */
-  private mapDataTypeToJsonSchema(dataType: string): string {
-    const typeMap: Record<string, string> = {
-      STRING: 'string',
-      NUMBER: 'number',
-      BOOLEAN: 'boolean',
-      OBJECT: 'object',
-      ARRAY: 'array',
-      ANY: 'any',
-      FUNCTION: 'object',
-      STEP: 'boolean',
-    };
-    return typeMap[dataType] || 'any';
-  }
-
-  /**
-   * Generate consolidated OpenAPI spec for multiple workflows
+   * The OpenAPI document of a multi-workflow service: one POST per workflow,
+   * plus the function registry.
    */
   protected generateConsolidatedOpenAPI(
     workflows: CompiledWorkflow[],
     options: { title: string; version: string; baseUrl?: string }
   ): object {
     const paths: Record<string, object> = {};
-
     for (const workflow of workflows) {
-      paths[`/api/${workflow.name}`] = {
-        post: {
-          operationId: `execute_${workflow.functionName}`,
-          summary: `Execute ${workflow.name} workflow`,
-          description: workflow.description || `Execute the ${workflow.name} workflow`,
-          tags: ['workflows'],
-          requestBody: {
-            description: 'Workflow input parameters',
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  description:
-                    'Workflow-specific parameters. Function parameters can be registry IDs.',
-                  additionalProperties: true,
-                },
-              },
-            },
-          },
-          responses: {
-            '200': {
-              description: 'Successful workflow execution',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      success: { type: 'boolean' },
-                      result: { type: 'object' },
-                      executionTime: { type: 'number' },
-                      requestId: { type: 'string' },
-                    },
-                  },
-                },
-              },
-            },
-            '404': {
-              description: 'Workflow not found',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      error: { type: 'string' },
-                    },
-                  },
-                },
-              },
-            },
-            '500': {
-              description: 'Execution error',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      success: { type: 'boolean' },
-                      error: { type: 'string' },
-                      requestId: { type: 'string' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      };
+      paths[`/api/${workflow.name}`] = workflowOperation(
+        workflow,
+        `execute_${workflow.functionName}`,
+        'Workflow-specific parameters. Function parameters can be registry IDs.'
+      );
     }
-
-    // Add /api/functions endpoint
-    paths['/api/functions'] = {
-      get: {
-        operationId: 'list_functions',
-        summary: 'List available functions',
-        description: 'Returns all registered functions that can be used as parameters',
-        tags: ['functions'],
-        parameters: [
-          {
-            name: 'category',
-            in: 'query',
-            required: false,
-            schema: {
-              type: 'string',
-              enum: ['transform', 'filter', 'validate', 'format', 'custom'],
-            },
-            description: 'Filter by function category',
-          },
-        ],
-        responses: {
-          '200': {
-            description: 'List of registered functions',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      id: { type: 'string', example: 'string:uppercase' },
-                      name: { type: 'string' },
-                      description: { type: 'string' },
-                      category: {
-                        type: 'string',
-                        enum: ['transform', 'filter', 'validate', 'format', 'custom'],
-                      },
-                      inputType: { type: 'string' },
-                      outputType: { type: 'string' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    };
-
-    // Add OpenAPI spec endpoint
-    paths['/api/openapi.json'] = {
-      get: {
-        operationId: 'get_openapi',
-        summary: 'OpenAPI Specification',
-        description: 'Returns this OpenAPI 3.0 specification',
-        tags: ['documentation'],
-        responses: {
-          '200': {
-            description: 'OpenAPI specification',
-            content: {
-              'application/json': {},
-            },
-          },
-        },
-      },
-    };
-
-    return {
-      openapi: '3.0.3',
-      info: {
-        title: options.title,
-        version: options.version,
-        description: `Multi-workflow service with ${workflows.length} workflows`,
-      },
-      servers: [{ url: options.baseUrl || '/', description: 'Current deployment' }],
+    paths['/api/functions'] = functionsEndpoint();
+    paths['/api/openapi.json'] = specEndpoint();
+    return openApiDocument({
+      ...options,
+      description: `Multi-workflow service with ${workflows.length} workflows`,
       paths,
-      tags: [
-        { name: 'workflows', description: 'Workflow execution endpoints' },
-        { name: 'functions', description: 'Function registry endpoints' },
-        { name: 'documentation', description: 'API documentation' },
-      ],
-      components: {
-        schemas: {
-          FunctionReference: {
-            oneOf: [
-              {
-                type: 'string',
-                description: 'Registry function ID (e.g., "string:uppercase")',
-              },
-              {
-                type: 'object',
-                properties: {
-                  registryId: {
-                    type: 'string',
-                    description: 'Registry function ID',
-                  },
-                  partialArgs: {
-                    type: 'object',
-                    description: 'Pre-bound arguments',
-                    additionalProperties: true,
-                  },
-                },
-                required: ['registryId'],
-              },
-            ],
-            description:
-              'Function parameter - can be a registry ID or object with partial arguments',
-          },
-        },
-      },
-    };
+      tags: [TAGS.workflows, TAGS.functions, TAGS.documentation],
+      components: { schemas: { FunctionReference: FUNCTION_REFERENCE_SCHEMA } },
+    });
   }
 
   /**
-   * Generate OpenAPI spec for a unified bundle of workflows and node types.
-   * Only includes exposed items as HTTP endpoints.
+   * The OpenAPI document of a bundle: a POST for each exposed workflow and
+   * node type, plus the function registry.
    */
   protected generateBundleOpenAPI(
     workflows: BundleWorkflow[],
     nodeTypes: BundleNodeType[],
     options: { title: string; version: string; baseUrl?: string }
   ): object {
+    const exposedWorkflows = workflows.filter((w) => w.expose);
+    const exposedNodeTypes = nodeTypes.filter((nt) => nt.expose);
     const paths: Record<string, object> = {};
     const tags: Array<{ name: string; description: string }> = [];
 
-    // Add exposed workflows
-    const exposedWorkflows = workflows.filter((w) => w.expose);
-    if (exposedWorkflows.length > 0) {
-      tags.push({ name: 'workflows', description: 'Workflow execution endpoints' });
-
-      for (const workflow of exposedWorkflows) {
-        paths[`/api/workflows/${workflow.name}`] = {
-          post: {
-            operationId: `execute_workflow_${workflow.functionName}`,
-            summary: `Execute ${workflow.name} workflow`,
-            description: workflow.description || `Execute the ${workflow.name} workflow`,
-            tags: ['workflows'],
-            requestBody: {
-              description: 'Workflow input parameters',
-              required: true,
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    description: 'Workflow-specific parameters',
-                    additionalProperties: true,
-                  },
-                },
-              },
-            },
-            responses: {
-              '200': {
-                description: 'Successful workflow execution',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        success: { type: 'boolean' },
-                        result: { type: 'object' },
-                        executionTime: { type: 'number' },
-                        requestId: { type: 'string' },
-                      },
-                    },
-                  },
-                },
-              },
-              '404': {
-                description: 'Workflow not found',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: { error: { type: 'string' } },
-                    },
-                  },
-                },
-              },
-              '500': {
-                description: 'Execution error',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        success: { type: 'boolean' },
-                        error: { type: 'string' },
-                        requestId: { type: 'string' },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        };
-      }
-    }
-
-    // Add exposed node types
-    const exposedNodeTypes = nodeTypes.filter((nt) => nt.expose);
-    if (exposedNodeTypes.length > 0) {
-      tags.push({ name: 'node-types', description: 'Node type execution endpoints' });
-
-      for (const nodeType of exposedNodeTypes) {
-        // Build request schema from inputs
-        const inputProperties: Record<string, object> = {};
-        const requiredInputs: string[] = [];
-
-        for (const [portName, portDef] of Object.entries(nodeType.inputs)) {
-          // Skip control flow ports (execute)
-          if (portDef.dataType === 'STEP') continue;
-
-          inputProperties[portName] = {
-            type: this.mapDataTypeToJsonSchema(portDef.dataType || 'any'),
-            description: portDef.label || portName,
-            ...(portDef.tsType && { 'x-ts-type': portDef.tsType }),
-          };
-
-          if (!portDef.optional) {
-            requiredInputs.push(portName);
-          }
-        }
-
-        // Build response schema from outputs
-        const outputProperties: Record<string, object> = {};
-
-        for (const [portName, portDef] of Object.entries(nodeType.outputs)) {
-          // Skip control flow ports
-          if (portDef.dataType === 'STEP') continue;
-
-          outputProperties[portName] = {
-            type: this.mapDataTypeToJsonSchema(portDef.dataType || 'any'),
-            description: portDef.label || portName,
-            ...(portDef.tsType && { 'x-ts-type': portDef.tsType }),
-          };
-        }
-
-        paths[`/api/nodes/${nodeType.name}`] = {
-          post: {
-            operationId: `execute_node_${nodeType.functionName}`,
-            summary: `Execute ${nodeType.name}`,
-            description: nodeType.description || `Execute the ${nodeType.name} node type function`,
-            tags: ['node-types'],
-            requestBody: {
-              description: 'Node type input parameters',
-              required: true,
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: inputProperties,
-                    required: requiredInputs.length > 0 ? requiredInputs : undefined,
-                  },
-                },
-              },
-            },
-            responses: {
-              '200': {
-                description: 'Successful execution',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        success: { type: 'boolean' },
-                        result: {
-                          type: 'object',
-                          properties: outputProperties,
-                        },
-                        executionTime: { type: 'number' },
-                        requestId: { type: 'string' },
-                      },
-                    },
-                  },
-                },
-              },
-              '404': {
-                description: 'Node type not found',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: { error: { type: 'string' } },
-                    },
-                  },
-                },
-              },
-              '500': {
-                description: 'Execution error',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      properties: {
-                        success: { type: 'boolean' },
-                        error: { type: 'string' },
-                        requestId: { type: 'string' },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        };
-      }
-    }
-
-    // Add function registry endpoint
-    tags.push({ name: 'functions', description: 'Function registry endpoints' });
-    paths['/api/functions'] = {
-      get: {
-        operationId: 'list_functions',
-        summary: 'List available functions',
-        description: 'Returns all registered functions that can be used as parameters',
-        tags: ['functions'],
-        parameters: [
-          {
-            name: 'category',
-            in: 'query',
-            required: false,
-            schema: {
-              type: 'string',
-              enum: ['transform', 'filter', 'validate', 'format', 'custom'],
-            },
-            description: 'Filter by function category',
-          },
-        ],
-        responses: {
-          '200': {
-            description: 'List of registered functions',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      id: { type: 'string' },
-                      name: { type: 'string' },
-                      description: { type: 'string' },
-                      category: { type: 'string' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    };
-
-    // Add OpenAPI spec endpoint
-    tags.push({ name: 'documentation', description: 'API documentation' });
-    paths['/api/openapi.json'] = {
-      get: {
-        operationId: 'get_openapi',
-        summary: 'OpenAPI Specification',
-        description: 'Returns this OpenAPI 3.0 specification',
-        tags: ['documentation'],
-        responses: {
-          '200': {
-            description: 'OpenAPI specification',
-            content: { 'application/json': {} },
-          },
-        },
-      },
-    };
-
-    // Build description
-    const exposedCounts: string[] = [];
-    if (exposedWorkflows.length > 0) {
-      exposedCounts.push(
-        `${exposedWorkflows.length} workflow${exposedWorkflows.length !== 1 ? 's' : ''}`
+    if (exposedWorkflows.length > 0) tags.push(TAGS.workflows);
+    for (const workflow of exposedWorkflows) {
+      paths[`/api/workflows/${workflow.name}`] = workflowOperation(
+        workflow,
+        `execute_workflow_${workflow.functionName}`,
+        'Workflow-specific parameters'
       );
     }
-    if (exposedNodeTypes.length > 0) {
-      exposedCounts.push(
-        `${exposedNodeTypes.length} node type${exposedNodeTypes.length !== 1 ? 's' : ''}`
-      );
+    if (exposedNodeTypes.length > 0) tags.push(TAGS.nodeTypes);
+    for (const nodeType of exposedNodeTypes) {
+      paths[`/api/nodes/${nodeType.name}`] = nodeTypeOperation(nodeType, `execute_node_${nodeType.functionName}`);
     }
+    paths['/api/functions'] = functionsEndpoint();
+    paths['/api/openapi.json'] = specEndpoint();
+    tags.push(TAGS.functions, TAGS.documentation);
 
-    return {
-      openapi: '3.0.3',
-      info: {
-        title: options.title,
-        version: options.version,
-        description: `Bundle service with ${exposedCounts.join(' and ')} exposed`,
-      },
-      servers: [{ url: options.baseUrl || '/', description: 'Current deployment' }],
+    const count = (n: number, noun: string) => `${n} ${noun}${n !== 1 ? 's' : ''}`;
+    const exposed = [
+      ...(exposedWorkflows.length > 0 ? [count(exposedWorkflows.length, 'workflow')] : []),
+      ...(exposedNodeTypes.length > 0 ? [count(exposedNodeTypes.length, 'node type')] : []),
+    ];
+    return openApiDocument({
+      ...options,
+      description:
+        exposed.length > 0
+          ? `Bundle service with ${exposed.join(' and ')} exposed`
+          : 'Bundle service with no workflows or node types exposed',
       paths,
       tags,
-    };
+    });
   }
 
   /**

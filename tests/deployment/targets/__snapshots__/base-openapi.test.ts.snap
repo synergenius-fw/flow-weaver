@@ -1,0 +1,909 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`export target OpenAPI documents > pins the bundle document 1`] = `
+{
+  "info": {
+    "description": "Bundle service with 1 workflow and 1 node type exposed",
+    "title": "Test API",
+    "version": "1.2.3",
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/functions": {
+      "get": {
+        "description": "Returns all registered functions that can be used as parameters",
+        "operationId": "list_functions",
+        "parameters": [
+          {
+            "description": "Filter by function category",
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "enum": [
+                "transform",
+                "filter",
+                "validate",
+                "format",
+                "custom",
+              ],
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "category": {
+                        "enum": [
+                          "transform",
+                          "filter",
+                          "validate",
+                          "format",
+                          "custom",
+                        ],
+                        "type": "string",
+                      },
+                      "description": {
+                        "type": "string",
+                      },
+                      "id": {
+                        "example": "string:uppercase",
+                        "type": "string",
+                      },
+                      "inputType": {
+                        "type": "string",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "outputType": {
+                        "type": "string",
+                      },
+                    },
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+            },
+            "description": "List of registered functions",
+          },
+        },
+        "summary": "List available functions",
+        "tags": [
+          "functions",
+        ],
+      },
+    },
+    "/api/nodes/FetchData": {
+      "post": {
+        "description": "Fetches data from an API",
+        "operationId": "execute_node_fetchData",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "headers": {
+                    "description": "Headers",
+                    "type": "object",
+                  },
+                  "url": {
+                    "description": "URL",
+                    "type": "string",
+                    "x-ts-type": "string",
+                  },
+                },
+                "required": [
+                  "url",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "description": "Node type input parameters",
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "executionTime": {
+                      "type": "number",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "result": {
+                      "properties": {
+                        "data": {
+                          "description": "Response data",
+                          "type": "object",
+                        },
+                        "status": {
+                          "description": "status",
+                          "type": "number",
+                        },
+                      },
+                      "type": "object",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Successful execution",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Node type not found",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Execution error",
+          },
+        },
+        "summary": "Execute FetchData",
+        "tags": [
+          "node-types",
+        ],
+      },
+    },
+    "/api/openapi.json": {
+      "get": {
+        "description": "Returns this OpenAPI 3.0 specification",
+        "operationId": "get_openapi",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {},
+            },
+            "description": "OpenAPI specification",
+          },
+        },
+        "summary": "OpenAPI Specification",
+        "tags": [
+          "documentation",
+        ],
+      },
+    },
+    "/api/workflows/validate-input": {
+      "post": {
+        "description": "Validates user input",
+        "operationId": "execute_workflow_validateInput",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "description": "Workflow-specific parameters",
+                "type": "object",
+              },
+            },
+          },
+          "description": "Workflow input parameters",
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "executionTime": {
+                      "type": "number",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "result": {
+                      "type": "object",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Successful workflow execution",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Workflow not found",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Execution error",
+          },
+        },
+        "summary": "Execute validate-input workflow",
+        "tags": [
+          "workflows",
+        ],
+      },
+    },
+  },
+  "servers": [
+    {
+      "description": "Current deployment",
+      "url": "/",
+    },
+  ],
+  "tags": [
+    {
+      "description": "Workflow execution endpoints",
+      "name": "workflows",
+    },
+    {
+      "description": "Node type execution endpoints",
+      "name": "node-types",
+    },
+    {
+      "description": "Function registry endpoints",
+      "name": "functions",
+    },
+    {
+      "description": "API documentation",
+      "name": "documentation",
+    },
+  ],
+}
+`;
+
+exports[`export target OpenAPI documents > pins the multi-workflow service document 1`] = `
+{
+  "components": {
+    "schemas": {
+      "FunctionReference": {
+        "description": "Function parameter - can be a registry ID or object with partial arguments",
+        "oneOf": [
+          {
+            "description": "Registry function ID (e.g., "string:uppercase")",
+            "type": "string",
+          },
+          {
+            "properties": {
+              "partialArgs": {
+                "additionalProperties": true,
+                "description": "Pre-bound arguments",
+                "type": "object",
+              },
+              "registryId": {
+                "description": "Registry function ID",
+                "type": "string",
+              },
+            },
+            "required": [
+              "registryId",
+            ],
+            "type": "object",
+          },
+        ],
+      },
+    },
+  },
+  "info": {
+    "description": "Multi-workflow service with 2 workflows",
+    "title": "Test API",
+    "version": "1.2.3",
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/functions": {
+      "get": {
+        "description": "Returns all registered functions that can be used as parameters",
+        "operationId": "list_functions",
+        "parameters": [
+          {
+            "description": "Filter by function category",
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "enum": [
+                "transform",
+                "filter",
+                "validate",
+                "format",
+                "custom",
+              ],
+              "type": "string",
+            },
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "category": {
+                        "enum": [
+                          "transform",
+                          "filter",
+                          "validate",
+                          "format",
+                          "custom",
+                        ],
+                        "type": "string",
+                      },
+                      "description": {
+                        "type": "string",
+                      },
+                      "id": {
+                        "example": "string:uppercase",
+                        "type": "string",
+                      },
+                      "inputType": {
+                        "type": "string",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "outputType": {
+                        "type": "string",
+                      },
+                    },
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+            },
+            "description": "List of registered functions",
+          },
+        },
+        "summary": "List available functions",
+        "tags": [
+          "functions",
+        ],
+      },
+    },
+    "/api/openapi.json": {
+      "get": {
+        "description": "Returns this OpenAPI 3.0 specification",
+        "operationId": "get_openapi",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {},
+            },
+            "description": "OpenAPI specification",
+          },
+        },
+        "summary": "OpenAPI Specification",
+        "tags": [
+          "documentation",
+        ],
+      },
+    },
+    "/api/send-email": {
+      "post": {
+        "description": "Execute the send-email workflow",
+        "operationId": "execute_sendEmail",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "description": "Workflow-specific parameters. Function parameters can be registry IDs.",
+                "type": "object",
+              },
+            },
+          },
+          "description": "Workflow input parameters",
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "executionTime": {
+                      "type": "number",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "result": {
+                      "type": "object",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Successful workflow execution",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Workflow not found",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Execution error",
+          },
+        },
+        "summary": "Execute send-email workflow",
+        "tags": [
+          "workflows",
+        ],
+      },
+    },
+    "/api/validate-input": {
+      "post": {
+        "description": "Validates user input",
+        "operationId": "execute_validateInput",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "description": "Workflow-specific parameters. Function parameters can be registry IDs.",
+                "type": "object",
+              },
+            },
+          },
+          "description": "Workflow input parameters",
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "executionTime": {
+                      "type": "number",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "result": {
+                      "type": "object",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Successful workflow execution",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Workflow not found",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Execution error",
+          },
+        },
+        "summary": "Execute validate-input workflow",
+        "tags": [
+          "workflows",
+        ],
+      },
+    },
+  },
+  "servers": [
+    {
+      "description": "Current deployment",
+      "url": "/",
+    },
+  ],
+  "tags": [
+    {
+      "description": "Workflow execution endpoints",
+      "name": "workflows",
+    },
+    {
+      "description": "Function registry endpoints",
+      "name": "functions",
+    },
+    {
+      "description": "API documentation",
+      "name": "documentation",
+    },
+  ],
+}
+`;
+
+exports[`export target OpenAPI documents > pins the node-type service document 1`] = `
+{
+  "info": {
+    "description": "Node type service with 2 endpoints",
+    "title": "Test API",
+    "version": "1.2.3",
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/Anything": {
+      "post": {
+        "description": "Execute the Anything node type function",
+        "operationId": "execute_anything",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "flag": {
+                    "description": "flag",
+                    "type": "boolean",
+                  },
+                  "handler": {
+                    "description": "handler",
+                    "type": "object",
+                  },
+                  "list": {
+                    "description": "list",
+                    "type": "array",
+                  },
+                  "mystery": {
+                    "description": "mystery",
+                  },
+                  "value": {
+                    "description": "Any value",
+                  },
+                },
+                "required": [
+                  "value",
+                  "mystery",
+                  "handler",
+                  "flag",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "description": "Node type input parameters",
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "executionTime": {
+                      "type": "number",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "result": {
+                      "properties": {
+                        "result": {
+                          "description": "result",
+                        },
+                      },
+                      "type": "object",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Successful execution",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Node type not found",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Execution error",
+          },
+        },
+        "summary": "Execute Anything",
+        "tags": [
+          "node-types",
+        ],
+      },
+    },
+    "/api/FetchData": {
+      "post": {
+        "description": "Fetches data from an API",
+        "operationId": "execute_fetchData",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "headers": {
+                    "description": "Headers",
+                    "type": "object",
+                  },
+                  "url": {
+                    "description": "URL",
+                    "type": "string",
+                    "x-ts-type": "string",
+                  },
+                },
+                "required": [
+                  "url",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "description": "Node type input parameters",
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "executionTime": {
+                      "type": "number",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "result": {
+                      "properties": {
+                        "data": {
+                          "description": "Response data",
+                          "type": "object",
+                        },
+                        "status": {
+                          "description": "status",
+                          "type": "number",
+                        },
+                      },
+                      "type": "object",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Successful execution",
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Node type not found",
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                    },
+                    "requestId": {
+                      "type": "string",
+                    },
+                    "success": {
+                      "type": "boolean",
+                    },
+                  },
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Execution error",
+          },
+        },
+        "summary": "Execute FetchData",
+        "tags": [
+          "node-types",
+        ],
+      },
+    },
+    "/api/openapi.json": {
+      "get": {
+        "description": "Returns this OpenAPI 3.0 specification",
+        "operationId": "get_openapi",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {},
+            },
+            "description": "OpenAPI specification",
+          },
+        },
+        "summary": "OpenAPI Specification",
+        "tags": [
+          "documentation",
+        ],
+      },
+    },
+  },
+  "servers": [
+    {
+      "description": "Current deployment",
+      "url": "https://api.example.com",
+    },
+  ],
+  "tags": [
+    {
+      "description": "Node type execution endpoints",
+      "name": "node-types",
+    },
+    {
+      "description": "API documentation",
+      "name": "documentation",
+    },
+  ],
+}
+`;
