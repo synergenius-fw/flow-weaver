@@ -484,9 +484,8 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
     const first = await parseWorkflow(filePath, { workflowName: requested, projectDir });
     if (first.errors.length > 0) throw new ParseError(first.errors.join('\n'));
 
-    // The engine silently runs the first workflow in a file
-    // (`workflow-executor.ts:210-212`). A driver cannot see which one it got,
-    // so ambiguity is refused here instead.
+    // Given no name, the executor runs the first workflow in the file. A
+    // driver cannot see which one it got, so ambiguity is refused here instead.
     const available = first.availableWorkflows;
     let workflowName = requested;
     if (workflowName === undefined) {

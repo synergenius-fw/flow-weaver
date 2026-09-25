@@ -16,7 +16,7 @@ import { isExecutePort, isFailurePort, isSuccessPort } from '../constants';
  * `undefined` into the wire payload. The tagged representation preserves the
  * distinction between an omitted optional argument and an explicit null.
  */
-export function buildDurableGatePayload(arguments_: readonly string[]): string {
+function buildDurableGatePayload(arguments_: readonly string[]): string {
   return `{ arguments: [${arguments_.join(', ')}].map((value) => value === undefined ? { absent: true } : { value }) }`;
 }
 

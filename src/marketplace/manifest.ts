@@ -157,8 +157,8 @@ export async function generateManifest(
   // Only nodeTypes and workflows are derived from source; every
   // field below is hand-written and would otherwise vanish on regeneration,
   // which for cliCommands/mcpTools means the pack's commands and tools stop
-  // loading (pack-commands.ts:72, pack-tools.ts:52 require both the
-  // entrypoint and a non-empty list).
+  // loading (the loaders in src/cli/pack-commands.ts and src/mcp/pack-tools.ts
+  // require both the entrypoint and a non-empty list).
   const existing = readManifest(directory);
   const v2Fields: Partial<TMarketplaceManifest> = {};
   if (existing) {

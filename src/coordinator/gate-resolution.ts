@@ -21,7 +21,7 @@ export class InvalidAnswerError extends Error {
  * Build the resolution the engine expects from what a driver actually knows.
  *
  * The engine takes the resolution value as the gate node's *entire* output
- * envelope, control ports included (`durable-execution.ts:31-39`). Sending
+ * envelope, control ports included (`resolveGate` in `durable-execution.ts`). Sending
  * only the data port is accepted and then quietly wrong: `onSuccess` is never
  * set, the successor never fires, and the run reports `completed` with
  * `onSuccess: false`. A driver should never have to know that, so the
