@@ -19,24 +19,73 @@ grant-back license described in the CLA.
 1. Fork the repository and create a branch for your change.
 2. Write clear commit messages describing what you changed and why.
 3. Include tests for new functionality or bug fixes.
-4. Make sure existing tests pass before submitting.
-5. Commit with sign-off: `git commit -s -m "Description of change"`
-6. Open a pull request against the `main` branch.
+4. Make sure the checks below pass.
+5. Open a pull request against the `main` branch and tick the CLA box in the template.
 
-All commits must include a `Signed-off-by` line. Use `git commit -s` to add
-it automatically.
+Every change, maintainers' included, lands on `main` through a pull request
+with a review and green CI. Maintainers branch in this repository
+(`feature/*`) instead of a fork; see [.github/rulesets](.github/rulesets/README.md).
+
+## Setting Up
+
+Node.js 22 or later.
+
+```bash
+npm ci
+npm run build
+```
+
+`npm ci` runs the build through `prepare`, and the build generates a few
+gitignored modules (the version, the inlined engine, the built-in node
+registry). If a test complains that one is missing, run `npm run build` again.
+
+## Checks
+
+These are what CI runs. Run the ones your change touches before pushing:
+
+```bash
+npm run typecheck          # the sources
+npm run typecheck:tests    # the tests
+npm run typecheck:console  # the console UI
+npm run lint               # ESLint and the prose checks
+npm run generate:docs:check
+```
+
+The full test suite is large and runs sharded in CI. Locally, run the files
+your change touches:
+
+```bash
+npx vitest run tests/unit/parser tests/unit/validation
+```
+
+A few things are generated from the code and checked for drift:
+
+- `docs/reference/cli-reference.md`, `error-codes.md`, `scaffold.md` and
+  `jsdoc-grammar.md` are partly generated. After changing a CLI command, a
+  validation code or a template, run `npm run generate:docs` and commit the
+  result.
+- `src/doc-metadata/extractors/cli-commands.ts` describes every CLI flag for
+  `fw docs` and `fw context`. A test fails when it disagrees with
+  `src/cli/index.ts`, so add a new flag in both places.
+- Every validation code needs a friendly message in
+  `src/validation/friendly-errors.ts`; the docs generator fails without one.
+- A test file that calls `vi.mock` at module level must be listed in
+  `tests/isolated-files.ts`; `tests/isolated-routing.test.ts` tells you if it
+  is not.
 
 ## Code Style
 
 Follow the conventions already present in the codebase. The project uses
-TypeScript with strict mode enabled. Run `npm run lint` and `npm run typecheck`
-before submitting.
+TypeScript with strict mode enabled. Comments and user-facing text are plain
+prose: no emoji, and the lint rejects middle-dot characters.
 
 ## Reporting Issues
 
 Open an issue on GitHub. Include enough detail to reproduce the problem: version,
 input, expected output, actual output. If you have a fix, feel free to include
 a pull request alongside the issue.
+
+Security issues go through [SECURITY.md](SECURITY.md), not a public issue.
 
 ## Questions
 

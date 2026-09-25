@@ -8,6 +8,12 @@ updates:
     labels:
       - dependencies
     groups:
+      # vitest and its coverage provider must share a major version, so they
+      # are proposed together.
+      vitest:
+        patterns:
+          - vitest
+          - "@vitest/*"
       minor-and-patch:
         update-types:
           - minor
@@ -17,6 +23,10 @@ updates:
       # fw compile fails on it; the peer range stops below 7 until it does.
       - dependency-name: typescript
         versions: [">=7"]
+      # The type definitions follow the oldest supported Node (engines.node),
+      # so code cannot type-check against an API that Node does not have.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions

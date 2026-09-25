@@ -2,8 +2,11 @@
 
 `main.json` is the canonical spec for the `main` branch-protection
 ruleset. The policy is trunk-based: **nobody pushes raw commits to
-`main`**; every change lands through a `feature/* → main` PR with a
-code-owner review and green CI.
+`main`**; every change lands through a PR with a code-owner review and
+green CI. Maintainers open it from a `feature/*` branch in this
+repository; outside contributors open it from a fork, as
+[CONTRIBUTING.md](../../CONTRIBUTING.md) describes. The rules are the same
+for both.
 
 | File        | Branch |
 | ----------- | ------ |
