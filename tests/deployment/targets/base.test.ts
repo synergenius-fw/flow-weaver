@@ -22,7 +22,6 @@ import {
   type BundleWorkflow,
   type BundleNodeType,
   type DeployInstructions,
-  type GeneratedFile,
 } from '../../../src/deployment/targets/base';
 
 // ── Concrete test subclass ──────────────────────────────────────────
