@@ -1,169 +1,39 @@
 /**
  * Type Checker Module
  *
- * Provides TypeScript-level type compatibility checking using ts-morph and TypeScript's compiler API.
- * This enables proper structural typing and subtype checking beyond simple string comparison.
+ * String-based type compatibility checking for port connections. Ports carry
+ * their TypeScript type as text (the AST is serialisable), so the checks here
+ * work on that text.
  */
 
-import type { Type, TypeChecker } from "ts-morph";
-import type { TypeChecker as TSTypeChecker } from "typescript";
 import type { TTypeCompatibility } from "../ast/types";
 
 /**
- * Safe runtime coercions that JavaScript handles automatically.
- * These are source -> target pairs where coercion is safe and predictable.
+ * Safe runtime coercions that JavaScript handles automatically, as
+ * source -> target data type pairs. A connection between these types needs no
+ * warning: Number.toString() and Boolean.toString() are predictable.
  */
-const SAFE_COERCIONS: [string, string][] = [
-  ["number", "string"],   // Number.toString()
-  ["boolean", "string"],  // Boolean.toString()
+export const SAFE_COERCIONS: ReadonlyArray<readonly [string, string]> = [
+  ["NUMBER", "STRING"],
+  ["BOOLEAN", "STRING"],
 ];
 
 /**
  * Check if a source type can be safely coerced to a target type at runtime.
+ * Accepts data types (`NUMBER`) and TypeScript primitives (`number`) alike.
  *
  * @param sourceText - The source type as a string
  * @param targetText - The target type as a string
  * @returns true if the coercion is safe
  */
 export function isRuntimeCoercible(sourceText: string, targetText: string): boolean {
-  const sourceLower = sourceText.toLowerCase();
-  const targetLower = targetText.toLowerCase();
+  const sourceUpper = sourceText.toUpperCase();
+  const targetUpper = targetText.toUpperCase();
 
   for (const [from, to] of SAFE_COERCIONS) {
-    if (sourceLower === from && targetLower === to) {
+    if (sourceUpper === from && targetUpper === to) {
       return true;
     }
-  }
-
-  return false;
-}
-
-/**
- * Check type compatibility between two ts-morph Type objects.
- *
- * This uses TypeScript's actual type system for proper structural typing:
- * - Structural typing (duck typing)
- * - Inheritance (Admin extends User)
- * - Generics (Array<T>, Promise<T>)
- * - Union/Intersection types
- * - Type narrowing
- *
- * @param sourceType - The source type (from output port)
- * @param targetType - The target type (from input port)
- * @param typeChecker - Optional ts-morph TypeChecker for advanced assignability checks
- * @returns TTypeCompatibility result
- */
-export function checkTypeCompatibility(
-  sourceType: Type,
-  targetType: Type,
-  typeChecker?: TypeChecker
-): TTypeCompatibility {
-  const sourceText = sourceType.getText();
-  const targetText = targetType.getText();
-
-  // Exact string match - fastest path
-  if (sourceText === targetText) {
-    return {
-      isCompatible: true,
-      reason: "exact",
-      sourceType: sourceText,
-      targetType: targetText,
-    };
-  }
-
-  // Try TypeScript's native assignability check if typeChecker is available
-  if (typeChecker) {
-    // Access the internal TypeScript compiler's type checker
-    const tsTypeChecker = typeChecker.compilerObject as unknown as TSTypeChecker & {
-      isTypeAssignableTo?: (source: unknown, target: unknown) => boolean;
-    };
-
-    if (tsTypeChecker.isTypeAssignableTo) {
-      const isAssignable = tsTypeChecker.isTypeAssignableTo(
-        sourceType.compilerType,
-        targetType.compilerType
-      );
-
-      if (isAssignable) {
-        return {
-          isCompatible: true,
-          reason: "assignable",
-          sourceType: sourceText,
-          targetType: targetText,
-        };
-      }
-    }
-  }
-
-  // Fallback: Check inheritance via base types
-  if (isSubtypeViaBaseTypes(sourceType, targetType)) {
-    return {
-      isCompatible: true,
-      reason: "assignable",
-      sourceType: sourceText,
-      targetType: targetText,
-    };
-  }
-
-  // Check for safe runtime coercions (NUMBER→STRING, BOOLEAN→STRING)
-  if (isRuntimeCoercible(sourceText, targetText)) {
-    return {
-      isCompatible: true,
-      reason: "coercible",
-      sourceType: sourceText,
-      targetType: targetText,
-    };
-  }
-
-  // Types are incompatible
-  return {
-    isCompatible: false,
-    reason: "incompatible",
-    sourceType: sourceText,
-    targetType: targetText,
-    errorMessage: `Type '${sourceText}' is not assignable to type '${targetText}'`,
-  };
-}
-
-/**
- * Check if sourceType is a subtype of targetType via inheritance chain.
- * Uses getBaseTypes() to traverse the type hierarchy.
- */
-function isSubtypeViaBaseTypes(sourceType: Type, targetType: Type): boolean {
-  const targetText = targetType.getText();
-  const visited = new Set<string>();
-
-  function checkBaseTypes(type: Type): boolean {
-    const typeText = type.getText();
-
-    // Avoid infinite loops
-    if (visited.has(typeText)) return false;
-    visited.add(typeText);
-
-    // Check if this type matches target
-    if (typeText === targetText) return true;
-
-    // Check base types recursively
-    try {
-      const baseTypes = type.getBaseTypes();
-      for (const baseType of baseTypes) {
-        if (checkBaseTypes(baseType)) return true;
-      }
-    } catch {
-      // Some types don't have base types
-    }
-
-    return false;
-  }
-
-  // Check if source's base types include target
-  try {
-    const baseTypes = sourceType.getBaseTypes();
-    for (const baseType of baseTypes) {
-      if (checkBaseTypes(baseType)) return true;
-    }
-  } catch {
-    // Some types don't have base types
   }
 
   return false;

@@ -54,7 +54,8 @@ export const PORT_TYPE_MAPPINGS: Record<TDataType, PortTypeMapping> = {
 export function mapToTypeScript(portType: TDataType, tsType?: string): TypeScriptType | string {
   const mapping = PORT_TYPE_MAPPINGS[portType];
   if (!mapping) {
-    console.warn(`Unknown port type: ${portType}, defaulting to 'unknown'`);
+    // An unknown port type is reported by the validator (INVALID_PORT_TYPE);
+    // here it just falls back to the widest TypeScript type.
     return 'unknown';
   }
 
@@ -121,6 +122,35 @@ export function stripOptionalUndefined(tsType: string): string {
     .trim();
 }
 
+/**
+ * True when the whole type is a function type: `Function`, or an arrow (`=>`)
+ * at nesting depth 0. An arrow inside `{ }`, `< >`, `( )` or `[ ]` belongs to
+ * a member, a type argument or a parenthesised union member, so
+ * `{ cb: () => void; id: string }` and `Map<string, () => void>` are objects,
+ * while `(x: number) => string` and `((a: string) => void) | undefined` are
+ * functions (the latter once the union rule strips `undefined`).
+ */
+function isFunctionTypeText(text: string): boolean {
+  if (text === 'Function') return true;
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '(' || ch === '[' || ch === '{' || ch === '<') {
+      depth++;
+    } else if (ch === ')' || ch === ']' || ch === '}') {
+      depth--;
+    } else if (ch === '>') {
+      // The `>` of `=>` closes nothing.
+      if (text[i - 1] === '=') {
+        if (depth === 0) return true;
+      } else {
+        depth--;
+      }
+    }
+  }
+  return false;
+}
+
 export function inferDataTypeFromTS(tsType: string): TDataType {
   const normalized = tsType.trim();
 
@@ -148,15 +178,16 @@ export function inferDataTypeFromTS(tsType: string): TDataType {
     return 'ARRAY';
   }
 
-  // Function patterns: () => T, (args) => T, Function
-  if (normalized.includes('=>') || normalized === 'Function' || normalized.startsWith('(')) {
-    return 'FUNCTION';
-  }
-
   // Promise unwrapping: Promise<T> → infer from T
   if (normalized.startsWith('Promise<') && normalized.endsWith('>')) {
     const inner = normalized.slice(8, -1);
     return inferDataTypeFromTS(inner);
+  }
+
+  // Function patterns: () => T, (args) => T, Function. Only when the whole
+  // type is the function; an arrow nested in an object or generic is not.
+  if (isFunctionTypeText(normalized)) {
+    return 'FUNCTION';
   }
 
   // Union types: handle T | undefined and T | null as optional types
@@ -166,8 +197,14 @@ export function inferDataTypeFromTS(tsType: string): TDataType {
     const nonNullParts = parts.filter((p) => p !== 'undefined' && p !== 'null');
 
     if (nonNullParts.length === 1) {
-      // This is an optional type (T | undefined or T | null) - infer from T
-      return inferDataTypeFromTS(nonNullParts[0]);
+      // This is an optional type (T | undefined or T | null) - infer from T.
+      // A parenthesised member, as in `(() => void) | undefined`, loses its
+      // parentheses so the function rule can see the arrow.
+      const single = nonNullParts[0];
+      const unwrapped = single.startsWith('(') && single.endsWith(')') && isFunctionTypeText(single.slice(1, -1))
+        ? single.slice(1, -1)
+        : single;
+      return inferDataTypeFromTS(unwrapped);
     }
 
     // True union type - default to ANY

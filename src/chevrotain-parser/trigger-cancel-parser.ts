@@ -2,9 +2,14 @@
  * @module chevrotain-parser/trigger-cancel-parser
  *
  * Shared Chevrotain parser for @trigger, @cancelOn, @retries, @timeout, @throttle annotations.
+ *
+ * The `key=value` options on @trigger, @cancelOn and @throttle are parsed as a
+ * generic list of `Identifier "=" (STRING | INTEGER)` assignments; the visitor
+ * checks the key names. Lexing `event=` or `timeout=` as their own tokens would
+ * shadow a port that happens to carry that name on @input and @node lines.
  */
 
-import { CstParser } from 'chevrotain';
+import { CstParser, type CstNode } from 'chevrotain';
 import {
   JSDocLexer,
   TriggerTag,
@@ -12,12 +17,8 @@ import {
   RetriesTag,
   TimeoutTag,
   ThrottleTag,
-  EventEq,
-  CronEq,
-  MatchEq,
-  TimeoutEq,
-  LimitEq,
-  PeriodEq,
+  Identifier,
+  Equals,
   StringLiteral,
   Integer,
   allTokens,
@@ -62,7 +63,28 @@ function stripQuotes(s: string): string {
   return s;
 }
 
-const CRON_REGEX = /^(\*|[0-9,/-]+)\s+(\*|[0-9,/-]+)\s+(\*|[0-9,/-]+)\s+(\*|[0-9,/-]+)\s+(\*|[0-9,/-]+)$/;
+/**
+ * A standard five-field cron expression. Each field is `*`, a value, a range
+ * `a-b`, or a comma list of those, and each item may carry a `/step`. Values
+ * are numbers or the three-letter month and weekday names (`JAN`, `MON-FRI`).
+ */
+const CRON_ITEM = '(?:\\*|[0-9A-Za-z]+(?:-[0-9A-Za-z]+)?)(?:/\\d+)?';
+const CRON_FIELD = `${CRON_ITEM}(?:,${CRON_ITEM})*`;
+const CRON_REGEX = new RegExp(`^${CRON_FIELD}(?:\\s+${CRON_FIELD}){4}$`);
+
+/** True when `expression` has five cron fields of the accepted shape. */
+export function isValidCronExpression(expression: string): boolean {
+  return CRON_REGEX.test(expression.trim());
+}
+
+/** One `key=value` option as the grammar sees it. */
+interface Assignment {
+  key: string;
+  /** Unquoted string value, when the value was a string literal. */
+  str?: string;
+  /** Integer value, when the value was an integer literal. */
+  int?: number;
+}
 
 // =============================================================================
 // Parser Definition
@@ -78,31 +100,15 @@ class TriggerCancelParser extends CstParser {
   public triggerLine = this.RULE('triggerLine', () => {
     this.CONSUME(TriggerTag);
     this.MANY(() => {
-      this.OR([
-        { ALT: () => {
-          this.CONSUME(EventEq);
-          this.CONSUME(StringLiteral, { LABEL: 'eventValue' });
-        }},
-        { ALT: () => {
-          this.CONSUME(CronEq);
-          this.CONSUME2(StringLiteral, { LABEL: 'cronValue' });
-        }},
-      ]);
+      this.SUBRULE(this.assignment);
     });
   });
 
   // @cancelOn event="app/user.deleted" match="data.userId" timeout="1h"
   public cancelOnLine = this.RULE('cancelOnLine', () => {
     this.CONSUME(CancelOnTag);
-    this.CONSUME(EventEq);
-    this.CONSUME(StringLiteral, { LABEL: 'eventValue' });
-    this.OPTION(() => {
-      this.CONSUME(MatchEq);
-      this.CONSUME2(StringLiteral, { LABEL: 'matchValue' });
-    });
-    this.OPTION2(() => {
-      this.CONSUME(TimeoutEq);
-      this.CONSUME3(StringLiteral, { LABEL: 'timeoutValue' });
+    this.AT_LEAST_ONE(() => {
+      this.SUBRULE(this.assignment);
     });
   });
 
@@ -121,12 +127,19 @@ class TriggerCancelParser extends CstParser {
   // @throttle limit=3 period="1m"
   public throttleLine = this.RULE('throttleLine', () => {
     this.CONSUME(ThrottleTag);
-    this.CONSUME(LimitEq);
-    this.CONSUME(Integer, { LABEL: 'limitValue' });
-    this.OPTION(() => {
-      this.CONSUME(PeriodEq);
-      this.CONSUME(StringLiteral, { LABEL: 'periodValue' });
+    this.AT_LEAST_ONE(() => {
+      this.SUBRULE(this.assignment);
     });
+  });
+
+  // key="value" or key=123
+  private assignment = this.RULE('assignment', () => {
+    this.CONSUME(Identifier, { LABEL: 'key' });
+    this.CONSUME(Equals);
+    this.OR([
+      { ALT: () => this.CONSUME(StringLiteral, { LABEL: 'strValue' }) },
+      { ALT: () => this.CONSUME(Integer, { LABEL: 'intValue' }) },
+    ]);
   });
 }
 
@@ -146,15 +159,14 @@ interface CstNodeWithImage {
   image: string;
 }
 
-interface TriggerLineContext {
-  eventValue?: CstNodeWithImage[];
-  cronValue?: CstNodeWithImage[];
+interface AssignmentListContext {
+  assignment?: CstNode[];
 }
 
-interface CancelOnLineContext {
-  eventValue: CstNodeWithImage[];
-  matchValue?: CstNodeWithImage[];
-  timeoutValue?: CstNodeWithImage[];
+interface AssignmentContext {
+  key: CstNodeWithImage[];
+  strValue?: CstNodeWithImage[];
+  intValue?: CstNodeWithImage[];
 }
 
 interface RetriesLineContext {
@@ -165,10 +177,21 @@ interface TimeoutLineContext {
   timeoutValue: CstNodeWithImage[];
 }
 
-interface ThrottleLineContext {
-  limitValue: CstNodeWithImage[];
-  periodValue?: CstNodeWithImage[];
+/**
+ * What the visitor hands back for the option-list lines. `unknownKeys` and
+ * `badValues` let the public functions decide between "not ours" (return null
+ * so a pack can claim the line) and a warning.
+ */
+interface OptionsResult {
+  values: Map<string, Assignment>;
+  unknownKeys: string[];
+  /** Keys whose value had the wrong literal kind (string where an integer is needed, or the reverse). */
+  badValues: string[];
 }
+
+const TRIGGER_KEYS: Record<string, 'str' | 'int'> = { event: 'str', cron: 'str' };
+const CANCEL_ON_KEYS: Record<string, 'str' | 'int'> = { event: 'str', match: 'str', timeout: 'str' };
+const THROTTLE_KEYS: Record<string, 'str' | 'int'> = { limit: 'int', period: 'str' };
 
 class TriggerCancelVisitor extends BaseVisitor {
   constructor() {
@@ -176,28 +199,42 @@ class TriggerCancelVisitor extends BaseVisitor {
     this.validateVisitor();
   }
 
-  triggerLine(ctx: TriggerLineContext): TriggerParseResult {
-    const result: TriggerParseResult = {};
-    if (ctx.eventValue?.[0]) {
-      result.event = stripQuotes(ctx.eventValue[0].image);
-    }
-    if (ctx.cronValue?.[0]) {
-      result.cron = stripQuotes(ctx.cronValue[0].image);
+  private collect(ctx: AssignmentListContext, allowed: Record<string, 'str' | 'int'>): OptionsResult {
+    const result: OptionsResult = { values: new Map(), unknownKeys: [], badValues: [] };
+    for (const node of ctx.assignment ?? []) {
+      const a = this.visit(node) as Assignment;
+      const kind = allowed[a.key];
+      if (kind === undefined) {
+        result.unknownKeys.push(a.key);
+        continue;
+      }
+      if ((kind === 'str' && a.str === undefined) || (kind === 'int' && a.int === undefined)) {
+        result.badValues.push(a.key);
+        continue;
+      }
+      result.values.set(a.key, a);
     }
     return result;
   }
 
-  cancelOnLine(ctx: CancelOnLineContext): CancelOnParseResult {
-    const result: CancelOnParseResult = {
-      event: stripQuotes(ctx.eventValue[0].image),
-    };
-    if (ctx.matchValue?.[0]) {
-      result.match = stripQuotes(ctx.matchValue[0].image);
+  triggerLine(ctx: AssignmentListContext): OptionsResult {
+    return this.collect(ctx, TRIGGER_KEYS);
+  }
+
+  cancelOnLine(ctx: AssignmentListContext): OptionsResult {
+    return this.collect(ctx, CANCEL_ON_KEYS);
+  }
+
+  throttleLine(ctx: AssignmentListContext): OptionsResult {
+    return this.collect(ctx, THROTTLE_KEYS);
+  }
+
+  assignment(ctx: AssignmentContext): Assignment {
+    const key = ctx.key[0].image;
+    if (ctx.strValue?.[0]) {
+      return { key, str: stripQuotes(ctx.strValue[0].image) };
     }
-    if (ctx.timeoutValue?.[0]) {
-      result.timeout = stripQuotes(ctx.timeoutValue[0].image);
-    }
-    return result;
+    return { key, int: parseInt(ctx.intValue![0].image, 10) };
   }
 
   retriesLine(ctx: RetriesLineContext): RetriesParseResult {
@@ -206,16 +243,6 @@ class TriggerCancelVisitor extends BaseVisitor {
 
   timeoutLine(ctx: TimeoutLineContext): TimeoutParseResult {
     return { timeout: stripQuotes(ctx.timeoutValue[0].image) };
-  }
-
-  throttleLine(ctx: ThrottleLineContext): ThrottleParseResult {
-    const result: ThrottleParseResult = {
-      limit: parseInt(ctx.limitValue[0].image, 10),
-    };
-    if (ctx.periodValue?.[0]) {
-      result.period = stripQuotes(ctx.periodValue[0].image);
-    }
-    return result;
   }
 }
 
@@ -254,17 +281,23 @@ export function parseTriggerLine(input: string, warnings: string[]): TriggerPars
     return null;
   }
 
-  const result = visitorInstance.visit(cst) as TriggerParseResult;
+  const options = visitorInstance.visit(cst) as OptionsResult;
 
-  // Empty result means the parser consumed @trigger but found no event=/cron= assignments.
-  // Return null so the caller can delegate to a pack's trigger handler
-  // like @trigger push, @trigger pull_request, etc.)
-  if (!result.event && !result.cron) {
+  // A line with no event=/cron=, or with keys core does not know, is a pack's
+  // trigger form (for example a pack that registers its own event sources).
+  // Return null so the caller can delegate it.
+  if (options.values.size === 0 || options.unknownKeys.length > 0 || options.badValues.length > 0) {
     return null;
   }
 
+  const result: TriggerParseResult = {};
+  const event = options.values.get('event');
+  if (event) result.event = event.str;
+  const cron = options.values.get('cron');
+  if (cron) result.cron = cron.str;
+
   // Validate cron expression
-  if (result.cron && !CRON_REGEX.test(result.cron)) {
+  if (result.cron && !isValidCronExpression(result.cron)) {
     warnings.push(`Invalid cron expression: "${result.cron}". Expected 5 fields (minute hour day month weekday).`);
   }
 
@@ -294,18 +327,33 @@ export function parseCancelOnLine(input: string, warnings: string[]): CancelOnPa
   parserInstance.input = lexResult.tokens;
   const cst = parserInstance.cancelOnLine();
 
+  const expected = '  Expected format: @cancelOn event="name" match="field" timeout="duration"';
+  const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
   if (parserInstance.errors.length > 0) {
     const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to parse cancelOn line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @cancelOn event="name" match="field" timeout="duration"`
-    );
+    warnings.push(`Failed to parse cancelOn line: "${truncatedInput}"\n  Error: ${firstError.message}\n${expected}`);
     return null;
   }
 
-  return visitorInstance.visit(cst) as CancelOnParseResult;
+  const options = visitorInstance.visit(cst) as OptionsResult;
+  const problem = options.unknownKeys.length > 0
+    ? `unknown option "${options.unknownKeys[0]}"`
+    : options.badValues.length > 0
+      ? `"${options.badValues[0]}" takes a quoted string`
+      : !options.values.has('event')
+        ? 'event="name" is required'
+        : null;
+  if (problem) {
+    warnings.push(`Failed to parse cancelOn line: "${truncatedInput}"\n  Error: ${problem}\n${expected}`);
+    return null;
+  }
+
+  const result: CancelOnParseResult = { event: options.values.get('event')!.str! };
+  const match = options.values.get('match');
+  if (match) result.match = match.str;
+  const timeout = options.values.get('timeout');
+  if (timeout) result.timeout = timeout.str;
+  return result;
 }
 
 /**
@@ -393,13 +441,6 @@ export function parseTimeoutLine(input: string, warnings: string[]): TimeoutPars
  * Parse a @throttle line and return structured result.
  * Returns null if the line is not a throttle declaration.
  */
-/**
- * Get serialized grammar productions for documentation/diagrams.
- */
-export function getTriggerCancelGrammar() {
-  return parserInstance.getSerializedGastProductions();
-}
-
 export function parseThrottleLine(input: string, warnings: string[]): ThrottleParseResult | null {
   const lexResult = JSDocLexer.tokenize(input);
 
@@ -419,16 +460,36 @@ export function parseThrottleLine(input: string, warnings: string[]): ThrottlePa
   parserInstance.input = lexResult.tokens;
   const cst = parserInstance.throttleLine();
 
+  const expected = '  Expected format: @throttle limit=<number> period="duration"';
+  const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
   if (parserInstance.errors.length > 0) {
     const firstError = parserInstance.errors[0];
-    const truncatedInput = input.length > 60 ? input.substring(0, 60) + '...' : input;
-    warnings.push(
-      `Failed to parse throttle line: "${truncatedInput}"\n` +
-        `  Error: ${firstError.message}\n` +
-        `  Expected format: @throttle limit=<number> period="duration"`
-    );
+    warnings.push(`Failed to parse throttle line: "${truncatedInput}"\n  Error: ${firstError.message}\n${expected}`);
     return null;
   }
 
-  return visitorInstance.visit(cst) as ThrottleParseResult;
+  const options = visitorInstance.visit(cst) as OptionsResult;
+  const problem = options.unknownKeys.length > 0
+    ? `unknown option "${options.unknownKeys[0]}"`
+    : options.badValues.length > 0
+      ? (options.badValues[0] === 'limit' ? 'limit takes an integer' : `"${options.badValues[0]}" takes a quoted string`)
+      : !options.values.has('limit')
+        ? 'limit=<number> is required'
+        : null;
+  if (problem) {
+    warnings.push(`Failed to parse throttle line: "${truncatedInput}"\n  Error: ${problem}\n${expected}`);
+    return null;
+  }
+
+  const result: ThrottleParseResult = { limit: options.values.get('limit')!.int! };
+  const period = options.values.get('period');
+  if (period) result.period = period.str;
+  return result;
+}
+
+/**
+ * Get serialized grammar productions for documentation/diagrams.
+ */
+export function getTriggerCancelGrammar() {
+  return parserInstance.getSerializedGastProductions();
 }

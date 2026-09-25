@@ -22,30 +22,12 @@ import type {
   TValidationRule,
   TValidationError,
   TWorkflowAST,
-  TNodeTypeAST,
-  TNodeInstanceAST,
 } from '../ast/types';
+import { resolveNodeType, getOutgoing } from './validator-helpers';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function resolveNodeType(
-  ast: TWorkflowAST,
-  instance: TNodeInstanceAST,
-): TNodeTypeAST | undefined {
-  return ast.nodeTypes.find(
-    (nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType,
-  );
-}
-
-function getOutgoing(ast: TWorkflowAST, nodeId: string, portName?: string) {
-  return ast.connections.filter((c) => {
-    if (c.from.node !== nodeId) return false;
-    if (portName && c.from.port !== portName) return false;
-    return true;
-  });
-}
 
 function getIncoming(ast: TWorkflowAST, nodeId: string, portName?: string) {
   return ast.connections.filter((c) => {

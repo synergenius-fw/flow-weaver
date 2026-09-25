@@ -1,10 +1,7 @@
 /**
- * Pure, state-free helpers extracted from WorkflowValidator (debt #3 step 2).
+ * Pure, state-free helpers shared by the validation rules.
  *
- * These functions have no dependency on validator instance state
- * (errors/warnings/mode). They were previously private methods. Moving them out
- * shrinks the validator class and lets the extracted rule functions share them.
- * Behavior is identical to the former methods.
+ * Nothing here depends on validator instance state (errors, warnings, mode).
  */
 
 import type {
@@ -12,7 +9,50 @@ import type {
   TWorkflowAST,
   TSourceLocation,
   TConnectionAST,
+  TNodeInstanceAST,
+  TCoerceTargetType,
 } from '../ast/types';
+
+/** The data type each `@connect ... as <type>` coercion produces. */
+export const COERCE_OUTPUT_TYPE: Record<TCoerceTargetType, string> = {
+  string: 'STRING',
+  number: 'NUMBER',
+  boolean: 'BOOLEAN',
+  json: 'STRING',
+  object: 'OBJECT',
+};
+
+/** The `as <type>` that produces a given data type, for suggestions. `json` also gives STRING and is never suggested. */
+export const COERCE_TYPE_FOR_DATA_TYPE: Record<string, TCoerceTargetType> = {
+  STRING: 'string',
+  NUMBER: 'number',
+  BOOLEAN: 'boolean',
+  OBJECT: 'object',
+};
+
+/** Suggest the correct `as <type>` for a given target dataType. */
+export function suggestCoerceType(targetType: string): string {
+  return COERCE_TYPE_FOR_DATA_TYPE[targetType] ?? '<type>';
+}
+
+/** Resolve a node instance to its node type definition, by name or function name. */
+export function resolveNodeType(
+  ast: TWorkflowAST,
+  instance: TNodeInstanceAST,
+): TNodeTypeAST | undefined {
+  return ast.nodeTypes.find(
+    (nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType,
+  );
+}
+
+/** All outgoing connections from a node, or from one of its ports when `portName` is given. */
+export function getOutgoing(ast: TWorkflowAST, nodeId: string, portName?: string): TConnectionAST[] {
+  return ast.connections.filter((c) => {
+    if (c.from.node !== nodeId) return false;
+    if (portName && c.from.port !== portName) return false;
+    return true;
+  });
+}
 
 /** Look up instance sourceLocation by instance ID. */
 export function getInstanceLocation(

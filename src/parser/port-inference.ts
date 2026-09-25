@@ -1,12 +1,10 @@
 /**
- * Port parsing and TS-type inference, extracted from AnnotationParser (debt #4).
+ * Workflow port inference from TypeScript signatures.
  *
  * parseStartPorts / parseExitPorts derive a workflow's Start/Exit port
  * definitions from a function's signature and its parsed @flowWeaver config.
  * extractTypeSchema / isExpandableObjectType / inferPortType map ts-morph Types
- * to Flow Weaver data types, and capitalize is a shared label helper. These use no
- * AnnotationParser instance state, so extracting them as free functions is
- * behavior-neutral and shrinks the parser god-class.
+ * to Flow Weaver data types, and capitalize is a shared label helper.
  */
 
 import * as path from 'node:path';
@@ -136,7 +134,8 @@ export function parseStartPorts(
 }
 export function parseExitPorts(
   fn: FunctionLike,
-  config: ReturnType<typeof jsdocParser.parseWorkflow>
+  config: ReturnType<typeof jsdocParser.parseWorkflow>,
+  warnings?: string[]
 ): Record<string, TPortDefinition> {
   const ports: Record<string, TPortDefinition> = {};
   let returnType = fn.getReturnType();
@@ -148,9 +147,9 @@ export function parseExitPorts(
   const fileName = path.basename(filePath);
 
   if (!typeText || typeText === 'void') {
-    console.warn(
-      `[PARSER] Could not determine return type for function "${fn.getName()}" in ${fileName}.\n` +
-        `  Add an explicit return type like: Promise<{ onSuccess: boolean; onFailure: boolean }>`
+    warnings?.push(
+      `Could not determine the return type of workflow "${fn.getName()}" in ${fileName}, so it has no Exit ports. ` +
+        `Add an explicit return type like: Promise<{ onSuccess: boolean; onFailure: boolean }>`
     );
     return ports;
   }
@@ -253,10 +252,6 @@ export function inferPortType(tsType: Type): TDataType {
   // This handles all cases: primitives, any, unknown, never, arrays, functions, etc.
   return inferDataTypeFromTS(typeText);
 }
-/**
- * Check if a function has a valid @flowWeaver annotation (nodeType, workflow, or pattern).
- * Avoids false positives from file-level JSDoc that mentions @flowWeaver in description text.
- */
 
 export function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);

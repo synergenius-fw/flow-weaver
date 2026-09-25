@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-dependencies.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/advanced/example-dependencies.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -22,14 +22,14 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-execution-strategies.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/advanced/example-execution-strategies.ts 1`] = `
 {
   "parsedWorkflowCount": 0,
   "perWorkflow": [],
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-foreach.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/advanced/example-foreach.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -51,7 +51,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-port-configs.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/advanced/example-port-configs.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -73,7 +73,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-pull.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/advanced/example-pull.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -95,7 +95,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-scoped.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/advanced/example-scoped.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -117,7 +117,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/advanced/example-sync-pull.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/advanced/example-sync-pull.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -139,7 +139,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/basic/example.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -161,7 +161,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-autoconnect.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/basic/example-autoconnect.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -183,7 +183,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-branching.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/basic/example-branching.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -221,7 +221,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-error.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/basic/example-error.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -243,7 +243,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-error-onFailure.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/basic/example-error-onFailure.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -265,7 +265,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-expressions.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/basic/example-expressions.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -287,7 +287,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/example-pipeline.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/basic/example-pipeline.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -309,7 +309,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/basic/minimal-hello-world.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/basic/minimal-hello-world.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -331,7 +331,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/real-world/example-invalid.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/real-world/example-invalid.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -350,13 +350,6 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
             "docUrl": "https://github.com/synergenius-fw/flow-weaver/blob/main/docs/reference/error-codes.md",
             "message": "Node "triple" does not have output port "wrongPort"",
             "node": "triple",
-            "type": "error",
-          },
-          {
-            "code": "UNDEFINED_NODE",
-            "docUrl": null,
-            "message": "Workflow references undefined node: "nonexistent"",
-            "node": "nonexistent",
             "type": "error",
           },
           {
@@ -393,13 +386,6 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
             "docUrl": "https://github.com/synergenius-fw/flow-weaver/blob/main/docs/reference/error-codes.md",
             "message": "Node "triple" does not have output port "wrongPort"",
             "node": "triple",
-            "type": "error",
-          },
-          {
-            "code": "UNDEFINED_NODE",
-            "docUrl": null,
-            "message": "Workflow references undefined node: "nonexistent"",
-            "node": "nonexistent",
             "type": "error",
           },
           {
@@ -427,14 +413,14 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtu
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: fixtures/validation-demo.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: fixtures/validation-demo.ts 1`] = `
 {
   "parsedWorkflowCount": 0,
   "perWorkflow": [],
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-cases/data-pipeline.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: use-cases/data-pipeline.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -456,7 +442,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-c
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-cases/hello-world.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: use-cases/hello-world.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -478,7 +464,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-c
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-cases/human-approval.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: use-cases/human-approval.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -500,7 +486,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-c
 }
 `;
 
-exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-cases/parallel-enrichment.ts 1`] = `
+exports[`WorkflowValidator golden > validation output is stable: use-cases/parallel-enrichment.ts 1`] = `
 {
   "parsedWorkflowCount": 1,
   "perWorkflow": [
@@ -522,7 +508,7 @@ exports[`WorkflowValidator golden (debt #3) > validation output is stable: use-c
 }
 `;
 
-exports[`WorkflowValidator scope-topology golden (debt #3) > scope diagnostics are stable: unknown-port 1`] = `
+exports[`WorkflowValidator scope-topology golden > scope diagnostics are stable: unknown-port 1`] = `
 {
   "errors": [
     {
@@ -552,7 +538,7 @@ exports[`WorkflowValidator scope-topology golden (debt #3) > scope diagnostics a
 }
 `;
 
-exports[`WorkflowValidator scope-topology golden (debt #3) > scope diagnostics are stable: wrong-scope-name 1`] = `
+exports[`WorkflowValidator scope-topology golden > scope diagnostics are stable: wrong-scope-name 1`] = `
 {
   "errors": [
     {

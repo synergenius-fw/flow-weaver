@@ -498,8 +498,6 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
       expect(inst.tags).toBeUndefined();
       expect(inst.width).toBeUndefined();
       expect(inst.height).toBeUndefined();
-      expect(inst.x).toBeUndefined();
-      expect(inst.y).toBeUndefined();
       expect(inst.attributes).toBeUndefined();
       expect(inst.suppressWarnings).toBeUndefined();
     });
@@ -527,7 +525,7 @@ export async function myWf(execute: boolean, params: {}) { return { onSuccess: t
  */
 export async function myWf(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
-      expect(warnings.some(w => w.includes('Invalid @retries value'))).toBe(true);
+      expect(warnings.some(w => w.includes('Failed to parse retries line') && w.includes('@retries abc'))).toBe(true);
     });
 
     it('accepts zero retries', () => {

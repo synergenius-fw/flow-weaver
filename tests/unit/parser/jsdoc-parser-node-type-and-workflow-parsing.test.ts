@@ -508,7 +508,7 @@ export async function a(execute: boolean, params: {}) { return { onSuccess: true
 export async function a(execute: boolean, params: {}) { return { onSuccess: true }; }
 `);
       expect(config!.retries).toBeUndefined();
-      expect(warnings.some(w => w.includes('Invalid @retries value'))).toBe(true);
+      expect(warnings.some(w => w.includes('Failed to parse retries line') && w.includes('@retries abc'))).toBe(true);
     });
 
     it('warns on negative @retries value', () => {

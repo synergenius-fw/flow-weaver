@@ -1,13 +1,11 @@
 /**
- * Node-type extraction and inference, extracted from AnnotationParser (debt #5 / PR-A).
+ * Node-type extraction and inference.
  *
  * extractNodeTypes walks a source file's @flowWeaver-annotated (and inferable)
  * functions into TNodeTypeAST[]. The infer* functions derive node types from
  * bare function signatures (expression mode), and hasFlowWeaverAnnotation detects
- * the annotation. These form a closed, near-stateless group: they call only each
- * other, and the sole instance dependency (the tag-handler registry, used by
- * extractNodeTypes) is now passed as an explicit parameter. Extracting them as
- * free functions is behavior-neutral and further shrinks the parser god-class.
+ * the annotation. The tag-handler registry used by extractNodeTypes is passed
+ * in explicitly.
  */
 
 import { type SourceFile, type JSDoc } from 'ts-morph';
@@ -31,6 +29,16 @@ import {
   durableGateKind,
   hasJsDocTag,
 } from './durable-effect-contract';
+
+/**
+ * Whether calling the function yields a Promise, so the generated call needs
+ * `await`. The `async` keyword is one way to say so; a plain function declared
+ * to return `Promise<...>` (a `declare function` in a .d.ts, or one that
+ * returns a promise it built itself) is the other.
+ */
+export function returnsPromise(fn: FunctionLike): boolean {
+  return fn.isAsync() || fn.getReturnType().getText().startsWith('Promise<');
+}
 
 export function extractNodeTypes(
   sourceFile: SourceFile,
@@ -194,8 +202,7 @@ export function extractNodeTypes(
       ? analyzeDurableEffectContract(fn, inputs, outputs)
       : undefined;
 
-    // Detect async keyword on function declaration
-    const isAsync = fn.isAsync();
+    const isAsync = returnsPromise(fn);
 
     // Convert defaultConfig
     let defaultConfig: TNodeTypeDefaultConfig | undefined = undefined;
@@ -406,7 +413,7 @@ export function inferNodeTypeFromFunction(
     outputs,
     hasSuccessPort: true,
     hasFailurePort: true,
-    isAsync: fn.isAsync() || returnTypeText.startsWith('Promise<'),
+    isAsync: returnsPromise(fn),
     executeWhen: EXECUTION_STRATEGIES.CONJUNCTION as TExecuteWhen,
     expression: !firstParamIsExecute, // Expression only if original function lacks execute as first param
     inferred: true,
@@ -546,11 +553,11 @@ export function inferNodeTypesFromUnannotated(
 
 /**
  * Detect whether a function carries a valid @flowWeaver annotation
- * (nodeType, workflow, or pattern). Avoids false positives from file-level
- * JSDoc that merely mentions @flowWeaver in description text.
+ * (nodeType, its `node` shorthand, or workflow). Avoids false positives from
+ * file-level JSDoc that merely mentions @flowWeaver in description text.
  */
 export function hasFlowWeaverAnnotation(fn: FunctionLike): boolean {
-  const validTypes = new Set(['nodeType', 'workflow', 'pattern']);
+  const validTypes = new Set(['nodeType', 'node', 'workflow']);
   return fn.getJsDocs().some((doc) =>
     doc.getTags().some((t) => {
       if (t.getTagName() !== 'flowWeaver') return false;

@@ -542,4 +542,78 @@ function mergeResults(
     }
   });
 
+  it("carries `@connect a.b -> c.d as <type>` to the connection AST", () => {
+    const sourceCode = `
+/**
+ * @flowWeaver nodeType
+ * @output text
+ */
+function producer(execute: boolean): { text: string; onSuccess: boolean } {
+  return { text: '1', onSuccess: true };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @input value
+ */
+function consumer(execute: boolean, value: number): { onSuccess: boolean } {
+  return { onSuccess: true };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node p producer
+ * @node c consumer
+ * @connect Start.execute -> p.execute
+ * @connect p.onSuccess -> c.execute
+ * @connect p.text -> c.value as number
+ * @connect c.onSuccess -> Exit.onSuccess
+ */
+export function wf(execute: boolean, params: {}): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+`;
+    const testFile = path.join(tempDir, "connect-as-type.ts");
+    fs.writeFileSync(testFile, sourceCode, "utf-8");
+
+    try {
+      const result = parser.parse(testFile);
+      expect(result.errors).toEqual([]);
+      const conn = result.workflows[0].connections.find((c) => c.from.port === "text");
+      expect(conn?.coerce).toBe("number");
+      const others = result.workflows[0].connections.filter((c) => c.from.port !== "text");
+      expect(others.every((c) => c.coerce === undefined)).toBe(true);
+    } finally {
+      fs.unlinkSync(testFile);
+    }
+  });
+
+  it("keeps an instance with an unknown node type for the validator, without a parse error", () => {
+    const sourceCode = `
+/**
+ * @flowWeaver workflow
+ * @node p prodcuer
+ * @connect Start.execute -> p.execute
+ */
+export function wf(execute: boolean, params: {}): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+
+/** @flowWeaver nodeType */
+function producer(execute: boolean): { onSuccess: boolean } {
+  return { onSuccess: true };
+}
+`;
+    const testFile = path.join(tempDir, "unknown-type-no-parse-error.ts");
+    fs.writeFileSync(testFile, sourceCode, "utf-8");
+
+    try {
+      const result = parser.parse(testFile);
+      expect(result.errors).toEqual([]);
+      expect(result.workflows[0].instances.map((i) => i.nodeType)).toEqual(["prodcuer"]);
+    } finally {
+      fs.unlinkSync(testFile);
+    }
+  });
+
 });

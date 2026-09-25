@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { AnnotationParser } from '../../src/parser/annotation-parser';
+import { validateWorkflow } from '../../src/api/validate';
 
 const FIXTURES_DIR = path.resolve(__dirname, '../fixtures/cross-file');
 
@@ -154,10 +155,13 @@ export function badNameWorkflow(
       fs.writeFileSync(tempFile, testCode);
 
       try {
-        // Parser pushes unknown-type errors instead of throwing (defense-in-depth)
+        // The parser keeps the instance; the validator names the unknown type, once.
         const result = parser.parse(tempFile);
-        expect(result.errors.length).toBeGreaterThan(0);
-        expect(result.errors.some((e) => /not found|nonexistentNode/i.test(e))).toBe(true);
+        expect(result.errors).toEqual([]);
+        const validation = validateWorkflow(result.workflows[0]);
+        const unknown = validation.errors.filter((e) => e.code === 'UNKNOWN_NODE_TYPE');
+        expect(unknown).toHaveLength(1);
+        expect(unknown[0].message).toMatch(/nonexistentNode/);
       } finally {
         fs.unlinkSync(tempFile);
       }

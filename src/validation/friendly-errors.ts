@@ -5,6 +5,8 @@
  * contextual details extracted from the original error message.
  */
 
+import { COERCE_TYPE_FOR_DATA_TYPE } from './validator-helpers';
+
 export interface TFriendlyError {
   /** Short title (3-5 words) */
   title: string;
@@ -49,13 +51,6 @@ function extractTypes(message: string): { source: string; target: string } | nul
   return null;
 }
 
-const COERCE_TARGET_TYPES: Record<string, string> = {
-  STRING: 'string',
-  NUMBER: 'number',
-  BOOLEAN: 'boolean',
-  OBJECT: 'object',
-};
-
 /**
  * Build a concrete `@connect ... as <type>` coercion suggestion from error context.
  * Returns null if not enough info is available.
@@ -70,7 +65,7 @@ function buildCoerceSuggestion(quoted: string[], targetType: string): string | n
   const portRefs = quoted.filter(q => portRefPattern.test(q));
   if (portRefs.length < 2) return null;
 
-  const coerceType = COERCE_TARGET_TYPES[targetType.toUpperCase()] || targetType.toLowerCase();
+  const coerceType = COERCE_TYPE_FOR_DATA_TYPE[targetType.toUpperCase()] || targetType.toLowerCase();
   if (!['string', 'number', 'boolean', 'json', 'object'].includes(coerceType)) return null;
 
   return `@connect ${portRefs[0]} -> ${portRefs[1]} as ${coerceType}`;
@@ -117,12 +112,40 @@ const errorMappers: Record<string, ErrorMapper> = {
   },
 
   STEP_PORT_TYPE_MISMATCH(error) {
+    // The validator writes one of two sentences:
+    //   STEP port "p" on node "a" cannot connect to non-STEP port "q" (...) on node "b"
+    //   Non-STEP port "p" (...) on node "a" cannot connect to STEP port "q" on node "b"
+    const stepToData = error.message.match(
+      /^STEP port "([^"]+)" on node "([^"]+)" cannot connect to non-STEP port "([^"]+)"(?: \([^)]*\))? on node "([^"]+)"/,
+    );
+    const dataToStep = error.message.match(
+      /^Non-STEP port "([^"]+)"(?: \([^)]*\))? on node "([^"]+)" cannot connect to STEP port "([^"]+)" on node "([^"]+)"/,
+    );
+    const fix = 'STEP ports carry control flow signals (like "go next"), not data. Connect data ports to data ports and STEP ports to STEP ports.';
+    if (stepToData) {
+      const [, fromPort, fromNode, toPort, toNode] = stepToData;
+      return {
+        title: 'Wrong Port Type',
+        explanation: `'${fromNode}.${fromPort}' is a STEP port: it carries a control signal, but '${toNode}.${toPort}' is a data port. Connect '${fromNode}.${fromPort}' to a STEP input such as '${toNode}.execute'.`,
+        fix,
+        code: error.code,
+      };
+    }
+    if (dataToStep) {
+      const [, fromPort, fromNode, toPort, toNode] = dataToStep;
+      return {
+        title: 'Wrong Port Type',
+        explanation: `'${toNode}.${toPort}' is a STEP port: it expects a control signal, but '${fromNode}.${fromPort}' carries data. Connect '${toNode}.${toPort}' to a STEP output such as '${fromNode}.onSuccess'.`,
+        fix,
+        code: error.code,
+      };
+    }
     const quoted = extractQuoted(error.message);
     const portName = quoted[0] || 'unknown';
     return {
       title: 'Wrong Port Type',
-      explanation: `Port '${portName}' expects a trigger signal but received data. Connect it to onSuccess or onFailure instead.`,
-      fix: 'STEP ports carry control flow signals (like "go next"), not data. Connect data ports to data ports and STEP ports to STEP ports.',
+      explanation: `Port '${portName}' mixes a STEP (control flow) port with a data port.`,
+      fix,
       code: error.code,
     };
   },
@@ -162,30 +185,39 @@ const errorMappers: Record<string, ErrorMapper> = {
   },
 
   UNKNOWN_SOURCE_PORT(error) {
+    // `Node "a" does not have output port "p"` or `Start node does not have output port "p"`
+    const known = error.message.match(/^(?:Node "([^"]+)"|(Start) node) does not have output port "([^"]+)"/);
     const quoted = extractQuoted(error.message);
-    const nodeName = quoted[0] || error.node || 'unknown';
-    const portName = quoted[1] || quoted[0] || 'unknown';
-    // If the message says 'does not have output port', first quoted is node, second is port
-    const hasNodeAndPort = error.message.includes('does not have output port');
-    const displayNode = hasNodeAndPort ? quoted[0] : nodeName;
-    const displayPort = hasNodeAndPort ? quoted[1] : portName;
+    const displayNode = known ? (known[1] ?? known[2]) : (error.node || quoted[0] || 'unknown');
+    const displayPort = known ? known[3] : (quoted[1] || quoted[0] || 'unknown');
+    const didYouMean = error.message.match(/Did you mean "([^"]+)"/)?.[1];
+    const hint = didYouMean ? ` Did you mean '${didYouMean}'?` : '';
+    const fix = displayNode === 'Start'
+      ? `Add '@param ${displayPort}' to the workflow JSDoc and to its params object, or fix the port name in the @connect annotation.`
+      : `Add @output ${displayPort} to the node type's JSDoc, or check the port name in the @connect annotation.`;
     return {
       title: 'Unknown Output Port',
-      explanation: `Port '${displayPort}' doesn't exist on node '${displayNode}'. Check the spelling or add the port to the node type.`,
-      fix: `Add @output ${displayPort} to the node type's JSDoc, or check the port name in the @connect annotation.`,
+      explanation: `Port '${displayPort}' doesn't exist on node '${displayNode}'.${hint} Check the spelling or add the port to the node type.`,
+      fix,
       code: error.code,
     };
   },
 
   UNKNOWN_TARGET_PORT(error) {
+    // `Node "a" does not have input port "p"` or `Exit node does not have input port "p"`
+    const known = error.message.match(/^(?:Node "([^"]+)"|(Exit) node) does not have input port "([^"]+)"/);
     const quoted = extractQuoted(error.message);
-    const hasNodeAndPort = error.message.includes('does not have input port');
-    const displayNode = hasNodeAndPort ? quoted[0] : (error.node || 'unknown');
-    const displayPort = hasNodeAndPort ? quoted[1] : (quoted[0] || 'unknown');
+    const displayNode = known ? (known[1] ?? known[2]) : (error.node || 'unknown');
+    const displayPort = known ? known[3] : (quoted[0] || 'unknown');
+    const didYouMean = error.message.match(/Did you mean "([^"]+)"/)?.[1];
+    const hint = didYouMean ? ` Did you mean '${didYouMean}'?` : '';
+    const fix = displayNode === 'Exit'
+      ? `Add '@returns ${displayPort}' to the workflow JSDoc and to its return type, or fix the port name in the @connect annotation.`
+      : `Add @input ${displayPort} to the node type's JSDoc, or check the port name in the @connect annotation.`;
     return {
       title: 'Unknown Input Port',
-      explanation: `Port '${displayPort}' doesn't exist on node '${displayNode}'. Check the spelling or add the port to the node type.`,
-      fix: `Add @input ${displayPort} to the node type's JSDoc, or check the port name in the @connect annotation.`,
+      explanation: `Port '${displayPort}' doesn't exist on node '${displayNode}'.${hint} Check the spelling or add the port to the node type.`,
+      fix,
       code: error.code,
     };
   },
@@ -292,13 +324,27 @@ const errorMappers: Record<string, ErrorMapper> = {
     };
   },
 
-  UNDEFINED_NODE(error) {
+  INVALID_SCOPE_NAME(error) {
     const quoted = extractQuoted(error.message);
-    const nodeName = quoted[0] || error.node || 'unknown';
+    const portName = quoted[0] || 'unknown';
+    const nodeName = quoted[1] || error.node || 'unknown';
+    const scopeName = quoted[2] || 'unknown';
     return {
-      title: 'Undefined Node',
-      explanation: `A connection references node '${nodeName}', but there's no @node annotation defining it.`,
-      fix: `Add a @node annotation for '${nodeName}' in the workflow JSDoc, or remove the connections that reference it.`,
+      title: 'Invalid Scope Name',
+      explanation: `Port '${portName}' on node type '${nodeName}' uses scope '${scopeName}', which is not a JavaScript identifier. Scope names become identifiers in the generated code.`,
+      fix: `Rename the scope in every 'scope:${scopeName}' modifier and in the matching callback parameter to letters, digits, '_' or '$', not starting with a digit.`,
+      code: error.code,
+    };
+  },
+
+  EXPRESSION_SYNTAX(error) {
+    const quoted = extractQuoted(error.message);
+    const portName = quoted[0] || 'unknown';
+    const where = quoted[1] || error.node || 'unknown';
+    return {
+      title: 'Expression Is Not JavaScript',
+      explanation: `The expression for '${portName}' on '${where}' does not parse as JavaScript. ${error.message.replace(/^.*?is not a JavaScript expression: /, '')}`,
+      fix: `An [expr:] value is JavaScript. Text needs quotes inside the attribute (timeout="'24h'"). An upstream port is read as node.port (agentId="prep.agentId"). See advanced-annotations.`,
       code: error.code,
     };
   },
@@ -341,19 +387,8 @@ const errorMappers: Record<string, ErrorMapper> = {
     const nodeName = quoted[1] || error.node || 'unknown';
     return {
       title: 'Multiple Input Connections',
-      explanation: `Input port '${portName}' on node '${nodeName}' has multiple connections. Only one value can be received, so use a merge node instead.`,
-      fix: `Remove extra connections to '${nodeName}.${portName}', or add a merge/combine node to join multiple values before connecting.`,
-      code: error.code,
-    };
-  },
-
-  SCOPE_CONSISTENCY_ERROR(error) {
-    const quoted = extractQuoted(error.message);
-    const scopeName = quoted[0] || error.node || 'unknown';
-    return {
-      title: 'Scope Mismatch',
-      explanation: `The forEach loop '${scopeName}' has mismatched inner connections. Each loop body needs matching start/end connections.`,
-      fix: `Check that all scoped nodes inside '${scopeName}' have proper connections from the scope's output ports to input ports.`,
+      explanation: `Input port '${portName}' on node '${nodeName}' has multiple connections. A data input takes one connection unless the port declares how to combine several.`,
+      fix: `Remove extra connections to '${nodeName}.${portName}', declare a merge strategy on the port with '@input ${portName} [mergeStrategy:FIRST|LAST|COLLECT|MERGE|CONCAT]' on the node type, or add a merge node before it.`,
       code: error.code,
     };
   },
@@ -730,7 +765,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     const coerceType = coerceMatch?.[1] || 'unknown';
     const expectsMatch = error.message.match(/expects (\w+)/);
     const expectedType = expectsMatch?.[1] || 'unknown';
-    const suggestedType = COERCE_TARGET_TYPES[expectedType.toUpperCase()] || expectedType.toLowerCase();
+    const suggestedType = COERCE_TYPE_FOR_DATA_TYPE[expectedType.toUpperCase()] || expectedType.toLowerCase();
     return {
       title: 'Wrong Coercion Type',
       explanation: `The \`as ${coerceType}\` coercion produces the wrong type for the target port. The target expects ${expectedType}.`,

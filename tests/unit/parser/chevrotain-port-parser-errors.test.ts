@@ -105,4 +105,34 @@ describe('Port Parser Error Handling', () => {
       expect(warnSpy).not.toHaveBeenCalled();
     });
   });
+
+  describe('port names that are also option keys elsewhere', () => {
+    // `timeout=`, `event=`, `limit=` are @trigger/@cancelOn/@throttle options.
+    // A port may still be called timeout, event, match, cron, limit or period.
+    it.each(['timeout', 'event', 'match', 'cron', 'limit', 'period'])(
+      'parses `@input [%s=5000]` as an optional port with a default',
+      (name) => {
+        const warnings: string[] = [];
+        const result = parsePortLine(`@input [${name}=5000]`, warnings);
+        expect(warnings).toEqual([]);
+        expect(result).toMatchObject({ name, isOptional: true, defaultValue: '5000' });
+      },
+    );
+
+    it('parses `@input timeout [order:1]` and custom metadata `[timeout:5000]`', () => {
+      const warnings: string[] = [];
+      expect(parsePortLine('@input timeout [order:1]', warnings)).toMatchObject({ name: 'timeout', order: 1 });
+      expect(parsePortLine('@input x [timeout:5000]', warnings)).toMatchObject({
+        name: 'x',
+        customMetadata: { timeout: 5000 },
+      });
+      expect(warnings).toEqual([]);
+    });
+
+    it('rejects `[timeout=5000]` as metadata: metadata attributes are key:value', () => {
+      const warnings: string[] = [];
+      expect(parsePortLine('@input x [timeout=5000]', warnings)).toBeNull();
+      expect(warnings[0]).toContain('Failed to parse port line');
+    });
+  });
 });

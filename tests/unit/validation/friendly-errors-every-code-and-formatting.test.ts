@@ -9,6 +9,7 @@ import {
   formatFriendlyDiagnostics,
   type TFriendlyError,
 } from '../../../src/validation/friendly-errors';
+import { VALIDATION_CODES } from '../../../src/doc-metadata/extractors/error-codes';
 
 function expectValid(result: TFriendlyError | null, code: string) {
   expect(result).not.toBeNull();
@@ -17,6 +18,15 @@ function expectValid(result: TFriendlyError | null, code: string) {
   expect(result!.fix).toBeTruthy();
   expect(result!.code).toBe(code);
 }
+
+// ── Every catalogued code has a mapper ──────────────────────────────────
+
+describe('getFriendlyError: every code in VALIDATION_CODES', () => {
+  it.each(VALIDATION_CODES.map((c) => c.code))('%s has a friendly mapping', (code) => {
+    const r = getFriendlyError({ code, message: 'test', node: 'test' });
+    expectValid(r, code);
+  });
+});
 
 // ── Every error code in the mapper ──────────────────────────────────────
 
@@ -303,13 +313,30 @@ describe('getFriendlyError: every error code', () => {
     expect(r!.explanation).toContain('processData');
   });
 
-  it('UNDEFINED_NODE', () => {
+  it('INVALID_SCOPE_NAME names the port, node type and scope', () => {
     const r = getFriendlyError({
-      code: 'UNDEFINED_NODE',
-      message: 'Reference to "ghost" but no definition',
+      code: 'INVALID_SCOPE_NAME',
+      message: 'Port "item" on node type "loop" has invalid scope name "my-scope". Scope names must be valid JavaScript identifiers.',
+      node: 'loop',
     });
-    expectValid(r, 'UNDEFINED_NODE');
-    expect(r!.explanation).toContain('ghost');
+    expectValid(r, 'INVALID_SCOPE_NAME');
+    expect(r!.explanation).toContain("'item'");
+    expect(r!.explanation).toContain("'loop'");
+    expect(r!.explanation).toContain("'my-scope'");
+    expect(r!.fix).toContain('scope:my-scope');
+  });
+
+  it('EXPRESSION_SYNTAX names the port and the instance and keeps the reason', () => {
+    const r = getFriendlyError({
+      code: 'EXPRESSION_SYNTAX',
+      message: `The [expr:] binding for "timeout" on "wait" is not a JavaScript expression: 24h. Unexpected token. If you meant the text "24h", quote it inside the attribute: ="'24h'".`,
+      node: 'wait',
+    });
+    expectValid(r, 'EXPRESSION_SYNTAX');
+    expect(r!.explanation).toContain("'timeout'");
+    expect(r!.explanation).toContain("'wait'");
+    expect(r!.explanation).toContain('24h. Unexpected token');
+    expect(r!.fix).toContain('[expr:]');
   });
 
   it('TYPE_INCOMPATIBLE with coerce suggestion', () => {
@@ -358,15 +385,7 @@ describe('getFriendlyError: every error code', () => {
     expectValid(r, 'MULTIPLE_CONNECTIONS_TO_INPUT');
     expect(r!.explanation).toContain('value');
     expect(r!.explanation).toContain('calc');
-  });
-
-  it('SCOPE_CONSISTENCY_ERROR', () => {
-    const r = getFriendlyError({
-      code: 'SCOPE_CONSISTENCY_ERROR',
-      message: 'Scope "iteration" has mismatched connections',
-    });
-    expectValid(r, 'SCOPE_CONSISTENCY_ERROR');
-    expect(r!.explanation).toContain('iteration');
+    expect(r!.fix).toContain('[mergeStrategy:');
   });
 
   it('SCOPE_MISSING_REQUIRED_INPUT', () => {

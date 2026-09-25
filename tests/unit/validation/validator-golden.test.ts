@@ -1,19 +1,18 @@
 /**
- * GOLDEN characterization tests for WorkflowValidator (debt item #3).
+ * GOLDEN characterization tests for WorkflowValidator.
  *
  * These parse a curated corpus of REAL fixture workflows and snapshot the full
  * validation output (valid flag + ordered error/warning diagnostics) in both
- * strict and draft modes. They pin the current behavior of validate(), including
- * rule ordering, cascading-error dedup, draft-mode reclassification, warning
- * suppression, and doc-URL attachment, BEFORE the rule-registry migration, so
- * the migration can be proven behavior-neutral.
+ * strict and draft modes. They pin the behavior of validate(), including rule
+ * ordering, cascading-error dedup, draft-mode reclassification, warning
+ * suppression, and doc-URL attachment.
  *
  * The corpus deliberately spans valid, invalid, scoped, async, expression,
- * branching, and pull workflows to exercise as many of the ~22 validateX rules
+ * branching, and pull workflows to exercise as many of the validateX rules
  * as possible through the real parse pipeline.
  *
- * If any snapshot changes, the migration changed validation output. Investigate
- * before updating.
+ * If a snapshot changes, validation output changed. Read the diff before
+ * updating.
  */
 
 import { parseWorkflow } from '../../../src/api/parse';
@@ -141,7 +140,7 @@ export async function testWorkflow(execute: boolean, params: { items: unknown[] 
 }`.trim(),
 };
 
-describe('WorkflowValidator scope-topology golden (debt #3)', () => {
+describe('WorkflowValidator scope-topology golden', () => {
   for (const [label, source] of Object.entries(SCOPE_SOURCES)) {
     it(`scope diagnostics are stable: ${label}`, () => {
       const dir = (globalThis as { testHelpers?: { outputDir: string } }).testHelpers?.outputDir
@@ -165,7 +164,7 @@ describe('WorkflowValidator scope-topology golden (debt #3)', () => {
   }
 });
 
-describe('WorkflowValidator golden (debt #3)', () => {
+describe('WorkflowValidator golden', () => {
   for (const fixture of FIXTURES) {
     it(`validation output is stable: ${fixture}`, async () => {
       const parsed = await parseWorkflow(path.join(ROOT, fixture));

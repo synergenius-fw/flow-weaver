@@ -92,6 +92,13 @@ export const VALIDATION_CODES: TValidationCodeDoc[] = [
     description: 'Instance ID is "Start" or "Exit"',
     category: 'naming',
   },
+  {
+    code: 'INVALID_SCOPE_NAME',
+    severity: 'error',
+    title: 'Invalid Scope Name',
+    description: 'A scoped port names a scope that is not a JavaScript identifier (scope names become identifiers in generated code)',
+    category: 'naming',
+  },
 
   // ── Connection ──────────────────────────────────────────────────────
   {
@@ -180,13 +187,6 @@ export const VALIDATION_CODES: TValidationCodeDoc[] = [
     severity: 'error',
     title: 'Unknown Node Type',
     description: 'Instance references nonexistent node type',
-    category: 'node-ref',
-  },
-  {
-    code: 'UNDEFINED_NODE',
-    severity: 'error',
-    title: 'Undefined Node',
-    description: 'Connection references node with no instance',
     category: 'node-ref',
   },
   {

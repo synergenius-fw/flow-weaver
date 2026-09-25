@@ -67,6 +67,44 @@ describe('Parser cache eviction', () => {
     expect(result.workflows).toHaveLength(1);
   });
 
+  it('should invalidate a cached parse when a file it imported changes', () => {
+    const nodeFile = path.join(FIXTURES_DIR, 'imported-node.ts');
+    const write = (ports: string[]) => fs.writeFileSync(nodeFile, `
+/**
+ * @flowWeaver nodeType
+${ports.map((p) => ` * @input ${p}`).join('\n')}
+ */
+export function imported(execute: boolean${ports.map((p) => `, ${p}: string`).join('')}) { return { onSuccess: true }; }
+`, 'utf-8');
+    write([]);
+    const workflowFile = path.join(FIXTURES_DIR, 'imports-node.ts');
+    fs.writeFileSync(workflowFile, `
+import { imported } from './imported-node.js';
+/**
+ * @flowWeaver workflow
+ * @node n imported
+ * @connect Start.execute -> n.execute
+ */
+export function importsNode() {}
+`, 'utf-8');
+
+    const first = parser.parse(workflowFile);
+    const firstType = first.nodeTypes.find((nt) => nt.functionName === 'imported')!;
+    expect(Object.keys(firstType.inputs)).toEqual(['execute']);
+
+    write(['extra']);
+    const later = new Date(Date.now() + 5000);
+    fs.utimesSync(nodeFile, later, later);
+
+    // Same parser, untouched workflow file: the cached entry must not be served.
+    const second = parser.parse(workflowFile);
+    const secondType = second.nodeTypes.find((nt) => nt.functionName === 'imported')!;
+    expect(Object.keys(secondType.inputs)).toContain('extra');
+
+    // And with nothing changed, the cached entry is served again (same object).
+    expect(parser.parse(workflowFile)).toBe(second);
+  });
+
   it('should still return correct results after eviction and re-parse', () => {
     for (const filePath of sharedFilePaths) {
       parser.parse(filePath);

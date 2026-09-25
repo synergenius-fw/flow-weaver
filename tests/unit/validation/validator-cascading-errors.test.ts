@@ -116,16 +116,40 @@ describe('validator cascading error deduplication', () => {
     expect(cascadingErrors).toHaveLength(0);
   });
 
-  it('should NOT produce UNDEFINED_NODE errors for unknown type instances', () => {
+  it('reports each unknown type exactly once: no cascading errors at all', () => {
     const workflow = createWorkflowWithUnknownTypes();
     const validator = new WorkflowValidator();
     const result = validator.validate(workflow);
 
-    const undefinedNodeErrors = result.errors.filter((e) => e.code === 'UNDEFINED_NODE');
-    const cascadingErrors = undefinedNodeErrors.filter(
-      (e) => e.node && ['bad1', 'bad2', 'bad3'].includes(e.node)
-    );
-    expect(cascadingErrors).toHaveLength(0);
+    expect(result.errors.map((e) => e.code)).toEqual([
+      'UNKNOWN_NODE_TYPE',
+      'UNKNOWN_NODE_TYPE',
+      'UNKNOWN_NODE_TYPE',
+    ]);
+  });
+
+  it('reports an edge to an undeclared node once, as UNKNOWN_TARGET_NODE, even when the port is hit twice', () => {
+    // Two edges into ghost.in: without a MULTIPLE_CONNECTIONS_TO_INPUT skip for
+    // unknown nodes this one mistake produced three diagnostics.
+    const workflow: TWorkflowAST = {
+      type: 'Workflow',
+      name: 'test',
+      functionName: 'test',
+      sourceFile: 'test.ts',
+      nodeTypes: [],
+      instances: [],
+      connections: [
+        { type: 'Connection', from: { node: 'Start', port: 'a' }, to: { node: 'ghost', port: 'in' } },
+        { type: 'Connection', from: { node: 'Start', port: 'b' }, to: { node: 'ghost', port: 'in' } },
+      ],
+      scopes: {},
+      startPorts: { execute: { dataType: 'STEP' }, a: { dataType: 'STRING' }, b: { dataType: 'STRING' } },
+      exitPorts: {},
+      imports: [],
+    };
+
+    const result = new WorkflowValidator().validate(workflow);
+    expect(result.errors.map((e) => e.code)).toEqual(['UNKNOWN_TARGET_NODE', 'UNKNOWN_TARGET_NODE']);
   });
 
   it('should still report errors for genuinely unknown connection references', () => {

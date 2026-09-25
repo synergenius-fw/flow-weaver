@@ -52,11 +52,10 @@ export async function testWorkflow(execute: boolean, params: { items: unknown[] 
       const workflow = parsed.workflows[0];
       const result = validator.validate(workflow);
 
-      // Should have an error about the non-existent node reference
-      const scopeErrors = result.errors.filter(
-        (e) => e.code === 'UNDEFINED_NODE' || e.code === 'UNKNOWN_TARGET_NODE'
-      );
-      expect(scopeErrors.length).toBeGreaterThan(0);
+      // One error about the non-existent node reference, not one per rule
+      const scopeErrors = result.errors.filter((e) => e.code === 'UNKNOWN_TARGET_NODE');
+      expect(scopeErrors).toHaveLength(1);
+      expect(result.errors.filter((e) => e.node === 'nonExistent' || e.connection?.to.node === 'nonExistent')).toHaveLength(1);
     } finally {
       global.testHelpers.cleanupOutput('scope-topo-nonexistent.ts');
     }
@@ -123,6 +122,9 @@ export async function testWorkflow(execute: boolean, params: { items: unknown[] 
           e.message.includes('config')
       );
       expect(scopeErrors.length).toBeGreaterThan(0);
+      // The scope rule owns this diagnostic; the generic required-input rule
+      // must not report the same port a second time.
+      expect(result.errors.filter((e) => e.code === 'MISSING_REQUIRED_INPUT' && e.node === 'proc')).toHaveLength(0);
     } finally {
       global.testHelpers.cleanupOutput('scope-topo-missing-input.ts');
     }

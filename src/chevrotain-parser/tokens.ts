@@ -122,31 +122,6 @@ export const AsKeyword = createToken({
   pattern: /as\b/,
 });
 
-export const ParamTag = createToken({
-  name: 'ParamTag',
-  pattern: /@param\b/,
-});
-
-export const ReturnsTag = createToken({
-  name: 'ReturnsTag',
-  pattern: /@returns?\b/,
-});
-
-export const FlowWeaverTag = createToken({
-  name: 'FlowWeaverTag',
-  pattern: /@flowWeaver\b/,
-});
-
-export const LabelAttr = createToken({
-  name: 'LabelAttr',
-  pattern: /@label\b/,
-});
-
-export const NameAttr = createToken({
-  name: 'NameAttr',
-  pattern: /@name\b/,
-});
-
 // =============================================================================
 // Keywords & Attributes
 // =============================================================================
@@ -236,35 +211,10 @@ export const SuppressPrefix = createToken({
   pattern: /suppress:/,
 });
 
-export const EventEq = createToken({
-  name: 'EventEq',
-  pattern: /event=/,
-});
-
-export const CronEq = createToken({
-  name: 'CronEq',
-  pattern: /cron=/,
-});
-
-export const MatchEq = createToken({
-  name: 'MatchEq',
-  pattern: /match=/,
-});
-
-export const TimeoutEq = createToken({
-  name: 'TimeoutEq',
-  pattern: /timeout=/,
-});
-
-export const LimitEq = createToken({
-  name: 'LimitEq',
-  pattern: /limit=/,
-});
-
-export const PeriodEq = createToken({
-  name: 'PeriodEq',
-  pattern: /period=/,
-});
+// `key=value` options (@trigger event=, @cancelOn timeout=, @throttle limit=)
+// are lexed as Identifier Equals value and the key is checked by the parser's
+// visitor. A dedicated `timeout=` token would shadow a port that happens to be
+// named `timeout` in `@input [timeout=5000]` or `[portOrder: timeout=1]`.
 
 export const TopKeyword = createToken({
   name: 'TopKeyword',
@@ -386,12 +336,13 @@ export const StringLiteral = createToken({
 
 export const Identifier = createToken({
   name: 'Identifier',
-  // Support / and - for npm package names like npm/react-window/areEqual
+  // Support / and - for npm package names like npm/react-window/areEqual.
+  // A `-` directly before `>` is left alone so `a.x->b.y` still lexes as
+  // Identifier Arrow Identifier without spaces around the arrow.
   // The escaped slash stays: this pattern's .source is printed in the
-  // published grammar (IDENTIFIER ::= ... \/-) and matched by that text in
-  // grammar-diagrams.ts.
+  // published grammar and matched by that text in grammar-diagrams.ts.
   // eslint-disable-next-line no-useless-escape
-  pattern: /[a-zA-Z_$][a-zA-Z0-9_$\/-]*/,
+  pattern: /[a-zA-Z_$](?:[a-zA-Z0-9_$\/]|-(?!>))*/,
 });
 
 // Description text (everything after a dash until end of line)
@@ -429,11 +380,6 @@ export const allTokens = [
   RetriesTag,
   TimeoutTag,
   ThrottleTag,
-  ParamTag,
-  ReturnsTag,
-  FlowWeaverTag,
-  LabelAttr,
-  NameAttr,
 
   // Attribute prefixes (before Identifier)
   ScopePrefix,
@@ -451,12 +397,6 @@ export const allTokens = [
   IconPrefix,
   TagsPrefix,
   SuppressPrefix,
-  EventEq,
-  CronEq,
-  MatchEq,
-  TimeoutEq,
-  LimitEq,
-  PeriodEq,
 
   // Keywords (before Identifier)
   OverKeyword,

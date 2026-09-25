@@ -240,6 +240,53 @@ function multiScopeTypes(
     });
   });
 
+  describe("INVALID_SCOPE_NAME through validator.validate()", () => {
+    function parseAndValidate(fileName: string, scopeName: string) {
+      const testContent = `
+/**
+ * @flowWeaver nodeType
+ * @output item scope:${scopeName} - Item to process
+ */
+function loop(execute: boolean, body: (item: string) => void) {
+  return { onSuccess: true, onFailure: false };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node l loop
+ * @connect Start.execute -> l.execute
+ * @connect l.onSuccess -> Exit.onSuccess
+ */
+export function wf(execute: boolean, params: {}): { onSuccess: boolean; onFailure: boolean } {
+  return { onSuccess: true, onFailure: false };
+}
+      `.trim();
+      const testFile = path.join(global.testHelpers.outputDir, fileName);
+      fs.writeFileSync(testFile, testContent);
+      try {
+        const parsed = parser.parse(testFile);
+        return validator.validate(parsed.workflows[0]);
+      } finally {
+        global.testHelpers.cleanupOutput(fileName);
+      }
+    }
+
+    it("rejects a scope name with a dash, which would be an invalid identifier in generated code", () => {
+      const result = parseAndValidate("scope-name-dash.ts", "my-scope");
+      const errors = result.errors.filter((e) => e.code === "INVALID_SCOPE_NAME");
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toContain('"my-scope"');
+      expect(errors[0].node).toBe("loop");
+      expect(errors[0].docUrl).toContain("error-codes.md");
+      expect(result.valid).toBe(false);
+    });
+
+    it("accepts a scope name that is a valid identifier", () => {
+      const result = parseAndValidate("scope-name-ok.ts", "body");
+      expect(result.errors.filter((e) => e.code === "INVALID_SCOPE_NAME")).toHaveLength(0);
+    });
+  });
+
   describe("Non-scoped ports", () => {
     it("should allow non-FUNCTION types for ports without scope attribute", () => {
       const testContent = `

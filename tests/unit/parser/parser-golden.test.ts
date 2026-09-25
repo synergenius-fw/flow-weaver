@@ -69,7 +69,7 @@ function normalize(value: unknown): unknown {
   return value;
 }
 
-describe('AnnotationParser golden (debt #4)', () => {
+describe('AnnotationParser golden', () => {
   for (const fixture of FIXTURES) {
     it(`parse output is stable: ${fixture}`, () => {
       const result = parser.parse(path.join(ROOT, fixture));
