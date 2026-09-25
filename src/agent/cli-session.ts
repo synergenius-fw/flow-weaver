@@ -288,7 +288,7 @@ export class CliSession {
       } catch (err) {
         this.log?.error('stdin write exception', { sessionId: this.sessionId, err });
         this.markDead();
-        throw new Error('CLI session stdin write failed');
+        throw new Error('CLI session stdin write failed', { cause: err });
       }
 
       // Yield events as they arrive

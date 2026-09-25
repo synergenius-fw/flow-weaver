@@ -16,4 +16,18 @@ export default tseslint.config(
       'prefer-const': ['error', { ignoreReadBeforeAssign: true }],
     },
   },
+  {
+    // These files are copied as text into every compiled workflow, which must
+    // type-check at ES2020, where Error takes no options. A rethrow there puts
+    // the cause in its message instead of in `cause`.
+    files: [
+      'src/runtime/continuation-core.ts',
+      'src/runtime/durable-execution.ts',
+      'src/runtime/ExecutionContext.ts',
+      'src/built-in-nodes/*.ts',
+    ],
+    rules: {
+      'preserve-caught-error': 'off',
+    },
+  },
 );

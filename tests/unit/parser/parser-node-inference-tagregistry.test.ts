@@ -1,6 +1,6 @@
 /**
  * Characterization test for the tagRegistry threading in the extracted
- * extractNodeTypes (debt #5 / PR-A).
+ * extractNodeTypes.
  *
  * When extractNodeTypes was moved out of AnnotationParser into
  * src/parser/node-inference.ts, its former `this.tagRegistry` access became an
@@ -21,7 +21,7 @@ import * as os from 'node:os';
 import { AnnotationParser } from '../../../src/parser/annotation-parser';
 import { TagHandlerRegistry } from '../../../src/parser/tag-registry';
 
-describe('extractNodeTypes threads the instance tagRegistry (debt #5)', () => {
+describe('extractNodeTypes threads the instance tagRegistry', () => {
   let dir: string;
   let file: string;
 

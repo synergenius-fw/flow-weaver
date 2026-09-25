@@ -113,7 +113,7 @@ function printToFile(cmd: string, args: string[], pdfFile: string, timeoutMs: nu
       else resolve();
     };
     const poll = setInterval(() => {
-      let size = -1;
+      let size: number;
       try { size = fs.statSync(pdfFile).size; } catch { return; }
       // Written and no longer growing since the last look: it is finished.
       if (size > 0 && size === lastSize) done();

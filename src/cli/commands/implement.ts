@@ -113,6 +113,6 @@ export async function implementCommand(
       logger.success(`Implemented ${stubNodeType.functionName} in ${path.basename(filePath)}`);
     }
   } catch (error) {
-    throw new Error(`Implement failed: ${getErrorMessage(error)}`);
+    throw new Error(`Implement failed: ${getErrorMessage(error)}`, { cause: error });
   }
 }

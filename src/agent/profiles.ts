@@ -242,7 +242,7 @@ export function saveAgentProfiles(projectDir: string, profiles: Pick<AgentProfil
   doc.agents = agents;
   if (Object.keys(profiles.gates).length) doc.gates = profiles.gates;
   const header = '# Agent profiles: what answers a waitForAgent gate when nobody is watching.\n# Keys are read from the environment variable named here, never stored.\n# Edited by fw console. See the Agents page.\n';
-  const text = header + YAML.dump(doc, { lineWidth: 100, noRefs: true, quotingType: '"' });
+  const text = header + YAML.dump(doc, { lineWidth: 100, noRefs: true, quoteStyle: 'double' });
   const file = agentsFile(projectDir);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.tmp-${process.pid}`;

@@ -426,7 +426,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
   /** The project's agent profiles, re-read when the file changes or the project does. */
   let profilesCache: { dir: string; mtime: number; profiles: AgentProfiles } | undefined;
   function profilesFor(): AgentProfiles {
-    let mtime = 0;
+    let mtime: number;
     try { mtime = fs.statSync(agentsFile(projectDir)).mtimeMs; } catch { mtime = 0; }
     if (!profilesCache || profilesCache.dir !== projectDir || profilesCache.mtime !== mtime) profilesCache = { dir: projectDir, mtime, profiles: loadAgentProfiles(projectDir) };
     return profilesCache.profiles;
@@ -504,7 +504,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
   const asts = new Map<string, { mtimeMs: number; ast: TWorkflowAST | undefined }>();
   async function astFor(file: string, name: string): Promise<TWorkflowAST | undefined> {
     const key = `${file}|${name}`;
-    let mtimeMs = 0;
+    let mtimeMs: number;
     try { mtimeMs = fs.statSync(file).mtimeMs; } catch { return undefined; }
     const hit = asts.get(key);
     if (hit && hit.mtimeMs === mtimeMs) return hit.ast;

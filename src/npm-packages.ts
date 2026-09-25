@@ -212,7 +212,7 @@ function inferNodeTypeFromDtsFunction(
         reference: 'result',
         type: dataType,
         direction: 'OUTPUT',
-        defaultOrder: dataOutputOrder++,
+        defaultOrder: dataOutputOrder,
       });
     }
   }
@@ -319,7 +319,7 @@ export function getPackageExports(
 
           // Try to get the real name from the declaration
           const decl = exportSymbol.getValueDeclaration();
-          const declName = decl && 'getName' in decl ? (decl as any).getName?.() : undefined;
+          const declName = decl && 'getName' in decl ? (decl as { getName?: () => string | undefined }).getName?.() : undefined;
           if (declName && declName !== 'export=') {
             exportName = declName;
           } else {
@@ -337,7 +337,7 @@ export function getPackageExports(
         // Handle default exports: resolve to the actual function name
         if (exportName === 'default') {
           const decl = exportSymbol.getValueDeclaration();
-          const declName = decl && 'getName' in decl ? (decl as any).getName?.() : undefined;
+          const declName = decl && 'getName' in decl ? (decl as { getName?: () => string | undefined }).getName?.() : undefined;
           if (declName && declName !== 'default') {
             exportName = declName;
           } else {

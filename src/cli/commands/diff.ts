@@ -51,7 +51,7 @@ export async function diffCommand(
 
     diff = WorkflowDiffer.compare(result1.ast, result2.ast);
   } catch (error) {
-    throw new Error(`Failed to diff workflows: ${getErrorMessage(error)}`);
+    throw new Error(`Failed to diff workflows: ${getErrorMessage(error)}`, { cause: error });
   }
 
   if (diff.identical) {

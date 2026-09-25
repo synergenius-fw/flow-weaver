@@ -296,7 +296,7 @@ export async function testWorkflow(execute: boolean, params: { data: unknown[] }
     expect(npmType?.expression).toBe(true);
   });
 
-  // Gap 1: Circular dependency detection
+  // Circular dependency detection
   it('should warn and return stub for circular @fwImport', () => {
     // A file that tries to @fwImport from itself creates a circular dependency
     // This can happen if someone accidentally references the same file
@@ -335,7 +335,7 @@ export async function workflowA(execute: boolean, params: {}) {
     expect(circularWarning).toBeDefined();
   });
 
-  // Gap 3: Warning for unresolved paths
+  // Warning for unresolved paths
   it('should warn when relative @fwImport path does not resolve', () => {
     const code = `/**
  * @flowWeaver workflow
@@ -366,7 +366,7 @@ export async function testWorkflow(execute: boolean, params: {}) {
     expect(stubType).toBeDefined();
   });
 
-  // Gap 4: Cache efficiency test
+  // Cache efficiency
   it('should use cache for multiple @fwImport from same package', () => {
     // This test verifies that when we import multiple functions from the same package,
     // we reuse the cached .d.ts parsing instead of re-reading the file

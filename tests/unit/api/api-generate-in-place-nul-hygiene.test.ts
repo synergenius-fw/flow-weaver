@@ -99,7 +99,7 @@ function countImportLines(code: string, source: string): number {
   return code.split('\n').filter((l) => l.includes(needle)).length;
 }
 
-describe('generate-in-place.ts NUL-byte hygiene (debt #1)', () => {
+describe('generate-in-place.ts NUL-byte hygiene', () => {
   it('source file contains no NUL byte and decodes as valid UTF-8', () => {
     const bytes = readFileSync(SOURCE_PATH);
     // The load-bearing check: a NUL is valid UTF-8 and round-trips cleanly, so

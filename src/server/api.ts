@@ -386,7 +386,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
 
   function profiles(): AgentProfiles {
     const file = path.join(dir, '.flowweaver', 'agents.yaml');
-    let mtime = 0;
+    let mtime: number;
     try { mtime = fs.statSync(file).mtimeMs; } catch { mtime = 0; }
     if (!profilesCache || profilesCache.mtime !== mtime) profilesCache = { mtime, profiles: loadAgentProfiles(dir) };
     return profilesCache.profiles;
