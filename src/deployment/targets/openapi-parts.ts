@@ -219,7 +219,10 @@ export const TAGS = {
   documentation: { name: 'documentation', description: 'API documentation' },
 } as const;
 
-/** The document around the paths. */
+/**
+ * The document around the paths. It is a deep copy, so the constants above
+ * are never shared with a caller that edits what it is given.
+ */
 export function openApiDocument(opts: {
   title: string;
   version: string;
@@ -229,12 +232,12 @@ export function openApiDocument(opts: {
   tags: ReadonlyArray<{ name: string; description: string }>;
   components?: object;
 }): object {
-  return {
+  return structuredClone({
     openapi: '3.0.3',
     info: { title: opts.title, version: opts.version, description: opts.description },
     servers: [{ url: opts.baseUrl || '/', description: 'Current deployment' }],
     paths: opts.paths,
     tags: opts.tags,
     ...(opts.components && { components: opts.components }),
-  };
+  });
 }

@@ -151,4 +151,17 @@ describe('export target OpenAPI documents', () => {
     expect(Object.keys(request.properties)).toEqual(['a']);
     expect(post.responses['200'].content['application/json'].schema.properties.result.properties).toEqual({});
   });
+
+  it('hands out a fresh document each time, so a pack that edits one does not change the next', () => {
+    type Doc = { tags: Array<{ description: string }>; components: { schemas: { FunctionReference: { description: string } } }; paths: Record<string, { get: { parameters: Array<{ schema: { enum: string[] } }> } }> };
+    const first = target.consolidated(workflows, options) as Doc;
+    first.tags[0].description = 'changed';
+    first.components.schemas.FunctionReference.description = 'changed';
+    first.paths['/api/functions'].get.parameters[0].schema.enum.push('changed');
+    const second = target.consolidated(workflows, options) as Doc;
+    expect(second.tags[0].description).toBe('Workflow execution endpoints');
+    expect(second.components.schemas.FunctionReference.description).not.toBe('changed');
+    expect(second.paths['/api/functions'].get.parameters[0].schema.enum).not.toContain('changed');
+  });
 });
+
