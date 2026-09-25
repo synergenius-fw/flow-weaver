@@ -10,8 +10,10 @@ vi.mock('fs', () => ({
 
 const mockParseWorkflow = vi.fn();
 const mockValidateWorkflow = vi.fn();
-vi.mock('../../../src/api/index.js', () => ({
+vi.mock('../../../src/api/parse.js', () => ({
   parseWorkflow: (...args: unknown[]) => mockParseWorkflow(...args),
+}));
+vi.mock('../../../src/api/validate.js', () => ({
   validateWorkflow: (...args: unknown[]) => mockValidateWorkflow(...args),
 }));
 

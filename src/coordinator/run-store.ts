@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { parseWorkflow } from '../api/index.js';
+import { parseWorkflow } from '../api/parse.js';
 import type { TWorkflowAST } from '../ast/types.js';
 import type { ContinuationEnvelope, DurableGateKind } from '../runtime/continuation.js';
 import type { EffectAdapter } from '../runtime/durable-execution.js';

@@ -4,7 +4,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseWorkflow, generateInPlace } from '../../api/index.js';
+import { parseWorkflow } from '../../api/parse.js';
+import { generateInPlace } from '../../api/generate-in-place.js';
 import { validator } from '../../validation/validator.js';
 import { getNode, getIncomingConnections, getOutgoingConnections } from '../../api/query.js';
 import { logger } from '../utils/logger.js';
