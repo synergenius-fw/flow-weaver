@@ -112,7 +112,8 @@ export default defineConfig({
         test: {
           name: 'shared',
           include: ['tests/**/*.test.ts', 'src/extensions/**/tests/**/*.test.ts'],
-          exclude: ['**/node_modules/**', '**/dist/**', ...isolatedTestFiles],
+          // e2e/ is Playwright's (`npm run test:e2e`), never Vitest's.
+          exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**', ...isolatedTestFiles],
           pool: 'forks',
           isolate: true,
           // One worker at a time. isolate:true re-imports src/ and ts-morph into

@@ -76,3 +76,7 @@ temp/
 
 # Local run store written by the coordinator / console / fw serve
 .fw/
+
+# Playwright (npm run test:e2e)
+test-results/
+playwright-report/
