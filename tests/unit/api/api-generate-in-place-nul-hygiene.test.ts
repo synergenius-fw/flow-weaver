@@ -27,7 +27,11 @@ import { generateInPlace } from '../../../src/api/generate-in-place';
 import type { TWorkflowAST, TNodeTypeAST } from '../../../src/ast/types';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SOURCE_PATH = resolve(HERE, '../../../src/api/generate-in-place.ts');
+// The dedup key now lives in in-place/fw-imports.ts; both files are scanned.
+const SOURCE_PATHS = [
+  resolve(HERE, '../../../src/api/generate-in-place.ts'),
+  resolve(HERE, '../../../src/api/in-place/fw-imports.ts'),
+];
 
 const IMPORTS_START = '// @flow-weaver-imports-start';
 const IMPORTS_END = '// @flow-weaver-imports-end';
@@ -100,8 +104,8 @@ function countImportLines(code: string, source: string): number {
 }
 
 describe('generate-in-place.ts NUL-byte hygiene', () => {
-  it('source file contains no NUL byte and decodes as valid UTF-8', () => {
-    const bytes = readFileSync(SOURCE_PATH);
+  it.each(SOURCE_PATHS)('%s contains no NUL byte and decodes as valid UTF-8', (sourcePath) => {
+    const bytes = readFileSync(sourcePath);
     // The load-bearing check: a NUL is valid UTF-8 and round-trips cleanly, so
     // only an explicit byte scan catches it. This is what flips old→new.
     expect(bytes.includes(0x00)).toBe(false);
