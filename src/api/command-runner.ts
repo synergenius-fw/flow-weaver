@@ -20,6 +20,7 @@ import {
 import { WorkflowDiffer } from '../diff/WorkflowDiffer.js';
 import { formatDiff } from '../diff/formatDiff.js';
 import { searchPackages, listInstalledPackages } from '../marketplace/registry.js';
+import { npmInstall, npmUninstall, npmPublish } from '../marketplace/install.js';
 import { applyMigrations, getRegisteredMigrations } from '../migration/registry.js';
 
 export interface CommandResult {
@@ -299,8 +300,7 @@ const handlers: Record<string, CommandHandler> = {
     }
     const cwd = (args.cwd as string) || process.cwd();
     try {
-      const { execSync } = await import('child_process');
-      execSync(`npm install ${pkg}`, { cwd, stdio: 'pipe' });
+      npmInstall(pkg, { cwd });
       // Try to read manifest from installed package
       const packageName = pkg.replace(/@[^/]*$/, ''); // strip version suffix
       const manifestPath = path.join(cwd, 'node_modules', packageName, 'flowweaver.manifest.json');
@@ -322,8 +322,7 @@ const handlers: Record<string, CommandHandler> = {
     }
     const cwd = (args.cwd as string) || process.cwd();
     try {
-      const { execSync } = await import('child_process');
-      execSync(`npm uninstall ${pkg}`, { cwd, stdio: 'pipe' });
+      npmUninstall(pkg, { cwd });
       return { data: { success: true, package: pkg, removed: true } };
     } catch (err) {
       return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
@@ -450,9 +449,7 @@ const handlers: Record<string, CommandHandler> = {
     }
 
     try {
-      const { execSync } = await import('child_process');
-      const tagFlag = tag ? ` --tag ${tag}` : '';
-      execSync(`npm publish${tagFlag}`, { cwd: directory, stdio: 'pipe' });
+      npmPublish(tag, { cwd: directory });
       return { data: { success: true, package: pkg.name, version: pkg.version, published: true } };
     } catch (err) {
       return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
