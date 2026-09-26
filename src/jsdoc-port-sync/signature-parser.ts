@@ -85,6 +85,18 @@ export function parseFunctionSignature(functionText: string): {
 }
 
 /**
+ * The raw text of the parameter list, up to the first `)`. Unlike
+ * {@link parseFunctionSignature} it does not balance parentheses, so for a
+ * callback parameter it stops inside the callback's own list. Used for checks
+ * that must also see names the parser skipped while the user is typing.
+ */
+export function rawParamListText(functionText: string): string {
+  const sigMatch = functionText.match(/function\s+\w+\s*\(([^)]*)/s) ||
+                   functionText.match(/=\s*\(([^)]*)\)\s*(?:=>|:)/s);
+  return sigMatch?.[1] || "";
+}
+
+/**
  * Parse a single parameter string like "name?: type = default"
  * Handles multiline callback types with nested parens/braces.
  */
