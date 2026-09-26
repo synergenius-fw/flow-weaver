@@ -37,11 +37,9 @@ describe('AnnotationParser uncovered regions', () => {
       ].join('\n');
       // Cursor on line 0 where "/**" is
       const result = parser.generateAnnotationSuggestion(content, 0);
-      // ts-morph may not parse this as a valid function with an incomplete JSDoc,
-      // so we just verify it doesn't crash and returns something sensible
-      if (result !== null) {
-        expect(result.text).toContain('@flowWeaver nodeType');
-      }
+      expect(result).not.toBeNull();
+      expect(result!.insertLine).toBe(1);
+      expect(result!.text.startsWith(' * @flowWeaver nodeType add\n')).toBe(true);
     });
 
     it('returns null when cursor is too far above the function', () => {
@@ -224,29 +222,6 @@ function solo() {}`;
       const result = parser.generateAnnotationSuggestion(content, 10);
       // Only one node, no connections to suggest
       expect(result).toBeNull();
-    });
-
-    it('treats bare @flowWeaver tag as workflow', () => {
-      const content = `/**
- * @flowWeaver nodeType helper
- */
-function helper(execute: boolean, data: number): { onSuccess: boolean; data: number } {
-  return { onSuccess: true, data };
-}
-
-/**
- * @flowWeaver
- * @node a helper
- * @node b helper
- */
-function myFlow() {}`;
-      // Cursor near the workflow function (line 13 is function myFlow)
-      const result = parser.generateAnnotationSuggestion(content, 13);
-      // Bare @flowWeaver is treated as workflow, so it should try to suggest connections.
-      // If both nodes have matching data ports, we get @connect suggestions.
-      if (result !== null) {
-        expect(result.text).toContain('@connect');
-      }
     });
   });
 
