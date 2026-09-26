@@ -29,6 +29,7 @@
 
 import * as net from 'node:net';
 import * as fs from 'node:fs';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 const SOCKET_PATH = process.env.FW_TOOL_SOCKET;
 const DEFS_PATH = process.env.FW_TOOL_DEFS;
@@ -151,7 +152,7 @@ async function handleMessage(msg: {
         jsonrpc: '2.0',
         id,
         result: {
-          content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }],
+          content: [{ type: 'text', text: getErrorMessage(err) }],
           isError: true,
         },
       });

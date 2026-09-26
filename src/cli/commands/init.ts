@@ -34,6 +34,7 @@ import {
   printCopyablePrompt,
   AGENT_LAUNCH_DEFAULTS,
 } from './init-personas.js';
+import { getErrorMessage } from '../../utils/error-utils.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -489,7 +490,7 @@ export function runNpmInstall(targetDir: string): { success: boolean; error?: st
     execSync('npm install', { cwd: targetDir, stdio: 'pipe', timeout: 120_000 });
     return { success: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     return { success: false, error: message };
   }
 }
@@ -499,7 +500,7 @@ export function runGitInit(targetDir: string): { success: boolean; error?: strin
     execSync('git init', { cwd: targetDir, stdio: 'pipe', timeout: 10_000 });
     return { success: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = getErrorMessage(err);
     return { success: false, error: message };
   }
 }
@@ -646,7 +647,7 @@ export async function initCommand(dirArg: string | undefined, options: InitOptio
         await compileCommand(workflowPath, { format: config.format });
         compileResult = { success: true };
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = getErrorMessage(err);
         compileResult = { success: false, error: message };
       }
     }

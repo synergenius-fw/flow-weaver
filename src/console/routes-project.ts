@@ -12,8 +12,9 @@ import { buildDiffView } from './diff-view.js';
 import { scanWorkflowNames } from './scan.js';
 import { astAt, crumbsFor, describeWorkflow, nodeTypeOf, parseOne, ports, routeFrom, setHttpRoutes } from './workflow-view.js';
 import { describeServe } from './routes-services.js';
-import { json, messageOf, sendFile } from './respond.js';
+import { json, sendFile } from './respond.js';
 import type { ConsoleContext, Route } from './router.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 const OUTSIDE = { error: 'file is outside the project' };
 
@@ -59,7 +60,7 @@ export function projectRoutes(ctx: ConsoleContext): Route[] {
           // `C:\\a\\b` need different rules -- so the segments are built here.
           return json(res, 200, { dir: at, parent: path.dirname(at), entries, crumbs: crumbsFor(at) });
         } catch (err) {
-          return json(res, 400, { error: messageOf(err) });
+          return json(res, 400, { error: getErrorMessage(err) });
         }
       },
     },
@@ -87,7 +88,7 @@ export function projectRoutes(ctx: ConsoleContext): Route[] {
         if (!ARTIFACT_KINDS.includes(kind)) return json(res, 400, { error: `unknown artifact ${kind}` });
         let artifact;
         try { artifact = await renderArtifact(ast, kind, { theme, subtitle: path.basename(ctx.projectDir()) }); }
-        catch (e) { return json(res, 500, { error: messageOf(e) }); }
+        catch (e) { return json(res, 500, { error: getErrorMessage(e) }); }
         res.writeHead(200, { 'Content-Type': artifact.type, 'Content-Disposition': `attachment; filename="${ast.functionName}${artifact.extension}"`, 'Cache-Control': 'no-cache' });
         return res.end(artifact.body);
       },

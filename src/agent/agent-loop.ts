@@ -14,6 +14,7 @@ import type {
   AgentLoopOptions,
   AgentLoopResult,
 } from './types.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 const DEFAULT_MAX_ITERATIONS = 15;
 const TOOL_RESULT_CAP = 10_000; // characters
@@ -164,7 +165,7 @@ export async function runAgentLoop(
         result = res.result;
         isError = res.isError;
       } catch (err) {
-        result = err instanceof Error ? err.message : String(err);
+        result = getErrorMessage(err);
         isError = true;
       }
 

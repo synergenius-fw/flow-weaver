@@ -15,6 +15,7 @@ import {
 } from '../marketplace/index.js';
 import { npmInstall } from '../marketplace/install.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 export function registerMarketplaceTools(mcp: McpServer): void {
   // ── fw_market_search ─────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'MARKET_SEARCH_ERROR',
-          err instanceof Error ? err.message : String(err)
+          getErrorMessage(err)
         );
       }
     }
@@ -101,7 +102,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'MARKET_INSTALL_ERROR',
-          err instanceof Error ? err.message : String(err)
+          getErrorMessage(err)
         );
       }
     }
@@ -139,7 +140,7 @@ export function registerMarketplaceTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'MARKET_LIST_ERROR',
-          err instanceof Error ? err.message : String(err)
+          getErrorMessage(err)
         );
       }
     }

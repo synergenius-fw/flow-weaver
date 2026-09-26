@@ -24,6 +24,7 @@ import type {
 } from './types.js';
 
 import { resolveRegistries, PUBLIC_REGISTRY, type Registry } from './npmrc.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 const MARKETPLACE_KEYWORD = 'flow-weaver-marketplace-pack';
 const NPM_SEARCH_URL = 'https://registry.npmjs.org/-/v1/search';
@@ -158,7 +159,7 @@ export async function searchAllRegistries(options: { query?: string; limit?: num
         results.push({ ...pkg, registry: new URL(r.url).host });
       }
     } catch (err) {
-      entry.error = err instanceof Error ? err.message : String(err);
+      entry.error = getErrorMessage(err);
     }
     searched.push(entry);
   }));

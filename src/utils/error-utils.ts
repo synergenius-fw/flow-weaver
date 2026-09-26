@@ -1,6 +1,8 @@
 /**
- * Utility functions for consistent error handling across the codebase.
- * Replaces 60+ occurrences of: error instanceof Error ? error.message : String(error)
+ * Error helpers used across the codebase. Use getErrorMessage rather than
+ * writing `e instanceof Error ? e.message : String(e)` out; only code copied
+ * into compiled workflows (the durable engine, the built-in nodes, generated
+ * text) carries its own copy.
  */
 
 /**

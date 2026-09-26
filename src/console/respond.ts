@@ -44,6 +44,3 @@ export async function readBody(req: http.IncomingMessage): Promise<Json> {
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new BadRequest('the body must be a JSON object');
   return parsed as Json;
 }
-
-/** An error's message, whatever was thrown. */
-export const messageOf = (err: unknown): string => (err instanceof Error ? err.message : String(err));

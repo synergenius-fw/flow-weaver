@@ -21,6 +21,7 @@ import type {
 } from '../marketplace/types.js';
 import { VERSION } from '../generated-version.js';
 import { logger } from './utils/logger.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map(Number);
@@ -146,7 +147,7 @@ export async function registerPackCommands(program: Command): Promise<void> {
             throw new TypeError('pack CLI entrypoint exports neither handleCommandV2 nor handleCommand');
           }
         } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
+          const msg = getErrorMessage(err);
           console.error(`Error running ${namespace} ${cmd.name}: ${msg}`);
           process.exit(1);
         }

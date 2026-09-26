@@ -11,6 +11,7 @@ import { getAgentValidationRules } from "../validation/agent-rules";
 import { getDesignValidationRules } from "../validation/design-rules";
 import { validationRuleRegistry } from "./validation-registry";
 import { validateDurableClosure } from "./durable-validation";
+import { getErrorMessage } from '../utils/error-utils.js';
 
 export interface ValidationResult {
   valid: boolean;
@@ -68,7 +69,7 @@ export function validateWorkflow(
       result.errors.push({
         type: 'error',
         code: 'DURABLE_CLOSURE_INVALID',
-        message: e instanceof Error ? e.message : String(e),
+        message: getErrorMessage(e),
       });
     }
   }

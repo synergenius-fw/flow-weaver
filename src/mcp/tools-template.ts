@@ -11,6 +11,7 @@ import {
   generateNodeFromTemplate,
 } from '../api/templates.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /**
  * Registers MCP tools for listing and scaffolding workflow/node templates.
@@ -145,7 +146,7 @@ export function registerTemplateTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'SCAFFOLD_ERROR',
-          `fw_scaffold failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_scaffold failed: ${getErrorMessage(err)}`
         );
       }
     }

@@ -5,8 +5,9 @@
 import { transcriptName } from '../coordinator/index.js';
 import { stamp as gitStamp } from './git.js';
 import { mocksFrom } from './runs.js';
-import { json, messageOf, type Json } from './respond.js';
+import { json, type Json } from './respond.js';
 import type { Call, ConsoleContext, Route } from './router.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /** Moving a debug session (answered at once, the pause arrives over the stream), or changing its state (applied first). */
 async function debugAction(ctx: ConsoleContext, id: string, { res, body }: Call): Promise<void> {
@@ -33,7 +34,7 @@ async function debugAction(ctx: ConsoleContext, id: string, { res, body }: Call)
     }
     return json(res, 200, await ctx.runs.snapshot(id));
   } catch (err) {
-    return json(res, 400, { error: messageOf(err) });
+    return json(res, 400, { error: getErrorMessage(err) });
   }
 }
 
@@ -67,13 +68,13 @@ export function runRoutes(ctx: ConsoleContext): Route[] {
         // Forgetting a run: only one that is over, and only from the store --
         // what is in flight is stopped first, with cancel.
         if (!sub && req.method === 'DELETE') {
-          try { await runs.remove(id); } catch (err) { return json(res, 409, { error: messageOf(err) }); }
+          try { await runs.remove(id); } catch (err) { return json(res, 409, { error: getErrorMessage(err) }); }
           return json(res, 200, { removed: id });
         }
         if (sub === 'events') return runs.watch(id, req, res);
         if (sub === 'resolve' && req.method === 'POST') {
           try { await runs.resume(id, await body()); return json(res, 200, await runs.snapshot(id)); }
-          catch (err) { return json(res, 400, { error: messageOf(err) }); }
+          catch (err) { return json(res, 400, { error: getErrorMessage(err) }); }
         }
         if (sub === 'agent' && req.method === 'POST') {
           const refused = await runs.askAgent(id);

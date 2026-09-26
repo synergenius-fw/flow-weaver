@@ -10,6 +10,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { listInstalledPackages } from '../marketplace/registry.js';
 import type { TInstalledPackage } from '../marketplace/types.js';
 import { VERSION } from '../generated-version.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map(Number);
@@ -61,7 +62,7 @@ export async function registerPackMcpTools(mcp: McpServer): Promise<void> {
         await mod.registerMcpTools(mcp);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = getErrorMessage(err);
       // Log to stderr so it doesn't interfere with MCP JSON-RPC on stdout
       process.stderr.write(`[mcp] Failed to load pack tools from ${pkg.name}: ${msg}\n`);
     }

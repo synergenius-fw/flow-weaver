@@ -10,6 +10,7 @@ import type { WorkflowEndpoint } from './types.js';
 import type { TDataType, TWorkflowAST } from '../ast/types.js';
 
 import type { FSWatcher } from 'chokidar';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /**
  * Registry that discovers, caches, and manages workflow endpoints
@@ -189,7 +190,7 @@ export class WorkflowRegistry {
   async startWatching(
     onChange: () => void,
     onError: (error: unknown) => void = (error) => {
-      console.error(`Rediscovering workflows in ${this.workflowDir} failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`Rediscovering workflows in ${this.workflowDir} failed: ${getErrorMessage(error)}`);
     },
   ): Promise<void> {
     try {

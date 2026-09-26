@@ -8,6 +8,7 @@ import {
   type ResolveInput,
 } from '../coordinator/index.js';
 import { makeErrorResult, makeToolResult } from './response-utils.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /**
  * Coordinated workflow runs for an AI assistant.
@@ -161,7 +162,7 @@ export function registerRunTools(
 }
 
 function toErrorResult(error: unknown, fallback: string) {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = getErrorMessage(error);
   const name = error instanceof Error ? error.name : '';
   const refusal = (error as { refusal?: { reason?: string } }).refusal;
 

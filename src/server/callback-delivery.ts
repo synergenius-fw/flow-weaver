@@ -11,6 +11,7 @@
 import { createHmac } from 'node:crypto';
 import type { LocalCoordinator, RunRecord } from '../coordinator/index.js';
 import { callbackTarget, postCallback, type CallbackPolicy } from './callback-url.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 type Json = Record<string, unknown>;
 
@@ -105,7 +106,7 @@ export function createCallbackDelivery(opts: CallbackDeliveryOptions) {
           return;
         }
         error = status >= 300 && status < 400 ? `callback answered ${status}, redirects are not followed` : `callback answered ${status}`;
-      } catch (e) { error = e instanceof Error ? e.message : String(e); }
+      } catch (e) { error = getErrorMessage(e); }
       const gaveUp = attempt >= CALLBACK_BACKOFF_MS.length;
       const next: HttpNote = { ...note, attempts: attempt, lastError: error, ...(gaveUp ? { gaveUp: new Date(now()).toISOString() } : { nextAt: new Date(now() + CALLBACK_BACKOFF_MS[attempt - 1]).toISOString() }) };
       // A run removed meanwhile has nowhere to keep the note.

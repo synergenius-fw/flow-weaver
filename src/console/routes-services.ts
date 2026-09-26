@@ -4,8 +4,9 @@
  */
 import { VERSION } from '../generated-version.js';
 import type { ManagedKind, Supervisor } from './services.js';
-import { json, messageOf, send, sse, type Json } from './respond.js';
+import { json, send, sse, type Json } from './respond.js';
 import type { ConsoleContext, Route } from './router.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /** Whether `fw serve` is running for this project: ours, or from a terminal. */
 export function describeServe(supervisor: Supervisor): Json {
@@ -46,7 +47,7 @@ export function serviceRoutes(ctx: ConsoleContext): Route[] {
           if (action === 'restart') await supervisor.restart(kind);
           return json(res, 200, listing());
         } catch (err) {
-          return json(res, 400, { error: messageOf(err) });
+          return json(res, 400, { error: getErrorMessage(err) });
         }
       },
     },

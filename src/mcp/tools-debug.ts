@@ -14,6 +14,7 @@ import {
 import type { DebugSession } from './debug-session.js';
 import type { DebugPauseState } from '../runtime/debug-controller.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /**
  * Helper: get execution order for a workflow file by parsing its annotations.
@@ -73,7 +74,7 @@ async function raceDebugPause(
   } catch (err) {
     return {
       type: 'error',
-      message: err instanceof Error ? err.message : String(err),
+      message: getErrorMessage(err),
     };
   }
 }
@@ -203,7 +204,7 @@ export function registerDebugTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'DEBUG_START_ERROR',
-          err instanceof Error ? err.message : String(err)
+          getErrorMessage(err)
         );
       }
     }
@@ -253,7 +254,7 @@ export function registerDebugTools(mcp: McpServer): void {
         cleanupDebugSession(args.debugId);
         return makeErrorResult(
           'STEP_ERROR',
-          err instanceof Error ? err.message : String(err)
+          getErrorMessage(err)
         );
       }
     }
@@ -312,7 +313,7 @@ export function registerDebugTools(mcp: McpServer): void {
         cleanupDebugSession(args.debugId);
         return makeErrorResult(
           'CONTINUE_ERROR',
-          err instanceof Error ? err.message : String(err)
+          getErrorMessage(err)
         );
       }
     }

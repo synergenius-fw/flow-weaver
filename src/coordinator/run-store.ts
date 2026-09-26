@@ -15,6 +15,7 @@ import { checkDocName, EFFECT_DOC_PREFIX, RESERVED_DOCS, RunBusyError, type RunS
 import { missingParams, MissingParamsError } from './params.js';
 import { createFileRunStore } from './file-store.js';
 import { dueFor, type RunDue } from './time.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /**
  * The local durable-run coordinator.
@@ -422,7 +423,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
    */
   async function fail(record: RunRecord, error: unknown, options: DriveOptions | undefined, kept?: TraceEntry[]): Promise<void> {
     const traced = await appendTrace(record, kept);
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     const cancelled = options?.abortSignal?.aborted === true;
     await store.put({
       ...record,
@@ -712,7 +713,7 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
         } catch (error) {
           const name = error instanceof Error ? error.name : '';
           const reason = name === 'RunBusyError' ? 'busy' : name === 'RunNotWaitingError' ? 'not-waiting' : name === 'BundleChangedError' ? 'bundle-changed' : 'failed';
-          result.skipped.push({ runId, reason, ...(reason === 'failed' ? { message: error instanceof Error ? error.message : String(error) } : {}) });
+          result.skipped.push({ runId, reason, ...(reason === 'failed' ? { message: getErrorMessage(error) } : {}) });
         }
       }
       return result;

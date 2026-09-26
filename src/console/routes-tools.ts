@@ -13,8 +13,9 @@ import { listTargets, runExport } from './export.js';
 import { detectPackProject, checkPackProject } from './author.js';
 import { describeStatus } from './status.js';
 import { errorCodeSection } from './workflow-view.js';
-import { json, messageOf, send, sse, type Json } from './respond.js';
+import { json, send, sse, type Json } from './respond.js';
 import type { ConsoleContext, Route } from './router.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /** How long a command from the command-line pane may run. */
 const CLI_TIMEOUT_MS = 5 * 60 * 1000;
@@ -79,7 +80,7 @@ export function toolRoutes(ctx: ConsoleContext): Route[] {
         emit({ type: 'start', args: plan.args });
         let child: ReturnType<typeof spawnFw>;
         try { child = spawnFw(plan.args, ctx.projectDir()); }
-        catch (err) { emit({ type: 'exit', code: null, error: messageOf(err), ms: 0 }); res.end(); return; }
+        catch (err) { emit({ type: 'exit', code: null, error: getErrorMessage(err), ms: 0 }); res.end(); return; }
         child.stdout?.on('data', (d: Buffer) => emit({ type: 'out', text: d.toString() }));
         child.stderr?.on('data', (d: Buffer) => emit({ type: 'err', text: d.toString() }));
         const timer = setTimeout(() => child.kill(), CLI_TIMEOUT_MS);
@@ -103,7 +104,7 @@ export function toolRoutes(ctx: ConsoleContext): Route[] {
             preview: b.preview !== false,
           }));
         } catch (err) {
-          return json(res, 400, { error: messageOf(err) });
+          return json(res, 400, { error: getErrorMessage(err) });
         }
       },
     },
@@ -114,7 +115,7 @@ export function toolRoutes(ctx: ConsoleContext): Route[] {
       path: '/api/pack-project/check', handle: async ({ res }) => {
         if (!detectPackProject(ctx.projectDir()).isPack) return json(res, 400, { error: 'the project is not a pack' });
         try { return json(res, 200, await checkPackProject(ctx.projectDir())); }
-        catch (err) { return json(res, 400, { error: messageOf(err) }); }
+        catch (err) { return json(res, 400, { error: getErrorMessage(err) }); }
       },
     },
     // The marketplace is npm: a search goes to the registry, and installing

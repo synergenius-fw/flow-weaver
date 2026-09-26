@@ -30,6 +30,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as YAML from 'js-yaml';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 export type AgentProviderKind = 'anthropic' | 'openai' | 'claude-cli';
 
@@ -121,7 +122,7 @@ export function loadAgentProfiles(projectDir: string): AgentProfiles {
   try {
     doc = YAML.load(fs.readFileSync(file, 'utf8'));
   } catch (e) {
-    out.errors.push(`could not parse: ${e instanceof Error ? e.message : String(e)}`);
+    out.errors.push(`could not parse: ${getErrorMessage(e)}`);
     return out;
   }
   if (doc == null) return out;

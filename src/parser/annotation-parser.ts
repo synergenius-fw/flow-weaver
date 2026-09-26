@@ -43,6 +43,7 @@ import {
   inferNodeTypesFromUnannotated,
   hasFlowWeaverAnnotation,
 } from './node-inference';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /**
  * Core option keys that must never be shadowed by a pack deploy namespace when
@@ -670,7 +671,7 @@ export class AnnotationParser {
           }
         } catch (e) {
           // Not a resolution: fall through to the index files, and say why.
-          warnings?.push(`Could not read ${pkgPath} while resolving "${moduleSpecifier}": ${e instanceof Error ? e.message : String(e)}`);
+          warnings?.push(`Could not read ${pkgPath} while resolving "${moduleSpecifier}": ${getErrorMessage(e)}`);
         }
       }
 

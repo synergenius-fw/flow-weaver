@@ -1,6 +1,7 @@
 import { validateWireValue } from '../runtime/continuation.js';
 import type { GateResolution } from '../runtime/durable-execution.js';
 import type { LabeledGate } from './gate-labeling.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /** What a driver sends back for a paused gate: a result, or a refusal. */
 export type ResolveInput = { answer: unknown } | { reject: string };
@@ -49,7 +50,7 @@ export function buildGateResolution(
   try {
     validateWireValue(value);
   } catch (error) {
-    throw new InvalidAnswerError(error instanceof Error ? error.message : String(error));
+    throw new InvalidAnswerError(getErrorMessage(error));
   }
   return { gateId, value: value };
 }

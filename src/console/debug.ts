@@ -18,6 +18,7 @@ import { DebugController, type DebugPauseState, type DebugResumeAction } from '.
 import { executeWorkflow, type ExecutionTraceEvent, type WorkflowExecutionOutcome } from '../mcp/workflow-executor.js';
 import { computeBundleDigest, createFileEffectAdapter } from '../coordinator/index.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 export type DebugStatus = 'running' | 'paused' | 'completed' | 'failed' | 'aborted' | 'yielded';
 
@@ -243,7 +244,7 @@ export class DebugSessions {
       };
     } else {
       const error = next.kind === 'error' ? next.error : undefined;
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       const aborted = s.aborting || s.abort.signal.aborted || /Debug session aborted/.test(message);
       s.view = { ...s.view, status: aborted ? 'aborted' : 'failed', node: undefined, phase: undefined, error: aborted ? undefined : message, updatedAt: now };
     }
