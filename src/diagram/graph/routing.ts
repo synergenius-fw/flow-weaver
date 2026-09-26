@@ -16,14 +16,9 @@ import { getPortColor } from '../theme';
 import type { DiagramConnection, DiagramNode, DiagramPort, DiagramStub } from '../types';
 import { portLabelExtent } from './metrics';
 
-// Routing mode threshold, from when short connections were drawn as curves.
-// (midpoint of original 250 to 350 hysteresis thresholds) No longer consulted:
-// every connection within STUB_DISTANCE_THRESHOLD is routed orthogonally.
-export const ORTHOGONAL_DISTANCE_THRESHOLD = 300;
-
-// Connections beyond this x-distance show as stubs only (no full path).
-// Must be higher than ORTHOGONAL_DISTANCE_THRESHOLD so adjacent-layer connections
-// still render their full orthogonal path.
+// Connections beyond this x-distance show as stubs only (no full path); every
+// connection within it is routed orthogonally. High enough that adjacent-layer
+// connections still render their full path.
 export const STUB_DISTANCE_THRESHOLD = 500;
 
 // Stub length for long-distance connections (short segment from port center outward)

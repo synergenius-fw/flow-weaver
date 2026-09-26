@@ -31,7 +31,7 @@ export {
   LABEL_HEIGHT, LABEL_GAP, measureText, portBadgeWidth,
 } from './graph/metrics';
 export { SCOPE_PADDING_X, SCOPE_PADDING_Y, SCOPE_PORT_COLUMN, SCOPE_INNER_GAP_X } from './graph/scopes';
-export { ORTHOGONAL_DISTANCE_THRESHOLD, STUB_DISTANCE_THRESHOLD, computeConnectionPath } from './graph/routing';
+export { STUB_DISTANCE_THRESHOLD, computeConnectionPath } from './graph/routing';
 export { computeNodeDimensions } from './graph/nodes';
 export { computePortPositions } from './graph/ports';
 
