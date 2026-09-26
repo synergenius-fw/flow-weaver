@@ -61,7 +61,7 @@ function parseParams(options: DevOptions): Record<string, unknown> {
 
 /** Mock config from --mocks or --mocks-file. */
 function parseMocks(options: DevOptions): FwMockConfig | undefined {
-  return readJsonObjectOption(options.mocks, options.mocksFile, 'mocks') as FwMockConfig | undefined;
+  return readJsonObjectOption(options.mocks, options.mocksFile, 'mocks');
 }
 
 /**
