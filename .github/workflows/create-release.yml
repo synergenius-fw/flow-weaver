@@ -11,7 +11,8 @@ concurrency:
 
 jobs:
   release-and-publish:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/v')
+    # Only a release branch of this repository: a fork's branch may carry any name.
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.event.pull_request.head.ref, 'release/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -22,9 +23,16 @@ jobs:
 
       - name: Extract version from branch name
         id: version
+        # The branch name is read from the environment, never interpolated
+        # into the script, and must be a version before it names a tag.
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
-          BRANCH="${{ github.event.pull_request.head.ref }}"
           TAG="${BRANCH#release/}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::$BRANCH does not name a version (release/vX.Y.Z)"
+            exit 1
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
@@ -34,8 +42,8 @@ jobs:
         # GitHub release is bookkeeping, so skip it when the tag is taken.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists, skipping creation."
           else
