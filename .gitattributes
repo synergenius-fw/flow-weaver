@@ -1,0 +1,4 @@
+# LF in every checkout, Windows included. The build copies source text into
+# compiled workflows and parses it by line, and golden tests compare
+# generated text byte for byte.
+* text=auto eol=lf

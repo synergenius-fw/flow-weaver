@@ -45,7 +45,7 @@ const OUTPUT_PATH = path.join(BUILT_IN_DIR, 'generated-registry.ts');
 // ---------------------------------------------------------------------------
 
 function extractMockHelpers(): string {
-  const mockSrc = fs.readFileSync(path.join(BUILT_IN_DIR, 'mock-types.ts'), 'utf-8');
+  const mockSrc = fs.readFileSync(path.join(BUILT_IN_DIR, 'mock-types.ts'), 'utf-8').replace(/\r\n/g, '\n');
 
   // Extract getMockConfig function body
   const getMockMatch = mockSrc.match(/export function getMockConfig\([^)]*\)[^{]*\{([\s\S]*?\n\})/);
@@ -78,7 +78,8 @@ const MOCK_HELPERS = extractMockHelpers();
 // ---------------------------------------------------------------------------
 
 function readSource(fileName: string): string {
-  return fs.readFileSync(path.join(BUILT_IN_DIR, fileName), 'utf-8');
+  // LF whatever the checkout has: the text is parsed by line and copied into compiled files.
+  return fs.readFileSync(path.join(BUILT_IN_DIR, fileName), 'utf-8').replace(/\r\n/g, '\n');
 }
 
 /**
