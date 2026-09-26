@@ -55,21 +55,22 @@ function extractTypes(message: string): { source: string; target: string } | nul
  * Build a concrete `@connect ... as <type>` coercion suggestion from error context.
  * Returns null if not enough info is available.
  */
-function buildCoerceSuggestion(quoted: string[], targetType: string): string | null {
-  // We need at least a source node.port and target node.port from the error message
-  // Validator messages typically include connection endpoints in quoted values
-  if (quoted.length < 2) return null;
-
-  // Look for port references (node.port patterns)
-  const portRefPattern = /^[\w]+\.[\w]+$/;
-  const portRefs = quoted.filter(q => portRefPattern.test(q));
-  if (portRefs.length < 2) return null;
-
+function buildCoerceSuggestion(message: string, targetType: string): string | null {
   const coerceType = COERCE_TYPE_FOR_DATA_TYPE[targetType.toUpperCase()] || targetType.toLowerCase();
   if (!['string', 'number', 'boolean', 'json', 'object'].includes(coerceType)) return null;
 
+  // The validator names the connection as `a.out → b.in`, each end possibly
+  // followed by its type in parentheses: `a.out (number (NUMBER)) → b.in (ARRAY)`.
+  // Older messages quote the two ends instead: "a.out" ... "b.in".
+  const route = message.match(CONNECTION_ROUTE);
+  const portRefs = route ? [route[1], route[2]] : extractQuoted(message).filter((q) => PORT_REF.test(q));
+  if (portRefs.length < 2) return null;
+
   return `@connect ${portRefs[0]} -> ${portRefs[1]} as ${coerceType}`;
 }
+
+const PORT_REF = /^[\w]+\.[\w]+$/;
+const CONNECTION_ROUTE = /([\w$]+\.[\w$]+)(?: \((?:[^()]|\([^()]*\))*\))? → ([\w$]+\.[\w$]+)/;
 
 function extractCyclePath(message: string): string | null {
   const match = message.match(/:\s*(.+ -> .+)/);
@@ -226,8 +227,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     const types = extractTypes(error.message);
     const source = types?.source || 'unknown';
     const target = types?.target || 'unknown';
-    const quoted = extractQuoted(error.message);
-    const coerceSuggestion = buildCoerceSuggestion(quoted, target);
+    const coerceSuggestion = buildCoerceSuggestion(error.message, target);
     return {
       title: 'Type Mismatch',
       explanation: `Type mismatch: you're connecting a ${source} to a ${target}. The value will be automatically converted, but this might cause unexpected behavior.`,
@@ -353,8 +353,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     const types = extractTypes(error.message);
     const source = types?.source || 'unknown';
     const target = types?.target || 'unknown';
-    const quoted = extractQuoted(error.message);
-    const coerceSuggestion = buildCoerceSuggestion(quoted, target);
+    const coerceSuggestion = buildCoerceSuggestion(error.message, target);
     return {
       title: 'Type Incompatible',
       explanation: `Type mismatch: ${source} to ${target}. With @strictTypes enabled, this is an error instead of a warning.`,
@@ -369,8 +368,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     const types = extractTypes(error.message);
     const source = types?.source || 'unknown';
     const target = types?.target || 'unknown';
-    const quoted = extractQuoted(error.message);
-    const coerceSuggestion = buildCoerceSuggestion(quoted, target);
+    const coerceSuggestion = buildCoerceSuggestion(error.message, target);
     return {
       title: 'Unusual Type Coercion',
       explanation: `Converting ${source} to ${target} is technically valid but semantically unusual and may produce unexpected behavior.`,
@@ -802,8 +800,7 @@ const errorMappers: Record<string, ErrorMapper> = {
     const types = extractTypes(error.message);
     const source = types?.source || 'unknown';
     const target = types?.target || 'unknown';
-    const quoted = extractQuoted(error.message);
-    const coerceSuggestion = buildCoerceSuggestion(quoted, target);
+    const coerceSuggestion = buildCoerceSuggestion(error.message, target);
     return {
       title: 'Lossy Type Conversion',
       explanation: `Converting ${source} to ${target} may lose data or produce unexpected results (e.g., NaN, truncation).`,
@@ -815,8 +812,8 @@ const errorMappers: Record<string, ErrorMapper> = {
   },
 
   INVALID_EXIT_PORT_TYPE(error) {
-    const quoted = extractQuoted(error.message);
-    const portName = quoted[0] || 'onSuccess';
+    // The validator writes `Exit port 'onFailure' must be ...`, in single quotes.
+    const portName = error.message.match(/Exit port '([^']+)'/)?.[1] || extractQuoted(error.message)[0] || 'onSuccess';
     return {
       title: 'Invalid Exit Port Type',
       explanation: `Exit port '${portName}' must be STEP type (control flow signal), but a different type was found. onSuccess and onFailure are control flow ports, not data ports.`,
