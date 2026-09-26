@@ -47,9 +47,15 @@ These are what CI runs. Run the ones your change touches before pushing:
 npm run typecheck          # the sources
 npm run typecheck:tests    # the tests
 npm run typecheck:console  # the console UI
-npm run lint               # ESLint and the prose checks
+npm run lint               # ESLint with type information, the prose checks, and import cycles
+npm run lint:dead          # exports and files nothing uses (knip)
 npm run generate:docs:check
 ```
+
+ESLint reads the TypeScript program, so it takes about half a minute. It
+fails on floating promises, misused promises, non-exhaustive switches and
+type assertions that change nothing. `lint:dead` fails on an export that
+only its own file uses: drop the `export` rather than adding an ignore.
 
 The full test suite is large and runs sharded in CI. Locally, run the files
 your change touches:
@@ -72,6 +78,13 @@ A few things are generated from the code and checked for drift:
 - A test file that calls `vi.mock` at module level must be listed in
   `tests/isolated-files.ts`; `tests/isolated-routing.test.ts` tells you if it
   is not.
+- The durable engine (`src/runtime/continuation-core.ts`,
+  `durable-execution.ts`, `ExecutionContext.ts`) and `src/built-in-nodes/`
+  are copied as text into every compiled workflow. They must stay ES2020 with
+  no Node APIs, and any change to them, comments included, changes the
+  generated code. Run `npm run generate:engine` and
+  `npm run generate:registry` after editing them, and expect the generator
+  golden tests to need an update.
 
 ## Code Style
 
