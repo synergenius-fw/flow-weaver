@@ -64,15 +64,14 @@ export function applyModifyOperation(
   const p = params;
   const warnings: string[] = [];
   const extraData: Record<string, unknown> = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AST manipulation functions use loose typing
-  let modifiedAST = ast as any;
+  let modifiedAST: TWorkflowAST = ast;
 
   switch (operation) {
     case 'addNode': {
       const nodeId = p.nodeId as string;
       const nodeType = p.nodeType as string;
       const nodeTypeExists = modifiedAST.nodeTypes.some(
-        (nt: { name: string; functionName: string }) =>
+        (nt) =>
           nt.name === nodeType || nt.functionName === nodeType
       );
       if (!nodeTypeExists) {
@@ -93,10 +92,10 @@ export function applyModifyOperation(
       const nodeId = p.nodeId as string;
       const removedConnections = modifiedAST.connections
         .filter(
-          (c: { from: { node: string }; to: { node: string } }) =>
+          (c) =>
             c.from.node === nodeId || c.to.node === nodeId
         )
-        .map((c: { from: { node: string; port: string }; to: { node: string; port: string } }) => ({
+        .map((c) => ({
           from: `${c.from.node}.${c.from.port}`,
           to: `${c.to.node}.${c.to.port}`,
         }));
@@ -123,7 +122,7 @@ export function applyModifyOperation(
       const validNodes = [
         'Start',
         'Exit',
-        ...modifiedAST.instances.map((i: { id: string }) => i.id),
+        ...modifiedAST.instances.map((i) => i.id),
       ];
       if (!validNodes.includes(fromNode)) {
         throw new Error(`Source node "${fromNode}" not found. Available: ${validNodes.join(', ')}`);
@@ -133,7 +132,7 @@ export function applyModifyOperation(
       }
 
       if (fromNode !== 'Start' && fromNode !== 'Exit') {
-        const inst = modifiedAST.instances.find((i: { id: string }) => i.id === fromNode);
+        const inst = modifiedAST.instances.find((i) => i.id === fromNode);
         const nt = modifiedAST.nodeTypes.find(
           (t: { name: string }) => t.name === (inst as { nodeType: string })?.nodeType
         );
@@ -144,7 +143,7 @@ export function applyModifyOperation(
         }
       }
       if (toNode !== 'Start' && toNode !== 'Exit') {
-        const inst = modifiedAST.instances.find((i: { id: string }) => i.id === toNode);
+        const inst = modifiedAST.instances.find((i) => i.id === toNode);
         const nt = modifiedAST.nodeTypes.find(
           (t: { name: string }) => t.name === (inst as { nodeType: string })?.nodeType
         );
