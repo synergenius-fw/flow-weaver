@@ -1070,13 +1070,13 @@ export function buildDiagramGraph(ast: TWorkflowAST, options: DiagramOptions = {
       let fromPortIndex = 0;
       let toPortIndex = 0;
       if (conn.fromNode === node.id) {
-        fromPortIndex = node.scopePorts!.outputs.indexOf(sPort);
+        fromPortIndex = node.scopePorts.outputs.indexOf(sPort);
       } else {
         const fromChild = childMap.get(conn.fromNode);
         if (fromChild) fromPortIndex = fromChild.outputs.indexOf(sPort);
       }
       if (conn.toNode === node.id) {
-        toPortIndex = node.scopePorts!.inputs.indexOf(tPort);
+        toPortIndex = node.scopePorts.inputs.indexOf(tPort);
       } else {
         const toChild = childMap.get(conn.toNode);
         if (toChild) toPortIndex = toChild.inputs.indexOf(tPort);

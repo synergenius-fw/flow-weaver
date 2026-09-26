@@ -168,7 +168,7 @@ function freezeOptions(input: Record<string, unknown>): Readonly<Record<string, 
       continue;
     }
     if (Array.isArray(value) && value.every((entry) => typeof entry === 'string')) {
-      output[key] = Object.freeze([...value]) as readonly string[];
+      output[key] = Object.freeze([...value]);
       continue;
     }
     if (value !== undefined) {

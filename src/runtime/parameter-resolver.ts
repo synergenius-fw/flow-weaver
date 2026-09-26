@@ -95,7 +95,7 @@ export function resolveFunction<TIn, TOut>(
           typeof input === 'object' && input !== null
             ? { ...partialArgs, ...input }
             : input;
-        return fn(mergedInput as TIn);
+        return fn(mergedInput);
       };
 
       return {
@@ -125,7 +125,7 @@ export function isFunctionLike(value: unknown): value is FunctionLike<unknown, u
     typeof value === 'object' &&
     value !== null &&
     'registryId' in value &&
-    typeof (value as { registryId: unknown }).registryId === 'string'
+    typeof (value).registryId === 'string'
   ) {
     return true;
   }

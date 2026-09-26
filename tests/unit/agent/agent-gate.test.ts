@@ -4,7 +4,7 @@
  * never answers at all. The provider is a fake that plays back events.
  */
 import { describe, it, expect } from 'vitest';
-import { answerGate, answerTool, answerFromText, systemPromptFor, tryProfile, SUBMIT_TOOL, REJECT_TOOL, type GateToAnswer } from '../../../src/agent/gate';
+import { answerGate, answerTool, answerFromText, fieldToJsonSchema, systemPromptFor, tryProfile, SUBMIT_TOOL, REJECT_TOOL, type GateToAnswer } from '../../../src/agent/gate';
 import type { AgentProvider, StreamEvent, ToolDefinition, AgentMessage, StreamOptions } from '../../../src/agent/types';
 
 const profile = { name: 'reviewer', provider: 'anthropic' as const, model: 'test-model', system: 'Be terse.' };
@@ -60,6 +60,13 @@ describe('answerTool', () => {
   it('has nothing to return for a gate without data outputs', () => {
     const { unwrap } = answerTool({ ...agentGate, outputs: [] });
     expect(unwrap({})).toBeNull();
+  });
+});
+
+describe('fieldToJsonSchema', () => {
+  it('leaves an any field unconstrained, keeping only its description', () => {
+    expect(fieldToJsonSchema({ type: 'any' })).toEqual({});
+    expect(fieldToJsonSchema({ type: 'any', text: 'whatever the step returns' })).toEqual({ description: 'whatever the step returns' });
   });
 });
 

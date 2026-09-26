@@ -1189,7 +1189,7 @@ function replaceNodeTypeJSDoc(
     let updatedFunctionNode: ts.FunctionDeclaration | undefined;
     ts.forEachChild(updatedSourceFile, (node) => {
       if (ts.isFunctionDeclaration(node) && node.name?.text === nodeType.functionName) {
-        updatedFunctionNode = node as ts.FunctionDeclaration;
+        updatedFunctionNode = node;
       }
     });
 

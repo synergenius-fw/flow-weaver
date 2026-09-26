@@ -844,17 +844,17 @@ export function generateFunctionSignature(nodeType: TNodeTypeAST): string[] {
     Object.entries(nodeType.inputs).forEach(([name, port]) => {
       if (isExecutePort(name)) return;
       const optional = port.optional ? "?" : "";
-      params.push(`${name}${optional}: ${mapToTypeScript(port.dataType as TDataType)}`);
+      params.push(`${name}${optional}: ${mapToTypeScript(port.dataType)}`);
     });
 
     const returns: string[] = [];
     Object.entries(nodeType.outputs).forEach(([name, port]) => {
       if (isSuccessPort(name) || isFailurePort(name)) return;
-      returns.push(`${name}: ${mapToTypeScript(port.dataType as TDataType)}`);
+      returns.push(`${name}: ${mapToTypeScript(port.dataType)}`);
     });
 
     const returnType = returns.length === 1
-      ? mapToTypeScript((Object.entries(nodeType.outputs).find(([n]) => !isSuccessPort(n) && !isFailurePort(n))?.[1].dataType || 'ANY') as TDataType)
+      ? mapToTypeScript(Object.entries(nodeType.outputs).find(([n]) => !isSuccessPort(n) && !isFailurePort(n))?.[1].dataType || 'ANY')
       : `{ ${returns.join("; ")} }`;
 
     if (isStub) {
@@ -871,13 +871,13 @@ export function generateFunctionSignature(nodeType: TNodeTypeAST): string[] {
       if (isExecutePort(name)) return;
       const optional = port.optional ? "?" : "";
       const defaultVal = port.default !== undefined ? ` = ${JSON.stringify(port.default)}` : "";
-      params.push(`${name}${optional}: ${mapToTypeScript(port.dataType as TDataType)}${defaultVal}`);
+      params.push(`${name}${optional}: ${mapToTypeScript(port.dataType)}${defaultVal}`);
     });
 
     const returns: string[] = ["onSuccess: boolean", "onFailure: boolean"];
     Object.entries(nodeType.outputs).forEach(([name, port]) => {
       if (isSuccessPort(name) || isFailurePort(name)) return;
-      returns.push(`${name}: ${mapToTypeScript(port.dataType as TDataType)}`);
+      returns.push(`${name}: ${mapToTypeScript(port.dataType)}`);
     });
 
     lines.push(`function ${nodeType.functionName}(${params.join(", ")}) {`);

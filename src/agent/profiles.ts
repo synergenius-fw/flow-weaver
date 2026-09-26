@@ -138,8 +138,8 @@ export function loadAgentProfiles(projectDir: string): AgentProfiles {
           out.errors.push(`agents.${name}.provider must be one of anthropic, openai, claude-cli`);
           continue;
         }
-        const str = (k: string): string | undefined => (typeof raw[k] === 'string' && (raw[k] as string).trim() ? (raw[k] as string) : undefined);
-        const num = (k: string): number | undefined => (typeof raw[k] === 'number' && Number.isFinite(raw[k] as number) ? (raw[k] as number) : undefined);
+        const str = (k: string): string | undefined => (typeof raw[k] === 'string' && (raw[k]).trim() ? (raw[k]) : undefined);
+        const num = (k: string): number | undefined => (typeof raw[k] === 'number' && Number.isFinite(raw[k]) ? (raw[k]) : undefined);
         out.agents[name] = {
           name,
           provider: provider as AgentProviderKind,

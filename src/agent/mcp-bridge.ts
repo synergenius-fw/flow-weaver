@@ -88,27 +88,40 @@ export async function createMcpBridge(
   // Create Unix domain socket server.
   // The tool server sends a newline-terminated JSON request and waits for a
   // JSON response on the same connection.
+  /** Run one tool request and return the reply body. Every failure becomes an error reply. */
+  const answer = async (line: string): Promise<string> => {
+    try {
+      const { name, args } = JSON.parse(line);
+      currentOnToolEvent?.({ type: 'tool_call_start', name, args });
+      const { result, isError } = await currentExecutor(name, args);
+      currentOnToolEvent?.({ type: 'tool_call_result', name, result, isError });
+      return JSON.stringify({ result, isError });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      try {
+        logger?.error('MCP bridge tool execution error', err);
+      } catch {
+        // A logger that throws must not cost the tool server its reply.
+      }
+      return JSON.stringify({ result: msg, isError: true });
+    }
+  };
+
   const server = net.createServer((conn) => {
     let buf = '';
-    conn.on('data', async (chunk) => {
+    conn.on('data', (chunk) => {
       buf += chunk.toString();
       const nlIdx = buf.indexOf('\n');
       if (nlIdx === -1) return; // wait for complete line
 
       const line = buf.slice(0, nlIdx).trim();
-      buf = ''; // consume — one request per connection
+      buf = ''; // consume: one request per connection
 
-      try {
-        const { name, args } = JSON.parse(line);
-        currentOnToolEvent?.({ type: 'tool_call_start', name, args });
-        const { result, isError } = await currentExecutor(name, args);
-        currentOnToolEvent?.({ type: 'tool_call_result', name, result, isError });
-        conn.end(JSON.stringify({ result, isError }));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger?.error('MCP bridge tool execution error', err);
-        conn.end(JSON.stringify({ result: msg, isError: true }));
-      }
+      // answer() turns every failure into a reply, so the catch only guards
+      // the socket itself; dropping the connection tells the tool server.
+      answer(line)
+        .then((reply) => conn.end(reply))
+        .catch(() => conn.destroy());
     });
   });
 

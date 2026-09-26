@@ -106,7 +106,7 @@ export function announceService(init: { kind: ServiceKind; cwd?: string; project
       record = { ...record, lastActivityAt: new Date().toISOString(), activity: activity ?? record.activity, activityCount: record.activityCount + 1 };
       const due = 1000 - (Date.now() - lastWrite);
       if (due <= 0) { lastWrite = Date.now(); write(); }
-      else if (!pending) pending = setTimeout(() => { pending = undefined; lastWrite = Date.now(); write(); }, due).unref?.() as unknown as NodeJS.Timeout | undefined;
+      else if (!pending) pending = setTimeout(() => { pending = undefined; lastWrite = Date.now(); write(); }, due).unref?.();
     },
     update(patch) {
       record = { ...record, ...patch };

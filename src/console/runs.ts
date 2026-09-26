@@ -54,7 +54,7 @@ export function mocksFrom(b: Record<string, unknown>): FwMockConfig | undefined 
   const src = m as Record<string, unknown>;
   const out: FwMockConfig = {};
   for (const k of ['events', 'agents', 'invocations', 'gates'] as const) {
-    if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k]) && Object.keys(src[k] as object).length) out[k] = src[k] as Record<string, object>;
+    if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k]) && Object.keys(src[k]).length) out[k] = src[k] as Record<string, object>;
   }
   if (src.fast === true) out.fast = true;
   return Object.keys(out).length ? out : undefined;

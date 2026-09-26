@@ -53,7 +53,7 @@ export async function watchCommand(input: string, options: WatchOptions = {}): P
     ignoreInitial: true,
   });
 
-  watcher.on('change', async (file) => {
+  const recompile = async (file: string): Promise<void> => {
     logger.newline();
     logger.info(`${timestamp()} File changed: ${path.basename(file)}`);
     logger.info(`${timestamp()} Recompiling...`);
@@ -69,6 +69,13 @@ export async function watchCommand(input: string, options: WatchOptions = {}): P
       logger.error(`${timestamp()} Recompilation failed: ${errorMsg}`);
       options.onRecompile?.(file, false, [errorMsg]);
     }
+  };
+  watcher.on('change', (file) => {
+    // What escapes recompile() is a throwing onRecompile callback; report it
+    // and keep watching.
+    recompile(file).catch((error: unknown) => {
+      logger.error(`${timestamp()} Handling the change to ${path.basename(file)} failed: ${getErrorMessage(error)}`);
+    });
   });
 
   if (options.verbose) {
@@ -81,7 +88,9 @@ export async function watchCommand(input: string, options: WatchOptions = {}): P
   const cleanup = () => {
     logger.newline();
     logger.info('Stopping watch mode...');
-    watcher.close();
+    // The process exits on the next line, which releases the watcher
+    // whether or not close() has finished, so there is nothing to wait for.
+    void watcher.close();
     process.exit(0);
   };
 

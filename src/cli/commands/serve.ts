@@ -106,14 +106,21 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
     onCallback: (o) => { if (!o.ok) logger.warn(`callback for run ${o.runId} → ${o.url}: ${o.error ?? o.status}${o.gaveUp ? ' (gave up)' : ` (attempt ${o.attempt})`}`); },
   });
 
-  const shutdown = async (signal: string) => {
-    logger.newline();
-    logger.info(`Received ${signal}, shutting down...`);
-    await server.stop();
+  /** Stop the server and exit: 0 when it stopped cleanly, 1 when stopping failed. Never rejects. */
+  const shutdown = async (signal: string): Promise<void> => {
+    try {
+      logger.newline();
+      logger.info(`Received ${signal}, shutting down...`);
+      await server.stop();
+    } catch (error) {
+      logger.error(`Shutting down failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+      return;
+    }
     process.exit(0);
   };
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  if (process.platform !== 'win32') process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+  if (process.platform !== 'win32') process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
   try {
     await server.start();

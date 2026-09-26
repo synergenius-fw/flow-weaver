@@ -235,10 +235,10 @@ describe('watchCommand', () => {
       (c: unknown[]) => c[0] === 'change',
     )![1] as (file: string) => Promise<void>;
 
-    await changeHandler('/abs/a.flow');
+    changeHandler('/abs/a.flow');
 
+    await vi.waitFor(() => expect(onRecompile).toHaveBeenCalledWith('/abs/a.flow', true));
     expect(mockCompileCommand).toHaveBeenCalledWith('/abs/a.flow', { onRecompile });
-    expect(onRecompile).toHaveBeenCalledWith('/abs/a.flow', true);
   });
 
   it('handles recompilation errors', async () => {
@@ -253,10 +253,37 @@ describe('watchCommand', () => {
       (c: unknown[]) => c[0] === 'change',
     )![1] as (file: string) => Promise<void>;
 
-    await changeHandler('/abs/a.flow');
+    changeHandler('/abs/a.flow');
 
-    expect(onRecompile).toHaveBeenCalledWith('/abs/a.flow', false, ['parse error']);
+    await vi.waitFor(() => expect(onRecompile).toHaveBeenCalledWith('/abs/a.flow', false, ['parse error']));
     expect(logger.error).toHaveBeenCalled();
+  });
+
+  it('logs, and leaks no rejection, when the onRecompile callback throws on a failure', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.prependListener('unhandledRejection', onUnhandled);
+    try {
+      const onRecompile = vi.fn((_file: string, success: boolean) => {
+        if (!success) throw new Error('callback broke');
+      });
+      mockCompileCommand.mockResolvedValueOnce(undefined); // initial
+      mockCompileCommand.mockRejectedValueOnce(new Error('parse error'));
+
+      void watchCommand('src/**/*.flow', { onRecompile });
+      await vi.waitFor(() => expect(mockWatcherOn).toHaveBeenCalled());
+      const changeHandler = mockWatcherOn.mock.calls.find(
+        (c: unknown[]) => c[0] === 'change',
+      )![1] as (file: string) => unknown;
+
+      changeHandler('/abs/a.flow');
+
+      await vi.waitFor(() => expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('callback broke')));
+      await new Promise((r) => setTimeout(r, 20));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
   });
 
   it('keeps watching when the initial compilation fails', async () => {
@@ -424,6 +451,31 @@ describe('serveCommand', () => {
   it('registers SIGINT shutdown handler', async () => {
     await serveCommand(undefined, {});
     expect(sigintHandlers.length).toBeGreaterThan(0);
+  });
+
+  it('stops the server and exits 0 on SIGINT', async () => {
+    await serveCommand(undefined, {});
+    sigintHandlers[0]();
+    await vi.waitFor(() => expect(process.exit).toHaveBeenCalledWith(0));
+    expect(mockWebhookServerStop).toHaveBeenCalled();
+  });
+
+  it('exits 1, and leaks no rejection, when stopping the server fails', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.prependListener('unhandledRejection', onUnhandled);
+    try {
+      mockWebhookServerStop.mockRejectedValueOnce(new Error('close failed'));
+      await serveCommand(undefined, {});
+      sigintHandlers[0]();
+
+      await vi.waitFor(() => expect(process.exit).toHaveBeenCalledWith(1));
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('close failed'));
+      await new Promise((r) => setTimeout(r, 20));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
   });
 });
 

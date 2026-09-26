@@ -130,6 +130,9 @@ export function fieldToJsonSchema(f: FieldSchema | undefined): Record<string, un
       }
       return { type: 'object', properties, ...(required.length ? { required } : {}), additionalProperties: false };
     }
+    // An `any` field accepts every value, so its schema carries only the
+    // description. A field type this function does not know is treated the same.
+    case 'any':
     default: return f.text ? { description: f.text } : {};
   }
 }

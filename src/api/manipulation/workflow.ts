@@ -149,6 +149,6 @@ export function setWorkflowPorts(
   // Use produce directly with non-generic approach to avoid excessive type instantiation
   return produce(ast, (draft: { ports?: TNodeTypePort[] }) => {
     draft.ports = ports;
-  }) as TWorkflowAST;
+  });
 }
 

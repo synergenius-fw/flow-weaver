@@ -95,7 +95,7 @@ export class WorkflowRegistry {
   private extractInputSchema(workflow: TWorkflowAST): Record<string, unknown> {
     const schema: Record<string, unknown> = {
       type: 'object',
-      properties: {} as Record<string, unknown>,
+      properties: {},
     };
     const required: string[] = [];
 
@@ -126,7 +126,7 @@ export class WorkflowRegistry {
   private extractOutputSchema(workflow: TWorkflowAST): Record<string, unknown> {
     const schema: Record<string, unknown> = {
       type: 'object',
-      properties: {} as Record<string, unknown>,
+      properties: {},
     };
 
     for (const [portName, port] of Object.entries(workflow.exitPorts || {})) {
@@ -181,9 +181,17 @@ export class WorkflowRegistry {
   }
 
   /**
-   * Start watching for file changes
+   * Start watching for file changes. After a change settles, the workflows
+   * are discovered again and `onChange` runs. A rediscovery that fails goes
+   * to `onError`, which by default writes it to stderr, and the next change
+   * tries again.
    */
-  async startWatching(onChange: () => void): Promise<void> {
+  async startWatching(
+    onChange: () => void,
+    onError: (error: unknown) => void = (error) => {
+      console.error(`Rediscovering workflows in ${this.workflowDir} failed: ${error instanceof Error ? error.message : String(error)}`);
+    },
+  ): Promise<void> {
     try {
       const chokidar = await import('chokidar');
 
@@ -207,10 +215,11 @@ export class WorkflowRegistry {
           clearTimeout(existingTimer);
         }
 
-        const timer = setTimeout(async () => {
+        const timer = setTimeout(() => {
           this.debounceTimers.delete(filePath);
-          await this.discoverWorkflows();
-          onChange();
+          this.discoverWorkflows()
+            .then(() => onChange())
+            .catch(onError);
         }, 500);
 
         this.debounceTimers.set(filePath, timer);

@@ -244,7 +244,7 @@ export function setStartExitPorts(
     } else {
       draft.exitPorts = ports;
     }
-  }) as TWorkflowAST;
+  });
 }
 
 /**
@@ -277,5 +277,5 @@ export function setInstancePortConfigs(
       draftInstance.config = {};
     }
     draftInstance.config.portConfigs = portConfigs;
-  }) as TWorkflowAST;
+  });
 }

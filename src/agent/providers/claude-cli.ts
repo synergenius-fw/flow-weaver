@@ -4,7 +4,7 @@
  * the binary is found are injectable options.
  */
 
-import { spawn as nodeSpawn, type ChildProcess } from 'node:child_process';
+import { spawn as nodeSpawn } from 'node:child_process';
 import {
   joinSplitPrompt,
   type AgentProvider,
@@ -39,7 +39,7 @@ export class ClaudeCliProvider implements AgentProvider {
     this.disallowedTools = options.disallowedTools ?? [];
     this.allowedTools = options.allowedTools;
     this.spawnFn = options.spawnFn ?? ((cmd: string, args: string[], opts: { cwd: string; stdio: string[]; env: NodeJS.ProcessEnv }) =>
-      nodeSpawn(cmd, args, { ...opts, stdio: opts.stdio as ('pipe' | 'inherit' | 'ignore')[] }) as ChildProcess);
+      nodeSpawn(cmd, args, { ...opts, stdio: opts.stdio as ('pipe' | 'inherit' | 'ignore')[] }));
     this.timeout = options.timeout ?? 600_000;
   }
 

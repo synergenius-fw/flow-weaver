@@ -69,7 +69,14 @@ export type TEvent =
   | TWorkflowCompletedEvent;
 
 export type TDebugger = {
-  sendEvent: (event: TEvent) => void;
+  /**
+   * The execution context awaits what this returns for a status event, so a
+   * debugger can hold a node at a breakpoint by returning a promise it has
+   * not settled yet. Typed `unknown` rather than `void | Promise<void>` so a
+   * handler that returns something else, such as `(e) => events.push(e)`,
+   * still fits.
+   */
+  sendEvent: (event: TEvent) => unknown;
   innerFlowInvocation: boolean;
   sessionId?: string;
 };

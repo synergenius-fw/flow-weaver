@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { buildContext, type ContextPreset, type ContextProfile } from '../context/index.js';
+import { buildContext } from '../context/index.js';
 import { makeErrorResult } from './response-utils.js';
 
 /**
@@ -40,8 +40,8 @@ export function registerContextTools(mcp: McpServer): void {
     async (args) => {
       try {
         const result = buildContext({
-          preset: args.preset as ContextPreset,
-          profile: args.profile as ContextProfile,
+          preset: args.preset,
+          profile: args.profile,
           topics: args.topics ? args.topics.split(',').map((s) => s.trim()) : undefined,
           addTopics: args.addTopics ? args.addTopics.split(',').map((s) => s.trim()) : undefined,
           includeGrammar: args.includeGrammar,

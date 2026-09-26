@@ -50,7 +50,7 @@ export async function contextCommand(
 
   const result = buildContext({
     preset: PRESET_NAMES.includes(presetName) ? presetName : 'core',
-    profile: profile as 'standalone' | 'assistant',
+    profile: profile,
     topics: options.topics ? options.topics.split(',').map((s) => s.trim()) : undefined,
     addTopics: options.add ? options.add.split(',').map((s) => s.trim()) : undefined,
     includeGrammar: options.grammar !== false,

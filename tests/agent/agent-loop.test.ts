@@ -231,4 +231,28 @@ describe('runAgentLoop', () => {
       { type: 'tool_call_result', name: 'read_file' },
     ]);
   });
+
+  it('streams thinking to onStreamEvent but keeps it out of the assistant message', async () => {
+    const streamEvents: StreamEvent[] = [];
+    const provider = mockProvider([
+      [
+        { type: 'thinking_delta', text: 'weighing options' },
+        { type: 'text_delta', text: 'answer' },
+        { type: 'message_stop', finishReason: 'stop' },
+      ],
+    ]);
+
+    const result = await runAgentLoop(
+      provider,
+      testTools,
+      async () => ({ result: '', isError: false }),
+      [{ role: 'user', content: 'q' }],
+      { onStreamEvent: (e) => streamEvents.push(e) },
+    );
+
+    expect(streamEvents).toContainEqual({ type: 'thinking_delta', text: 'weighing options' });
+    expect(result.summary).toBe('answer');
+    const assistant = result.messages.filter((m) => m.role === 'assistant');
+    expect(assistant).toEqual([{ role: 'assistant', content: 'answer' }]);
+  });
 });

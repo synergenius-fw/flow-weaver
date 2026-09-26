@@ -487,7 +487,7 @@ async function runDebugRepl(
       }
     }
 
-    rl.on('line', async (line) => {
+    async function handleLine(line: string): Promise<void> {
       const input = line.trim();
       if (!input) {
         rl.prompt();
@@ -662,6 +662,12 @@ async function runDebugRepl(
           }
         }
       }
+    }
+
+    rl.on('line', (line) => {
+      // handleLine reports a failed command and prompts again; a failure in
+      // that reporting ends the session with the error instead of leaking it.
+      handleLine(line).catch((err: unknown) => fail(err instanceof Error ? err : new Error(String(err))));
     });
 
     rl.on('close', () => {

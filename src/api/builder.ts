@@ -80,7 +80,7 @@ export class WorkflowBuilder {
     // Use simplified type to avoid excessive type instantiation
     this.ast = produce(this.ast, (draft: { startPorts: Record<string, TPortDefinition> }) => {
       draft.startPorts[name] = definition;
-    }) as TWorkflowAST;
+    });
     return this;
   }
 
@@ -100,7 +100,7 @@ export class WorkflowBuilder {
     // Use simplified type to avoid excessive type instantiation
     this.ast = produce(this.ast, (draft: { exitPorts: Record<string, TPortDefinition> }) => {
       draft.exitPorts[name] = definition;
-    }) as TWorkflowAST;
+    });
     return this;
   }
 
@@ -132,7 +132,7 @@ export class WorkflowBuilder {
     // Use simplified type to avoid excessive type instantiation
     this.ast = produce(this.ast, (draft: { nodeTypes: TNodeTypeAST[] }) => {
       draft.nodeTypes.push(nodeType);
-    }) as TWorkflowAST;
+    });
     return this;
   }
 
@@ -179,7 +179,7 @@ export class WorkflowBuilder {
     // Use simplified type to avoid excessive type instantiation
     this.ast = produce(this.ast, (draft: { instances: TNodeInstanceAST[] }) => {
       draft.instances.push(node);
-    }) as TWorkflowAST;
+    });
     return this;
   }
 
@@ -213,7 +213,7 @@ export class WorkflowBuilder {
     // Use simplified type to avoid excessive type instantiation
     this.ast = produce(this.ast, (draft: { connections: TConnectionAST[] }) => {
       draft.connections.push(connection);
-    }) as TWorkflowAST;
+    });
     return this;
   }
 
@@ -254,7 +254,7 @@ export class WorkflowBuilder {
           node.parent = { id: parentNodeName, scope };
         }
       });
-    }) as TWorkflowAST;
+    });
     return this;
   }
 
@@ -273,7 +273,7 @@ export class WorkflowBuilder {
     // Use simplified type to avoid excessive type instantiation
     this.ast = produce(this.ast, (draft: { description?: string }) => {
       draft.description = description;
-    }) as TWorkflowAST;
+    });
     return this;
   }
 

@@ -63,7 +63,7 @@ export function parseStrictJson(
             }
           }
           index += 4;
-        } else if (!/["\\/bfnrt]/.test(text[index]!)) {
+        } else if (!/["\\/bfnrt]/.test(text[index])) {
           return fail("malformed", "JSON string escape is malformed");
         }
       } else if ((character?.charCodeAt(0) ?? 0) < 0x20) {

@@ -169,7 +169,7 @@ export function buildDiffView(before: TWorkflowAST, after: TWorkflowAST): DiffVi
       if (inst) { s.label = label(s.id); s.pull = inst.config?.pullExecution !== undefined; }
       stampAll(s.children);
     });
-    stampAll(model.steps as unknown as Stamped[]);
+    stampAll(model.steps);
   }
 
   const nodes: Record<string, DiffNode> = {};

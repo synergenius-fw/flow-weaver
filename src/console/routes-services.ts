@@ -40,8 +40,8 @@ export function serviceRoutes(ctx: ConsoleContext): Route[] {
           }
           if (req.method !== 'POST' && req.method !== 'PUT') return json(res, 405, { error: 'POST to start, stop or restart; PUT settings' });
           const b = await body();
-          if (action === 'settings') { supervisor.saveSettings(kind, b as never); return json(res, 200, listing()); }
-          if (action === 'start') { if (Object.keys(b).length) supervisor.saveSettings(kind, b as never); supervisor.start(kind); }
+          if (action === 'settings') { supervisor.saveSettings(kind, b); return json(res, 200, listing()); }
+          if (action === 'start') { if (Object.keys(b).length) supervisor.saveSettings(kind, b); supervisor.start(kind); }
           if (action === 'stop') await supervisor.stop(kind, typeof b.pid === 'number' ? b.pid : undefined);
           if (action === 'restart') await supervisor.restart(kind);
           return json(res, 200, listing());

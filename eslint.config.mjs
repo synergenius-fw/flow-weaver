@@ -7,7 +7,23 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     files: ['src/**/*.ts'],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
     rules: {
+      // Type-aware correctness rules.
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/switch-exhaustiveness-check': 'error',
+      '@typescript-eslint/only-throw-error': 'error',
+      '@typescript-eslint/prefer-promise-reject-errors': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+      // require-await stays off: most async functions without an await implement
+      // an async interface (RunStore, MCP tool handlers, providers, built-in nodes)
+      // or are exported commands, where dropping async would turn a rejection
+      // into a synchronous throw for callers.
+
       // Parser and generator code handles loosely typed ASTs; flag `any`, don't block on it.
       '@typescript-eslint/no-explicit-any': 'warn',
       // A leading underscore marks a parameter or binding kept on purpose.
@@ -28,6 +44,20 @@ export default tseslint.config(
     ],
     rules: {
       'preserve-caught-error': 'off',
+      // Compiled workflows carry this text, so a cast the checker finds
+      // redundant here stays: removing it would change every compiled file.
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+    },
+  },
+  {
+    // ExecutionContext.setVariable is synchronous and hands the debugger each
+    // VARIABLE_SET event without waiting for it. Awaiting it would make every
+    // variable write async; catching it would change the text that compiled
+    // workflows carry. Every debugger in this repo sends synchronously, so no
+    // rejection can arise today.
+    files: ['src/runtime/ExecutionContext.ts'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'off',
     },
   },
 );

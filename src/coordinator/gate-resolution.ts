@@ -51,7 +51,7 @@ export function buildGateResolution(
   } catch (error) {
     throw new InvalidAnswerError(error instanceof Error ? error.message : String(error));
   }
-  return { gateId, value: value as GateResolution['value'] };
+  return { gateId, value: value };
 }
 
 function dataPorts(outputs: readonly string[], answer: unknown): Record<string, unknown> {
