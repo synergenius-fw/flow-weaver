@@ -15,7 +15,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { stripGeneratedSections, hasInPlaceMarkers } from '../../src/parser/generated-sections';
 import { mapToTypeScript } from '../../src/types/type-mappings';
 import { executeWorkflow, type CompletedExecutionOutcome } from '../../src/mcp/workflow-executor';
 
@@ -26,13 +27,33 @@ const CLI_PATH = path.resolve(__dirname, '../../src/cli/index.ts');
 // Resolve tsc path
 const TSC_PATH = require.resolve('typescript/bin/tsc');
 
-function compileFixture(): void {
-  execFileSync(process.execPath, ['--import', 'tsx', CLI_PATH, 'compile', WORKFLOW_PATH], {
+/**
+ * The fixture copied to a temporary directory with its generated sections
+ * stripped, then compiled by the real CLI. The tracked fixture is never
+ * written, and the compile provably runs: without VITEST removed from its
+ * environment the CLI entry skips parsing, and the stripped copy would stay
+ * uncompiled.
+ */
+let workDir: string;
+let workflowCopy: string;
+let compiled = '';
+
+beforeAll(() => {
+  workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-codegen-types-'));
+  for (const f of fs.readdirSync(FIXTURE_DIR)) fs.copyFileSync(path.join(FIXTURE_DIR, f), path.join(workDir, f));
+  workflowCopy = path.join(workDir, 'workflow.ts');
+  fs.writeFileSync(workflowCopy, stripGeneratedSections(fs.readFileSync(WORKFLOW_PATH, 'utf-8')));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')));
+  execFileSync(process.execPath, ['--import', 'tsx', CLI_PATH, 'compile', workflowCopy], {
     encoding: 'utf-8',
-    timeout: 30000,
+    timeout: 60000,
     cwd: path.resolve(__dirname, '../..'),
+    env,
   });
-}
+  compiled = fs.readFileSync(workflowCopy, 'utf-8');
+}, 90000);
+
+afterAll(() => fs.rmSync(workDir, { recursive: true, force: true }));
 
 describe('mapToTypeScript', () => {
   it('preserves primitive types', () => {
@@ -61,18 +82,14 @@ describe('mapToTypeScript', () => {
 });
 
 describe('cross-file workflow tsc --strict validity', () => {
-  it('compiles the fixture', () => {
-    compileFixture();
-    const compiled = fs.readFileSync(WORKFLOW_PATH, 'utf-8');
+  it('compiles the fixture from source', () => {
+    expect(hasInPlaceMarkers(stripGeneratedSections(fs.readFileSync(WORKFLOW_PATH, 'utf-8')))).toBe(false);
     expect(compiled).toContain('@flow-weaver-body-start');
   });
 
   it('generated code passes tsc --strict', () => {
-    // First compile the workflow
-    compileFixture();
-
-    // Create a tsconfig for the fixture directory
-    const tsconfigPath = path.join(FIXTURE_DIR, 'tsconfig.test.json');
+    // A tsconfig for the compiled copy.
+    const tsconfigPath = path.join(workDir, 'tsconfig.test.json');
     fs.writeFileSync(
       tsconfigPath,
       JSON.stringify({
@@ -99,10 +116,6 @@ describe('cross-file workflow tsc --strict validity', () => {
       // tsc exits non-zero on a type error and prints it to stdout.
       const e = err as { stdout?: string; message?: string };
       tscOutput = `Generated code has TypeScript errors:\n${e.stdout || e.message}`;
-    } finally {
-      try {
-        fs.unlinkSync(tsconfigPath);
-      } catch {}
     }
     // tsc prints nothing when there are no errors.
     expect(tscOutput).toBe('');
@@ -113,7 +126,7 @@ describe('cross-file workflow runtime execution', () => {
   it('runs correctly', async () => {
     const result = await executeWorkflow({
       runId: 'codegen-type-safety',
-      filePath: WORKFLOW_PATH,
+      filePath: workflowCopy,
       params: {
         raw: JSON.stringify({ name: 'test-app', debug: true, maxRetries: 3 }),
       },
