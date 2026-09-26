@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useId, useState } from 'preact/hooks';
 import type { FieldSchema } from '../state';
 import { Select } from './Select';
 import { JsonEditor } from './JsonEditor';
@@ -47,9 +47,13 @@ interface FieldProps { name: string; path: string; schema: FieldSchema; value: u
 
 function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps) {
   const err = errors[path] ?? errors[path || '.'];
+  // The label names the control it sits over, where that control is a single
+  // input or text area; the rest are groups of their own.
+  const id = useId();
+  const labelable = schema.type === 'string' || schema.type === 'number' || (schema.type === 'array' && isPrimitiveList(schema));
   const label = bare ? null : (
     <>
-      <label>
+      <label for={labelable ? id : undefined}>
         <span>{name}{schema.optional ? <i> optional</i> : ''}</span>
         <i>{shapeHint(schema)}</i>
       </label>
@@ -66,11 +70,11 @@ function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps
       const s = (value as string) ?? '';
       const placeholder = schema.text && schema.text !== 'string' ? schema.text : 'text';
       return wrap(s.length > 80 || s.includes('\n')
-        ? <textarea rows={Math.min(8, s.split('\n').length + 1)} value={s} placeholder={placeholder} onInput={(e) => onChange((e.target as HTMLTextAreaElement).value || undefined)} />
-        : <input type="text" value={s} placeholder={placeholder} onInput={(e) => onChange((e.target as HTMLInputElement).value || undefined)} />);
+        ? <textarea id={id} rows={Math.min(8, s.split('\n').length + 1)} value={s} placeholder={placeholder} onInput={(e) => onChange((e.target as HTMLTextAreaElement).value || undefined)} />
+        : <input id={id} type="text" value={s} placeholder={placeholder} onInput={(e) => onChange((e.target as HTMLInputElement).value || undefined)} />);
     }
     case 'number':
-      return wrap(<input type="number" step="any" value={value === undefined ? '' : String(value)} placeholder="a number" onInput={(e) => { const s = (e.target as HTMLInputElement).value; onChange(s === '' ? undefined : Number(s)); }} />);
+      return wrap(<input id={id} type="number" step="any" value={value === undefined ? '' : String(value)} placeholder="a number" onInput={(e) => { const s = (e.target as HTMLInputElement).value; onChange(s === '' ? undefined : Number(s)); }} />);
     case 'boolean':
       return wrap(
         <div class="toggle">
@@ -91,7 +95,7 @@ function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps
     case 'array':
       if (isPrimitiveList(schema)) {
         const lines = Array.isArray(value) ? (value as unknown[]).map(String).join('\n') : '';
-        return wrap(<textarea rows={3} value={lines} placeholder={schema.items!.type === 'number' ? '1\n2\n3 (one per line)' : 'one value per line'} onInput={(e) => {
+        return wrap(<textarea id={id} rows={3} value={lines} placeholder={schema.items!.type === 'number' ? '1\n2\n3 (one per line)' : 'one value per line'} onInput={(e) => {
           const raw = (e.target as HTMLTextAreaElement).value;
           const items = raw.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => (schema.items!.type === 'number' ? Number(l) : l));
           onChange(items.length ? items : undefined);

@@ -26,9 +26,11 @@ export async function del<T = any>(path: string): Promise<T> {
   return j;
 }
 
-export function stream(path: string, onMessage: (msg: any) => void): () => void {
+export function stream(path: string, onMessage: (msg: any) => void, onOpen?: () => void): () => void {
   const es = new EventSource(path);
   es.onmessage = (m) => onMessage(JSON.parse(m.data));
+  // Called on the first connection and on every reconnection.
+  if (onOpen) es.onopen = onOpen;
   return () => es.close();
 }
 

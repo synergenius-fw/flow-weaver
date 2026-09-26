@@ -86,13 +86,24 @@ function ProjectPicker() {
   );
 }
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** What the verdict dot says, for someone who cannot see its colour. */
+function verdict(errors: number, warnings: number): string {
+  if (errors) return warnings ? `${plural(errors, 'error')}, ${plural(warnings, 'warning')}` : plural(errors, 'error');
+  return warnings ? plural(warnings, 'warning') : 'valid';
+}
+
 function Counts({ errors, warnings, waiting, checked = true, busy = false }: { errors: number; warnings: number; waiting: number; checked?: boolean; busy?: boolean }) {
   return (
     <>
       {waiting > 0 && <span class="count">{waiting}</span>}
       {/* Until it has been parsed there is no verdict to report, and a
-          green dot would be a claim rather than a placeholder. */}
-      {checked && !loading.value && !busy ? <span class={`dot ${errors ? 'err' : warnings ? 'warn' : ''}`} /> : <span class="spinner" title={busy ? 'opening' : 'checking'} />}
+          green dot would be a claim rather than a placeholder. The dot's
+          colour is the verdict, so it carries the verdict in words too. */}
+      {checked && !loading.value && !busy
+        ? <span class={`dot ${errors ? 'err' : warnings ? 'warn' : ''}`} role="img" aria-label={verdict(errors, warnings)} />
+        : <span class="spinner" role="img" title={busy ? 'opening' : 'checking'} aria-label={busy ? 'opening' : 'checking'} />}
     </>
   );
 }

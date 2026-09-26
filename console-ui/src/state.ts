@@ -330,11 +330,28 @@ function settleLoading(): void {
   }, wait);
 }
 
+/**
+ * Verdicts announced while the workflow list is being fetched. The server
+ * starts checking when the list is asked for, so a verdict can arrive before
+ * the list does, and would otherwise be applied to a list that does not have
+ * the workflow yet, then lost when the list lands.
+ */
+let verdictsDuringLoad: Map<string, WorkflowSummary> | null = null;
+const workflowKey = (w: { file: string; name: string }) => `${w.file}|${w.name}`;
+
+/** The latest list request; an older one that answers later is dropped. */
+let listRequest = 0;
+
 async function loadWorkflows(): Promise<void> {
   startLoading();
+  const early = new Map<string, WorkflowSummary>();
+  verdictsDuringLoad = early;
+  const mine = ++listRequest;
   try {
-    workflows.value = await get('/api/workflows');
+    const list = await get<WorkflowSummary[]>('/api/workflows');
+    if (mine === listRequest) workflows.value = list.map((w) => (w.checked ? w : early.get(workflowKey(w)) ?? w));
   } finally {
+    if (verdictsDuringLoad === early) verdictsDuringLoad = null;
     settleLoading();
   }
 }
@@ -443,6 +460,7 @@ stream('/api/events', (msg) => {
   if (msg.type === 'runs') { refreshRuns(); loadWorkflows(); }
   if (msg.type === 'checked') {
     const w = msg.workflow as WorkflowSummary;
+    verdictsDuringLoad?.set(workflowKey(w), w);
     workflows.value = workflows.value.map((x) => (x.file === w.file && x.name === w.name ? w : x));
     if (workflows.value.every((x) => x.checked)) settleLoading();
   }
@@ -454,6 +472,11 @@ stream('/api/events', (msg) => {
     if (msg.kind === 'serve' && msg.state === 'running' && msg.url) toast(`server up at ${msg.url}`);
     if (msg.state === 'exited' && msg.error) toast(`${msg.kind === 'serve' ? 'server' : 'watch'} stopped: ${msg.error}`);
   }
+}, () => {
+  // Verdicts announced before this stream connected (or while it was down)
+  // reached nobody. The listing carries every verdict the server has, so
+  // fetch it again now; later verdicts arrive on the stream.
+  void loadWorkflows();
 });
 
 export async function openProject(dir: string): Promise<void> {
@@ -757,8 +780,12 @@ async function applyHash(initial = false): Promise<void> {
 }
 
 export async function boot() {
+  const before = view.value;
   const [p] = await Promise.all([get('/api/project'), loadWorkflows(), loadGuide().catch(() => undefined), loadPacks().catch(() => undefined)]);
   project.value = p;
-  await applyHash(true);
+  // The rail lists the workflows before everything else has loaded, so a
+  // person may already have opened one. What they chose wins over the first
+  // route, which would otherwise put the front page over it.
+  if (view.value === before && opening.value === null) await applyHash(true);
   window.addEventListener('hashchange', () => { void applyHash(); });
 }

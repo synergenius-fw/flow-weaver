@@ -89,6 +89,29 @@ jobs:
         env:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
+  e2e:
+    # The console's client in Chromium, against a real console per test
+    # (playwright.config.ts, e2e/). The suite itself takes well under a minute.
+    needs: build
+    if: needs.build.outputs.is_release == 'false'
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      # npm ci runs `prepare`, which is `npm run build`: dist/, the console
+      # client included, is built here, which is what the tests start.
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
+
   coverage:
     # Runs after the test matrix so a red shard fails fast before the long
     # --coverage pass starts.
@@ -123,14 +146,17 @@ jobs:
 
   check:
     if: always()
-    needs: [build, test, coverage]
+    needs: [build, test, e2e, coverage]
     timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate results
+        env:
+          E2E_RESULT: ${{ needs.e2e.result }}
         run: |
           echo "build: ${{ needs.build.result }}"
           echo "test: ${{ needs.test.result }}"
+          echo "e2e: $E2E_RESULT"
           echo "coverage: ${{ needs.coverage.result }}"
 
           if [[ "${{ needs.build.result }}" != "success" ]]; then
@@ -140,6 +166,11 @@ jobs:
 
           if [[ "${{ needs.test.result }}" != "success" && "${{ needs.test.result }}" != "skipped" ]]; then
             echo "::error::Tests failed"
+            exit 1
+          fi
+
+          if [[ "$E2E_RESULT" != "success" && "$E2E_RESULT" != "skipped" ]]; then
+            echo "::error::Console end-to-end tests failed"
             exit 1
           fi
 

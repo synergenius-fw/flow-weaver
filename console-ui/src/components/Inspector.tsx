@@ -134,7 +134,7 @@ function RunCard({ w }: { w: ParsedWorkflow }) {
           </>}
       </h3>
       {d && (paused || d.status === 'running') && (
-        <div class="in dbgbar">
+        <div class="in dbgbar" role="toolbar" aria-label="Debugger">
           <button class="btn sm" disabled={!paused} onClick={() => debugAction('step')} title="Run the next node, then pause">Step<Keys combo="F10" /></button>
           <button class="btn sm" disabled={!paused} onClick={() => debugAction('continue')} title="Run to the end">Continue<Keys combo="F5" /></button>
           <button class="btn sm" disabled={!paused || !d.breakpoints.length} onClick={() => debugAction('toBreakpoint')} title={d.breakpoints.length ? 'Run to the next breakpoint' : 'No breakpoints set'}>To breakpoint<Keys combo="shift+F5" /></button>
@@ -159,7 +159,7 @@ function RunCard({ w }: { w: ParsedWorkflow }) {
       {d?.status === 'yielded' && <div class="in hint">{r.error}</div>}
       {paused && d!.phase === 'after' && <div class="in hint">Values {at} produced can be changed in its Step card before the next node reads them.</div>}
       <Timeline w={w} />
-      {done && r.status === 'completed' && <div class="in result"><h5>Result</h5><pre class="mono"><Json value={r.result} /></pre></div>}
+      {done && r.status === 'completed' && <div class="in result" role="region" aria-label="Result"><h5>Result</h5><pre class="mono"><Json value={r.result} /></pre></div>}
     </div>
   );
 }

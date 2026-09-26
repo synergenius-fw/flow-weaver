@@ -7,6 +7,6 @@
     // Tests also import console-ui code, which runs in the browser.
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "e2e/**/*.ts", "playwright.config.ts"],
   "exclude": ["node_modules", "dist"]
 }
