@@ -11,6 +11,10 @@ import { spawn, ChildProcess } from 'child_process';
 const TEMP_DIR = path.join(os.tmpdir(), `flow-weaver-watch-${process.pid}`);
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const CLI_ENTRY = path.join(PROJECT_ROOT, 'src/cli/index.ts');
+// The CLI runs in this child itself, loaded through tsx, not under npx: a
+// signal sent to the child reaches the watcher, and the exit code is the CLI's.
+// Under npx the watcher is a grandchild that can outlive npx and hold stdout.
+const TSX = ['--import', 'tsx'];
 
 // Build a clean env for spawned CLI processes: strip VITEST* vars so the
 // CLI entry guard doesn't skip program.parse().
@@ -101,7 +105,7 @@ export function watchTestWorkflow(execute: boolean): Promise<{ onSuccess: boolea
         reject(new Error('Test timed out waiting for watch mode output'));
       }, 90000);
 
-      const child = spawn('npx', ['tsx', CLI_ENTRY, 'watch', testFile], {
+      const child = spawn(process.execPath, [...TSX, CLI_ENTRY, 'watch', testFile], {
         cwd: PROJECT_ROOT,
         env: cliEnv,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -172,7 +176,7 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
         reject(new Error('Test timed out'));
       }, 90000);
 
-      const child = spawn('npx', ['tsx', CLI_ENTRY, 'watch', testFile], {
+      const child = spawn(process.execPath, [...TSX, CLI_ENTRY, 'watch', testFile], {
         cwd: PROJECT_ROOT,
         env: cliEnv,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -208,8 +212,7 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
     });
 
     // It was watching, and SIGTERM ran its cleanup rather than the timeout's
-    // SIGKILL ending it. (The exit code is npx's, not the CLI's, so the
-    // cleanup message is the reliable signal.)
+    // SIGKILL ending it.
     expect(watchStarted).toBe(true);
     expect(exit.signal).not.toBe('SIGKILL');
     expect(output).toContain('Stopping watch mode...');
@@ -225,7 +228,7 @@ export function sigintWorkflow(execute: boolean): Promise<{ onSuccess: boolean; 
         reject(new Error('Test timed out'));
       }, 90000);
 
-      const child = spawn('npx', ['tsx', CLI_ENTRY, 'watch', '/nonexistent/file.ts'], {
+      const child = spawn(process.execPath, [...TSX, CLI_ENTRY, 'watch', '/nonexistent/file.ts'], {
         cwd: PROJECT_ROOT,
         env: cliEnv,
         stdio: ['pipe', 'pipe', 'pipe'],
