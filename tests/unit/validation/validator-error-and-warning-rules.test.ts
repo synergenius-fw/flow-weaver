@@ -1054,4 +1054,26 @@ describe('validator branch coverage', () => {
     const r = validator.validate(wf, { strictMode: true });
     expect(r.errors.some(e => e.code === 'TYPE_INCOMPATIBLE')).toBe(true);
   });
+
+  // 64. mode: 'strict' (what fw validate --strict and fw compile --strict pass)
+  // promotes type issues the same way.
+  it('should promote type issues with mode strict', () => {
+    const ntA = makeNodeType({ name: 'A', functionName: 'A',
+      outputs: { ...makeNodeType().outputs, val: { dataType: 'STRING' } },
+    });
+    const ntB = makeNodeType({ name: 'B', functionName: 'B',
+      inputs: { ...makeNodeType().inputs, val: { dataType: 'NUMBER' } },
+    });
+    const wf = makeWorkflow({
+      nodeTypes: [ntA, ntB],
+      instances: [makeInstance('a', 'A'), makeInstance('b', 'B')],
+      connections: [
+        conn('Start', 'execute', 'a', 'execute'),
+        conn('a', 'val', 'b', 'val'),
+        conn('b', 'onSuccess', 'Exit', 'onSuccess'),
+      ],
+    });
+    expect(validator.validate(wf).errors.some(e => e.code === 'TYPE_INCOMPATIBLE')).toBe(false);
+    expect(validator.validate(wf, { mode: 'strict' }).errors.some(e => e.code === 'TYPE_INCOMPATIBLE')).toBe(true);
+  });
 });

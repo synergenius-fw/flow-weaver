@@ -90,7 +90,7 @@ export class WorkflowValidator {
     this.ctx = {
       errors: [],
       warnings: [],
-      strictMode: options?.strictMode ?? false,
+      strictMode: options?.strictMode ?? options?.mode === 'strict',
       draftMode: options?.mode === 'draft',
     };
     const ctx = this.ctx;
