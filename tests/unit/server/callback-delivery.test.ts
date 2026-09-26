@@ -1,87 +1,148 @@
 /**
- * Delivering a callback. The URL was checked when the run started, but the
- * run may wait days before it is delivered, and a name can resolve to a
- * public address when checked and a private one when fetched (DNS
- * rebinding). So delivery resolves the name once, checks that address, and
- * connects to exactly that address.
+ * Delivering a declared route's callback once its run is over: when it is
+ * due, how a failure backs off, when delivery gives up, and that a run is
+ * never posted twice at once. The serve API tests cover the same path end
+ * to end; these pin the edges with a clock of their own.
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as http from 'node:http';
+import { createHmac } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { callbackTarget, postCallback, type Resolve } from '../../../src/server/callback-url.js';
+import { createLocalCoordinator, createMemoryRunStore, type LocalCoordinator, type RunRecord, type RunStore } from '../../../src/coordinator/index.js';
+import { createCallbackDelivery, CALLBACK_BACKOFF_MS, type CallbackOutcome, type HttpNote } from '../../../src/server/callback-delivery.js';
 
-const resolvesTo = (...addresses: string[]): Resolve => async () => addresses.map((address) => ({ address, family: address.includes(':') ? 6 : 4 }));
+let store: RunStore;
+let coordinator: LocalCoordinator;
+let sink: http.Server;
+let url: string;
+let answer = 204;
+let received: Array<{ headers: http.IncomingHttpHeaders; body: Record<string, unknown> }> = [];
+let clock = Date.parse('2026-09-26T00:00:00Z');
+let inFlight = new Set<string>();
+let outcomes: CallbackOutcome[] = [];
 
-describe('the address a callback is delivered to', () => {
-  it('is the address the name resolves to, when it is public', async () => {
-    const t = await callbackTarget('https://hooks.example.com/done', {}, resolvesTo('93.184.216.34'));
-    expect(t).toMatchObject({ address: '93.184.216.34', family: 4 });
-  });
+const record = (runId: string, over: Partial<RunRecord> = {}) => ({
+  formatVersion: 1, runId, filePath: '/wf.ts', workflowName: 'wf', params: {}, bundleDigest: 'sha256:x',
+  status: 'completed', result: { onSuccess: true, onFailure: false, out: 42 },
+  createdAt: new Date(clock).toISOString(), updatedAt: new Date(clock).toISOString(), ...over,
+}) as RunRecord;
 
-  it('is refused when the name now resolves to a private address', async () => {
-    for (const ip of ['169.254.169.254', '10.1.2.3', '127.0.0.1', '::1', 'fd00::1']) {
-      const t = await callbackTarget('https://hooks.example.com/done', {}, resolvesTo(ip));
-      expect(t).toEqual({ refused: expect.stringContaining(ip) });
-    }
-  });
-
-  it('is refused when any of the addresses is private, not only the first', async () => {
-    const t = await callbackTarget('https://hooks.example.com/done', {}, resolvesTo('93.184.216.34', '10.0.0.1'));
-    expect('refused' in t).toBe(true);
-  });
-
-  it('is refused when the name no longer resolves', async () => {
-    const t = await callbackTarget('https://gone.example.com/', {}, async () => { throw new Error('ENOTFOUND'); });
-    expect(t).toEqual({ refused: expect.stringContaining('does not resolve') });
-  });
-
-  it('keeps the checks on the URL itself', async () => {
-    expect(await callbackTarget('ftp://x.example.com/', {}, resolvesTo('93.184.216.34'))).toEqual({ refused: expect.stringContaining('http') });
-    expect(await callbackTarget('https://u:p@x.example.com/', {}, resolvesTo('93.184.216.34'))).toEqual({ refused: expect.stringContaining('credentials') });
-    expect(await callbackTarget('http://10.0.0.5/', {}, resolvesTo())).toEqual({ refused: expect.stringContaining('private') });
-  });
-
-  it('uses an address literal as it is, without a lookup', async () => {
-    const t = await callbackTarget('http://93.184.216.34:8080/x', {}, async () => { throw new Error('no lookup expected'); });
-    expect(t).toMatchObject({ address: '93.184.216.34', family: 4 });
-  });
-
-  it('allows a private address when the policy allows private ones or names the host', async () => {
-    expect(await callbackTarget('http://internal.example.com/', { allowPrivate: true }, resolvesTo('10.0.0.1'))).toMatchObject({ address: '10.0.0.1' });
-    expect(await callbackTarget('http://internal.example.com/', { hosts: ['internal.example.com'] }, resolvesTo('10.0.0.1'))).toMatchObject({ address: '10.0.0.1' });
-    expect(await callbackTarget('http://other.example.com/', { hosts: ['internal.example.com'] }, resolvesTo('10.0.0.1'))).toEqual({ refused: expect.stringContaining('not among') });
-  });
+const delivery = (token?: string) => createCallbackDelivery({
+  coordinator, token, policy: { allowPrivate: true },
+  inFlight: (id) => inFlight.has(id),
+  outputs: (result) => {
+    const r = result as Record<string, unknown>;
+    const data = Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'onSuccess' && k !== 'onFailure'));
+    return { data, failed: r.onFailure === true };
+  },
+  onCallback: (o) => outcomes.push(o),
+  now: () => clock,
 });
 
-describe('posting a callback', () => {
-  let server: http.Server | undefined;
-  afterEach(async () => { await new Promise<void>((r) => (server ? server.close(() => r()) : r())); server = undefined; });
+async function owing(runId: string, over: Partial<RunRecord> = {}, note: Partial<HttpNote> = {}) {
+  await store.put(record(runId, over));
+  await coordinator.keep(runId, 'http', { route: { method: 'POST', path: '/wf' }, callbackUrl: url, ...note });
+}
+const note = async (id: string) => coordinator.kept<HttpNote>(id, 'http');
 
-  const listen = (handler: http.RequestListener) => new Promise<number>((resolve) => {
-    server = http.createServer(handler);
-    server.listen(0, '127.0.0.1', () => resolve((server!.address() as AddressInfo).port));
+beforeEach(async () => {
+  store = createMemoryRunStore();
+  coordinator = createLocalCoordinator({ store });
+  answer = 204; received = []; inFlight = new Set(); outcomes = [];
+  sink = http.createServer((req, res) => {
+    let text = '';
+    req.on('data', (c) => { text += c; });
+    req.on('end', () => { received.push({ headers: req.headers, body: JSON.parse(text) }); res.writeHead(answer).end(); });
+  });
+  await new Promise<void>((r) => sink.listen(0, '127.0.0.1', r));
+  url = `http://127.0.0.1:${(sink.address() as AddressInfo).port}/hook`;
+});
+afterEach(async () => { await new Promise<void>((r) => sink.close(() => r())); });
+
+describe('callback delivery', () => {
+  it('posts a completed run once, with its outputs and a signature, and records the delivery', async () => {
+    await owing('r1');
+    const d = delivery('secret');
+    await d.deliver('r1');
+    await d.deliver('r1');
+    expect(received).toHaveLength(1);
+    expect(received[0].body).toEqual({ runId: 'r1', workflow: 'wf', status: 'completed', result: { out: 42 }, failed: false });
+    const signature = createHmac('sha256', 'secret').update(JSON.stringify(received[0].body)).digest('hex');
+    expect(received[0].headers['x-flow-weaver-signature']).toBe(`sha256=${signature}`);
+    expect(received[0].headers['x-flow-weaver-attempt']).toBe('1');
+    expect(await note('r1')).toMatchObject({ attempts: 1, delivered: new Date(clock).toISOString() });
+    expect(d.pending()).toEqual([]);
   });
 
-  it('connects to the checked address while naming the host the URL gave', async () => {
-    const seen: Array<{ host?: string; body: string; sig?: string }> = [];
-    const port = await listen((req, res) => {
-      let body = '';
-      req.on('data', (c) => { body += c; });
-      req.on('end', () => { seen.push({ host: req.headers.host, body, sig: req.headers['x-sig'] as string }); res.writeHead(204).end(); });
-    });
-    // callback.invalid cannot resolve: the post can only arrive through the pinned address.
-    const status = await postCallback({ url: new URL(`http://callback.invalid:${port}/hook`), address: '127.0.0.1', family: 4 }, { 'x-sig': 'abc' }, '{"ok":true}', 5000);
-    expect(status).toBe(204);
-    expect(seen).toEqual([{ host: `callback.invalid:${port}`, body: '{"ok":true}', sig: 'abc' }]);
+  it('sends a failed run its error', async () => {
+    await owing('r2', { status: 'failed', result: undefined, error: 'boom' });
+    await delivery().deliver('r2');
+    expect(received[0].body).toEqual({ runId: 'r2', workflow: 'wf', status: 'failed', error: { code: 'EXECUTION_ERROR', message: 'boom' } });
   });
 
-  it('answers with a redirect status rather than following it', async () => {
-    const port = await listen((_req, res) => { res.writeHead(302, { location: 'http://169.254.169.254/' }).end(); });
-    expect(await postCallback({ url: new URL(`http://callback.invalid:${port}/`), address: '127.0.0.1', family: 4 }, {}, '{}', 5000)).toBe(302);
+  it('waits while the run is waiting at a gate or a segment of it is in flight', async () => {
+    await owing('w', { status: 'waiting' });
+    await owing('f');
+    inFlight.add('f');
+    const d = delivery();
+    await d.deliver('w');
+    await d.deliver('f');
+    expect(received).toEqual([]);
+    expect([...d.pending()].sort()).toEqual(['f', 'w']);
   });
 
-  it('gives up after the timeout', async () => {
-    const port = await listen(() => { /* never answers */ });
-    await expect(postCallback({ url: new URL(`http://callback.invalid:${port}/`), address: '127.0.0.1', family: 4 }, {}, '{}', 200)).rejects.toThrow();
+  it('backs off after a failed attempt, and tries again once the delay has passed', async () => {
+    await owing('b');
+    answer = 500;
+    const d = delivery();
+    await d.deliver('b');
+    expect(await note('b')).toMatchObject({ attempts: 1, lastError: 'callback answered 500', nextAt: new Date(clock + CALLBACK_BACKOFF_MS[0]).toISOString() });
+
+    await d.deliverPending();
+    expect(received).toHaveLength(1);
+
+    clock += CALLBACK_BACKOFF_MS[0];
+    answer = 204;
+    await d.deliverPending();
+    expect(received).toHaveLength(2);
+    expect(received[1].headers['x-flow-weaver-attempt']).toBe('2');
+    expect((await note('b'))?.delivered).toBeDefined();
+  });
+
+  it('gives up after the last attempt, says so, and tries no more', async () => {
+    await owing('g', {}, { attempts: CALLBACK_BACKOFF_MS.length - 1 });
+    answer = 503;
+    const d = delivery();
+    await d.deliver('g');
+    expect(outcomes.at(-1)).toMatchObject({ runId: 'g', ok: false, status: 503, gaveUp: true, attempt: CALLBACK_BACKOFF_MS.length });
+    expect((await note('g'))?.gaveUp).toBe(new Date(clock).toISOString());
+    expect(d.pending()).toEqual([]);
+    clock += 10 * 60 * 60 * 1000;
+    await d.deliver('g');
+    expect(received).toHaveLength(1);
+  });
+
+  it('does not follow a redirect, and says why', async () => {
+    await owing('re');
+    answer = 302;
+    await delivery().deliver('re');
+    expect((await note('re'))?.lastError).toBe('callback answered 302, redirects are not followed');
+  });
+
+  it('posts a run once when two deliveries race', async () => {
+    await owing('race');
+    const d = delivery();
+    await Promise.all([d.deliver('race'), d.deliver('race'), d.deliver('race')]);
+    expect(received).toHaveLength(1);
+  });
+
+  it('finds the callbacks still owed for its own workflows when it starts', async () => {
+    await owing('owed');
+    await owing('done', {}, { delivered: new Date(clock).toISOString() });
+    await owing('dead', {}, { gaveUp: new Date(clock).toISOString() });
+    await owing('other', { workflowName: 'elsewhere' });
+    const d = delivery();
+    await d.scan(new Set(['wf']));
+    expect(d.pending()).toEqual(['owed']);
   });
 });

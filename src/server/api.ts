@@ -19,13 +19,14 @@
  * lives in the shared coordinator store, so a gate reached here can be
  * answered in the console, over MCP, or by an agent profile.
  */
-import { randomUUID, timingSafeEqual, createHash, createHmac } from 'node:crypto';
+import { randomUUID, timingSafeEqual, createHash } from 'node:crypto';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { WorkflowRegistry } from './workflow-registry.js';
 import { VERSION } from '../generated-version.js';
 import { buildOpenApi } from './openapi.js';
-import { callbackTarget, postCallback, refuseCallbackUrl, type CallbackPolicy } from './callback-url.js';
+import { refuseCallbackUrl, type CallbackPolicy } from './callback-url.js';
+import { createCallbackDelivery, type HttpNote } from './callback-delivery.js';
 import type { ExecutionTraceEvent } from '../mcp/workflow-executor.js';
 import {
   createLocalCoordinator,
@@ -211,8 +212,6 @@ export function errorToHttp(err: unknown): HttpError {
 export const isLoopback = (host: string) => ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host);
 
 const DEFAULT_MAX_BODY = 1024 * 1024;
-/** Delay before each retry of a callback. After the last, the server gives up and records why. */
-const CALLBACK_BACKOFF_MS = [2_000, 10_000, 60_000, 300_000, 900_000];
 /** Paths the API keeps for itself. A declared route under one is refused. */
 export const RESERVED_PATHS = ['/health', '/workflows', '/runs', '/openapi.json', '/docs'];
 const RESERVED = RESERVED_PATHS;
@@ -256,25 +255,6 @@ interface Live {
 }
 interface AgentEntry { t: number; e: AgentGateEvent }
 interface Compiled { endpoint: WorkflowEndpoint; route: THttpRoute; regex: RegExp; keys: string[] }
-/**
- * What a declared-route start remembers beside the run: the route, and the
- * callback with its delivery state. Kept in the run store, so a callback
- * survives a restart and is delivered by whichever API process finds the
- * run finished -- the gate may well have been answered in the console.
- */
-interface HttpNote {
-  route: { method: string; path: string };
-  callbackUrl?: string;
-  /** When the callback was accepted. */
-  delivered?: string;
-  /** Attempts so far, and when the next may be made. */
-  attempts?: number;
-  nextAt?: string;
-  lastError?: string;
-  /** Set when every attempt failed; nothing more is tried. */
-  gaveUp?: string;
-}
-
 /** JSON with keys in a fixed order, so two parameter objects compare by content. */
 function stable(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;
@@ -325,10 +305,14 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
   const maxBody = options.maxBodyBytes ?? DEFAULT_MAX_BODY;
   const maxInFlight = options.maxInFlight ?? 32;
   const maxWait = options.maxWaitMs ?? 60_000;
-  // Runs with a callback still owed. Filled from the store when the API
-  // starts, added to as requests come in, swept on a timer.
-  const pending = new Set<string>();
-  const delivering = new Set<string>();
+  const callbacks = createCallbackDelivery({
+    coordinator,
+    policy: options.callbacks,
+    token: options.token,
+    inFlight: (id) => live.has(id),
+    outputs: (result) => dataOf(result),
+    onCallback: options.onCallback,
+  });
   let sweeper: NodeJS.Timeout | undefined;
 
   // ------------------------------------------------------------ discovery
@@ -346,22 +330,12 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
       if (options.watch) await registry.startWatching(compileRoutes);
       // A process that died mid-answer must not keep its gate locked.
       await reclaimStaleAgentAnswers(coordinator);
-      await scanPending();
+      await callbacks.scan(new Set(registry.getAllEndpoints().map((e) => e.functionName)));
       const every = options.callbacks?.sweepMs ?? 3_000;
       sweeper = setInterval(() => { void sweep(); }, every);
       sweeper.unref?.();
     })();
     return readyPromise;
-  }
-
-  /** Runs of our workflows still owing a callback, found once at start. */
-  async function scanPending(): Promise<void> {
-    const names = new Set(registry.getAllEndpoints().map((e) => e.functionName));
-    for (const s of await coordinator.list()) {
-      if (!names.has(s.workflowName)) continue;
-      const note = await coordinator.kept<HttpNote>(s.runId, 'http');
-      if (note?.callbackUrl && !note.delivered && !note.gaveUp) pending.add(s.runId);
-    }
   }
 
   /**
@@ -371,7 +345,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
    */
   async function sweep(): Promise<void> {
     await tick();
-    for (const id of [...pending]) await deliverCallback(id);
+    await callbacks.deliverPending();
   }
 
   async function tick(): Promise<void> {
@@ -635,7 +609,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
   async function afterSegment(id: string): Promise<void> {
     const rec = await coordinator.record(id);
     if (!rec) return;
-    if (rec.status === 'completed' || rec.status === 'failed' || rec.status === 'cancelled') { void deliverCallback(id); return; }
+    if (rec.status === 'completed' || rec.status === 'failed' || rec.status === 'cancelled') { void callbacks.deliver(id); return; }
     if (!agentsOn || rec.status !== 'waiting' || rec.gate?.kind !== 'agent') return;
     try {
       const step = await answerAgentGate(coordinator, id, {
@@ -694,61 +668,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
     if ((await coordinator.record(id))?.status === 'waiting') {
       await coordinator.cancel(id);
       await announce(id);
-      void deliverCallback(id);
-    }
-  }
-
-  /**
-   * POST the final response to the URL a declared-route caller named.
-   *
-   * One attempt per call: a failure records when the next may be made and
-   * the sweep comes back to it, with growing delays, until the last attempt
-   * gives up and says why. The URL is checked again at each attempt and the
-   * post goes to the address that check resolved, so a name re-pointed at a
-   * private address since the run began is refused. Redirects are not
-   * followed, for the same reason. Signed when the server has a token, with
-   * an HMAC of the body.
-   */
-  async function deliverCallback(id: string): Promise<void> {
-    const note = await coordinator.kept<HttpNote>(id, 'http');
-    if (!note?.callbackUrl || note.delivered || note.gaveUp) { pending.delete(id); return; }
-    const rec = await coordinator.record(id);
-    if (!rec) { pending.delete(id); return; }
-    if (rec.status === 'waiting' || live.has(id)) { pending.add(id); return; }
-    if (note.nextAt && Date.parse(note.nextAt) > Date.now()) { pending.add(id); return; }
-    if (delivering.has(id)) return;
-    delivering.add(id);
-    const attempt = (note.attempts ?? 0) + 1;
-    try {
-      const body: Json = { runId: id, workflow: rec.workflowName, status: rec.status };
-      if (rec.status === 'completed') { const { data, failed } = dataOf(rec.result); body.result = data; body.failed = failed; }
-      if (rec.status === 'failed') body.error = { code: 'EXECUTION_ERROR', message: rec.error };
-      const text = JSON.stringify(body);
-      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Flow-Weaver-Run': id, 'X-Flow-Weaver-Status': rec.status, 'X-Flow-Weaver-Attempt': String(attempt) };
-      if (options.token) headers['X-Flow-Weaver-Signature'] = `sha256=${createHmac('sha256', options.token).update(text).digest('hex')}`;
-      let error = '';
-      let status: number | undefined;
-      try {
-        // Checked again now, and posted to the address checked: the name may
-        // point somewhere else than when the run was accepted.
-        const target = await callbackTarget(note.callbackUrl, options.callbacks);
-        if ('refused' in target) throw new Error(`callbackUrl refused at delivery: ${target.refused}`);
-        status = await postCallback(target, headers, text, 10_000);
-        if (status >= 200 && status < 300) {
-          await coordinator.keep(id, 'http', { ...note, attempts: attempt, delivered: new Date().toISOString() });
-          pending.delete(id);
-          options.onCallback?.({ runId: id, url: note.callbackUrl, ok: true, status, attempt });
-          return;
-        }
-        error = status >= 300 && status < 400 ? `callback answered ${status}, redirects are not followed` : `callback answered ${status}`;
-      } catch (e) { error = e instanceof Error ? e.message : String(e); }
-      const gaveUp = attempt >= CALLBACK_BACKOFF_MS.length;
-      const next: HttpNote = { ...note, attempts: attempt, lastError: error, ...(gaveUp ? { gaveUp: new Date().toISOString() } : { nextAt: new Date(Date.now() + CALLBACK_BACKOFF_MS[attempt - 1]).toISOString() }) };
-      if (await coordinator.record(id)) await coordinator.keep(id, 'http', next);
-      if (gaveUp) pending.delete(id); else pending.add(id);
-      options.onCallback?.({ runId: id, url: note.callbackUrl, ok: false, status, error, attempt, gaveUp });
-    } finally {
-      delivering.delete(id);
+      void callbacks.deliver(id);
     }
   }
 
@@ -821,7 +741,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
       for (let i = 0; i < 50 && !(await coordinator.record(id)); i++) await new Promise((r) => setTimeout(r, 20));
       if (!(await coordinator.record(id))) return;
       await coordinator.keep(id, 'http', { route: { method: c.route.method, path: c.route.path }, ...(callbackUrl ? { callbackUrl } : {}) } satisfies HttpNote);
-      if (callbackUrl) { pending.add(id); void deliverCallback(id); }
+      if (callbackUrl) callbacks.owe(id);
     })();
     if (async) { segment.catch(() => undefined); void noteWhenPossible; return json(res, 202, await snapshot(id, base), { 'X-Run-Id': id, Location: `${base}/runs/${id}/result` }); }
     if (!(await settledWithin(segment, waitBudget(req)))) {
@@ -832,7 +752,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
     await segment;
     await noteWhenPossible;
     // A callback named on a run that already ended fires now.
-    void deliverCallback(id);
+    void callbacks.deliver(id);
     return answerDeclared(res, id, base, false, Date.now() - started);
   }
 
