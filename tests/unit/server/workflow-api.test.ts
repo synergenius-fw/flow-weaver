@@ -427,7 +427,7 @@ function report(wokeAt: string): string { return \`woke at \${wokeAt}\`; }
  * @http POST /nap
  * @param label - A label
  * @returns note - A line about it
- * @node z sleep [expr: duration="'150ms'"]
+ * @node z sleep [expr: duration="'1s'"]
  * @node say report
  * @path Start -> z -> say -> Exit
  * @connect z.wokeAt -> say.wokeAt
@@ -451,15 +451,16 @@ export async function nap(execute: boolean, params: { label: string }): Promise<
     expect(first.status).toBe(202);
     const run = (await first.json()) as RunResponse;
     expect(run.status).toBe('waiting');
-    expect(run.gate).toMatchObject({ kind: 'timer', node: 'z', inputs: { duration: '150ms' } });
+    expect(run.gate).toMatchObject({ kind: 'timer', node: 'z', inputs: { duration: '1s' } });
     expect(run.due?.action).toBe('wake');
-    expect(Date.parse(run.due!.at) - Date.now()).toBeLessThanOrEqual(150);
+    expect(Date.parse(run.due!.at) - Date.now()).toBeLessThanOrEqual(1000);
 
-    // Not yet: the clock leaves it.
+    // Not yet: the clock leaves it. The sleep is long enough that a loaded
+    // runner cannot reach its due time between the POST and this tick.
     await api.tick();
     expect((await api.fetch(new Request(`http://x${first.headers.get('location')}`))).status).toBe(202);
 
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, Math.max(0, Date.parse(run.due!.at) - Date.now()) + 50));
     await api.deliverCallbacks();   // the periodic sweep: the clock first
     const done = await api.fetch(new Request(`http://x${first.headers.get('location')}`));
     expect(done.status).toBe(200);
