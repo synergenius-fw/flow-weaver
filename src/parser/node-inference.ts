@@ -66,6 +66,16 @@ export function extractNodeTypes(
     const durableEffect = hasJsDocTag(fn, 'durableEffect');
     const durablePure = hasJsDocTag(fn, 'durablePure');
 
+    // Compile writes a copy of each built-in it uses into the file, so the file
+    // stands alone. On the next parse that copy is a local node type, and it
+    // must keep the built-in's trailing engine arguments: without them a second
+    // compile calls it with no abort signal and no runtime, so mocks,
+    // cancellation and nested runs stop reaching it.
+    const builtIn = BUILT_IN_NODE_TYPES.find((nt) => nt.functionName === functionName);
+    const paramTypes = builtIn ? fn.getParameters().map((p) => p.getTypeNode()?.getText()) : [];
+    const receivesAbortSignal = builtIn?.receivesAbortSignal === true && paramTypes.includes('AbortSignal');
+    const receivesRuntime = builtIn?.receivesRuntime === true && paramTypes.includes('NodeExecutionRuntime');
+
     const inputs: Record<string, TPortDefinition> = {};
     if (config.inputs) {
       for (const [portName, portDef] of Object.entries(config.inputs)) {
@@ -268,6 +278,8 @@ export function extractNodeTypes(
       ...(durableEffect && { durableEffect: true }),
       ...(durableEffectContract && { durableEffectContract }),
       ...(durablePure && { durablePure: true }),
+      ...(receivesAbortSignal && { receivesAbortSignal: true }),
+      ...(receivesRuntime && { receivesRuntime: true }),
       ...(config.resilience && { resilience: config.resilience }),
       executeWhen: (config.executeWhen as TExecuteWhen) || EXECUTION_STRATEGIES.CONJUNCTION,
       defaultConfig,
