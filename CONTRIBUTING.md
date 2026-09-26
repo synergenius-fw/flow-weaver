@@ -64,6 +64,20 @@ your change touches:
 npx vitest run tests/unit/parser tests/unit/validation
 ```
 
+`npm run test:e2e` drives the console client in Chromium with Playwright
+(`e2e/`). It needs `npm run build` first.
+
+Mutation testing is not part of CI. It shows where tests run code without
+checking what it does. `npm run test:mutation` runs Stryker on one target
+(`validation`, `coordinator`, `parser` or `boundaries`), chosen with
+`MUTATION_TARGET`. Reports land in `reports/mutation/<target>/`. It is slow and
+heavy: it uses two workers by default, which you can change with
+`MUTATION_CONCURRENCY`.
+
+```bash
+MUTATION_TARGET=validation npm run test:mutation
+```
+
 A few things are generated from the code and checked for drift:
 
 - `docs/reference/cli-reference.md`, `error-codes.md`, `scaffold.md` and

@@ -16,6 +16,7 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 - **`runCommand`'s marketplace commands no longer run a shell.** `market-install`, `market-uninstall` and `market-publish` passed their caller's package or dist-tag into a shell command, so `runCommand('market-install', { package: 'x; ...' })` ran whatever followed. They now run npm without a shell and check each value first, as `fw market` already did.
 - **The console refuses requests a web page could send it.** A page open in the same browser could post a plain-text body to `fw console` without a preflight, and so switch its project, start runs or run `fw` commands such as `fw market install`. It could also read the console's answers through DNS rebinding. The console now answers only to a loopback host name, and it refuses any change sent from an origin other than its own.
 - **Callbacks cannot be re-pointed at a private address.** A callback URL was checked when the run started and fetched by name when it finished, which could be days later. A name that resolved to a public address at the check and a private one at delivery reached the private address. Each delivery attempt now checks the URL again and connects to the address it checked.
+- **Callbacks cannot reach a private IPv4 address written as mapped IPv6.** The URL parser rewrites `[::ffff:127.0.0.1]` as `[::ffff:7f00:1]`, and the private-address check only knew the dotted form, so a callback to loopback or the cloud metadata address passed. The check now reads either spelling.
 
 ### Fixed
 
@@ -28,6 +29,8 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 - **Built-in nodes keep their engine arguments after a recompile.** The second compile called the inlined `delay` without the abort signal and runtime, so mocks such as `fast` and cancellation stopped reaching it.
 - **`fw watch` checks its input before announcing it is watching.**
 - **The annotation suggestion fires after a freshly typed `/**`** above a function.
+- **Starting a file with several workflows and no name is refused as ambiguous.** `fw_run` and the HTTP API answered `PARSE_ERROR` instead of the documented `AMBIGUOUS_WORKFLOW`, because the parser's error came first.
+- **Friendly errors suggest the concrete coercion again.** For a type mismatch or lossy connection, the suggestion looked for the two ends in double quotes, but the validator writes them as `a.out → b.in`, so authors always got the generic advice. An Exit control port of the wrong type was always named `onSuccess`, whatever the port.
 
 - **A `__proto__` key can no longer satisfy a required parameter.** On a declared `fw serve` route, a JSON body of `{"__proto__": {"n": "text"}}` made `n` inherited. That passed the required check and skipped the type check. The key is now never copied, and required parameters must be the caller's own keys, here and in the coordinator.
 - **`fw run` and `fw dev` refuse `--params` that is not a JSON object.** `--params '[1]'` or `--params 5` was passed to the workflow as its parameters. The same applies to `--mocks` and both `-file` forms.
