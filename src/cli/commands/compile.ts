@@ -18,17 +18,16 @@ import { safeWriteFile, safeAppendFile } from '../utils/safe-write.js';
 
 /**
  * Print a workflow's validation result. Returns false when it must not be
- * compiled: in strict mode validation errors block compilation. Warnings are
+ * compiled: validation errors block compilation, as they fail fw validate
+ * (--strict turns type coercion warnings into errors first). Warnings are
  * always shown (the fix hint only with --verbose).
  */
 function reportValidation(
   label: string,
   validation: ValidationResult,
-  strict: boolean,
   verbose: boolean,
 ): boolean {
-  // In strict mode, validation errors block compilation
-  if (strict && validation.errors.length > 0) {
+  if (validation.errors.length > 0) {
     logger.error(`  ${label}`);
     validation.errors.forEach((err) => {
       const friendly = getFriendlyError(err);
@@ -219,7 +218,7 @@ export async function compileCommand(input: string, options: CompileOptions = {}
             failed = true;
             break;
           }
-          if (!reportValidation(label, validateWorkflow(one.ast, strict ? { mode: 'strict' } : undefined), strict, verbose)) {
+          if (!reportValidation(label, validateWorkflow(one.ast, strict ? { mode: 'strict' } : undefined), verbose)) {
             failed = true;
             break;
           }
@@ -266,7 +265,7 @@ export async function compileCommand(input: string, options: CompileOptions = {}
       }
 
       // Validate the AST
-      if (!reportValidation(fileName, validateWorkflow(parseResult.ast, strict ? { mode: 'strict' } : undefined), strict, verbose)) {
+      if (!reportValidation(fileName, validateWorkflow(parseResult.ast, strict ? { mode: 'strict' } : undefined), verbose)) {
         errorCount++;
         continue;
       }
