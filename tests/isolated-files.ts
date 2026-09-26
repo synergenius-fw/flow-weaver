@@ -36,6 +36,7 @@ export const isolatedTestFiles: readonly string[] = [
   'tests/unit/ast/serialization-node.test.ts',
   'tests/unit/cli/cli-console-command.test.ts',
   'tests/unit/cli/cli-dev-change-failure.test.ts',
+  'tests/unit/cli/cli-dev-once-and-json.test.ts',
   'tests/unit/cli/cli-export-dry-run-preview-and-messages.test.ts',
   'tests/unit/cli/cli-init-agent-handoff.test.ts',
   'tests/unit/cli/cli-init-human-output-and-mcp-setup.test.ts',

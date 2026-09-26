@@ -87,7 +87,11 @@ async function compileAndRun(
     }
   } catch (error) {
     // compileCommand has already printed each error, with its fix.
-    logger.error(`Compile failed: ${getErrorMessage(error)}`);
+    if (options.json) {
+      process.stdout.write(JSON.stringify({ success: false, error: getErrorMessage(error) }, null, 2) + '\n');
+    } else {
+      logger.error(`Compile failed: ${getErrorMessage(error)}`);
+    }
     return false;
   }
 
@@ -158,6 +162,10 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
   const params = parseParams(options);
   const mocks = parseMocks(options);
 
+  // With --json, stdout carries only the JSON results; what compile and this
+  // command print for a person goes to stderr.
+  if (options.json) logger.toStderr(true);
+
   if (!options.json) {
     logger.section('Dev Mode');
     logger.info(`File: ${path.basename(filePath)}`);
@@ -171,10 +179,12 @@ export async function devCommand(input: string, options: DevOptions = {}): Promi
   }
 
   // Initial compile + run
-  await compileAndRun(filePath, params, mocks, options);
+  const ok = await compileAndRun(filePath, params, mocks, options);
 
-  // If --once, exit after first cycle
+  // --once is for scripts: the exit code says whether the cycle worked.
   if (options.once) {
+    if (!ok) process.exitCode = 1;
+    if (options.json) logger.toStderr(false);
     return;
   }
 
