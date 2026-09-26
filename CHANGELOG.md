@@ -13,6 +13,7 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 
 ### Fixed
 
+- **A `__proto__` key can no longer satisfy a required parameter.** On a declared `fw serve` route, a JSON body of `{"__proto__": {"n": "text"}}` made `n` inherited. That passed the required check and skipped the type check. The key is now never copied, and required parameters must be the caller's own keys, here and in the coordinator.
 - **An agent's failed answer is reported for what it was.** When a resume after an agent's answer failed for another reason, such as the workflow having changed, the console recorded it as "the answer did not fit the gate". The console, `fw serve` and `autoAnswerAgentGates` now share one rule: only an answer the gate cannot take is the agent's failure. They also share the resume checks, now public as `runs.checkResume`.
 - **Export targets write valid OpenAPI 3.0.** A port of type `ANY`, or of a data type the builder did not know, was written as `type: any`, which validators reject. It is now left untyped. A bundle that exposes nothing no longer describes itself with an empty count. Its function-registry schema now matches the multi-workflow one.
 

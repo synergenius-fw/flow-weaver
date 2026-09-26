@@ -756,29 +756,35 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
 
   /** Parameters for a declared route: the path, then the query or the body, coerced by the params schema. */
   function paramsFor(c: Compiled, m: RegExpMatchArray, url: URL, body: Json, form: boolean): { params: Json; callbackUrl?: string; mocks?: FwMockConfig } {
-    const props = (c.endpoint.inputSchema?.properties ?? {}) as Record<string, Record<string, unknown>>;
+    const schemas = (c.endpoint.inputSchema?.properties ?? {}) as Record<string, Record<string, unknown>>;
+    // Only a parameter's own schema: `constructor` is not a parameter.
+    const props = (k: string) => (Object.hasOwn(schemas, k) ? schemas[k] : undefined);
+    // A `__proto__` key would replace the object's prototype rather than add a
+    // parameter, and an inherited value would pass the required check below
+    // while the type check, which reads own keys, never saw it. It is never copied.
     const params: Json = {};
+    const set = (k: string, v: unknown) => { if (k !== '__proto__') params[k] = v; };
     let callbackUrl: string | undefined;
     let mocks: FwMockConfig | undefined;
     if (c.route.method === 'GET' || c.route.method === 'DELETE') {
       for (const [k, v] of url.searchParams) {
         if (k === 'async') continue;
         if (k === 'callbackUrl') { callbackUrl = v; continue; }
-        params[k] = coerce(v, props[k]);
+        set(k, coerce(v, props(k)));
       }
     } else {
       for (const [k, v] of Object.entries(body)) {
         if (k === 'callbackUrl' && typeof v === 'string') { callbackUrl = v; continue; }
         if (k === 'mocks' && options.dev && typeof v === 'object' && v !== null) { mocks = v as FwMockConfig; continue; }
         // A form post's fields are strings; a JSON body's types are the caller's own.
-        params[k] = form && typeof v === 'string' ? coerce(v, props[k]) : v;
+        set(k, form && typeof v === 'string' ? coerce(v, props(k)) : v);
       }
     }
-    c.keys.forEach((k, i) => { params[k] = coerce(decodeSegment(m[i + 1]), props[k]); });
-    const missing = ((c.endpoint.inputSchema?.required as string[] | undefined) ?? []).filter((k) => params[k] === undefined);
+    c.keys.forEach((k, i) => { set(k, coerce(decodeSegment(m[i + 1]), props(k))); });
+    const missing = ((c.endpoint.inputSchema?.required as string[] | undefined) ?? []).filter((k) => !Object.hasOwn(params, k) || params[k] === undefined);
     if (missing.length) throw new HttpError(400, 'VALIDATION_ERROR', `missing parameter${missing.length === 1 ? '' : 's'}: ${missing.join(', ')}`, missing.map((k) => ({ path: k, message: 'required' })));
     for (const [k, v] of Object.entries(params)) {
-      const t = props[k]?.type;
+      const t = props(k)?.type;
       if (t === 'number' && typeof v !== 'number') throw new HttpError(400, 'VALIDATION_ERROR', `parameter ${k} must be a number`, [{ path: k, message: 'must be a number' }]);
       if (t === 'boolean' && typeof v !== 'boolean') throw new HttpError(400, 'VALIDATION_ERROR', `parameter ${k} must be true or false`, [{ path: k, message: 'must be a boolean' }]);
       if (t === 'string' && typeof v !== 'string') throw new HttpError(400, 'VALIDATION_ERROR', `parameter ${k} must be text`, [{ path: k, message: 'must be a string' }]);

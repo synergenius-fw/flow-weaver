@@ -183,6 +183,19 @@ describe('declared routes', () => {
     expect(await res.json()).toEqual({ out: 12 });
   });
 
+  it('does not take a parameter from a __proto__ key, so it cannot slip past the checks', async () => {
+    // Only `n` behind __proto__: with plain assignment it would be inherited,
+    // pass the required check, and skip the type check, which reads own keys.
+    const res = await fetch(`${base}/double`, { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: '{"__proto__": {"n": "not a number"}}' });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: { code: 'VALIDATION_ERROR', message: expect.stringContaining('missing parameter: n') } });
+
+    const both = await fetch(`${base}/double`, { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: '{"n": 5, "__proto__": {"extra": true}}' });
+    expect(both.status).toBe(200);
+    const id = both.headers.get('x-run-id');
+    expect((await call('GET', `/runs/${id}`)).body.params).toEqual({ n: 5 });
+  });
+
   it('tells the embedding about every state change', async () => {
     seen.length = 0;
     const r = await call('POST', '/double', { n: 1 });
