@@ -9,7 +9,7 @@
  */
 
 import { type SourceFile, type JSDoc } from 'ts-morph';
-import { type FunctionLike, extractFunctionLikes } from './function-like';
+import { type FunctionLike, extractFunctionLikes, nestedAnnotationWarnings } from './function-like';
 import { jsdocParser } from './jsdoc-parser';
 import type {
   TNodeTypeAST,
@@ -46,6 +46,7 @@ export function extractNodeTypes(
   tagRegistry: TagHandlerRegistry,
 ): TNodeTypeAST[] {
   const nodeTypes: TNodeTypeAST[] = [];
+  warnings.push(...nestedAnnotationWarnings(sourceFile));
   extractFunctionLikes(sourceFile).forEach((fn: FunctionLike) => {
     // Parse JSDoc comments
     const config = jsdocParser.parseNodeType(fn, warnings, tagRegistry);
