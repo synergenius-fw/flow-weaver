@@ -31,14 +31,34 @@ export function isPrivateAddress(ip: string): boolean {
     return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
   }
   if (v === 6) {
-    const low = ip.toLowerCase();
+    const low = canonicalIPv6(ip);
     if (low === '::1' || low === '::') return true;
     if (low.startsWith('fc') || low.startsWith('fd')) return true;           // unique local
     if (/^fe[89ab]/.test(low)) return true;                                  // link local
-    const mapped = low.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);               // IPv4 mapped
-    if (mapped) return isPrivateAddress(mapped[1]);
+    // IPv4 mapped. The canonical spelling carries the IPv4 address as two
+    // hex groups (::ffff:127.0.0.1 is ::ffff:7f00:1), and a connection to it
+    // reaches that IPv4 address.
+    const mapped = low.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (mapped) {
+      const [hi, lo] = [parseInt(mapped[1], 16), parseInt(mapped[2], 16)];
+      return isPrivateAddress(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+    }
   }
   return false;
+}
+
+/**
+ * One spelling per IPv6 address, the URL parser's: lower case, leading
+ * zeros dropped, the longest run of zero groups compressed, an embedded
+ * IPv4 address in hex. `0:0:0:0:0:0:0:1` is `::1`. An address the parser
+ * refuses (one with a zone, `fe80::1%eth0`) is only lower-cased.
+ */
+function canonicalIPv6(ip: string): string {
+  try {
+    return new URL(`http://[${ip}]/`).hostname.slice(1, -1);
+  } catch {
+    return ip.toLowerCase();
+  }
 }
 
 const hostMatches = (host: string, pattern: string) => {
