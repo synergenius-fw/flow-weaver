@@ -25,9 +25,9 @@ export const BUILT_IN_NODE_TYPES: TNodeTypeAST[] = [
       duration: { dataType: 'STRING', label: 'Duration to sleep (e.g. "30s", "5m", "1h", "2d")', tsType: 'string' },
     },
     outputs: {
+      elapsed: { dataType: 'BOOLEAN', label: 'Always true after sleep completes', tsType: 'boolean' },
       onSuccess: { dataType: 'STEP', label: 'On Success', isControlFlow: true },
       onFailure: { dataType: 'STEP', label: 'On Failure', isControlFlow: true, failure: true },
-      elapsed: { dataType: 'BOOLEAN', label: 'Always true after sleep completes', tsType: 'boolean' },
     },
     helperText: `
 function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
@@ -201,9 +201,9 @@ function __fw_parseDuration(text: unknown): number | undefined {
       duration: { dataType: 'STRING', label: 'How long the run sleeps before it goes on (e.g. "30s", "2h", "3d")', tsType: 'string' },
     },
     outputs: {
+      wokeAt: { dataType: 'STRING', label: 'When the run went on, as an ISO 8601 time', tsType: 'string' },
       onSuccess: { dataType: 'STEP', label: 'On Success', isControlFlow: true },
       onFailure: { dataType: 'STEP', label: 'On Failure', isControlFlow: true, failure: true },
-      wokeAt: { dataType: 'STRING', label: 'When the run went on, as an ISO 8601 time', tsType: 'string' },
     },
     helperText: `
 function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
@@ -288,9 +288,9 @@ async function sleep(
       timeout: { dataType: 'STRING', label: 'Max wait time (e.g. "24h", "7d"). Empty = no timeout', tsType: 'string', optional: true },
     },
     outputs: {
+      eventData: { dataType: 'OBJECT', label: 'The received event\'s data payload', tsType: 'object' },
       onSuccess: { dataType: 'STEP', label: 'On Success', isControlFlow: true },
       onFailure: { dataType: 'STEP', label: 'On Failure', isControlFlow: true, failure: true },
-      eventData: { dataType: 'OBJECT', label: 'The received event\'s data payload', tsType: 'object' },
     },
     helperText: `
 function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
@@ -379,9 +379,9 @@ async function waitForEvent(
       timeout: { dataType: 'STRING', label: 'Max wait time (e.g. "1h")', tsType: 'string', optional: true },
     },
     outputs: {
+      result: { dataType: 'OBJECT', label: 'Return value from the invoked function', tsType: 'object' },
       onSuccess: { dataType: 'STEP', label: 'On Success', isControlFlow: true },
       onFailure: { dataType: 'STEP', label: 'On Failure', isControlFlow: true, failure: true },
-      result: { dataType: 'OBJECT', label: 'Return value from the invoked function', tsType: 'object' },
     },
     helperText: `
 function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
@@ -536,9 +536,9 @@ async function invokeWorkflow(
       prompt: { dataType: 'STRING', label: 'Message to display when requesting input', tsType: 'string', optional: true },
     },
     outputs: {
+      agentResult: { dataType: 'OBJECT', label: 'Result returned by the agent', tsType: 'object' },
       onSuccess: { dataType: 'STEP', label: 'On Success', isControlFlow: true },
       onFailure: { dataType: 'STEP', label: 'On Failure', isControlFlow: true, failure: true },
-      agentResult: { dataType: 'OBJECT', label: 'Result returned by the agent', tsType: 'object' },
     },
     helperText: `
 function __fw_getMockConfig(runtime?: NodeExecutionRuntime): FwMockConfig | undefined {
