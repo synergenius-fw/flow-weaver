@@ -8,6 +8,7 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 
 ### Security
 
+- **`runCommand`'s marketplace commands no longer run a shell.** `market-install`, `market-uninstall` and `market-publish` passed their caller's package or dist-tag into a shell command, so `runCommand('market-install', { package: 'x; ...' })` ran whatever followed. They now run npm without a shell and check each value first, as `fw market` already did.
 - **The console refuses requests a web page could send it.** A page open in the same browser could post a plain-text body to `fw console` without a preflight, and so switch its project, start runs or run `fw` commands such as `fw market install`. It could also read the console's answers through DNS rebinding. The console now answers only to a loopback host name, and it refuses any change sent from an origin other than its own.
 - **Callbacks cannot be re-pointed at a private address.** A callback URL was checked when the run started and fetched by name when it finished, which could be days later. A name that resolved to a public address at the check and a private one at delivery reached the private address. Each delivery attempt now checks the URL again and connects to the address it checked.
 
