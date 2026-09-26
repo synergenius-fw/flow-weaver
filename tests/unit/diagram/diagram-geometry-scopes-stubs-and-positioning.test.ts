@@ -22,7 +22,6 @@ import {
   LABEL_HEIGHT,
   LABEL_GAP,
   STUB_DISTANCE_THRESHOLD,
-  ORTHOGONAL_DISTANCE_THRESHOLD,
   SCOPE_PADDING_X,
   SCOPE_PADDING_Y,
   SCOPE_PORT_COLUMN,
@@ -320,7 +319,7 @@ describe('buildDiagramGraph - stub distance threshold (long connections)', () =>
 });
 
 describe('buildDiagramGraph - orthogonal routing for medium-distance connections', () => {
-  it('uses orthogonal routing for connections beyond ORTHOGONAL_DISTANCE_THRESHOLD', () => {
+  it('draws a data connection that skips a layer as two stubs, with no full path', () => {
     const nt = makeNodeType({
       inputs: { execute: { dataType: 'STEP' }, data: { dataType: 'STRING' } },
       outputs: { onSuccess: { dataType: 'STEP', isControlFlow: true }, result: { dataType: 'NUMBER' } },
@@ -338,7 +337,7 @@ describe('buildDiagramGraph - orthogonal routing for medium-distance connections
         });
       }
     }
-    // Medium-distance data connection (not too long for stubs, but enough for ortho)
+    // A data connection that skips a layer
     connections.push({ from: { node: 'n0', port: 'result' }, to: { node: 'n2', port: 'data' } });
     connections.push({ from: { node: 'n3', port: 'onSuccess' }, to: { node: 'Exit', port: 'onSuccess' } });
 
@@ -346,9 +345,12 @@ describe('buildDiagramGraph - orthogonal routing for medium-distance connections
     const graph = buildDiagramGraph(ast);
     const conn = graph.connections.find(c => c.fromNode === 'n0' && c.fromPort === 'result');
     expect(conn).toBeDefined();
-    // The path may be empty if the connection spans beyond the stub threshold,
-    // or it may contain an orthogonal/curve path. Either way, the connection exists.
-    expect(typeof conn!.path).toBe('string');
+    expect(conn!.path).toBe('');
+    expect(conn!.sourceStub).toMatchObject({ dashed: true });
+    expect(conn!.targetStub).toMatchObject({ dashed: true });
+    // The stubs point at each other from their own ports.
+    expect(conn!.sourceStub!.endX).toBeGreaterThan(conn!.sourceStub!.x);
+    expect(conn!.targetStub!.endX).toBeLessThan(conn!.targetStub!.x);
   });
 });
 
