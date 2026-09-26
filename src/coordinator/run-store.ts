@@ -151,6 +151,13 @@ export interface RunSummary {
 export interface LocalCoordinator {
   start(request: StartRequest, options?: DriveOptions): Promise<RunView>;
   resume(request: ResumeRequest, options?: DriveOptions): Promise<RunView>;
+  /**
+   * Whether `resume` would refuse this request before running anything:
+   * throws the same error it would (no such run, not waiting, the workflow
+   * changed, an answer the gate cannot take), and changes nothing. For a
+   * driver that resumes in the background and answers the caller first.
+   */
+  checkResume(request: ResumeRequest): Promise<void>;
   /** Give up on a run waiting at a gate: the continuation is dropped and the run recorded as cancelled. */
   cancel(runId: string): Promise<RunView>;
   get(runId: string): Promise<RunView | undefined>;
@@ -505,6 +512,21 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
     return store.get(runId);
   }
 
+  /** The waiting record a resume would act on, or the refusal it would meet before taking the run. */
+  async function resumable(request: ResumeRequest): Promise<RunRecord> {
+    const record = await readRecord(request.runId);
+    if (!record) throw new RunNotFoundError(request.runId);
+    if (record.status !== 'waiting' || !record.gate) throw new RunNotWaitingError(record.status);
+
+    // Refuse before the engine does, with a message that says what to do.
+    const digest = await computeBundleDigest(record.filePath, record.workflowName);
+    if (digest !== record.bundleDigest) throw new BundleChangedError();
+
+    // Built before the claim so a bad answer is refused without taking it.
+    buildGateResolution(record.gate, record.gate.id, request.input);
+    return record;
+  }
+
   return {
     store,
 
@@ -554,18 +576,10 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
       });
     },
 
+    checkResume: async (request) => { await resumable(request); },
+
     async resume(request, options) {
-      const record = await readRecord(request.runId);
-      if (!record) throw new RunNotFoundError(request.runId);
-      if (record.status !== 'waiting' || !record.gate) throw new RunNotWaitingError(record.status);
-
-      // Refuse before the engine does, with a message that says what to do.
-      const digest = await computeBundleDigest(record.filePath, record.workflowName);
-      if (digest !== record.bundleDigest) throw new BundleChangedError();
-
-      // Built before the claim so a bad answer is refused without taking it.
-      buildGateResolution(record.gate, record.gate.id, request.input);
-
+      const record = await resumable(request);
       return claimed(record.runId, async () => {
         // Read again under the claim: another process may have finished it,
         // or moved it to a later gate, between the check above and now.

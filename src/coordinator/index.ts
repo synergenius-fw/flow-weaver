@@ -26,6 +26,7 @@ export {
   answerAgentGate,
   autoAnswerAgentGates,
   isAnswering,
+  noteAnswerMisfit,
   agentOwnerDead,
   reclaimStaleAgentAnswers,
   transcriptName,

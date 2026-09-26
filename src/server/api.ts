@@ -30,9 +30,8 @@ import type { ExecutionTraceEvent } from '../mcp/workflow-executor.js';
 import {
   createLocalCoordinator,
   defaultRunsDir,
-  buildGateResolution,
-  computeBundleDigest,
   answerAgentGate,
+  noteAnswerMisfit,
   transcriptName,
   ParseError,
   AmbiguousWorkflowError,
@@ -655,13 +654,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
       if (step.kind === 'answer') await resume(id, { answer: step.answer });
       else if (step.kind === 'reject') await resume(id, { reject: step.reason });
     } catch (err) {
-      const rec2 = await coordinator.record(id);
-      if (rec2?.agent && (err instanceof MissingOutputsError || err instanceof InvalidAnswerError)) {
-        // Busy: another driver has the run, and its commit says what happened.
-        await coordinator.setAgent(id, { ...rec2.agent, status: 'failed', error: `the answer did not fit the gate: ${err.message}` })
-          .catch((e: unknown) => { if (!(e instanceof RunBusyError)) throw e; });
-        await announce(id);
-      }
+      if (await noteAnswerMisfit(coordinator, id, err)) await announce(id);
     }
   }
 
@@ -685,14 +678,12 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
   }
 
   async function resume(id: string, input: { answer?: unknown } | { reject: string }): Promise<void> {
-    const rec = await coordinator.record(id);
-    if (!rec) throw new RunNotFoundError(id);
-    if (rec.status !== 'waiting' || !rec.gate) throw new RunNotWaitingError(rec.status);
     if (live.has(id)) throw new HttpError(409, 'RUN_IN_FLIGHT', 'the run is already resuming');
-    if (isAnswering(rec.agent, rec.gate.id)) throw new HttpError(409, 'AGENT_ANSWERING', `agent profile ${rec.agent!.profile} is answering this gate`);
+    const rec = await coordinator.record(id);
+    if (rec?.gate && isAnswering(rec.agent, rec.gate.id)) throw new HttpError(409, 'AGENT_ANSWERING', `agent profile ${rec.agent!.profile} is answering this gate`);
     const resolve = 'reject' in input ? { reject: input.reject } : { answer: input.answer };
-    buildGateResolution(rec.gate, rec.gate.id, resolve);
-    if (await computeBundleDigest(rec.filePath, rec.workflowName) !== rec.bundleDigest) throw new BundleChangedError();
+    await coordinator.checkResume({ runId: id, input: resolve });
+    if (!rec) throw new RunNotFoundError(id);
     await drive({ id, workflow: rec.workflowName, params: rec.params, startedAt: Date.parse(rec.createdAt), events: [], abort: new AbortController() }, (l, onEvent) =>
       coordinator.resume({ runId: id, input: resolve }, { onEvent, trace: options.trace === true, abortSignal: l.abort.signal }));
   }

@@ -181,6 +181,26 @@ export interface AutoAgentResult {
 }
 
 /**
+ * After a resume with a profile's answer failed: when the answer did not
+ * fit the gate (outputs missing, or a value the gate cannot take), that is
+ * the model's failure, not the run's, so it is recorded on the agent note
+ * and the gate stays waiting for a person. Any other failure is left to the
+ * caller. True when the failure was a misfit and has been recorded.
+ */
+export async function noteAnswerMisfit(coordinator: LocalCoordinator, runId: string, error: unknown): Promise<boolean> {
+  if (!(error instanceof MissingOutputsError || error instanceof InvalidAnswerError)) return false;
+  const agent = (await coordinator.record(runId))?.agent;
+  if (!agent) return false;
+  try {
+    await coordinator.setAgent(runId, { ...agent, status: 'failed', error: `the answer did not fit the gate: ${error.message}` });
+  } catch (e) {
+    // Busy: another driver has the run, and its commit says what happened.
+    if (!(e instanceof RunBusyError)) throw e;
+  }
+  return true;
+}
+
+/**
  * Answer agent gates and resume, again and again, until the run ends or
  * reaches something a person must do. A malformed answer -- the model
  * returned the wrong outputs -- is the model's failure, not the run's: it is
@@ -207,10 +227,7 @@ export async function autoAnswerAgentGates(
     try {
       await coordinator.resume({ runId, input: step.kind === 'answer' ? { answer: step.answer } : { reject: step.reason } }, opts.drive);
     } catch (e) {
-      if (e instanceof MissingOutputsError || e instanceof InvalidAnswerError) {
-        await coordinator.setAgent(runId, { ...step.note, status: 'failed', error: `the answer did not fit the gate: ${e.message}` });
-        return { stop: 'agent-failed', run: await now() };
-      }
+      if (await noteAnswerMisfit(coordinator, runId, e)) return { stop: 'agent-failed', run: await now() };
       throw e;
     }
   }

@@ -13,7 +13,7 @@ import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { FSWatcher } from 'chokidar';
 import type { ExecutionTraceEvent } from '../mcp/workflow-executor.js';
-import { buildGateResolution, computeBundleDigest, answerAgentGate, isAnswering, RunBusyError, type LocalCoordinator, type RunRecord, type RunSummary, type TraceEntry } from '../coordinator/index.js';
+import { answerAgentGate, isAnswering, noteAnswerMisfit, type LocalCoordinator, type RunRecord, type RunSummary, type TraceEntry } from '../coordinator/index.js';
 import type { AgentProfiles } from '../agent/profiles.js';
 import type { AgentGateEvent } from '../agent/gate.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
@@ -269,13 +269,9 @@ export function createRunDriver({ coordinator, broadcast, projectDir, profiles }
       if (step.kind === 'answer') await resume(id, { answer: step.answer });
       else if (step.kind === 'reject') await resume(id, { reject: step.reason });
     } catch (err) {
-      // A malformed answer is the model's failure, not the run's.
-      const rec2 = await coordinator.record(id);
-      if (rec2?.agent?.status === 'answered' || rec2?.agent?.status === 'rejected') {
-        // Busy: another driver has the run, and its commit says what happened.
-        await coordinator.setAgent(id, { ...rec2.agent, status: 'failed', error: `the answer did not fit the gate: ${err instanceof Error ? err.message : String(err)}` })
-          .catch((e: unknown) => { if (!(e instanceof RunBusyError)) throw e; });
-      }
+      // A malformed answer is the model's failure, recorded on its note.
+      // Anything else leaves the gate as it was, for a person to answer.
+      await noteAnswerMisfit(coordinator, id, err);
       await note();
     }
   }
@@ -320,18 +316,15 @@ export function createRunDriver({ coordinator, broadcast, projectDir, profiles }
   }
 
   async function resume(id: string, input: { answer?: unknown; reject?: string }): Promise<void> {
-    const rec = await coordinator.record(id);
-    if (!rec || rec.status !== 'waiting' || !rec.gate) throw new Error('run is not waiting');
     if (live.has(id)) throw new Error('run is already resuming');
-    if (isAnswering(rec.agent, rec.gate.id)) throw new Error(`agent profile ${rec.agent!.profile} is answering this gate. Wait for it, or cancel the run`);
-    // Both refusals happen before anything runs, so they are checked here
-    // and answered to the person, rather than surfacing from a background
-    // segment as a run that quietly stayed waiting.
+    const rec = await coordinator.record(id);
+    if (rec?.gate && isAnswering(rec.agent, rec.gate.id)) throw new Error(`agent profile ${rec.agent!.profile} is answering this gate. Wait for it, or cancel the run`);
+    // The refusals happen before anything runs, so they are checked here and
+    // answered to the person, rather than surfacing from a background segment
+    // as a run that quietly stayed waiting.
     const resolve = 'reject' in input ? { reject: input.reject ?? '' } : { answer: input.answer };
-    buildGateResolution(rec.gate, rec.gate.id, resolve);
-    if (await computeBundleDigest(rec.filePath, rec.workflowName) !== rec.bundleDigest) {
-      throw new Error('The workflow changed since this run paused. Start a new run.');
-    }
+    await coordinator.checkResume({ runId: id, input: resolve });
+    if (!rec) return;
     const l: Live = { id, file: rec.filePath, name: rec.workflowName, params: rec.params, startedAt: at(rec.createdAt), status: 'running', events: [], abort: new AbortController() };
     void drive(l, (onEvent) => coordinator.resume({ runId: id, input: resolve }, { onEvent, abortSignal: l.abort.signal }));
   }
