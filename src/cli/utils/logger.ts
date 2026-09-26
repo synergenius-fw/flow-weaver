@@ -9,13 +9,28 @@ const isTTY = process.stdout.isTTY === true;
 // Spinner frames
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
+/**
+ * Where output for a person goes. A command whose stdout carries a result
+ * for a program (`--json`) sends it to stderr instead, so the two never mix.
+ */
+let humanToStderr = false;
+const print = (...args: unknown[]): void => {
+  if (humanToStderr) console.error(...args);
+  else console.log(...args);
+};
+
 export const logger = {
+  /** Send what the logger prints for a person to stderr (true) or back to stdout. */
+  toStderr(on: boolean): void {
+    humanToStderr = on;
+  },
+
   info(message: string): void {
-    console.log(`${pc.blue('ℹ')} ${message}`);
+    print(`${pc.blue('ℹ')} ${message}`);
   },
 
   success(message: string): void {
-    console.log(`${pc.green('✓')} ${message}`);
+    print(`${pc.green('✓')} ${message}`);
   },
 
   error(message: string): void {
@@ -28,26 +43,26 @@ export const logger = {
 
   debug(message: string): void {
     if (process.env.DEBUG) {
-      console.log(pc.dim(message));
+      print(pc.dim(message));
     }
   },
 
   log(message: string): void {
-    console.log(message);
+    print(message);
   },
 
   newline(): void {
-    console.log();
+    print();
   },
 
   section(title: string): void {
-    console.log();
-    console.log(`  ${pc.bold(title)}`);
-    console.log();
+    print();
+    print(`  ${pc.bold(title)}`);
+    print();
   },
 
   progress(current: number, total: number, item: string): void {
-    console.log(`${pc.dim(`[${current}/${total}]`)} ${item}`);
+    print(`${pc.dim(`[${current}/${total}]`)} ${item}`);
   },
 
   // --- Formatting helpers ---
@@ -67,7 +82,7 @@ export const logger = {
   // --- Branded output ---
 
   banner(version: string): void {
-    console.log(`  ${pc.bold(pc.cyan('flow-weaver'))} ${pc.dim(`v${version}`)}`);
+    print(`  ${pc.bold(pc.cyan('flow-weaver'))} ${pc.dim(`v${version}`)}`);
   },
 
   // --- Table output ---
@@ -78,7 +93,7 @@ export const logger = {
     const col1 = Math.max(...rows.map((r) => r[1].length)) + 2;
     for (const [label, value, status] of rows) {
       const line = `  ${label.padEnd(col0)}${value.padEnd(col1)}${status ?? ''}`;
-      console.log(line);
+      print(line);
     }
   },
 
