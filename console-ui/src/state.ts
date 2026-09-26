@@ -757,8 +757,12 @@ async function applyHash(initial = false): Promise<void> {
 }
 
 export async function boot() {
+  const before = view.value;
   const [p] = await Promise.all([get('/api/project'), loadWorkflows(), loadGuide().catch(() => undefined), loadPacks().catch(() => undefined)]);
   project.value = p;
-  await applyHash(true);
+  // The rail lists the workflows before everything else has loaded, so a
+  // person may already have opened one. What they chose wins over the first
+  // route, which would otherwise put the front page over it.
+  if (view.value === before && opening.value === null) await applyHash(true);
   window.addEventListener('hashchange', () => { void applyHash(); });
 }

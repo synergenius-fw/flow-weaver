@@ -74,3 +74,28 @@ test('a workflow file that does not parse shows the parser\'s message, not a bla
   await openWorkflow(fw, 'sequential');
   await expect(fw.inspector.getByRole('form', { name: 'New run' })).toBeVisible();
 });
+
+test('a workflow opened while the console is still loading stays open', async ({ fw, page }) => {
+  // Hold the guide back, so the console is still loading when the navigator
+  // already lists the workflows, and hold the workflow a person then opens,
+  // so the console finishes loading while that workflow is on its way.
+  let releaseGuide!: () => void;
+  const guideHeld = new Promise<void>((resolve) => { releaseGuide = resolve; });
+  await page.route('**/api/docs/guide', async (route) => { await guideHeld; await route.continue(); });
+  let releaseWorkflow!: () => void;
+  const workflowHeld = new Promise<void>((resolve) => { releaseWorkflow = resolve; });
+  await page.route(/\/api\/workflow\?/, async (route) => { await workflowHeld; await route.continue(); });
+
+  await page.goto(fw.url);
+  await workflowEntry(fw, 'durableApproval').click();
+
+  // Loading finishes first; the front page it would open must not replace
+  // the workflow the person chose.
+  const guide = page.waitForResponse('**/api/docs/guide');
+  releaseGuide();
+  await guide;
+  releaseWorkflow();
+
+  await expect(fw.main.getByRole('heading', { level: 1, name: 'durableApproval' })).toBeVisible();
+  await expect.poll(() => new URL(page.url()).hash).toContain('durableApproval');
+});

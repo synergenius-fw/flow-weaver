@@ -125,9 +125,8 @@ export const test = base.extend<{ fw: ConsoleUnderTest }>({
         dir,
         open: async (route = '') => {
           await page.goto(`${url}/${route ? `#${route}` : ''}`);
-          // The first route is applied once the project, its workflows and
-          // the guide have loaded. Until then a click can be overtaken by it,
-          // so wait for the page the route leads to.
+          // Wait for the page the route leads to, so each test starts from
+          // a settled console.
           if (!route) await expect(page.getByRole('main').getByRole('button', { name: 'Overview' })).toBeVisible();
         },
         navigator: page.getByRole('complementary', { name: 'Navigator' }),
