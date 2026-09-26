@@ -12,6 +12,7 @@ import {
 import {
   parseFunctionSignature,
   parseReturnTypeFields,
+  rawParamListText,
 } from "./signature-parser";
 
 // =============================================================================
@@ -251,108 +252,142 @@ export function syncCodeRenames(previousCode: string, currentCode: string): stri
 
   // === INPUT PORTS ===
   if (currOrphanLines.inputs) {
-    const prevJSDocInputs = getSyncableInputNames(previousCode);
-    const currJSDocInputs = getSyncableInputNames(currentCode);
-    const currSigParams = getSyncableParamNames(currentCode);
-
-    for (const prevName of prevJSDocInputs) {
-      if (!currJSDocInputs.includes(prevName) && currSigParams.includes(prevName)) {
-        result = removeParameterFromSignature(result, prevName);
-      }
-    }
-  } else if (prevOrphanLines.inputs) {
-    // Skip rename detection
-  } else {
-    const prevJSDocInputs = getSyncableInputNames(previousCode);
-    const currJSDocInputs = getSyncableInputNames(currentCode);
-    const prevSigParams = getSyncableParamNames(previousCode);
-    const currSigParams = getSyncableParamNames(currentCode);
-
-    const prevJSDocSet = new Set(prevJSDocInputs);
-    const currJSDocSet = new Set(currJSDocInputs);
-    const prevSigSet = new Set(prevSigParams);
-    const currSigSet = new Set(currSigParams);
-
-    const sigMatch = currentCode.match(/function\s+\w+\s*\(([^)]*)/s) ||
-                     currentCode.match(/=\s*\(([^)]*)\)\s*(?:=>|:)/s);
-    const rawSigText = sigMatch?.[1] || "";
-
-    const jsDocPortsInRawButNotParsed = currJSDocInputs.some(name =>
-      new RegExp(`\\b${name}\\b`).test(rawSigText) && !currSigSet.has(name)
-    );
-
-    if (!jsDocPortsInRawButNotParsed) {
-      for (let i = 0; i < Math.min(currJSDocInputs.length, currSigParams.length); i++) {
-        const currJSDoc = currJSDocInputs[i];
-        const currSig = currSigParams[i];
-
-        if (currJSDoc === currSig) continue;
-
-        const jsDocChanged = prevJSDocInputs[i] !== currJSDoc;
-        const sigChanged = prevSigParams[i] !== currSig;
-
-        if (jsDocChanged && !sigChanged) {
-          const oldJSDoc = prevJSDocInputs[i];
-          if (oldJSDoc && !currJSDocSet.has(oldJSDoc) && !prevJSDocSet.has(currJSDoc)) {
-            result = renameParameterInSignature(result, currSig, currJSDoc);
-          }
-        } else if (sigChanged && !jsDocChanged) {
-          const oldSig = prevSigParams[i];
-          const oldNameInRawSig = new RegExp(`\\b${oldSig}\\b`).test(rawSigText);
-          if (oldSig && !currSigSet.has(oldSig) && !prevSigSet.has(currSig) && !oldNameInRawSig) {
-            result = renamePortInJSDoc(result, currJSDoc, currSig, "input");
-          }
-        }
-      }
-    }
+    result = removeParamsOfClearedInputs(previousCode, currentCode, result);
+  } else if (!prevOrphanLines.inputs) {
+    result = syncInputRenames(previousCode, currentCode, result);
   }
 
   // === OUTPUT PORTS ===
   if (currOrphanLines.outputs) {
-    const prevJSDocOutputs = getSyncableOutputNames(previousCode);
-    const currJSDocOutputs = getSyncableOutputNames(currentCode);
-    const currReturnFields = getSyncableReturnFieldNames(currentCode);
+    result = removeFieldsOfClearedOutputs(previousCode, currentCode, result);
+  } else if (!prevOrphanLines.outputs) {
+    result = syncOutputRenames(previousCode, currentCode, result);
+  }
 
-    for (const prevName of prevJSDocOutputs) {
-      if (!currJSDocOutputs.includes(prevName) && currReturnFields.includes(prevName)) {
-        result = removeFieldFromReturnType(result, prevName);
-      }
+  return result;
+}
+
+/**
+ * While an input line is being retyped (an orphan `@input` line exists), drop
+ * the parameter of every input whose tag disappeared, so the retyped tag can
+ * bring it back under its new name.
+ */
+function removeParamsOfClearedInputs(previousCode: string, currentCode: string, result: string): string {
+  const prevJSDocInputs = getSyncableInputNames(previousCode);
+  const currJSDocInputs = getSyncableInputNames(currentCode);
+  const currSigParams = getSyncableParamNames(currentCode);
+
+  for (const prevName of prevJSDocInputs) {
+    if (!currJSDocInputs.includes(prevName) && currSigParams.includes(prevName)) {
+      result = removeParameterFromSignature(result, prevName);
     }
-  } else if (prevOrphanLines.outputs) {
-    // Skip rename detection
-  } else {
-    const prevJSDocOutputs = getSyncableOutputNames(previousCode);
-    const currJSDocOutputs = getSyncableOutputNames(currentCode);
-    const prevReturnFields = getSyncableReturnFieldNames(previousCode);
-    const currReturnFields = getSyncableReturnFieldNames(currentCode);
+  }
+  return result;
+}
 
-    const prevJSDocSet = new Set(prevJSDocOutputs);
-    const currJSDocSet = new Set(currJSDocOutputs);
-    const prevReturnSet = new Set(prevReturnFields);
-    const currReturnSet = new Set(currReturnFields);
+/**
+ * Pair inputs and parameters by position. Where exactly one side changed name
+ * since the previous code, carry the new name to the other side: a renamed tag
+ * renames the parameter, a renamed parameter renames the tag. Skipped entirely
+ * when a tagged name appears in the raw parameters but was not parsed (the
+ * signature is mid-edit), and a parameter rename is skipped while its old name
+ * is still in the raw text.
+ */
+function syncInputRenames(previousCode: string, currentCode: string, result: string): string {
+  const prevJSDocInputs = getSyncableInputNames(previousCode);
+  const currJSDocInputs = getSyncableInputNames(currentCode);
+  const prevSigParams = getSyncableParamNames(previousCode);
+  const currSigParams = getSyncableParamNames(currentCode);
 
-    for (let i = 0; i < Math.min(currJSDocOutputs.length, currReturnFields.length); i++) {
-      const currJSDoc = currJSDocOutputs[i];
-      const currReturn = currReturnFields[i];
+  const prevJSDocSet = new Set(prevJSDocInputs);
+  const currJSDocSet = new Set(currJSDocInputs);
+  const prevSigSet = new Set(prevSigParams);
+  const currSigSet = new Set(currSigParams);
 
-      if (currJSDoc === currReturn) continue;
+  const rawSigText = rawParamListText(currentCode);
 
-      const jsDocChanged = prevJSDocOutputs[i] !== currJSDoc;
-      const returnChanged = prevReturnFields[i] !== currReturn;
+  const jsDocPortsInRawButNotParsed = currJSDocInputs.some(name =>
+    new RegExp(`\\b${name}\\b`).test(rawSigText) && !currSigSet.has(name)
+  );
+  if (jsDocPortsInRawButNotParsed) return result;
 
-      if (jsDocChanged && !returnChanged) {
-        const oldJSDoc = prevJSDocOutputs[i];
-        if (oldJSDoc && !currJSDocSet.has(oldJSDoc) && !prevJSDocSet.has(currJSDoc)) {
-          result = renameFieldInReturnType(result, currReturn, currJSDoc, false);
-        }
-      } else if (returnChanged && !jsDocChanged) {
-        const oldReturn = prevReturnFields[i];
-        if (oldReturn && !currReturnSet.has(oldReturn) && !prevReturnSet.has(currReturn)) {
-          result = renamePortInJSDoc(result, currJSDoc, currReturn, "output");
-        }
+  for (let i = 0; i < Math.min(currJSDocInputs.length, currSigParams.length); i++) {
+    const currJSDoc = currJSDocInputs[i];
+    const currSig = currSigParams[i];
+
+    if (currJSDoc === currSig) continue;
+
+    const jsDocChanged = prevJSDocInputs[i] !== currJSDoc;
+    const sigChanged = prevSigParams[i] !== currSig;
+
+    if (jsDocChanged && !sigChanged) {
+      const oldJSDoc = prevJSDocInputs[i];
+      if (oldJSDoc && !currJSDocSet.has(oldJSDoc) && !prevJSDocSet.has(currJSDoc)) {
+        result = renameParameterInSignature(result, currSig, currJSDoc);
+      }
+    } else if (sigChanged && !jsDocChanged) {
+      const oldSig = prevSigParams[i];
+      const oldNameInRawSig = new RegExp(`\\b${oldSig}\\b`).test(rawSigText);
+      if (oldSig && !currSigSet.has(oldSig) && !prevSigSet.has(currSig) && !oldNameInRawSig) {
+        result = renamePortInJSDoc(result, currJSDoc, currSig, "input");
       }
     }
   }
+  return result;
+}
 
+/**
+ * While an output line is being retyped (an orphan `@output` line exists),
+ * drop the return type field of every output whose tag disappeared.
+ */
+function removeFieldsOfClearedOutputs(previousCode: string, currentCode: string, result: string): string {
+  const prevJSDocOutputs = getSyncableOutputNames(previousCode);
+  const currJSDocOutputs = getSyncableOutputNames(currentCode);
+  const currReturnFields = getSyncableReturnFieldNames(currentCode);
+
+  for (const prevName of prevJSDocOutputs) {
+    if (!currJSDocOutputs.includes(prevName) && currReturnFields.includes(prevName)) {
+      result = removeFieldFromReturnType(result, prevName);
+    }
+  }
+  return result;
+}
+
+/**
+ * Pair outputs and return type fields by position. Where exactly one side
+ * changed name since the previous code, carry the new name to the other side.
+ */
+function syncOutputRenames(previousCode: string, currentCode: string, result: string): string {
+  const prevJSDocOutputs = getSyncableOutputNames(previousCode);
+  const currJSDocOutputs = getSyncableOutputNames(currentCode);
+  const prevReturnFields = getSyncableReturnFieldNames(previousCode);
+  const currReturnFields = getSyncableReturnFieldNames(currentCode);
+
+  const prevJSDocSet = new Set(prevJSDocOutputs);
+  const currJSDocSet = new Set(currJSDocOutputs);
+  const prevReturnSet = new Set(prevReturnFields);
+  const currReturnSet = new Set(currReturnFields);
+
+  for (let i = 0; i < Math.min(currJSDocOutputs.length, currReturnFields.length); i++) {
+    const currJSDoc = currJSDocOutputs[i];
+    const currReturn = currReturnFields[i];
+
+    if (currJSDoc === currReturn) continue;
+
+    const jsDocChanged = prevJSDocOutputs[i] !== currJSDoc;
+    const returnChanged = prevReturnFields[i] !== currReturn;
+
+    if (jsDocChanged && !returnChanged) {
+      const oldJSDoc = prevJSDocOutputs[i];
+      if (oldJSDoc && !currJSDocSet.has(oldJSDoc) && !prevJSDocSet.has(currJSDoc)) {
+        result = renameFieldInReturnType(result, currReturn, currJSDoc, false);
+      }
+    } else if (returnChanged && !jsDocChanged) {
+      const oldReturn = prevReturnFields[i];
+      if (oldReturn && !currReturnSet.has(oldReturn) && !prevReturnSet.has(currReturn)) {
+        result = renamePortInJSDoc(result, currJSDoc, currReturn, "output");
+      }
+    }
+  }
   return result;
 }
