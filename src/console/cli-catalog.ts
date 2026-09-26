@@ -2,9 +2,9 @@
  * The CLI's commands, read from the CLI reference.
  *
  * The console offers a command line with completion. The natural source
- * would be the commander program itself, but `src/cli/index.ts` parses
- * `process.argv` on import and cannot be loaded for its metadata. The
- * reference topic is the next best thing, and a better one than it looks:
+ * would be the commander program itself (`src/cli/program.ts`), but the
+ * reference topic also carries each command's group and examples, which the
+ * program does not. It is a better source than it looks:
  * a docs-sync test fails the build when it drifts from the real commands,
  * so what is read here is what `fw --help` would say.
  */

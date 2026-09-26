@@ -20,6 +20,7 @@ import { fileURLToPath } from 'url';
 import { VALIDATION_CODES } from '../src/doc-metadata/extractors/error-codes.js';
 import { extractTerminals } from '../src/doc-metadata/extractors/grammar-rules.js';
 import { workflowTemplates, nodeTemplates } from '../src/cli/templates/index.js';
+import { buildProgram } from '../src/cli/program.js';
 import {
   ALL_ANNOTATIONS,
   PORT_MODIFIERS,
@@ -93,24 +94,18 @@ function generateNodeTemplatesTable(): string {
   return lines.join('\n');
 }
 
-/** The default of `fw create node --template`, read from the Commander registration in src/cli/index.ts. */
+/** The default of `fw create node --template`, read from the CLI program itself. */
 function readDefaultNodeTemplate(): string {
-  const cliSource = fs.readFileSync(
-    path.resolve(__dirname, '..', 'src', 'cli', 'index.ts'),
-    'utf-8',
-  );
-  const nodeCommand = cliSource.match(
-    /\.command\(\s*(['"])node <name> <file>\1\s*\)([\s\S]*?)\.action\(/,
-  );
-  const option = nodeCommand?.[2].match(
-    /\.option\(\s*(['"])-t, --template <template>\1\s*,\s*(['"]).*?\2\s*,\s*(['"])([^'"]+)\3\s*\)/,
-  );
-  if (!option) {
-    throw new Error('Could not read the default of `fw create node --template` from src/cli/index.ts');
+  const option = buildProgram()
+    .commands.find((c) => c.name() === 'create')
+    ?.commands.find((c) => c.name() === 'node')
+    ?.options.find((o) => o.long === '--template');
+  const id: unknown = option?.defaultValue;
+  if (typeof id !== 'string') {
+    throw new Error('Could not read the default of `fw create node --template` from src/cli/program.ts');
   }
-  const id = option[4];
   if (!nodeTemplates.some((t) => t.id === id)) {
-    throw new Error(`The default node template "${id}" in src/cli/index.ts is not a registered node template`);
+    throw new Error(`The default node template "${id}" in src/cli/program.ts is not a registered node template`);
   }
   return id;
 }
@@ -119,25 +114,12 @@ function generateDefaultNodeTemplate(): string {
   return `- \`--template T\` / \`-t T\` - Use specific template (default: ${readDefaultNodeTemplate()})`;
 }
 
-/** Build the top-level command index from the same Commander registrations used by the CLI. */
+/** Build the top-level command index from the CLI program itself. */
 function generateCliQuickReference(): string {
-  const cliSource = fs.readFileSync(
-    path.resolve(__dirname, '..', 'src', 'cli', 'index.ts'),
-    'utf-8',
-  );
-  const commands: Array<{ name: string; description: string }> = [];
-  const commandPattern =
-    /program\s*\.\s*command\(\s*(['"])(.*?)\1\s*\)\s*\.description\(\s*(['"])(.*?)\3\s*\)/gs;
-
-  for (const match of cliSource.matchAll(commandPattern)) {
-    const name = match[2].trim().split(/\s+/)[0];
-    if (!commands.some((command) => command.name === name)) {
-      commands.push({ name, description: match[4] });
-    }
-  }
+  const commands = buildProgram().commands.map((c) => ({ name: c.name(), description: c.description() }));
 
   if (commands.length === 0) {
-    throw new Error('Could not extract any top-level CLI commands from src/cli/index.ts');
+    throw new Error('Could not read any top-level CLI commands from src/cli/program.ts');
   }
 
   return [
