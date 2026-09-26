@@ -40,7 +40,31 @@ describe('the console request guard', () => {
     });
 
     it('refuses a request with no Host at all', () => {
-      expect(refusal(req('GET', {}), bound)).toMatch(/Host/);
+      expect(refusal(req('GET', {}), bound)).toBe('the request has no Host header');
+      expect(refusal(req('GET', { host: '' }), bound)).toBe('the request has no Host header');
+    });
+
+    it('refuses a Host that is not a single header value', () => {
+      const repeated = { method: 'GET', headers: { host: ['127.0.0.1:4311', 'attacker.example'] } };
+      expect(refusal(repeated, bound)).toBe('the request has no Host header');
+    });
+
+    it('reads a bracketed IPv6 address only at the start of the Host', () => {
+      expect(refusal(req('GET', { host: 'attacker.example[::1]' }), bound)).toBe(
+        'the console answers only to a loopback Host, not attacker.example[::1]',
+      );
+      expect(refusal(req('GET', { host: '[::1]' }), bound)).toBeUndefined();
+    });
+
+    it('treats a request without a method as a read', () => {
+      expect(refusal({ headers: { host: '127.0.0.1:4311', origin: 'https://attacker.example' } }, bound)).toBeUndefined();
+    });
+
+    it('refuses a change whatever the case of its method', () => {
+      expect(refusal(req('post', { host: '127.0.0.1:4311', origin: 'https://attacker.example' }), bound)).toBe(
+        "a change is accepted only from the console's own origin, not https://attacker.example",
+      );
+      expect(refusal(req('options', { host: '127.0.0.1:4311', origin: 'https://attacker.example' }), bound)).toBeUndefined();
     });
 
     it('refuses a change sent from another origin', () => {

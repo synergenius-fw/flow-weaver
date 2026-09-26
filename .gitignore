@@ -80,3 +80,7 @@ temp/
 # Playwright (npm run test:e2e)
 test-results/
 playwright-report/
+
+# Mutation testing (Stryker) reports, incremental files and sandboxes
+reports/mutation/
+.stryker-tmp/

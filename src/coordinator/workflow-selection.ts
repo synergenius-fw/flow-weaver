@@ -8,7 +8,7 @@
  * one it got.
  */
 import * as path from 'node:path';
-import { parseWorkflow } from '../api/parse.js';
+import { isMultipleWorkflows, parseWorkflow } from '../api/parse.js';
 import type { TWorkflowAST } from '../ast/types.js';
 import { AmbiguousWorkflowError, ParseError } from './errors.js';
 
@@ -18,6 +18,9 @@ export async function parseSelected(
 ): Promise<{ ast: TWorkflowAST; workflowName: string }> {
   const projectDir = path.dirname(filePath);
   const first = await parseWorkflow(filePath, { workflowName: requested, projectDir });
+  // The parser reports several workflows and no name as a parse error. It is
+  // the ambiguity drivers answer with AMBIGUOUS_WORKFLOW, so refuse it as that.
+  if (requested === undefined && isMultipleWorkflows(first.errors)) throw new AmbiguousWorkflowError(first.availableWorkflows);
   if (first.errors.length > 0) throw new ParseError(first.errors.join('\n'));
 
   // Given no name, the executor runs the first workflow in the file. A
