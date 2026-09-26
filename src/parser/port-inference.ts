@@ -127,11 +127,12 @@ export function parseStartPorts(
       }
     }
   } else {
-    // Old format detected - reject it
+    // Old format detected - reject it. Only workflow functions reach here.
     throw new Error(
-      `Invalid node type function signature for "${fn.getName()}". ` +
+      `Invalid workflow function signature for "${fn.getName()}". ` +
         `Expected first parameter to be "execute: boolean", but got "${firstParamName}: ${firstParamTypeText}". ` +
-        `Correct format: function ${fn.getName()}(execute: boolean, data: {...}) { ... }`
+        `Correct format: export function ${fn.getName()}(execute: boolean, params: {...}): ` +
+        `{ onSuccess: boolean; onFailure: boolean; ... }`
     );
   }
 
