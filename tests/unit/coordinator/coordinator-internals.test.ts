@@ -10,6 +10,7 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildGateResolution, InvalidAnswerError, MissingOutputsError } from '../../../src/coordinator/gate-resolution.js';
 import { tickDue } from '../../../src/coordinator/clock-tick.js';
@@ -24,7 +25,7 @@ import { computeBundleDigest } from '../../../src/coordinator/bundle-digest.js';
 import { missingParams, MissingParamsError } from '../../../src/coordinator/params.js';
 import { resolveProjectRoot } from '../../../src/coordinator/runs-dir.js';
 import { ParseError, AmbiguousWorkflowError, RunNotFoundError, RunNotWaitingError, BundleChangedError } from '../../../src/coordinator/errors.js';
-import { checkDocName, RunBusyError, type RunStore } from '../../../src/coordinator/store.js';
+import { checkDocName, RunBusyError } from '../../../src/coordinator/store.js';
 import { createMemoryRunStore, createFileRunStore } from '../../../src/coordinator/index.js';
 import type { RunRecord, RunView, ResumeRequest } from '../../../src/coordinator/run-store.js';
 import type { ContinuationEnvelope } from '../../../src/runtime/continuation.js';
@@ -174,29 +175,29 @@ describe('the trace', () => {
 });
 
 describe('effect receipts on recovery', () => {
-  const adapterOver = async (doc: unknown | Error) => {
+  const address = { nodeId: 'n' } as never;
+  const receiptDoc = `effect-${createHash('sha256').update('op').digest('hex')}`;
+
+  /** An adapter whose stored receipt for `op` has been replaced by `doc`, or whose store cannot read it. */
+  const adapterOver = async (doc: unknown) => {
     const store = createMemoryRunStore();
-    const failing: RunStore = { ...store, getDoc: async () => { throw doc; } };
-    if (doc instanceof Error) return createStoreEffectAdapter(failing, 'r1');
-    const adapter = createStoreEffectAdapter(store, 'r1');
-    await adapter.commit('op', { nodeId: 'n' } as never, { result: 1, receipt: 'first' } as never);
-    if (doc !== 'committed') {
-      const name = (await store.getDoc('r1', 'effect-' + (await import('node:crypto')).createHash('sha256').update('op').digest('hex')));
-      expect(name).toBeDefined();
-      const key = 'effect-' + (await import('node:crypto')).createHash('sha256').update('op').digest('hex');
-      await store.putDoc('r1', key, doc);
-    }
-    return adapter;
+    if (doc instanceof Error) return createStoreEffectAdapter({ ...store, getDoc: async () => { throw doc; } }, 'r1');
+    await store.putDoc('r1', receiptDoc, doc);
+    return createStoreEffectAdapter(store, 'r1');
   };
 
   it('are committed with their result and receipt, or not committed when there is no document', async () => {
-    expect(await (await adapterOver('committed')).recover('op')).toEqual({ kind: 'committed', receipt: 'first', result: 1 });
-    expect(await createStoreEffectAdapter(createMemoryRunStore(), 'r1').recover('op')).toEqual({ kind: 'not-committed' });
+    const store = createMemoryRunStore();
+    const adapter = createStoreEffectAdapter(store, 'r1');
+    expect(await adapter.recover('op', address)).toEqual({ kind: 'not-committed' });
+    await adapter.commit!('op', address, { result: 1, receipt: 'first' } as never);
+    expect(await store.getDoc('r1', receiptDoc)).toMatchObject({ operationKey: 'op', result: 1, receipt: 'first' });
+    expect(await adapter.recover('op', address)).toEqual({ kind: 'committed', receipt: 'first', result: 1 });
   });
 
   it('are ambiguous when the document is unreadable or is not a receipt, so the effect never runs twice', async () => {
     for (const doc of ['text', null, 7, { result: 1 }, new Error('disk')]) {
-      expect(await (await adapterOver(doc)).recover('op'), String(doc)).toEqual({ kind: 'ambiguous' });
+      expect(await (await adapterOver(doc)).recover('op', address), String(doc)).toEqual({ kind: 'ambiguous' });
     }
   });
 
@@ -204,9 +205,9 @@ describe('effect receipts on recovery', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-effects-'));
     try {
       const adapter = createFileEffectAdapter(path.join(root, 'run-7'));
-      await adapter.commit('op', { nodeId: 'n' } as never, { result: 2, receipt: 'r' } as never);
+      await adapter.commit!('op', address, { result: 2, receipt: 'r' } as never);
       expect(fs.readdirSync(path.join(root, 'run-7', 'effects'))).toHaveLength(1);
-      expect(await createStoreEffectAdapter(createFileRunStore(root), 'run-7').recover('op')).toEqual({ kind: 'committed', receipt: 'r', result: 2 });
+      expect(await createStoreEffectAdapter(createFileRunStore(root), 'run-7').recover('op', address)).toEqual({ kind: 'committed', receipt: 'r', result: 2 });
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
