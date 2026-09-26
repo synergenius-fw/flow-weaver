@@ -49,10 +49,9 @@ export function resolveCliEntry(here = path.dirname(fileURLToPath(import.meta.ur
 /** Start `fw <args>` in the project, output uncoloured. The caller streams stdout/stderr and may kill it. */
 export function spawnFw(args: string[], cwd: string): ChildProcess {
   const { exec, prefix } = resolveCliEntry();
-  // The child is a real invocation whatever launched the console: the
-  // loader flags this process was started with are its own, and the CLI
-  // stays silent when it believes a test runner imported it.
-  const { NODE_OPTIONS: _flags, VITEST: _test, ...env } = process.env;
+  // The loader flags this process was started with are its own, not the
+  // child's.
+  const { NODE_OPTIONS: _flags, ...env } = process.env;
   return spawn(exec, [...prefix, ...args], {
     cwd,
     env: { ...env, FORCE_COLOR: '0', NO_COLOR: '1' },

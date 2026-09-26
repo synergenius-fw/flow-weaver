@@ -38,23 +38,16 @@ if (!process.argv.slice(2).length) {
 }
 
 // Register pack-contributed CLI commands, then parse.
-// Skipped when VITEST is set. No test imports this file (they build the
-// program from program.ts), but a CLI spawned by a test inherits the runner's
-// environment: tests/generator/codegen-type-safety spawns `fw compile` on a
-// tracked fixture without stripping it, and would rewrite that fixture if the
-// CLI ran for real. Tests that want a real run strip VITEST* first.
-if (!process.env['VITEST']) {
-  (async () => {
-    const { registerPackCommands } = await import('./pack-commands.js');
-    await registerPackCommands(program);
+(async () => {
+  const { registerPackCommands } = await import('./pack-commands.js');
+  await registerPackCommands(program);
 
-    // --color and --no-color are read by picocolors straight from argv, and
-    // may come after the command. Program options are positional (so a
-    // command's own option of the same name reaches it), so they are taken
-    // out here rather than refused as unknown options of the command.
-    program.parse(process.argv.filter((arg) => arg !== '--color' && arg !== '--no-color'));
-  })().catch((error) => {
-    logger.error(getErrorMessage(error));
-    process.exit(1);
-  });
-}
+  // --color and --no-color are read by picocolors straight from argv, and
+  // may come after the command. Program options are positional (so a
+  // command's own option of the same name reaches it), so they are taken
+  // out here rather than refused as unknown options of the command.
+  program.parse(process.argv.filter((arg) => arg !== '--color' && arg !== '--no-color'));
+})().catch((error) => {
+  logger.error(getErrorMessage(error));
+  process.exit(1);
+});
