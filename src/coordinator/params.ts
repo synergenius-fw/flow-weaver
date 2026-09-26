@@ -12,7 +12,7 @@ import type { TWorkflowAST } from '../ast/types.js';
 export function missingParams(ast: TWorkflowAST, params: Record<string, unknown> | undefined): string[] {
   const given = params ?? {};
   return Object.entries(ast.startPorts ?? {})
-    .filter(([name, port]) => name !== 'execute' && port.dataType !== 'STEP' && !port.optional && (port as { defaultValue?: unknown }).defaultValue === undefined && given[name] === undefined)
+    .filter(([name, port]) => name !== 'execute' && port.dataType !== 'STEP' && !port.optional && (port as { defaultValue?: unknown }).defaultValue === undefined && (!Object.hasOwn(given, name) || given[name] === undefined))
     .map(([name]) => name);
 }
 
