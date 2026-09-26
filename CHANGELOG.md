@@ -20,6 +20,7 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 ### Fixed
 
 - **`fw dev --once` exits 1 when its cycle fails**, so a script or CI step can tell. **`fw dev --json` keeps stdout to JSON**: a compile failure is reported as `{ "success": false, "error" }`, and what compile prints for a person goes to stderr.
+- **A function annotated `@flowWeaver` inside another function is reported.** Only top-level functions are node types or workflows, so a nested one was skipped silently and its uses failed as an unknown node type. The parser now warns with its name and line.
 - **`--strict` promotes type coercions to errors again.** `fw validate --strict` and `fw compile --strict` passed a mode the validator had ignored since #19.
 - **A compiled workflow without parameters can be run.** Compile writes `params: Record<string, unknown> = {}`, and the next parse read it as a required input named `params`, so `fw run` refused it.
 - **Built-in nodes keep their engine arguments after a recompile.** The second compile called the inlined `delay` without the abort signal and runtime, so mocks such as `fast` and cancellation stopped reaching it.

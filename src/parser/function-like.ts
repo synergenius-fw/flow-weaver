@@ -132,3 +132,29 @@ export function extractFunctionLikes(sourceFile: SourceFile): FunctionLike[] {
 
   return results;
 }
+
+/**
+ * Warnings for functions annotated `@flowWeaver` that are not at the top
+ * level of the file. Only top-level functions are read as node types and
+ * workflows, so a nested one is skipped; without a word the author sees an
+ * unknown node type and no reason.
+ */
+export function nestedAnnotationWarnings(sourceFile: SourceFile): string[] {
+  const annotated = (docs: JSDoc[]) => docs.some((d) => /@flowWeaver\b/.test(d.getText()));
+  const warn = (name: string, node: Node) =>
+    `${name} (line ${node.getStartLineNumber()}) is annotated @flowWeaver inside another function, so it is ignored: only functions at the top level of a file are node types or workflows. Move it to the top level.`;
+  const warnings: string[] = [];
+  for (const fn of sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)) {
+    if (Node.isSourceFile(fn.getParent())) continue;
+    if (annotated(fn.getJsDocs())) warnings.push(warn(fn.getName() ?? 'an anonymous function', fn));
+  }
+  for (const statement of sourceFile.getDescendantsOfKind(SyntaxKind.VariableStatement)) {
+    if (Node.isSourceFile(statement.getParent())) continue;
+    if (!annotated(statement.getJsDocs())) continue;
+    for (const decl of statement.getDeclarations()) {
+      const kind = decl.getInitializer()?.getKind();
+      if (kind === SyntaxKind.ArrowFunction || kind === SyntaxKind.FunctionExpression) warnings.push(warn(decl.getName(), statement));
+    }
+  }
+  return warnings;
+}
