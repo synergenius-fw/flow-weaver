@@ -73,6 +73,16 @@ describe('fw entry', { timeout: 90_000 }, () => {
     expect(r.stderr).toContain("unknown option '--version'");
   });
 
+  it('runs the command even when a test runner\'s VITEST variable is in its environment', () => {
+    const r = spawnSync(process.execPath, ['--import', 'tsx', CLI_ENTRY, 'validate', '/nonexistent.ts'], {
+      cwd: PROJECT_ROOT,
+      env: { ...env, VITEST: 'true' },
+      encoding: 'utf8',
+      timeout: 60_000,
+    });
+    expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 1, stderr: '✗ No files found matching pattern: /nonexistent.ts\n' });
+  });
+
   it('prints an error thrown out of parsing once and exits 1', () => {
     const r = fw('create', 'node', 'n', 'f.ts', '--line', 'abc');
     expect(r).toEqual({ status: 1, stdout: '', stderr: '✗ "abc" is not a valid number\n' });

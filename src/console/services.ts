@@ -161,7 +161,7 @@ export class Supervisor {
     if (kind === 'serve' && others.length) throw new Error(`fw serve is already running for this project (pid ${others[0].pid}${others[0].url ? `, ${others[0].url}` : ''}). Stop it first`);
 
     const settings = this.settings();
-    const { NODE_OPTIONS: _flags, VITEST: _test, ...base } = process.env;
+    const { NODE_OPTIONS: _flags, ...base } = process.env;
     const env: NodeJS.ProcessEnv = { ...base, FORCE_COLOR: '0', NO_COLOR: '1' };
     let args: string[];
     let token: string | undefined;
