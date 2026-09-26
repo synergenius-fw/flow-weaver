@@ -99,3 +99,29 @@ test('a workflow opened while the console is still loading stays open', async ({
   await expect(fw.main.getByRole('heading', { level: 1, name: 'durableApproval' })).toBeVisible();
   await expect.poll(() => new URL(page.url()).hash).toContain('durableApproval');
 });
+
+test('verdicts that arrive before the workflow list still reach the navigator', async ({ fw, page }) => {
+  // The server starts checking the workflows when the list is asked for, and
+  // announces each verdict on the event stream. Hold the list back until the
+  // checks have finished, so every verdict arrives before the list does.
+  await page.route('**/api/workflows', async (route) => {
+    const response = await route.fetch();
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    await route.fulfill({ response });
+  });
+  await page.goto(fw.url);
+  await expect(workflowEntry(fw, 'sequential').getByRole('img', { name: 'valid' })).toBeVisible();
+  await expect(workflowEntry(fw, 'halfWritten').getByRole('img', { name: '1 error' })).toBeVisible();
+});
+
+test('verdicts announced before the event stream connects still reach the navigator', async ({ fw, page }) => {
+  // Connect the page's event stream late, after the server has checked the
+  // workflows and announced every verdict to nobody.
+  await page.route('**/api/events', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    await route.continue();
+  });
+  await page.goto(fw.url);
+  await expect(workflowEntry(fw, 'sequential').getByRole('img', { name: 'valid' })).toBeVisible({ timeout: 15000 });
+  await expect(workflowEntry(fw, 'halfWritten').getByRole('img', { name: '1 error' })).toBeVisible();
+});
