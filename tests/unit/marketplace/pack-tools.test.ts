@@ -87,9 +87,15 @@ describe('registerPackMcpTools', () => {
       path: '/mock/broken-pack',
     }]);
 
-    // Should not throw
-    await registerPackMcpTools(mockMcp as any);
+    try {
+      await expect(registerPackMcpTools(mockMcp as any)).resolves.toBeUndefined();
 
-    stderrSpy.mockRestore();
+      // Reported on stderr (stdout carries the MCP protocol), and nothing registered.
+      const written = stderrSpy.mock.calls.map((c) => String(c[0])).join('');
+      expect(written).toContain('[mcp] Failed to load pack tools from @synergenius/flow-weaver-pack-broken');
+      expect(mockMcp.tool).not.toHaveBeenCalled();
+    } finally {
+      stderrSpy.mockRestore();
+    }
   });
 });

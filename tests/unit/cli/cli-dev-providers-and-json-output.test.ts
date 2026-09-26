@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import type { WorkflowExecutionOutcome } from '../../../src/mcp/workflow-executor';
+import { captureConsole } from '../../helpers/console-capture';
 
 const TEMP_DIR = path.join(os.tmpdir(), `fw-dev-cov-${process.pid}`);
 
@@ -139,31 +140,24 @@ describe('devCommand coverage', () => {
     ).rejects.toThrow(/Failed to parse params file/);
   });
 
-  it('should handle compile errors gracefully in once mode', async () => {
-    const { devCommand } = await import('../../../src/cli/commands/dev');
-
-    // Mock compileCommand to throw with errors array
-    const compileModule = await import('../../../src/cli/commands/compile');
-    const compileError = Object.assign(new Error('Compilation failed'), {
-      errors: [{ code: 'UNKNOWN_NODE', message: 'Node not found', node: 'x' }],
-    });
-    vi.spyOn(compileModule, 'compileCommand').mockRejectedValue(compileError);
-
-    const filePath = writeFixture('dev-compile-err.ts', SIMPLE_WORKFLOW);
-
-    // Should not throw; compile errors are caught and logged
-    await devCommand(filePath, { once: true });
-  });
-
   it('should handle compile errors without errors array', async () => {
     const { devCommand } = await import('../../../src/cli/commands/dev');
 
     const compileModule = await import('../../../src/cli/commands/compile');
     vi.spyOn(compileModule, 'compileCommand').mockRejectedValue(new Error('Generic compile failure'));
 
+    const executor = await import('../../../src/mcp/workflow-executor');
+    const execSpy = vi.spyOn(executor, 'executeWorkflow');
     const filePath = writeFixture('dev-generic-err.ts', SIMPLE_WORKFLOW);
+    const out = captureConsole();
 
-    await devCommand(filePath, { once: true });
+    try {
+      await devCommand(filePath, { once: true });
+    } finally {
+      out.restore();
+    }
+    expect(out.of('error')).toContain('Compile failed: Generic compile failure');
+    expect(execSpy).not.toHaveBeenCalled();
   });
 
   it('should output JSON on successful run when json option is set', async () => {
@@ -220,8 +214,15 @@ describe('devCommand coverage', () => {
     );
 
     const filePath = writeFixture('dev-run-err.ts', SIMPLE_WORKFLOW);
+    const out = captureConsole();
 
-    // Should not throw; run errors are caught and logged
-    await devCommand(filePath, { once: true });
+    // A failed run is reported, not thrown: in watch mode the next change retries.
+    try {
+      await expect(devCommand(filePath, { once: true })).resolves.toBeUndefined();
+    } finally {
+      out.restore();
+    }
+    expect(out.of('error')).toContain('Run failed: Execution error');
+    expect(out.text()).not.toContain('completed in');
   });
 });

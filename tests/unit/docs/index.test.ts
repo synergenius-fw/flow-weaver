@@ -354,11 +354,12 @@ describe('searchDocs', () => {
   it('sorts results by relevance descending', () => {
     setupTwoDocs();
 
-    const results = searchDocs('annotations');
-    // All results should be sorted by relevance
-    for (let i = 1; i < results.length; i++) {
-      expect(results[i - 1].relevance).toBeGreaterThanOrEqual(results[i].relevance);
-    }
+    // Matches sections of both docs, with different scores.
+    const results = searchDocs('flow weaver tag');
+    const relevances = results.map((r) => r.relevance);
+    expect(relevances.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(relevances).size).toBeGreaterThan(1);
+    expect(relevances).toEqual([...relevances].sort((a, b) => b - a));
   });
 
   it('returns empty results for a query with no matches', () => {

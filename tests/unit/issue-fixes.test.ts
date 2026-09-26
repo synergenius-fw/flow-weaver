@@ -293,7 +293,7 @@ describe('Validator docUrl', () => {
   });
 
   it('should not attach docUrl to unmapped error codes', () => {
-    // Create a workflow with duplicate node names (uses a different error code)
+    // Two instances with one id: DUPLICATE_INSTANCE_ID, which has no doc page
     const nodeType = createNodeType('myNode');
     const workflow = createWorkflow(
       [
@@ -307,11 +307,9 @@ describe('Validator docUrl', () => {
     const validator = new WorkflowValidator();
     const result = validator.validate(workflow);
 
-    const dupErr = result.errors.find((e) => e.code === 'DUPLICATE_NODE_NAME');
-    if (dupErr) {
-      // DUPLICATE_NODE_NAME is not in the map, so no docUrl
-      expect(dupErr.docUrl).toBeUndefined();
-    }
+    const dupErr = result.errors.find((e) => e.code === 'DUPLICATE_INSTANCE_ID');
+    expect(dupErr).toBeDefined();
+    expect(dupErr!.docUrl).toBeUndefined();
   });
 });
 

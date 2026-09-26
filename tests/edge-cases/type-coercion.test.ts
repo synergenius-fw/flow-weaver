@@ -17,22 +17,15 @@ function testTypeCoercion(
 ) {
   const parseResult = parser.parseFromString(sourceCode);
   const workflow = parseResult.workflows.find(w => w.functionName === workflowName);
+  expect(workflow, `${testDescription}: workflow ${workflowName} not found in source`).toBeDefined();
 
-  if (!workflow) {
-    throw new Error(`${testDescription}: Workflow ${workflowName} not found in source`);
-  }
-
-  const validationResult = validator.validate(workflow);
-
-  // Get all warnings (not errors)
+  const validationResult = validator.validate(workflow!);
   const warnings = validationResult.warnings || [];
-  const warningMessages = warnings.map((w: any) => w.message).join('\n');
 
   if (expectedWarningPattern) {
     // Should have warning matching pattern
-    if (!expectedWarningPattern.test(warningMessages)) {
-      throw new Error(`${testDescription}: Expected warning matching ${expectedWarningPattern} but got: ${warningMessages}`);
-    }
+    const warningMessages = warnings.map((w: any) => w.message).join('\n');
+    expect(warningMessages, testDescription).toMatch(expectedWarningPattern);
   } else {
     // Should NOT have type coercion warning
     const typeWarnings = warnings.filter((w: any) =>
@@ -42,11 +35,10 @@ function testTypeCoercion(
         w.code === "TYPE_MISMATCH"
       )
     );
-    if (typeWarnings.length > 0) {
-      const msgs = typeWarnings.map((w: any) => w.message).join('\n');
-      throw new Error(`${testDescription}: Expected no type warnings but got: ${msgs}`);
-    }
+    expect(typeWarnings.map((w: any) => w.message), testDescription).toEqual([]);
   }
+  // A coercion is never an error unless @strictTypes is set.
+  expect(validationResult.errors.filter((e: any) => e.code === 'TYPE_INCOMPATIBLE')).toEqual([]);
 }
 
 describe("Type Coercion", () => {

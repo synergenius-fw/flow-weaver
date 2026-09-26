@@ -162,7 +162,15 @@ describe('sourceToASCII', () => {
     mockedParseFromString.mockReturnValueOnce({ workflows: [ast1, ast2] } as any);
 
     sourceToASCII('code', { workflowName: 'Second' });
-    // Should not throw
+
+    // The named workflow, not the first one, reaches the renderer.
+    expect(vi.mocked(buildDiagramGraph).mock.lastCall?.[0]).toBe(ast2);
+  });
+
+  it('throws for a workflow name the source does not declare', () => {
+    mockedParseFromString.mockReturnValueOnce({ workflows: [makeAST('First')] } as any);
+
+    expect(() => sourceToASCII('code', { workflowName: 'Missing' })).toThrow(/Missing/);
   });
 });
 

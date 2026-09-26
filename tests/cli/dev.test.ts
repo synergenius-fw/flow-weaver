@@ -51,6 +51,27 @@ export function brokenWorkflow(
 }
 `;
 
+// Compiles cleanly, then throws when it runs
+const THROWING_WORKFLOW = `
+/** @flowWeaver nodeType @expression */
+function explode(data: string): { result: string } {
+  throw new Error('boom: ' + data);
+}
+
+/**
+ * @flowWeaver workflow
+ * @node e explode
+ * @connect Start.data -> e.data
+ * @connect e.result -> Exit.result
+ */
+export function throwingWorkflow(
+  execute: boolean,
+  params: { data: string }
+): { onSuccess: boolean; onFailure: boolean; result: string } {
+  throw new Error("Compile with: fw compile <file>");
+}
+`;
+
 beforeAll(() => {
   fs.mkdirSync(tempDir, { recursive: true });
 });
@@ -265,12 +286,15 @@ describe('devCommand', () => {
 
     try {
       await devCommand(file, { once: true });
-      // Without params, the greeting node gets undefined for name
-      // but the command should still run without throwing
     } finally {
       console.log = origLog;
       console.error = origError;
     }
+
+    const output = logs.join('\n');
+    // No params line, and the workflow runs with name undefined.
+    expect(output).not.toContain('Params:');
+    expect(output).toContain('"message": "Hello, undefined!"');
   });
 
   it('should output JSON error on run failure when --json is set', async () => {
@@ -278,8 +302,9 @@ describe('devCommand', () => {
 
     const dir = path.join(tempDir, 'dev-json-err');
     fs.mkdirSync(dir, { recursive: true });
-    const file = path.join(dir, 'broken.ts');
-    fs.writeFileSync(file, BROKEN_WORKFLOW);
+    const file = path.join(dir, 'throws.ts');
+    // Compiles cleanly, then fails at run time.
+    fs.writeFileSync(file, THROWING_WORKFLOW);
 
     const stdoutChunks: string[] = [];
     const origWrite = process.stdout.write;
@@ -294,15 +319,16 @@ describe('devCommand', () => {
     console.error = () => {};
 
     try {
-      await devCommand(file, { once: true, json: true });
-
-      // Should have written either error from compile or run
-      // The compile failure should still produce output
+      await devCommand(file, { once: true, json: true, params: '{"data": "x"}' });
     } finally {
       process.stdout.write = origWrite;
       console.log = origLog;
       console.error = origError;
     }
+
+    const parsed = JSON.parse(stdoutChunks.join(''));
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toContain('boom: x');
   });
 
   it('should parse params from --params-file', async () => {

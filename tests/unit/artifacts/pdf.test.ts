@@ -58,20 +58,20 @@ describe('htmlToPdf', () => {
     expect(pdf.toString()).toContain('Hello brief');
   });
 
-  it('says what to do when there is no browser', async () => {
+  it('says what to do when there is no browser', async (ctx) => {
     const saved = { ...process.env };
     for (const k of ['FW_BROWSER', 'CHROME_PATH', 'PUPPETEER_EXECUTABLE_PATH']) delete process.env[k];
     try {
-      const browser = findBrowser();
-      if (browser) return; // this machine has one; the error path is covered by the option below
+      // This machine has one; the failing-browser test below covers the error path.
+      if (findBrowser()) ctx.skip();
       await expect(htmlToPdf('<html></html>')).rejects.toBeInstanceOf(BrowserNotFoundError);
     } finally { Object.assign(process.env, saved); }
   });
 
-  it('reports a browser that fails instead of hanging', async () => {
+  // A shell script is not an executable on Windows.
+  it.skipIf(process.platform === 'win32')('reports a browser that fails instead of hanging', async () => {
     const bad = path.join(dir, 'bad');
     fs.writeFileSync(bad, '#!/bin/sh\nexit 3\n'); fs.chmodSync(bad, 0o755);
-    if (process.platform === 'win32') return;
     await expect(htmlToPdf('<html></html>', { browser: bad })).rejects.toThrow(/exited with 3/);
   });
 });

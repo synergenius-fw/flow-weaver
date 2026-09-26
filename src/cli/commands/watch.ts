@@ -21,6 +21,13 @@ export interface WatchOptions extends CompileOptions {
 }
 
 export async function watchCommand(input: string, options: WatchOptions = {}): Promise<void> {
+  // Find files to watch first. Nothing matching is a mistake in the argument,
+  // not a file that will compile later, so refuse before claiming to watch.
+  const files = await glob(input, { absolute: true });
+  if (files.length === 0) {
+    throw new Error(`No files match ${input}; nothing to watch`);
+  }
+
   logger.section('Watch Mode');
   logger.info(`Watching for changes: ${input}`);
   logger.info('Press Ctrl+C to stop');
@@ -38,13 +45,6 @@ export async function watchCommand(input: string, options: WatchOptions = {}): P
   }
   logger.newline();
   logger.success('Watching for file changes...');
-
-  // Find files to watch. Nothing matching is a mistake in the argument, not
-  // a file that will compile later.
-  const files = await glob(input, { absolute: true });
-  if (files.length === 0) {
-    throw new Error(`No files match ${input}; nothing to watch`);
-  }
 
   // Use chokidar for reliable cross-platform file watching
   const chokidar = await import('chokidar');

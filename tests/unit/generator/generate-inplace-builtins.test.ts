@@ -168,6 +168,70 @@ export async function myWorkflow(
     expect(helperCount).toBe(1);
   });
 
+  it('keeps passing the abort signal and runtime to an inlined built-in on re-run', () => {
+    const source = `
+/**
+ * @flowWeaver workflow
+ * @node wait delay [expr: duration="'1s'"]
+ * @path Start -> wait -> Exit
+ */
+export async function myWorkflow(
+  execute: boolean,
+  params: Record<string, never>,
+): Promise<{ onSuccess: boolean; onFailure: boolean }> {
+  // @flow-weaver-body-start
+  throw new Error('Not implemented');
+  // @flow-weaver-body-end
+}
+`;
+    const call = /await delay\(wait_execute, wait_duration, ctx\.getAbortSignal\(\), \{ nodeId: 'wait', runtime: ctx\.getRuntime\(\)/;
+
+    const { code: first } = compileInPlace(source);
+    expect(first).toMatch(call);
+
+    // The second compile parses the inlined delay as a local node type. It
+    // must still receive the engine's arguments, or mocks (fast) and
+    // cancellation no longer reach it.
+    const result2 = new AnnotationParser().parseFromString(first, 'test.ts');
+    const delayType = result2.workflows[0].nodeTypes.find((nt) => nt.functionName === 'delay');
+    expect(delayType).toMatchObject({ receivesAbortSignal: true, receivesRuntime: true });
+    const second = generateInPlace(first, result2.workflows[0], {
+      production: false,
+      allWorkflows: result2.workflows,
+    });
+    expect(second.code).toMatch(call);
+  });
+
+  it('does not pass engine arguments to a user function that only shares a built-in name', () => {
+    const source = `
+/**
+ * @flowWeaver nodeType
+ * @input ms
+ */
+async function delay(execute: boolean, ms: number): Promise<{ onSuccess: boolean; onFailure: boolean }> {
+  return { onSuccess: true, onFailure: false };
+}
+
+/**
+ * @flowWeaver workflow
+ * @node wait delay [expr: ms="5"]
+ * @path Start -> wait -> Exit
+ */
+export async function myWorkflow(
+  execute: boolean,
+  params: Record<string, never>,
+): Promise<{ onSuccess: boolean; onFailure: boolean }> {
+  // @flow-weaver-body-start
+  throw new Error('Not implemented');
+  // @flow-weaver-body-end
+}
+`;
+    const result = new AnnotationParser().parseFromString(source, 'test.ts');
+    const delayType = result.workflows[0].nodeTypes.find((nt) => nt.functionName === 'delay');
+    expect(delayType?.receivesAbortSignal).toBeUndefined();
+    expect(delayType?.receivesRuntime).toBeUndefined();
+  });
+
   it('deduplicates helpers when multiple built-ins are used', () => {
     const source = `
 /**

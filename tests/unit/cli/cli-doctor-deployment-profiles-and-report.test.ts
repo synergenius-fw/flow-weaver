@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { captureConsole, type ConsoleCapture } from '../../helpers/console-capture';
 
 const TEMP_DIR = path.join(os.tmpdir(), `fw-doctor-cov-${process.pid}`);
 
@@ -26,16 +27,16 @@ function writeFixture(relativePath: string, content: string): string {
 
 describe('doctorCommand: non-JSON output', () => {
   let originalCwd: () => string;
-  let originalExit: (code?: number) => never;
+  let out: ConsoleCapture;
 
   beforeEach(() => {
     originalCwd = process.cwd;
-    originalExit = process.exit;
+    out = captureConsole();
   });
 
   afterEach(() => {
+    out.restore();
     process.cwd = originalCwd;
-    process.exit = originalExit;
   });
 
   it('prints formatted report with fixes for non-passing checks', async () => {
@@ -49,21 +50,20 @@ describe('doctorCommand: non-JSON output', () => {
 
     process.cwd = () => projectDir;
 
-    // Non-JSON mode triggers lines 767-802
-    // doctorCommand now throws instead of process.exit(1)
-    try {
-      await doctorCommand({ json: false });
-    } catch (e: any) {
-      // Expected: throws when there are failures
-      if (!e.message.includes('Doctor found issues')) throw e;
-    }
+    // Failures make the command throw, after printing the report.
+    await expect(doctorCommand({ json: false })).rejects.toThrow('Doctor found issues that need to be fixed');
 
-    // The command ran through the formatted output path (lines 767-802).
-    // The important thing is that the code path was exercised.
+    const text = out.text();
+    expect(text).toMatch(/TypeScript version\s+.*✗ fail/);
+    // Each non-passing check is followed by its fix.
+    expect(text).toContain('TypeScript version: npm install -D typescript');
+    expect(text).toContain('@synergenius/flow-weaver installed: npm install @synergenius/flow-weaver');
+    expect(text).toMatch(/\d+ passed, \d+ warnings, 2 failed/);
+    expect(out.of('error')).toContain('Fix the issues above to continue.');
   });
 
   it('prints success message when all checks pass', async () => {
-    const { doctorCommand, runDoctorChecks } = await import('../../../src/cli/commands/doctor');
+    const { doctorCommand } = await import('../../../src/cli/commands/doctor');
 
     // Create a project directory with enough config to pass most checks
     const projectDir = path.join(TEMP_DIR, 'doctor-pass');
@@ -83,12 +83,12 @@ describe('doctorCommand: non-JSON output', () => {
     writeFixture('doctor-pass/.flowweaver/config.yaml', 'defaultFileType: ts\n');
 
     process.cwd = () => projectDir;
-    // doctorCommand now throws instead of process.exit(1)
-    try {
-      await doctorCommand({});
-    } catch (e: any) {
-      if (!e.message.includes('Doctor found issues')) throw e;
-    }
+    // No failures; a warning (e.g. a newer library version) does not fail it.
+    await expect(doctorCommand({})).resolves.toBeUndefined();
+
+    expect(out.text()).toContain('Environment is ready for flow-weaver!');
+    expect(out.text()).not.toContain('failed');
+    expect(out.of('error')).toBe('');
   });
 
   it('prints JSON report when --json is used', async () => {
@@ -100,10 +100,12 @@ describe('doctorCommand: non-JSON output', () => {
 
     process.cwd = () => projectDir;
 
-    try {
-      await doctorCommand({ json: true });
-    } catch (e: any) {
-      if (!e.message.includes('Doctor found issues')) throw e;
-    }
+    await expect(doctorCommand({ json: true })).rejects.toThrow('Doctor found issues');
+
+    // The report is printed as JSON, and only as JSON.
+    const report = JSON.parse(out.text());
+    expect(report.ok).toBe(false);
+    expect(report.summary.fail).toBe(2);
+    expect(report.checks).toContainEqual(expect.objectContaining({ name: 'TypeScript version', status: 'fail' }));
   });
 });

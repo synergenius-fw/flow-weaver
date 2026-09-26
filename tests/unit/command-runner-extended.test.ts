@@ -291,17 +291,29 @@ describe('runCommand - extended commands', () => {
     });
 
     it('should include package metadata fields', async () => {
-      // Use the actual flow-weaver project dir which has packs installed
-      const result = await runCommand('market-list', {});
-      const data = result.data as { packages: Array<{ name: string; version: string; nodeTypes: number }> };
-      if (data.packages.length > 0) {
-        const pkg = data.packages[0];
-        expect(pkg).toHaveProperty('name');
-        expect(pkg).toHaveProperty('version');
-        expect(pkg).toHaveProperty('nodeTypes');
-        expect(pkg).toHaveProperty('workflows');
-        expect(pkg).toHaveProperty('cliCommands');
-      }
+      // A project with one pack installed.
+      const projectDir = path.join(tmpDir, 'with-pack');
+      const packDir = path.join(projectDir, 'node_modules', 'flow-weaver-pack-meta');
+      fs.mkdirSync(packDir, { recursive: true });
+      fs.writeFileSync(path.join(packDir, 'package.json'), JSON.stringify({ name: 'flow-weaver-pack-meta', version: '2.1.0' }));
+      fs.writeFileSync(
+        path.join(packDir, 'flowweaver.manifest.json'),
+        JSON.stringify({
+          manifestVersion: 2,
+          name: 'flow-weaver-pack-meta',
+          version: '2.0.0',
+          nodeTypes: [{ name: 'a' }, { name: 'b' }],
+          workflows: [{ name: 'w' }],
+          cliCommands: [{ name: 'c', description: 'd' }],
+        }),
+      );
+
+      const result = await runCommand('market-list', { cwd: projectDir });
+
+      // The version comes from package.json, the counts from the manifest.
+      expect(result.data).toEqual({
+        packages: [{ name: 'flow-weaver-pack-meta', version: '2.1.0', nodeTypes: 2, workflows: 1, cliCommands: 1 }],
+      });
     });
   });
 

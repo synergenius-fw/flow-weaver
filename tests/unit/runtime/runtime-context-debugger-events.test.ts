@@ -38,15 +38,14 @@ describe('ExecutionContext debugger event methods', () => {
     expect(dbg.events[0].type).toBe('STATUS_CHANGED');
   });
 
-  it('sendStatusChangedEvent is a no-op without debugger', () => {
+  it('sendStatusChangedEvent is a no-op without debugger', async () => {
     const ctx = makeContext();
-    // Should not throw
-    ctx.sendStatusChangedEvent({
+    await expect(ctx.sendStatusChangedEvent({
       nodeTypeName: 'Add',
       id: 'adder1',
       executionIndex: 0,
       status: 'RUNNING',
-    });
+    })).resolves.toBeUndefined();
   });
 
   it('sendLogErrorEvent emits when debugger is present', () => {
@@ -64,14 +63,14 @@ describe('ExecutionContext debugger event methods', () => {
     expect(dbg.events[0].type).toBe('LOG_ERROR');
   });
 
-  it('sendLogErrorEvent is a no-op without debugger', () => {
+  it('sendLogErrorEvent is a no-op without debugger', async () => {
     const ctx = makeContext();
-    ctx.sendLogErrorEvent({
+    await expect(ctx.sendLogErrorEvent({
       nodeTypeName: 'Fetch',
       id: 'fetch1',
       executionIndex: 0,
       error: 'timeout',
-    });
+    })).resolves.toBeUndefined();
   });
 
   it('sendWorkflowCompletedEvent emits when debugger is present', () => {
@@ -116,12 +115,12 @@ describe('ExecutionContext debugger event methods', () => {
     expect(event.status).toBe('CANCELLED');
   });
 
-  it('sendWorkflowCompletedEvent is a no-op without debugger', () => {
+  it('sendWorkflowCompletedEvent is a no-op without debugger', async () => {
     const ctx = makeContext();
-    ctx.sendWorkflowCompletedEvent({
+    await expect(ctx.sendWorkflowCompletedEvent({
       executionIndex: 0,
       status: 'SUCCEEDED',
-    });
+    })).resolves.toBeUndefined();
   });
 
   it('sendStatusChangedEvent includes scope and side when provided', () => {

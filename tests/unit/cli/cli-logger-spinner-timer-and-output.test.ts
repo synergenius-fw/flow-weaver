@@ -47,70 +47,110 @@ describe('logger', () => {
       try {
         const { logger } = await import('../../../src/cli/utils/logger');
         consoleLogSpy.mockClear();
-        logger.debug('should be silent');
         // debug checks process.env.DEBUG at call time
-        // In some cached module scenarios it might still pass, but the important
-        // thing is no crash occurs.
+        logger.debug('should be silent');
+        expect(consoleLogSpy).not.toHaveBeenCalled();
       } finally {
         if (origDebug !== undefined) process.env.DEBUG = origDebug;
       }
     });
   });
 
-  describe('spinner()', () => {
+  /** What the spinner wrote to stderr, colours stripped. */
+  // eslint-disable-next-line no-control-regex
+  const stderrText = () => stderrWriteSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('').replace(/\x1b\[[0-9;]*m/g, '');
+
+  describe('spinner() without a TTY', () => {
+    // The test runner's stdout is not a TTY, so the logger module as loaded
+    // prints static lines.
     it('should handle non-TTY spinner: stop with message', async () => {
       const { logger } = await import('../../../src/cli/utils/logger');
       const spin = logger.spinner('Working...');
       spin.stop('Done');
-      // In non-TTY mode, stop writes to stderr
+      expect(stderrText()).toBe('  Working...\n  ✓ Done\n');
     });
 
     it('should handle non-TTY spinner: stop without message', async () => {
       const { logger } = await import('../../../src/cli/utils/logger');
       const spin = logger.spinner('Working...');
       spin.stop();
+      expect(stderrText()).toBe('  Working...\n');
     });
 
     it('should handle non-TTY spinner: fail with message', async () => {
       const { logger } = await import('../../../src/cli/utils/logger');
       const spin = logger.spinner('Working...');
       spin.fail('Oops');
+      expect(stderrText()).toBe('  Working...\n  ✗ Oops\n');
     });
 
     it('should handle non-TTY spinner: fail without message', async () => {
       const { logger } = await import('../../../src/cli/utils/logger');
       const spin = logger.spinner('Working...');
       spin.fail();
+      expect(stderrText()).toBe('  Working...\n');
     });
 
     it('should handle non-TTY spinner: update is a no-op', async () => {
       const { logger } = await import('../../../src/cli/utils/logger');
       const spin = logger.spinner('Initial');
       spin.update('Updated');
-      // No crash means success
       spin.stop();
+      expect(stderrText()).toBe('  Initial\n');
+    });
+  });
+
+  describe('spinner() on a TTY', () => {
+    // isTTY is read when the module loads, so each test loads a fresh copy
+    // with stdout claiming to be a terminal.
+    let origIsTTY: boolean | undefined;
+
+    beforeEach(() => {
+      origIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true, writable: true });
+      vi.useFakeTimers();
+      vi.resetModules();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      Object.defineProperty(process.stdout, 'isTTY', { value: origIsTTY, configurable: true, writable: true });
+      vi.resetModules();
     });
 
     it('should handle TTY spinner when isTTY is true', async () => {
-      // Temporarily override isTTY - the logger reads it at module load,
-      // so we test the spinner API which works regardless of TTY state
       const { logger } = await import('../../../src/cli/utils/logger');
 
       const spin = logger.spinner('Animating...');
-      spin.update('Still going');
+      // Nothing until the first frame.
+      expect(stderrText()).toBe('');
+      vi.advanceTimersByTime(80);
+      expect(stderrText()).toBe('\r\x1b[K  ⠋ Animating...');
 
-      // Wait a tick to let the interval fire at least once if TTY
-      await new Promise((r) => setTimeout(r, 100));
+      spin.update('Still going');
+      vi.advanceTimersByTime(80);
+      expect(stderrText().endsWith('\r\x1b[K  ⠙ Still going')).toBe(true);
 
       spin.stop('Finished');
+      expect(stderrText().endsWith('\r\x1b[K  ✓ Finished\n')).toBe(true);
+
+      // Stopped: no more frames.
+      const written = stderrWriteSpy.mock.calls.length;
+      vi.advanceTimersByTime(500);
+      expect(stderrWriteSpy.mock.calls.length).toBe(written);
     });
 
     it('should handle TTY spinner fail path', async () => {
       const { logger } = await import('../../../src/cli/utils/logger');
 
       const spin = logger.spinner('Processing');
-      await new Promise((r) => setTimeout(r, 100));
+      vi.advanceTimersByTime(160);
       spin.fail('Error occurred');
+
+      expect(stderrText().endsWith('\r\x1b[K  ✗ Error occurred\n')).toBe(true);
+      const written = stderrWriteSpy.mock.calls.length;
+      vi.advanceTimersByTime(500);
+      expect(stderrWriteSpy.mock.calls.length).toBe(written);
     });
   });
 

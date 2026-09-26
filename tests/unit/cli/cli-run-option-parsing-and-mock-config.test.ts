@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { captureConsole, type ConsoleCapture } from '../../helpers/console-capture';
 
 const TEMP_DIR = path.join(os.tmpdir(), `fw-run-cov-${process.pid}`);
 
@@ -166,15 +167,21 @@ export function failWf(execute: boolean): Promise<{ onSuccess: boolean; onFailur
 });
 
 describe('validateMockConfig coverage', () => {
+  let out: ConsoleCapture;
+  beforeEach(() => { out = captureConsole(); });
+  afterEach(() => out.restore());
+
   it('should warn on unknown top-level keys in mock config', async () => {
     const { validateMockConfig } = await import('../../../src/cli/commands/run');
     const filePath = writeFixture('mock-validate.ts', SIMPLE_WORKFLOW);
-    // Should not throw, just warn
+    // A typo is a warning, not an error.
     await validateMockConfig(
       { unknownKey: 'value' } as any,
       filePath,
       'simpleWf'
     );
+
+    expect(out.of('warn')).toContain('Mock config has unknown key "unknownKey". Valid keys: events, invocations, agents, gates, fast');
   });
 
   it('should warn when mock section references unused node types', async () => {
@@ -185,6 +192,8 @@ describe('validateMockConfig coverage', () => {
       filePath,
       'simpleWf'
     );
+
+    expect(out.of('warn')).toContain('Mock config has "events" entries but workflow has no waitForEvent nodes');
   });
 
   it('should skip validation if parsing fails', async () => {
@@ -194,11 +203,16 @@ describe('validateMockConfig coverage', () => {
       '/tmp/nonexistent-mock-validate-xyz.ts',
       'test'
     );
+
+    // Nothing to check the sections against, so nothing is said.
+    expect(out.of('warn')).toBe('');
   });
 
   it('should accept valid mock config with fast option', async () => {
     const { validateMockConfig } = await import('../../../src/cli/commands/run');
     const filePath = writeFixture('mock-fast.ts', SIMPLE_WORKFLOW);
     await validateMockConfig({ fast: true } as any, filePath, 'simpleWf');
+
+    expect(out.of('warn')).toBe('');
   });
 });

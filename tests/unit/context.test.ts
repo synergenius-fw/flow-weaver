@@ -171,9 +171,4 @@ describe('PRESETS', () => {
       expect(PRESETS.full).toContain(topic);
     }
   });
-
-  it('example topics are contributed by extension via registerPackDocTopics', () => {
-    // pack topics are an extension. Its preset contribution is
-    // verified through pack doc topic registration in extension tests.
-  });
 });

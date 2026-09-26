@@ -71,11 +71,7 @@ describe('Cross-platform: no hardcoded path separators', () => {
         }
       }
 
-      if (violations.length > 0) {
-        expect.fail(
-          `Found ${violations.length} hardcoded path separator(s):\n${violations.join('\n')}`,
-        );
-      }
+      expect(violations, `hardcoded path separator(s):\n${violations.join('\n')}`).toEqual([]);
     });
   }
 });
@@ -116,16 +112,18 @@ describe('Cross-platform: CRLF-safe line splitting in file I/O', () => {
       }
     }
 
-    // This test documents known violations — update count as they are fixed
-    // When all are fixed, change to expect(violations).toEqual([])
-    if (violations.length > 0) {
-      // Log for visibility but don't fail yet — these are known and non-critical
-      // (most .split('\n') operate on generated code strings, not user files)
-      console.warn(
-        `[cross-platform] ${violations.length} .split('\\n') on file content (prefer /\\r?\\n/):\n` +
-          violations.slice(0, 5).join('\n') +
-          (violations.length > 5 ? `\n  ... and ${violations.length - 5} more` : ''),
-      );
-    }
+    // Known violations, mostly on generated code strings rather than user
+    // files. A new file joining them fails the test; fix it or add it here
+    // with a reason. When all are fixed, change to expect(violations).toEqual([]).
+    const known = [
+      'src/generator/annotation-generator.ts',
+      'src/docs/index.ts',
+      'src/context/index.ts',
+      'src/console/source.ts',
+      'src/cli/commands/implement.ts',
+      'src/cli/commands/export.ts',
+    ];
+    const unknown = violations.filter((v) => !known.some((file) => v.replace(/\\/g, '/').startsWith(`${file}:`)));
+    expect(unknown, `.split('\\n') on file content (prefer /\\r?\\n/):\n${unknown.join('\n')}`).toEqual([]);
   });
 });

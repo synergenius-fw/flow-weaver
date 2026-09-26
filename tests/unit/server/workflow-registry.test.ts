@@ -152,30 +152,45 @@ describe('WorkflowRegistry', () => {
 
   describe('file watching', () => {
     it('startWatching handles missing chokidar gracefully', async () => {
-      // When chokidar can't be imported, startWatching should not throw.
-      // This happens in environments where chokidar isn't installed.
-      const registry = new WorkflowRegistry(TEMP_DIR);
-      await registry.initialize();
+      // Environments without chokidar get no watching, not an error.
+      vi.resetModules();
+      vi.doMock('chokidar', () => {
+        throw new Error("Cannot find module 'chokidar'");
+      });
+      try {
+        const { WorkflowRegistry: FreshRegistry } = await import('../../../src/server/workflow-registry.js');
+        fs.writeFileSync(path.join(TEMP_DIR, 'wf.ts'), WORKFLOW_WITH_TYPES);
+        const registry = new FreshRegistry(TEMP_DIR);
+        await registry.initialize();
 
-      // The real chokidar is likely installed, so this tests the normal path.
-      // We're mainly verifying it doesn't throw.
-      const onChange = vi.fn();
-      await registry.startWatching(onChange);
-      await registry.stopWatching();
+        await expect(registry.startWatching(vi.fn())).resolves.toBeUndefined();
+        expect((registry as unknown as { watcher: unknown }).watcher).toBeNull();
+        // The registry itself keeps working.
+        expect(registry.getAllEndpoints().map((e) => e.name)).toEqual(['processorFlow']);
+        await expect(registry.stopWatching()).resolves.toBeUndefined();
+      } finally {
+        vi.doUnmock('chokidar');
+        vi.resetModules();
+      }
     });
 
     it('stopWatching clears debounce timers', async () => {
       const registry = new WorkflowRegistry(TEMP_DIR);
       await registry.initialize();
+      await registry.startWatching(vi.fn());
 
-      const onChange = vi.fn();
-      await registry.startWatching(onChange);
+      // A change that is still waiting out its debounce when watching stops.
+      const pending = vi.fn();
+      const timers = (registry as unknown as { debounceTimers: Map<string, unknown> }).debounceTimers;
+      timers.set('/some/file.ts', setTimeout(pending, 20));
 
-      // Immediately stop, should clear any pending timers
       await registry.stopWatching();
+      expect(timers.size).toBe(0);
+      await new Promise((r) => setTimeout(r, 60));
+      expect(pending).not.toHaveBeenCalled();
 
-      // Call again, should be safe
-      await registry.stopWatching();
+      // Stopping twice is safe.
+      await expect(registry.stopWatching()).resolves.toBeUndefined();
     });
   });
 

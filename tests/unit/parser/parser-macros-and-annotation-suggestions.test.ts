@@ -72,29 +72,31 @@ describe('parser branch coverage 2', () => {
       const code = ['  /**', '', 'function add(a: number, b: number): number { return a + b; }'].join('\n');
       const parser = freshParser();
       const result = parser.generateAnnotationSuggestion(code, 0);
-      // The cursor is on the "/**" line. If the function is detected, it should
-      // generate a continuation. If not (depends on parser internals), it may return null.
-      if (result) {
-        expect(result.text).toContain('@flowWeaver nodeType');
-        expect(result.text).toContain('*/');
-      }
+      // The lines after the "/**", not a second "/**" block.
+      expect(result).not.toBeNull();
+      expect(result!.insertLine).toBe(1);
+      expect(result!.text.startsWith(' * @flowWeaver nodeType add\n')).toBe(true);
+      expect(result!.text).not.toContain('/**');
+      expect(result!.text).toMatch(/@input a\b/);
+      expect(result!.text).toMatch(/@input b\b/);
+      expect(result!.text.trimEnd().endsWith('*/')).toBe(true);
     });
 
     it('suggests missing @connect lines for workflow blocks', () => {
       const code = [
         '/**',
         ' * @flowWeaver nodeType',
-        ' * @input value NUMBER',
-        ' * @output result NUMBER',
+        ' * @input value',
+        ' * @output data',
         ' */',
-        'function step1(value: number): number { return value; }',
+        'function step1(execute: boolean, value: number): { onSuccess: boolean; onFailure: boolean; data: number } { return { onSuccess: true, onFailure: false, data: value }; }',
         '',
         '/**',
         ' * @flowWeaver nodeType',
-        ' * @input data NUMBER',
-        ' * @output summary NUMBER',
+        ' * @input data',
+        ' * @output summary',
         ' */',
-        'function step2(data: number): number { return data; }',
+        'function step2(execute: boolean, data: number): { onSuccess: boolean; onFailure: boolean; summary: number } { return { onSuccess: true, onFailure: false, summary: data }; }',
         '',
         '/**',
         ' * @flowWeaver workflow',
@@ -105,11 +107,13 @@ describe('parser branch coverage 2', () => {
       ].join('\n');
       const parser = freshParser();
       const result = parser.generateAnnotationSuggestion(code, 14);
-      // Should suggest @connect lines for matching ports between A and B
-      if (result) {
-        // May or may not find matching ports depending on name matching
-        expect(typeof result.text).toBe('string');
-      }
+      // A.data and B.data share a name, so they are suggested as a connection,
+      // inserted before the workflow block's closing line.
+      expect(result).toEqual({
+        text: ' * @connect A.data -> B.data\n',
+        insertLine: 18,
+        replaceLinesCount: 0,
+      });
     });
 
     it('handles re-using the same virtual path', () => {
@@ -387,25 +391,32 @@ describe('parser branch coverage 2', () => {
       const result = parser.parseFromString(`
         /**
          * @flowWeaver nodeType
-         * @input value NUMBER
-         * @output result NUMBER
+         * @input value
+         * @output result
          */
-        function step(value: number): number { return value; }
+        function step(execute: boolean, value: number): { onSuccess: boolean; onFailure: boolean; result: number } {
+          return { onSuccess: true, onFailure: false, result: value };
+        }
 
         /**
          * @flowWeaver workflow
          * @node A step
          * @node B step
-         * @path Start -> A -fail-> B -> Exit
+         * @path Start -> A:fail -> B -> Exit
          */
-        function failPath(execute: boolean, value: number): { result: number; onSuccess: boolean } {
-          return { result: 0, onSuccess: true };
+        function failPath(execute: boolean, params: { value: number }): { result: number; onSuccess: boolean; onFailure: boolean } {
+          return { result: 0, onSuccess: true, onFailure: false };
         }
       `);
+      expect(result.errors).toEqual([]);
+      expect(result.warnings).toEqual([]);
       const wf = result.workflows[0];
-      if (wf.macros && wf.macros.length > 0) {
-        expect(wf.connections.length).toBeGreaterThan(0);
-      }
+      const wired = wf.connections.map((c) => `${c.from.node}.${c.from.port}->${c.to.node}.${c.to.port}`);
+      // A's failure, not its success, runs B.
+      expect(wired).toContain('A.onFailure->B.execute');
+      expect(wired).not.toContain('A.onSuccess->B.execute');
+      expect(wired).toContain('Start.execute->A.execute');
+      expect(wired).toContain('B.onSuccess->Exit.onSuccess');
     });
   });
 
@@ -551,30 +562,33 @@ describe('parser branch coverage 2', () => {
       const result = parser.parseFromString(`
         /**
          * @flowWeaver nodeType
-         * @input value ANY
-         * @output result ANY
+         * @input value
+         * @output result
          */
-        function producer(value: any): any { return value; }
+        function producer(execute: boolean, value: number): { onSuccess: boolean; onFailure: boolean; result: number } { return { onSuccess: true, onFailure: false, result: value }; }
 
         /**
          * @flowWeaver nodeType
-         * @input value STRING
-         * @output result STRING
+         * @input value
+         * @output result
          */
-        function consumer(value: string): string { return value; }
+        function consumer(execute: boolean, value: string): { onSuccess: boolean; onFailure: boolean; result: string } { return { onSuccess: true, onFailure: false, result: value }; }
 
         /**
          * @flowWeaver workflow
          * @node A producer
          * @node B consumer
-         * @coerce conv string A.result -> B.value
+         * @coerce conv A.result -> B.value as string
          */
         function coerceWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
+      expect(result.errors).toEqual([]);
       const wf = result.workflows[0];
-      if (wf.macros && wf.macros.some((m) => m.type === 'coerce')) {
-        expect(wf.connections.length).toBeGreaterThan(0);
-      }
+      expect(wf.instances.find((i) => i.id === 'conv')?.nodeType).toBe('__fw_toString');
+      const wired = wf.connections.map((c) => `${c.from.node}.${c.from.port}->${c.to.node}.${c.to.port}`);
+      // The value goes through the coercion node instead of straight across.
+      expect(wired).toEqual(expect.arrayContaining(['A.result->conv.value', 'conv.result->B.value']));
+      expect(wired).not.toContain('A.result->B.value');
     });
   });
 
@@ -883,17 +897,17 @@ describe('parser branch coverage 2', () => {
       const result = parser.parseFromString(`
         /**
          * @flowWeaver nodeType
-         * @input value NUMBER
-         * @output result NUMBER
+         * @input value
+         * @output result
          */
-        function processor(value: number): number { return value * 2; }
+        function processor(execute: boolean, value: number): { onSuccess: boolean; onFailure: boolean; result: number } { return { onSuccess: true, onFailure: false, result: value * 2 }; }
 
         /**
          * @flowWeaver nodeType
-         * @input items ARRAY
-         * @output files ARRAY
+         * @input items
+         * @output files
          */
-        function scanner(items: any[]): any[] { return items; }
+        function scanner(execute: boolean, items: number[]): { onSuccess: boolean; onFailure: boolean; files: number[] } { return { onSuccess: true, onFailure: false, files: items }; }
 
         /**
          * @flowWeaver workflow
@@ -903,14 +917,17 @@ describe('parser branch coverage 2', () => {
          */
         function mapWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
+      expect(result.errors).toEqual([]);
       const wf = result.workflows[0];
-      // Should have map macro expanded
-      if (wf.macros && wf.macros.some((m) => m.type === 'map')) {
-        // Verify the synthetic iterator instance was created
-        const loopInst = wf.instances.find((i) => i.id === 'loop');
-        expect(loopInst).toBeDefined();
-        expect(wf.connections.length).toBeGreaterThan(0);
-      }
+      // The synthetic iterator, with the child moved into its scope.
+      expect(wf.instances.find((i) => i.id === 'loop')?.nodeType).toBe('__map_loop__');
+      expect(wf.instances.find((i) => i.id === 'proc')?.parent).toEqual({ id: 'loop', scope: 'iterate' });
+      const wired = wf.connections.map((c) => `${c.from.node}.${c.from.port}->${c.to.node}.${c.to.port}`);
+      expect(wired).toEqual(expect.arrayContaining([
+        'scan.files->loop.items',
+        'loop.item->proc.value',
+        'proc.result->loop.processed',
+      ]));
     });
 
     it('reports error when @map child node not found', () => {
@@ -1008,30 +1025,29 @@ describe('parser branch coverage 2', () => {
       const result = parser.parseFromString(`
         /**
          * @flowWeaver nodeType
-         * @scope iterate
-         * @input items ARRAY
+         * @input items
+         * @output item scope:iterate
+         * @input processed scope:iterate
          */
-        function loop(items: any[]) {}
+        function loop(execute: boolean, items: number[], iterate: (execute: boolean, item: number) => { onSuccess: boolean; onFailure: boolean; processed: number }): { onSuccess: boolean; onFailure: boolean } { return { onSuccess: true, onFailure: false }; }
 
         /**
          * @flowWeaver nodeType
-         * @input value NUMBER
+         * @input value
          */
-        function child(value: number) {}
+        function child(execute: boolean, value: number): { onSuccess: boolean; onFailure: boolean } { return { onSuccess: true, onFailure: false }; }
 
         /**
          * @flowWeaver workflow
          * @node L loop
-         * @node C child in:L.iterate
+         * @node C child L.iterate
          */
         function scopeWf(execute: boolean): { onSuccess: boolean } { return { onSuccess: true }; }
       `);
+      expect(result.errors).toEqual([]);
       const wf = result.workflows[0];
-      const childInst = wf.instances.find((i) => i.id === 'C');
-      if (childInst?.parent) {
-        expect(childInst.parent.id).toBe('L');
-        expect(childInst.parent.scope).toBe('iterate');
-      }
+      expect(wf.instances.find((i) => i.id === 'C')?.parent).toEqual({ id: 'L', scope: 'iterate' });
+      expect(wf.instances.find((i) => i.id === 'L')?.parent).toBeUndefined();
     });
   });
 

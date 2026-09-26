@@ -88,25 +88,24 @@ describe('cross-file workflow tsc --strict validity', () => {
       }),
     );
 
+    let tscOutput = '';
     try {
-      execFileSync(process.execPath, [TSC_PATH, '--project', tsconfigPath], {
+      tscOutput = execFileSync(process.execPath, [TSC_PATH, '--project', tsconfigPath], {
         encoding: 'utf-8',
         timeout: 30000,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
-      // No output = no errors
     } catch (err: unknown) {
-      const output = (err as { stdout?: string; stderr?: string }).stdout ?? '';
-      // Clean up before failing
-      try {
-        fs.unlinkSync(tsconfigPath);
-      } catch {}
-      throw new Error(`Generated code has TypeScript errors:\n${output}`);
+      // tsc exits non-zero on a type error and prints it to stdout.
+      const e = err as { stdout?: string; message?: string };
+      tscOutput = `Generated code has TypeScript errors:\n${e.stdout || e.message}`;
     } finally {
       try {
         fs.unlinkSync(tsconfigPath);
       } catch {}
     }
+    // tsc prints nothing when there are no errors.
+    expect(tscOutput).toBe('');
   });
 });
 

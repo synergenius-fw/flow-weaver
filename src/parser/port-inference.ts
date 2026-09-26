@@ -67,8 +67,16 @@ export function parseStartPorts(
       // Single param with object type: expand its properties into ports
       const shouldExpandProperties =
         dataParams.length === 1 && isExpandableObjectType(dataParams[0].getType());
+      // A single params object with no named properties declares no ports:
+      // `Record<string, unknown>`, which compile writes into a workflow that
+      // declared none, or `{}`. Read as one port named after the parameter, it
+      // made a compiled workflow without params demand a "params" parameter.
+      const declaresNoPorts =
+        dataParams.length === 1 && isPropertylessObjectType(dataParams[0].getType());
 
-      if (shouldExpandProperties) {
+      if (declaresNoPorts) {
+        // Nothing to add beyond execute.
+      } else if (shouldExpandProperties) {
         const dataParam = dataParams[0];
         const dataParamType = dataParam.getType();
         const properties = dataParamType.getProperties();
@@ -231,6 +239,19 @@ function extractTypeSchema(tsType: Type): Record<string, string> | undefined {
   }
 
   return Object.keys(schema).length > 0 ? schema : undefined;
+}
+
+/**
+ * Whether a type is an object with no named properties, such as `{}` or
+ * `Record<string, unknown>`. Such a params object declares no ports.
+ */
+function isPropertylessObjectType(tsType: Type): boolean {
+  return (
+    tsType.isObject() &&
+    !tsType.isArray() &&
+    tsType.getCallSignatures().length === 0 &&
+    tsType.getProperties().length === 0
+  );
 }
 
 /**

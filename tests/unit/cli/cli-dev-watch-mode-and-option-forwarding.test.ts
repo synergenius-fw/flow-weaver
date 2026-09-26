@@ -2,8 +2,6 @@
  * Tests for src/cli/commands/dev.ts:
  *  - Watch mode: chokidar watcher setup, cycleSeparator with/without file,
  *    cleanup handler on SIGINT/SIGTERM, the "watching" success message
- *  - compileAndRun: friendly error branch where getFriendlyError returns null
- *  - JSON compile error branch (compile fails + json mode)
  *  - production option forwarding in executeWorkflow
  *  - format/clean options forwarding to compileCommand
  */
@@ -12,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import type { CompletedExecutionOutcome } from '../../../src/mcp/workflow-executor';
+import { captureConsole } from '../../helpers/console-capture';
 
 const TEMP_DIR = path.join(os.tmpdir(), `fw-dev-cov3-${process.pid}`);
 
@@ -154,40 +153,6 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     );
   });
 
-  it('should handle compile errors with errors array where getFriendlyError returns null', async () => {
-    const { devCommand } = await import('../../../src/cli/commands/dev');
-    const compileModule = await import('../../../src/cli/commands/compile');
-
-    // Throw an error with errors array using an unrecognized code
-    const compileError = Object.assign(new Error('Compile failed'), {
-      errors: [
-        { code: 'TOTALLY_UNKNOWN_CODE_XYZ', message: 'Something very weird happened' },
-      ],
-    });
-    vi.spyOn(compileModule, 'compileCommand').mockRejectedValue(compileError);
-
-    const filePath = writeFixture('null-friendly.ts', SIMPLE_WORKFLOW);
-
-    // Should not throw; compile errors are caught and logged
-    await devCommand(filePath, { once: true });
-  });
-
-  it('should handle compile errors with errors array where getFriendlyError returns a result', async () => {
-    const { devCommand } = await import('../../../src/cli/commands/dev');
-    const compileModule = await import('../../../src/cli/commands/compile');
-
-    // Use a recognized error code
-    const compileError = Object.assign(new Error('Compile failed'), {
-      errors: [
-        { code: 'UNKNOWN_NODE_TYPE', message: 'Unknown node type "ghost" referenced in node "g"', node: 'g' },
-      ],
-    });
-    vi.spyOn(compileModule, 'compileCommand').mockRejectedValue(compileError);
-
-    const filePath = writeFixture('friendly-result.ts', SIMPLE_WORKFLOW);
-    await devCommand(filePath, { once: true });
-  });
-
   it('should log params when provided in non-json mode', async () => {
     const { devCommand } = await import('../../../src/cli/commands/dev');
 
@@ -200,8 +165,15 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     } as unknown as CompletedExecutionOutcome);
 
     const filePath = writeFixture('log-params.ts', SIMPLE_WORKFLOW);
-    // Calling with params and no json flag should trigger the "Params:" info line
-    await devCommand(filePath, { once: true, params: '{"foo":"bar"}' });
+    const out = captureConsole();
+    try {
+      await devCommand(filePath, { once: true, params: '{"foo":"bar"}' });
+    } finally {
+      out.restore();
+    }
+
+    expect(out.text()).toContain('Dev Mode');
+    expect(out.text()).toContain('Params: {"foo":"bar"}');
   });
 
   it('should not log section/params/info when json mode is set', async () => {
@@ -216,11 +188,23 @@ describe('devCommand coverage - watch mode and edge cases', () => {
     } as unknown as CompletedExecutionOutcome);
 
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
+    const compileModule = await import('../../../src/cli/commands/compile');
+    vi.spyOn(compileModule, 'compileCommand').mockResolvedValue();
+    const out = captureConsole();
 
     const filePath = writeFixture('json-suppress.ts', SIMPLE_WORKFLOW);
-    await devCommand(filePath, { once: true, json: true, params: '{"a":1}' });
+    let written = '';
+    try {
+      await devCommand(filePath, { once: true, json: true, params: '{"a":1}' });
+      written = stdoutSpy.mock.calls.map((c) => String(c[0])).join('');
+    } finally {
+      out.restore();
+      stdoutSpy.mockRestore();
+    }
 
-    stdoutSpy.mockRestore();
+    // Nothing but the JSON result: no section, no params line, no compile line.
+    expect(out.text()).toBe('');
+    expect(JSON.parse(written)).toMatchObject({ success: true, workflow: 'simpleWf' });
   });
 
   it('should show success message with elapsed time from compile in non-json mode', async () => {

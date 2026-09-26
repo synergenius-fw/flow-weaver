@@ -133,8 +133,12 @@ describe('registerPackCommands', () => {
     (listInstalledPackages as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('no node_modules'));
 
     const program = new Command();
-    // Should not throw
-    await registerPackCommands(program);
+    await expect(registerPackCommands(program)).resolves.toBeUndefined();
+
+    // No pack commands and nothing said: a project without packs is normal.
+    expect(program.commands).toEqual([]);
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
   it('skips packages without cliEntrypoint or cliCommands', async () => {

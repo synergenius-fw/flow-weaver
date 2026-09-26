@@ -1607,7 +1607,22 @@ export class AnnotationParser {
     if (existingFile) {
       this.project.removeSourceFile(existingFile);
     }
-    const sourceFile = this.project.createSourceFile(virtualPath, content, { overwrite: true });
+    // A "/**" the user has just typed is an unterminated comment that swallows
+    // every function below it, so the one it is meant for could never be
+    // found. Parse with that line blanked; the continuation branch below still
+    // reads the original line. A "/**" that opens a finished block (comment
+    // lines down to its "*/") is left alone.
+    const contentLines = content.split(/\r?\n/);
+    let typedJsDocStart = /^\s*\/\*\*\s*$/.test(contentLines[cursorLine] ?? '');
+    for (let i = cursorLine + 1; typedJsDocStart && i < contentLines.length; i++) {
+      const line = contentLines[i].trim();
+      if (!line.startsWith('*')) break;
+      if (line.includes('*/')) typedJsDocStart = false;
+    }
+    const parseContent = typedJsDocStart
+      ? contentLines.map((line, i) => (i === cursorLine ? '' : line)).join('\n')
+      : content;
+    const sourceFile = this.project.createSourceFile(virtualPath, parseContent, { overwrite: true });
 
     try {
       const allFunctions = extractFunctionLikes(sourceFile);
