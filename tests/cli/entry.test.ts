@@ -15,12 +15,8 @@ import path from 'node:path';
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const CLI_ENTRY = path.join(PROJECT_ROOT, 'src/cli/index.ts');
 
-// Strip VITEST* so the entry's test guard does not skip parsing, and pin
-// colour off so the output is plain text.
-const env: NodeJS.ProcessEnv = {
-  ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST'))),
-  NO_COLOR: '1',
-};
+// Colour pinned off so the output is plain text.
+const env: NodeJS.ProcessEnv = { ...process.env, NO_COLOR: '1' };
 delete env.FORCE_COLOR;
 
 function fw(...args: string[]): { status: number | null; stdout: string; stderr: string } {

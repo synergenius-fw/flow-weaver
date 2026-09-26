@@ -29,7 +29,7 @@ const RECORDER = path.join(PROJECT_ROOT, 'tests/fixtures/cli-startup/record-load
 const HEAVY = ['typescript', 'ts-morph', 'chevrotain', '@chevrotain', 'esbuild', '@modelcontextprotocol', 'zod'];
 
 const env: NodeJS.ProcessEnv = {
-  ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST'))),
+  ...process.env,
   NO_COLOR: '1',
 };
 delete env.FORCE_COLOR;
@@ -97,7 +97,9 @@ describe('CLI startup loads', { timeout: 90_000 }, () => {
     expect(loadsOf(SOURCE, ['--help']).packages).toContain('glob');
   });
 
-  describe.skipIf(!fs.existsSync(BUILT_CLI))('built bundle', () => {
+  // Skipped without a build, except in CI's build job (FW_REQUIRE_BUILD=1), where
+  // a missing build must fail.
+  describe.skipIf(!fs.existsSync(BUILT_CLI) && process.env.FW_REQUIRE_BUILD !== '1')('built bundle', () => {
     it.each([
       [['--version']],
       [['--help']],

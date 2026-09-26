@@ -21,8 +21,9 @@
  * build today.
  *
  * These tests run against the build output, so they skip when `dist/` is
- * absent (a fresh clone or a worktree that has not built). CI builds before
- * running the suite, so the guard still has teeth there.
+ * absent (a fresh clone or a worktree that has not built). CI's build job runs
+ * them right after building with FW_REQUIRE_BUILD=1, which turns a missing
+ * build into a failure instead of a skip.
  */
 
 import * as fs from 'fs';
@@ -35,12 +36,9 @@ import { fileURLToPath } from 'url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(here, '..', '..');
 const BUILT_CLI = path.join(PROJECT_ROOT, 'dist', 'cli', 'flow-weaver.mjs');
-const hasBuild = fs.existsSync(BUILT_CLI);
+const hasBuild = fs.existsSync(BUILT_CLI) || process.env.FW_REQUIRE_BUILD === '1';
 
-// Strip VITEST* vars so the CLI entry guard does not skip program.parse().
-const cliEnv = Object.fromEntries(
-  Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')),
-) as NodeJS.ProcessEnv;
+const cliEnv = process.env;
 
 /** A port unlikely to collide with a developer's own servers or a parallel worker. */
 function pickPort(): number {

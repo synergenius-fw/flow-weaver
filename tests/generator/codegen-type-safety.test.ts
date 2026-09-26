@@ -30,9 +30,8 @@ const TSC_PATH = require.resolve('typescript/bin/tsc');
 /**
  * The fixture copied to a temporary directory with its generated sections
  * stripped, then compiled by the real CLI. The tracked fixture is never
- * written, and the compile provably runs: without VITEST removed from its
- * environment the CLI entry skips parsing, and the stripped copy would stay
- * uncompiled.
+ * written, and the compile provably runs: the stripped copy has no markers
+ * until it does.
  */
 let workDir: string;
 let workflowCopy: string;
@@ -43,12 +42,10 @@ beforeAll(() => {
   for (const f of fs.readdirSync(FIXTURE_DIR)) fs.copyFileSync(path.join(FIXTURE_DIR, f), path.join(workDir, f));
   workflowCopy = path.join(workDir, 'workflow.ts');
   fs.writeFileSync(workflowCopy, stripGeneratedSections(fs.readFileSync(WORKFLOW_PATH, 'utf-8')));
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')));
   execFileSync(process.execPath, ['--import', 'tsx', CLI_PATH, 'compile', workflowCopy], {
     encoding: 'utf-8',
     timeout: 60000,
     cwd: path.resolve(__dirname, '../..'),
-    env,
   });
   compiled = fs.readFileSync(workflowCopy, 'utf-8');
 }, 90000);
