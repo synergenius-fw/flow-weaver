@@ -104,7 +104,7 @@ fw docs <topic>      # Read a specific topic
 fw docs search <q>   # Search across all docs
 ```
 
-Options: `-w/--workflow-name`, `--json`, `--format text|mermaid`. See `cli-reference` for all commands and flags.
+Options: `-w/--workflow`, `--json`, `--format text|mermaid`. See `cli-reference` for all commands and flags.
 
 ## Core Annotations
 
@@ -190,6 +190,7 @@ function nodeName(
 
 ### Workflow Export
 
+<!-- example: fragment -->
 ```typescript
 /**
  * @flowWeaver workflow
@@ -220,10 +221,10 @@ Use `@fwImport` to turn npm package functions or local module exports into node 
 ```typescript
 /**
  * @flowWeaver workflow
- * @fwImport npm/lodash/map map from "lodash"
+ * @fwImport npm/lodash/uniq uniq from "lodash"
  * @fwImport local/utils/format formatDate from "./utils"
- * @node mapper npm/lodash/map
- * @connect Start.items -> mapper.collection
+ * @node dedupe npm/lodash/uniq
+ * @connect Start.items -> dedupe.array
  */
 ```
 
@@ -357,6 +358,11 @@ Key points:
 ### Workflow Usage
 
 ```typescript
+/** @flowWeaver nodeType @expression */
+function processor(item: any): { result: any } {
+  return { result: item };
+}
+
 /**
  * @flowWeaver workflow
  * @node loop forEach

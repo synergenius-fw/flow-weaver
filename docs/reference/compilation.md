@@ -166,6 +166,17 @@ Rate limiting:
 ### Complete Example
 
 ```typescript
+/** @flowWeaver nodeType @expression */
+function validateExpense(expenseId: string, amount: number): { expenseId: string; amount: number } {
+  if (amount <= 0) throw new Error('amount must be positive');
+  return { expenseId, amount };
+}
+
+/** @flowWeaver nodeType @expression */
+async function processPayment(expenseId: string, amount: number): Promise<{ result: object }> {
+  return { result: { expenseId, paid: amount } };
+}
+
 /**
  * @flowWeaver workflow
  * @trigger event="app/expense.submitted"
@@ -180,9 +191,10 @@ Rate limiting:
  * @path Start -> v -> wait -> pay -> Exit
  */
 export async function expenseWorkflow(
+  execute: boolean,
   params: { expenseId: string; amount: number }
-): Promise<{ result: object }> {
-  throw new Error('Not compiled');
+): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }> {
+  throw new Error('generated body was not installed');
 }
 ```
 

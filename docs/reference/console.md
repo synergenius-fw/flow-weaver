@@ -143,6 +143,9 @@ The **CLI** tab of the drawer runs `fw` commands in the project — as an argume
 
 ```typescript
 import { createConsoleServer } from '@synergenius/flow-weaver/console';
+import type { RunStore } from '@synergenius/flow-weaver/coordinator';
+
+declare const myStore: RunStore;   // the store your API instances use
 
 await createConsoleServer({ projectDir: '/srv/workflows', port: 4311, store: myStore });
 ```

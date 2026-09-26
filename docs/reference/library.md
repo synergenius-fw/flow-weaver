@@ -115,6 +115,8 @@ Everything the coordinator keeps goes through a `RunStore`. Two come with the pa
 ```typescript
 import { createLocalCoordinator, type RunStore } from '@synergenius/flow-weaver/coordinator';
 
+declare const myStore: RunStore;   // yours: see the contract below
+
 const runs = createLocalCoordinator({ store: myStore, claimTtlMs: 10 * 60_000 });
 ```
 
@@ -130,9 +132,13 @@ A store is nine methods over three kinds of thing — a run's record, named JSON
 In SQL that is a `runs` table with the record as JSON, a `run_docs` table keyed by run and name, and a `run_claims` table where `claim` is one conditional insert-or-update. Before relying on a store, run the contract against it:
 
 ```typescript
+import { it } from 'vitest';
+import type { RunStore } from '@synergenius/flow-weaver/coordinator';
 import { checkRunStore } from '@synergenius/flow-weaver/testing';
 
-it('keeps the run store contract', () => checkRunStore(() => createMyStore(url)));
+declare function createMyStore(): RunStore;   // yours: a fresh, empty store per call
+
+it('keeps the run store contract', () => checkRunStore(() => createMyStore()));
 ```
 
 It throws on the first thing that is wrong and names it. Both built-in stores pass it in this package's own tests, so what it checks is what the coordinator relies on. The memory store (`src/coordinator/memory-store.ts`, forty lines) is the reference implementation to read first; a database store is the same nine methods with a table behind each `Map`.
@@ -182,6 +188,7 @@ runtime.durable.assertResumeResolutionConsumed();
 Everything the CLI and the MCP tools do to a workflow file is a function on `@synergenius/flow-weaver/api` (also re-exported from the package root):
 
 ```typescript
+import fs from 'node:fs/promises';
 import { parseWorkflow, validateWorkflow, compileWorkflow, generateInPlace, applyModifyOperation } from '@synergenius/flow-weaver/api';
 
 const { ast, errors, warnings } = await parseWorkflow('/abs/order.ts', { workflowName: 'placeOrder' });

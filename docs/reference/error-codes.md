@@ -220,12 +220,18 @@ const myNode = (execute: boolean, input: string) => { ... };
 
 **Example:**
 
+<!-- example: invalid RESERVED_INSTANCE_ID -->
 ```typescript
-// BAD: Using reserved names
+/** @flowWeaver nodeType @expression */
+function myNodeType(value: string): { value: string } {
+  return { value };
+}
+
+// BAD: Start and Exit are reserved instance IDs (RESERVED_INSTANCE_ID)
 /**
  * @flowWeaver workflow
- * @node Start myNodeType   // RESERVED_INSTANCE_ID
- * @node Exit myNodeType    // RESERVED_INSTANCE_ID
+ * @node Start myNodeType
+ * @node Exit myNodeType
  */
 
 // GOOD: Non-reserved names
@@ -443,6 +449,7 @@ const myNode = (execute: boolean, input: string) => { ... };
 
 **Example:**
 
+<!-- example: invalid MISSING_REQUIRED_INPUT -->
 ```typescript
 // BAD: "apiKey" has no connection or default
 /**

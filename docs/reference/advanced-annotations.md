@@ -65,7 +65,7 @@ Controls how a node evaluates incoming STEP signals before firing. This matters 
 | `DISJUNCTION` | Execute when **ANY** signal arrives (OR) | Priority routing, first-response |
 | `CUSTOM` | Execution controlled by custom logic | Advanced patterns |
 
-### Node Type Level
+The strategy is set on the node type, and applies to every instance of it:
 
 ```typescript
 /**
@@ -78,15 +78,6 @@ function firstResponse(execute: boolean, data: string) {
   if (!execute) return { onSuccess: false, onFailure: false, result: '' };
   return { onSuccess: true, onFailure: false, result: data };
 }
-```
-
-### Instance Level
-
-```typescript
-/**
- * @flowWeaver workflow
- * @node fr firstResponse [executeWhen: DISJUNCTION]
- */
 ```
 
 ---
@@ -147,9 +138,24 @@ Enables automatic linear connection wiring. When `@autoConnect` is present and n
 Start -> first @node -> second @node -> ... -> last @node -> Exit
 ```
 
-Data ports are matched by name — if node A has an output named `result` and node B has an input named `result`, they are automatically connected.
+Data ports are matched by name between neighbours — if node A has an output named `record` and the next node B has an input named `record`, they are automatically connected.
 
 ```typescript
+/** @flowWeaver nodeType @expression */
+function validateRecord(data: Record<string, unknown>): { record: Record<string, unknown> } {
+  return { record: data };
+}
+
+/** @flowWeaver nodeType @expression */
+function enrichRecord(record: Record<string, unknown>): { enriched: Record<string, unknown> } {
+  return { enriched: { ...record, enrichedAt: Date.now() } };
+}
+
+/** @flowWeaver nodeType @expression */
+function scoreRecord(enriched: Record<string, unknown>): { result: Record<string, unknown> } {
+  return { result: { ...enriched, score: 1 } };
+}
+
 /**
  * @flowWeaver workflow
  * @autoConnect
@@ -159,18 +165,23 @@ Data ports are matched by name — if node A has an output named `result` and no
  * @param data - Input record
  * @returns result - Scored record
  */
-export function pipeline(params: { data: Record<string, unknown> }): { result: Record<string, unknown> } {
-  throw new Error('Not compiled');
+export function pipeline(
+  execute: boolean,
+  params: { data: Record<string, unknown> }
+): { onSuccess: boolean; onFailure: boolean; result: Record<string, unknown> } {
+  throw new Error('generated body was not installed');
 }
 ```
 
 This is equivalent to manually writing:
 ```
+@connect Start.execute -> v.execute
 @connect Start.data -> v.data
 @connect v.onSuccess -> e.execute
-@connect v.result -> e.data
+@connect v.record -> e.record
 @connect e.onSuccess -> s.execute
-@connect e.result -> s.data
+@connect e.enriched -> s.enriched
+@connect s.onSuccess -> Exit.onSuccess
 @connect s.result -> Exit.result
 ```
 
@@ -184,7 +195,24 @@ Fan macros reduce boilerplate when broadcasting a single output to many targets,
 
 ### `@fanOut` — One to Many
 
-Broadcasts a single output port to multiple targets:
+Broadcasts a single output port to multiple targets. The examples below use three node types that each take `data` and return `result`:
+
+```typescript
+/** @flowWeaver nodeType @expression */
+function processA(data: string): { result: string } {
+  return { result: `A: ${data}` };
+}
+
+/** @flowWeaver nodeType @expression */
+function processB(data: string): { result: string } {
+  return { result: `B: ${data}` };
+}
+
+/** @flowWeaver nodeType @expression */
+function processC(data: string): { result: string } {
+  return { result: `C: ${data}` };
+}
+```
 
 ```typescript
 /**
@@ -227,10 +255,13 @@ Merges multiple output ports into a single target:
  * @node c processC
  * @node agg aggregate
  *
+ * @fanOut Start.data -> a, b, c
  * @fanIn a.result, b.result, c.result -> agg.items
- * @connect agg.merged -> Exit.result
+ * @connect agg.combined -> Exit.result
  */
 ```
+
+(`aggregate` is the `[mergeStrategy:COLLECT]` node type from [Declaring Merge Strategy](#declaring-merge-strategy).)
 
 This expands to:
 ```
@@ -249,22 +280,45 @@ Both macros are preserved through parse-regenerate round-trips. The compiler sto
 
 ## Strict Types (`@strictTypes`)
 
-By default, type mismatches between connected ports produce warnings. With `@strictTypes`, they become errors.
+By default, type mismatches between connected ports produce warnings. With `@strictTypes`, they become `TYPE_INCOMPATIBLE` errors. This workflow is rejected because a `STRING` output reaches a `NUMBER` input:
 
+<!-- example: invalid TYPE_INCOMPATIBLE -->
 ```typescript
+/** @flowWeaver nodeType @expression */
+function readAmount(raw: string): { amount: string } {
+  return { amount: raw.trim() };
+}
+
+/** @flowWeaver nodeType @expression */
+function addTax(total: number): { withTax: number } {
+  return { withTax: total * 1.2 };
+}
+
 /**
  * @flowWeaver workflow
  * @strictTypes
- * @node n myNode
- * @connect Start.count -> n.text
+ * @param raw - Amount as typed by the user
+ * @returns withTax - Amount with tax
+ * @node read readAmount
+ * @node tax addTax
+ * @path Start -> read -> tax -> Exit
+ * @connect read.amount -> tax.total
  */
+export function strict(
+  execute: boolean,
+  params: { raw: string }
+): { onSuccess: boolean; onFailure: boolean; withTax: number } {
+  throw new Error('generated body was not installed');
+}
 ```
 
-Type compatibility levels:
-- **exact** — Same type (e.g. `STRING` → `STRING`)
-- **assignable** — Safe conversion (e.g. `NUMBER` → `ANY`)
-- **coercible** — Lossy conversion (e.g. `NUMBER` → `STRING`) — warning by default, error with `@strictTypes`
-- **incompatible** — No conversion possible — always an error
+How a connection between two node ports is judged:
+- **same type** (`STRING` → `STRING`), or `ANY` on either side: compatible
+- **safe coercion** (`NUMBER` → `STRING`, `BOOLEAN` → `STRING`): compatible, no warning
+- **lossy coercion** (`STRING` → `NUMBER`, `OBJECT` → `STRING`, ...), **unusual coercion** (`NUMBER` → `BOOLEAN`, `STRING` → `OBJECT`, ...) and any other mismatch: a warning (`LOSSY_TYPE_COERCION`, `UNUSUAL_TYPE_COERCION`, `TYPE_MISMATCH`) by default, a `TYPE_INCOMPATIBLE` error with `@strictTypes`
+- a `STEP` port connected to a data port: always an error (`STEP_PORT_TYPE_MISMATCH`)
+
+Connections from `Start` or into `Exit` are not type-checked.
 
 ---
 
@@ -275,15 +329,36 @@ Syntactic sugar for declaring multi-step execution routes. A `@path` annotation 
 ### Basic Syntax
 
 ```typescript
+/** @flowWeaver nodeType @expression */
+function validate(record: Record<string, unknown>): { record: Record<string, unknown> } {
+  return { record };
+}
+
+/** @flowWeaver nodeType @expression */
+function enrich(record: Record<string, unknown>): { record: Record<string, unknown> } {
+  return { record: { ...record, enrichedAt: Date.now() } };
+}
+
+/** @flowWeaver nodeType @expression */
+function score(record: Record<string, unknown>): { score: number } {
+  return { score: Object.keys(record).length };
+}
+
 /**
  * @flowWeaver workflow
  * @param record - Raw record
  * @returns score - Final score
- * @node v validate     // @input record  @output record
- * @node e enrich       // @input record  @output record
- * @node s score        // @input record  @output score
+ * @node v validate
+ * @node e enrich
+ * @node s score
  * @path Start -> v -> e -> s -> Exit
  */
+export function scorePipeline(
+  execute: boolean,
+  params: { record: Record<string, unknown> }
+): { onSuccess: boolean; onFailure: boolean; score: number } {
+  throw new Error('generated body was not installed');
+}
 ```
 
 This expands to:
@@ -311,11 +386,35 @@ A port with no same-name ancestor stays unconnected and is reported by validatio
 
 ### Branching with `:ok` and `:fail`
 
-Use `:ok` or `:fail` suffixes to route through `onSuccess` or `onFailure`:
+Use `:ok` or `:fail` suffixes to route through `onSuccess` or `onFailure`. The router is a normal-mode node, because it branches:
 
 ```typescript
 /**
+ * Boolean branch: onSuccess for routine records, onFailure for urgent ones.
+ * @flowWeaver nodeType
+ */
+function routeUrgency(
+  execute: boolean,
+  record: Record<string, unknown>
+): { onSuccess: boolean; onFailure: boolean; record: Record<string, unknown> } {
+  if (!execute) return { onSuccess: false, onFailure: false, record };
+  const urgent = record.priority === 'high';
+  return { onSuccess: !urgent, onFailure: urgent, record };
+}
+
+/** @flowWeaver nodeType @expression */
+function handle(record: Record<string, unknown>): { handled: boolean } {
+  return { handled: record !== undefined };
+}
+
+/** @flowWeaver nodeType @expression */
+function escalate(record: Record<string, unknown>): { ticket: string } {
+  return { ticket: `ESC-${String(record.id)}` };
+}
+
+/**
  * @flowWeaver workflow
+ * @param record - Raw record
  * @node v validate
  * @node router routeUrgency
  * @node handler handle
@@ -333,8 +432,25 @@ Without a suffix, `:ok` (onSuccess) is the default. Duplicate connections from o
 Multiple paths can be declared in a single `@path` tag using commas. This is equivalent to separate `@path` tags:
 
 ```typescript
+/** @flowWeaver nodeType @expression */
+function enrichCompany(lead: { domain: string }): { company: string } {
+  return { company: lead.domain };
+}
+
+/** @flowWeaver nodeType @expression */
+function enrichContact(lead: { email: string }): { contact: string } {
+  return { contact: lead.email };
+}
+
+/** @flowWeaver nodeType @expression */
+function scoreLead(company: string, contact: string): { score: number } {
+  return { score: company.length + contact.length };
+}
+
 /**
- * @flowWeaver workflow @autoConnect
+ * @flowWeaver workflow
+ * @param lead - The lead to score
+ * @returns score - Lead score
  * @node enrichCompany enrichCompany
  * @node enrichContact enrichContact
  * @node scoreLead scoreLead
@@ -357,6 +473,11 @@ Syntactic sugar for forEach iteration patterns. A `@map` expands to a synthetic 
 ### Basic Syntax
 
 ```typescript
+/** @flowWeaver nodeType @expression */
+function doubleIt(value: number): { doubled: number } {
+  return { doubled: value * 2 };
+}
+
 /**
  * @flowWeaver workflow
  * @node proc doubleIt
@@ -405,6 +526,25 @@ Each assignment is `portName="expression"`. Multiple assignments are comma-separ
 An expression may read values the workflow already has: `Start.<param>` for a workflow input, `<node>.<port>` for an output of an earlier node. Any property access after the port is ordinary JavaScript, so `Start.expense.id` reads the `id` field of the `expense` param.
 
 ```typescript
+/** @flowWeaver nodeType @expression */
+function route(expense: { id: string; amount: number }): { risk: string } {
+  return { risk: expense.amount > 1000 ? 'high' : 'low' };
+}
+
+/**
+ * The body is never called: the gate's resolution is its return value.
+ * @flowWeaver nodeType
+ * @durableGate approval
+ * @input draft - The drafted decision to approve
+ * @output decision - The approved decision
+ */
+async function waitForApproval(
+  execute: boolean,
+  draft: object
+): Promise<{ onSuccess: boolean; onFailure: boolean; decision: object }> {
+  throw new Error('durable gate implementation must not execute');
+}
+
 /**
  * @flowWeaver workflow
  * @param expense - The expense
@@ -519,28 +659,44 @@ A single TypeScript file can contain multiple `@flowWeaver workflow` annotations
 ```typescript
 /**
  * @flowWeaver workflow
+ * @param record - Raw record
+ * @returns record - Validated record
  * @node v validate
  * @path Start -> v -> Exit
  */
-export function validatePipeline(params: { data: string }) { ... }
+export function validatePipeline(
+  execute: boolean,
+  params: { record: Record<string, unknown> }
+): { onSuccess: boolean; onFailure: boolean; record: Record<string, unknown> } {
+  throw new Error('generated body was not installed');
+}
 
 /**
  * @flowWeaver workflow
+ * @param record - Raw record
+ * @returns record - Enriched record
  * @node e enrich
  * @path Start -> e -> Exit
  */
-export function enrichPipeline(params: { data: string }) { ... }
+export function enrichPipeline(
+  execute: boolean,
+  params: { record: Record<string, unknown> }
+): { onSuccess: boolean; onFailure: boolean; record: Record<string, unknown> } {
+  throw new Error('generated body was not installed');
+}
 ```
+
+(`validate` and `enrich` are the node types from [Path Sugar](#path-sugar-path).)
 
 ### Targeting a Specific Workflow
 
-Most CLI commands accept `--workflow-name` or `-w` to target a specific workflow:
+Most CLI commands accept `--workflow` or `-w` to target a specific workflow:
 
 ```bash
-fw compile multi.ts --workflow-name validatePipeline
+fw compile multi.ts --workflow validatePipeline
 fw validate multi.ts -w enrichPipeline
-fw run multi.ts -w validatePipeline --params '{"data": "test"}'
-fw describe multi.ts --workflow-name enrichPipeline
+fw run multi.ts -w validatePipeline --params '{"record": {"id": 1}}'
+fw describe multi.ts --workflow enrichPipeline
 ```
 
 Without this flag, all workflows in the file are processed.

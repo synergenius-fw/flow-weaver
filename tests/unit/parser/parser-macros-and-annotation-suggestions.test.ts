@@ -202,6 +202,22 @@ describe('parser branch coverage 2', () => {
       ).toThrow(/Expected first parameter to be "execute: boolean"/);
     });
 
+    it('names a workflow signature, with the params object, when the execute parameter is missing', () => {
+      const parser = freshParser();
+      expect(() =>
+        parser.parseFromString(`
+        /**
+         * @flowWeaver workflow
+         */
+        export function oldSig(params: { data: string }): { result: string } { throw new Error('stub'); }
+      `),
+      ).toThrow(
+        'Invalid workflow function signature for "oldSig". Expected first parameter to be "execute: boolean", ' +
+          'but got "params: { data: string; }". Correct format: export function oldSig(execute: boolean, ' +
+          'params: {...}): { onSuccess: boolean; onFailure: boolean; ... }',
+      );
+    });
+
     it('extracts data ports from multiple params after execute', () => {
       const parser = freshParser();
       const result = parser.parseFromString(`
