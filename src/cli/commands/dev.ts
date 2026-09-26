@@ -12,7 +12,6 @@ import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
 import { logger } from '../utils/logger.js';
 import { readJsonObjectOption } from '../utils/json-option.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
-import { getFriendlyError } from '../../validation/friendly-errors.js';
 
 function timestamp(): string {
   const now = new Date();
@@ -87,23 +86,8 @@ async function compileAndRun(
       logger.success(`Compiled in ${ct.elapsed()}`);
     }
   } catch (error) {
-    const errorMsg = getErrorMessage(error);
-    const errorObj = error as { code?: string; errors?: Array<{ code: string; message: string; node?: string }> };
-
-    if (errorObj.errors && Array.isArray(errorObj.errors)) {
-      logger.error('Compile failed:');
-      for (const err of errorObj.errors) {
-        const friendly = getFriendlyError(err);
-        if (friendly) {
-          logger.error(`  ${friendly.title}: ${friendly.explanation}`);
-          logger.warn(`    How to fix: ${friendly.fix}`);
-        } else {
-          logger.error(`  - ${err.message}`);
-        }
-      }
-    } else {
-      logger.error(`Compile failed: ${errorMsg}`);
-    }
+    // compileCommand has already printed each error, with its fix.
+    logger.error(`Compile failed: ${getErrorMessage(error)}`);
     return false;
   }
 
