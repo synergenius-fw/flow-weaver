@@ -129,7 +129,7 @@ export function areMutuallyExclusive(
         if (edge.fromPort === 'onSuccess' || edge.fromPort === 'onFailure') {
           const parentNodeType = instanceMap.get(edge.fromNode);
           if (parentNodeType?.hasSuccessPort && parentNodeType?.hasFailurePort) {
-            return { branchNode: edge.fromNode, branch: edge.fromPort as 'onSuccess' | 'onFailure' };
+            return { branchNode: edge.fromNode, branch: edge.fromPort };
           }
         }
         queue.push(edge.fromNode);

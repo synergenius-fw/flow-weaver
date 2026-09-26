@@ -4,7 +4,7 @@
  * `exportTargets` manifest, resolved from node_modules per call.
  */
 
-import { exportWorkflow, type ExportTarget } from '../../export/index.js';
+import { exportWorkflow } from '../../export/index.js';
 import { logger } from '../utils/logger.js';
 
 export interface ExportOptions {
@@ -91,7 +91,7 @@ export async function exportCommand(input: string, options: ExportOptions): Prom
   logger.newline();
 
   const result = await exportWorkflow({
-    target: options.target as ExportTarget,
+    target: options.target,
     input,
     output: options.output,
     workflow: options.workflow,

@@ -35,7 +35,7 @@ export async function checkRunStore(make: () => RunStore | Promise<RunStore>): P
   await store.put(a);
   const gotA = await store.get('run-a');
   assert.deepEqual(gotA, a, 'get returns what put stored');
-  gotA!.params.amount = 99;
+  gotA.params.amount = 99;
   assert.equal((await store.get('run-a'))!.params.amount, 3, 'get returns a copy, so mutating it changes nothing');
   await store.put({ ...a, status: 'completed', gate: undefined, result: { ok: true }, updatedAt: new Date(Date.now() + 1000).toISOString() });
   assert.equal((await store.get('run-a'))!.status, 'completed', 'put replaces the whole record');

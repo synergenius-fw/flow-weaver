@@ -319,7 +319,7 @@ export function buildNodeArgumentsWithContext(opts: TBuildNodeArgsOptions): stri
 
     if (hasInstanceExpression) {
       // Instance-level expression takes priority
-      let expr = String(instancePortConfig!.expression);
+      let expr = String(instancePortConfig.expression);
 
       // Upstream references (`Start.x`, `node.port`) inside the expression are
       // data dependencies of this port. The parser has already validated them

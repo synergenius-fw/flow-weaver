@@ -525,7 +525,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
 
   /** The output ports of a completed run, without the control ports. */
   function dataOf(result: unknown): { data: Json; failed: boolean } {
-    if (typeof result !== 'object' || result === null || Array.isArray(result)) return { data: { result } as Json, failed: false };
+    if (typeof result !== 'object' || result === null || Array.isArray(result)) return { data: { result }, failed: false };
     const r = result as Json;
     const data: Json = {};
     for (const [k, v] of Object.entries(r)) if (!CONTROL.has(k)) data[k] = v;
@@ -575,7 +575,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
       const { data, failed } = dataOf(snap.result);
       return json(res, failed ? 422 : 200, data, extra);
     }
-    if (snap.status === 'failed') return json(res, 500, { error: snap.error, runId: id, links: snap.links } as unknown as Json, extra);
+    if (snap.status === 'failed') return json(res, 500, { error: snap.error, runId: id, links: snap.links }, extra);
     if (snap.status === 'cancelled') return json(res, 410, { error: { code: 'RUN_CANCELLED', message: 'the run was cancelled' }, runId: id, links: snap.links }, extra);
     if (executionTime !== undefined) snap.executionTime = executionTime;
     return json(res, 202, snap, { ...extra, Location: snap.links.result, 'Retry-After': '2' });
@@ -610,7 +610,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
   /** The run changed state: tell the streams and the embedding. */
   async function announce(id: string): Promise<void> {
     const run = await snapshot(id);
-    push(id, { type: 'run', run: run as unknown as Json });
+    push(id, { type: 'run', run: run });
     if (run) { try { options.onRun?.(run); } catch { /* the hook's problem */ } }
   }
 
@@ -775,7 +775,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
     } else {
       for (const [k, v] of Object.entries(body)) {
         if (k === 'callbackUrl' && typeof v === 'string') { callbackUrl = v; continue; }
-        if (k === 'mocks' && options.dev && typeof v === 'object' && v !== null) { mocks = v as FwMockConfig; continue; }
+        if (k === 'mocks' && options.dev && typeof v === 'object' && v !== null) { mocks = v; continue; }
         // A form post's fields are strings; a JSON body's types are the caller's own.
         set(k, form && typeof v === 'string' ? coerce(v, props(k)) : v);
       }

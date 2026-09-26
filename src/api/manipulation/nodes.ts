@@ -45,7 +45,7 @@ export function addNode(
   // Use produce directly with simplified type to avoid excessive type instantiation
   return produce(ast, (draft: { instances: TNodeInstanceAST[] }) => {
     draft.instances.push(node);
-  }) as TWorkflowAST;
+  });
 }
 
 /**
@@ -256,7 +256,7 @@ export function addNodes(
     nodes.forEach((node) => {
       draft.instances.push(node);
     });
-  }) as TWorkflowAST;
+  });
 }
 
 /**

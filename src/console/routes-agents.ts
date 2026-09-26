@@ -47,8 +47,8 @@ export function createProfileCache(projectDir: () => string): ProfileCache {
 
 /** A profile as the editor sent it: blank fields left out, numbers read from text. */
 function profileFrom(name: string, b: Json): AgentProfile {
-  const str = (k: string) => (typeof b[k] === 'string' && (b[k] as string).trim() ? (b[k] as string).trim() : undefined);
-  const num = (k: string) => (typeof b[k] === 'number' ? (b[k] as number) : typeof b[k] === 'string' && (b[k] as string).trim() ? Number(b[k]) : undefined);
+  const str = (k: string) => (typeof b[k] === 'string' && (b[k]).trim() ? (b[k]).trim() : undefined);
+  const num = (k: string) => (typeof b[k] === 'number' ? (b[k]) : typeof b[k] === 'string' && (b[k]).trim() ? Number(b[k]) : undefined);
   return {
     name, provider: b.provider as AgentProfile['provider'],
     model: str('model'), apiKeyEnv: str('apiKeyEnv'), baseUrl: str('baseUrl'), system: typeof b.system === 'string' && b.system.trim() ? b.system : undefined,

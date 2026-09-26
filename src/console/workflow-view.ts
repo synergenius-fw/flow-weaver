@@ -127,7 +127,7 @@ export async function describeWorkflow(projectDir: string, file: string, name: s
   type Stamped = { id: string; label: string; pull?: boolean; children: Stamped[] };
   const stamp = (steps: Stamped[]) =>
     steps.forEach((s) => { s.label = (nodes[s.id]?.label as string) ?? s.label; s.pull = !!nodes[s.id]?.pull; stamp(s.children); });
-  stamp(model.steps as unknown as Stamped[]);
+  stamp(model.steps);
   const ws = workflowSource(text, ast.functionName);
   return {
     file, rel, name: ast.functionName,

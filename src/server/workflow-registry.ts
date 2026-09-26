@@ -95,7 +95,7 @@ export class WorkflowRegistry {
   private extractInputSchema(workflow: TWorkflowAST): Record<string, unknown> {
     const schema: Record<string, unknown> = {
       type: 'object',
-      properties: {} as Record<string, unknown>,
+      properties: {},
     };
     const required: string[] = [];
 
@@ -126,7 +126,7 @@ export class WorkflowRegistry {
   private extractOutputSchema(workflow: TWorkflowAST): Record<string, unknown> {
     const schema: Record<string, unknown> = {
       type: 'object',
-      properties: {} as Record<string, unknown>,
+      properties: {},
     };
 
     for (const [portName, port] of Object.entries(workflow.exitPorts || {})) {

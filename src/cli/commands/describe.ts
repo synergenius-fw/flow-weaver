@@ -272,7 +272,7 @@ export function formatTextOutput(
   output: DescribeOutput | FocusedNodeOutput
 ): string {
   if ('focusNode' in output) {
-    const focused = output as FocusedNodeOutput;
+    const focused = output;
     const lines: string[] = [];
     lines.push(`Node: ${focused.node.id} [${focused.node.type}]`);
     lines.push(`  Inputs:  ${focused.node.inputs.join(', ') || '(none)'}`);
@@ -290,7 +290,7 @@ export function formatTextOutput(
     return lines.join('\n');
   }
 
-  const desc = output as DescribeOutput;
+  const desc = output;
   const lines: string[] = [];
 
   lines.push(`Workflow: ${desc.name}`);

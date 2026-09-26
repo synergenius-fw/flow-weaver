@@ -274,7 +274,7 @@ export function extractNodeTypes(
       scope: config.scope,
       scopes,
       ...(config.expression && { expression: true }),
-      ...(fn.getDeclarationKind?.() && { declarationKind: fn.getDeclarationKind!() }),
+      ...(fn.getDeclarationKind?.() && { declarationKind: fn.getDeclarationKind() }),
       label: config.label,
       description: config.description,
       visuals:
@@ -414,7 +414,7 @@ export function inferNodeTypeFromFunction(
     hasSuccessPort: true,
     hasFailurePort: true,
     isAsync: returnsPromise(fn),
-    executeWhen: EXECUTION_STRATEGIES.CONJUNCTION as TExecuteWhen,
+    executeWhen: EXECUTION_STRATEGIES.CONJUNCTION,
     expression: !firstParamIsExecute, // Expression only if original function lacks execute as first param
     inferred: true,
     functionText,
@@ -423,7 +423,7 @@ export function inferNodeTypeFromFunction(
     ...(durableEffectContract && { durableEffectContract }),
     ...(durablePure && { durablePure: true }),
     ...(fn.getDeclarationKind?.() && {
-      declarationKind: fn.getDeclarationKind!(),
+      declarationKind: fn.getDeclarationKind(),
     }),
     sourceLocation: {
       file: filePath,

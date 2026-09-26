@@ -67,12 +67,12 @@ export function buildOpenApi(input: OpenApiInput): Record<string, unknown> {
     parameters.push({ name: 'Idempotency-Key', in: 'header', required: false, schema: { type: 'string' }, description: 'The same key gives the same run' });
     parameters.push({ name: 'Prefer', in: 'header', required: false, schema: { type: 'string', enum: ['respond-async'] }, description: 'Answer 202 before the first step runs' });
     op.parameters = parameters;
-    paths[oaPath] = { ...(paths[oaPath] as object ?? {}), [c.route.method.toLowerCase()]: op };
+    paths[oaPath] = { ...(paths[oaPath] ?? {}), [c.route.method.toLowerCase()]: op };
   }
   if (legacy) {
     for (const e of endpoints) {
       paths[e.path] = {
-        ...(paths[e.path] as object ?? {}),
+        ...(paths[e.path] ?? {}),
         get: { operationId: `describe_${e.functionName}`, summary: `Describe ${e.name}`, tags: ['workflows'], responses: { '200': { description: 'The endpoint and its schemas' } } },
         post: {
           operationId: `run_${e.functionName}`, summary: `Run ${e.name} (run resource)`, tags: ['workflows'],

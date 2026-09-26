@@ -68,7 +68,7 @@ export class CliSession {
     this.opts = options;
     this.log = options.logger;
     this.spawnFn = options.spawnFn ?? ((cmd: string, args: string[], opts: { cwd: string; stdio: string[]; env: NodeJS.ProcessEnv }) =>
-      nodeSpawn(cmd, args, { ...opts, stdio: opts.stdio as ('pipe' | 'inherit' | 'ignore')[] }) as ChildProcess);
+      nodeSpawn(cmd, args, { ...opts, stdio: opts.stdio as ('pipe' | 'inherit' | 'ignore')[] }));
     this.idleTimeout = options.idleTimeout ?? DEFAULT_IDLE_TIMEOUT_MS;
 
     // Parser delegates to pushEvent which routes to activeTurn

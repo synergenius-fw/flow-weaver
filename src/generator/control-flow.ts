@@ -198,7 +198,7 @@ export function isPerPortScopedChild(
   // Check if parent has any port (input or output) with the matching scope name.
   // A scope is valid if declared via @scope tag or inferred from callback parameter.
   // If scoped ports exist, they indicate a valid scope function.
-  const scopeName = instance.parent!.scope;
+  const scopeName = instance.parent.scope;
   const hasOutputWithScope = Object.values(parentNodeType.outputs).some(
     (port) => port.scope === scopeName
   );

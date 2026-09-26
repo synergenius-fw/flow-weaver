@@ -129,7 +129,7 @@ export async function parseWorkflow(
               startPorts: {},
               exitPorts: {},
               imports: [],
-            } as TWorkflowAST,
+            },
             errors: [],
             warnings,
             availableWorkflows: [],

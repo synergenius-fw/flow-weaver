@@ -49,7 +49,7 @@ export function addNodeType(
     if (newImportSource && !existingImportSource) {
       return produce(ast, (draft: { nodeTypes: TNodeTypeAST[] }) => {
         (draft.nodeTypes[existingIndex] as { importSource?: string }).importSource = newImportSource;
-      }) as TWorkflowAST;
+      });
     }
 
     // Otherwise, return unchanged (idempotent)
@@ -59,7 +59,7 @@ export function addNodeType(
   // Add new node type
   return produce(ast, (draft: { nodeTypes: TNodeTypeAST[] }) => {
     draft.nodeTypes.push(nodeType);
-  }) as TWorkflowAST;
+  });
 }
 
 /**
@@ -251,5 +251,5 @@ export function replaceNodeTypes(
   // Use produce directly with simplified type to avoid excessive type instantiation
   return produce(ast, (draft: { nodeTypes: TNodeTypeAST[] }) => {
     draft.nodeTypes = nodeTypes;
-  }) as TWorkflowAST;
+  });
 }

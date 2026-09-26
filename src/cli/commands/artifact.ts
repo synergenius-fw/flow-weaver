@@ -42,6 +42,6 @@ export async function artifactCommand(input: string, options: ArtifactCommandOpt
     else { fs.mkdirSync(path.dirname(outputPath), { recursive: true }); fs.writeFileSync(outputPath, artifact.body); }
     logger.success(`${kind === 'svg' ? 'Diagram' : kind === 'pdf' ? 'Brief (PDF)' : 'Brief'} written to ${outputPath}`);
   } else {
-    process.stdout.write(artifact.body as string);
+    process.stdout.write(artifact.body);
   }
 }

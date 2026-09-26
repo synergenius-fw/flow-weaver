@@ -61,7 +61,7 @@ export function runRoutes(ctx: ConsoleContext): Route[] {
     {
       path: /^\/api\/runs\/([^/]+)(?:\/(events|resolve|cancel|debug|agent))?$/, handle: async (call) => {
         const { req, res, q, body, match } = call;
-        const id = match[1]!;
+        const id = match[1];
         const sub = match[2];
         if (!(await runs.snapshot(id))) return json(res, 404, { error: 'no such run' });
         // Forgetting a run: only one that is over, and only from the store --
@@ -72,7 +72,7 @@ export function runRoutes(ctx: ConsoleContext): Route[] {
         }
         if (sub === 'events') return runs.watch(id, req, res);
         if (sub === 'resolve' && req.method === 'POST') {
-          try { await runs.resume(id, (await body()) as { answer?: unknown; reject?: string }); return json(res, 200, await runs.snapshot(id)); }
+          try { await runs.resume(id, await body()); return json(res, 200, await runs.snapshot(id)); }
           catch (err) { return json(res, 400, { error: messageOf(err) }); }
         }
         if (sub === 'agent' && req.method === 'POST') {
@@ -86,7 +86,7 @@ export function runRoutes(ctx: ConsoleContext): Route[] {
           const gateId = q('gate') || rec?.agent?.gateId;
           const kept = gateId ? await ctx.runs.kept(id, transcriptName(gateId)) : undefined;
           if (!kept) return json(res, 404, { error: 'no agent has answered this run' });
-          return json(res, 200, kept as Json);
+          return json(res, 200, kept);
         }
         if (sub === 'cancel' && req.method === 'POST') {
           await runs.cancel(id);
