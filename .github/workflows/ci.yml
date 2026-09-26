@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Read-only by default: nothing here writes to the repository. The Codecov
+# upload authenticates with its own token.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -31,8 +36,12 @@ jobs:
 
       - name: Detect release PR
         id: detect
+        # The branch name is the PR author's text: read it from the
+        # environment, never interpolated into the script.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          if [[ "${{ github.head_ref }}" == release/* ]]; then
+          if [[ "$HEAD_REF" == release/* ]]; then
             echo "is_release=true" >> "$GITHUB_OUTPUT"
           else
             echo "is_release=false" >> "$GITHUB_OUTPUT"
