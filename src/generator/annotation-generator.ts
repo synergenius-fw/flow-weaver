@@ -539,7 +539,7 @@ export class AnnotationGenerator {
 
 /**
  * Generate JSDoc port tag (e.g., @input name - Description)
- * Exported for reuse in generate-in-place.ts to maintain DRY principle
+ * Shared with the in-place generator (src/api/in-place).
  *
  * New format (types derived from signature):
  * - @input name - Description
@@ -702,7 +702,7 @@ export function isConnectionCoveredByMacroStatic(conn: TConnectionAST, macros: T
  * Simply return ports as-is to preserve exact order from the AST
  * Don't compute or add any new metadata - only preserve what's already there
  * This ensures perfect round-trip fidelity
- * Exported for reuse in generate-in-place.ts to maintain DRY principle
+ * Shared with the in-place generator (src/api/in-place).
  */
 export function assignPortOrders(
   ports: [string, TPortDefinition][],
@@ -713,7 +713,7 @@ export function assignPortOrders(
 
 /**
  * Generate @node tag for a single instance
- * Exported for reuse in generate-in-place.ts to maintain DRY principle
+ * Shared with the in-place generator (src/api/in-place).
  */
 export function generateNodeInstanceTag(instance: TNodeInstanceAST): string {
   const parent = instance.parent ? ` ${instance.parent.id}.${instance.parent.scope}` : '';
