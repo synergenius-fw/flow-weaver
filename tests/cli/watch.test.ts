@@ -16,11 +16,7 @@ const CLI_ENTRY = path.join(PROJECT_ROOT, 'src/cli/index.ts');
 // Under npx the watcher is a grandchild that can outlive npx and hold stdout.
 const TSX = ['--import', 'tsx'];
 
-// Build a clean env for spawned CLI processes: strip VITEST* vars so the
-// CLI entry guard doesn't skip program.parse().
-const cliEnv = Object.fromEntries(
-  Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')),
-);
+const cliEnv = process.env;
 
 // Setup and cleanup
 beforeAll(() => {

@@ -53,6 +53,11 @@ jobs:
       - run: npm run lint
       - run: npm run lint:dead
       - run: npm run build
+      # The tests that need the build output; the test job does not build.
+      - name: Test the built bundle
+        run: npx vitest run tests/cli/built-binary-console.test.ts tests/cli/startup-modules.test.ts
+        env:
+          FW_REQUIRE_BUILD: '1'
 
   test:
     needs: build

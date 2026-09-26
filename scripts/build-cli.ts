@@ -1,7 +1,8 @@
 #!/usr/bin/env npx tsx
 
 /**
- * Build script for CLI - bundles into a single executable file
+ * Build script for CLI - bundles into dist/cli/flow-weaver.mjs, an executable
+ * entry, plus the flow-weaver-*.mjs chunks it loads on demand
  */
 
 import * as esbuild from 'esbuild';
@@ -13,20 +14,38 @@ import { createRequire } from 'module';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
-const outfile = path.join(__dirname, '../dist/cli/flow-weaver.mjs');
+const outdir = path.join(__dirname, '../dist/cli');
+const outfile = path.join(outdir, 'flow-weaver.mjs');
 
 async function build() {
   console.log('Building CLI bundle...');
 
+  // Chunk names carry a content hash, so a rebuild without `rimraf dist`
+  // would leave the previous build's chunks behind.
+  if (fs.existsSync(outdir)) {
+    for (const file of fs.readdirSync(outdir)) {
+      if (/^flow-weaver.*\.mjs$/.test(file)) fs.rmSync(path.join(outdir, file));
+    }
+  }
+
   await esbuild.build({
-    entryPoints: [path.join(__dirname, '../src/cli/index.ts')],
+    entryPoints: { 'flow-weaver': path.join(__dirname, '../src/cli/index.ts') },
     bundle: true,
     platform: 'node',
     // Matches package.json engines.node.
     target: 'node22',
     format: 'esm',
-    outfile,
-    // One readable file. No sourcemap goes out (package.json `files` already
+    // Each command handler is a dynamic import() in program.ts. Splitting
+    // makes those real chunks, so `fw --version` loads only the entry and
+    // commander. In one file, every static import of the external
+    // typescript/ts-morph would be hoisted to the top and loaded at startup.
+    // Chunks sit beside the entry, so `import.meta.url` paths keep their depth.
+    splitting: true,
+    outdir,
+    entryNames: '[name]',
+    chunkNames: 'flow-weaver-[name]-[hash]',
+    outExtension: { '.js': '.mjs' },
+    // Readable output. No sourcemap goes out (package.json `files` already
     // excludes dist/**/*.map). Bundled dependencies keep their licence comments.
     minify: false,
     sourcemap: false,
@@ -42,9 +61,10 @@ async function build() {
       // dependency, so consumers always have it installed.
       'esbuild',
     ],
+    // Every chunk gets a `require` for esbuild's CJS interop helper. The
+    // hashbang goes on the entry alone, below.
     banner: {
       js: [
-        '#!/usr/bin/env node',
         'import { createRequire as __createRequire } from "module";',
         'const require = __createRequire(import.meta.url);',
       ].join('\n'),
@@ -53,6 +73,8 @@ async function build() {
       __CLI_VERSION__: JSON.stringify(require('../package.json').version),
     },
   });
+
+  fs.writeFileSync(outfile, '#!/usr/bin/env node\n' + fs.readFileSync(outfile, 'utf-8'));
 
   // Make executable (skip on Windows where chmod is not applicable)
   if (process.platform !== 'win32') {

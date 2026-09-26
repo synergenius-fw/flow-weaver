@@ -17,7 +17,6 @@ import { registerWorkflowTemplates, type WorkflowTemplate } from './index.js';
 export async function loadPackTemplates(projectDir: string): Promise<void> {
   try {
     const { listInstalledPackages } = await import('../../marketplace/registry.js');
-    const { registerPackUseCase } = await import('../commands/init-personas.js');
     const packages = await listInstalledPackages(projectDir);
 
     const loaded: WorkflowTemplate[] = [];
@@ -28,6 +27,9 @@ export async function loadPackTemplates(projectDir: string): Promise<void> {
 
       // Register use case if declared
       if (contributions.useCase) {
+        // Loaded only when a pack needs it: init-personas reaches the grammar
+        // (chevrotain), which `fw templates` otherwise never touches.
+        const { registerPackUseCase } = await import('../commands/init-personas.js');
         registerPackUseCase(contributions.useCase, contributions.templates);
       }
 
