@@ -1,7 +1,7 @@
 /**
  * Tests for a pack annotation preservation through generateInPlace (compile).
  *
- * The compile path uses replaceWorkflowJSDoc in generate-in-place.ts to
+ * The compile path uses replaceWorkflowJSDoc in in-place/workflow-jsdoc.ts to
  * regenerate the workflow JSDoc. a pack annotations (@secret, @runner, @cache,
  * @trigger push, [job:], [environment:]) must survive this round-trip.
  *
