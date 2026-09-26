@@ -24,8 +24,9 @@ export default tseslint.config(
       // or are exported commands, where dropping async would turn a rejection
       // into a synchronous throw for callers.
 
-      // Parser and generator code handles loosely typed ASTs; flag `any`, don't block on it.
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // No `any` in the sources: use `unknown` and narrow. (Scaffolding
+      // templates write `any` into user code as text, which this does not see.)
+      '@typescript-eslint/no-explicit-any': 'error',
       // A leading underscore marks a parameter or binding kept on purpose.
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' }],
       // A `let` read by a closure before its one assignment cannot become `const`.

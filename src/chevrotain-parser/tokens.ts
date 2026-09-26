@@ -341,8 +341,7 @@ export const Identifier = createToken({
   // Identifier Arrow Identifier without spaces around the arrow.
   // The escaped slash stays: this pattern's .source is printed in the
   // published grammar and matched by that text in grammar-diagrams.ts.
-  // eslint-disable-next-line no-useless-escape
-  pattern: /[a-zA-Z_$](?:[a-zA-Z0-9_$\/]|-(?!>))*/,
+  pattern: /[a-zA-Z_$](?:[a-zA-Z0-9_$/]|-(?!>))*/,
 });
 
 // Description text (everything after a dash until end of line)
