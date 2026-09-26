@@ -12,6 +12,7 @@ import { DebugController } from '../../runtime/debug-controller.js';
 import type { DebugPauseState } from '../../runtime/debug-controller.js';
 import { getTopologicalOrder } from '../../api/query.js';
 import { logger } from '../utils/logger.js';
+import { readJsonObjectOption } from '../utils/json-option.js';
 import { getFriendlyError } from '../../validation/friendly-errors.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
@@ -79,7 +80,7 @@ export interface RunOptions {
  * ```
  */
 export async function runCommand(input: string, options: RunOptions): Promise<void> {
-  // Wrap entire body in JSON-aware error handler when --json is set (0b fix)
+  // With --json every failure is reported as JSON on stdout.
   if (options.json) {
     try {
       await runCommandInner(input, options);
@@ -100,47 +101,8 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
     throw new Error(`File not found: ${displayPath(filePath)}`);
   }
 
-  // Parse params from --params or --params-file
-  let params: Record<string, unknown> = {};
-  if (options.params) {
-    try {
-      params = JSON.parse(options.params);
-    } catch {
-      throw new Error(`Invalid JSON in --params: ${options.params}`);
-    }
-  } else if (options.paramsFile) {
-    const paramsFilePath = path.resolve(options.paramsFile);
-    if (!fs.existsSync(paramsFilePath)) {
-      throw new Error(`Params file not found: ${paramsFilePath}`);
-    }
-    try {
-      const content = fs.readFileSync(paramsFilePath, 'utf8');
-      params = JSON.parse(content);
-    } catch {
-      throw new Error(`Failed to parse params file: ${options.paramsFile}`);
-    }
-  }
-
-  // Parse mocks from --mocks or --mocks-file
-  let mocks: FwMockConfig | undefined;
-  if (options.mocks) {
-    try {
-      mocks = JSON.parse(options.mocks);
-    } catch {
-      throw new Error(`Invalid JSON in --mocks: ${options.mocks}`);
-    }
-  } else if (options.mocksFile) {
-    const mocksFilePath = path.resolve(options.mocksFile);
-    if (!fs.existsSync(mocksFilePath)) {
-      throw new Error(`Mocks file not found: ${mocksFilePath}`);
-    }
-    try {
-      const content = fs.readFileSync(mocksFilePath, 'utf8');
-      mocks = JSON.parse(content);
-    } catch {
-      throw new Error(`Failed to parse mocks file: ${options.mocksFile}`);
-    }
-  }
+  const params = readJsonObjectOption(options.params, options.paramsFile, 'params') ?? {};
+  const mocks = readJsonObjectOption(options.mocks, options.mocksFile, 'mocks') as FwMockConfig | undefined;
 
   // Validate mock config against workflow when mocks are provided
   if (mocks && !options.json) {
@@ -175,23 +137,25 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
       logger.info('Running with mock data');
     }
 
-    // Set up the execution-scoped live debug controller.
-    const useDebug = options.debug;
-    let debugController: DebugController | undefined;
+    // Parsed once, for the missing-parameter check and the debugger's step
+    // order. A file that does not parse is left for the executor to report.
+    const parsed = await parseWorkflow(filePath, { workflowName: options.workflow, projectDir: path.dirname(filePath) });
 
-    if (useDebug) {
-      // Get execution order for the controller
-      // parseWorkflow takes the path; handed the file's text it found no such
-      // file, and the debugger stepped with an empty execution order.
-      const parsed = await parseWorkflow(filePath, { workflowName: options.workflow, projectDir: path.dirname(filePath) });
-      const executionOrder = parsed.errors.length === 0 ? getTopologicalOrder(parsed.ast) : [];
-
-      debugController = new DebugController({
-        debug: options.debug ?? false,
-        breakpoints: options.breakpoint,
-        executionOrder,
-      });
+    // A run without a required parameter would run and return nothing for
+    // it, which reads as success. Refuse it here, naming what is missing.
+    if (parsed.errors.length === 0) {
+      const missing = missingParams(parsed.ast, params);
+      if (missing.length) throw new MissingParamsError(parsed.ast.functionName, missing);
     }
+
+    // The execution-scoped live debug controller.
+    const debugController = options.debug
+      ? new DebugController({
+          debug: true,
+          breakpoints: options.breakpoint,
+          executionOrder: parsed.errors.length === 0 ? getTopologicalOrder(parsed.ast) : [],
+        })
+      : undefined;
 
     // Build onEvent callback for real-time streaming
     const nodeStartTimes = new Map<string, number>();
@@ -219,16 +183,6 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
           }
         }
       : undefined;
-
-    // A run without a required parameter would run and return nothing for
-    // it, which reads as success. Refuse it here, naming what is missing.
-    {
-      const parsed = await parseWorkflow(filePath, { workflowName: options.workflow, projectDir: path.dirname(filePath) });
-      if (parsed.errors.length === 0) {
-        const missing = missingParams(parsed.ast, params);
-        if (missing.length) throw new MissingParamsError(parsed.ast.functionName, missing);
-      }
-    }
 
     const runId = randomUUID();
     const execPromise = executeWorkflow({
@@ -363,13 +317,13 @@ async function runCommandInner(input: string, options: RunOptions): Promise<void
     }
 
     if (options.json) {
-      // JSON mode: output structured error (0a fix: set exit code)
+      // JSON mode: a structured error, and a failing exit code.
       process.stdout.write(
         JSON.stringify({ success: false, error: errorMsg }, null, 2) + '\n'
       );
       process.exitCode = 1;
     } else {
-      // Non-json mode: don't re-throw to avoid duplicate error from wrapAction (0c fix)
+      // Not re-thrown: the error is printed above, and wrapAction would print it again.
       process.exitCode = 1;
     }
   } finally {
