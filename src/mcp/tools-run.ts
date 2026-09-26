@@ -12,13 +12,12 @@ import { makeErrorResult, makeToolResult } from './response-utils.js';
 /**
  * Coordinated workflow runs for an AI assistant.
  *
- * The stateless primitives (`runWorkflow` / `resumeWorkflow` in
- * tools-workflow-run.ts) hand the caller the whole continuation envelope and
- * expect it back. That is right for a coordinator and hopeless for a
- * language model, which would carry ~800 tokens of addresses and variables
- * per gate in each direction. These three tools put a local coordinator in
- * between so the assistant only ever sees `{ runId, gate }` and answers with
- * `{ runId, answer }`.
+ * The engine's own run and resume (`executeWorkflow`) hand the caller the
+ * whole continuation envelope and expect it back. That is right for a
+ * coordinator and hopeless for a language model, which would carry ~800
+ * tokens of addresses and variables per gate in each direction. These three
+ * tools put a local coordinator in between so the assistant only ever sees
+ * `{ runId, gate }` and answers with `{ runId, answer }`.
  *
  * Nothing here returns trace events, progress, or the envelope. Fewer tokens
  * is the point.

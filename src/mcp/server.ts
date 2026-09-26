@@ -61,9 +61,6 @@ export async function startMcpServer(options: McpServerOptions): Promise<void> {
   registerDiagramTools(mcp);
   registerDocsTools(mcp);
   registerDebugTools(mcp);
-  // The stateless run/resume primitives (tools-workflow-run.ts) are not
-  // registered: they carry the whole continuation envelope, which is for a
-  // coordinator, not a language model. Assistants use fw_run and fw_resume.
   registerRunTools(mcp);
   registerContextTools(mcp);
   registerResourceTools(mcp);
