@@ -10,6 +10,7 @@ import { logger } from '../utils/logger.js';
 import { announceService } from '../../service-registry.js';
 import { defaultRunsDir } from '../../coordinator/index.js';
 import { loadAgentProfiles, readiness } from '../../agent/profiles.js';
+import { getErrorMessage } from '../../utils/error-utils.js';
 
 export interface ServeOptions {
   /** Server port. Default 3000. */
@@ -113,7 +114,7 @@ export async function serveCommand(dir: string | undefined, options: ServeOption
       logger.info(`Received ${signal}, shutting down...`);
       await server.stop();
     } catch (error) {
-      logger.error(`Shutting down failed: ${error instanceof Error ? error.message : String(error)}`);
+      logger.error(`Shutting down failed: ${getErrorMessage(error)}`);
       process.exit(1);
       return;
     }

@@ -16,6 +16,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import type { ToolDefinition, ToolExecutor, ToolEvent, McpBridge, Logger } from './types.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /**
  * Create an MCP bridge that the Claude CLI can connect to for tool execution.
@@ -97,7 +98,7 @@ export async function createMcpBridge(
       currentOnToolEvent?.({ type: 'tool_call_result', name, result, isError });
       return JSON.stringify({ result, isError });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = getErrorMessage(err);
       try {
         logger?.error('MCP bridge tool execution error', err);
       } catch {

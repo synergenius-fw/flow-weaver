@@ -12,6 +12,7 @@ import { logger } from '../utils/logger.js';
 import type { TModuleFormat } from '../../ast/types.js';
 import { VERSION } from '../../generated-version.js';
 import { MIN_NODE_MAJOR } from '../../constants.js';
+import { getErrorMessage } from '../../utils/error-utils.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -654,7 +655,7 @@ function readYaml(filePath: string): { data: unknown; error?: string } {
     const content = fs.readFileSync(filePath, 'utf8');
     return { data: YAML.load(content) };
   } catch (e) {
-    return { data: null, error: e instanceof Error ? e.message : String(e) };
+    return { data: null, error: getErrorMessage(e) };
   }
 }
 

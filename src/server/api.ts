@@ -58,6 +58,7 @@ import { parseWorkflow } from '../api/parse.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import type { THttpRoute } from '../ast/types.js';
 import type { RunResponse, HealthResponse, WorkflowListResponse, ErrorBody, WorkflowEndpoint } from './types.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 type Json = Record<string, unknown>;
 
@@ -205,8 +206,8 @@ export function errorToHttp(err: unknown): HttpError {
   if (err instanceof RunBusyError) return new HttpError(409, 'RUN_IN_FLIGHT', err.message, undefined, { 'Retry-After': '2' });
   if (err instanceof MissingParamsError) return new HttpError(400, 'VALIDATION_ERROR', err.message, err.missing.map((k) => ({ path: k, message: 'required' })));
   const name = (err as { name?: string })?.name;
-  if (name === 'ContinuationRefusalError') return new HttpError(409, 'CONTINUATION_REFUSED', err instanceof Error ? err.message : String(err));
-  return new HttpError(500, 'EXECUTION_ERROR', err instanceof Error ? err.message : String(err));
+  if (name === 'ContinuationRefusalError') return new HttpError(409, 'CONTINUATION_REFUSED', getErrorMessage(err));
+  return new HttpError(500, 'EXECUTION_ERROR', getErrorMessage(err));
 }
 
 export const isLoopback = (host: string) => ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host);
@@ -600,7 +601,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
       live.delete(l.id);
     } catch (err) {
       if (await coordinator.record(l.id)) live.delete(l.id);
-      else l.error = err instanceof Error ? err.message : String(err);
+      else l.error = getErrorMessage(err);
     }
     await announce(l.id);
     void afterSegment(l.id);
@@ -906,7 +907,7 @@ export function createWorkflowApi(options: WorkflowApiOptions): WorkflowApi {
     node: () => (req, res) => {
       handle(req, res).then((handled) => {
         if (!handled && !res.headersSent) json(res, 404, { error: { code: 'NOT_FOUND', message: `no route for ${req.method} ${req.url}` } });
-      }).catch((err) => { if (!res.headersSent) json(res, 500, { error: { code: 'INTERNAL', message: err instanceof Error ? err.message : String(err) } }); });
+      }).catch((err) => { if (!res.headersSent) json(res, 500, { error: { code: 'INTERNAL', message: getErrorMessage(err) } }); });
     },
     express: () => (req, res, next) => {
       handle(req, res, { basePath: req.baseUrl ?? '' }).then((handled) => { if (!handled) next(); }).catch(next);
@@ -973,7 +974,7 @@ async function fetchAdapter(handle: WorkflowApi['handle'], request: Request, opt
   void handle(req, res, opts).then((handled) => {
     if (!handled && !sent) { status = 404; outHeaders.set('Content-Type', 'application/json'); res.end(JSON.stringify({ error: { code: 'NOT_FOUND', message: `no route for ${request.method} ${url.pathname}` } })); }
     else if (!ended) res.end();
-  }).catch((err) => { if (!sent) { status = 500; res.end(JSON.stringify({ error: { code: 'INTERNAL', message: err instanceof Error ? err.message : String(err) } })); } else res.end(); });
+  }).catch((err) => { if (!sent) { status = 500; res.end(JSON.stringify({ error: { code: 'INTERNAL', message: getErrorMessage(err) } })); } else res.end(); });
   return response;
 }
 

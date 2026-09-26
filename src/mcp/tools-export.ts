@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import { parseWorkflow } from '../api/index.js';
 import { createTargetRegistry } from '../deployment/index.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 export function registerExportTools(mcp: McpServer): void {
   mcp.tool(
@@ -102,7 +103,7 @@ export function registerExportTools(mcp: McpServer): void {
         } catch (err) {
           return makeErrorResult(
             'PARSE_ERROR',
-            `Failed to parse ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+            `Failed to parse ${filePath}: ${getErrorMessage(err)}`
           );
         }
 
@@ -283,7 +284,7 @@ export function registerExportTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'EXPORT_ERROR',
-          `Export failed: ${err instanceof Error ? err.message : String(err)}`
+          `Export failed: ${getErrorMessage(err)}`
         );
       }
     }

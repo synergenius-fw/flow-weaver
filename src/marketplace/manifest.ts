@@ -20,6 +20,7 @@ import type {
   TManifestWorkflow,
   TManifestPort,
 } from './types.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 // ── Port mapping ─────────────────────────────────────────────────────────────
 
@@ -148,7 +149,7 @@ export async function generateManifest(
         errors.push(...result.errors.map((e) => `${file}: ${e}`));
       }
     } catch (err) {
-      errors.push(`Failed to parse ${file}: ${err instanceof Error ? err.message : String(err)}`);
+      errors.push(`Failed to parse ${file}: ${getErrorMessage(err)}`);
     }
   }
 

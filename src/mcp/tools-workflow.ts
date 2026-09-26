@@ -19,6 +19,7 @@ import {
 import { findIsolatedNodes, findWorkflows } from '../api/query.js';
 import { makeToolResult, makeErrorResult, addHintsToItems } from './response-utils.js';
 import { getFriendlyError } from '../validation/friendly-errors.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 export function registerWorkflowTools(mcp: McpServer): void {
   mcp.tool(
@@ -36,7 +37,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'FIND_WORKFLOWS_ERROR',
-          `fw_find_workflows failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_find_workflows failed: ${getErrorMessage(err)}`
         );
       }
     }
@@ -349,7 +350,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
           } catch (valErr) {
             // Validation is best-effort after modify; include parse warning
             warnings.push(
-              `Post-modify validation failed: ${valErr instanceof Error ? valErr.message : String(valErr)}. The file was still written.`
+              `Post-modify validation failed: ${getErrorMessage(valErr)}. The file was still written.`
             );
           }
         }
@@ -366,7 +367,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'MODIFY_ERROR',
-          `fw_modify failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_modify failed: ${getErrorMessage(err)}`
         );
       }
     }
@@ -438,7 +439,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
           } catch (opErr) {
             return makeErrorResult(
               'MODIFY_ERROR',
-              `Operation ${i} (${op.operation}) failed: ${opErr instanceof Error ? opErr.message : String(opErr)}`
+              `Operation ${i} (${op.operation}) failed: ${getErrorMessage(opErr)}`
             );
           }
         }
@@ -514,7 +515,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
           }
         } catch (valErr) {
           allWarnings.push(
-            `Post-modify validation failed: ${valErr instanceof Error ? valErr.message : String(valErr)}. The file was still written.`
+            `Post-modify validation failed: ${getErrorMessage(valErr)}. The file was still written.`
           );
         }
 
@@ -530,7 +531,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'MODIFY_ERROR',
-          `fw_modify_batch failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_modify_batch failed: ${getErrorMessage(err)}`
         );
       }
     }
@@ -581,7 +582,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
             }
             results.push({ file, status: 'migrated' });
           } catch (err) {
-            results.push({ file, status: 'error', error: err instanceof Error ? err.message : String(err) });
+            results.push({ file, status: 'error', error: getErrorMessage(err) });
           }
         }
 
@@ -599,7 +600,7 @@ export function registerWorkflowTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'MIGRATE_ERROR',
-          `fw_migrate failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_migrate failed: ${getErrorMessage(err)}`
         );
       }
     }

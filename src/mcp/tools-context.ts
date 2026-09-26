@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { buildContext } from '../context/index.js';
 import { makeErrorResult } from './response-utils.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /**
  * fw_context is the first call an assistant makes in a session, so it is
@@ -51,7 +52,7 @@ export function registerContextTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'CONTEXT_ERROR',
-          `fw_context failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_context failed: ${getErrorMessage(err)}`
         );
       }
     }

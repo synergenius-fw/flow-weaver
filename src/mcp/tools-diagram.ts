@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileToSVG, fileToASCII, sourceToSVG, sourceToASCII } from '../diagram/index.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 const ASCII_FORMATS = new Set(['ascii', 'ascii-compact', 'text']);
 
@@ -97,7 +98,7 @@ export function registerDiagramTools(mcp: McpServer): void {
       } catch (error) {
         return makeErrorResult(
           'DIAGRAM_ERROR',
-          `Diagram generation failed: ${error instanceof Error ? error.message : String(error)}`
+          `Diagram generation failed: ${getErrorMessage(error)}`
         );
       }
     }

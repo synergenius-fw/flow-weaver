@@ -30,7 +30,8 @@ import { serviceRoutes } from './routes-services.js';
 import { runRoutes } from './routes-runs.js';
 import { findRoute, type ConsoleContext, type Route } from './router.js';
 import { refusal } from './request-guard.js';
-import { BadRequest, json, messageOf, readBody, send, type Json } from './respond.js';
+import { BadRequest, json, readBody, send, type Json } from './respond.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 export interface ConsoleServerOptions {
   /** Directory whose workflows the console shows. */
@@ -263,7 +264,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
       // A stream that already started (an event stream) cannot turn into an
       // error response; closing it is the only answer left.
       if (res.headersSent) { res.destroy(); return; }
-      json(res, err instanceof BadRequest ? 400 : 500, { error: messageOf(err) });
+      json(res, err instanceof BadRequest ? 400 : 500, { error: getErrorMessage(err) });
     }
   };
   const server = http.createServer((req, res) => {

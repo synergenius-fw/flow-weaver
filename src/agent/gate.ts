@@ -22,6 +22,7 @@ import { createOpenAICompatProvider } from './providers/openai-compat.js';
 import { createClaudeCliProvider } from './providers/claude-cli.js';
 import { DEFAULT_MAX_ITERATIONS, DEFAULT_MODEL, keyEnvOf, readiness, type AgentProfile } from './profiles.js';
 import { stripMcpToolPrefix, type AgentMessage, type AgentProvider, type StreamEvent, type ToolDefinition, type ToolEvent } from './types.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /** The field schema the console derives from TypeScript types (`src/console/schema.ts`), structurally. */
 export type FieldSchema =
@@ -220,7 +221,7 @@ export async function tryProfile(profile: AgentProfile, env: NodeJS.ProcessEnv =
   try {
     provider = opts.provider ?? providerFor(profile, env, opts.cwd);
   } catch (e) {
-    return { ok: false, ms: Date.now() - started, error: e instanceof Error ? e.message : String(e) };
+    return { ok: false, ms: Date.now() - started, error: getErrorMessage(e) };
   }
   try {
     const result = await runAgentLoop(provider, [], async () => ({ result: '', isError: true }), [{ role: 'user', content: 'Reply with the single word OK.' }], {
@@ -237,7 +238,7 @@ export async function tryProfile(profile: AgentProfile, env: NodeJS.ProcessEnv =
     if (!result.success) return { ok: false, ms: Date.now() - started, text, usage, error: text || 'the provider returned an error' };
     return { ok: true, ms: Date.now() - started, text, usage };
   } catch (e) {
-    return { ok: false, ms: Date.now() - started, error: e instanceof Error ? e.message : String(e) };
+    return { ok: false, ms: Date.now() - started, error: getErrorMessage(e) };
   }
 }
 
@@ -336,7 +337,7 @@ export async function answerGate(opts: AnswerGateOptions): Promise<GateAgentResu
       captured = { kind: 'failed', error: opts.signal?.aborted ? 'stopped before an answer was submitted' : result.success ? `the model did not call ${SUBMIT_TOOL}` : result.summary };
     }
   } catch (e) {
-    captured = { kind: 'failed', error: e instanceof Error ? e.message : String(e) };
+    captured = { kind: 'failed', error: getErrorMessage(e) };
   }
   const ms = Date.now() - started;
   emit({ type: 'agent', phase: 'done', outcome: captured.kind, ms, ...(captured.kind === 'failed' ? { error: captured.error } : {}), ...(captured.kind === 'reject' ? { reason: captured.reason } : {}) });

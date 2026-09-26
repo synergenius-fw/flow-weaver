@@ -9,6 +9,7 @@ import * as os from 'os';
 import confirm from '@inquirer/confirm';
 import { ExitPromptError } from '@inquirer/core';
 import { isNonInteractive } from '../utils/interactive.js';
+import { getErrorMessage } from '../../utils/error-utils.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -326,7 +327,7 @@ async function configureTool(tool: ToolDefinition, deps: McpSetupDeps): Promise<
     const detail = await tool.configure(deps);
     return { id: tool.id, displayName: tool.displayName, action: 'configured', detail };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = getErrorMessage(err);
     return { id: tool.id, displayName: tool.displayName, action: 'failed', detail: msg };
   }
 }

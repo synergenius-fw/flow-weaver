@@ -652,7 +652,7 @@ async function runDebugRepl(
         }
       } catch (err) {
         if (!resolved) {
-          const msg = err instanceof Error ? err.message : String(err);
+          const msg = getErrorMessage(err);
           if (msg.includes('aborted')) {
             logger.log('Debug session aborted.');
             finish(undefined);

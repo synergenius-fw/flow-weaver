@@ -22,6 +22,7 @@ import { formatDiff } from '../diff/formatDiff.js';
 import { searchPackages, listInstalledPackages } from '../marketplace/registry.js';
 import { npmInstall, npmUninstall, npmPublish } from '../marketplace/install.js';
 import { applyMigrations, getRegisteredMigrations } from '../migration/registry.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 export interface CommandResult {
   output?: string;
@@ -310,7 +311,7 @@ const handlers: Record<string, CommandHandler> = {
       }
       return { data: { success: true, package: pkg, manifest: manifest ? { name: manifest.name, version: manifest.version, nodeTypes: manifest.nodeTypes?.length ?? 0 } : null } };
     } catch (err) {
-      return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
+      return { data: { success: false, error: getErrorMessage(err) } };
     }
   },
 
@@ -325,7 +326,7 @@ const handlers: Record<string, CommandHandler> = {
       npmUninstall(pkg, { cwd });
       return { data: { success: true, package: pkg, removed: true } };
     } catch (err) {
-      return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
+      return { data: { success: false, error: getErrorMessage(err) } };
     }
   },
 
@@ -419,7 +420,7 @@ const handlers: Record<string, CommandHandler> = {
         },
       };
     } catch (err) {
-      return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
+      return { data: { success: false, error: getErrorMessage(err) } };
     }
   },
 
@@ -452,7 +453,7 @@ const handlers: Record<string, CommandHandler> = {
       npmPublish(tag, { cwd: directory });
       return { data: { success: true, package: pkg.name, version: pkg.version, published: true } };
     } catch (err) {
-      return { data: { success: false, error: err instanceof Error ? err.message : String(err) } };
+      return { data: { success: false, error: getErrorMessage(err) } };
     }
   },
 

@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { listTopics, readTopic, searchDocs } from '../docs/index.js';
 import { makeToolResult, makeErrorResult } from './response-utils.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 const SEARCH_LIMIT_DEFAULT = 8;
 const SEARCH_LIMIT_MAX = 20;
@@ -97,7 +98,7 @@ export function registerDocsTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'DOCS_ERROR',
-          `fw_docs failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_docs failed: ${getErrorMessage(err)}`
         );
       }
     }

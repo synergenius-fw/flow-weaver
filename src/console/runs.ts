@@ -22,6 +22,7 @@ import { DebugSessions, type DebugView } from './debug.js';
 import { gateOutputSchemas, type FieldSchema } from './schema.js';
 import { nodeTypeOf, parseOne } from './workflow-view.js';
 import { send, sse, type Json } from './respond.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 type Source = { commit?: string; dirty?: boolean };
 
@@ -230,7 +231,7 @@ export function createRunDriver({ coordinator, broadcast, projectDir, profiles }
       // run refused before that -- a file that stopped parsing, a bundle
       // that could not be fingerprinted -- is kept here so it is still shown.
       if (await coordinator.record(l.id)) live.delete(l.id);
-      else { l.status = 'failed'; l.error = err instanceof Error ? err.message : String(err); }
+      else { l.status = 'failed'; l.error = getErrorMessage(err); }
     }
     await changed(l.id);
     void afterSegment(l.id);

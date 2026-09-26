@@ -20,6 +20,7 @@ import { WorkflowDiffer } from '../diff/WorkflowDiffer.js';
 import { formatDiff } from '../diff/formatDiff.js';
 import { makeToolResult, makeErrorResult, addHintsToItems } from './response-utils.js';
 import { getFriendlyError } from '../validation/friendly-errors.js';
+import { getErrorMessage } from '../utils/error-utils.js';
 
 /** Detect MULTIPLE_WORKFLOWS_FOUND marker in parse errors and return the right error code */
 function parseErrorCode(errors: string[]): string {
@@ -95,7 +96,7 @@ export function registerQueryTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'DESCRIBE_ERROR',
-          `fw_describe failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_describe failed: ${getErrorMessage(err)}`
         );
       }
     }
@@ -183,7 +184,7 @@ export function registerQueryTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'VALIDATE_ERROR',
-          `fw_validate failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_validate failed: ${getErrorMessage(err)}`
         );
       }
     }
@@ -244,7 +245,7 @@ export function registerQueryTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'COMPILE_ERROR',
-          `fw_compile failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_compile failed: ${getErrorMessage(err)}`
         );
       }
     }
@@ -294,7 +295,7 @@ export function registerQueryTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'DIFF_ERROR',
-          `fw_diff failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_diff failed: ${getErrorMessage(err)}`
         );
       }
     }
@@ -393,7 +394,7 @@ export function registerQueryTools(mcp: McpServer): void {
             } catch (cycleErr) {
               return makeErrorResult(
                 'CYCLE_DETECTED',
-                cycleErr instanceof Error ? cycleErr.message : String(cycleErr)
+                getErrorMessage(cycleErr)
               );
             }
           case 'isolated':
@@ -421,7 +422,7 @@ export function registerQueryTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'QUERY_ERROR',
-          `fw_query failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_query failed: ${getErrorMessage(err)}`
         );
       }
     }
@@ -444,7 +445,7 @@ export function registerQueryTools(mcp: McpServer): void {
       } catch (err) {
         return makeErrorResult(
           'DOCTOR_ERROR',
-          `fw_doctor failed: ${err instanceof Error ? err.message : String(err)}`
+          `fw_doctor failed: ${getErrorMessage(err)}`
         );
       }
     }
