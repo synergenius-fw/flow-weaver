@@ -1,5 +1,5 @@
 /**
- * Tests for parser.ts exit port handling
+ * Tests for the annotation parser's exit port handling
  * Ensures a helpful parse warning when the return type cannot be determined
  */
 
