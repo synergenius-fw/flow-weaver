@@ -1,8 +1,8 @@
 /**
  * Guards the built CLI bundle against ESM/CJS breakage in bundled dependencies.
  *
- * Background: `scripts/build-cli.ts` bundles `src/cli/index.ts` into a single
- * ESM file, `dist/cli/flow-weaver.mjs`. esbuild's own `lib/main.js` reads
+ * Background: `scripts/build-cli.ts` bundles `src/cli/index.ts` into ESM:
+ * `dist/cli/flow-weaver.mjs` and the `flow-weaver-*.mjs` chunks beside it. esbuild's own `lib/main.js` reads
  * `__filename` and `__dirname` to locate its native binary. Those do not exist
  * in an ESM bundle, so once esbuild was bundled in, `fw console` died at once
  * with `✗ __filename is not defined` while `npx tsx src/cli/index.ts console`
@@ -100,15 +100,19 @@ async function stop(child: ChildProcess): Promise<void> {
 
 describe.skipIf(!hasBuild)('built CLI bundle', () => {
   it('does not reference __filename, which is undefined in an ESM bundle', () => {
-    const bundle = fs.readFileSync(BUILT_CLI, 'utf-8');
-    const lines = bundle.split('\n');
-    const offenders = lines
-      .map((line, i) => ({ line, n: i + 1 }))
-      .filter(({ line }) => /(?<![\w$])__filename(?![\w$])/.test(line))
-      .map(({ line, n }) => `${n}: ${line.trim().slice(0, 120)}`);
+    // The bundle is split: the entry and its flow-weaver-*.mjs chunks beside it.
+    const cliDir = path.dirname(BUILT_CLI);
+    const files = fs.readdirSync(cliDir).filter((f) => /^flow-weaver.*\.mjs$/.test(f));
+    expect(files).toContain('flow-weaver.mjs');
+    const offenders = files.flatMap((file) =>
+      fs.readFileSync(path.join(cliDir, file), 'utf-8').split('\n')
+        .map((line, i) => ({ line, n: i + 1 }))
+        .filter(({ line }) => /(?<![\w$])__filename(?![\w$])/.test(line))
+        .map(({ line, n }) => `${file}:${n}: ${line.trim().slice(0, 120)}`),
+    );
     expect(
       offenders,
-      'dist/cli/flow-weaver.mjs references __filename, which does not exist in an ESM bundle. A ' +
+      'dist/cli/flow-weaver*.mjs references __filename, which does not exist in an ESM bundle. A ' +
         'CommonJS dependency was bundled into the ESM output; add it to the `external` list in ' +
         `scripts/build-cli.ts.\n${offenders.join('\n')}`,
     ).toEqual([]);
