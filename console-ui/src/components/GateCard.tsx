@@ -73,7 +73,7 @@ export function GateCard({ gate, due }: { gate: Gate; due?: Due }) {
   if (gate.kind === 'timer') {
     // Nothing to answer: the clock does. A person can cut the sleep short.
     return (
-      <div class="gatecard">
+      <div class="gatecard" role="form" aria-label={`${WHO.timer}: ${gate.node}`}>
         <div class="gh"><b>{WHO.timer}</b><span>{gate.node} ({gate.kind})</span></div>
         <Handed gate={gate} />
         <section>
@@ -87,7 +87,7 @@ export function GateCard({ gate, due }: { gate: Gate; due?: Due }) {
     );
   }
   return (
-    <div class="gatecard">
+    <div class="gatecard" role="form" aria-label={`${WHO[gate.kind] ?? 'Answer'}: ${gate.node}`}>
       <div class="gh"><b>{WHO[gate.kind] ?? 'Answer'}</b><span>{gate.node} ({gate.kind})</span></div>
       {asked && <section><div class="asked">{asked}</div></section>}
       <Handed gate={gate} />
@@ -96,7 +96,7 @@ export function GateCard({ gate, due }: { gate: Gate; due?: Due }) {
         {gate.outputs.length
           ? <SchemaForm fields={fields} value={value} errors={errors} onChange={setValue} />
           : <div class="hint" style="margin-bottom:8px">nothing to return</div>}
-        {rejecting && <div class="field"><label><span>reason</span></label><input type="text" value={reason} onInput={(e) => setReason((e.target as HTMLInputElement).value)} placeholder="why it is rejected (the workflow reads it on its failure port)" /></div>}
+        {rejecting && <div class="field"><label><span>reason</span></label><input type="text" aria-label="Reason" value={reason} onInput={(e) => setReason((e.target as HTMLInputElement).value)} placeholder="why it is rejected (the workflow reads it on its failure port)" /></div>}
         <div class="formfoot">
           {rejecting
             ? <><button class="btn primary sm" disabled={busy} onClick={() => submit({ reject: reason || 'rejected' })}>Reject</button><button class="btn sm" onClick={() => setRejecting(false)}>Back</button></>

@@ -142,7 +142,7 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
   };
 
   return (
-    <div class="card newrun" onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void go(); } }}>
+    <div class="card newrun" role="form" aria-label="New run" onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void go(); } }}>
       <h3>New run<span class="sp" />
         {naming === null
           ? <div class="presets">
@@ -226,7 +226,11 @@ export function NewRunCard({ w }: { w: ParsedWorkflow }) {
 
       <div class="in">
         <h5>How</h5>
-        <div class="seg"><button class={mode === 'run' ? 'on' : ''} onClick={() => pickMode('run')}>Run</button><button class={mode === 'debug' ? 'on' : ''} onClick={() => pickMode('debug')}>Step through</button></div>
+        {/* A choice of one, so it reads as one: radios, not two more buttons beside the one that runs. */}
+        <div class="seg" role="radiogroup" aria-label="How">
+          <button role="radio" aria-checked={mode === 'run'} class={mode === 'run' ? 'on' : ''} onClick={() => pickMode('run')}>Run</button>
+          <button role="radio" aria-checked={mode === 'debug'} class={mode === 'debug' ? 'on' : ''} onClick={() => pickMode('debug')}>Step through</button>
+        </div>
         {mode === 'debug' && (
           <div class="dbgopts">
             <label class="radio"><input type="radio" name="runto" checked={runTo === 'first'} onChange={() => pickRunTo('first')} /><span>Pause before the first step</span></label>

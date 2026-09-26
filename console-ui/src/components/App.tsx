@@ -100,7 +100,7 @@ export function App() {
       class={`shell ${mode}`}
       style={`grid-template-columns: ${rail}px 0 minmax(0, 1fr) 0 ${side}px; --rail:${rail}px`}
     >
-      <aside class={`col rail ${ui.railOpen.value ? 'open' : ''}`}><Rail /></aside>
+      <aside class={`col rail ${ui.railOpen.value ? 'open' : ''}`} aria-label="Navigator"><Rail /></aside>
       <Splitter side="rail" />
       <main class="col main">
         <Header />
@@ -112,7 +112,7 @@ export function App() {
         )}
       </main>
       <Splitter side="side" />
-      <aside class="col side">{reading ? <DocSide /> : browsing ? <PackSide /> : shopping ? <MarketSide /> : authoring ? <AuthorSide /> : overview ? <ProjectSide /> : agenting ? <AgentsSide /> : serving ? <EndpointsSide /> : <Inspector />}</aside>
+      <aside class="col side" aria-label="Inspector">{reading ? <DocSide /> : browsing ? <PackSide /> : shopping ? <MarketSide /> : authoring ? <AuthorSide /> : overview ? <ProjectSide /> : agenting ? <AgentsSide /> : serving ? <EndpointsSide /> : <Inspector />}</aside>
       <Drawer />
       <Search />
       <div class={`toast ${toastMsg.value ? 'show' : ''}`}>{toastMsg.value}</div>
