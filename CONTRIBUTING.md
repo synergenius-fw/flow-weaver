@@ -72,7 +72,7 @@ A few things are generated from the code and checked for drift:
   result.
 - `src/doc-metadata/extractors/cli-commands.ts` describes every CLI flag for
   `fw docs` and `fw context`. A test fails when it disagrees with
-  `src/cli/index.ts`, so add a new flag in both places.
+  `src/cli/program.ts`, so add a new flag in both places.
 - Every validation code needs a friendly message in
   `src/validation/friendly-errors.ts`; the docs generator fails without one.
 - A test file that calls `vi.mock` at module level must be listed in

@@ -2,7 +2,8 @@
  * Extractor for CLI command documentation
  *
  * This defines all CLI commands with their descriptions, options, and action blocks.
- * The data is extracted from the Commander.js definitions in cli/index.ts.
+ * The data mirrors the Commander.js definitions in cli/program.ts; a test
+ * (tests/unit/doc-metadata/cli-commands-sync.test.ts) compares the two.
  * Template lists are generated from the actual template registries.
  */
 
