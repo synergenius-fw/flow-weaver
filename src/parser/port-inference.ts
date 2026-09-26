@@ -242,9 +242,8 @@ function extractTypeSchema(tsType: Type): Record<string, string> | undefined {
 }
 
 /**
- * Check if a type should be expanded into individual ports via getProperties().
- * Returns true for object literals and interfaces, false for primitives, arrays,
- * and built-in types whose properties are prototype methods (string, number, etc.).
+ * Whether a type is an object with no named properties, such as `{}` or
+ * `Record<string, unknown>`. Such a params object declares no ports.
  */
 function isPropertylessObjectType(tsType: Type): boolean {
   return (
@@ -255,6 +254,11 @@ function isPropertylessObjectType(tsType: Type): boolean {
   );
 }
 
+/**
+ * Check if a type should be expanded into individual ports via getProperties().
+ * Returns true for object literals and interfaces, false for primitives, arrays,
+ * and built-in types whose properties are prototype methods (string, number, etc.).
+ */
 function isExpandableObjectType(tsType: Type): boolean {
   const typeText = tsType.getText();
   const primitiveTypes = new Set(['string', 'number', 'boolean', 'any', 'unknown', 'never', 'object', 'Object']);

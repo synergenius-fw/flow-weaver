@@ -55,8 +55,10 @@ describe('devCommand change handler', () => {
       fs.writeFileSync(file, '// a workflow');
       mockExecuteWorkflow.mockResolvedValue({ kind: 'completed', functionName: 'wf', executionTime: 1, result: {} });
       mockCompileCommand.mockResolvedValueOnce(undefined);
-      // A compile error whose error list the reporter cannot read.
-      mockCompileCommand.mockRejectedValueOnce(Object.assign(new Error('bad'), { errors: [null] }));
+      // A compile error whose reporting itself fails: the cycle's own catch
+      // throws, and only the change handler is left to report it.
+      mockCompileCommand.mockRejectedValueOnce(new Error('bad'));
+      vi.mocked(logger.error).mockImplementationOnce(() => { throw new Error('the terminal went away'); });
 
       void devCommand(file, {});
       await vi.waitFor(() => expect(mockWatcherOn).toHaveBeenCalledWith('change', expect.any(Function)));

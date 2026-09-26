@@ -6,6 +6,11 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 
 ## Unreleased
 
+### Changed
+
+- **`fw compile` refuses a workflow that fails validation.** Without `--strict`, validation errors were neither printed nor blocking. A workflow naming a node type that does not exist compiled silently. What `fw validate` rejects no longer compiles.
+- **Every test must assert something.** Vitest runs with `requireAssertions`. 144 tests that only ran code now check what it did, or are gone.
+
 ### Security
 
 - **`runCommand`'s marketplace commands no longer run a shell.** `market-install`, `market-uninstall` and `market-publish` passed their caller's package or dist-tag into a shell command, so `runCommand('market-install', { package: 'x; ...' })` ran whatever followed. They now run npm without a shell and check each value first, as `fw market` already did.
@@ -13,6 +18,12 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 - **Callbacks cannot be re-pointed at a private address.** A callback URL was checked when the run started and fetched by name when it finished, which could be days later. A name that resolved to a public address at the check and a private one at delivery reached the private address. Each delivery attempt now checks the URL again and connects to the address it checked.
 
 ### Fixed
+
+- **`--strict` promotes type coercions to errors again.** `fw validate --strict` and `fw compile --strict` passed a mode the validator had ignored since #19.
+- **A compiled workflow without parameters can be run.** Compile writes `params: Record<string, unknown> = {}`, and the next parse read it as a required input named `params`, so `fw run` refused it.
+- **Built-in nodes keep their engine arguments after a recompile.** The second compile called the inlined `delay` without the abort signal and runtime, so mocks such as `fast` and cancellation stopped reaching it.
+- **`fw watch` checks its input before announcing it is watching.**
+- **The annotation suggestion fires after a freshly typed `/**`** above a function.
 
 - **A `__proto__` key can no longer satisfy a required parameter.** On a declared `fw serve` route, a JSON body of `{"__proto__": {"n": "text"}}` made `n` inherited. That passed the required check and skipped the type check. The key is now never copied, and required parameters must be the caller's own keys, here and in the coordinator.
 - **`fw run` and `fw dev` refuse `--params` that is not a JSON object.** `--params '[1]'` or `--params 5` was passed to the workflow as its parameters. The same applies to `--mocks` and both `-file` forms.
