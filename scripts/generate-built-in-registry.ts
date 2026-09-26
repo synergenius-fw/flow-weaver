@@ -380,11 +380,10 @@ function buildOutputPorts(
 ): Record<string, Record<string, unknown>> {
   const outputs: Record<string, Record<string, unknown>> = {};
 
-  // onSuccess/onFailure always first
-  outputs.onSuccess = { dataType: 'STEP', label: 'On Success', isControlFlow: true };
-  outputs.onFailure = { dataType: 'STEP', label: 'On Failure', failure: true, isControlFlow: true };
-
-  // Data outputs (skip onSuccess/onFailure)
+  // Data outputs first, then onSuccess/onFailure: the order the parser gives
+  // a node type read from source. A compiled file carries a copy of each
+  // built-in it uses, and the next compile reads the node type from that
+  // copy, so any other order here makes the second compile rewrite the file.
   for (const [name, def] of Object.entries(annotated.outputs)) {
     if (name === 'onSuccess' || name === 'onFailure') continue;
 
@@ -401,6 +400,8 @@ function buildOutputPorts(
     outputs[name] = port;
   }
 
+  outputs.onSuccess = { dataType: 'STEP', label: 'On Success', isControlFlow: true };
+  outputs.onFailure = { dataType: 'STEP', label: 'On Failure', failure: true, isControlFlow: true };
   return outputs;
 }
 
