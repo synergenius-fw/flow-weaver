@@ -6,7 +6,7 @@
  * - syncJSDocToSignature: JSDoc → Code (add params/fields to signature)
  */
 
-import type { TPortDefinition, TSerializableValue } from "../ast/types";
+import type { TPortDefinition } from "../ast/types";
 import { SCOPED_PORT_NAMES } from "../constants";
 import {
   JSDOC_BLOCK_REGEX,
@@ -32,6 +32,7 @@ import {
   updatePortsInFunctionText,
   hasOrphanPortLines,
   getIncompletePortNames,
+  parseDefaultValue,
 } from "./port-parser";
 import { isReservedPortName } from "../constants";
 
@@ -760,10 +761,3 @@ function updateCallbackInSignature(
 // Helpers
 // =============================================================================
 
-function parseDefaultValue(value: string): TSerializableValue {
-  try {
-    return JSON.parse(value) as TSerializableValue;
-  } catch {
-    return value;
-  }
-}

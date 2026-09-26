@@ -654,7 +654,7 @@ export function updatePortsInFunctionText(
 /**
  * Parse default value from string.
  */
-function parseDefaultValue(value: string): TSerializableValue {
+export function parseDefaultValue(value: string): TSerializableValue {
   try {
     return JSON.parse(value) as TSerializableValue;
   } catch {
