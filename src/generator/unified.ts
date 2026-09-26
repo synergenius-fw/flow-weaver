@@ -1,21 +1,18 @@
 import type { TNodeTypeAST, TWorkflowAST, TNodeInstanceAST, TPortDefinition } from '../ast/types';
 import { extractStartPorts } from '../ast/workflow-utils';
-import { mapToTypeScript } from '../types/type-mappings';
 import { nodeResultVar, toValidIdentifier } from './code-utils';
 import { buildNodeArgumentsWithContext } from './node-arguments';
 import { emitDurableNodeCall, emitNodeInvocation, emitPlainNodeCall, emitResultOutputs } from './node-invocation';
+import { isPerPortScopedChild } from './control-flow';
 import {
-  buildControlFlowGraph,
-  computeParallelLevels,
-  detectBranchingChains,
-  findAllBranchingNodes,
-  findNodesInBranch,
-  performKahnsTopologicalSort,
-  isPerPortScopedChild,
-} from './control-flow';
+  analyzeControlFlow,
+  getPullExecutionConfig,
+  type BranchRegion,
+  type ControlFlowPlan,
+} from './control-flow-plan';
+import { emitExitAssembly } from './exit-assembly';
 import {
   RESERVED_NODE_NAMES,
-  RESERVED_PORT_NAMES,
   EXECUTION_STRATEGIES,
   isStartNode,
   isExitNode,
@@ -42,43 +39,6 @@ function startPortValue(portName: string, port: TPortDefinition): string {
 }
 
 /**
- * Helper: Determine if an instance has pull execution enabled
- * Checks instance config first, then falls back to node type default config
- * Returns { enabled: boolean, triggerPort: string }
- */
-function getPullExecutionConfig(
-  instance: TNodeInstanceAST,
-  nodeType: TNodeTypeAST,
-): { enabled: boolean; triggerPort: string } {
-  // Check instance config first
-  if (instance.config?.pullExecution) {
-    const pullConfig = instance.config.pullExecution;
-    if (typeof pullConfig === 'boolean') {
-      return { enabled: pullConfig, triggerPort: 'execute' };
-    }
-    return {
-      enabled: true,
-      triggerPort: pullConfig.triggerPort || 'execute',
-    };
-  }
-
-  // Fall back to node type default config
-  if (nodeType.defaultConfig?.pullExecution) {
-    const pullConfig = nodeType.defaultConfig.pullExecution;
-    if (typeof pullConfig === 'boolean') {
-      return { enabled: pullConfig, triggerPort: 'execute' };
-    }
-    return {
-      enabled: true,
-      triggerPort: pullConfig.triggerPort || 'execute',
-    };
-  }
-
-  // No pull execution configured
-  return { enabled: false, triggerPort: 'execute' };
-}
-
-/**
  * Generates executable TypeScript code from a workflow AST using ExecutionContext for state management.
  *
  * This is the main code generation function that transforms a visual workflow into runnable code.
@@ -97,6 +57,9 @@ function getPullExecutionConfig(
  *    - Scoped children: Generate scope function closures (for forEach, etc.)
  *    - Pull nodes: Generate lazy executors registered with context
  * 7. **Exit Node**: Collect outputs and return result object
+ *
+ * Steps 3 to 5 are `analyzeControlFlow`, which returns a plan; step 6 is
+ * `emitNodes` and step 7 is `emitExitAssembly`, which both only read it.
  *
  * ## Key Concepts:
  * - **Parallel Execution**: Independent async nodes at the same topological level run concurrently
@@ -131,8 +94,42 @@ export function generateControlFlowWithExecutionContext(
   durableSequential: boolean = false,
   identity?: GraphIdentityStamp,
 ): string {
-  const lines: string[] = [];
+  // In dev mode, always treat as async so the debugger can pause execution
+  // at breakpoints (sendStatusChangedEvent must be awaited for this to work).
+  // Production mode respects the original isAsync to avoid overhead.
+  const bodyAsync = isAsync || !production;
 
+  const lines: string[] = [];
+  emitContextSetup(lines, workflow, bodyAsync, production, identity);
+  emitStartNode(lines, workflow, bodyAsync);
+  const plan = analyzeControlFlow(workflow, nodeTypes, bodyAsync, durableSequential);
+  emitExecutionIndexDeclarations(lines, plan);
+  emitNodes({
+    workflow,
+    nodeTypes,
+    isAsync: bodyAsync,
+    production,
+    bundleMode,
+    plan,
+    lines,
+    generatedNodes: new Set<string>(),
+  });
+  emitExitAssembly(lines, workflow, nodeTypes, plan, bodyAsync, production);
+  return lines.join('\n');
+}
+
+/**
+ * Emits the body's preamble: recursion depth protection, the execution
+ * context, a gated body's workflow and graph binding, and (outside
+ * production) the debug controller.
+ */
+function emitContextSetup(
+  lines: string[],
+  workflow: TWorkflowAST,
+  isAsync: boolean,
+  production: boolean,
+  identity: GraphIdentityStamp | undefined,
+): void {
   // Recursion depth protection: prevent infinite recursion in workflows
   lines.push(`  // Recursion depth protection`);
   lines.push(`  const __rd__ = (params as { __rd__?: number }).__rd__ ?? 0;`);
@@ -141,16 +138,7 @@ export function generateControlFlowWithExecutionContext(
   lines.push(`  }`);
   lines.push('');
 
-  // In development mode, pass the effective debugger (from parameter or environment)
-  // In production mode, omit the debugger parameter
-  // Always pass abort signal for cancellation support
-  // In dev mode, always treat as async so the debugger can pause execution
-  // at breakpoints (sendStatusChangedEvent must be awaited for this to work).
-  // Production mode respects the original isAsync to avoid overhead.
-  if (!production) {
-    isAsync = true;  
-  }
-
+  // The runtime carries the debugger and the abort signal for cancellation.
   const asyncArg = isAsync ? 'true' : 'false';
   lines.push(`  const ctx = new GeneratedExecutionContext(${asyncArg}, __runtime__);`);
   // A gated body names its workflow and graph to the engine first, so a
@@ -169,10 +157,13 @@ export function generateControlFlowWithExecutionContext(
     );
     lines.push('');
   }
+}
 
+/** Emits the Start execution, which stores the workflow parameters as its outputs. */
+function emitStartNode(lines: string[], workflow: TWorkflowAST, isAsync: boolean): void {
   lines.push(`  const startIdx = ctx.addExecution('${RESERVED_NODE_NAMES.START}');`);
   lines.push(`  if (ctx.shouldExecute('${RESERVED_NODE_NAMES.START}', '${RESERVED_NODE_NAMES.START}', startIdx)) {`);
-  const awaitPrefixTop = isAsync ? 'await ' : '';
+  const awaitPrefix = isAsync ? 'await ' : '';
   Object.entries(extractStartPorts(workflow)).forEach(([portName, port]) => {
     const setCall = isAsync ? `await ctx.setVariable` : `ctx.setVariable`;
     // STEP Port Architecture: execute comes from workflow parameter, data from params object
@@ -181,7 +172,7 @@ export function generateControlFlowWithExecutionContext(
       `    ${setCall}({ id: '${RESERVED_NODE_NAMES.START}', portName: '${portName}', executionIndex: startIdx, nodeTypeName: '${RESERVED_NODE_NAMES.START}' }, ${valueSource});`,
     );
   });
-  lines.push(`    ${awaitPrefixTop}ctx.sendStatusChangedEvent({`);
+  lines.push(`    ${awaitPrefix}ctx.sendStatusChangedEvent({`);
   lines.push(`      nodeTypeName: '${RESERVED_NODE_NAMES.START}',`);
   lines.push(`      id: '${RESERVED_NODE_NAMES.START}',`);
   lines.push(`      executionIndex: startIdx,`);
@@ -190,659 +181,302 @@ export function generateControlFlowWithExecutionContext(
   lines.push(`    ctx.commitNode('${RESERVED_NODE_NAMES.START}', '${RESERVED_NODE_NAMES.START}', startIdx);`);
   lines.push(`  }`);
   lines.push('');
-  const cfg = buildControlFlowGraph(workflow, nodeTypes);
-  const executionOrder = performKahnsTopologicalSort(cfg); // Now returns instance IDs
-  const branchingNodes = findAllBranchingNodes(workflow, nodeTypes);
-  const allInstanceIds = new Set(workflow.instances.map((i) => i.id));
-  const branchRegions = new Map<string, { successNodes: Set<string>; failureNodes: Set<string> }>();
-  branchingNodes.forEach((branchInstanceId) => {
-    const successNodes = findNodesInBranch(
-      branchInstanceId,
-      RESERVED_PORT_NAMES.ON_SUCCESS,
-      workflow,
-      allInstanceIds,
-      branchingNodes,
-    );
-    const failureNodes = findNodesInBranch(
-      branchInstanceId,
-      RESERVED_PORT_NAMES.ON_FAILURE,
-      workflow,
-      allInstanceIds,
-      branchingNodes,
-    );
-    branchRegions.set(branchInstanceId, { successNodes, failureNodes });
-  });
+}
 
-  // Determine which nodes are in conditional branches (need let declaration)
-  // Nodes in branches may not execute, so we need undefined checks for them
-  const nodesInBranches = new Set<string>();
-  branchRegions.forEach((region) => {
-    region.successNodes.forEach((n) => nodesInBranches.add(n));
-    region.failureNodes.forEach((n) => nodesInBranches.add(n));
+/**
+ * Emits the top-level declarations the node code assigns later: a `let`
+ * index for every node that may not run, a `_success` flag for every
+ * branching node a guard outside its block may read, and a `let` index for
+ * every parallel-group node (assigned inside its Promise.all arm).
+ */
+function emitExecutionIndexDeclarations(lines: string[], plan: ControlFlowPlan): void {
+  plan.letIndexNodes.forEach((instanceId) => {
+    lines.push(`  let ${toValidIdentifier(instanceId)}Idx: number | undefined;`);
   });
-
-  // Identify pull execution nodes (they also need let due to undefined check)
-  const pullExecutionNodes = new Set<string>();
-  workflow.instances.forEach((instance) => {
-    // Check both name (for npm nodes like 'npm/pkg/func') and functionName (for local nodes)
-    const nodeType = nodeTypes.find((nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType);
-    if (nodeType) {
-      const pullConfig = getPullExecutionConfig(instance, nodeType);
-      if (pullConfig.enabled) {
-        pullExecutionNodes.add(instance.id);
-      }
-    }
+  plan.topLevelSuccessFlags.forEach((safeId) => {
+    lines.push(`  let ${safeId}_success = false;`);
   });
-
-  // Identify node-level scoped children (they need let because referenced outside scope block)
-  const nodeLevelScopedChildren = new Set<string>();
-  workflow.instances.forEach((instance) => {
-    if (instance.parent && !isPerPortScopedChild(instance, workflow, nodeTypes)) {
-      nodeLevelScopedChildren.add(instance.id);
-    }
-  });
-
-  // Create execution index variables only for nodes that need undefined checking
-  // Skip per-port scoped children (they're in scope functions)
-  let hasLetDeclarations = false;
-  workflow.instances.forEach((instance) => {
-    if (!isPerPortScopedChild(instance, workflow, nodeTypes)) {
-      // Nodes in branches, branching nodes, pull nodes, or scoped children need let
-      if (
-        nodesInBranches.has(instance.id) ||
-        branchingNodes.has(instance.id) ||
-        pullExecutionNodes.has(instance.id) ||
-        nodeLevelScopedChildren.has(instance.id)
-      ) {
-        lines.push(`  let ${toValidIdentifier(instance.id)}Idx: number | undefined;`);
-        hasLetDeclarations = true;
-      }
-    }
-  });
-
-  // Pre-declare _success flags for branching nodes that have downstream nodes.
-  // These flags must be at the function's top level because downstream guards
-  // (promoted nodes, chain guards) may reference them outside the branch block
-  // where the branching node is generated.
-  const topLevelSuccessFlags = new Set<string>();
-  branchRegions.forEach((region, nodeId) => {
-    if (region.successNodes.size > 0 || region.failureNodes.size > 0) {
-      const safeId = toValidIdentifier(nodeId);
-      lines.push(`  let ${safeId}_success = false;`);
-      topLevelSuccessFlags.add(safeId);
-      hasLetDeclarations = true;
-    }
-  });
-
-  if (hasLetDeclarations) {
+  if (plan.letIndexNodes.length > 0 || plan.topLevelSuccessFlags.size > 0) {
     lines.push('');
   }
-  const instancesInMultipleBranches = new Set<string>();
-  allInstanceIds.forEach((instanceId) => {
-    let branchCount = 0;
-    branchRegions.forEach((region) => {
-      if (region.successNodes.has(instanceId) || region.failureNodes.has(instanceId)) {
-        branchCount++;
-      }
-    });
-    if (branchCount > 1) {
-      instancesInMultipleBranches.add(instanceId);
-    }
-  });
-  branchRegions.forEach((region, _branchNode) => {
-    instancesInMultipleBranches.forEach((instanceId) => {
-      region.successNodes.delete(instanceId);
-      region.failureNodes.delete(instanceId);
-    });
-  });
 
-  // Promote nodes that appear in BOTH success and failure regions of the same
-  // branching node. These nodes execute regardless of which branch is taken,
-  // so they must not be nested inside either branch (which would cause duplicate
-  // variable declarations and cancelled events for nodes that actually run).
-  const nodesInBothBranches = new Set<string>();
-  branchRegions.forEach((region) => {
-    region.successNodes.forEach((nodeId) => {
-      if (region.failureNodes.has(nodeId)) {
-        nodesInBothBranches.add(nodeId);
-      }
-    });
-  });
-  branchRegions.forEach((region) => {
-    nodesInBothBranches.forEach((nodeId) => {
-      region.successNodes.delete(nodeId);
-      region.failureNodes.delete(nodeId);
-    });
-  });
-
-  // Promote nodes that have DATA dependencies on nodes outside their branch.
-  // Without this, STEP-nesting places the node before its data providers are generated.
-  const nodesPromotedFromBranches = new Set<string>(nodesInBothBranches);
-  branchRegions.forEach((region, branchNodeId) => {
-    const allBranchNodes = new Set([...region.successNodes, ...region.failureNodes]);
-
-    allBranchNodes.forEach((nodeId) => {
-      const hasExternalDataDep = workflow.connections.some((conn) => {
-        if (conn.to.node !== nodeId) return false;
-        if (conn.from.scope || conn.to.scope) return false;
-        const fromNode = conn.from.node;
-        // Dependencies on branch parent or Start are fine (already generated)
-        if (fromNode === branchNodeId || isStartNode(fromNode)) return false;
-        // STEP connections (execute port) are handled by the guard, not data flow
-        if (isExecutePort(conn.to.port)) return false;
-        // External dep: source is NOT in the same branch
-        return !allBranchNodes.has(fromNode);
-      });
-
-      if (hasExternalDataDep) {
-        nodesPromotedFromBranches.add(nodeId);
-      }
-    });
-  });
-
-  // Remove promoted nodes from branch regions (they'll generate at top level)
-  branchRegions.forEach((region) => {
-    nodesPromotedFromBranches.forEach((nodeId) => {
-      region.successNodes.delete(nodeId);
-      region.failureNodes.delete(nodeId);
-    });
-  });
-
-  // Identify branching nodes whose _success flag must be tracked because
-  // promoted nodes depend on their onSuccess/onFailure ports for STEP guards.
-  const branchingNodesNeedingSuccessFlag = new Set<string>();
-  nodesPromotedFromBranches.forEach((promotedNodeId) => {
-    workflow.connections.forEach((conn) => {
-      if (conn.to.node === promotedNodeId && isExecutePort(conn.to.port)) {
-        const sourceNode = conn.from.node;
-        const sourcePort = conn.from.port;
-        if (branchingNodes.has(sourceNode) && (isSuccessPort(sourcePort) || isFailurePort(sourcePort))) {
-          branchingNodesNeedingSuccessFlag.add(sourceNode);
-        }
-      }
-    });
-  });
-
-  // Detect sequential branching chains for flattening
-  // Durable execution addresses must retain every active branch frame. The
-  // flattened chain optimization represents branches as boolean guards and
-  // therefore cannot supply that exact runtime path.
-  const branchingChains = durableSequential
-    ? new Map<string, string[]>()
-    : detectBranchingChains(branchingNodes, branchRegions);
-  const chainMembers = new Set<string>();
-  branchingChains.forEach((chain) => {
-    // All non-head nodes are chain members (skip in main loop)
-    for (let i = 1; i < chain.length; i++) {
-      chainMembers.add(chain[i]);
-    }
-  });
-
-  // Compute parallel levels for async workflows
-  const perPortScopedChildrenSet = new Set<string>();
-  workflow.instances.forEach((instance) => {
-    if (isPerPortScopedChild(instance, workflow, nodeTypes)) {
-      perPortScopedChildrenSet.add(instance.id);
-    }
-  });
-
-  const parallelGroupOf = new Map<string, string[]>();
-  if (isAsync && !durableSequential) {
-    const parallelLevels = computeParallelLevels(cfg, branchingNodes, perPortScopedChildrenSet);
-    for (const group of parallelLevels) {
-      if (group.length < 2) continue;
-      // Filter out nodes that can't be parallelized
-      const eligible = group.filter((id) => {
-        if (nodesInBranches.has(id)) return false;
-        if (pullExecutionNodes.has(id)) return false;
-        if (nodeLevelScopedChildren.has(id)) return false;
-        if (nodesPromotedFromBranches.has(id)) return false;
-        if (chainMembers.has(id)) return false;
-        if (branchingNodes.has(id)) return false;
-        return true;
-      });
-      if (eligible.length >= 2) {
-        for (const nodeId of eligible) {
-          parallelGroupOf.set(nodeId, eligible);
-        }
-      }
-    }
-  }
-
-  // Pre-declare execution indices for parallel group nodes
-  if (parallelGroupOf.size > 0) {
-    const declared = new Set<string>();
-    parallelGroupOf.forEach((_, instanceId) => {
-      if (declared.has(instanceId)) return;
-      declared.add(instanceId);
+  if (plan.parallelGroupOf.size > 0) {
+    plan.parallelGroupOf.forEach((_, instanceId) => {
       // Only declare if not already declared by earlier let declarations
-      if (
-        !nodesInBranches.has(instanceId) &&
-        !branchingNodes.has(instanceId) &&
-        !pullExecutionNodes.has(instanceId) &&
-        !nodeLevelScopedChildren.has(instanceId)
-      ) {
+      if (!plan.conditionalNodes.has(instanceId)) {
         lines.push(`  let ${toValidIdentifier(instanceId)}Idx: number | undefined;`);
       }
     });
     lines.push('');
   }
+}
 
-  const generatedNodes = new Set<string>();
-  executionOrder.forEach((instanceId) => {
+/** The body being generated, shared by the node emission functions. */
+interface BodyEmission {
+  readonly workflow: TWorkflowAST;
+  readonly nodeTypes: TNodeTypeAST[];
+  /** The effective async mode (dev bodies are always async). */
+  readonly isAsync: boolean;
+  readonly production: boolean;
+  readonly bundleMode: boolean;
+  readonly plan: ControlFlowPlan;
+  readonly lines: string[];
+  /** Nodes already emitted, by whichever function emitted them. */
+  readonly generatedNodes: Set<string>;
+}
+
+/**
+ * Emits every top-level node in execution order. Each node goes to one of
+ * three emitters: its parallel group, the branching-node emitter, or the
+ * plain-node emitter. Nodes inside a branch arm, a chain or a per-port scope
+ * are left to whoever owns them.
+ */
+function emitNodes(body: BodyEmission): void {
+  const { workflow, nodeTypes, plan, lines, generatedNodes } = body;
+  for (const instanceId of plan.executionOrder) {
     if (isStartNode(instanceId) || isExitNode(instanceId) || generatedNodes.has(instanceId)) {
-      return;
+      continue;
     }
     // Find the instance and its node type
     const instance = workflow.instances.find((i) => i.id === instanceId);
     if (!instance) {
       lines.push(`  // Node '${instanceId}' skipped: instance not found in workflow`);
-      return;
+      continue;
     }
     // Skip per-port scoped children (they're in scope functions)
     // Include node-level scoped children (they're in scope blocks)
     if (isPerPortScopedChild(instance, workflow, nodeTypes)) {
-      return;
+      continue;
     }
     // Check both name (for npm nodes like 'npm/pkg/func') and functionName (for local nodes)
     const nodeType = nodeTypes.find((nt) => nt.name === instance.nodeType || nt.functionName === instance.nodeType);
     if (!nodeType) {
       lines.push(`  // Node '${instance.id}' skipped: type '${instance.nodeType}' not found`);
-      return;
+      continue;
     }
     // Handle parallel groups: emit Promise.all when hitting first node of a group
-    if (parallelGroupOf.has(instanceId)) {
-      const group = parallelGroupOf.get(instanceId)!;
-      const ungeneratedGroup = group.filter((id) => !generatedNodes.has(id));
-      if (ungeneratedGroup.length >= 2) {
-        generateParallelGroupWithContext(
-          ungeneratedGroup,
-          workflow,
-          nodeTypes,
-          lines,
-          generatedNodes,
-          '  ',
-          isAsync,
-          'ctx',
-          bundleMode,
-          branchingNodes,
-          production,
-        );
-        // Generate scoped children for each parallel node
-        for (const parallelNodeId of ungeneratedGroup) {
-          const inst = workflow.instances.find((i) => i.id === parallelNodeId);
-          if (!inst) continue;
-          const nt = nodeTypes.find((n) => n.name === inst.nodeType || n.functionName === inst.nodeType);
-          if (!nt) continue;
-          generateScopedChildrenExecution(
-            inst,
-            nt,
-            workflow,
-            nodeTypes,
-            generatedNodes,
-            lines,
-            '  ',
-            branchingNodes,
-            branchRegions,
-            isAsync,
-            bundleMode,
-            production,
-          );
-        }
-        return;
-      }
-      // else: degenerated to 1 or 0, fall through to sequential handling
+    const group = plan.parallelGroupOf.get(instanceId);
+    if (group && emitParallelGroup(body, group)) {
+      continue;
     }
-
-    if (branchingNodes.has(instanceId)) {
-      // Chain members are generated by their chain head, so skip them here
-      if (chainMembers.has(instanceId)) {
-        return;
-      }
-
-      // Chain heads: use flat chain generation
-      if (branchingChains.has(instanceId)) {
-        // For promoted chain heads, wrap in STEP guard
-        let chainIndent = '  ';
-        let chainNeedsClose = false;
-        if (nodesPromotedFromBranches.has(instanceId)) {
-          const stepSourceConditions: string[] = [];
-          workflow.connections.forEach((conn) => {
-            if (conn.to.node === instanceId && isExecutePort(conn.to.port)) {
-              const src = conn.from.node;
-              if (!isStartNode(src)) {
-                stepSourceConditions.push(buildStepSourceCondition(src, conn.from.port, branchingNodes));
-              }
-            }
-          });
-          if (stepSourceConditions.length > 0) {
-            const condition =
-              stepSourceConditions.length === 1 ? stepSourceConditions[0] : stepSourceConditions.join(' || ');
-            lines.push(`  if (${condition}) {`);
-            chainIndent = '    ';
-            chainNeedsClose = true;
-          }
-        }
-        generateBranchingChainCode(
-          branchingChains.get(instanceId)!,
-          workflow,
-          nodeTypes,
-          branchingNodes,
-          branchRegions,
-          generatedNodes,
-          lines,
-          chainIndent,
-          isAsync,
-          'ctx',
-          bundleMode,
-          branchingNodesNeedingSuccessFlag,
-          production,
-          topLevelSuccessFlags,
-        );
-        if (chainNeedsClose) {
-          lines.push(`  }`);
-        }
-        return;
-      }
-
-      // Non-chain branching nodes: existing path
-      // For promoted branching nodes, wrap in STEP guard from execute port source
-      let branchIndent = '  ';
-      let branchNeedsClose = false;
-      // Pre-declare _success flag at the outer scope so downstream guards
-      // (which may run after the promoted guard block) can access it.
-      const nodeRegion = branchRegions.get(instanceId)!;
-      const promotedPreDeclared = new Set<string>(topLevelSuccessFlags);
-      if (nodesPromotedFromBranches.has(instanceId)) {
-        const stepSourceConditions: string[] = [];
-        workflow.connections.forEach((conn) => {
-          if (conn.to.node === instanceId && isExecutePort(conn.to.port)) {
-            const src = conn.from.node;
-            if (!isStartNode(src)) {
-              stepSourceConditions.push(buildStepSourceCondition(src, conn.from.port, branchingNodes));
-            }
-          }
-        });
-        if (stepSourceConditions.length > 0) {
-          const condition =
-            stepSourceConditions.length === 1 ? stepSourceConditions[0] : stepSourceConditions.join(' || ');
-          lines.push(`  if (${condition}) {`);
-          branchIndent = '    ';
-          branchNeedsClose = true;
-        }
-      }
-      generateBranchingNodeCode(
-        instance,
-        nodeType,
-        workflow,
-        nodeTypes,
-        nodeRegion,
-        generatedNodes,
-        lines,
-        branchIndent,
-        branchingNodes,
-        branchRegions,
-        isAsync,
-        'ctx',
-        bundleMode,
-        promotedPreDeclared,
-        branchingNodesNeedingSuccessFlag.has(instanceId) || topLevelSuccessFlags.has(toValidIdentifier(instanceId)),
-        production,
-      );
-      if (branchNeedsClose) {
-        lines.push(`  }`);
-      }
-      const region = branchRegions.get(instanceId)!;
-      region.successNodes.forEach((n) => generatedNodes.add(n));
-      region.failureNodes.forEach((n) => generatedNodes.add(n));
-
-      // Check if this node creates a scope and generate scoped children
-      generateScopedChildrenExecution(
-        instance,
-        nodeType,
-        workflow,
-        nodeTypes,
-        generatedNodes,
-        lines,
-        '  ',
-        branchingNodes,
-        branchRegions,
-        isAsync,
-        bundleMode,
-        production,
-      );
+    if (plan.branchingNodes.has(instanceId)) {
+      emitTopLevelBranchingNode(body, instance, nodeType);
     } else {
-      const belongsToBranch = Array.from(branchRegions.values()).some(
-        (region) => region.successNodes.has(instanceId) || region.failureNodes.has(instanceId),
-      );
-      if (!belongsToBranch) {
-        const nodeUseConst =
-          !nodesInBranches.has(instanceId) &&
-          !branchingNodes.has(instanceId) &&
-          !pullExecutionNodes.has(instanceId) &&
-          !nodeLevelScopedChildren.has(instanceId) &&
-          !parallelGroupOf.has(instanceId);
-        generateNodeCallWithContext(
-          instance,
-          nodeType,
-          workflow,
-          lines,
-          nodeTypes,
-          '  ',
-          isAsync,
-          nodeUseConst,
-          undefined, // instanceParent
-          'ctx', // ctxVar
-          bundleMode,
-          false, // skipExecuteGuard
-          branchingNodes, // for port-aware STEP guards
-          production,
-        );
-        generatedNodes.add(instanceId);
-
-        // Check if this node creates a scope and generate scoped children
-        generateScopedChildrenExecution(
-          instance,
-          nodeType,
-          workflow,
-          nodeTypes,
-          generatedNodes,
-          lines,
-          '  ',
-          branchingNodes,
-          branchRegions,
-          isAsync,
-          bundleMode,
-          production,
-        );
-      }
-    }
-  });
-  lines.push(`  ctx.checkAborted('${RESERVED_NODE_NAMES.EXIT}');`);
-  lines.push(`  const exitIdx = ctx.addExecution('${RESERVED_NODE_NAMES.EXIT}');`);
-  const exitConnections = workflow.connections.filter((conn) => isExitNode(conn.to.node));
-  // Group exit connections by port (multiple connections to the same port are coalesced)
-  const exitConnectionsByPort = new Map<string, (typeof exitConnections)[0][]>();
-  exitConnections.forEach((conn) => {
-    const existing = exitConnectionsByPort.get(conn.to.port) || [];
-    existing.push(conn);
-    exitConnectionsByPort.set(conn.to.port, existing);
-  });
-  const returnProps: string[] = [];
-  const awaitKeyword = isAsync ? 'await ' : '';
-  const setCall = isAsync ? 'await ctx.setVariable' : 'ctx.setVariable';
-
-  exitConnectionsByPort.forEach((conns, exitPort) => {
-    // Get exit port type for type casting - check if exit port is declared
-    const exitPortDef = workflow.exitPorts[exitPort];
-
-    // Skip connections to undeclared exit ports (typos like Exit.resultx when only @returns result exists)
-    if (!exitPortDef) {
-      lines.push(`  // Exit connection skipped: '${exitPort}' is not a declared @returns port`);
-      return;
-    }
-
-    const varName = `exit_${exitPort}`;
-    const exitPortType = exitPortDef?.tsType || (exitPortDef ? mapToTypeScript(exitPortDef.dataType) : 'unknown');
-
-    // Filter to valid connections (skip undeclared nodes, missing types)
-    const validConns = conns.filter((conn) => {
-      const sourceNode = conn.from.node;
-      const sourceInstance = workflow.instances.find((i) => i.id === sourceNode);
-      const sourceNodeType = nodeTypes.find(
-        (n) => n.name === sourceInstance?.nodeType || n.functionName === sourceInstance?.nodeType,
-      );
-
-      if (!isStartNode(sourceNode) && !sourceInstance) {
-        lines.push(`  // Exit connection skipped: source node '${sourceNode}' is not declared`);
-        return false;
-      }
-      if (!isStartNode(sourceNode) && sourceInstance && !sourceNodeType) {
-        lines.push(
-          `  // Exit connection skipped: source node '${sourceNode}' has missing type '${sourceInstance.nodeType}'`,
-        );
-        return false;
-      }
-      return true;
-    });
-
-    if (validConns.length === 0) {
-      lines.push(`  const ${varName} = undefined as unknown;`);
-      returnProps.push(`${exitPort}: ${varName} as ${exitPortType}`);
-      return;
-    }
-
-    // Helper to build a value expression for a single connection
-    const buildSourceExpr = (conn: (typeof exitConnections)[0], defaultValue: string): string => {
-      const sourceNode = conn.from.node;
-      const sourcePort = conn.from.port;
-      const sourceIdx = isStartNode(sourceNode) ? 'startIdx' : `${toValidIdentifier(sourceNode)}Idx`;
-      const sourceInstance = workflow.instances.find((i) => i.id === sourceNode);
-      const sourceNodeType = nodeTypes.find(
-        (n) => n.name === sourceInstance?.nodeType || n.functionName === sourceInstance?.nodeType,
-      );
-      const sourceNodeTypeName = isStartNode(sourceNode)
-        ? RESERVED_NODE_NAMES.START
-        : (sourceNodeType?.functionName ?? sourceInstance?.nodeType ?? sourceNode);
-      const pullConfig =
-        sourceInstance && sourceNodeType
-          ? getPullExecutionConfig(sourceInstance, sourceNodeType)
-          : { enabled: false, triggerPort: 'execute' };
-      const isPullNode = pullConfig.enabled;
-
-      // Parallel group nodes are NOT included here because they always execute —
-      // they sit outside branches, aren't lazy (pull), and aren't scoped children.
-      // The await Promise.all(...) guarantees their Idx variables are assigned
-      // before any downstream node reads them, so no undefined check is needed.
-      const needsUndefinedCheck =
-        !isStartNode(sourceNode) &&
-        (nodesInBranches.has(sourceNode) ||
-          branchingNodes.has(sourceNode) ||
-          pullExecutionNodes.has(sourceNode) ||
-          nodeLevelScopedChildren.has(sourceNode));
-
-      if (isPullNode) {
-        return `${awaitKeyword}ctx.getVariable({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx} ?? 0, nodeTypeName: '${sourceNodeTypeName}' })`;
-      } else if (needsUndefinedCheck) {
-        return `${sourceIdx} !== undefined ? ${awaitKeyword}ctx.getVariable({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${sourceNodeTypeName}' }) : ${defaultValue}`;
-      } else {
-        return `${awaitKeyword}ctx.getVariable({ id: '${sourceNode}', portName: '${sourcePort}', executionIndex: ${sourceIdx}, nodeTypeName: '${sourceNodeTypeName}' })`;
-      }
-    };
-
-    const isControlFlowPort = exitPort === 'onSuccess' || exitPort === 'onFailure';
-    const defaultValue = isControlFlowPort ? 'false' : 'undefined';
-
-    if (validConns.length === 1) {
-      // Single connection - straightforward assignment
-      lines.push(`  const ${varName} = ${buildSourceExpr(validConns[0], defaultValue)};`);
-    } else {
-      // Multiple connections - coalesce with || (STEP ports) or ?? (data ports)
-      const operator = isControlFlowPort ? ' || ' : ' ?? ';
-      const parts = validConns.map((conn) => `(${buildSourceExpr(conn, defaultValue)})`);
-      lines.push(`  const ${varName} = ${parts.join(operator)};`);
-    }
-
-    // Emit VARIABLE_SET for Exit node INPUT ports
-    if (!production) {
-      lines.push(
-        `  ${setCall}({ id: '${RESERVED_NODE_NAMES.EXIT}', portName: '${exitPort}', executionIndex: exitIdx, nodeTypeName: '${RESERVED_NODE_NAMES.EXIT}' }, ${varName});`,
-      );
-    }
-    // Cast to the exit port's declared type for type safety
-    returnProps.push(`${exitPort}: ${varName} as ${exitPortType}`);
-  });
-
-  // Add default undefined for declared exit ports that weren't connected
-  // (e.g., when connection had typo like Exit.resultx instead of Exit.result)
-  const connectedExitPorts = new Set(returnProps.map((prop) => prop.split(':')[0]));
-  Object.entries(workflow.exitPorts).forEach(([portName, portDef]) => {
-    if (!connectedExitPorts.has(portName) && portName !== 'onSuccess' && portName !== 'onFailure') {
-      const portType = portDef?.tsType || (portDef ? mapToTypeScript(portDef.dataType) : 'unknown');
-      lines.push(`  // Exit port '${portName}' has no valid connection - using undefined`);
-      returnProps.push(`${portName}: undefined as unknown as ${portType}`);
-    }
-  });
-
-  lines.push('');
-  // Check if onSuccess/onFailure are explicitly connected
-  const hasOnSuccess = returnProps.some((prop) => prop.startsWith('onSuccess:'));
-  const hasOnFailure = returnProps.some((prop) => prop.startsWith('onFailure:'));
-
-  // Only add defaults if not explicitly connected
-  const defaults = [];
-  const setCallForDefaults = isAsync ? 'await ctx.setVariable' : 'ctx.setVariable';
-  if (!hasOnSuccess) {
-    defaults.push('onSuccess: true');
-    // Emit VARIABLE_SET for default onSuccess
-    if (!production) {
-      lines.push(
-        `  ${setCallForDefaults}({ id: '${RESERVED_NODE_NAMES.EXIT}', portName: 'onSuccess', executionIndex: exitIdx, nodeTypeName: '${RESERVED_NODE_NAMES.EXIT}' }, true);`,
-      );
+      emitTopLevelNode(body, instance, nodeType);
     }
   }
-  if (!hasOnFailure) {
-    defaults.push('onFailure: false');
-    // Emit VARIABLE_SET for default onFailure
-    if (!production) {
-      lines.push(
-        `  ${setCallForDefaults}({ id: '${RESERVED_NODE_NAMES.EXIT}', portName: 'onFailure', executionIndex: exitIdx, nodeTypeName: '${RESERVED_NODE_NAMES.EXIT}' }, false);`,
-      );
+}
+
+/**
+ * Emits the not-yet-emitted members of a parallel group as one Promise.all,
+ * then each member's node-level scoped children.
+ *
+ * @returns false when fewer than two members are left; the caller then
+ *   emits the node sequentially.
+ */
+function emitParallelGroup(body: BodyEmission, group: string[]): boolean {
+  const { workflow, nodeTypes, isAsync, production, bundleMode, plan, lines, generatedNodes } = body;
+  const ungeneratedGroup = group.filter((id) => !generatedNodes.has(id));
+  if (ungeneratedGroup.length < 2) {
+    return false;
+  }
+  generateParallelGroupWithContext(
+    ungeneratedGroup,
+    workflow,
+    nodeTypes,
+    lines,
+    generatedNodes,
+    '  ',
+    isAsync,
+    'ctx',
+    bundleMode,
+    plan.branchingNodes,
+    production,
+  );
+  // Generate scoped children for each parallel node
+  for (const parallelNodeId of ungeneratedGroup) {
+    const inst = workflow.instances.find((i) => i.id === parallelNodeId);
+    if (!inst) continue;
+    const nt = nodeTypes.find((n) => n.name === inst.nodeType || n.functionName === inst.nodeType);
+    if (!nt) continue;
+    generateScopedChildrenExecution(
+      inst,
+      nt,
+      workflow,
+      nodeTypes,
+      generatedNodes,
+      lines,
+      '  ',
+      plan.branchingNodes,
+      plan.branchRegions,
+      isAsync,
+      bundleMode,
+      production,
+    );
+  }
+  return true;
+}
+
+/**
+ * The STEP guard a promoted node runs behind at top level: any of its
+ * execute-port sources having fired. Undefined for a node that was not
+ * promoted, or whose only execute source is Start.
+ */
+function promotedStepGuard(body: BodyEmission, instanceId: string): string | undefined {
+  const { workflow, plan } = body;
+  if (!plan.promotedNodes.has(instanceId)) {
+    return undefined;
+  }
+  const stepSourceConditions: string[] = [];
+  workflow.connections.forEach((conn) => {
+    if (conn.to.node === instanceId && isExecutePort(conn.to.port)) {
+      const src = conn.from.node;
+      if (!isStartNode(src)) {
+        stepSourceConditions.push(buildStepSourceCondition(src, conn.from.port, plan.branchingNodes));
+      }
     }
+  });
+  return stepSourceConditions.length > 0 ? stepSourceConditions.join(' || ') : undefined;
+}
+
+/**
+ * Emits a branching node that is not nested in another branch: a chain head
+ * as a flat chain, any other branching node with its arms nested. A promoted
+ * one is wrapped in its STEP guard. Chain members are left to their head.
+ */
+function emitTopLevelBranchingNode(body: BodyEmission, instance: TNodeInstanceAST, nodeType: TNodeTypeAST): void {
+  const { workflow, nodeTypes, isAsync, production, bundleMode, plan, lines, generatedNodes } = body;
+  const instanceId = instance.id;
+  // Chain members are generated by their chain head, so skip them here
+  if (plan.chainMembers.has(instanceId)) {
+    return;
   }
 
-  // Assemble final result with onSuccess first, onFailure second, then data ports.
-  // This ensures JSON.stringify output is readable and predictable.
-  const allPropsUnsorted = [...defaults, ...returnProps];
-  const onSuccessProp = allPropsUnsorted.find((p) => p.trimStart().startsWith('onSuccess'));
-  const onFailureProp = allPropsUnsorted.find((p) => p.trimStart().startsWith('onFailure'));
-  const dataProps = allPropsUnsorted.filter((p) => {
-    const key = p.trimStart().split(':')[0].trim();
-    return key !== 'onSuccess' && key !== 'onFailure';
-  });
+  // For promoted branching nodes, wrap in STEP guard from execute port source
+  const guard = promotedStepGuard(body, instanceId);
+  const indent = guard === undefined ? '  ' : '    ';
+  if (guard !== undefined) {
+    lines.push(`  if (${guard}) {`);
+  }
 
-  const orderedProps: string[] = [];
-  if (onSuccessProp) orderedProps.push(onSuccessProp);
-  if (onFailureProp) orderedProps.push(onFailureProp);
-  orderedProps.push(...dataProps);
-  const allProps = orderedProps.join(', ');
+  // Chain heads: use flat chain generation
+  const chain = plan.branchingChains.get(instanceId);
+  if (chain) {
+    generateBranchingChainCode(
+      chain,
+      workflow,
+      nodeTypes,
+      plan.branchingNodes,
+      plan.branchRegions,
+      generatedNodes,
+      lines,
+      indent,
+      isAsync,
+      'ctx',
+      bundleMode,
+      plan.branchingNodesNeedingSuccessFlag,
+      production,
+      plan.topLevelSuccessFlags,
+    );
+    if (guard !== undefined) {
+      lines.push(`  }`);
+    }
+    return;
+  }
 
-  lines.push(`  const finalResult = { ${allProps} };`);
-  lines.push('');
-  lines.push(`  ${awaitPrefixTop}ctx.sendStatusChangedEvent({`);
-  lines.push(`    nodeTypeName: '${RESERVED_NODE_NAMES.EXIT}',`);
-  lines.push(`    id: '${RESERVED_NODE_NAMES.EXIT}',`);
-  lines.push(`    executionIndex: exitIdx,`);
-  lines.push(`    status: 'SUCCEEDED',`);
-  lines.push(`  });`);
-  lines.push(`  ctx.sendWorkflowCompletedEvent({`);
-  lines.push(`    executionIndex: exitIdx,`);
-  lines.push(`    status: 'SUCCEEDED',`);
-  lines.push(`    result: finalResult,`);
-  lines.push(`  });`);
-  lines.push('');
-  lines.push(`  return finalResult;`);
-  return lines.join('\n');
+  // Non-chain branching nodes. The _success flags pre-declared at the top of
+  // the body stay visible to downstream guards that run after this block.
+  const region = plan.branchRegions.get(instanceId)!;
+  generateBranchingNodeCode(
+    instance,
+    nodeType,
+    workflow,
+    nodeTypes,
+    region,
+    generatedNodes,
+    lines,
+    indent,
+    plan.branchingNodes,
+    plan.branchRegions,
+    isAsync,
+    'ctx',
+    bundleMode,
+    new Set<string>(plan.topLevelSuccessFlags),
+    plan.branchingNodesNeedingSuccessFlag.has(instanceId) ||
+      plan.topLevelSuccessFlags.has(toValidIdentifier(instanceId)),
+    production,
+  );
+  if (guard !== undefined) {
+    lines.push(`  }`);
+  }
+  region.successNodes.forEach((n) => generatedNodes.add(n));
+  region.failureNodes.forEach((n) => generatedNodes.add(n));
+
+  // Check if this node creates a scope and generate scoped children
+  generateScopedChildrenExecution(
+    instance,
+    nodeType,
+    workflow,
+    nodeTypes,
+    generatedNodes,
+    lines,
+    '  ',
+    plan.branchingNodes,
+    plan.branchRegions,
+    isAsync,
+    bundleMode,
+    production,
+  );
+}
+
+/**
+ * Emits a non-branching node at top level, then its node-level scoped
+ * children. A node inside a branch arm is left to its branching node. Its
+ * index is a `const` unless the plan pre-declared it with `let`.
+ */
+function emitTopLevelNode(body: BodyEmission, instance: TNodeInstanceAST, nodeType: TNodeTypeAST): void {
+  const { workflow, nodeTypes, isAsync, production, bundleMode, plan, lines, generatedNodes } = body;
+  const instanceId = instance.id;
+  const belongsToBranch = Array.from(plan.branchRegions.values()).some(
+    (region) => region.successNodes.has(instanceId) || region.failureNodes.has(instanceId),
+  );
+  if (belongsToBranch) {
+    return;
+  }
+  const nodeUseConst = !plan.conditionalNodes.has(instanceId) && !plan.parallelGroupOf.has(instanceId);
+  generateNodeCallWithContext(
+    instance,
+    nodeType,
+    workflow,
+    lines,
+    nodeTypes,
+    '  ',
+    isAsync,
+    nodeUseConst,
+    undefined, // instanceParent
+    'ctx', // ctxVar
+    bundleMode,
+    false, // skipExecuteGuard
+    plan.branchingNodes, // for port-aware STEP guards
+    production,
+  );
+  generatedNodes.add(instanceId);
+
+  // Check if this node creates a scope and generate scoped children
+  generateScopedChildrenExecution(
+    instance,
+    nodeType,
+    workflow,
+    nodeTypes,
+    generatedNodes,
+    lines,
+    '  ',
+    plan.branchingNodes,
+    plan.branchRegions,
+    isAsync,
+    bundleMode,
+    production,
+  );
 }
 
 /**
@@ -857,7 +491,7 @@ function generateScopedChildrenExecution(
   lines: string[],
   indent: string,
   branchingNodes: Set<string>,
-  branchRegions: Map<string, { successNodes: Set<string>; failureNodes: Set<string> }>,
+  branchRegions: Map<string, BranchRegion>,
   isAsync: boolean,
   bundleMode: boolean = false,
   production: boolean = false,
@@ -1229,7 +863,7 @@ function generateBranchingChainCode(
   workflow: TWorkflowAST,
   nodeTypes: TNodeTypeAST[],
   branchingNodes: Set<string>,
-  branchRegions: Map<string, { successNodes: Set<string>; failureNodes: Set<string> }>,
+  branchRegions: Map<string, BranchRegion>,
   generatedNodes: Set<string>,
   lines: string[],
   indent: string,
@@ -1353,17 +987,26 @@ function generateBranchingChainCode(
   }
 }
 
+/**
+ * Emits one branching node: its guarded execution, which records whether it
+ * succeeded, then (when either arm has nodes) the if/else that runs one arm
+ * and reports the other as cancelled.
+ *
+ * @param region - The arms to emit; a chain passes a copy without its next link.
+ * @param preDeclaredSuccessFlags - Safe ids whose `_success` flag an outer scope already declared.
+ * @param forceTrackSuccess - Track `_success` even with empty arms (chain guards or promoted nodes read it).
+ */
 function generateBranchingNodeCode(
   instance: { id: string; nodeType: string },
   branchNode: TNodeTypeAST,
   workflow: TWorkflowAST,
   allNodeTypes: TNodeTypeAST[],
-  region: { successNodes: Set<string>; failureNodes: Set<string> },
+  region: BranchRegion,
   generatedNodes: Set<string>,
   lines: string[],
   indent: string,
   branchingNodes: Set<string>,
-  branchRegions: Map<string, { successNodes: Set<string>; failureNodes: Set<string> }>,
+  branchRegions: Map<string, BranchRegion>,
   isAsync: boolean,
   ctxVar: string = 'ctx', // Context variable name (for scoped contexts)
   bundleMode: boolean = false,
@@ -1371,6 +1014,77 @@ function generateBranchingNodeCode(
   forceTrackSuccess: boolean = false,
   production: boolean = false,
 ): void {
+  const hasDownstream = region.successNodes.size > 0 || region.failureNodes.size > 0;
+  const branching: BranchingNodeEmission = {
+    instance,
+    branchNode,
+    workflow,
+    allNodeTypes,
+    region,
+    generatedNodes,
+    lines,
+    indent,
+    branchingNodes,
+    branchRegions,
+    isAsync,
+    ctxVar,
+    bundleMode,
+    preDeclaredSuccessFlags,
+    // Track success flag when there are downstream nodes OR when chain code needs it
+    trackSuccess: hasDownstream || forceTrackSuccess,
+    production,
+  };
+  emitBranchingNodeExecution(branching);
+  // Only generate if/else if there are downstream nodes
+  if (hasDownstream) {
+    emitBranchArms(branching);
+  }
+  generatedNodes.add(instance.id);
+}
+
+/** One branching node being emitted, shared by the functions that emit its parts. */
+interface BranchingNodeEmission {
+  readonly instance: { id: string; nodeType: string };
+  readonly branchNode: TNodeTypeAST;
+  readonly workflow: TWorkflowAST;
+  readonly allNodeTypes: TNodeTypeAST[];
+  readonly region: BranchRegion;
+  readonly generatedNodes: Set<string>;
+  readonly lines: string[];
+  /** The indent of the node's own statements. */
+  readonly indent: string;
+  readonly branchingNodes: Set<string>;
+  readonly branchRegions: Map<string, BranchRegion>;
+  readonly isAsync: boolean;
+  readonly ctxVar: string;
+  readonly bundleMode: boolean;
+  readonly preDeclaredSuccessFlags: Set<string>;
+  /** Whether the node's `_success` flag is kept (declared if needed, reset, assigned). */
+  readonly trackSuccess: boolean;
+  readonly production: boolean;
+}
+
+/**
+ * Emits the branching node's own execution: the shouldExecute block that
+ * runs it, reports it, and sets `_success` from its result. A throw reports
+ * the node failed (or cancelled), cancels both arms and rethrows; a skipped
+ * execution (resume) reads `_success` back from its stored onSuccess.
+ */
+function emitBranchingNodeExecution(branching: BranchingNodeEmission): void {
+  const {
+    instance,
+    branchNode,
+    workflow,
+    allNodeTypes,
+    region,
+    lines,
+    isAsync,
+    ctxVar,
+    bundleMode,
+    preDeclaredSuccessFlags,
+    trackSuccess,
+    production,
+  } = branching;
   const instanceId = instance.id;
   const safeId = toValidIdentifier(instanceId);
   const functionName = branchNode.functionName;
@@ -1379,32 +1093,25 @@ function generateBranchingNodeCode(
 
   // Live debugging is separate from durable boundary restoration.
   const emitDebugHooks = !production;
-  const outerIndent = indent;
-
-  // Only declare success flag if there are downstream nodes
-  const hasSuccessDownstream = region.successNodes.size > 0;
-  const hasFailureDownstream = region.failureNodes.size > 0;
-  const hasDownstream = hasSuccessDownstream || hasFailureDownstream;
-  // Track success flag when there are downstream nodes OR when chain code needs it
-  const trackSuccess = hasDownstream || forceTrackSuccess;
+  const outerIndent = branching.indent;
+  const indent = `${outerIndent}  `;
 
   if (trackSuccess && !preDeclaredSuccessFlags.has(safeId)) {
-    lines.push(`${indent}let ${safeId}_success = false;`);
+    lines.push(`${outerIndent}let ${safeId}_success = false;`);
   }
   if (emitDebugHooks) {
     const awaitHook = isAsync ? 'await ' : '';
-    lines.push(`${indent}${awaitHook}__ctrl__.beforeNode('${instanceId}', ${ctxVar});`);
+    lines.push(`${outerIndent}${awaitHook}__ctrl__.beforeNode('${instanceId}', ${ctxVar});`);
   }
   const awaitPrefix = isAsync ? 'await ' : '';
 
   if (!production) {
     lines.push('');
-    lines.push(`${indent}// ── ${instanceId} (${functionName}) ──`);
+    lines.push(`${outerIndent}// ── ${instanceId} (${functionName}) ──`);
   }
-  lines.push(`${indent}${ctxVar}.checkAborted('${instanceId}');`);
-  lines.push(`${indent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
-  lines.push(`${indent}if (${ctxVar}.shouldExecute('${instanceId}', '${functionName}', ${safeId}Idx)) {`);
-  indent = `${indent}  `;
+  lines.push(`${outerIndent}${ctxVar}.checkAborted('${instanceId}');`);
+  lines.push(`${outerIndent}${safeId}Idx = ${ctxVar}.addExecution('${instanceId}');`);
+  lines.push(`${outerIndent}if (${ctxVar}.shouldExecute('${instanceId}', '${functionName}', ${safeId}Idx)) {`);
   lines.push(`${indent}${awaitPrefix}${ctxVar}.sendStatusChangedEvent({`);
   lines.push(`${indent}  nodeTypeName: '${functionName}',`);
   lines.push(`${indent}  id: '${instanceId}',`);
@@ -1492,7 +1199,7 @@ function generateBranchingNodeCode(
   }
   lines.push(`${indent}  }`);
   // Emit CANCELLED for all downstream nodes since branching node threw
-  if (hasSuccessDownstream) {
+  if (region.successNodes.size > 0) {
     generateCancelledEventsForBranch(
       region.successNodes,
       workflow,
@@ -1503,7 +1210,7 @@ function generateBranchingNodeCode(
       isAsync,
     );
   }
-  if (hasFailureDownstream) {
+  if (region.failureNodes.size > 0) {
     generateCancelledEventsForBranch(
       region.failureNodes,
       workflow,
@@ -1525,199 +1232,139 @@ function generateBranchingNodeCode(
     );
   }
   lines.push(`${outerIndent}}`);
-  indent = outerIndent;
   lines.push('');
+}
 
-  // Only generate if/else if there are downstream nodes
-  if (hasDownstream) {
-    lines.push(`${indent}if (${safeId}_success) {`);
-    lines.push(`${indent}  ${ctxVar}.enterBranch('${instanceId}', ${safeId}Idx, 'success');`);
-    // Emit CANCELLED for failure branch nodes since success path was taken
-    if (hasFailureDownstream) {
-      generateCancelledEventsForBranch(
-        region.failureNodes,
+/**
+ * Emits `if (<id>_success) { success arm } else { failure arm }`. Each arm
+ * enters and exits its branch frame and reports the other arm's nodes as
+ * cancelled. With an empty failure arm the else only reports the success
+ * arm cancelled; with both arms empty nothing is emitted by the caller.
+ */
+function emitBranchArms(branching: BranchingNodeEmission): void {
+  const { instance, workflow, allNodeTypes, region, lines, indent, isAsync, ctxVar } = branching;
+  const instanceId = instance.id;
+  const safeId = toValidIdentifier(instanceId);
+  const hasSuccessDownstream = region.successNodes.size > 0;
+  const hasFailureDownstream = region.failureNodes.size > 0;
+
+  lines.push(`${indent}if (${safeId}_success) {`);
+  lines.push(`${indent}  ${ctxVar}.enterBranch('${instanceId}', ${safeId}Idx, 'success');`);
+  // Emit CANCELLED for failure branch nodes since success path was taken
+  if (hasFailureDownstream) {
+    generateCancelledEventsForBranch(region.failureNodes, workflow, allNodeTypes, lines, `${indent}  `, ctxVar, isAsync);
+  }
+  emitBranchArmBody(branching, region.successNodes);
+
+  // Only generate else block if there are failure nodes to execute
+  if (hasFailureDownstream) {
+    lines.push(`${indent}  ${ctxVar}.exitBranch();`);
+    lines.push(`${indent}} else {`);
+    lines.push(`${indent}  ${ctxVar}.enterBranch('${instanceId}', ${safeId}Idx, 'failure');`);
+    // Emit CANCELLED for success branch nodes since failure path was taken
+    if (hasSuccessDownstream) {
+      generateCancelledEventsForBranch(region.successNodes, workflow, allNodeTypes, lines, `${indent}  `, ctxVar, isAsync);
+    }
+    emitBranchArmBody(branching, region.failureNodes);
+    lines.push(`${indent}  ${ctxVar}.exitBranch();`);
+    lines.push(`${indent}}`);
+  } else if (hasSuccessDownstream) {
+    // No failure branch - emit CANCELLED for success nodes and close
+    lines.push(`${indent}  ${ctxVar}.exitBranch();`);
+    lines.push(`${indent}} else {`);
+    lines.push(`${indent}  ${ctxVar}.enterBranch('${instanceId}', ${safeId}Idx, 'failure');`);
+    generateCancelledEventsForBranch(region.successNodes, workflow, allNodeTypes, lines, `${indent}  `, ctxVar, isAsync);
+    lines.push(`${indent}  ${ctxVar}.exitBranch();`);
+    lines.push(`${indent}}`);
+  } else {
+    lines.push(`${indent}  ${ctxVar}.exitBranch();`);
+    lines.push(`${indent}}`);
+  }
+}
+
+/**
+ * Emits the nodes of one arm in topological order, one level deeper than
+ * the branching node. A nested branching node recurses into
+ * generateBranchingNodeCode, with its `_success` flag declared at this level
+ * first so guards outside the nested block can still read it; any other node
+ * runs without its execute guard, since the arm's if/else already decided it.
+ */
+function emitBranchArmBody(branching: BranchingNodeEmission, armNodes: Set<string>): void {
+  const {
+    workflow,
+    allNodeTypes,
+    generatedNodes,
+    lines,
+    indent,
+    branchingNodes,
+    branchRegions,
+    isAsync,
+    ctxVar,
+    bundleMode,
+    preDeclaredSuccessFlags,
+    production,
+  } = branching;
+  // Sort branch nodes topologically to ensure correct execution order
+  const armInstanceIds = sortBranchNodesTopologically(armNodes, workflow);
+
+  armInstanceIds.forEach((instanceId) => {
+    const inst = workflow.instances.find((i) => i.id === instanceId);
+    if (!inst) return;
+    // Check both name (for npm nodes like 'npm/pkg/func') and functionName (for local nodes)
+    const nodeType = allNodeTypes.find((nt) => nt.name === inst.nodeType || nt.functionName === inst.nodeType);
+    if (!nodeType) return;
+
+    if (branchingNodes.has(instanceId)) {
+      const nestedRegion = branchRegions.get(instanceId)!;
+      // Pre-declare nested branching node's _success flag at the current
+      // scope so it remains accessible to downstream guards that may run
+      // outside this branch block. (Fixes scoping bug where the flag was
+      // declared inside a nested conditional but referenced at a higher scope.)
+      const nestedSafeId = toValidIdentifier(instanceId);
+      const nestedHasDownstream = nestedRegion.successNodes.size > 0 || nestedRegion.failureNodes.size > 0;
+      const nestedPreDeclared = new Set(preDeclaredSuccessFlags);
+      if (nestedHasDownstream && !nestedPreDeclared.has(nestedSafeId)) {
+        lines.push(`${indent}  let ${nestedSafeId}_success = false;`);
+        nestedPreDeclared.add(nestedSafeId);
+      }
+      generateBranchingNodeCode(
+        inst,
+        nodeType,
         workflow,
         allNodeTypes,
+        nestedRegion,
+        generatedNodes,
         lines,
         `${indent}  `,
-        ctxVar,
+        branchingNodes,
+        branchRegions,
         isAsync,
+        ctxVar,
+        bundleMode,
+        nestedPreDeclared,
+        nestedPreDeclared.has(nestedSafeId), // force tracking if flag was pre-declared at higher scope
+        production,
       );
-    }
-    // Sort success branch nodes topologically to ensure correct execution order
-    const successInstanceIds = sortBranchNodesTopologically(region.successNodes, workflow);
-    const successExecutedNodes = [instance.id];
-
-    successInstanceIds.forEach((instanceId) => {
-      const inst = workflow.instances.find((i) => i.id === instanceId);
-      if (!inst) return;
-      // Check both name (for npm nodes like 'npm/pkg/func') and functionName (for local nodes)
-      const nodeType = allNodeTypes.find((nt) => nt.name === inst.nodeType || nt.functionName === inst.nodeType);
-      if (!nodeType) return;
-
-      if (branchingNodes.has(instanceId)) {
-        const nestedRegion = branchRegions.get(instanceId)!;
-        // Pre-declare nested branching node's _success flag at the current
-        // scope so it remains accessible to downstream guards that may run
-        // outside this branch block. (Fixes scoping bug where the flag was
-        // declared inside a nested conditional but referenced at a higher scope.)
-        const nestedSafeId = toValidIdentifier(instanceId);
-        const nestedHasDownstream = nestedRegion.successNodes.size > 0 || nestedRegion.failureNodes.size > 0;
-        const nestedPreDeclared = new Set(preDeclaredSuccessFlags);
-        if (nestedHasDownstream && !nestedPreDeclared.has(nestedSafeId)) {
-          lines.push(`${indent}  let ${nestedSafeId}_success = false;`);
-          nestedPreDeclared.add(nestedSafeId);
-        }
-        generateBranchingNodeCode(
-          inst,
-          nodeType,
-          workflow,
-          allNodeTypes,
-          nestedRegion,
-          generatedNodes,
-          lines,
-          `${indent}  `,
-          branchingNodes,
-          branchRegions,
-          isAsync,
-          ctxVar,
-          bundleMode,
-          nestedPreDeclared,
-          nestedPreDeclared.has(nestedSafeId), // force tracking if flag was pre-declared at higher scope
-          production,
-        );
-        successExecutedNodes.push(instanceId);
-        nestedRegion.successNodes.forEach((n) => successExecutedNodes.push(n));
-        nestedRegion.failureNodes.forEach((n) => successExecutedNodes.push(n));
-      } else {
-        generateNodeCallWithContext(
-          inst,
-          nodeType,
-          workflow,
-          lines,
-          allNodeTypes,
-          `${indent}  `,
-          isAsync,
-          false, // useConst
-          undefined, // instanceParent
-          ctxVar,
-          bundleMode,
-          true, // skipExecuteGuard — inside branch, execute is guaranteed by if/else
-          branchingNodes,
-          production,
-        );
-        successExecutedNodes.push(instanceId);
-        generatedNodes.add(instanceId);
-      }
-    });
-
-    // Only generate else block if there are failure nodes to execute
-    if (hasFailureDownstream) {
-      lines.push(`${indent}  ${ctxVar}.exitBranch();`);
-      lines.push(`${indent}} else {`);
-      lines.push(`${indent}  ${ctxVar}.enterBranch('${instanceId}', ${safeId}Idx, 'failure');`);
-      // Emit CANCELLED for success branch nodes since failure path was taken
-      if (hasSuccessDownstream) {
-        generateCancelledEventsForBranch(
-          region.successNodes,
-          workflow,
-          allNodeTypes,
-          lines,
-          `${indent}  `,
-          ctxVar,
-          isAsync,
-        );
-      }
-      // Sort failure branch nodes topologically to ensure correct execution order
-      const failureInstanceIds = sortBranchNodesTopologically(region.failureNodes, workflow);
-      const failureExecutedNodes = [instance.id];
-
-      failureInstanceIds.forEach((instanceId) => {
-        const inst = workflow.instances.find((i) => i.id === instanceId);
-        if (!inst) return;
-        // Check both name (for npm nodes like 'npm/pkg/func') and functionName (for local nodes)
-        const nodeType = allNodeTypes.find((nt) => nt.name === inst.nodeType || nt.functionName === inst.nodeType);
-        if (!nodeType) return;
-
-        if (branchingNodes.has(instanceId)) {
-          const nestedRegion = branchRegions.get(instanceId)!;
-          // Pre-declare nested branching node's _success flag at the current
-          // scope (same fix as success branch above).
-          const nestedSafeId = toValidIdentifier(instanceId);
-          const nestedHasDownstream = nestedRegion.successNodes.size > 0 || nestedRegion.failureNodes.size > 0;
-          const nestedPreDeclared = new Set(preDeclaredSuccessFlags);
-          if (nestedHasDownstream && !nestedPreDeclared.has(nestedSafeId)) {
-            lines.push(`${indent}  let ${nestedSafeId}_success = false;`);
-            nestedPreDeclared.add(nestedSafeId);
-          }
-          generateBranchingNodeCode(
-            inst,
-            nodeType,
-            workflow,
-            allNodeTypes,
-            nestedRegion,
-            generatedNodes,
-            lines,
-            `${indent}  `,
-            branchingNodes,
-            branchRegions,
-            isAsync,
-            ctxVar,
-            bundleMode,
-            nestedPreDeclared,
-            nestedPreDeclared.has(nestedSafeId), // force tracking if flag was pre-declared at higher scope
-            production,
-          );
-          failureExecutedNodes.push(instanceId);
-          nestedRegion.successNodes.forEach((n) => failureExecutedNodes.push(n));
-          nestedRegion.failureNodes.forEach((n) => failureExecutedNodes.push(n));
-        } else {
-          generateNodeCallWithContext(
-            inst,
-            nodeType,
-            workflow,
-            lines,
-            allNodeTypes,
-            `${indent}  `,
-            isAsync,
-            false, // useConst
-            undefined, // instanceParent
-            ctxVar,
-            bundleMode,
-            true, // skipExecuteGuard — inside branch, execute is guaranteed by if/else
-            branchingNodes,
-            production,
-          );
-          failureExecutedNodes.push(instanceId);
-          generatedNodes.add(instanceId);
-        }
-      });
-      lines.push(`${indent}  ${ctxVar}.exitBranch();`);
-      lines.push(`${indent}}`);
     } else {
-      // No failure branch - emit CANCELLED for success nodes and close
-      if (hasSuccessDownstream) {
-        lines.push(`${indent}  ${ctxVar}.exitBranch();`);
-        lines.push(`${indent}} else {`);
-        lines.push(`${indent}  ${ctxVar}.enterBranch('${instanceId}', ${safeId}Idx, 'failure');`);
-        generateCancelledEventsForBranch(
-          region.successNodes,
-          workflow,
-          allNodeTypes,
-          lines,
-          `${indent}  `,
-          ctxVar,
-          isAsync,
-        );
-        lines.push(`${indent}  ${ctxVar}.exitBranch();`);
-        lines.push(`${indent}}`);
-      } else {
-        lines.push(`${indent}  ${ctxVar}.exitBranch();`);
-        lines.push(`${indent}}`);
-      }
+      generateNodeCallWithContext(
+        inst,
+        nodeType,
+        workflow,
+        lines,
+        allNodeTypes,
+        `${indent}  `,
+        isAsync,
+        false, // useConst
+        undefined, // instanceParent
+        ctxVar,
+        bundleMode,
+        true, // skipExecuteGuard — inside branch, execute is guaranteed by if/else
+        branchingNodes,
+        production,
+      );
+      generatedNodes.add(instanceId);
     }
-  }
-  generatedNodes.add(instanceId);
+  });
 }
 
 function generatePullNodeWithContext(
