@@ -81,9 +81,13 @@ export default {
   coverageAnalysis: 'perTest',
   mutate: [...target.mutate, ...neverMutate],
   ignorePatterns: ['/reports', '/coverage', '/console-ui', '/docs/api', '/.claude', '/.fw'],
+  // Vitest transpiles without type checking, so Stryker need not add
+  // `// @ts-nocheck` to files; added to a fixture, it moves the line numbers
+  // the parser tests pin.
+  disableTypeChecks: false,
   incremental: true,
   incrementalFile: `reports/mutation/${name}/stryker-incremental.json`,
-  concurrency: Number(process.env.MUTATION_CONCURRENCY ?? 4),
+  concurrency: Number(process.env.MUTATION_CONCURRENCY ?? 2),
   timeoutMS: 20000,
   reporters: ['html', 'json', 'clear-text', 'progress'],
   htmlReporter: { fileName: `reports/mutation/${name}/index.html` },
