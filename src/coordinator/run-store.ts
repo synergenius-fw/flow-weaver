@@ -1,21 +1,22 @@
-import { createHash, randomUUID } from 'node:crypto';
-import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
-import { parseWorkflow } from '../api/parse.js';
-import type { TWorkflowAST } from '../ast/types.js';
 import type { ContinuationEnvelope, DurableGateKind } from '../runtime/continuation.js';
-import type { EffectAdapter } from '../runtime/durable-execution.js';
 import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
-import { executeWorkflow, ContinuationRefusalError, type ExecutionTraceEvent, type WorkflowExecutionOutcome } from '../mcp/workflow-executor.js';
-import { computeBundleDigest } from './bundle-digest.js';
-import { labelGate } from './gate-labeling.js';
-import { buildGateResolution, type ResolveInput } from './gate-resolution.js';
-import { checkDocName, EFFECT_DOC_PREFIX, RESERVED_DOCS, RunBusyError, type RunStore } from './store.js';
-import { missingParams, MissingParamsError } from './params.js';
-import { createFileRunStore } from './file-store.js';
-import { dueFor, type RunDue } from './time.js';
-import { getErrorMessage } from '../utils/error-utils.js';
+import type { ExecutionTraceEvent } from '../mcp/workflow-executor.js';
+import type { ResolveInput } from './gate-resolution.js';
+import type { RunStore } from './store.js';
+import type { RunDue } from './time.js';
+import { createRunContext } from './run-context.js';
+import { startRun } from './run-start.js';
+import { resumable, resumeRun } from './run-resume.js';
+import { cancelRun, removeRun } from './run-ending.js';
+import { keepDoc, keptDoc, setAgentNote } from './run-annotations.js';
+import { tickDue } from './clock-tick.js';
+import { readTrace } from './run-trace.js';
+import { toSummary, toView } from './run-views.js';
+
+export { ParseError, AmbiguousWorkflowError, RunNotFoundError, RunNotWaitingError, BundleChangedError } from './errors.js';
+export { resolveProjectRoot, defaultRunsDir } from './runs-dir.js';
+export { createStoreEffectAdapter, createFileEffectAdapter } from './effect-receipts.js';
 
 /**
  * The local durable-run coordinator.
@@ -32,6 +33,15 @@ import { getErrorMessage } from '../utils/error-utils.js';
  * under `~/.fw/runs` by default, memory in tests, a database of yours in
  * production. While a segment runs, the run is claimed in the store, so two
  * processes on one store never drive the same run at once.
+ *
+ * This module holds the public shapes and puts the coordinator together.
+ * What each operation decides lives beside it: `run-context.ts` (the store
+ * and the claim), `workflow-selection.ts` (which workflow a run is of),
+ * `run-start.ts` and `run-resume.ts` (driving a segment), `run-outcome.ts`
+ * (writing down how it ended), `run-trace.ts` (the kept step trace),
+ * `run-ending.ts` (cancel and remove), `run-annotations.ts` (agent notes
+ * and kept documents), `clock-tick.ts` (the clock), `run-views.ts` (what a
+ * driver is shown), `effect-receipts.ts`, `runs-dir.ts` and `errors.ts`.
  */
 
 export interface StartRequest {
@@ -246,86 +256,6 @@ export interface RunRecord {
   updatedAt: string;
 }
 
-export class ParseError extends Error {
-  readonly name = 'ParseError';
-}
-export class AmbiguousWorkflowError extends Error {
-  readonly name = 'AmbiguousWorkflowError';
-  constructor(readonly names: readonly string[]) {
-    super(`file declares several workflows. Pass workflowName, one of: ${names.join(', ')}`);
-  }
-}
-export class RunNotFoundError extends Error {
-  readonly name = 'RunNotFoundError';
-  constructor(runId: string) {
-    super(`no run with id ${runId}`);
-  }
-}
-export class RunNotWaitingError extends Error {
-  readonly name = 'RunNotWaitingError';
-  constructor(readonly status: RunView['status']) {
-    super(`run is ${status}, not waiting at a gate`);
-  }
-}
-export class BundleChangedError extends Error {
-  readonly name = 'BundleChangedError';
-  constructor() {
-    super('workflow or its compiled output changed since the run paused. Start a new run');
-  }
-}
-
-/**
- * The project a workflow file belongs to: the nearest ancestor directory with
- * a `package.json` or an existing `.fw/` folder, or — when neither is found —
- * the file's own directory. `anchor` may be a file or a directory.
- *
- * This is what makes a run store follow the file rather than the process: two
- * processes launched from different working directories (a console, and an MCP
- * server a tool spawned elsewhere) resolve the SAME project for the SAME file,
- * so they share one store. The walk is case- and separator-tolerant because
- * `path` is already platform-native; the containment the store relies on is the
- * resolved root, not the raw string.
- */
-export function resolveProjectRoot(anchor: string): string {
-  let current: string;
-  try {
-    current = fs.statSync(anchor).isDirectory() ? path.resolve(anchor) : path.dirname(path.resolve(anchor));
-  } catch {
-    // The path need not exist yet (a not-yet-written file): treat it as a file.
-    current = path.dirname(path.resolve(anchor));
-  }
-  const root = path.parse(current).root;
-  // Walk up to the nearest project marker.
-  for (let dir = current; ; dir = path.dirname(dir)) {
-    if (
-      fs.existsSync(path.join(dir, 'package.json')) ||
-      fs.existsSync(path.join(dir, '.fw'))
-    ) {
-      return dir;
-    }
-    if (dir === root || path.dirname(dir) === dir) break;
-  }
-  // No marker found: the file's own directory is the project.
-  return current;
-}
-
-/**
- * Where a run store lives. Precedence:
- *   1. `FW_RUNS_DIR` — an explicit override for operators pointing every
- *      process at one store.
- *   2. `<projectRoot>/.fw/runs` — when an anchor (a workflow file or its
- *      directory) is given, so the store follows the file across processes.
- *   3. `~/.fw/runs` — the legacy global fallback when there is no anchor.
- *
- * Passing no anchor keeps the old global behaviour, so existing callers and
- * runs are unaffected; nothing migrates.
- */
-export function defaultRunsDir(anchor?: string): string {
-  if (process.env.FW_RUNS_DIR) return process.env.FW_RUNS_DIR;
-  if (anchor) return path.join(resolveProjectRoot(anchor), '.fw', 'runs');
-  return path.join(os.homedir(), '.fw', 'runs');
-}
-
 export interface LocalCoordinatorOptions {
   /** The store runs live in. Default: the file store under `rootDir`. */
   store?: RunStore;
@@ -339,320 +269,20 @@ export interface LocalCoordinatorOptions {
   claimTtlMs?: number;
 }
 
-/** The document holding effect receipts for an operation key. */
-const effectDoc = (operationKey: string) => `${EFFECT_DOC_PREFIX}${createHash('sha256').update(operationKey).digest('hex')}`;
-
 export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): LocalCoordinator {
-  const store = options.store ?? createFileRunStore(options.rootDir ?? defaultRunsDir());
-  const claimTtl = options.claimTtlMs ?? 60 * 60 * 1000;
-  const instance = `${os.hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`;
-  let uses = 0;
-
-  /**
-   * Do `work` holding the run's claim. Each use is its own owner, so two
-   * operations of this coordinator on one run exclude each other as two
-   * processes do: a store lets the same owner claim again, and with one
-   * owner per coordinator a second use would share the claim and its
-   * `release` would drop the first use's claim early.
-   */
-  async function claimed<T>(runId: string, work: () => Promise<T>): Promise<T> {
-    const owner = `${instance}:${++uses}`;
-    if (!(await store.claim(runId, owner, claimTtl))) throw new RunBusyError(runId);
-    try { return await work(); }
-    finally { await store.release(runId, owner); }
-  }
-
-  /**
-   * Commit an outcome with one `put`: the gate and the continuation it
-   * resumes from are in the same record, so a process that dies before the
-   * write leaves the run at its previous gate with that gate's continuation,
-   * and a resume with that gate's answer moves it on again. A run with
-   * documents and no record is an unacknowledged yield and is ignored
-   * everywhere. Runs paused by an older version keep the envelope in a
-   * `continuation` document instead; a terminal outcome drops it.
-   */
-  async function commit(record: RunRecord, outcome: WorkflowExecutionOutcome, ast: TWorkflowAST, kept?: TraceEntry[]): Promise<RunRecord> {
-    const now = new Date().toISOString();
-    const traced = await appendTrace(record, kept);
-
-    if (outcome.kind === 'yielded') {
-      const labeled = labelGate(outcome.gate, ast);
-      const gate = {
-        id: outcome.gate.id,
-        kind: outcome.gate.kind,
-        node: outcome.gate.address.nodeId,
-        nodeType: outcome.gate.address.nodeType,
-        ...labeled,
-      };
-      const next: RunRecord = {
-        ...record,
-        traced,
-        status: 'waiting',
-        gate,
-        continuation: outcome.continuation,
-        due: dueFor(gate),
-        result: undefined,
-        error: undefined,
-        updatedAt: now,
-      };
-      if (next.due === undefined) delete next.due;
-      await store.put(next);
-      return next;
-    }
-
-    const next: RunRecord = {
-      ...record,
-      traced,
-      status: 'completed',
-      gate: undefined,
-      continuation: undefined,
-      due: undefined,
-      result: outcome.result,
-      error: undefined,
-      updatedAt: now,
-    };
-    await store.put(next);
-    await store.deleteDoc(record.runId, 'continuation');
-    return next;
-  }
-
-  /**
-   * A run that did not reach an outcome. Stopped by its driver's signal it
-   * is `cancelled`, which is not a failure and is not shown as one; anything
-   * else is `failed` with the error.
-   */
-  async function fail(record: RunRecord, error: unknown, options: DriveOptions | undefined, kept?: TraceEntry[]): Promise<void> {
-    const traced = await appendTrace(record, kept);
-    const message = getErrorMessage(error);
-    const cancelled = options?.abortSignal?.aborted === true;
-    await store.put({
-      ...record,
-      traced,
-      status: cancelled ? 'cancelled' : 'failed',
-      gate: undefined,
-      continuation: undefined,
-      due: undefined,
-      result: undefined,
-      error: cancelled ? undefined : message,
-      failedNode: cancelled ? undefined : failedNodeIn(kept),
-      updatedAt: new Date().toISOString(),
-    } satisfies RunRecord);
-    await store.deleteDoc(record.runId, 'continuation');
-  }
-
-  /** The step whose error the trace recorded last, if it recorded one. */
-  function failedNodeIn(kept: TraceEntry[] | undefined): string | undefined {
-    if (!kept) return undefined;
-    for (let i = kept.length - 1; i >= 0; i--) {
-      const e = kept[i].e as { type?: string; id?: string; status?: string } | undefined;
-      if (e?.type === 'LOG_ERROR' && e.id) return e.id;
-      if (e?.type === 'STATUS_CHANGED' && e.status === 'FAILED' && e.id) return e.id;
-    }
-    return undefined;
-  }
-
-  /**
-   * Add a segment's events to the kept trace. Returns whether the run is
-   * traced end to end: one segment driven without a trace -- resumed by an
-   * assistant, say -- leaves a gap, and a reader must not fill it in.
-   */
-  async function appendTrace(record: RunRecord, kept: TraceEntry[] | undefined): Promise<boolean> {
-    if (!kept) return false;
-    const previous = await readTrace(record.runId);
-    await store.putDoc(record.runId, 'trace', [...previous, ...kept]);
-    return true;
-  }
-
-  async function readTrace(runId: string): Promise<TraceEntry[]> {
-    const doc = await store.getDoc(runId, 'trace');
-    return Array.isArray(doc) ? (doc as TraceEntry[]) : [];
-  }
-
-  /**
-   * What one segment of execution is given: the driver's observer wrapped so
-   * the events are also kept, when asked. Tracing needs the debug build of
-   * the workflow, which is where the events come from.
-   */
-  function observe(options: DriveOptions | undefined) {
-    const tracing = options?.trace === true || options?.onEvent !== undefined;
-    if (!tracing) return { kept: undefined, request: { includeTrace: false as const, production: true } };
-    const kept: TraceEntry[] = [];
-    const onEvent = (event: ExecutionTraceEvent) => {
-      kept.push({ t: event.timestamp, e: event.data ?? event });
-      options?.onEvent?.(event);
-    };
-    return { kept, request: { includeTrace: true as const, production: false, onEvent } };
-  }
-
-  async function parseSelected(
-    filePath: string,
-    requested: string | undefined,
-  ): Promise<{ ast: TWorkflowAST; workflowName: string }> {
-    const projectDir = path.dirname(filePath);
-    const first = await parseWorkflow(filePath, { workflowName: requested, projectDir });
-    if (first.errors.length > 0) throw new ParseError(first.errors.join('\n'));
-
-    // Given no name, the executor runs the first workflow in the file. A
-    // driver cannot see which one it got, so ambiguity is refused here instead.
-    const available = first.availableWorkflows;
-    let workflowName = requested;
-    if (workflowName === undefined) {
-      if (available.length === 1) workflowName = available[0];
-      else throw new AmbiguousWorkflowError(available);
-    } else if (!available.includes(workflowName)) {
-      throw new ParseError(`workflow ${workflowName} not found. Available: ${available.join(', ')}`);
-    }
-
-    if (first.ast.functionName === workflowName) return { ast: first.ast, workflowName };
-    const second = await parseWorkflow(filePath, { workflowName, projectDir });
-    if (second.errors.length > 0) throw new ParseError(second.errors.join('\n'));
-    return { ast: second.ast, workflowName };
-  }
-
-  async function readRecord(runId: string): Promise<RunRecord | undefined> {
-    return store.get(runId);
-  }
-
-  /** The waiting record a resume would act on, or the refusal it would meet before taking the run. */
-  async function resumable(request: ResumeRequest): Promise<RunRecord> {
-    const record = await readRecord(request.runId);
-    if (!record) throw new RunNotFoundError(request.runId);
-    if (record.status !== 'waiting' || !record.gate) throw new RunNotWaitingError(record.status);
-
-    // Refuse before the engine does, with a message that says what to do.
-    const digest = await computeBundleDigest(record.filePath, record.workflowName);
-    if (digest !== record.bundleDigest) throw new BundleChangedError();
-
-    // Built before the claim so a bad answer is refused without taking it.
-    buildGateResolution(record.gate, record.gate.id, request.input);
-    return record;
-  }
+  const ctx = createRunContext(options);
+  const { store, readRecord } = ctx;
 
   return {
     store,
 
-    async start(request, options) {
-      const filePath = path.resolve(request.filePath);
-      const { ast, workflowName } = await parseSelected(filePath, request.workflowName);
-      const missing = missingParams(ast, request.params);
-      if (missing.length) throw new MissingParamsError(workflowName, missing);
-      const bundleDigest = await computeBundleDigest(filePath, workflowName);
-      const now = new Date().toISOString();
-      const record: RunRecord = {
-        formatVersion: 1,
-        runId: request.runId ?? randomUUID(),
-        filePath,
-        workflowName,
-        params: request.params ?? {},
-        bundleDigest,
-        status: 'waiting',
-        ...(request.mocks ? { mocks: request.mocks } : {}),
-        ...(request.source ? { source: request.source } : {}),
-        ...(request.agents ? { agents: request.agents } : {}),
-        ...(request.origin ? { origin: request.origin } : {}),
-        createdAt: now,
-        updatedAt: now,
-      };
+    start(request, options) { return startRun(ctx, request, options); },
 
-      return claimed(record.runId, async () => {
-        const { kept, request: observed } = observe(options);
-        let outcome: WorkflowExecutionOutcome;
-        try {
-          outcome = await executeWorkflow({
-            runId: record.runId,
-            bundleDigest,
-            filePath,
-            params: record.params,
-            workflowName,
-            mocks: record.mocks,
-            ...observed,
-            abortSignal: options?.abortSignal,
-            effectAdapter: createStoreEffectAdapter(store, record.runId),
-          });
-        } catch (error) {
-          await fail(record, error, options, kept);
-          throw error;
-        }
-        return toView(await commit(record, outcome, ast, kept));
-      });
-    },
+    checkResume: async (request) => { await resumable(ctx, request); },
 
-    checkResume: async (request) => { await resumable(request); },
+    resume(request, options) { return resumeRun(ctx, request, options); },
 
-    async resume(request, options) {
-      const record = await resumable(request);
-      return claimed(record.runId, async () => {
-        // Read again under the claim: another process may have finished it,
-        // or moved it to a later gate, between the check above and now.
-        const current = await readRecord(record.runId);
-        if (!current || current.status !== 'waiting' || !current.gate) throw new RunNotWaitingError(current?.status ?? 'cancelled');
-        // A run paused by an older version keeps the envelope in a document.
-        const continuation = current.continuation ?? ((await store.getDoc(record.runId, 'continuation')) as ContinuationEnvelope | undefined);
-        if (!continuation) throw new RunNotWaitingError(current.status);
-        if (continuation.gateId !== current.gate.id) {
-          // Only an older version's two-write commit can leave these apart.
-          // The run is left waiting: nothing ran.
-          throw new ContinuationRefusalError({ accepted: false, reason: 'stale-gate', message: `the run's record names gate ${current.gate.id} but its continuation is at gate ${continuation.gateId}` });
-        }
-        const resolution = buildGateResolution(current.gate, current.gate.id, request.input);
-        const { ast } = await parseSelected(record.filePath, record.workflowName);
-
-        // If this process dies after the engine returns but before `commit`
-        // writes, the old record and continuation are still intact. A second
-        // resume with the same answer re-applies the same resolution, re-runs
-        // pure nodes (allowed by definition), and recovers every effect after
-        // the gate from its receipt instead of re-executing it. The outcome
-        // converges; the claim only keeps two processes from trying at once.
-        const { kept, request: observed } = observe(options);
-        let outcome: WorkflowExecutionOutcome;
-        try {
-          outcome = await executeWorkflow({
-            runId: record.runId,
-            bundleDigest: record.bundleDigest,
-            filePath: record.filePath,
-            params: record.params,
-            workflowName: record.workflowName,
-            mocks: record.mocks,
-            ...observed,
-            abortSignal: options?.abortSignal,
-            continuation,
-            resolution,
-            effectAdapter: createStoreEffectAdapter(store, record.runId),
-          });
-        } catch (error) {
-          // A refusal is thrown before any node runs (the bundle, the
-          // continuation or the adapter was not acceptable). The run is
-          // still exactly where it paused, so it stays waiting.
-          if (error instanceof ContinuationRefusalError) throw error;
-          await fail(current, error, options, kept);
-          throw error;
-        }
-        return toView(await commit(current, outcome, ast, kept));
-      });
-    },
-
-    async cancel(runId) {
-      const record = await readRecord(runId);
-      if (!record) throw new RunNotFoundError(runId);
-      if (record.status !== 'waiting') throw new RunNotWaitingError(record.status);
-      return claimed(runId, async () => {
-        // Read again under the claim: a driver may have completed the run
-        // since the check above, and its result must not become "cancelled".
-        const current = await readRecord(runId);
-        if (!current || current.status !== 'waiting') throw new RunNotWaitingError(current?.status ?? 'cancelled');
-        const next: RunRecord = {
-          ...current,
-          status: 'cancelled',
-          gate: undefined,
-          continuation: undefined,
-          due: undefined,
-          updatedAt: new Date().toISOString(),
-        };
-        await store.put(next);
-        await store.deleteDoc(runId, 'continuation');
-        return toView(next);
-      });
-    },
+    cancel(runId) { return cancelRun(ctx, runId); },
 
     async get(runId) {
       const record = await readRecord(runId);
@@ -661,133 +291,23 @@ export function createLocalCoordinator(options: LocalCoordinatorOptions = {}): L
 
     record: readRecord,
 
-    trace: readTrace,
+    trace: (runId) => readTrace(store, runId),
 
-    async remove(runId) {
-      const record = await readRecord(runId);
-      if (!record) throw new RunNotFoundError(runId);
-      if (record.status === 'waiting') throw new RunNotWaitingError(record.status);
-      await store.remove(runId);
-    },
+    remove(runId) { return removeRun(ctx, runId); },
 
-    async setAgent(runId, note) {
-      if (!(await readRecord(runId))) throw new RunNotFoundError(runId);
-      // Under the claim, so a segment committing between the read and the
-      // write cannot be overwritten with the record it replaced.
-      return claimed(runId, async () => {
-        const record = await readRecord(runId);
-        if (!record) throw new RunNotFoundError(runId);
-        const next: RunRecord = { ...record, agent: note, updatedAt: new Date().toISOString() };
-        if (note === undefined) delete next.agent;
-        await store.put(next);
-        return next;
-      });
-    },
+    setAgent(runId, note) { return setAgentNote(ctx, runId, note); },
 
-    async keep(runId, name, data) {
-      checkDocName(name);
-      if ((RESERVED_DOCS as readonly string[]).includes(name) || name.startsWith(EFFECT_DOC_PREFIX)) throw new Error(`${name} is a document the coordinator keeps itself`);
-      if (!(await readRecord(runId))) throw new RunNotFoundError(runId);
-      await store.putDoc(runId, name, data);
-    },
+    keep(runId, name, data) { return keepDoc(ctx, runId, name, data); },
 
-    async kept<T = unknown>(runId: string, name: string) {
-      checkDocName(name);
-      return (await store.getDoc(runId, name)) as T | undefined;
-    },
+    kept<T = unknown>(runId: string, name: string) { return keptDoc<T>(ctx, runId, name); },
 
-    async tick(now = Date.now()) {
-      const result: TickResult = { woke: [], timedOut: [], skipped: [] };
-      const at = new Date(now).toISOString();
-      for (const summary of await store.list()) {
-        if (summary.status !== 'waiting' || !summary.due || summary.due.at > at) continue;
-        const { runId, due } = summary;
-        // A sleep wakes with the time it woke; a timeout is a refusal the
-        // workflow reads on the gate's failure port, like any other.
-        const input: ResolveInput = due.action === 'wake'
-          ? { answer: summary.gate?.outputs.length ? at : null }
-          : { reject: `no answer within ${String(summary.gate?.inputs.timeout ?? 'the timeout')}` };
-        try {
-          const view = await this.resume({ runId, input });
-          (due.action === 'wake' ? result.woke : result.timedOut).push(view);
-        } catch (error) {
-          const name = error instanceof Error ? error.name : '';
-          const reason = name === 'RunBusyError' ? 'busy' : name === 'RunNotWaitingError' ? 'not-waiting' : name === 'BundleChangedError' ? 'bundle-changed' : 'failed';
-          result.skipped.push({ runId, reason, ...(reason === 'failed' ? { message: getErrorMessage(error) } : {}) });
-        }
-      }
-      return result;
-    },
+    // Through `this`, so each due run is resumed by the coordinator as it
+    // stands when the tick reaches it.
+    tick(now = Date.now()) { return tickDue(store, (request) => this.resume(request), now); },
 
     async list(filter = {}) {
       const records = await store.list(filter.filePath ? { filePath: path.resolve(filter.filePath) } : {});
-      return records.map((record) => ({
-        status: record.status,
-        runId: record.runId,
-        workflowName: record.workflowName,
-        filePath: record.filePath,
-        gate: record.gate ? { kind: record.gate.kind, node: record.gate.node } : undefined,
-        due: record.due,
-        params: record.params,
-        failedNode: record.failedNode,
-        mocks: record.mocks,
-        source: record.source,
-        agents: record.agents,
-        agent: record.agent ? { status: record.agent.status, profile: record.agent.profile, node: record.agent.node } : undefined,
-        origin: record.origin,
-        createdAt: record.createdAt,
-        updatedAt: record.updatedAt,
-      }));
+      return records.map(toSummary);
     },
   };
-}
-
-function toView(record: RunRecord): RunView {
-  const view: RunView = {
-    status: record.status,
-    runId: record.runId,
-    workflowName: record.workflowName,
-  };
-  if (record.status === 'waiting' && record.gate) {
-    view.gate = {
-      kind: record.gate.kind,
-      node: record.gate.node,
-      inputs: record.gate.inputs,
-      absent: record.gate.absent,
-    };
-    if (record.due) view.due = record.due;
-  }
-  if (record.status === 'completed') view.result = record.result;
-  if (record.status === 'failed') view.error = record.error;
-  return view;
-}
-
-/**
- * Effect receipts as documents of the run, one per operation key, so a
- * resume can prove an effect already committed instead of running it again.
- */
-export function createStoreEffectAdapter(store: RunStore, runId: string): EffectAdapter {
-  return {
-    async recover(operationKey) {
-      let doc: unknown;
-      try { doc = await store.getDoc(runId, effectDoc(operationKey)); }
-      catch {
-        // A receipt we cannot read is evidence something happened that we
-        // cannot describe. Fail closed; never re-run the effect.
-        return { kind: 'ambiguous' };
-      }
-      if (doc === undefined) return { kind: 'not-committed' };
-      if (typeof doc !== 'object' || doc === null || !('receipt' in doc)) return { kind: 'ambiguous' };
-      const record = doc as { receipt: unknown; result: unknown };
-      return { kind: 'committed', receipt: record.receipt as never, result: record.result as never };
-    },
-    async commit(operationKey, address, execution) {
-      await store.putDoc(runId, effectDoc(operationKey), { operationKey, address, result: execution.result, receipt: execution.receipt });
-    },
-  };
-}
-
-/** Effect receipts under `<runDir>/effects/`, as the file store keeps them. Kept for callers of the old name. */
-export function createFileEffectAdapter(runDir: string): EffectAdapter {
-  return createStoreEffectAdapter(createFileRunStore(path.dirname(runDir)), path.basename(runDir));
 }
