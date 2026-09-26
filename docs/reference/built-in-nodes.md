@@ -28,7 +28,7 @@ Holds the process for a duration. It is for short pauses in a running segment â€
  * @input duration - Duration to sleep (e.g. "30s", "5m", "1h", "2d")
  * @output elapsed - Always true after sleep completes
  */
-async function delay(execute: boolean, duration: string)
+async function delay(execute: boolean, duration: string): Promise<{ onSuccess: boolean; onFailure: boolean; elapsed: boolean }>
 ```
 
 ### Duration Format
@@ -70,7 +70,7 @@ A `timer` gate. The run pauses with a wake time, the process is free to go, and 
  * @input duration - How long the run sleeps before it goes on (e.g. "30s", "2h", "3d")
  * @output wokeAt - When the run went on, as an ISO 8601 time
  */
-async function sleep(execute: boolean, duration: string)
+async function sleep(execute: boolean, duration: string): Promise<{ onSuccess: boolean; onFailure: boolean; wokeAt: string }>
 ```
 
 ### Usage in Workflow
@@ -79,7 +79,7 @@ async function sleep(execute: boolean, duration: string)
 /**
  * @flowWeaver workflow
  * @node remind sleep [expr: duration="'3d'"]
- * @path Start -> notify -> remind -> followUp -> Exit
+ * @path Start -> remind -> Exit
  */
 ```
 
@@ -109,7 +109,7 @@ An `input` gate. The workflow yields here and resumes when a coordinator supplie
  * @input [timeout] - Max wait time (e.g. "24h", "7d"). Empty = no timeout
  * @output eventData - The received event's data payload
  */
-async function waitForEvent(execute: boolean, eventName: string, match?: string, timeout?: string)
+async function waitForEvent(execute: boolean, eventName: string, match?: string, timeout?: string): Promise<{ onSuccess: boolean; onFailure: boolean; eventData: object }>
 ```
 
 ### Usage in Workflow
@@ -147,7 +147,7 @@ An `agent` gate. The workflow yields here with a task for an AI assistant and re
  * @input [prompt] - Message to display when requesting input
  * @output agentResult - Result returned by the agent
  */
-async function waitForAgent(execute: boolean, agentId: string, context: object, prompt?: string)
+async function waitForAgent(execute: boolean, agentId: string, context: object, prompt?: string): Promise<{ onSuccess: boolean; onFailure: boolean; agentResult: object }>
 ```
 
 ### Usage in Workflow
@@ -214,7 +214,7 @@ Invokes another workflow by function id and waits for its result. Enables workfl
  * @input [timeout] - Max wait time (e.g. "1h")
  * @output result - Return value from the invoked function
  */
-async function invokeWorkflow(execute: boolean, functionId: string, payload: object, timeout?: string)
+async function invokeWorkflow(execute: boolean, functionId: string, payload: object, timeout?: string): Promise<{ onSuccess: boolean; onFailure: boolean; result: object }>
 ```
 
 ### Usage in Workflow

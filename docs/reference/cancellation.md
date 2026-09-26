@@ -11,9 +11,13 @@ Flow Weaver accepts one parent-owned `AbortSignal` per public executor request:
 ```ts
 import { executeWorkflow } from '@synergenius/flow-weaver/coordinator';
 
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 30_000);
+
 await executeWorkflow({
-  filePath,
-  params,
+  runId: 'nightly-12',
+  filePath: '/abs/path/sync-catalog.ts',
+  params: { since: '2026-09-01' },
   abortSignal: controller.signal,
 });
 ```

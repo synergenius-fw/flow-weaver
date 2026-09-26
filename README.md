@@ -125,7 +125,12 @@ A workflow declares its route, and `fw serve` mounts it:
  * @param text - Its contents
  * @returns report - The review
  */
-export async function reviewFile(execute: boolean, params: { path: string; text: string }) { … }
+export async function reviewFile(
+  execute: boolean,
+  params: { path: string; text: string },
+): Promise<{ onSuccess: boolean; onFailure: boolean; report: string }> {
+  throw new Error('generated body was not installed');
+}
 ```
 
 Parameters bind from the path, the query or the JSON body. The answer is the workflow's return ports: `200` on success, `422` on the failure path, `202` with a `Location` to poll when a gate pauses the run. An `Idempotency-Key` makes a retry the same run. A `callback` route posts the final response to the caller. `/openapi.json` describes all of it.
@@ -133,10 +138,11 @@ Parameters bind from the path, the query or the JSON body. The answer is the wor
 The same handler mounts in your own server (Node, Express, Fastify, or a fetch host) from `@synergenius/flow-weaver/server`:
 
 ```typescript
+import { createServer } from 'node:http';
 import { createWorkflowApi } from '@synergenius/flow-weaver/server';
 
 const api = createWorkflowApi({ dir: './workflows', token: process.env.FW_SERVE_TOKEN });
-app.use('/api', api.express());
+createServer(api.node()).listen(3000);   // or, in Express: app.use('/api', api.express())
 ```
 
 ## Using it as a library

@@ -26,7 +26,9 @@ Use JSDoc `@param` to define Start node ports:
 export function myWorkflow(
   execute: boolean,
   params: { data: any; optional?: any; withDefault?: number }
-) { ... }
+): { onSuccess: boolean; onFailure: boolean } {
+  throw new Error('generated body was not installed');
+}
 ```
 
 **IMPORTANT:**
@@ -44,12 +46,12 @@ Use JSDoc `@returns` to define Exit node ports:
  * @returns result - The output result
  * @returns status - Status message
  */
-export function myWorkflow(...): {
-  onSuccess: boolean;
-  onFailure: boolean;
-  result: any;
-  status: string
-} { ... }
+export function myWorkflow(
+  execute: boolean,
+  params: { data: any }
+): { onSuccess: boolean; onFailure: boolean; result: any; status: string } {
+  throw new Error('generated body was not installed');
+}
 ```
 
 ## Node Inputs/Outputs
@@ -185,7 +187,14 @@ Key points:
 
 ## 2. Use ForEach in Workflow
 
+The child is an ordinary expression node:
+
 ```typescript
+/** @flowWeaver nodeType @expression */
+function processor(item: any): { result: any } {
+  return { result: item };
+}
+
 /**
  * @flowWeaver workflow
  * @node loop forEach

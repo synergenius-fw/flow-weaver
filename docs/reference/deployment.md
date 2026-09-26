@@ -79,7 +79,12 @@ A workflow becomes an endpoint by declaring its route:
  * @param text - Its contents
  * @returns report - The review
  */
-export async function reviewFile(execute: boolean, params: { path: string; text: string }) { … }
+export async function reviewFile(
+  execute: boolean,
+  params: { path: string; text: string }
+): Promise<{ onSuccess: boolean; onFailure: boolean; report: string }> {
+  throw new Error('generated body was not installed');
+}
 ```
 
 Each `@http METHOD /path` line is mounted as written. The console's **Serve** pane writes the first one for you (*Expose as endpoint*), and its **Endpoints** page lists every route in the project with the request to copy.
