@@ -10,6 +10,7 @@ import { compileCommand, type CompileOptions } from './compile.js';
 import { executeWorkflow } from '../../mcp/workflow-executor.js';
 import type { FwMockConfig } from '../../built-in-nodes/mock-types.js';
 import { logger } from '../utils/logger.js';
+import { readJsonObjectOption } from '../utils/json-option.js';
 import { getErrorMessage } from '../../utils/error-utils.js';
 import { getFriendlyError } from '../../validation/friendly-errors.js';
 
@@ -53,56 +54,14 @@ export interface DevOptions {
   mocksFile?: string;
 }
 
-/**
- * Parse params from --params or --params-file.
- */
+/** Params from --params or --params-file. */
 function parseParams(options: DevOptions): Record<string, unknown> {
-  if (options.params) {
-    try {
-      return JSON.parse(options.params);
-    } catch {
-      throw new Error(`Invalid JSON in --params: ${options.params}`);
-    }
-  }
-  if (options.paramsFile) {
-    const paramsFilePath = path.resolve(options.paramsFile);
-    if (!fs.existsSync(paramsFilePath)) {
-      throw new Error(`Params file not found: ${paramsFilePath}`);
-    }
-    try {
-      const content = fs.readFileSync(paramsFilePath, 'utf8');
-      return JSON.parse(content);
-    } catch {
-      throw new Error(`Failed to parse params file: ${options.paramsFile}`);
-    }
-  }
-  return {};
+  return readJsonObjectOption(options.params, options.paramsFile, 'params') ?? {};
 }
 
-/**
- * Parse mock config from --mocks or --mocks-file.
- */
+/** Mock config from --mocks or --mocks-file. */
 function parseMocks(options: DevOptions): FwMockConfig | undefined {
-  if (options.mocks) {
-    try {
-      return JSON.parse(options.mocks);
-    } catch {
-      throw new Error(`Invalid JSON in --mocks: ${options.mocks}`);
-    }
-  }
-  if (options.mocksFile) {
-    const mocksFilePath = path.resolve(options.mocksFile);
-    if (!fs.existsSync(mocksFilePath)) {
-      throw new Error(`Mocks file not found: ${mocksFilePath}`);
-    }
-    try {
-      const content = fs.readFileSync(mocksFilePath, 'utf8');
-      return JSON.parse(content);
-    } catch {
-      throw new Error(`Failed to parse mocks file: ${options.mocksFile}`);
-    }
-  }
-  return undefined;
+  return readJsonObjectOption(options.mocks, options.mocksFile, 'mocks') as FwMockConfig | undefined;
 }
 
 /**

@@ -1,7 +1,7 @@
 /**
  * Tests for src/cli/commands/run.ts
  * Targets: runCommand error handling, validateMockConfig, stream callbacks,
- * JSON output paths, checkpoint, and production mode.
+ * JSON output paths, and production mode.
  */
 
 import * as fs from 'fs';
@@ -43,131 +43,104 @@ export function simpleWf(execute: boolean): Promise<{ onSuccess: boolean; onFail
 }
 `;
 
-describe('runCommand coverage', () => {
-  it('should throw for non-existent file', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    await expect(
-      runCommand('/tmp/nonexistent-file-abc123.ts', {})
-    ).rejects.toThrow(/File not found/);
+/** What a command printed, through the logger (console) and to stdout directly, and the exit code it set. */
+async function captured(run: () => Promise<void>): Promise<{ out: string; exitCode: number | string | undefined }> {
+  const lines: string[] = [];
+  const keep = (...a: unknown[]) => { lines.push(a.map(String).join(' ')); };
+  const spies = [
+    vi.spyOn(console, 'log').mockImplementation(keep),
+    vi.spyOn(console, 'error').mockImplementation(keep),
+    vi.spyOn(console, 'warn').mockImplementation(keep),
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => { lines.push(String(chunk)); return true; }),
+  ];
+  const before = process.exitCode;
+  process.exitCode = undefined;
+  try {
+    await run();
+    return { out: lines.join('\n'), exitCode: process.exitCode };
+  } finally {
+    process.exitCode = before;
+    for (const s of spies) s.mockRestore();
+  }
+}
+
+describe('runCommand', () => {
+  const load = async () => (await import('../../../src/cli/commands/run')).runCommand;
+
+  it('throws for a file that does not exist', async () => {
+    const runCommand = await load();
+    await expect(runCommand('/tmp/nonexistent-file-abc123.ts', {})).rejects.toThrow(/File not found/);
   });
 
-  it('should throw for invalid JSON in --params', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('params-bad.ts', SIMPLE_WORKFLOW);
-    await expect(
-      runCommand(filePath, { params: 'not valid json{' })
-    ).rejects.toThrow(/Invalid JSON in --params/);
+  it('names the flag or file when --params or --mocks cannot be read', async () => {
+    const runCommand = await load();
+    const filePath = writeFixture('flags.ts', SIMPLE_WORKFLOW);
+    await expect(runCommand(filePath, { params: 'not valid json{' })).rejects.toThrow(/Invalid JSON in --params/);
+    await expect(runCommand(filePath, { paramsFile: '/tmp/nonexistent-params-xyz.json' })).rejects.toThrow(/Params file not found/);
+    await expect(runCommand(filePath, { paramsFile: writeFixture('bad-params.json', 'not json content') })).rejects.toThrow(/Failed to parse params file/);
+    await expect(runCommand(filePath, { mocks: '{invalid json' })).rejects.toThrow(/Invalid JSON in --mocks/);
+    await expect(runCommand(filePath, { mocksFile: '/tmp/nonexistent-mocks-xyz.json' })).rejects.toThrow(/Mocks file not found/);
+    await expect(runCommand(filePath, { mocksFile: writeFixture('bad-mocks.json', 'this is not json') })).rejects.toThrow(/Failed to parse mocks file/);
   });
 
-  it('should throw for non-existent params file', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('params-file.ts', SIMPLE_WORKFLOW);
-    await expect(
-      runCommand(filePath, { paramsFile: '/tmp/nonexistent-params-xyz.json' })
-    ).rejects.toThrow(/Params file not found/);
+  it('refuses --params that is JSON but not an object', async () => {
+    const runCommand = await load();
+    const filePath = writeFixture('params-list.ts', SIMPLE_WORKFLOW);
+    await expect(runCommand(filePath, { params: '[1, 2]', workflow: 'simpleWf' })).rejects.toThrow('--params must be a JSON object');
   });
 
-  it('should throw for unparseable params file', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('params-parse.ts', SIMPLE_WORKFLOW);
-    const paramsFile = writeFixture('bad-params.json', 'not json content');
-    await expect(
-      runCommand(filePath, { paramsFile })
-    ).rejects.toThrow(/Failed to parse params file/);
+  it('reports a failure as JSON on stdout with --json, and exits 1', async () => {
+    const runCommand = await load();
+    const { out, exitCode } = await captured(() => runCommand('/tmp/nonexistent-json-test.ts', { json: true }));
+    expect(JSON.parse(out)).toEqual({ success: false, error: expect.stringContaining('File not found') });
+    expect(exitCode).toBe(1);
   });
 
-  it('should throw for invalid JSON in --mocks', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('mocks-bad.ts', SIMPLE_WORKFLOW);
-    await expect(
-      runCommand(filePath, { mocks: '{invalid json' })
-    ).rejects.toThrow(/Invalid JSON in --mocks/);
-  });
-
-  it('should throw for non-existent mocks file', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('mocks-file.ts', SIMPLE_WORKFLOW);
-    await expect(
-      runCommand(filePath, { mocksFile: '/tmp/nonexistent-mocks-xyz.json' })
-    ).rejects.toThrow(/Mocks file not found/);
-  });
-
-  it('should throw for unparseable mocks file', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('mocks-parse.ts', SIMPLE_WORKFLOW);
-    const mocksFile = writeFixture('bad-mocks.json', 'this is not json');
-    await expect(
-      runCommand(filePath, { mocksFile })
-    ).rejects.toThrow(/Failed to parse mocks file/);
-  });
-
-  it('should handle --json mode error output without throwing', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    // Non-existent file with --json should not throw
-    await runCommand('/tmp/nonexistent-json-test.ts', { json: true });
-    // If we got here without throwing, the json error path worked
-    // (it writes JSON error to stdout internally)
-  });
-
-  it('should run a workflow with --stream in non-json mode', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('run-stream.ts', SIMPLE_WORKFLOW);
-    await runCommand(filePath, { stream: true, workflow: 'simpleWf' });
-  });
-
-  it('should run with valid --params JSON', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('run-params.ts', SIMPLE_WORKFLOW);
-    await runCommand(filePath, { workflow: 'simpleWf', params: '{"execute": true}' });
-  });
-
-  it('should run with --params-file', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('run-pf.ts', SIMPLE_WORKFLOW);
-    const paramsFile = writeFixture('good-params.json', '{"execute": true}');
-    await runCommand(filePath, { workflow: 'simpleWf', paramsFile });
-  });
-
-  it('should run in production mode', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('run-prod.ts', SIMPLE_WORKFLOW);
-    await runCommand(filePath, { production: true, workflow: 'simpleWf' });
-  });
-
-  it('should run with --trace flag', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('run-trace.ts', SIMPLE_WORKFLOW);
-    await runCommand(filePath, { trace: true, workflow: 'simpleWf' });
-  });
-
-  it('should run with --checkpoint option', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('run-ckpt.ts', SIMPLE_WORKFLOW);
-    await runCommand(filePath, { workflow: 'simpleWf', checkpoint: true } as Parameters<typeof runCommand>[1]);
-  });
-
-  it('should run with --mocks-file', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('run-mf.ts', SIMPLE_WORKFLOW);
-    const mocksFile = writeFixture('good-mocks.json', '{"fast": true}');
-    await runCommand(filePath, { workflow: 'simpleWf', mocksFile });
-  });
-
-  it('should run with inline --mocks', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('run-mocks.ts', SIMPLE_WORKFLOW);
-    await runCommand(filePath, { workflow: 'simpleWf', mocks: '{"fast": true}' });
-  });
-
-  it('should handle --json with successful run', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
+  it('prints the result as JSON with --json', async () => {
+    const runCommand = await load();
     const filePath = writeFixture('run-json.ts', SIMPLE_WORKFLOW);
-    // json mode should not throw for successful runs
-    await runCommand(filePath, { json: true, workflow: 'simpleWf' });
+    const { out, exitCode } = await captured(() => runCommand(filePath, { json: true, workflow: 'simpleWf' }));
+    expect(JSON.parse(out)).toMatchObject({ success: true, workflow: 'simpleWf', result: { onSuccess: true } });
+    expect(exitCode).toBeUndefined();
   });
 
-  it('should handle non-json error path gracefully', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
+  it('streams each step as it changes with --stream', async () => {
+    const runCommand = await load();
+    const filePath = writeFixture('run-stream.ts', SIMPLE_WORKFLOW);
+    const { out } = await captured(() => runCommand(filePath, { stream: true, workflow: 'simpleWf' }));
+    expect(out).toContain('[STATUS_CHANGED] p: → RUNNING');
+    expect(out).toContain('Workflow "simpleWf" completed');
+  });
+
+  it('runs with --params, --params-file and in production mode', async () => {
+    const runCommand = await load();
+    const filePath = writeFixture('run-params.ts', SIMPLE_WORKFLOW);
+    for (const options of [{ params: '{"execute": true}' }, { paramsFile: writeFixture('good-params.json', '{"execute": true}') }, { production: true }]) {
+      const { out, exitCode } = await captured(() => runCommand(filePath, { workflow: 'simpleWf', ...options }));
+      expect(out, JSON.stringify(options)).toContain('Workflow "simpleWf" completed');
+      expect(exitCode).toBeUndefined();
+    }
+  });
+
+  it('summarises the trace with --trace', async () => {
+    const runCommand = await load();
+    const filePath = writeFixture('run-trace.ts', SIMPLE_WORKFLOW);
+    const { out } = await captured(() => runCommand(filePath, { trace: true, workflow: 'simpleWf' }));
+    expect(out).toMatch(/\d+ events captured/);
+  });
+
+  it('says it is running with mocks, from a file or inline', async () => {
+    const runCommand = await load();
+    const filePath = writeFixture('run-mocks.ts', SIMPLE_WORKFLOW);
+    for (const options of [{ mocksFile: writeFixture('good-mocks.json', '{"fast": true}') }, { mocks: '{"fast": true}' }]) {
+      const { out } = await captured(() => runCommand(filePath, { workflow: 'simpleWf', ...options }));
+      expect(out).toContain('Running with mock data');
+      expect(out).toContain('Workflow "simpleWf" completed');
+    }
+  });
+
+  it('reports a workflow that throws, and exits 1 without throwing itself', async () => {
+    const runCommand = await load();
     const filePath = writeFixture('run-err.ts', `
 /**
  * @flowWeaver nodeType
@@ -185,29 +158,10 @@ export function failWf(execute: boolean): Promise<{ onSuccess: boolean; onFailur
   throw new Error("Not implemented");
 }
 `);
-
-    const originalExitCode = process.exitCode;
-    try {
-      await runCommand(filePath, { workflow: 'failWf' });
-    } catch {
-      // May throw depending on error type
-    } finally {
-      process.exitCode = originalExitCode;
-    }
-  });
-
-  it('should handle --resume with no checkpoint (non-json sets exitCode)', async () => {
-    const { runCommand } = await import('../../../src/cli/commands/run');
-    const filePath = writeFixture('run-resume.ts', SIMPLE_WORKFLOW);
-    const originalExitCode = process.exitCode;
-    try {
-      // The error is caught internally in non-json mode; exitCode is set instead of throwing
-      await runCommand(filePath, { workflow: 'simpleWf', resume: true } as Parameters<typeof runCommand>[1]);
-    } catch {
-      // May or may not throw depending on internal error path
-    } finally {
-      process.exitCode = originalExitCode;
-    }
+    const { out, exitCode } = await captured(() => runCommand(filePath, { workflow: 'failWf' }));
+    expect(out).toContain('Workflow execution failed');
+    expect(out).toContain('intentional failure');
+    expect(exitCode).toBe(1);
   });
 });
 
