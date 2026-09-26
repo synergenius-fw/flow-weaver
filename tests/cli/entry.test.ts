@@ -58,6 +58,21 @@ describe('fw entry', { timeout: 90_000 }, () => {
     expect(r).toEqual({ status: 1, stdout: '', stderr: '✗ No files found matching pattern: /nonexistent.ts\n' });
   });
 
+  it('accepts --no-color and --color after the command as well as before it', () => {
+    for (const args of [['--no-color', 'validate', '/nonexistent.ts'], ['validate', '/nonexistent.ts', '--no-color'], ['validate', '/nonexistent.ts', '--color']]) {
+      const r = fw(...args);
+      expect(r.stderr, args.join(' ')).toContain('No files found matching pattern: /nonexistent.ts');
+      expect(r.stderr).not.toContain('unknown option');
+    }
+  });
+
+  it('prints the version banner only for the program option, not a command option of the same name', () => {
+    const r = fw('compile', 'x.ts', '--version');
+    expect(r.status).toBe(1);
+    expect(r.stdout).not.toContain('flow-weaver v');
+    expect(r.stderr).toContain("unknown option '--version'");
+  });
+
   it('prints an error thrown out of parsing once and exits 1', () => {
     const r = fw('create', 'node', 'n', 'f.ts', '--line', 'abc');
     expect(r).toEqual({ status: 1, stdout: '', stderr: '✗ "abc" is not a valid number\n' });

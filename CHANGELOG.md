@@ -19,6 +19,7 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 
 ### Fixed
 
+- **`fw openapi --version <v>` sets the API version.** The program's own `-v/--version` was also read after a command, so the flag printed the fw banner and exited. Program options are now read before the command only; `--color` and `--no-color` still work anywhere.
 - **Compiling a compiled workflow that uses a built-in node changes nothing.** The registry listed a built-in's outputs with the control ports first. The copy a compile writes into the file lists them last, so the second compile reordered the generated body.
 - **`fw dev --once` exits 1 when its cycle fails**, so a script or CI step can tell. **`fw dev --json` keeps stdout to JSON**: a compile failure is reported as `{ "success": false, "error" }`, and what compile prints for a person goes to stderr.
 - **A function annotated `@flowWeaver` inside another function is reported.** Only top-level functions are node types or workflows, so a nested one was skipped silently and its uses failed as an unknown node type. The parser now warns with its name and line.

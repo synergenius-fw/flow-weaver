@@ -323,12 +323,7 @@ describe('command wiring', () => {
     expect(m.doctorCommand).toHaveBeenCalledTimes(2);
   });
 
-  // Known bug: the program's own -v/--version is recognised after a
-  // subcommand too, so `fw openapi <dir> --version 2.0.0` prints the fw
-  // banner and exits 0 instead of setting the API version. When that is
-  // fixed this test starts passing, and `.fails` turns that into a failure
-  // so the marker is removed.
-  it.fails('passes openapi --version to the command', async () => {
+  it('passes openapi --version to the command, not to the program', async () => {
     expect(await fw('openapi', 'dir', '--version', '2.0.0')).toBeUndefined();
     expect(m.openapiCommand.mock.calls[0]?.[1]).toMatchObject({ version: '2.0.0' });
   });

@@ -48,7 +48,11 @@ if (!process.env['VITEST']) {
     const { registerPackCommands } = await import('./pack-commands.js');
     await registerPackCommands(program);
 
-    program.parse(process.argv);
+    // --color and --no-color are read by picocolors straight from argv, and
+    // may come after the command. Program options are positional (so a
+    // command's own option of the same name reaches it), so they are taken
+    // out here rather than refused as unknown options of the command.
+    program.parse(process.argv.filter((arg) => arg !== '--color' && arg !== '--no-color'));
   })().catch((error) => {
     logger.error(getErrorMessage(error));
     process.exit(1);

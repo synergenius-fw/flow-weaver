@@ -35,6 +35,9 @@ export function buildProgram(): Command {
     .option('-v, --version', 'Output the current version')
     .option('--no-color', 'Disable colors')
     .option('--color', 'Force colors')
+    // Program options are read before the command only, so a command's own
+    // option of the same name (openapi's --version) reaches the command.
+    .enablePositionalOptions()
     .on('option:version', () => {
       logger.banner(cliVersion);
       process.exit(0);
