@@ -275,47 +275,4 @@ describe('initCommand agent handoff and error paths', () => {
 
     expect(fs.existsSync(path.join(targetDir, 'package.json'))).toBe(true);
   });
-
-  it('should handle ExitPromptError during agent handoff (line 798)', async () => {
-    const { ExitPromptError } = await import('@inquirer/core');
-    const { initCommand } = await import('../../../src/cli/commands/init');
-
-    mockDetectCliTools.mockResolvedValue(['claude']);
-    mockConfirm.mockRejectedValue(new ExitPromptError(''));
-
-    const targetDir = path.join(TEMP_DIR, 'init-exit-agent');
-
-    // Should return silently without throwing
-    await initCommand(targetDir, {
-      yes: false,
-      install: false,
-      git: false,
-      mcp: false,
-      agent: true,
-      preset: 'expert',
-      name: 'exit-agent',
-      template: 'sequential',
-      format: 'esm',
-    });
-  });
-
-  it('should handle ExitPromptError in the outer catch block (line 824)', async () => {
-    const { ExitPromptError } = await import('@inquirer/core');
-    const { initCommand } = await import('../../../src/cli/commands/init');
-
-    // Make the first interactive prompt throw ExitPromptError
-    // This simulates Ctrl+C early in the flow
-    mockInput.mockRejectedValue(new ExitPromptError(''));
-    mockSelect.mockRejectedValue(new ExitPromptError(''));
-
-    const targetDir = path.join(TEMP_DIR, 'init-exit-outer');
-
-    // Non-interactive: false, no preset, no name -> triggers prompts
-    // But since we're mocking, the prompts will throw ExitPromptError
-    // which should be caught by the outer try/catch
-    await initCommand(targetDir, {
-      install: false,
-      git: false,
-    });
-  });
 });

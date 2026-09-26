@@ -27,6 +27,8 @@ function writeFixture(name: string, content: string): string {
   return filePath;
 }
 
+const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+
 describe('createWorkflowCommand - additional coverage', () => {
   it('should generate async workflow when async option is true', async () => {
     const { createWorkflowCommand } = await import('../../../src/cli/commands/create');
@@ -84,11 +86,9 @@ describe('createWorkflowCommand - additional coverage', () => {
     expect(fs.existsSync(filePath)).toBe(true);
   });
 
-  it('should handle write error gracefully in createWorkflowCommand', async () => {
-    // Skip when running as root (e.g. self-hosted runner containers) —
-    // root bypasses Linux file-permission checks, so 0o444 doesn't block.
-    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
-
+  // Skipped when running as root (e.g. self-hosted runner containers): root
+  // bypasses Linux file-permission checks, so 0o444 doesn't block.
+  it.skipIf(isRoot)('should handle write error gracefully in createWorkflowCommand', async () => {
     const { createWorkflowCommand } = await import('../../../src/cli/commands/create');
 
     // Write to a path that will fail (read-only dir simulation)
@@ -134,9 +134,7 @@ describe('createNodeCommand - additional coverage', () => {
     consoleSpy.mockRestore();
   });
 
-  it('should handle write error gracefully in createNodeCommand', async () => {
-    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
-
+  it.skipIf(isRoot)('should handle write error gracefully in createNodeCommand', async () => {
     const { createNodeCommand } = await import('../../../src/cli/commands/create');
 
     const readOnlyDir = path.join(TEMP_DIR, 'ro-node');

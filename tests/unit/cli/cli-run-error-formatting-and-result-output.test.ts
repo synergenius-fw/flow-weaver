@@ -617,6 +617,7 @@ describe('validateMockConfig (lines 487-528)', () => {
   it('should skip validation when ast has no instances', async () => {
     const { validateMockConfig } = await import('../../../src/cli/commands/run');
     const filePath = writeFixture('validate-no-instances.ts', DUMMY_SOURCE);
+    const logger = await getLogger();
     const parseMock = await getParseWorkflowMock();
 
     parseMock.mockResolvedValueOnce({
@@ -624,8 +625,9 @@ describe('validateMockConfig (lines 487-528)', () => {
       ast: { instances: undefined },
     });
 
-    await validateMockConfig({ events: { e: {} } } as any, filePath);
-    // Should not throw
+    await expect(validateMockConfig({ events: { e: {} } } as any, filePath)).resolves.toBeUndefined();
+    // With no instances to check against, the events section draws no warning.
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('should warn on unknown top-level keys', async () => {
@@ -651,12 +653,14 @@ describe('validateMockConfig (lines 487-528)', () => {
   it('should handle parse errors gracefully', async () => {
     const { validateMockConfig } = await import('../../../src/cli/commands/run');
     const filePath = writeFixture('validate-parse-error.ts', DUMMY_SOURCE);
+    const logger = await getLogger();
     const parseMock = await getParseWorkflowMock();
 
     parseMock.mockRejectedValueOnce(new Error('parse failed'));
 
-    // Should not throw
-    await validateMockConfig({ events: { e: {} } } as any, filePath);
+    // The run reports the real parse error; the mock check stays quiet.
+    await expect(validateMockConfig({ events: { e: {} } } as any, filePath)).resolves.toBeUndefined();
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('should return early when parse has errors', async () => {

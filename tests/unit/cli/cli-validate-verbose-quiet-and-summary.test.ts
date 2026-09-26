@@ -122,9 +122,19 @@ describe('validateCommand verbose progress', () => {
 describe('validateCommand verbose skip non-workflow', () => {
   it('should debug-log skipped non-workflow file in verbose mode', async () => {
     const filePath = writeFixture('skip-nonwf.ts', NON_WORKFLOW_TS);
+    // logger.debug prints only when DEBUG is set.
+    const origDebug = process.env.DEBUG;
+    process.env.DEBUG = '1';
+    try {
+      // Non-workflow files are skipped, not counted as errors.
+      await expect(validateCommand(filePath, { verbose: true, json: false })).resolves.toBeUndefined();
+    } finally {
+      if (origDebug === undefined) delete process.env.DEBUG;
+      else process.env.DEBUG = origDebug;
+    }
 
-    // Non-workflow files are skipped; with verbose + non-json, debug message logged
-    await validateCommand(filePath, { verbose: true, json: false });
+    expect(logs.join('\n')).toContain('Skipped skip-nonwf.ts (no workflow)');
+    expect(errors).toEqual([]);
   });
 });
 

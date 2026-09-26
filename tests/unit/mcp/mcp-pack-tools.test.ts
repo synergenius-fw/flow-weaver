@@ -49,23 +49,32 @@ describe('registerPackMcpTools', () => {
     await expect(registerPackMcpTools(mcp)).resolves.toBeUndefined();
   });
 
+  // A skipped pack is not checked or imported: an engine version it cannot
+  // meet draws no warning, and its missing entrypoint no load error.
   it('skips packages without mcpEntrypoint', async () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     const pkg = makePkg();
     pkg.manifest.mcpEntrypoint = undefined;
+    pkg.manifest.engineVersion = '>=99.0.0';
     mockListInstalled.mockResolvedValue([pkg]);
 
-    const mcp = createMockMcp();
-    await registerPackMcpTools(mcp);
-    // No error, no import attempted
+    await registerPackMcpTools(createMockMcp());
+
+    expect(stderrSpy).not.toHaveBeenCalled();
+    stderrSpy.mockRestore();
   });
 
   it('skips packages with empty mcpTools array', async () => {
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     const pkg = makePkg();
     pkg.manifest.mcpTools = [];
+    pkg.manifest.engineVersion = '>=99.0.0';
     mockListInstalled.mockResolvedValue([pkg]);
 
-    const mcp = createMockMcp();
-    await registerPackMcpTools(mcp);
+    await registerPackMcpTools(createMockMcp());
+
+    expect(stderrSpy).not.toHaveBeenCalled();
+    stderrSpy.mockRestore();
   });
 
   it('logs warning when pack requires newer engine version', async () => {

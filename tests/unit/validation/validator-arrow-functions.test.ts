@@ -113,32 +113,4 @@ export function workflow(execute: boolean, params: { x: number }): { result: num
       expect(validation.warnings.some((w) => w.code === 'MUTABLE_NODE_TYPE_BINDING')).toBe(true);
     });
   });
-
-  describe('nested arrow function warnings', () => {
-    it('should warn for nested arrow function node type', () => {
-      const code = `
-function outer() {
-  /**
-   * @flowWeaver nodeType
-   * @expression
-   * @input x
-   * @output result
-   */
-  const inner = (x: number): number => x * 2;
-}
-`;
-      const result = parser.parseFromString(code, 'nested-arrow.ts');
-
-      // Nested functions may not be parsed as top-level node types depending on
-      // the extractFunctionLikes implementation. Check that if they are parsed,
-      // they get a warning.
-      const nodeType = result.nodeTypes.find((nt) => nt.functionName === 'inner');
-      if (nodeType) {
-        const validator = new WorkflowValidator();
-        const errors = validator.validateNodeType(nodeType);
-        // The validator should flag nested declarations via sourceLocation or functionText
-        expect(errors.length).toBeGreaterThanOrEqual(0); // Validator itself may not catch this
-      }
-    });
-  });
 });

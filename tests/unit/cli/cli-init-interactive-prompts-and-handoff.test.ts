@@ -425,24 +425,28 @@ describe('initCommand ExitPromptError handling', () => {
   it('catches ExitPromptError in outer catch (line 824)', async () => {
     const { initCommand } = await import('../../../src/cli/commands/init');
     (process.stdin as any).isTTY = true;
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     // Make the first prompt throw ExitPromptError (Ctrl+C)
     mockInput.mockRejectedValueOnce(new ExitPromptError());
 
-    // Should not throw, just return silently
-    await initCommand(undefined, {});
+    // Ctrl+C at the first prompt ends init quietly, having created nothing.
+    await expect(initCommand(undefined, {})).resolves.toBeUndefined();
+    expect(mockInput).toHaveBeenCalledTimes(1);
+    expect(logSpy.mock.calls.flat().join('\n')).not.toContain('Created');
   });
 
   it('catches ExitPromptError in agent handoff catch (line 798)', async () => {
     const { initCommand } = await import('../../../src/cli/commands/init');
     const targetDir = path.join(TEMP_DIR, 'exit-agent');
     (process.stdin as any).isTTY = true;
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     mockDetectCliTools.mockResolvedValue(['claude']);
     // Agent handoff confirm throws ExitPromptError
     mockConfirm.mockRejectedValue(new ExitPromptError());
 
-    await initCommand(targetDir, {
+    await expect(initCommand(targetDir, {
       name: 'exitagent',
       template: 'sequential',
       format: 'esm',
@@ -451,9 +455,15 @@ describe('initCommand ExitPromptError handling', () => {
       git: false,
       mcp: false,
       preset: 'expert',
-    });
+    })).resolves.toBeUndefined();
 
-    // Should return silently (line 798 -> return)
+    // The project was made before the handoff prompt; Ctrl+C there skips
+    // the next steps instead of failing init.
+    expect(mockConfirm).toHaveBeenCalled();
+    expect(fs.existsSync(path.join(targetDir, 'package.json'))).toBe(true);
+    const printed = logSpy.mock.calls.flat().join('\n');
+    expect(printed).toContain('Created');
+    expect(printed).not.toContain('Project files');
   });
 });
 

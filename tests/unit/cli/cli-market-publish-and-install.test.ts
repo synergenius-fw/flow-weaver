@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { captureConsole, type ConsoleCapture } from '../../helpers/console-capture';
 
 // Module-level mocks (required for ESM with isolate: false)
 // npm runs through execFileSync(npm, [args]); the mock records the argument list.
@@ -42,10 +43,12 @@ const TEMP_DIR = path.join(os.tmpdir(), `fw-market-cov2-${process.pid}`);
 
 const emptyManifest = {
   manifestVersion: 2, name: 'test', version: '1.0.0',
-  nodeTypes: [], workflows: [], patterns: [],
+  nodeTypes: [], workflows: [],
   exportTargets: [], tagHandlers: [], validationRuleSets: [],
-  docTopics: [], initContributions: [], cliCommands: [], mcpTools: [],
+  cliCommands: [], mcpTools: [],
 };
+
+let out: ConsoleCapture;
 
 beforeEach(() => {
   fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -58,9 +61,11 @@ beforeEach(() => {
   mockValidatePackage.mockReset().mockResolvedValue({ valid: true, issues: [] });
   mockWriteManifest.mockReset().mockReturnValue('/fake/manifest.json');
   mockReadManifest.mockReset().mockReturnValue(null);
+  out = captureConsole();
 });
 
 afterEach(() => {
+  out.restore();
   fs.rmSync(TEMP_DIR, { recursive: true, force: true });
   vi.restoreAllMocks();
   process.exitCode = undefined;
@@ -98,8 +103,12 @@ describe('marketPublishCommand coverage', () => {
     const { marketPublishCommand } = await import('../../../src/cli/commands/market');
     const dir = setupDir('pub-nolicense', { license: false });
 
-    // Should complete without error (just a warning)
+    // A missing LICENSE is a warning, not a reason to stop publishing.
     await marketPublishCommand(dir, {});
+
+    expect(out.of('warn')).toContain('LICENSE file not found');
+    expect(mockExecSync.mock.calls.some((c: unknown[]) => npmArgsOf(c).includes('publish'))).toBe(true);
+    expect(out.text()).toContain('Published flow-weaver-pack-pub-nolicense@1.0.0 to npm');
   });
 
   it('should pass --dry-run and --tag flags to npm publish', async () => {
@@ -140,6 +149,10 @@ describe('marketPublishCommand coverage', () => {
     } finally {
       process.chdir(origCwd);
     }
+
+    expect(out.text()).toContain('Publishing flow-weaver-pack-cwd@0.1.0');
+    const npmCall = mockExecSync.mock.calls.find((c: unknown[]) => npmArgsOf(c).includes('publish'));
+    expect(fs.realpathSync((npmCall![2] as { cwd: string }).cwd)).toBe(fs.realpathSync(TEMP_DIR));
   });
 });
 
@@ -153,10 +166,15 @@ describe('marketInstallCommand coverage', () => {
       ...emptyManifest,
       nodeTypes: [{ name: 'HttpRequest', inputs: [], outputs: [], description: 'Makes HTTP requests' }],
       workflows: [{ name: 'DataPipeline', nodes: 5, connections: 4, description: 'Processes data' }],
-      patterns: [{ name: 'RetryPattern', description: 'Retries failed ops' }],
     });
 
     await marketInstallCommand('flow-weaver-pack-installed@1.0.0', { json: false });
+
+    const text = out.text();
+    expect(text).toContain('Installed flow-weaver-pack-installed');
+    expect(text).toContain('Node Types:\n    - HttpRequest: Makes HTTP requests');
+    expect(text).toContain('Workflows:\n    - DataPipeline: Processes data');
+    expect(mockReadManifest).toHaveBeenCalledWith(path.join(process.cwd(), 'node_modules', 'flow-weaver-pack-installed'));
   });
 
   it('should show warning when installed package has no manifest', async () => {
@@ -164,6 +182,10 @@ describe('marketInstallCommand coverage', () => {
     mockReadManifest.mockReturnValue(null);
 
     await marketInstallCommand('some-package', { json: false });
+
+    expect(out.of('warn')).toContain('No flowweaver.manifest.json found in package');
+    expect(out.text()).toContain('fw market pack');
+    expect(process.exitCode).toBeUndefined();
   });
 
   it('should return JSON output on success when json option is set', async () => {
@@ -171,6 +193,12 @@ describe('marketInstallCommand coverage', () => {
     mockReadManifest.mockReturnValue(emptyManifest);
 
     await marketInstallCommand('flow-weaver-pack-json@1.0.0', { json: true });
+
+    expect(JSON.parse(out.text())).toEqual({
+      success: true,
+      package: 'flow-weaver-pack-json',
+      manifest: emptyManifest,
+    });
   });
 
   it('should handle npm install failure in json mode', async () => {
@@ -246,10 +274,14 @@ describe('marketInstallCommand coverage', () => {
       ...emptyManifest,
       nodeTypes: [{ name: 'PlainNode', inputs: [], outputs: [] }],
       workflows: [{ name: 'PlainWorkflow', nodes: 1, connections: 0 }],
-      patterns: [{ name: 'PlainPattern' }],
     });
 
     await marketInstallCommand('flow-weaver-pack-nodesc', { json: false });
+
+    // Just the names, with no ": description" after them.
+    const text = out.text();
+    expect(text).toMatch(/- PlainNode$/m);
+    expect(text).toMatch(/- PlainWorkflow$/m);
   });
 
   it('should return JSON with manifest: "no manifest found" when none exists', async () => {
@@ -257,5 +289,11 @@ describe('marketInstallCommand coverage', () => {
     mockReadManifest.mockReturnValue(null);
 
     await marketInstallCommand('bare-package@1.0.0', { json: true });
+
+    expect(JSON.parse(out.text())).toEqual({
+      success: true,
+      package: 'bare-package',
+      manifest: 'no manifest found',
+    });
   });
 });

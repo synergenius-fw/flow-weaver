@@ -18,6 +18,7 @@ import {
   DescribeOutput,
   FocusedNodeOutput,
 } from '../../src/cli/commands/describe';
+import { captureConsole } from '../helpers/console-capture';
 import type { TWorkflowAST } from '../../src/ast/types';
 
 const TEST_WORKFLOW = path.resolve(__dirname, '../fixtures/lead-processing.ts');
@@ -596,8 +597,17 @@ export function mermaidWf(execute: boolean): { onSuccess: boolean; onFailure: bo
       const filePath = path.join(tmpDir, 'workflow.ts');
       fs.writeFileSync(filePath, content);
 
-      // Should not throw for valid workflow
-      await describeCommand(filePath, { format: 'mermaid' });
+      const out = captureConsole();
+      try {
+        await describeCommand(filePath, { format: 'mermaid' });
+      } finally {
+        out.restore();
+      }
+
+      const printed = out.of('log');
+      expect(printed.startsWith('graph LR')).toBe(true);
+      expect(printed).toContain('  p[p: proc]');
+      expect(printed).toContain('  p --> Exit((Exit))');
 
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -626,8 +636,16 @@ export function textWf(execute: boolean): { onSuccess: boolean; onFailure: boole
       const filePath = path.join(tmpDir, 'workflow.ts');
       fs.writeFileSync(filePath, content);
 
-      // Should not throw for valid workflow
-      await describeCommand(filePath, { format: 'text' });
+      const out = captureConsole();
+      try {
+        await describeCommand(filePath, { format: 'text' });
+      } finally {
+        out.restore();
+      }
+
+      const printed = out.of('log');
+      expect(printed).toContain('Workflow: textWf');
+      expect(printed).toMatch(/Nodes \(1\):\n\s+p\s+\[proc\]/);
 
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });

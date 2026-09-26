@@ -21,11 +21,15 @@ const allFiles = globSync('**/*.ts', { cwd: examplesDir, ignore: ['**/*.generate
 // Separate files that contain @flowWeaver annotations from utility-only files
 const annotatedFiles: string[] = [];
 const utilityFiles: string[] = [];
+// The files that declare a workflow; a file of node types alone has nothing to
+// round-trip.
+const workflowFiles: string[] = [];
 
 for (const file of allFiles) {
   const result = parser.parse(path.join(examplesDir, file));
   if (result.workflows.length + result.nodeTypes.length > 0) {
     annotatedFiles.push(file);
+    if (result.workflows.length > 0) workflowFiles.push(file);
   } else {
     utilityFiles.push(file);
   }
@@ -43,7 +47,7 @@ describe('Grammar Compatibility', () => {
       expect(result.workflows.length + result.nodeTypes.length).toBeGreaterThan(0);
     });
 
-    it.each(annotatedFiles)('should round-trip %s without structural breaks', (file) => {
+    it.each(workflowFiles)('should round-trip %s without structural breaks', (file) => {
       const result = parser.parse(path.join(examplesDir, file));
 
       for (const workflow of result.workflows) {

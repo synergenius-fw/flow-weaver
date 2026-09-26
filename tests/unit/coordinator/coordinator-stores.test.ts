@@ -20,12 +20,20 @@ beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-stores-')); }
 afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
 
 describe('the run store contract', () => {
+  // checkRunStore throws on the first rule a store breaks.
   it('is kept by the file store', async () => {
-    await checkRunStore(() => createFileRunStore(dir));
+    await expect(checkRunStore(() => createFileRunStore(dir))).resolves.toBeUndefined();
   });
 
   it('is kept by the memory store', async () => {
-    await checkRunStore(() => createMemoryRunStore());
+    await expect(checkRunStore(() => createMemoryRunStore())).resolves.toBeUndefined();
+  });
+
+  it('is broken by a store that lists nothing', async () => {
+    const store = createMemoryRunStore();
+    await expect(checkRunStore(() => ({ ...store, list: async () => [] }))).rejects.toThrow(
+      'list is newest first by updatedAt',
+    );
   });
 
   it('keeps the file layout the console and the tools know', async () => {

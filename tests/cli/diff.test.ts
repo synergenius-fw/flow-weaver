@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { captureConsole } from '../helpers/console-capture';
 
 const WORKFLOW_A = `
 /**
@@ -79,14 +80,15 @@ describe('diffCommand', () => {
     fs.writeFileSync(file1, WORKFLOW_A);
     fs.writeFileSync(file2, WORKFLOW_A);
 
-    const origLog = console.log;
-    console.log = () => {};
+    const out = captureConsole();
 
     try {
-      await diffCommand(file1, file2, {});
+      await expect(diffCommand(file1, file2, {})).resolves.toBeUndefined();
     } finally {
-      console.log = origLog;
+      out.restore();
     }
+
+    expect(out.text()).toContain('Workflows are identical');
   });
 
   it('should throw when files differ', async () => {
@@ -116,14 +118,17 @@ describe('diffCommand', () => {
     fs.writeFileSync(file1, WORKFLOW_A);
     fs.writeFileSync(file2, WORKFLOW_B);
 
-    const origLog = console.log;
-    console.log = () => {};
+    const out = captureConsole();
 
     try {
-      await diffCommand(file1, file2, { exitZero: true });
+      await expect(diffCommand(file1, file2, { exitZero: true })).resolves.toBeUndefined();
     } finally {
-      console.log = origLog;
+      out.restore();
     }
+
+    // The difference is still reported, only the exit status changes.
+    expect(out.text()).not.toContain('Workflows are identical');
+    expect(out.text()).toContain('extra');
   });
 
   it('should throw when first file does not exist', async () => {

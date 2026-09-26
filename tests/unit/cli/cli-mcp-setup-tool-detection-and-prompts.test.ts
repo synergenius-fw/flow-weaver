@@ -157,8 +157,12 @@ describe('mcpSetupCommand: interactive confirm branch (lines 450-485)', () => {
     mockConfirm.mockRejectedValue(new ExitPromptError(''));
 
     const deps = makeCursorDetectedDeps();
-    // Should not throw
-    await mcpSetupCommand({}, deps);
+    await expect(mcpSetupCommand({}, deps)).resolves.toBeUndefined();
+
+    // Ctrl+C at the prompt configures nothing.
+    expect(mockConfirm).toHaveBeenCalled();
+    expect(deps.writeFile).not.toHaveBeenCalled();
+    expect(process.exitCode).toBeFalsy();
   });
 
   it('shows "no detected tools" message in interactive mode when none found', async () => {

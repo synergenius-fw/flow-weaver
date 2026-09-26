@@ -496,7 +496,12 @@ describe('initCommand', () => {
       install: false,
       git: false,
     });
+    const report = JSON.parse(String(consoleSpy.mock.calls.at(-1)?.[0]));
     consoleSpy.mockRestore();
+
+    // --force overwrites the existing package.json with the project's own.
+    expect(report.filesCreated).toContain('package.json');
+    expect(JSON.parse(fs.readFileSync(path.join(targetDir, 'package.json'), 'utf8')).name).toBe('forceinit');
   });
 });
 

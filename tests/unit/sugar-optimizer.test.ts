@@ -339,15 +339,7 @@ describe('sugar-optimizer', () => {
 
       const result = detectSugarPatterns(connections, instances, [], nodeTypes, startPorts, exitPorts);
       // No path can go through a since a.onSuccess is multi-target
-      for (const p of result.paths) {
-        const steps = p.steps.map(s => s.node);
-        if (steps.includes('a')) {
-          // If a is included, it should not use onSuccess as that's multi-target
-          const aIdx = steps.indexOf('a');
-          const aStep = p.steps[aIdx];
-          expect(aStep.route).not.toBe('ok');
-        }
-      }
+      expect(result.paths).toEqual([]);
     });
   });
 

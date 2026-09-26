@@ -23,6 +23,12 @@ afterEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
+// The permission tests are skipped where a read-only mode does not stop a
+// write: on Windows chmod does not reliably prevent writes, and root (e.g.
+// self-hosted runner containers) bypasses file-permission checks.
+const permissionsEnforced =
+  process.platform !== 'win32' && !(typeof process.getuid === 'function' && process.getuid() === 0);
+
 describe('safeWriteFile', () => {
   it('writes to an existing directory', () => {
     const filePath = path.join(tmpDir, 'output.ts');
@@ -43,13 +49,7 @@ describe('safeWriteFile', () => {
     expect(fs.readFileSync(filePath, 'utf8')).toBe('new content');
   });
 
-  it('throws a clear error when file is read-only', () => {
-    // Skip on Windows (chmod doesn't reliably prevent writes)
-    if (process.platform === 'win32') return;
-    // Skip when running as root (e.g. self-hosted runner containers).
-    // Root bypasses Linux file-permission checks, so 0o444 doesn't block.
-    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
-
+  it.skipIf(!permissionsEnforced)('throws a clear error when file is read-only', () => {
     const filePath = path.join(tmpDir, 'readonly.ts');
     fs.writeFileSync(filePath, 'locked');
     fs.chmodSync(filePath, 0o444);
@@ -60,10 +60,7 @@ describe('safeWriteFile', () => {
     fs.chmodSync(filePath, 0o644);
   });
 
-  it('throws a clear error when parent directory is read-only', () => {
-    if (process.platform === 'win32') return;
-    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
-
+  it.skipIf(!permissionsEnforced)('throws a clear error when parent directory is read-only', () => {
     const readOnlyDir = path.join(tmpDir, 'locked-dir');
     fs.mkdirSync(readOnlyDir);
     fs.chmodSync(readOnlyDir, 0o555);
@@ -103,10 +100,7 @@ describe('safeAppendFile', () => {
     expect(fs.readFileSync(filePath, 'utf8')).toBe('new content');
   });
 
-  it('throws clear error on permission issues', () => {
-    if (process.platform === 'win32') return;
-    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
-
+  it.skipIf(!permissionsEnforced)('throws clear error on permission issues', () => {
     const filePath = path.join(tmpDir, 'readonly-append.ts');
     fs.writeFileSync(filePath, 'locked');
     fs.chmodSync(filePath, 0o444);

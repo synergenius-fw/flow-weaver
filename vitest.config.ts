@@ -31,6 +31,11 @@ export default defineConfig({
     testTimeout: TEST_TIMEOUT,
     hookTimeout: TEST_TIMEOUT,
 
+    // A test that makes no assertion fails. Without this, a test that only runs
+    // code passes unless it throws, which adds coverage without checking
+    // anything. Both projects inherit it through `extends: true`.
+    expect: { requireAssertions: true },
+
     // 2 retries (3 attempts total). The sharded CI occasionally fails a test
     // plus its retry back-to-back when the runner is saturated; one more
     // attempt turns those false-positives into pass. Cheap insurance, still

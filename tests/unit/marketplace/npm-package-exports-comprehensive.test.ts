@@ -230,13 +230,8 @@ export default _default;`);
 
     it('export = class skipped', () => {
       const get = pkg('t-cjs-class', `declare class Foo { run(): void; }\nexport = Foo;`);
-      // Class constructor is callable but not a workflow function
-      // The export= handling skips it if it can't resolve a function name
-      const exports = get();
-      // Either 0 (skipped) or name !== 'export='
-      for (const e of exports) {
-        expect(e.function).not.toBe('export=');
-      }
+      // A class constructor is not a node type function, so nothing is exported.
+      expect(get()).toEqual([]);
     });
 
     it('mixed exports: functions + types + interfaces', () => {

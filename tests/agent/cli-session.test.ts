@@ -278,6 +278,14 @@ describe('CliSession concurrent send() guard', () => {
 
     for await (const _event of gen2) { /* consume */ }
 
+    // Both turns reached the CLI, in order, each as one NDJSON user message.
+    const written = child.stdin.write.mock.calls.map((c: [string]) => JSON.parse(c[0]));
+    expect(written.map((m: { message: { content: string } }) => m.message.content)).toEqual([
+      'first message',
+      'second message',
+    ]);
+    expect(written.every((m: { type: string }) => m.type === 'user')).toBe(true);
+
     session.kill();
   });
 

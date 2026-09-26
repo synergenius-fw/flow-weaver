@@ -230,11 +230,17 @@ describe('createReplayProvider', () => {
       await replay.chat([userMsg('search for weather')]);
       await replay.chat([userMsg('what did you find?')]);
 
-      expectMockLlm(replay)
-        .toHaveBeenCalledTimes(2)
-        .toHaveUsedTool('search')
-        .toHaveTokenUsageBelow(200)
-        .toHaveReceivedMessage('weather', 0);
+      // expectMockLlm throws on a mismatch; it does not go through expect().
+      expect(() =>
+        expectMockLlm(replay)
+          .toHaveBeenCalledTimes(2)
+          .toHaveUsedTool('search')
+          .toHaveTokenUsageBelow(200)
+          .toHaveReceivedMessage('weather', 0),
+      ).not.toThrow();
+      // And it does fail when the recording does not match.
+      expect(() => expectMockLlm(replay).toHaveBeenCalledTimes(3)).toThrow();
+      expect(() => expectMockLlm(replay).toHaveTokenUsageBelow(100)).toThrow();
     });
   });
 

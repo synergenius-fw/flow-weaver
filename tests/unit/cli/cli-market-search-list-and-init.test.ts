@@ -8,7 +8,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import type { TMarketplaceManifest, TMarketplacePackageInfo } from '../../../src/marketplace/types';
+import type {
+  TInstalledPackage,
+  TManifestNodeType,
+  TManifestWorkflow,
+  TMarketplaceManifest,
+  TMarketplacePackageInfo,
+} from '../../../src/marketplace/types';
+import { captureConsole } from '../../helpers/console-capture';
 
 type SearchHit = TMarketplacePackageInfo & { registry: string };
 
@@ -21,117 +28,118 @@ beforeEach(() => {
 afterEach(() => {
   fs.rmSync(TEMP_DIR, { recursive: true, force: true });
   vi.restoreAllMocks();
+  process.exitCode = undefined;
 });
+
+function manifest(name: string, parts: Partial<TMarketplaceManifest> = {}): TMarketplaceManifest {
+  return { manifestVersion: 2, name, version: '1.0.0', nodeTypes: [], workflows: [], ...parts };
+}
+
+function installed(name: string, version: string, parts: Partial<TMarketplaceManifest> = {}): TInstalledPackage {
+  return { name, version, path: `/pkgs/${name}`, manifest: manifest(name, { version, ...parts }) };
+}
+
+const nodeType = (name: string) => ({ name, inputs: {}, outputs: {} }) as unknown as TManifestNodeType;
+const workflow = (name: string) => ({ name }) as unknown as TManifestWorkflow;
 
 describe('marketSearchCommand coverage', () => {
   it('should display "no packages found" when search returns empty results', async () => {
     const { marketSearchCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
     vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ results: [], searched: [] });
+    const out = captureConsole();
 
     await marketSearchCommand('nonexistent-query', { json: false });
+
+    expect(out.text()).toContain('No packages matching "nonexistent-query"');
+    expect(process.exitCode).toBeUndefined();
   });
 
   it('should display "no packages found" with no query', async () => {
     const { marketSearchCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
     vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ results: [], searched: [] });
+    const out = captureConsole();
 
     await marketSearchCommand(undefined, { json: false });
+
+    expect(out.text()).toContain('No packages found');
+    expect(out.text()).not.toContain('No packages matching');
   });
 
   it('should display search results with descriptions and official badge', async () => {
     const { marketSearchCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
     vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ searched: [], results: [
-      {
-        name: 'flow-weaver-pack-test',
-        version: '1.0.0',
-        description: 'A test pack',
-        official: false,
-      },
-      {
-        name: 'flow-weaver-pack-official',
-        version: '2.0.0',
-        description: 'Official pack',
-        official: true,
-      },
-      {
-        name: 'flow-weaver-pack-nodesc',
-        version: '0.1.0',
-        official: false,
-      },
+      { name: 'flow-weaver-pack-test', version: '1.0.0', description: 'A test pack', official: false },
+      { name: 'flow-weaver-pack-official', version: '2.0.0', description: 'Official pack', official: true },
+      { name: 'flow-weaver-pack-nodesc', version: '0.1.0', official: false },
     ] as SearchHit[] });
+    const out = captureConsole();
 
     await marketSearchCommand('pack', { json: false });
+
+    const text = out.text();
+    expect(text).toContain('flow-weaver-pack-test@1.0.0\n');
+    expect(text).toContain('    A test pack');
+    expect(text).toContain('flow-weaver-pack-official@2.0.0 [official]');
+    expect(text).toContain('flow-weaver-pack-nodesc@0.1.0');
+    expect(text).toContain('3 package(s) found');
   });
 
   it('should filter results client-side by query', async () => {
     const { marketSearchCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
     vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ searched: [], results: [
-      {
-        name: 'flow-weaver-pack-alpha',
-        version: '1.0.0',
-        description: 'Alpha pack',
-        official: false,
-      },
-      {
-        name: 'flow-weaver-pack-beta',
-        version: '1.0.0',
-        description: 'Beta pack',
-        official: false,
-      },
+      { name: 'flow-weaver-pack-alpha', version: '1.0.0', description: 'Alpha pack', official: false },
+      { name: 'flow-weaver-pack-beta', version: '1.0.0', description: 'Beta pack', official: false },
     ] as SearchHit[] });
+    const out = captureConsole();
 
-    // Only "alpha" should match
     await marketSearchCommand('alpha', { json: false });
+
+    expect(out.text()).toContain('flow-weaver-pack-alpha@1.0.0');
+    expect(out.text()).not.toContain('flow-weaver-pack-beta');
+    expect(out.text()).toContain('1 package(s) found');
   });
 
   it('should output JSON on search error when json is true', async () => {
     const { marketSearchCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
-    vi.spyOn(registry, 'searchAllRegistries').mockRejectedValue(
-      new Error('Network error')
-    );
+    vi.spyOn(registry, 'searchAllRegistries').mockRejectedValue(new Error('Network error'));
+    const out = captureConsole();
 
     await marketSearchCommand('fail', { json: true });
+
+    expect(JSON.parse(out.text())).toEqual({ error: 'Network error' });
     expect(process.exitCode).toBe(1);
-    process.exitCode = undefined;
   });
 
   it('should display error message on search failure in non-json mode', async () => {
     const { marketSearchCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
-    vi.spyOn(registry, 'searchAllRegistries').mockRejectedValue(
-      new Error('Timeout')
-    );
+    vi.spyOn(registry, 'searchAllRegistries').mockRejectedValue(new Error('Timeout'));
+    const out = captureConsole();
 
     await marketSearchCommand('fail', { json: false });
+
+    expect(out.of('error')).toContain('Search failed: Timeout');
     expect(process.exitCode).toBe(1);
-    process.exitCode = undefined;
   });
 
   it('should output JSON results when json option is set', async () => {
     const { marketSearchCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
-    vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ searched: [], results: [
-      {
-        name: 'flow-weaver-pack-json',
-        version: '1.0.0',
-        description: 'JSON output test',
-        official: false,
-      },
-    ] as SearchHit[] });
+    const hits = [
+      { name: 'flow-weaver-pack-json', version: '1.0.0', description: 'JSON output test', official: false },
+    ] as SearchHit[];
+    vi.spyOn(registry, 'searchAllRegistries').mockResolvedValue({ searched: [], results: hits });
+    const out = captureConsole();
 
     await marketSearchCommand(undefined, { json: true });
+
+    // JSON mode prints the results and nothing else.
+    expect(JSON.parse(out.text())).toEqual(hits);
   });
 
   it('should pass registry option to searchPackages', async () => {
@@ -152,156 +160,67 @@ describe('marketListCommand coverage', () => {
   it('should display installed packages with counts', async () => {
     const { marketListCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
     vi.spyOn(registry, 'listInstalledPackages').mockResolvedValue([
-      {
-        name: 'flow-weaver-pack-one',
-        version: '1.0.0',
-        path: '/some/path',
-        manifest: {
-          manifestVersion: 2,
-          name: 'flow-weaver-pack-one',
-          version: '1.0.0',
-          nodeTypes: [
-            { name: 'MyNode', inputs: [] as any, outputs: [] as any } as any,
-          ],
-          workflows: [
-            { name: 'MyWorkflow', nodes: 3, connections: 2 } as any,
-          ],
-          patterns: [],
-          exportTargets: [],
-          tagHandlers: [],
-          validationRuleSets: [],
-
-          initContributions: [] as any,
-          cliCommands: [],
-          mcpTools: [],
-        } as TMarketplaceManifest,
-      },
-      {
-        name: 'flow-weaver-pack-two',
-        version: '2.0.0',
-        path: '/other/path',
-        manifest: {
-          manifestVersion: 2,
-          name: 'flow-weaver-pack-two',
-          version: '2.0.0',
-          nodeTypes: [],
-          workflows: [],
-          patterns: [
-            { name: 'MyPattern', description: 'A pattern' } as any,
-          ],
-          exportTargets: [],
-          tagHandlers: [],
-          validationRuleSets: [],
-
-          initContributions: [] as any,
-          cliCommands: [],
-          mcpTools: [],
-        } as TMarketplaceManifest,
-      },
+      installed('flow-weaver-pack-one', '1.0.0', { nodeTypes: [nodeType('MyNode')], workflows: [workflow('MyWorkflow')] }),
+      installed('flow-weaver-pack-two', '2.0.0'),
     ]);
+    const out = captureConsole();
 
     await marketListCommand({ json: false });
+
+    const text = out.text();
+    expect(text).toContain('flow-weaver-pack-one@1.0.0\n    1 node type(s), 1 workflow(s)');
+    // A package with nothing to count gets no counts line.
+    expect(text).toContain('flow-weaver-pack-two@2.0.0\n\n');
+    expect(text).toContain('2 package(s) installed');
   });
 
   it('should display "no packages installed" message when list is empty', async () => {
     const { marketListCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
     vi.spyOn(registry, 'listInstalledPackages').mockResolvedValue([]);
+    const out = captureConsole();
 
     await marketListCommand({ json: false });
+
+    expect(out.text()).toContain('No marketplace packages installed');
+    expect(out.text()).toContain('fw market search');
   });
 
   it('should output JSON when json option is set', async () => {
     const { marketListCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
     vi.spyOn(registry, 'listInstalledPackages').mockResolvedValue([
-      {
-        name: 'flow-weaver-pack-json',
-        version: '1.0.0',
-        path: '/path',
-        manifest: {
-          manifestVersion: 2,
-          name: 'flow-weaver-pack-json',
-          version: '1.0.0',
-          nodeTypes: [{ name: 'N', inputs: [] as any, outputs: [] as any } as any],
-          workflows: [],
-          patterns: [],
-          exportTargets: [],
-          tagHandlers: [],
-          validationRuleSets: [],
-
-          initContributions: [] as any,
-          cliCommands: [],
-          mcpTools: [],
-        } as TMarketplaceManifest,
-      },
+      installed('flow-weaver-pack-json', '1.0.0', { nodeTypes: [nodeType('N')] }),
     ]);
+    const out = captureConsole();
 
     await marketListCommand({ json: true });
+
+    expect(JSON.parse(out.text())).toEqual([
+      { name: 'flow-weaver-pack-json', version: '1.0.0', nodeTypes: 1, workflows: 0 },
+    ]);
   });
 });
 
 describe('marketListCommand - displayInstalledPackage with all sections', () => {
-  it('should display package with node types, workflows, and patterns', async () => {
+  it('should display package with node type and workflow counts', async () => {
     const { marketListCommand } = await import('../../../src/cli/commands/market');
     const registry = await import('../../../src/marketplace/registry');
-
     vi.spyOn(registry, 'listInstalledPackages').mockResolvedValue([
-      {
-        name: 'flow-weaver-pack-full',
-        version: '3.0.0',
-        path: '/full/path',
-        manifest: {
-          manifestVersion: 2,
-          name: 'flow-weaver-pack-full',
-          version: '3.0.0',
-          nodeTypes: [
-            { name: 'NodeX', inputs: [] as any, outputs: [] as any } as any,
-            { name: 'NodeY', inputs: [] as any, outputs: [] as any } as any,
-          ],
-          workflows: [
-            { name: 'WfX', nodes: 5, connections: 4 } as any,
-          ],
-          patterns: [
-            { name: 'PatX' } as any,
-            { name: 'PatY' } as any,
-          ],
-          exportTargets: [],
-          tagHandlers: [],
-          validationRuleSets: [],
-
-          initContributions: [] as any,
-          cliCommands: [],
-          mcpTools: [],
-        } as TMarketplaceManifest,
-      },
-      {
-        name: 'flow-weaver-pack-empty',
-        version: '1.0.0',
-        path: '/empty/path',
-        manifest: {
-          manifestVersion: 2,
-          name: 'flow-weaver-pack-empty',
-          version: '1.0.0',
-          nodeTypes: [],
-          workflows: [],
-          patterns: [],
-          exportTargets: [],
-          tagHandlers: [],
-          validationRuleSets: [],
-
-          initContributions: [] as any,
-          cliCommands: [],
-          mcpTools: [],
-        } as TMarketplaceManifest,
-      },
+      installed('flow-weaver-pack-full', '3.0.0', {
+        nodeTypes: [nodeType('NodeX'), nodeType('NodeY')],
+        workflows: [workflow('WfX')],
+      }),
+      installed('flow-weaver-pack-nodes', '1.0.0', { nodeTypes: [nodeType('Only')] }),
     ]);
+    const out = captureConsole();
 
     await marketListCommand({ json: false });
+
+    const text = out.text();
+    expect(text).toContain('flow-weaver-pack-full@3.0.0\n    2 node type(s), 1 workflow(s)');
+    expect(text).toContain('flow-weaver-pack-nodes@1.0.0\n    1 node type(s)\n');
   });
 });
 

@@ -363,15 +363,6 @@ describe('Template code generation', () => {
       const code = t.generate('myRetriever');
       expect(code).toContain('function myRetriever');
     });
-
-    it('should generate node templates with config', () => {
-      for (const t of nodeTemplates) {
-        if (t.configSchema) {
-          const code = t.generate('testNode', { someConfig: 'value' });
-          expect(code).toContain('function testNode');
-        }
-      }
-    });
   });
 
   describe('LLM provider code generators', () => {
