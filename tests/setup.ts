@@ -37,7 +37,7 @@ process.env.FW_SERVICES_DIR ??= fs.mkdtempSync(path.join(os.tmpdir(), 'fw-servic
 // belief the shared project used `isolate: false`. It does not, so the extra
 // call was a redundant second parse per file, doubling setup cost under load for
 // no benefit. The deterministic fix lives in the parser: see
-// `resolveCallSignatures` in src/parser/jsdoc-parser.ts, which forces signature
+// `resolveCallSignatures` in src/parser/jsdoc/signature-types.ts, which forces signature
 // resolution via the apparent type / declaration when a cold checker returns an
 // empty signature list. This warmup is cheap belt-and-suspenders.)
 const warmFixture = path.join(os.tmpdir(), `fw-warm-${process.pid}-${Date.now()}.ts`);
