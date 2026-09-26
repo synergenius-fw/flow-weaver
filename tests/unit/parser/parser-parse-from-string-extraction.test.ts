@@ -1,5 +1,5 @@
 /**
- * Tests for src/parser.ts
+ * Tests for src/parser/annotation-parser.ts
  *
  * Exercises both sides of conditionals: empty inputs, missing annotations,
  * malformed JSDoc, expression nodes, scope detection, async detection,

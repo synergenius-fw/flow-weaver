@@ -1,5 +1,5 @@
 /**
- * Tests for src/generator.ts
+ * Tests for src/generator/workflow-generator.ts
  * Targets: generate() with sourceMap:true branch, and parseWithLogging error path.
  */
 

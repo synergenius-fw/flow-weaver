@@ -16,6 +16,7 @@ import type { FwMockConfig } from '../built-in-nodes/mock-types.js';
 import type { TExternalNodeType } from '../parser/annotation-parser.js';
 import type { DebugController } from '../runtime/debug-controller.js';
 import { CancellationError } from '../runtime/CancellationError.js';
+import { rewriteSrcImportsToDist } from './dist-imports.js';
 import {
   createContinuationEnvelope,
   decodeContinuation,
@@ -357,30 +358,7 @@ export async function executeWorkflow(
     // dist/ equivalents so Node.js ESM resolver finds the compiled JS files.
     // This happens with marketplace packs that ship TS source for parsing
     // but only have compiled JS in dist/.
-    let transpiledOutput = jsOutput.outputText;
-    const srcDir = path.dirname(tmpTsFile);
-    if (srcDir.includes(`${path.sep}src${path.sep}`)) {
-      transpiledOutput = transpiledOutput.replace(
-        /from\s+['"](\.[^'"]+)['"]/g,
-        (_match, specifier: string) => {
-          const resolvedSrc = path.resolve(srcDir, specifier);
-          // Only rewrite if the source .js file doesn't exist but the dist equivalent does
-          if (!fs.existsSync(resolvedSrc)) {
-            const distEquivalent = resolvedSrc.replace(
-              `${path.sep}src${path.sep}`,
-              `${path.sep}dist${path.sep}`,
-            );
-            if (fs.existsSync(distEquivalent)) {
-              const relative = path.relative(srcDir, distEquivalent);
-              const posixRelative = relative.replace(/\\/g, '/');
-              const normalized = posixRelative.startsWith('.') ? posixRelative : `./${posixRelative}`;
-              return `from '${normalized}'`;
-            }
-          }
-          return _match;
-        },
-      );
-    }
+    const transpiledOutput = rewriteSrcImportsToDist(jsOutput.outputText, path.dirname(tmpTsFile));
 
     fs.writeFileSync(tmpFile, transpiledOutput, 'utf8');
 

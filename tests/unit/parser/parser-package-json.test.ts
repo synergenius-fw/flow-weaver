@@ -1,5 +1,5 @@
 /**
- * Tests for parser.ts package.json handling
+ * Tests for the annotation parser's package.json handling
  * Ensures invalid package.json files are handled gracefully with a parse warning
  */
 
