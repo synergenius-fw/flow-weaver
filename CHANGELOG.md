@@ -4,10 +4,14 @@ All notable changes to this project are documented in [GitHub Releases](https://
 
 This project follows [Semantic Versioning](https://semver.org/) during beta. Breaking changes may occur between minor versions until v1.0.
 
-## Unreleased
+## 0.44.0
+
+The first Apache-2.0 release on npm (0.43.0 was tagged but never published there). It carries a clean-code and security pass over the whole codebase, a faster CLI, and releases published from CI with npm provenance.
 
 ### Changed
 
+- **`fw` starts in about 80 ms instead of over a second.** Simple invocations such as `--version`, help and `templates` no longer load the TypeScript compiler, the parser or the MCP SDK, and built-in commands skip the scan for pack commands.
+- **Releases are published to npm from GitHub Actions through trusted publishing, with provenance.** Each version on npm links to the workflow run that built it.
 - **`fw compile` refuses a workflow that fails validation.** Without `--strict`, validation errors were neither printed nor blocking. A workflow naming a node type that does not exist compiled silently. What `fw validate` rejects no longer compiles.
 - **Every test must assert something.** Vitest runs with `requireAssertions`. 144 tests that only ran code now check what it did, or are gone.
 
@@ -31,7 +35,6 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 - **The annotation suggestion fires after a freshly typed `/**`** above a function.
 - **Starting a file with several workflows and no name is refused as ambiguous.** `fw_run` and the HTTP API answered `PARSE_ERROR` instead of the documented `AMBIGUOUS_WORKFLOW`, because the parser's error came first.
 - **Friendly errors suggest the concrete coercion again.** For a type mismatch or lossy connection, the suggestion looked for the two ends in double quotes, but the validator writes them as `a.out → b.in`, so authors always got the generic advice. An Exit control port of the wrong type was always named `onSuccess`, whatever the port.
-
 - **A `__proto__` key can no longer satisfy a required parameter.** On a declared `fw serve` route, a JSON body of `{"__proto__": {"n": "text"}}` made `n` inherited. That passed the required check and skipped the type check. The key is now never copied, and required parameters must be the caller's own keys, here and in the coordinator.
 - **`fw run` and `fw dev` refuse `--params` that is not a JSON object.** `--params '[1]'` or `--params 5` was passed to the workflow as its parameters. The same applies to `--mocks` and both `-file` forms.
 - **An agent's failed answer is reported for what it was.** When a resume after an agent's answer failed for another reason, such as the workflow having changed, the console recorded it as "the answer did not fit the gate". The console, `fw serve` and `autoAnswerAgentGates` now share one rule: only an answer the gate cannot take is the agent's failure. They also share the resume checks, now public as `runs.checkResume`.
