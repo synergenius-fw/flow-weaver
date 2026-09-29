@@ -49,6 +49,7 @@ Thumbs.db
 
 # Test & coverage
 coverage/
+.vitest-reports/
 .nyc_output/
 test-results.json
 

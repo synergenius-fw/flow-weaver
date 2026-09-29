@@ -6,7 +6,7 @@
  * the final response. The same handler serves Node, an Express-style
  * mount and a fetch host. Runs go to a temp store, nothing touches ~/.fw.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -460,14 +460,21 @@ export async function nap(execute: boolean, params: { label: string }): Promise<
     await api.tick();
     expect((await api.fetch(new Request(`http://x${first.headers.get('location')}`))).status).toBe(202);
 
+    // Once it is due, the sweep wakes it. A sweep can find the run still held
+    // and leave it for the next pass, as the periodic sweep does in production,
+    // so keep sweeping for a while rather than demanding that the first pass
+    // finish it. On a loaded runner (CI with coverage) the first pass did not.
     await new Promise((r) => setTimeout(r, Math.max(0, Date.parse(run.due!.at) - Date.now()) + 50));
-    await api.deliverCallbacks();   // the periodic sweep: the clock first
-    const done = await api.fetch(new Request(`http://x${first.headers.get('location')}`));
-    expect(done.status).toBe(200);
+    const done = await vi.waitFor(async () => {
+      await api.deliverCallbacks();   // the periodic sweep: the clock first
+      const res = await api.fetch(new Request(`http://x${first.headers.get('location')}`));
+      expect(res.status).toBe(200);
+      return res;
+    }, { timeout: 15_000, interval: 250 });
     expect(((await done.json()) as { note: string }).note).toMatch(/^woke at \d{4}-/);
     // Announced like any other state change.
     expect(announced.some((r) => r.runId === run.runId && r.status === 'completed')).toBe(true);
-  });
+  }, 30_000);
 });
 
 describe('embedding', () => {
