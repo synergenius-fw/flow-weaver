@@ -117,8 +117,8 @@
     }
   },
   "bin": {
-    "flow-weaver": "./dist/cli/flow-weaver.mjs",
-    "fw": "./dist/cli/flow-weaver.mjs"
+    "flow-weaver": "dist/cli/flow-weaver.mjs",
+    "fw": "dist/cli/flow-weaver.mjs"
   },
   "files": [
     "dist",
@@ -184,7 +184,7 @@
   "bugs": "https://github.com/synergenius-fw/flow-weaver/issues",
   "repository": {
     "type": "git",
-    "url": "https://github.com/synergenius-fw/flow-weaver.git"
+    "url": "git+https://github.com/synergenius-fw/flow-weaver.git"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -237,6 +237,8 @@
     "typescript": "$typescript"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "@synergenius:registry": "https://registry.npmjs.org/"
   }
 }

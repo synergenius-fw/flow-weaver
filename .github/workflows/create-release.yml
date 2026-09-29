@@ -69,6 +69,21 @@ jobs:
           if [ ! -f README.md ]; then echo "ERROR: README.md missing" && exit 1; fi
           echo "README.md exists ($(wc -c < README.md) bytes)"
 
+      - name: Check the publish target is public npm
+        # package.json pins the @synergenius scope to registry.npmjs.org, so a
+        # scope mapping to the private registry cannot take the publish there.
+        # Read what npm itself says it would do, and stop if it names any other
+        # registry.
+        run: |
+          OUT=$(npm publish --dry-run --ignore-scripts 2>&1 || true)
+          TARGET=$(printf '%s\n' "$OUT" | grep -o 'Publishing to [^ ]*' || true)
+          if [ "$TARGET" != "Publishing to https://registry.npmjs.org/" ]; then
+            printf '%s\n' "$OUT" | tail -20
+            echo "::error::npm would not publish to https://registry.npmjs.org/ (${TARGET:-no target reported})"
+            exit 1
+          fi
+          echo "$TARGET"
+
       - name: Pack, verify, and publish to npm
         # Publishes through npm trusted publishing: the package's npm settings
         # name this repository and workflow, and npm exchanges the run's OIDC
