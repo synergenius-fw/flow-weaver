@@ -4,14 +4,24 @@
  *
  * The page is walked in the states a person spends time in (the front page, a
  * run waiting at a gate, finished, and one that took its failure path, the
- * debugger, a workflow with issues, a step's code, the Serve pane, the guide,
- * search, Endpoints and Agents), and each text is measured
+ * debugger, a workflow with issues, an effect and a loop, a step's code, the
+ * Serve pane, the guide, search, Endpoints, Agents, and the brief Share hands
+ * out), and each text is measured
  * against the backgrounds behind it with the WCAG 2 formula: 4.5:1 for text,
  * 3:1 for large text. Disabled controls, icons and text hidden until hover
  * are left out, as WCAG leaves them out.
  */
 import type { Page } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test, expect, openWorkflow, type ConsoleUnderTest } from './console';
+
+/** Workflows with an effect step and a loop band, so their tags and labels are measured too. */
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const fixtures = path.join(root, 'tests', 'continuation', 'fixtures');
+const EXTRA = ['durable-effect-contract-valid.ts', 'durable-bounded-loop.ts'];
 
 interface Finding { state: string; text: string; ratio: number; needs: number; fg: string; bg: string; where: string }
 
@@ -96,9 +106,14 @@ function lowContrast(page: Page, state: string): Promise<Finding[]> {
   }, state);
 }
 
+type Scheme = 'light' | 'dark';
+
 /** The states to measure, in the order a person might reach them. */
-const STATES: [string, (fw: ConsoleUnderTest, page: Page) => Promise<void>][] = [
-  ['the front page', async (fw) => { await fw.open(); }],
+const STATES: [string, (fw: ConsoleUnderTest, page: Page, scheme: Scheme) => Promise<void>][] = [
+  ['the front page', async (fw) => {
+    for (const f of EXTRA) fs.copyFileSync(path.join(fixtures, f), path.join(fw.dir, 'flows', f));
+    await fw.open();
+  }],
   ['a run waiting at a gate', async (fw) => {
     await openWorkflow(fw, 'durableApproval');
     const form = fw.inspector.getByRole('form', { name: 'New run' });
@@ -136,6 +151,12 @@ const STATES: [string, (fw: ConsoleUnderTest, page: Page) => Promise<void>][] = 
     await fw.inspector.getByRole('button', { name: /Issues/ }).click();
     await expect(fw.inspector.getByText(/missingType/).first()).toBeVisible();
   }],
+  ['a workflow with an effect', async (fw) => {
+    await openWorkflow(fw, 'validAccountingEffect');
+  }],
+  ['a workflow with a loop', async (fw) => {
+    await openWorkflow(fw, 'durableBoundedLoop');
+  }],
   ["a step's code", async (fw) => {
     await openWorkflow(fw, 'sequential');
     await fw.main.getByText('Add One', { exact: true }).first().click();
@@ -165,6 +186,13 @@ const STATES: [string, (fw: ConsoleUnderTest, page: Page) => Promise<void>][] = 
     await fw.navigator.getByRole('button', { name: 'Agents' }).first().click();
     await expect(fw.main.getByRole('heading', { level: 1 }).first()).toBeVisible();
   }],
+  // What Share hands a person: the brief, in the theme it was asked for.
+  ['the brief', async (fw, page, scheme) => {
+    const out = path.join(fw.dir, `brief-${scheme}.html`);
+    execFileSync(process.execPath, [path.join(root, 'dist', 'cli', 'flow-weaver.mjs'), 'artifact', path.join(fw.dir, 'flows', 'approval.ts'), '--theme', scheme, '-o', out], { stdio: 'ignore' });
+    await page.goto(pathToFileURL(out).href);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  }],
 ];
 
 for (const scheme of ['light', 'dark'] as const) {
@@ -174,8 +202,10 @@ for (const scheme of ['light', 'dark'] as const) {
     test('every text meets the WCAG AA contrast minimum', async ({ fw, page }) => {
       const findings: Finding[] = [];
       for (const [state, reach] of STATES) {
-        await reach(fw, page);
-        // Let transitions settle before measuring.
+        await reach(fw, page, scheme);
+        // Take the pointer off whatever it last clicked, so no tooltip is caught
+        // halfway through fading in, and let transitions settle.
+        await page.mouse.move(1, 1);
         await page.waitForTimeout(300);
         findings.push(...await lowContrast(page, state));
       }

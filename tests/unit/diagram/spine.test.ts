@@ -188,7 +188,8 @@ export async function loopWithFailure(execute: boolean, params: { items: string[
   it('marks the pause: a square tile, the gate kind at the right, a legend line', () => {
     const svg = renderSpineSVG(gated);
     expect(svg).toContain('rx="2"');
-    expect(svg).toContain('text-anchor="end" fill="#c79bff">approval</text>');
+    // The light theme's gate colour, which holds 4.5:1 on its background.
+    expect(svg).toContain('text-anchor="end" fill="#7a47d6">approval</text>');
     expect(svg).toContain('waits for a person or an agent');
   });
 

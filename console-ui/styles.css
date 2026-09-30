@@ -526,7 +526,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .trait { display: grid; grid-template-columns: max-content 1fr; gap: 10px; align-items: baseline; }
 .trait .why { color: var(--faint); font-size: 11.5px; } .trait .why a.go { color: var(--accent); cursor: pointer; }
 .tag.expr { color: var(--dim); border-style: dashed; }
-.tag.effect { color: var(--c-orange); border-color: color-mix(in srgb, var(--c-orange) 40%, transparent); }
+.tag.effect { color: color-mix(in srgb, var(--c-orange) 70%, var(--fg)); border-color: color-mix(in srgb, var(--c-orange) 40%, transparent); }
 .tag.gate { color: var(--gate); border-color: color-mix(in srgb, var(--gate) 40%, transparent); }
 
 /* An [expr:] binding, and the port a value comes from: the step is the part

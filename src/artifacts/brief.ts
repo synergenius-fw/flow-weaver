@@ -124,7 +124,7 @@ function parts(g: Gathered, interactive: boolean) {
 
 
 function tokens(dark: boolean): string {
-  return `--bg:${dark ? '#0e1014' : '#ffffff'}; --fg:${dark ? '#e7e9ee' : '#1a1d24'}; --muted:${dark ? '#8a90a0' : '#667085'}; --faint:${dark ? '#5c6270' : '#98a2b3'}; --line:${dark ? '#2a303c' : '#e3e6eb'}; --panel:${dark ? '#151923' : '#f6f7f9'}; --panel-2:${dark ? '#1b1f27' : '#eef0f4'}; --accent:${dark ? '#6ea8fe' : '#2f6fed'}; --gate:${dark ? '#c79bff' : '#8f5bd6'}; --loop:${dark ? '#5fd4d9' : '#1d9aa2'}; --effect:${dark ? '#ff9f5a' : '#d97a2b'}; --err:${dark ? '#f0636a' : '#d64550'}; --pull:${dark ? '#f2c94c' : '#b7860b'}; --graph:${dark ? '#0e1014' : '#f6f7f9'};`;
+  return `--bg:${dark ? '#0e1014' : '#ffffff'}; --fg:${dark ? '#e7e9ee' : '#1a1d24'}; --muted:${dark ? '#a3a9b7' : '#4b5465'}; --faint:${dark ? '#8a91a1' : '#5f687a'}; --line:${dark ? '#2a303c' : '#e3e6eb'}; --panel:${dark ? '#151923' : '#f6f7f9'}; --panel-2:${dark ? '#1b1f27' : '#eef0f4'}; --accent:${dark ? '#6ea8fe' : '#0b62c9'}; --gate:${dark ? '#c79bff' : '#7a47d6'}; --loop:${dark ? '#5fd4d9' : '#0b7285'}; --effect:${dark ? '#ff9f5a' : '#ac5e1f'}; --err:${dark ? '#f0636a' : '#c21f2b'}; --pull:${dark ? '#f2c94c' : '#8a6100'}; --graph:${dark ? '#0e1014' : '#f6f7f9'};`;
 }
 
 const BASE_CSS = `
