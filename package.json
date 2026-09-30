@@ -234,7 +234,10 @@
   },
   "overrides": {
     "vite": "$vite",
-    "typescript": "$typescript"
+    "typescript": "$typescript",
+    "typed-rest-client": {
+      "qs": "^6.16.0"
+    }
   },
   "publishConfig": {
     "access": "public",
