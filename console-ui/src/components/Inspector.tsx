@@ -1,8 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { defaultPass } from '../run-events';
-import { wf, run, runs, sel, ui, now, startRun, openRun, runDuration, stepDuration, passesOf, passValue, toast, isParsed, runActive, cancelRun, leaveRun, deleteRun, flatSteps, openDoc, openPack, openChanges, debugAction, targets, agents, openAgents, type Issue, type Step, type ParsedWorkflow, type Deploy, type RunSnapshot, type SidePane } from '../state';
-import { get } from '../api';
+import { wf, run, runs, sel, ui, now, startRun, openRun, runDuration, stepDuration, stepState, passesOf, passValue, toast, isParsed, runActive, cancelRun, leaveRun, deleteRun, flatSteps, openDoc, openPack, openChanges, debugAction, targets, agents, openAgents, type Issue, type Step, type ParsedWorkflow, type Deploy, type RunSnapshot, type SidePane } from '../state';
 import { ago, ms, short, editorLink, packNs } from '../format';
 import { NewRunCard } from './NewRun';
 import { ChangesPane } from './Changes';
@@ -72,7 +71,14 @@ function Timeline({ w }: { w: ParsedWorkflow }) {
   if (!steps.length) return null;
   // A step's time is its passes added up; a pass still running counts to now.
   const passDur = (p: { start?: number; end?: number }) => (p.start != null ? (p.end ?? Date.now()) - p.start : null);
-  const dur = (id: string) => { const list = r.passes[id] ?? []; const ds = list.map(passDur).filter((x): x is number => x != null); return ds.length ? ds.reduce((a, b) => a + b, 0) : null; };
+  // A row says what the process says: the gate the run waits at is waiting,
+  // not running, and a RUNNING the run went past without a trace (a segment
+  // resumed over MCP) claims nothing. Neither has a time of its own to show.
+  const shown = (id: string) => (stepState(id) === 'WAITING' ? 'WAITING' : r.states[id].status === 'RUNNING' && r.status !== 'running' ? '' : r.states[id].status);
+  const dur = (id: string) => {
+    if (shown(id) === 'WAITING' || shown(id) === '') return null;
+    const list = r.passes[id] ?? []; const ds = list.map(passDur).filter((x): x is number => x != null); return ds.length ? ds.reduce((a, b) => a + b, 0) : null;
+  };
   const longest = Math.max(1, ...steps.map((s) => dur(s.id) ?? 0));
   const toggle = (id: string) => { const n = new Set(open); if (n.has(id)) n.delete(id); else n.add(id); setOpen(n); };
   const failedPasses = (id: string) => (r.passes[id] ?? []).filter((p) => p.status === 'FAILED' || p.error).length;
@@ -81,16 +87,16 @@ function Timeline({ w }: { w: ParsedWorkflow }) {
       <h5>Steps<span class="hint" style="margin-left:8px;text-transform:none;letter-spacing:0">{steps.length} of {flatSteps(w.model.steps).length}</span></h5>
       <div class="tl">
         {steps.map((s) => {
-          const st = r.states[s.id]; const d = dur(s.id); const many = st.count > 1; const bad = failedPasses(s.id);
+          const st = r.states[s.id]; const status = shown(s.id); const d = dur(s.id); const many = st.count > 1; const bad = failedPasses(s.id);
           return (
             <>
-              <button class={`tlrow ${st.status}`} key={s.id} onClick={() => { sel.value = s.id; ui.side.value = 'step'; }}>
-                <span class={`rdot ${DOT[st.status] ?? 'cancelled'}`} />
+              <button class={`tlrow ${status}`} key={s.id} onClick={() => { sel.value = s.id; ui.side.value = 'step'; }}>
+                <span class={`rdot ${DOT[status] ?? 'cancelled'}`} />
                 <span class="lbl">{s.label}
                   {many && <span class="times" title="Ran once per item, click to see each pass" onClick={(e) => { e.stopPropagation(); toggle(s.id); }}>×{st.count}{bad ? `, ${bad} failed` : ''}<span class="ms">{open.has(s.id) ? 'expand_less' : 'expand_more'}</span></span>}
                   {!many && r.errors[s.id] && <span class="err">: {r.errors[s.id]}</span>}
                 </span>
-                <span class="dur">{st.status === 'RUNNING' ? (many ? `pass ${st.count} running` : 'running') : st.status === 'WAITING' ? 'waiting' : ms(d)}</span>
+                <span class="dur">{status === 'RUNNING' ? (many ? `pass ${st.count} running` : 'running') : status === 'WAITING' ? 'waiting' : ms(d)}</span>
                 {d != null && <i style={`width:${Math.max(2, (d / longest) * 100)}%`} />}
               </button>
               {many && open.has(s.id) && (r.passes[s.id] ?? []).map((p) => (

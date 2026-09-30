@@ -286,15 +286,13 @@ fw describe my-workflow.ts --format mermaid
 
 Outputs the workflow graph as JSON or as a Mermaid diagram for visual inspection.
 
-## WebSocket runtime debugger
-
-For runtime debugging, compile without the `--production` flag and set the debug environment variable:
+## Watch it run
 
 ```bash
-FLOW_WEAVER_DEBUG=ws://localhost:9000 node my-workflow.generated.js
+fw run my-workflow.ts --params '{"record": {"name": "Alice Smith", "age": 30, "email": "alice@university.edu"}}' --stream
 ```
 
-Debug events (`STATUS_CHANGED`, `VARIABLE_SET`, `WORKFLOW_COMPLETED`) are sent over WebSocket so you can observe execution in real time.
+Each step is printed as it starts and ends (`[STATUS_CHANGED] validator: → SUCCEEDED (0ms)`). Add `--debug` instead to step through it one node at a time and inspect every value; [Debugging](debugging.md) has both, and how to receive the same events in your own code.
 
 ## Common issues
 
@@ -403,18 +401,15 @@ export function processRecord(
 # Validate
 fw validate my-workflow.ts
 
-# Compile
-fw compile my-workflow.ts
+# Run it as it stands: fw run compiles it in memory
+fw run my-workflow.ts --params '{"record": {"name": "Alice Smith", "age": 30, "email": "alice@university.edu"}}'
 
-# Run (from another file or a script)
-npx ts-node -e "
-  const { processRecord } = require('./my-workflow.generated');
-  const result = processRecord(true, {
-    record: { name: 'Alice Smith', age: 30, email: 'alice@university.edu' }
-  });
-  console.log(JSON.stringify(result, null, 2));
-"
+# Or compile it in place and call it from your own code, as in Step 6
+fw compile my-workflow.ts
+npx tsx run.ts
 ```
+
+`run.ts` is the Step 6 snippet: it imports `processRecord` and `createWorkflowRuntime` from `./my-workflow` and passes the runtime as the third argument. Both print `score: 85` and `summary: "Alice Smith: score 85 (adult)"`.
 
 # Alternative: Dev Mode
 
@@ -449,5 +444,5 @@ Now that you have a working workflow, explore these topics to go further:
 - **Scoped ports and forEach** (`fw docs export-interface`) -- Iterate over arrays using scoped ports and callback parameters
 - **Node conversion** (`fw docs node-conversion`) -- Turn existing functions into expression nodes, and when to fall back to normal mode
 - **Scaffolding templates** (`fw docs scaffold`) -- Generate workflows from templates like `sequential`, `foreach`, `conditional`, and more
-- **Debugging** (`fw docs debugging`) -- WebSocket debugger, validation diagnostics, and error resolution
+- **Debugging** (`fw docs debugging`) -- Trace events, the step-through debugger, validation diagnostics, and error resolution
 - **JSDoc grammar** (`fw docs jsdoc-grammar`) -- Full annotation syntax reference including metadata brackets and scope clauses

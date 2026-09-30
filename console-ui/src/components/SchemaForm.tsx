@@ -48,9 +48,12 @@ interface FieldProps { name: string; path: string; schema: FieldSchema; value: u
 function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps) {
   const err = errors[path] ?? errors[path || '.'];
   // The label names the control it sits over, where that control is a single
-  // input or text area; the rest are groups of their own.
+  // input or text area, a JSON box included; the rest are groups of their own.
   const id = useId();
-  const labelable = schema.type === 'string' || schema.type === 'number' || (schema.type === 'array' && isPrimitiveList(schema));
+  const listOfForms = !!schema.items && ((schema.items.type === 'object' && !!schema.items.fields) || schema.items.type === 'boolean');
+  const labelable = schema.type === 'string' || schema.type === 'number'
+    || (schema.type === 'array' && !listOfForms)
+    || !['boolean', 'enum', 'object', 'array'].includes(schema.type);
   const label = bare ? null : (
     <>
       <label for={labelable ? id : undefined}>
@@ -102,10 +105,10 @@ function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps
         }} />);
       }
       // A list of objects is rows to add and remove, each a form of its own.
-      if (schema.items && (schema.items.type === 'object' && schema.items.fields || schema.items.type === 'boolean')) {
+      if (listOfForms) {
         return wrap(<ListField path={path} schema={schema} value={value} errors={errors} onChange={onChange} />);
       }
-      return wrap(<JsonField value={value} onChange={onChange} placeholder={'[ … ] (a JSON list)'} />);
+      return wrap(<JsonField id={id} value={value} onChange={onChange} placeholder={'[ … ] (a JSON list)'} />);
     case 'object':
       if (schema.fields) {
         const obj = (value as Record<string, unknown>) ?? {};
@@ -122,9 +125,9 @@ function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps
       }
       // An open object (Record<string, unknown>): no fixed fields, but still
       // structured. Edit it as named properties, not a bare JSON blob.
-      return wrap(<KeyValueField value={value} onChange={onChange} typeName={schema.text} />);
+      return wrap(<KeyValueField name={name} value={value} onChange={onChange} typeName={schema.text} />);
     default:
-      return wrap(<JsonField value={value} onChange={onChange} />);
+      return wrap(<JsonField id={id} value={value} onChange={onChange} />);
   }
 }
 
@@ -138,7 +141,7 @@ function Field({ name, path, schema, value, errors, onChange, bare }: FieldProps
  * (so `true`, `42`, `["a"]` keep their type) and as a plain string otherwise,
  * which is what someone typing a word expects.
  */
-function KeyValueField({ value, onChange, typeName }: { value: unknown; onChange: (v: unknown) => void; typeName?: string }) {
+function KeyValueField({ name, value, onChange, typeName }: { name: string; value: unknown; onChange: (v: unknown) => void; typeName?: string }) {
   const obj = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
   const [raw, setRaw] = useState(false);
   // Row order is kept locally so a freshly added, still-empty key does not
@@ -169,7 +172,7 @@ function KeyValueField({ value, onChange, typeName }: { value: unknown; onChange
     return (
       <div class="kv-open">
         {toggle}
-        <JsonField value={value} onChange={onChange} />
+        <JsonField label={name ? `${name} as JSON` : undefined} value={value} onChange={onChange} />
       </div>
     );
   }
@@ -180,8 +183,8 @@ function KeyValueField({ value, onChange, typeName }: { value: unknown; onChange
         <div class="kv-rows">
           {rows.map(([k, v], i) => (
             <div class="kv-row" key={i}>
-              <input class="kv-key" type="text" value={k} placeholder="key" onInput={(e) => setKey(i, (e.target as HTMLInputElement).value)} />
-              <KeyValueValue value={v} onChange={(nv) => setVal(i, nv)} />
+              <input class="kv-key" type="text" value={k} placeholder="key" aria-label={`${name || 'property'} ${i + 1}, name`} onInput={(e) => setKey(i, (e.target as HTMLInputElement).value)} />
+              <KeyValueValue label={`${name || 'property'} ${i + 1}, value`} value={v} onChange={(nv) => setVal(i, nv)} />
               <button type="button" class="kv-del" title="Remove" onClick={() => remove(i)}>×</button>
             </div>
           ))}
@@ -193,11 +196,12 @@ function KeyValueField({ value, onChange, typeName }: { value: unknown; onChange
 }
 
 /** One value cell of an open map: JSON when it parses, a plain string otherwise. */
-function KeyValueValue({ value, onChange }: { value: unknown; onChange: (v: unknown) => void }) {
+function KeyValueValue({ label, value, onChange }: { label: string; value: unknown; onChange: (v: unknown) => void }) {
   const asText = value === undefined || value === null ? '' : typeof value === 'string' ? value : JSON.stringify(value);
   return (
     <input
       class="kv-val mono"
+      aria-label={label}
       type="text"
       value={asText}
       placeholder="value"
@@ -229,13 +233,13 @@ function ListField({ path, schema, value, errors, onChange }: { path: string; sc
 }
 
 /** Free-form JSON, syntax-coloured, with live parse feedback; the value is committed only when it parses. */
-function JsonField({ value, onChange, rows = 4, placeholder }: { value: unknown; onChange: (v: unknown) => void; rows?: number; placeholder?: string }) {
+function JsonField({ id, label, value, onChange, rows = 4, placeholder }: { id?: string; label?: string; value: unknown; onChange: (v: unknown) => void; rows?: number; placeholder?: string }) {
   const [text, setText] = useState(value === undefined ? '' : JSON.stringify(value, null, 2));
   const [bad, setBad] = useState(false);
   const tidy = () => { try { setText(JSON.stringify(JSON.parse(text), null, 2)); setBad(false); } catch { setBad(true); } };
   return (
     <div class="jsonfield">
-      <JsonEditor rows={rows} value={text} placeholder={placeholder ?? '{ "key": "value" } (any JSON)'} invalid={bad} onInput={(raw) => {
+      <JsonEditor id={id} label={label} rows={rows} value={text} placeholder={placeholder ?? '{ "key": "value" } (any JSON)'} invalid={bad} onInput={(raw) => {
         setText(raw);
         if (!raw.trim()) { setBad(false); onChange(undefined); return; }
         try { onChange(JSON.parse(raw)); setBad(false); } catch { setBad(true); }
@@ -278,7 +282,7 @@ export function SchemaForm({ fields, value, errors, onChange, plain, title }: Sc
         </div>
       )}
       {raw
-        ? <div class="field"><JsonField rows={8} value={value} onChange={(v) => onChange((v as Record<string, unknown>) ?? {})} /></div>
+        ? <div class="field"><JsonField label={`${title ?? 'Fields'} as JSON`} rows={8} value={value} onChange={(v) => onChange((v as Record<string, unknown>) ?? {})} /></div>
         : Object.entries(fields).map(([k, f]) => (
           <Field key={k} name={k} path={k} schema={f} value={value[k]} errors={errors} onChange={(v) => onChange({ ...value, [k]: v })} />
         ))}

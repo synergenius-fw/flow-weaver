@@ -766,7 +766,7 @@ Two codes come from parsing the file, before validation runs. `fw_validate`, `fw
 | SCOPE_INCONSISTENT | An instance is listed in more than one scope. A node can belong to only one scope |
 | COERCE_ON_FUNCTION_PORT | An `as` coercion is applied to a FUNCTION port. Function values cannot be meaningfully coerced |
 | EXPRESSION_SYNTAX | An [expr:] binding or an Expression: default does not parse as a JavaScript expression (text needs quotes inside the attribute: timeout="'24h'"). It would otherwise fail only when the generated file is transpiled |
-| DURABLE_CLOSURE_INVALID | A workflow with a durable gate breaks a durability rule (a gate/effect in more than one branch region or taking data from outside it, pull/lazy execution, an unclassified node, or a bad effect contract). Surfaced at author time. The coordinator would otherwise reject it only at run time. |
+| DURABLE_CLOSURE_INVALID | A workflow with a durable gate breaks a durability rule (a gate/effect in more than one branch region or taking data from outside it, a loop around a gate that is not bounded and sequential, pull/lazy execution, an unclassified node, or a bad effect contract). Surfaced at author time. The coordinator would otherwise reject it only at run time. |
 <!-- AUTO:END error_summary_table -->
 
 ### Warnings (should review)

@@ -287,7 +287,7 @@ The public command runner (`runCommand('run', …)` from `./api`) takes no mocks
 
 ### Testing a gated workflow
 
-Two ways. Mock the gate with `gates` (or `events` / `agents`) and the run goes straight through it — the quickest way to exercise everything after the gate, from the console's New run card or `fw run --mocks`. Or drive the gate for real, through the MCP tools or `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` in a test, when the pause itself is what you are testing. See [Durable Gates](durable-gates.md) for the resolution shape.
+Two ways. Mock the gate with `gates` (or `events` / `agents`) and the run goes straight through it — the quickest way to exercise everything after the gate, from the console's New run card, `fw serve --dev`, or `createLocalCoordinator().start({ …, mocks })`. `fw run` refuses a gated workflow, mocked or not. Or drive the gate for real, through the MCP tools or `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator` in a test, when the pause itself is what you are testing. See [Durable Gates](durable-gates.md) for the resolution shape.
 
 - Success path: `fw_resume { runId, answer: { status: 'approved' } }`
 - Failure path: `fw_resume { runId, reject: 'declined' }` — the run continues along `onFailure` and reports `completed`

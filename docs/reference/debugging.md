@@ -1,7 +1,7 @@
 ---
 name: Flow Weaver Debugging
 description: Debugging workflows, validation, diagnostics, and error resolution
-keywords: [debug, troubleshooting, errors, WebSocket, diagnostics, runtime, validation, trace, step-through, breakpoint, REPL]
+keywords: [debug, troubleshooting, errors, trace events, diagnostics, runtime, validation, trace, stream, step-through, breakpoint, REPL]
 ---
 
 # Flow Weaver Debugging Guide
@@ -22,21 +22,31 @@ For error code lookup, use `fw docs error-codes`.
 
 ---
 
-## WebSocket Debug Events
+## Trace Events
 
-Flow Weaver can emit real-time execution events over WebSocket for runtime debugging. This is enabled by compiling without the `--production` flag.
+A compiled workflow reports each step as it runs, unless it was compiled with `--production`: every event goes to the runtime's `services.debugger`.
 
-### Enabling Debug Events
+### Seeing Them
 
-```bash
-# Compile the workflow (debug mode is the default)
-fw compile my-workflow.ts
+- `fw run --stream` prints them as they happen, and `fw run --trace` collects them (see [below](#fw-run---stream-vs---trace))
+- The console lights each step up as it runs and keeps the trace with the run
+- From your own code, hand the runtime a debugger:
 
-# Run with WebSocket debug target
-FLOW_WEAVER_DEBUG=ws://localhost:9000 node my-workflow.generated.js
+```typescript
+import { processRecord, createWorkflowRuntime } from './my-workflow';
+
+const events: unknown[] = [];
+const runtime = createWorkflowRuntime({
+  runId: 'debug-1',
+  workflowId: 'processRecord',
+  services: { debugger: { sendEvent: (event) => { events.push(event); }, innerFlowInvocation: false } },
+});
+await processRecord(true, { record: { name: 'Alice', age: 30, email: 'a@x.io' } }, runtime);
 ```
 
-Production builds (`fw compile --production`) strip all debug event code.
+The workflow awaits what `sendEvent` returns for a status event, so a debugger can hold a step by returning a promise it has not settled yet. The step-through debugger below works that way.
+
+Production builds (`fw compile --production`) leave the events out.
 
 ### Event Types
 
@@ -46,11 +56,6 @@ Production builds (`fw compile --production`) strip all debug event code.
 | VARIABLE_SET       | Port value set               | `identifier.portName`, `value`            |
 | LOG_ERROR          | Node threw an error          | `id`, `error` message                     |
 | WORKFLOW_COMPLETED | Workflow finished            | `status`, `result`                        |
-
-### WebSocket Message Format
-
-Messages are JSON-encoded with envelope: `{ type: "event", sessionId, event: {...} }`.
-On connection: `{ type: "connect", sessionId, workflowExportName, clientInfo }`.
 
 When a workflow calls another workflow, inner events have `innerFlowInvocation: true`.
 
@@ -90,8 +95,9 @@ START: What is the problem?
 |
 +-- "Runtime error" (workflow compiled but fails when executed)
 |   |
-|   +-- Enable WebSocket debugging:
-|   |   FLOW_WEAVER_DEBUG=ws://localhost:9000 node <file>
+|   +-- Watch it run, or step through it:
+|   |   fw run <file> --stream
+|   |   fw run <file> --debug
 |   |
 |   +-- Is the error "Variable not found: X.Y[Z]"?
 |   |   |
@@ -219,7 +225,7 @@ fw run workflow.ts --trace --json | jq '.traceCount'
 
 **Cause 2: Multiple connections to same Exit port.** Only one value is used. Use separate Exit ports for each branch.
 
-**Cause 3: Upstream node failed.** Check WebSocket events for `FAILED` status.
+**Cause 3: Upstream node failed.** Look for a `FAILED` status in the trace (`fw run --stream`).
 
 ### "Variable not found" Runtime Error
 
@@ -258,11 +264,12 @@ fw run workflow.ts --mocks-file mocks.json
 ```
 
 Mock config structure:
-- `fast: true` — Skip real sleep in `delay` nodes (1ms instead)
+- `fast: true` — Skip real sleep in `delay` nodes (1ms instead), and wake a `sleep` gate at once
 - `invocations: { "function-id": result }` — Mock results for `invokeWorkflow`
-- `events` and `agents` — Accepted and validated, but they do not resolve a gate; `waitForEvent` and `waitForAgent` yield regardless
+- `gates: { "nodeId": outputs }` — Answer any gate, as a person would
+- `events` and `agents` — Answer `waitForEvent` and `waitForAgent` gates, by event name and by agent id
 
-A workflow containing `waitForEvent`, `waitForAgent`, or any `@durableGate` node cannot be run by `fw run` at all — it is refused before execution. Drive it with the `fw_run` / `fw_resume` MCP tools, or from code with `createLocalCoordinator` (or `executeWorkflow` with a resolution) from `@synergenius/flow-weaver/coordinator`. See [Durable Gates](durable-gates.md).
+A workflow containing `waitForEvent`, `waitForAgent`, or any `@durableGate` node cannot be run by `fw run` at all, mocked or not: it is refused before execution, because `fw run` has nowhere to keep a run between one gate and the next. Gate mocks apply where runs are kept: under **Mocks** on the console's New run card, in a `{ "params", "mocks" }` start body to `fw serve --dev`, and in `createLocalCoordinator().start({ …, mocks })`. To answer the gates yourself, use the `fw_run` / `fw_resume` MCP tools or `createLocalCoordinator` from `@synergenius/flow-weaver/coordinator`. See [Durable Gates](durable-gates.md).
 
 `--timeout <ms>` bounds a run whose nodes take too long; it has no role in gates, which never wait.
 

@@ -3,7 +3,35 @@
  * gate answered either way, and a step at a time under the debugger.
  */
 import type { Locator } from '@playwright/test';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { test, expect, openWorkflow, type ConsoleUnderTest } from './console';
+
+/** A workflow whose parameter has no type a form can be built from. */
+const ECHO = `/**
+ * @flowWeaver nodeType
+ * @expression
+ * @input payload - Anything at all
+ * @output payload - The same
+ */
+function pass(payload: unknown): { payload: unknown } {
+  return { payload };
+}
+
+/**
+ * @flowWeaver workflow
+ * @param payload - Anything at all
+ * @returns payload - The same
+ * @node p pass
+ * @path Start -> p -> Exit
+ */
+export async function echo(
+  execute: boolean,
+  params: { payload: unknown },
+): Promise<{ onSuccess: boolean; onFailure: boolean; payload: unknown }> {
+  throw new Error('Flow Weaver must generate this body');
+}
+`;
 
 const runForm = (fw: ConsoleUnderTest): Locator => fw.inspector.getByRole('form', { name: 'New run' });
 
@@ -49,6 +77,11 @@ test('the approval workflow waits at its gate, and answering it completes the ru
   await expect(gate.getByText('6', { exact: true })).toBeVisible();
   // The answer is asked for under the words the author gave it.
   await expect(gate.getByText('Approved value')).toBeVisible();
+  // The run's list of steps says the same as the process: the gate step
+  // waits, and nothing is still running. (A step's row is its label, then
+  // what it is doing; the runs list's filter is a bare "waiting".)
+  await expect(fw.inspector.getByRole('button', { name: /.+waiting$/ })).toHaveCount(1);
+  await expect(fw.inspector.getByRole('button', { name: /.+running$/ })).toHaveCount(0);
 
   await gate.getByLabel('value').fill('20');
   await gate.getByRole('button', { name: 'Continue' }).click();
@@ -101,4 +134,18 @@ test('a debug session pauses before the first step, steps, and continues to the 
   await expect(fw.main.getByText(/^completed in /)).toBeVisible();
   const result = fw.inspector.getByRole('region', { name: 'Result' });
   await expect(result).toContainText('10');
+});
+
+test('a parameter with no form of its own is a JSON box, named by its label', async ({ fw }) => {
+  fs.writeFileSync(path.join(fw.dir, 'flows', 'echo.ts'), ECHO);
+  await fw.open();
+  await openWorkflow(fw, 'echo');
+
+  await runForm(fw).getByLabel('payload').fill('{ "order": 42 }');
+  await runForm(fw).getByRole('button', { name: 'Run', exact: true }).click();
+
+  await expect(fw.main.getByText(/^completed in /)).toBeVisible();
+  const result = fw.inspector.getByRole('region', { name: 'Result' });
+  await expect(result).toContainText('"order"');
+  await expect(result).toContainText('42');
 });

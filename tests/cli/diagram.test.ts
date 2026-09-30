@@ -94,6 +94,19 @@ describe('diagramCommand', () => {
     expect(stdoutChunks.join('')).toContain('ascii mock');
   });
 
+  it('ends what it prints with one newline, so the prompt after it starts a line of its own', async () => {
+    const inputFile = path.join(DIAGRAM_TEMP_DIR, 'workflow.ts');
+    fs.writeFileSync(inputFile, '// workflow');
+
+    await diagramCommand(inputFile, { format: 'ascii-compact' });
+    expect(stdoutChunks.join('')).toBe('ascii mock\n');
+
+    stdoutChunks = [];
+    vi.mocked(fileToSVG).mockReturnValueOnce('<svg>mock</svg>\n');
+    await diagramCommand(inputFile, {});
+    expect(stdoutChunks.join('')).toBe('<svg>mock</svg>\n');
+  });
+
   it('should write to output file when output option is provided', async () => {
     const inputFile = path.join(DIAGRAM_TEMP_DIR, 'workflow.ts');
     const outputFile = path.join(DIAGRAM_TEMP_DIR, 'output.svg');

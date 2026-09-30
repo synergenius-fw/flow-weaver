@@ -1,7 +1,7 @@
 ---
 name: Durable Gates
 description: Pausing a workflow at an approval, input, agent, or timer gate, resuming it later from another process, deadlines and sleeps kept by the coordinator's clock, and driving it from an AI assistant over MCP
-keywords: [gate, durable, durableGate, durablePure, durableEffect, waitForAgent, waitForEvent, sleep, approval, input, agent, timer, timeout, deadline, due, tick, clock, yield, continuation, resume, coordinator, fw_run, fw_resume, fw_runs, fw_workflow_run, fw_workflow_resume, bundleDigest, operationKey, receipt, classification, human-in-the-loop, pause]
+keywords: [gate, durable, durableGate, durablePure, durableEffect, waitForAgent, waitForEvent, sleep, approval, input, agent, timer, timeout, deadline, due, tick, clock, yield, continuation, resume, coordinator, fw_run, fw_resume, fw_runs, executeWorkflow, bundleDigest, operationKey, receipt, classification, human-in-the-loop, pause]
 ---
 
 # Durable Gates
@@ -112,10 +112,78 @@ The first `@path` expands to the control flow between the four steps plus `Start
 The compiler refuses these rather than guessing:
 
 - Parallel lanes — a gated closure is generated sequentially, so a yield never has a sibling still running
-- Scope callbacks (`@scope` node types) — the scope owner might call back concurrently
+- A loop around a gate that is not bounded and sequential — see [Loops around a gate](#loops-around-a-gate)
 - Pull or lazy nodes — an optional predecessor cannot form a complete prefix
 - A gate **or an effect** that does not sit in exactly one branch region — the selected arm is no longer in the address, so the boundary cannot be replayed
 - A gate or effect inside an active branch is fine; the branch path is retained
+
+#### Loops around a gate
+
+A scoped loop may reach a gate (each item waiting for its own approval, say) when its owner is:
+
+- **bounded**: it has an input named for its limit (`max…`, `limit`, `attempts`, `retries`, `count` or `iterations`), so replaying the loop on resume stays finite
+- **sequential**: it awaits the callback once per item, never through `Promise.all`, `allSettled`, `race` or `any`, so each gate keeps its own place in the order
+
+A resume, in this process or another, picks the loop up at the item that paused. Anything else is refused with `DURABLE_CLOSURE_INVALID`, naming the scope; a loop whose body never reaches a gate is not affected.
+
+```typescript
+/**
+ * Goes through the items one at a time, at most `maxItems`, and waits for
+ * each item's own approval before starting the next.
+ *
+ * @flowWeaver nodeType
+ * @durablePure
+ * @input items - Items to approve
+ * @input [maxItems] - The most it will go through
+ * @output start scope:each - Starts an item
+ * @output item scope:each - The item
+ * @input success scope:each - The item's gate went through
+ * @input approved scope:each - What was decided for it
+ * @output results - The decisions, in order
+ */
+async function eachItem(
+  execute: boolean,
+  items: string[],
+  maxItems: number = 10,
+  each: (start: boolean, item: string) => Promise<{ success: boolean; approved: boolean }>,
+): Promise<{ onSuccess: boolean; onFailure: boolean; results: boolean[] }> {
+  if (!execute) return { onSuccess: false, onFailure: false, results: [] };
+  const results: boolean[] = [];
+  for (const item of items.slice(0, maxItems)) results.push((await each(true, item)).approved);
+  return { onSuccess: true, onFailure: false, results };
+}
+
+/**
+ * @flowWeaver nodeType
+ * @durableGate approval
+ * @input item - The item to approve
+ * @output approved - Whether it is approved
+ */
+async function approveItem(execute: boolean, item: string): Promise<{ onSuccess: boolean; onFailure: boolean; approved: boolean }> {
+  throw new Error('durable gate implementation must not execute');
+}
+
+/**
+ * @flowWeaver workflow
+ * @param items - Items to approve
+ * @returns results - The decisions, in order
+ * @node owner eachItem
+ * @node gate approveItem owner.each
+ * @connect Start.execute -> owner.execute
+ * @connect Start.items -> owner.items
+ * @connect owner.start:each -> gate.execute
+ * @connect owner.item:each -> gate.item
+ * @connect gate.onSuccess -> owner.success:each
+ * @connect gate.approved -> owner.approved:each
+ * @connect owner.results -> Exit.results
+ * @connect owner.onFailure -> Exit.onFailure
+ */
+export async function approveEach(execute: boolean, params: { items: string[] }): Promise<{ onSuccess: boolean; onFailure: boolean; results: boolean[] }> {
+  throw new Error('generated body was not installed');
+}
+```
+
+Started with two items, the run waits at `gate` for the first, then again for the second, then completes with both decisions.
 
 #### Exactly one branch region
 
@@ -430,14 +498,14 @@ The request shape is the engine's:
 
 ## What does not work
 
-- `fw run` and `fw dev` refuse a gated workflow: `a workflow graph with durable gates requires coordinator-verified whole-bundle identity before execution`. Use `fw_run` / `fw_resume`, or `fw_workflow_run` / `fw_workflow_resume` if you are writing a coordinator
-- `--mocks` with `events` or `agents` entries does not resolve a gate. A compiled gate yields regardless; those sections only trigger CLI validation warnings
+- `fw run` and `fw dev` refuse a gated workflow, mocked or not: they have nowhere to keep a run between one gate and the next. Use `fw_run` / `fw_resume`, the console, `fw serve`, or `executeWorkflow` from `@synergenius/flow-weaver/coordinator` if you are writing a coordinator
+- Gate mocks (`gates`, `events`, `agents`, and `fast` for a `sleep`) answer a gate only where a run is kept: under **Mocks** on the console's New run card, in a `{ "params", "mocks" }` start body to `fw serve --dev`, and in `createLocalCoordinator().start({ …, mocks })`. `fw_run` takes none
 - The step debugger holds a live Promise and is not a coordinator; it rejects continuation and gate fields
 - Nothing is reachable through `globalThis` — mocks, agent channels, and approval providers are execution-scoped or gone
 
 ## Related Topics
 
-- [Built-in Nodes](built-in-nodes.md) — `waitForAgent` and `waitForEvent` signatures, and which mocks still apply
+- [Built-in Nodes](built-in-nodes.md) — `waitForAgent` and `waitForEvent` signatures, and the mocks that answer them
 - [Advanced Annotations](advanced-annotations.md) — The full node-type annotation table
 - [Debugging](debugging.md) — Why the debugger cannot resume a gate
 - [Cancellation](cancellation.md) — Cooperative cancellation at node boundaries

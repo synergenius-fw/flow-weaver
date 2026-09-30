@@ -16,15 +16,17 @@ Compilation is **in-place** by default. The compiler inserts generated code into
 // Your node types and annotations above (untouched)
 
 // @flow-weaver-runtime-start
-// Generated imports and runtime setup
+// The engine, copied in
 // @flow-weaver-runtime-end
 
-export function myWorkflow(params: { data: string }) {
+export async function myWorkflow(execute: boolean, params: { data: string }, __runtime__: WorkflowRuntime) {
   // @flow-weaver-body-start
   // Generated execution logic
   // @flow-weaver-body-end
 }
 ```
+
+The workflow function keeps its name and parameters and gains a third, the runtime: see [Using the library](library.md) for calling it.
 
 **Key guarantee:** Code outside the marker sections is never modified. Your node type functions, imports, and other code are preserved exactly as written.
 
@@ -43,12 +45,13 @@ The default `typescript` target generates code that runs directly in Node.js or 
 
 ### Generated Code Structure
 
-- **ExecutionContext** — Runtime context for variable storage, abort signals, and debug events
-- **FunctionRegistry** — Registry of 25+ built-in functions (branching, iteration, error handling)
-- **Debug instrumentation** — `STATUS_CHANGED`, `VARIABLE_SET` events via WebSocket (omitted in production mode)
+- **The engine, inlined** between the runtime markers — `GeneratedExecutionContext` (port values, execution indices, cancellation checks), `CancellationError`, the durable-gate engine, and `createWorkflowRuntime`, all exported from the file, so the compiled workflow imports nothing from Flow Weaver
+- **The body** between the body markers — each step in run order: its inputs read, its function called, its outputs recorded, its `:ok`/`:fail` route taken
+- **Trace events** — `STATUS_CHANGED`, `VARIABLE_SET`, `LOG_ERROR` and `WORKFLOW_COMPLETED`, sent to the runtime's `services.debugger` (left out with `--production`); see [Debugging](debugging.md)
+- **Step-through hooks** — the runtime's `services.debugController` can pause before and after each step
 - **Scope functions** — Async functions for forEach/iteration patterns
-- **Abort signal support** — Cancellation propagation through the execution graph
-- **Recursion depth protection** — Prevents infinite loops in cyclic workflows
+- **Abort signal support** — Cancellation checked at every step boundary
+- **Recursion depth protection** — A workflow that calls itself stops at a depth of 1,000
 
 ### Example
 
@@ -59,15 +62,14 @@ fw compile workflow.ts
 Generates code like:
 ```typescript
 // @flow-weaver-runtime-start
-// (inline runtime: GeneratedExecutionContext, CancellationError, types)
+// (the engine, inlined: GeneratedExecutionContext, CancellationError, the durable-gate engine, createWorkflowRuntime, types)
 // @flow-weaver-runtime-end
 
-export function myWorkflow(params: { data: string }) {
+export async function processRecord(execute: boolean, params: { record: Record }, __runtime__: WorkflowRuntime
+): Promise<{ onSuccess: boolean; onFailure: boolean; score: number; summary: string }> {
   // @flow-weaver-body-start
-  const ctx = new ExecutionContext();
-  const validate_result = validateRecord(true, params.data);
-  // ... execution chain
-  return { onSuccess: true, onFailure: false, result: score_result.score };
+  const ctx = new GeneratedExecutionContext(true, __runtime__);
+  // ... one block per step, in run order
   // @flow-weaver-body-end
 }
 ```
@@ -265,6 +267,6 @@ fw compile workflow.ts --dry-run
 - [CLI Reference](cli-reference.md) — Full compile command flags
 - [Deployment](deployment.md) — Export targets, HTTP serve mode, OpenAPI
 - [Advanced Annotations](advanced-annotations.md) — Annotations that affect compilation
-- [Debugging](debugging.md) — Debug instrumentation and WebSocket events
+- [Debugging](debugging.md) — Trace events and the step-through debugger
 - [Built-in Nodes](built-in-nodes.md) — delay, waitForEvent, invokeWorkflow, waitForAgent
 - [Durable Gates](durable-gates.md) — Workflows that pause and resume across processes

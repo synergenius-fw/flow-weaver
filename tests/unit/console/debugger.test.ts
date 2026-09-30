@@ -2,10 +2,13 @@
  * The console's step-through debugger: the same controller the CLI and MCP
  * drive, seen as a session that pauses, is inspected, changed, and moved.
  */
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { DebugSessions, latestValues } from '../../../src/console/debug';
+import { scanWorkflowNames } from '../../../src/console/scan';
 
 const useCases = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'use-cases');
 const hello = path.join(useCases, 'hello-world.ts');
@@ -94,6 +97,23 @@ describe('DebugSessions', () => {
     const v = await sessions.start({ file: hello, name: 'noSuchWorkflow', params });
     expect(v.status).toBe('failed');
     expect(v.error).toBeTruthy();
+  }, 60000);
+
+  it('keeps the copy it runs out of the project, so the console lists the workflow once', async () => {
+    // A held session keeps its compiled copy beside the source for as long as
+    // it is paused; the console re-lists the project on every file change.
+    const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'fw-debug-listing-')));
+    const file = path.join(dir, 'hello-world.ts');
+    fs.copyFileSync(hello, file);
+    const sessions = new DebugSessions();
+    try {
+      const v = await sessions.start({ file, name: 'helloWorld', params });
+      expect(v.status).toBe('paused');
+      expect(scanWorkflowNames(dir).map((w) => `${w.rel} ${w.name}`)).toEqual(['hello-world.ts helloWorld']);
+      await sessions.abort(v.id);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   }, 60000);
 
   it('steps a gated workflow as far as its first gate, then says why it stops', async () => {

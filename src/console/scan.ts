@@ -17,6 +17,7 @@ import { parseWorkflow } from '../api/parse.js';
 import { validateWorkflow } from '../api/validate.js';
 import { getAvailableWorkflows } from '../api/workflow-file-operations.js';
 import { installedRefs, packForFile, packForSpecifier, type InstalledRef } from './packs.js';
+import { isScratchFile } from '../utils/scratch-files.js';
 
 export interface WorkflowSummary {
   /** Absolute path, in the platform's own form. */
@@ -62,8 +63,8 @@ function walk(dir: string, out: string[]): void {
     if (SKIP.has(entry.name) || entry.name.startsWith('.')) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(full, out);
-    // `.fw-diff-*` is an older version of a file, written beside it for a moment to be parsed for the Changes pane.
-    else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts') && !entry.name.startsWith('.fw-diff-')) out.push(full);
+    // Flow Weaver's own scratch copies are dot-files too, but say so: one is held for a whole debug session.
+    else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts') && !isScratchFile(entry.name)) out.push(full);
   }
 }
 

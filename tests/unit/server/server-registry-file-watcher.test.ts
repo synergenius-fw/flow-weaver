@@ -124,6 +124,26 @@ describe('WorkflowRegistry file watcher', () => {
     }
   });
 
+  it('ignores dependencies, run records, generated files and scratch copies', async () => {
+    const chokidar = await import('chokidar');
+    await registry.startWatching(vi.fn());
+    const options = vi.mocked(chokidar.watch).mock.calls.at(-1)![1] as { ignored: unknown };
+    // chokidar 4 and later compare a string with the whole path, so a glob
+    // there ignores nothing; the rule has to be a function.
+    expect(typeof options.ignored).toBe('function');
+    const ignored = options.ignored as (p: string) => boolean;
+    for (const p of [
+      '/tmp/workflows/node_modules/zod/index.ts',
+      '/tmp/workflows/.fw/runs/5c1e/run.json',
+      '/tmp/workflows/.git/HEAD',
+      '/tmp/workflows/api.generated.ts',
+      '/tmp/workflows/types.d.ts',
+      '/tmp/workflows/.fw-exec-1790808406574-hjsre24aq0s.ts',
+      '/tmp/workflows/sub/.fw-diff-1a2b3c4d-order.ts',
+    ]) expect(ignored(p), p).toBe(true);
+    for (const p of ['/tmp/workflows', '/tmp/workflows/order.ts', '/tmp/workflows/sub/refunds.ts']) expect(ignored(p), p).toBe(false);
+  });
+
   it('stopWatching clears pending debounce timers', async () => {
     const onChange = vi.fn();
     await registry.startWatching(onChange);
