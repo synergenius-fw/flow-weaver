@@ -12,7 +12,11 @@ import { tokenizeJson } from '../tokens';
  * classes as the read-only value view, so a key, a string, a number, a
  * boolean and null read the same here as everywhere else.
  */
-export function JsonEditor({ value, onInput, rows = 4, placeholder, invalid }: {
+export function JsonEditor({ id, label, value, onInput, rows = 4, placeholder, invalid }: {
+  /** For a `<label for>` elsewhere to name the text area. */
+  id?: string;
+  /** The text area's name when no label on the page gives it one. */
+  label?: string;
   value: string;
   onInput: (text: string) => void;
   rows?: number;
@@ -33,6 +37,8 @@ export function JsonEditor({ value, onInput, rows = 4, placeholder, invalid }: {
       </pre>
       <textarea
         class="jsoned-input"
+        id={id}
+        aria-label={label}
         rows={rows}
         value={value}
         spellcheck={false}

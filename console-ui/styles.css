@@ -1,8 +1,12 @@
 :root {
   color-scheme: dark;
   --bg: #0e1014; --panel: #14171d; --panel-2: #1b1f27; --panel-3: #222733; --line: #232834; --line-2: #313847;
-  --fg: #e7e9ee; --dim: #8a90a0; --faint: #5c6270;
+  /* Text colours are held to WCAG AA (4.5:1) on every surface above, the
+     lightest included; e2e/contrast.spec.ts measures the running console. */
+  --fg: #e7e9ee; --dim: #a3a9b7; --faint: #8a91a1;
   --accent: #6ea8fe; --ok: #3ecf8e; --warn: #f2b545; --err: #f0636a; --gate: #c79bff; --loop: #5fd4d9; --pull: #f2c94c;
+  /* Text on a gate-coloured badge. */
+  --on-gate: #120a20;
   /* Foreground for anything filled with the accent. The dark theme's accent is a
      light blue, so white on it is unreadable; near-black reads. */
   --on-accent: #0b0d11;
@@ -12,7 +16,11 @@
   --r: 8px;
 }
 @media (prefers-color-scheme: light) {
-  :root { color-scheme: light; --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f1f3f6; --panel-3: #e8ebf0; --line: #e3e6eb; --line-2: #cfd4dc; --fg: #1a1d24; --dim: #667085; --faint: #98a2b3; --accent: #2f6fed; --on-accent: #ffffff; --c-blue: #2f6fed; --c-purple: #7c4dff; --c-cyan: #0891b2; --c-orange: #ea7a1d; --c-pink: #db2777; --c-green: #15a06a; --c-red: #dc2626; --c-yellow: #b7860b; --c-teal: #0d9488; }
+  /* The status colours are darker here than in the dark theme: they are read
+     as text on white, not only seen as dots. */
+  :root { color-scheme: light; --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f1f3f6; --panel-3: #e8ebf0; --line: #e3e6eb; --line-2: #cfd4dc; --fg: #1a1d24; --dim: #4b5465; --faint: #5f687a; --accent: #0b62c9; --on-accent: #ffffff;
+    --ok: #17753a; --warn: #8f6000; --err: #c21f2b; --gate: #7a47d6; --loop: #0b7285; --pull: #8a6100; --on-gate: #ffffff;
+    --c-blue: #2f6fed; --c-purple: #7c4dff; --c-cyan: #0891b2; --c-orange: #ea7a1d; --c-pink: #db2777; --c-green: #15a06a; --c-red: #dc2626; --c-yellow: #b7860b; --c-teal: #0d9488; }
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
@@ -44,7 +52,7 @@ a { color: var(--accent); text-decoration: none; }
 .bar button .ms { font-size: 19px; }
 .bar button:hover { color: var(--fg); background: var(--panel-2); }
 .bar button.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel-3)); }
-.bar .badge { position: absolute; top: 2px; right: 2px; min-width: 14px; height: 14px; padding: 0 4px; border-radius: 7px; font-size: 9.5px; line-height: 14px; text-align: center; font-weight: 600; color: #fff; background: var(--gate); }
+.bar .badge { position: absolute; top: 2px; right: 2px; min-width: 14px; height: 14px; padding: 0 4px; border-radius: 7px; font-size: 9.5px; line-height: 14px; text-align: center; font-weight: 600; color: var(--on-gate); background: var(--gate); }
 .bar .badge.dim { background: var(--line-2); color: var(--dim); font-weight: 500; }
 .bar .sp { flex: 1; }
 .railbody { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 14px 10px 0; overflow: hidden; }
@@ -146,7 +154,7 @@ a { color: var(--accent); text-decoration: none; }
 .item .t small { display: block; color: var(--faint); font-family: var(--mono); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: none; }
 .dot.warn { background: var(--warn); } .dot.err { background: var(--err); } .dot.none { background: var(--line-2); }
-.count { font-size: 10.5px; padding: 1px 6px; border-radius: 10px; background: var(--gate); color: #120a20; font-weight: 600; }
+.count { font-size: 10.5px; padding: 1px 6px; border-radius: 10px; background: var(--gate); color: var(--on-gate); font-weight: 600; }
 .runlist { display: grid; gap: 2px; }
 /* A run row: what became of it, when and how long, and what it was given underneath. */
 .runrow { position: relative; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 2px 9px; align-items: center; width: 100%; padding: 6px 9px; border-radius: 6px; font-size: 12px; text-align: left; }
@@ -171,11 +179,12 @@ a { color: var(--accent); text-decoration: none; }
 .tlrow .times:hover { background: color-mix(in srgb, var(--loop) 14%, transparent); } .tlrow .times .ms { font-size: 14px; }
 .tlrow.sub { grid-template-columns: 8px minmax(0, 1fr) auto; padding-left: 30px; font-size: 11.5px; color: var(--dim); } .tlrow.sub i { left: 47px; }
 /* Diff mode on the spine: rows tinted as in a code diff, removed steps struck through, edges recoloured; a step missing from one side keeps an empty dashed slot. */
-.row.diff-add > .body > .line1 { background: color-mix(in srgb, var(--ok) 11%, transparent); }
-.row.diff-del > .body > .line1 { background: color-mix(in srgb, var(--err) 11%, transparent); }
+/* Row tints stay light enough for the faint text on them to hold 4.5:1. */
+.row.diff-add > .body > .line1 { background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.row.diff-del > .body > .line1 { background: color-mix(in srgb, var(--err) 8%, transparent); }
 .row.diff-del .lbl, .row.diff-del .id { text-decoration: line-through; opacity: .7; }
 .row.diff-del .tile { opacity: .55; }
-.row.diff-mod > .body > .line1 { background: color-mix(in srgb, var(--warn) 11%, transparent); }
+.row.diff-mod > .body > .line1 { background: color-mix(in srgb, var(--warn) 8%, transparent); }
 .row.diff-add.sel > .body > .line1 { background: color-mix(in srgb, var(--ok) 20%, var(--panel-2)); } .row.diff-del.sel > .body > .line1 { background: color-mix(in srgb, var(--err) 20%, var(--panel-2)); } .row.diff-mod.sel > .body > .line1 { background: color-mix(in srgb, var(--warn) 20%, var(--panel-2)); }
 .lanes path.diff-add { stroke: var(--ok); stroke-width: 2.5; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ok) 60%, transparent)); }
 .lanes path.diff-del { stroke: color-mix(in srgb, var(--err) 80%, var(--line-2)); stroke-dasharray: 5 4; }
@@ -299,12 +308,16 @@ h5.fold { display: flex; align-items: center; gap: 8px; cursor: pointer; user-se
 .row.sel > .body > .line1 { background: var(--panel-2); }
 .line1 .lbl { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line1 .id { color: var(--faint); font-family: var(--mono); font-size: 11px; }
+/* A selected row is shaded darker, a selected diff row darker still. */
+.row.sel > .body > .line1 .id { color: var(--dim); }
 .line1 .sp { flex: 1; }
 .line1 .st { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .line1 .st.err { color: var(--err); } .line1 .st.gate { color: var(--gate); } .line1 .st.run { color: var(--accent); }
 .row.term .line1 .lbl { color: var(--dim); font-weight: 400; }
 .row.term.sel .line1 .lbl { color: var(--fg); }
-.row.skipped > .body > .line1 { opacity: .4; }
+/* A step the run did not take: quieter, in the theme's faint text colour rather
+   than faded, so its name still reads. The tile fades (.tile.skipped). */
+.row.skipped > .body > .line1 .lbl { color: var(--faint); font-weight: 400; }
 .mark { width: 6px; height: 6px; border-radius: 50%; background: var(--err); flex: none; }
 .mark.warn { background: var(--warn); }
 .tag { font-size: 10.5px; color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; white-space: nowrap; }
@@ -472,8 +485,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 /* The expand affordance sits over the code and stays out of the way until
    the pane is hovered. */
 .codewrap { position: relative; }
-.codewrap .expand { position: absolute; top: 6px; right: 10px; z-index: 2; width: 22px; height: 22px; border-radius: 5px; color: var(--faint); background: var(--panel); border: 1px solid var(--line); opacity: .45; transition: opacity .15s; font-size: 12px; line-height: 1; }
-.codewrap:hover .expand, .codewrap .expand:focus-visible { opacity: 1; }
+.codewrap .expand { position: absolute; top: 6px; right: 10px; z-index: 2; width: 22px; height: 22px; border-radius: 5px; color: var(--faint); background: var(--panel); border: 1px solid var(--line); font-size: 12px; line-height: 1; }
 .codewrap .expand:hover { color: var(--fg); border-color: var(--line-2); }
 .c-c { color: var(--dim); } .c-t { color: var(--gate); } .c-i { color: var(--fg); } .c-k { color: var(--accent); } .c-s { color: var(--ok); } .c-n { color: var(--warn); } .c-y { color: var(--loop); } .c-f { color: var(--pull); } .c-d { color: var(--gate); }
 .result pre { margin: 0; font-size: 11.5px; white-space: pre-wrap; word-break: break-word; }
@@ -514,7 +526,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .trait { display: grid; grid-template-columns: max-content 1fr; gap: 10px; align-items: baseline; }
 .trait .why { color: var(--faint); font-size: 11.5px; } .trait .why a.go { color: var(--accent); cursor: pointer; }
 .tag.expr { color: var(--dim); border-style: dashed; }
-.tag.effect { color: var(--c-orange); border-color: color-mix(in srgb, var(--c-orange) 40%, transparent); }
+.tag.effect { color: color-mix(in srgb, var(--c-orange) 70%, var(--fg)); border-color: color-mix(in srgb, var(--c-orange) 40%, transparent); }
 .tag.gate { color: var(--gate); border-color: color-mix(in srgb, var(--gate) 40%, transparent); }
 
 /* An [expr:] binding, and the port a value comes from: the step is the part
@@ -636,7 +648,7 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 .tile.bp::after { content: ""; position: absolute; top: -5px; right: -5px; width: 9px; height: 9px; border-radius: 50%; background: var(--err); border: 1.5px solid var(--bg); }
 .bpslot:hover .tile:not(.bp)::after { content: ""; position: absolute; top: -5px; right: -5px; width: 9px; height: 9px; border-radius: 50%; background: color-mix(in srgb, var(--err) 35%, transparent); border: 1.5px solid var(--bg); }
 .tile.PAUSED { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
-.row.PAUSED > .body > .line1 { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.row.PAUSED > .body > .line1 { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .line1 .st.debug { color: var(--accent); }
 .pill.debug { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .dbgbar { display: flex; gap: 6px; flex-wrap: wrap; }

@@ -36,6 +36,7 @@ import {
   type GateResolution,
   type WorkflowRuntimeServices,
 } from '../runtime/durable-execution.js';
+import { EXEC_SCRATCH_PREFIX } from '../utils/scratch-files.js';
 
 /** A single trace event captured during workflow execution. */
 export interface ExecutionTraceEvent {
@@ -193,7 +194,9 @@ export async function executeWorkflow(
   // so that ESM module resolution can walk up to the project's node_modules.
   // On Windows, os.tmpdir() is disconnected from the project tree, causing
   // bare import specifiers (e.g. 'zod', 'openai') to fail with MODULE_NOT_FOUND.
-  const tmpId = `fw-exec-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  // A dot-name keeps the copy out of every listing of the project's workflows:
+  // a debug session holds it for as long as it is paused.
+  const tmpId = `${EXEC_SCRATCH_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const tmpBase = path.join(path.dirname(resolvedPath), tmpId);
   const tmpTsFile = `${tmpBase}.ts`;
   const tmpFile = `${tmpBase}.mjs`;

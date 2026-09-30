@@ -32,6 +32,7 @@ import { findRoute, type ConsoleContext, type Route } from './router.js';
 import { refusal } from './request-guard.js';
 import { BadRequest, json, readBody, send, type Json } from './respond.js';
 import { getErrorMessage } from '../utils/error-utils.js';
+import { isScratchFile } from '../utils/scratch-files.js';
 
 export interface ConsoleServerOptions {
   /** Directory whose workflows the console shows. */
@@ -190,7 +191,7 @@ export async function createConsoleServer(options: ConsoleServerOptions): Promis
     const chokidar = await import('chokidar');
     watcher = chokidar.watch(projectDir, {
       ignoreInitial: true,
-      ignored: (p: string) => /(^|[\\/])(node_modules|dist|\.git|\.fw)([\\/]|$)/.test(p) || /(^|[\\/])\.fw-diff-/.test(p),
+      ignored: (p: string) => /(^|[\\/])(node_modules|dist|\.git|\.fw)([\\/]|$)/.test(p) || isScratchFile(path.basename(p)),
     });
     watcher.on('all', (_event, file) => {
       if (typeof file === 'string' && file.endsWith('.ts')) {

@@ -42,6 +42,7 @@ export async function diagramCommand(input: string, options: DiagramCommandOptio
     safeWriteFile(outputPath, result);
     logger.success(`Diagram written to ${outputPath}`);
   } else {
-    process.stdout.write(result);
+    // A terminal's prompt would otherwise start on the diagram's last line.
+    process.stdout.write(result.endsWith('\n') ? result : `${result}\n`);
   }
 }

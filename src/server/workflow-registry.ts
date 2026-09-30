@@ -11,6 +11,7 @@ import type { TDataType, TWorkflowAST } from '../ast/types.js';
 
 import type { FSWatcher } from 'chokidar';
 import { getErrorMessage } from '../utils/error-utils.js';
+import { isScratchFile } from '../utils/scratch-files.js';
 
 /**
  * Registry that discovers, caches, and manages workflow endpoints
@@ -199,7 +200,16 @@ export class WorkflowRegistry {
       const watcher = chokidar.watch(this.workflowDir, {
         persistent: true,
         ignoreInitial: true,
-        ignored: ['**/*.generated.ts', '**/node_modules/**', '**/*.d.ts'],
+        // A function, not globs: chokidar 4 and later compare a string with the
+        // whole path, so '**/node_modules/**' matched nothing and every file in
+        // node_modules was watched.
+        // Relative to the watched directory, so a project that itself sits
+        // under such a name is still watched.
+        ignored: (p: string) => {
+          const rel = path.relative(this.workflowDir, p);
+          return /(^|[\\/])(node_modules|\.git|\.fw)([\\/]|$)/.test(rel)
+            || /\.(generated|d)\.ts$/.test(rel) || isScratchFile(path.basename(p));
+        },
         awaitWriteFinish: {
           stabilityThreshold: 300,
           pollInterval: 100,

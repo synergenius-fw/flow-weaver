@@ -235,7 +235,7 @@ fw run <input> [options]
 ```bash
 fw run workflow.ts --params '{"amount": 500}'
 fw run workflow.ts --params-file input.json --trace
-fw run workflow.ts --mocks '{"fast": true, "events": {"app/approved": {"status": "ok"}}}'
+fw run workflow.ts --mocks '{"fast": true, "invocations": {"billing/charge": {"ok": true}}}'
 fw run workflow.ts --timeout 30000 --json
 fw run workflow.ts --debug
 fw run workflow.ts --debug --breakpoint processData --breakpoint validate
@@ -243,14 +243,14 @@ fw run workflow.ts --debug --breakpoint processData --breakpoint validate
 
 > See also: [Built-in Nodes](built-in-nodes.md) for mock configuration details and [Debugging](debugging.md) for live debug REPL commands.
 
-**Gated workflows are refused.** A workflow containing `waitForEvent`, `waitForAgent`, or any `@durableGate` node yields a continuation instead of finishing, and `fw run` is not a coordinator that can persist one:
+**Gated workflows are refused.** A workflow containing `waitForEvent`, `waitForAgent`, or any `@durableGate` node yields a continuation instead of finishing, and `fw run` is not a coordinator that can persist one. It refuses such a workflow before running anything, mocked or not:
 
 ```
-✗ Workflow execution failed: a workflow graph with durable gates requires
-  coordinator-verified whole-bundle identity before execution
+✗ Workflow execution failed: this workflow has durable gates, and `fw run` has nowhere to keep a run between one gate and the next.
+  Run it where runs are kept: `fw console` (answer gates on the page), `fw serve` (over HTTP), or the `fw_run` MCP tool from an assistant. From code, `createLocalCoordinator()` -- see `fw docs library`.
 ```
 
-Drive such a workflow with the `fw_run` / `fw_resume` MCP tools (see [mcp-server](#mcp-server)) or from code via `createLocalCoordinator` (or `executeWorkflow`) from `@synergenius/flow-weaver/coordinator`. `--mocks` does not resolve a gate. See [Durable Gates](durable-gates.md).
+Gate mocks apply where runs are kept: the console's New run card, `fw serve --dev`, and `createLocalCoordinator().start({ …, mocks })`. See [Durable Gates](durable-gates.md).
 
 ---
 

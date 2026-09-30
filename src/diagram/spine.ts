@@ -33,14 +33,16 @@ interface Palette {
 }
 
 const DARK: Palette = {
-  bg: '#0e1014', panel: '#14171d', line2: '#313847', fg: '#e7e9ee', dim: '#8a90a0',
+  bg: '#0e1014', panel: '#14171d', line2: '#313847', fg: '#e7e9ee', dim: '#a3a9b7',
   ok: '#3ecf8e', err: '#f0636a', gate: '#c79bff', loop: '#5fd4d9', pull: '#f2c94c', effect: '#ff9f5a',
   colors: { blue: '#6ea8fe', purple: '#b48cff', cyan: '#4fd1e0', orange: '#ff9f5a', pink: '#ff7ab6', green: '#3ecf8e', red: '#f0636a', yellow: '#f2c94c', teal: '#2fc7b0' },
 };
 
+// The status colours are darker here than in the dark palette, as in the
+// console: they are read as text on white.
 const LIGHT: Palette = {
-  bg: '#f6f7f9', panel: '#ffffff', line2: '#cfd4dc', fg: '#1a1d24', dim: '#667085',
-  ok: '#3ecf8e', err: '#f0636a', gate: '#c79bff', loop: '#5fd4d9', pull: '#f2c94c', effect: '#ea7a1d',
+  bg: '#f6f7f9', panel: '#ffffff', line2: '#cfd4dc', fg: '#1a1d24', dim: '#4b5465',
+  ok: '#17753a', err: '#c21f2b', gate: '#7a47d6', loop: '#0b7285', pull: '#8a6100', effect: '#ac5e1f',
   colors: { blue: '#2f6fed', purple: '#7c4dff', cyan: '#0891b2', orange: '#ea7a1d', pink: '#db2777', green: '#15a06a', red: '#dc2626', yellow: '#b7860b', teal: '#0d9488' },
 };
 

@@ -725,7 +725,7 @@ These annotations go on `@flowWeaver nodeType` blocks:
 | `@pullExecution` | Lazy evaluation | `@pullExecution execute` |
 | `@resilience` | Declare adapter-owned retry/fallback handling for static validation | `@resilience retries=3 fallback="backup-provider"` |
 | `@durablePure` | No side effects; safe to re-run after a resume | `@durablePure` |
-| `@durableGate` | Pause point: `approval`, `input`, or `agent` | `@durableGate approval` |
+| `@durableGate` | Pause point: `approval`, `input`, `agent`, or `timer` | `@durableGate approval` |
 | `@durableEffect` | Touches the outside world; runs through the effect adapter | `@durableEffect` |
 
 `@resilience` is an explicit static-analysis contract; it does not implement retries itself. Use it only when the node's shared adapter already performs the declared bounded retries or fallback. An unconnected `onFailure` port still remains an error because exhausted attempts must be handled.

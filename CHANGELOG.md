@@ -4,6 +4,28 @@ All notable changes to this project are documented in [GitHub Releases](https://
 
 This project follows [Semantic Versioning](https://semver.org/) during beta. Breaking changes may occur between minor versions until v1.0.
 
+## Unreleased
+
+### Fixed
+
+- **The console's text can be read in both themes.** The light theme kept the dark theme's status colours, so "valid", "5 errors", "waiting at approval" and "on demand" sat on white at 1.5 to 2.9:1, and the faint text of step ids, hints and times was 2.6:1. Every text now holds the WCAG AA minimum (4.5:1) against what it sits on, in both themes, and an end-to-end test measures the running console to keep it so. A step the run skipped keeps its name readable instead of fading to 40%, and a gate's kind is no longer faded either. The diagram (`fw diagram`, Share's SVG) and the brief use the same colours.
+- **A paused debug session no longer shows its workflow twice.** A run compiles a copy of the workflow beside its source, and a debug session holds that copy while it is paused. The console listed it as a second workflow. The copy is now a dot-file, which every listing skips.
+- **`fw serve` no longer watches `node_modules`.** Its watcher's ignore list was written as globs, and chokidar 4 and later compare a string with the whole path, so nothing was ignored. On Linux a large `node_modules` could use up the system's file watches.
+- **The run card's steps say "waiting" at the gate the run waits at**, as the process does, instead of "running" with a bar that grew until the answer came.
+- **A run form's JSON box is named by its label.** A parameter typed `unknown` or `any` is edited as JSON, and its text area was not tied to its label, so neither `getByLabel` nor a screen reader could find it. The JSON views of an open object and of the whole form are named too.
+- **`fw diagram` ends what it prints with a newline**, so the shell prompt no longer starts on the diagram's last line.
+
+### Changed
+
+- **The docs match the code again:**
+  - The tutorial runs its example with `fw run`, or calls the compiled file with a runtime. It no longer imports a `.generated` file or calls the workflow without its runtime.
+  - Debugging describes trace events as they are delivered: to the runtime's `services.debugger`, `fw run --stream` and the console. The WebSocket debugger and `FLOW_WEAVER_DEBUG` were removed earlier, and their instructions are now gone too.
+  - Built-in Nodes, Durable Gates, Debugging and the CLI reference now agree on mocks. `gates`, `events`, `agents`, and `fast` for a `sleep` answer a gate where runs are kept: the console, `fw serve --dev` and the coordinator. `fw run` refuses a gated workflow, mocked or not, and the pages quote its current message.
+  - Durable Gates and Export Interface describe loops around a gate, with an example. A bounded, sequential loop may reach a gate, but both pages still said a scope and a gate could not share a workflow.
+  - Compilation shows the workflow's real signature, with its runtime parameter, and what a compiled file contains.
+  - The annotation table lists the `timer` gate kind.
+  - Coordinator authors are pointed at `executeWorkflow` instead of the removed `fw_workflow_run`.
+
 ## 0.44.0
 
 The first Apache-2.0 release on npm (0.43.0 was tagged but never published there). It carries a clean-code and security pass over the whole codebase, a faster CLI, and releases published from CI with npm provenance.

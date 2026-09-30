@@ -80,7 +80,7 @@ function StepRow({ row, gutter, laneX, w, nodes, mark, slot }: { row: GRow<Step>
   else if (st === 'FAILED') status = <span class="st err">{times}{r?.errors[s.id] ? 'threw' : 'failed'}{dur != null ? `, ${ms(dur)}` : ''}</span>;
   else if (st === 'SUCCEEDED') status = <span class="st">{times}{ms(dur)}</span>;
   else if (st === 'CANCELLED') status = <span class="st">cancelled</span>;
-  else if (!r && s.kind === 'pause') status = <span class="st gate" style="opacity:.7">{s.gate ?? 'gate'}</span>;
+  else if (!r && s.kind === 'pause') status = <span class="st gate">{s.gate ?? 'gate'}</span>;
   return (
     <div class={`row ${st} ${sel.value === s.id ? 'sel' : ''} ${row.owner ? 'inscope' : ''} ${mark ? `diff-${mark}` : ''}`} data-row={s.id} style={`padding-left:${gutter}px`}>
       {/* The tile is where a breakpoint goes, as in any editor's gutter. */}

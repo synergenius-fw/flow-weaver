@@ -22,6 +22,7 @@ import { gateOutputSchemas, workflowParamsSchema } from './schema.js';
 import { toPosix } from './scan.js';
 import { workflowSource } from './source.js';
 import { terminalWiring } from './terminals.js';
+import { DIFF_SCRATCH_PREFIX } from '../utils/scratch-files.js';
 import type { Json } from './respond.js';
 
 const CONTROL = new Set(['execute', 'onSuccess', 'onFailure']);
@@ -69,7 +70,7 @@ export async function astAt(file: string, name: string, ref: string): Promise<{ 
   }
   const text = await fileAt(file, ref);
   if (text === undefined) return { error: `${path.basename(file)} does not exist at ${ref}` };
-  const tmp = path.join(path.dirname(file), `.fw-diff-${randomUUID().slice(0, 8)}-${path.basename(file)}`);
+  const tmp = path.join(path.dirname(file), `${DIFF_SCRATCH_PREFIX}${randomUUID().slice(0, 8)}-${path.basename(file)}`);
   fs.writeFileSync(tmp, text, 'utf8');
   try {
     const p = await parseWorkflow(tmp, { workflowName: name, projectDir: path.dirname(file) });
