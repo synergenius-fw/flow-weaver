@@ -21,7 +21,7 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
   - The tutorial runs its example with `fw run`, or calls the compiled file with a runtime. It no longer imports a `.generated` file or calls the workflow without its runtime.
   - Debugging describes trace events as they are delivered: to the runtime's `services.debugger`, `fw run --stream` and the console. The WebSocket debugger and `FLOW_WEAVER_DEBUG` were removed earlier, and their instructions are now gone too.
   - Built-in Nodes, Durable Gates, Debugging and the CLI reference now agree on mocks. `gates`, `events`, `agents`, and `fast` for a `sleep` answer a gate where runs are kept: the console, `fw serve --dev` and the coordinator. `fw run` refuses a gated workflow, mocked or not, and the pages quote its current message.
-  - Durable Gates and Export Interface describe loops around a gate, with an example. These have been allowed since #617 when bounded and sequential, but both pages still said a scope and a gate could not share a workflow.
+  - Durable Gates and Export Interface describe loops around a gate, with an example. A bounded, sequential loop may reach a gate, but both pages still said a scope and a gate could not share a workflow.
   - Compilation shows the workflow's real signature, with its runtime parameter, and what a compiled file contains.
   - The annotation table lists the `timer` gate kind.
   - Coordinator authors are pointed at `executeWorkflow` instead of the removed `fw_workflow_run`.
