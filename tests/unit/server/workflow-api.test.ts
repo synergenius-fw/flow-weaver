@@ -437,13 +437,22 @@ export async function nap(execute: boolean, params: { label: string }): Promise<
 }
 `;
   let api: WorkflowApi;
+  let napRuns: string;
   const announced: RunResponse[] = [];
   beforeAll(async () => {
     fs.writeFileSync(path.join(dir, 'nap.ts'), NAP);
-    api = createWorkflowApi({ dir, runsDir, agents: false, callbacks: { sweepMs: 60_000 }, onRun: (r) => { announced.push(r); } });
+    // A runs directory of its own. The file's server sweeps the shared one
+    // every 150 ms, so on a loaded runner it would reach this run first: hold
+    // it while this API's sweep tries (still 202), or wake it and announce
+    // the completion to its own listener instead of this one.
+    napRuns = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-api-nap-runs-'));
+    api = createWorkflowApi({ dir, runsDir: napRuns, agents: false, callbacks: { sweepMs: 60_000 }, onRun: (r) => { announced.push(r); } });
     await api.ready();
   });
-  afterAll(async () => { await api.close(); });
+  afterAll(async () => {
+    await api.close();
+    fs.rmSync(napRuns, { recursive: true, force: true });
+  });
 
   it('answers 202 with the wake time for a sleeping run, and the sweep wakes it', async () => {
     const post = (p: string, body: unknown) => api.fetch(new Request(`http://x${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));

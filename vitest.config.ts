@@ -131,7 +131,8 @@ export default defineConfig({
       },
     ],
 
-    // Coverage (used by the un-sharded coverage job, which runs both projects).
+    // Coverage: each CI shard collects it (--coverage with the blob reporter)
+    // and the coverage job merges the shards with --merge-reports.
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],

@@ -62,14 +62,16 @@ jobs:
   test:
     needs: build
     if: needs.build.outputs.is_release == 'false'
-    # Test shards normally finish in a few minutes. Bound a wedged worker so
-    # one bad shard cannot run indefinitely.
+    # With coverage on, a shard's tests take about six minutes. Bound a wedged
+    # worker so one bad shard cannot run indefinitely.
     timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        # Six, not three: coverage roughly doubles the tests' time, and three
+        # shards took 12-14 minutes each against the 20-minute bound.
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v7
 
@@ -81,13 +83,30 @@ jobs:
 
       - run: npm ci
 
-      - name: Run tests (shard ${{ matrix.shard }}/3)
-        run: npx vitest run --shard=${{ matrix.shard }}/3 --reporter=default
+      # Coverage is collected here, in the shards, and merged by the coverage
+      # job. A separate job that ran the whole suite again with --coverage
+      # outgrew its 30 minutes; this way the suite runs once, and every PR
+      # exercises the same coverage path main does.
+      - name: Run tests (shard ${{ matrix.shard }}/6)
+        run: npx vitest run --shard="$SHARD/6" --coverage --reporter=default --reporter=blob --outputFile.blob=".vitest-reports/blob-$SHARD.json"
         # Per-worker heap ceilings live in vitest.config.ts (execArgv, sized to
         # a 7-8 GB runner). NODE_OPTIONS here only bounds the parent vitest
         # process, which orchestrates and doesn't hold the ts-morph working set.
         env:
+          SHARD: ${{ matrix.shard }}
           NODE_OPTIONS: '--max-old-space-size=2048'
+
+      - name: Keep the shard's results for the coverage merge
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vitest-blob-${{ matrix.shard }}
+          path: .vitest-reports/
+          # upload-artifact skips hidden paths by default, and this one starts
+          # with a dot.
+          include-hidden-files: true
+          retention-days: 3
+          if-no-files-found: error
 
   e2e:
     # The console's client in Chromium, against a real console per test
@@ -113,11 +132,9 @@ jobs:
       - run: npm run test:e2e
 
   coverage:
-    # Runs after the test matrix so a red shard fails fast before the long
-    # --coverage pass starts.
+    # Merges the shards' results into one report; it runs no tests itself.
     needs: [build, test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    timeout-minutes: 30
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -127,20 +144,45 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-
       - run: npm ci
 
-      - name: Run tests with coverage
-        run: npx vitest run --reporter=default --coverage
-        # See the test job: per-worker heap is configured in vitest.config.ts.
-        env:
-          NODE_OPTIONS: '--max-old-space-size=2048'
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: vitest-blob-*
+          path: .vitest-reports
+          merge-multiple: true
 
+      - name: Merge the shards' coverage
+        run: >-
+          npx vitest run --merge-reports=.vitest-reports --coverage --reporter=dot
+          --coverage.reporter=text-summary --coverage.reporter=json-summary
+          --coverage.reporter=lcov --coverage.reporter=html
+
+      - name: Write the totals to the job summary
+        run: |
+          node -e '
+            const t = require("./coverage/coverage-summary.json").total;
+            const row = (k) => `| ${k} | ${t[k].pct}% | ${t[k].covered} / ${t[k].total} |`;
+            console.log(["## Coverage", "", "| | Covered | |", "|---|---|---|",
+              row("lines"), row("statements"), row("functions"), row("branches")].join("\n"));
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the report
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      # Codecov needs a CODECOV_TOKEN secret for this repository; without one
+      # every upload is refused, so the step only runs once the secret exists.
       - name: Upload coverage to Codecov
-        if: always()
+        if: env.CODECOV_TOKEN != ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         uses: codecov/codecov-action@v7
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
           files: coverage/lcov.info
           fail_ci_if_error: false
 
