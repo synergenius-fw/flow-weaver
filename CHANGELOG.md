@@ -4,7 +4,9 @@ All notable changes to this project are documented in [GitHub Releases](https://
 
 This project follows [Semantic Versioning](https://semver.org/) during beta. Breaking changes may occur between minor versions until v1.0.
 
-## Unreleased
+## 0.45.0
+
+The console, its diagrams and the brief can be read in either theme, and the docs match the code again.
 
 ### Fixed
 
