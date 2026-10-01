@@ -1,0 +1,53 @@
+name: Pages
+
+# The site at https://synergenius-fw.github.io/flow-weaver/: a page where the
+# refund workflow, compiled by this commit's compiler, runs in the visitor's
+# browser. `npm run site` fails if the compiled workflow no longer pauses and
+# resumes outside Flow Weaver, so a broken site never deploys.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time, and a running one is never cut short.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run site
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

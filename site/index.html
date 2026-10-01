@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow Weaver: workflows that compile to TypeScript you own</title>
+<meta name="description" content="Flow Weaver is a deterministic TypeScript workflow compiler. A real workflow runs on this page and waits for you to answer it.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="canonical" href="https://synergenius-fw.github.io/flow-weaver/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Flow Weaver: workflows that compile to TypeScript you own">
+<meta property="og:description" content="A deterministic TypeScript workflow compiler. A real workflow runs on the page and waits for you to answer it.">
+<meta property="og:url" content="https://synergenius-fw.github.io/flow-weaver/">
+<meta property="og:image" content="https://synergenius-fw.github.io/flow-weaver/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #14171d; --line: #262c37; --line2: #313847;
+    --fg: #e7e9ee; --dim: #a3a9b7; --faint: #8a91a1;
+    --gate: #c79bff; --ok: #3ecf8e; --err: #f0636a; --accent: #6ea8fe;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: radial-gradient(ellipse 80% 50% at 50% 0%, #151a24, var(--bg) 70%) no-repeat, var(--bg); color: var(--fg); font: 16px/1.5 var(--sans); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  header { display: flex; align-items: center; gap: 12px; padding: 18px 28px; max-width: 1160px; margin: 0 auto; }
+  header .mark svg { height: 30px; width: auto; display: block; }
+  header b { font-size: 17px; letter-spacing: -0.2px; }
+  header nav { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+  header nav a { color: var(--dim); }
+  main { max-width: 1060px; margin: 0 auto; padding: 0 24px 72px; }
+  section { margin-top: 88px; }
+  .eyebrow { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  h1 { font-size: clamp(40px, 6.4vw, 66px); letter-spacing: -2px; line-height: 1.04; margin: 14px 0 18px; max-width: 900px; }
+  h2 { font-size: clamp(30px, 4.4vw, 44px); letter-spacing: -1.2px; line-height: 1.1; margin: 0 0 12px; }
+  .lede { font-size: 20px; color: var(--dim); max-width: 720px; margin: 0; }
+  .ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 30px; }
+  .button { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; border-radius: 10px; padding: 11px 20px; border: 1px solid var(--line2); color: var(--fg); }
+  .button:hover { text-decoration: none; border-color: var(--faint); }
+  .button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .cmd { display: inline-flex; align-items: center; gap: 10px; font: 14px var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 6px 6px 14px; max-width: 100%; }
+  .cmd code { white-space: nowrap; overflow: auto; }
+  .cmd button { font: 600 13px var(--sans); padding: 6px 12px; }
+  .stage { margin-top: 28px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  @media (max-width: 820px) { .stage { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .diagram svg > rect:first-of-type { fill: transparent; }
+  .diagram g.row { transition: opacity .35s; }
+  .diagram g.row:not([data-state]) { opacity: .4; }
+  .diagram g.row[data-state=running] rect:not(.hit) { stroke: var(--accent); stroke-dasharray: none; }
+  .diagram g.row[data-state=waiting] rect:not(.hit) { stroke: var(--gate); stroke-width: 2.5; filter: drop-shadow(0 0 5px var(--gate)); }
+  .diagram path.edge { transition: stroke .35s; }
+  .diagram path.edge.taken.ok { stroke: var(--ok); }
+  .diagram path.edge.taken.fail { stroke: var(--err); }
+  .kicker { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--gate); display: flex; gap: 8px; align-items: center; }
+  .kicker .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gate); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .summary { font-size: 22px; line-height: 1.35; margin: 14px 0 6px; }
+  .deadline { font-size: 14px; color: var(--faint); margin: 0 0 18px; }
+  label { display: block; font-size: 13px; color: var(--dim); margin-bottom: 6px; }
+  input { width: 100%; background: var(--bg); border: 1px solid var(--line2); border-radius: 10px; color: var(--fg); font: inherit; padding: 10px 12px; }
+  .buttons { display: flex; gap: 10px; margin-top: 16px; }
+  button { font: inherit; font-weight: 600; border-radius: 10px; border: 1px solid var(--line2); background: transparent; color: var(--fg); padding: 10px 18px; cursor: pointer; }
+  button:hover { border-color: var(--faint); }
+  button.approve { background: var(--ok); border-color: var(--ok); color: #06140d; }
+  button.decline { border-color: var(--err); color: var(--err); }
+  button:disabled { opacity: .45; cursor: default; }
+  .pass { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14px; color: var(--dim); }
+  .pass button { font-size: 14px; padding: 8px 14px; margin-top: 8px; }
+  .pass input { margin-top: 10px; font: 12px var(--mono); }
+  .note { font-size: 14px; color: var(--faint); margin: 16px 0 0; }
+  .passed { background: rgba(199, 155, 255, .1); border: 1px solid rgba(199, 155, 255, .35); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-bottom: 16px; }
+  .result .verdict { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; margin: 0; }
+  .result.ok .verdict { color: var(--ok); }
+  .result.err .verdict { color: var(--err); }
+  .result .outcome { font-size: 20px; margin: 12px 0 0; }
+  .after { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--dim); font-size: 15px; }
+  .after .cmd { margin: 12px 0 14px; }
+  .after .cmd code { white-space: normal; overflow-wrap: anywhere; }
+  .after .row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .log { margin-top: 18px; font: 13px/1.7 var(--mono); color: var(--faint); white-space: pre-wrap; }
+  details { margin-top: 22px; }
+  summary { cursor: pointer; color: var(--dim); }
+  pre { font: 13px/1.6 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; overflow: auto; color: var(--dim); max-height: 520px; }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  @media (max-width: 820px) { .facts { grid-template-columns: 1fr; } }
+  .facts div { color: var(--dim); font-size: 15px; }
+  .facts b { display: block; color: var(--fg); font-size: 22px; letter-spacing: -0.4px; margin-bottom: 6px; }
+  .steps { margin: 22px 0 0; padding: 0; list-style: none; display: grid; gap: 14px; max-width: 760px; }
+  .steps li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; color: var(--dim); }
+  .steps li > span { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line2); display: grid; place-items: center; font-size: 13px; color: var(--fg); }
+  .steps .cmd { margin-top: 8px; }
+  footer { max-width: 1060px; margin: 0 auto; padding: 28px 24px 48px; color: var(--faint); font-size: 14px; display: flex; gap: 18px; flex-wrap: wrap; border-top: 1px solid var(--line); }
+  footer a { color: var(--dim); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <span class="mark"><!--mark--></span><b>Flow Weaver</b>
+  <nav>
+    <a href="#start">Get started</a>
+    <a href="https://github.com/synergenius-fw/flow-weaver/tree/main/docs/reference">Docs</a>
+    <a href="https://github.com/synergenius-fw/flow-weaver">GitHub</a>
+  </nav>
+</header>
+<main>
+  <div class="eyebrow">Open source · Apache-2.0 · TypeScript</div>
+  <h1>Workflows that compile to TypeScript you own.</h1>
+  <p class="lede">Flow Weaver is a deterministic TypeScript workflow compiler. You describe a workflow with JSDoc annotations, and it compiles to a standalone TypeScript function that imports nothing from Flow Weaver. A run can pause for a person, an AI agent or a timer, and resume where it stopped.</p>
+  <div class="ctas">
+    <a class="button primary" href="#start">Get started</a>
+    <a class="button" href="https://github.com/synergenius-fw/flow-weaver">View on GitHub</a>
+    <span class="cmd"><code>npx @synergenius/flow-weaver init my-project</code><button data-copy="npx @synergenius/flow-weaver init my-project">Copy</button></span>
+  </div>
+
+  <section id="try">
+    <div class="eyebrow">Try it here</div>
+    <h2>Be the gate.</h2>
+    <p class="lede">A real Flow Weaver workflow is running in this page. It has reached a step that waits for a person, and that person is you.</p>
+
+    <div class="stage">
+      <div class="card diagram"><!--diagram--><div class="log" id="log"></div></div>
+
+      <div>
+        <div class="card" id="gate" hidden>
+          <div class="passed" id="passed" hidden>Someone passed you this decision. The run is paused in your browser now, exactly where they left it.</div>
+          <div class="kicker"><span class="dot"></span>Manager approval · <span id="since">waiting</span></div>
+          <div class="summary" id="summary"></div>
+          <p class="deadline" id="deadline"></p>
+          <label for="note">Your note</label>
+          <input id="note" placeholder="Optional, for the record">
+          <div class="buttons">
+            <button class="approve" id="approve">Approve</button>
+            <button class="decline" id="decline">Decline</button>
+          </div>
+          <div class="pass">
+            Pass the decision on: the link carries this paused run, so whoever opens it can answer it in their own browser.
+            <br><button id="share">Copy a link to this run</button>
+            <input id="link" readonly hidden>
+          </div>
+          <p class="note">This run is kept in your browser. Close the tab and come back: it will still be waiting, until the workflow's own timeout declines it.</p>
+        </div>
+
+        <div class="card result" id="result" hidden>
+          <p class="verdict" id="verdict"></p>
+          <p class="outcome" id="outcome"></p>
+          <div class="after">
+            That was a real workflow, compiled from one annotated TypeScript file, running in your browser. Make your own:
+            <div><span class="cmd"><code>npx @synergenius/flow-weaver init my-project</code><button data-copy="npx @synergenius/flow-weaver init my-project">Copy</button></span></div>
+            <div class="row"><a class="button primary" href="#start">Get started</a><button id="again">Run another request</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <details>
+      <summary>The workflow you are running, as it was written: <code>refunds.ts</code></summary>
+      <pre><!--source--></pre>
+    </details>
+  </section>
+
+  <section>
+    <div class="facts">
+      <div><b id="size"></b>The whole workflow, compiled and stripped to JavaScript, with the engine that pauses and resumes it inside. It imports nothing.</div>
+      <div><b id="saved">A few KB</b>All a paused run takes to keep: here in your browser, or in a link.</div>
+      <div><b>No server</b>The run starts, waits and finishes in this tab. The page is static.</div>
+    </div>
+  </section>
+
+  <section id="start">
+    <div class="eyebrow">Get started</div>
+    <h2>Make your own in a minute.</h2>
+    <p class="lede">You need Node.js 22 or later.</p>
+    <ol class="steps">
+      <li><span>1</span><div>Create a project with a first workflow.<br><span class="cmd"><code>npx @synergenius/flow-weaver init my-project</code><button data-copy="npx @synergenius/flow-weaver init my-project">Copy</button></span></div></li>
+      <li><span>2</span><div>Run it.<br><span class="cmd"><code>cd my-project &amp;&amp; npm start</code><button data-copy="cd my-project && npm start">Copy</button></span></div></li>
+      <li><span>3</span><div>Open the console to see your workflows, their runs and their gates.<br><span class="cmd"><code>npx fw console</code><button data-copy="npx fw console">Copy</button></span></div></li>
+      <li><span>4</span><div>Or let your AI assistant build workflows with you, through Flow Weaver's MCP tools.<br><span class="cmd"><code>npx fw mcp-setup</code><button data-copy="npx fw mcp-setup">Copy</button></span></div></li>
+    </ol>
+    <div class="ctas">
+      <a class="button primary" href="https://github.com/synergenius-fw/flow-weaver">View on GitHub</a>
+      <a class="button" href="https://github.com/synergenius-fw/flow-weaver/tree/main/docs/reference">Read the docs</a>
+      <a class="button" href="https://www.reddit.com/r/FlowWeaver/">Join r/FlowWeaver</a>
+    </div>
+  </section>
+</main>
+<footer>
+  <span>Flow Weaver · Apache-2.0 · built by Synergenius</span>
+  <a href="https://github.com/synergenius-fw/flow-weaver">GitHub</a>
+  <a href="https://www.npmjs.com/package/@synergenius/flow-weaver">npm</a>
+  <a href="https://www.reddit.com/r/FlowWeaver/">r/FlowWeaver</a>
+</footer>
+
+<script>/*workflow*/</script>
+<script type="module">
+const COMPILED_SIZE = /*compiled-size*/;
+const STORE = 'flow-weaver/be-the-gate';
+const workflowId = 'refundRequest';
+const requests = [
+  { orderId: 'A-1042', amount: 240, reason: 'Arrived damaged' },
+  { orderId: 'B-2077', amount: 18, reason: 'Wrong size' },
+  { orderId: 'C-3310', amount: 1250, reason: 'Never arrived' },
+];
+const $ = (id) => document.getElementById(id);
+const svg = document.querySelector('.diagram svg');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+$('size').textContent = COMPILED_SIZE;
+
+for (const button of document.querySelectorAll('[data-copy]')) {
+  button.onclick = async () => {
+    try { await navigator.clipboard.writeText(button.dataset.copy); button.textContent = 'Copied'; } catch { button.textContent = 'Select it'; }
+    setTimeout(() => { button.textContent = 'Copy'; }, 2000);
+  };
+}
+
+// The diagram follows the run: each step lights up as it runs, the routes taken turn green or red.
+const row = (id) => svg.querySelector(`g.row[data-id="${id}"]`);
+const state = (id, s) => row(id)?.setAttribute('data-state', s);
+const take = (from, to) => svg.querySelector(`path.edge[data-from="${from}"][data-to="${to}"]`)?.classList.add('taken');
+const reset = (keepLog = false) => {
+  svg.querySelectorAll('g.row').forEach((g) => g.removeAttribute('data-state'));
+  svg.querySelectorAll('path.edge').forEach((p) => p.classList.remove('taken'));
+  if (!keepLog) $('log').textContent = '';
+};
+const log = (line) => { $('log').textContent += `${line}\n`; };
+const showPaused = () => {
+  reset(true);
+  for (const id of ['Start', 'review']) state(id, 'done');
+  take('Start', 'review'); take('review', 'approval'); state('approval', 'waiting');
+};
+
+// Runs the compiled workflow, or resumes it with an answer. It either finishes or stops at the gate.
+async function run({ request, runId, paused, answer }) {
+  let previous = 'Start';
+  state('Start', 'done');
+  const services = { debugController: {
+    beforeNode: async (id) => { take(previous, id); state(id, 'running'); await sleep(650); },
+    afterNode: (id) => { state(id, 'done'); previous = id; },
+  } };
+  const options = { runId, workflowId, services };
+  if (paused) {
+    const accepted = FW.acceptContinuation(paused.continuation, { runId, workflowId, gateId: paused.gateId });
+    Object.assign(options, { continuation: accepted.envelope, resolution: { gateId: paused.gateId, value: answer } });
+  }
+  try {
+    const result = await FW.refundRequest(true, { refund: request }, FW.createWorkflowRuntime(options));
+    take(previous, 'Exit');
+    state('Exit', 'done');
+    return { result };
+  } catch (error) {
+    if (!FW.isDurableGateYield(error)) throw error;
+    state('approval', 'waiting');
+    const [summary, timeout] = error.gate.payload.arguments.map((a) => a.value);
+    return { paused: { gateId: error.gate.id, summary, timeout, continuation: error.continuation } };
+  }
+}
+
+// The gate's timeout is the workflow's own ('24h'). When it passes with no answer,
+// the run takes its failure path, as a Flow Weaver coordinator would.
+const duration = (text) => {
+  const m = /^(\d+)\s*(ms|s|m|h|d)$/.exec(String(text ?? '').trim());
+  return m ? Number(m[1]) * { ms: 1, s: 1e3, m: 6e4, h: 36e5, d: 864e5 }[m[2]] : Infinity;
+};
+const span = (ms) => {
+  const minutes = Math.max(0, Math.round(ms / 6e4));
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+};
+
+// A link carries the paused run, compressed, after the #.
+const toLink = async (value) => {
+  const bytes = new Uint8Array(await new Response(new Blob([JSON.stringify(value)]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+  return btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+};
+const fromLink = async (text) => {
+  const bytes = Uint8Array.from(atob(text.replaceAll('-', '+').replaceAll('_', '/')), (c) => c.charCodeAt(0));
+  return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text());
+};
+
+let current;
+const deadline = () => current.pausedAt + duration(current.paused.timeout);
+const tick = () => {
+  if (!current) return;
+  const waited = Date.now() - current.pausedAt, left = deadline() - Date.now();
+  if (left <= 0) return answer(false, true);
+  $('since').textContent = waited < 6e4 ? 'waiting' : `waiting ${span(waited)}`;
+  $('deadline').textContent = `If no one answers within ${current.paused.timeout}, the workflow declines it: ${span(left)} left.`;
+};
+setInterval(tick, 15000);
+
+function showGate(passed = false) {
+  $('result').hidden = true;
+  $('gate').hidden = false;
+  $('passed').hidden = !passed;
+  $('summary').textContent = current.paused.summary;
+  $('link').hidden = true;
+  $('saved').textContent = `${(JSON.stringify(current.paused.continuation).length / 1024).toFixed(1)} KB`;
+  log(`paused at approval: "${current.paused.summary}"`);
+  tick();
+}
+
+async function start(request) {
+  reset();
+  $('gate').hidden = $('result').hidden = true;
+  log(`run started for order ${request.orderId}`);
+  const runId = crypto.randomUUID();
+  const { paused } = await run({ request, runId });
+  current = { request, runId, paused, pausedAt: Date.now() };
+  try { localStorage.setItem(STORE, JSON.stringify(current)); } catch { /* the run still works, it just is not kept */ }
+  showGate();
+}
+
+async function answer(approve, timedOut = false) {
+  if (!current || answer.busy) return;
+  answer.busy = true;
+  $('approve').disabled = $('decline').disabled = true;
+  const note = timedOut ? `No answer within ${current.paused.timeout}` : $('note').value.trim() || (approve ? 'Approved' : 'Declined');
+  const value = approve ? { onSuccess: true, onFailure: false, note } : { onSuccess: false, onFailure: true, note };
+  log(timedOut ? `timed out: no answer within ${current.paused.timeout}` : `${approve ? 'approved' : 'declined'}: "${note}"`);
+  reset(true);
+  const { result } = await run({ ...current, answer: value });
+  try { localStorage.removeItem(STORE); } catch { /* nothing kept */ }
+  history.replaceState(null, '', location.pathname);
+  $('gate').hidden = true;
+  $('result').hidden = false;
+  $('result').className = `card result ${approve ? 'ok' : 'err'}`;
+  $('verdict').textContent = approve ? 'Refunded' : timedOut ? 'Declined: the time ran out' : 'Declined';
+  $('outcome').textContent = approve ? result.outcome : result.declined;
+  log(`finished: ${approve ? result.outcome : result.declined}`);
+  $('approve').disabled = $('decline').disabled = false;
+  $('again').dataset.after = current.request.orderId;
+  current = undefined;
+  answer.busy = false;
+}
+
+$('approve').onclick = () => answer(true);
+$('decline').onclick = () => answer(false);
+$('again').onclick = () => start(requests[(requests.findIndex((r) => r.orderId === $('again').dataset.after) + 1) % requests.length]);
+$('share').onclick = async () => {
+  const link = `${location.href.split('#')[0]}#run=${await toLink(current)}`;
+  $('link').value = link;
+  $('link').hidden = false;
+  $('link').select();
+  try { await navigator.clipboard.writeText(link); $('share').textContent = 'Copied'; } catch { $('share').textContent = 'Copy the link below'; }
+  setTimeout(() => { $('share').textContent = 'Copy a link to this run'; }, 2500);
+};
+
+// Where this visit picks up: a run passed on in the link, a run left waiting here, or a new one.
+const hash = location.hash.match(/^#run=(.+)$/)?.[1];
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem(STORE) ?? 'null'); } catch { saved = null; }
+if (hash) {
+  current = await fromLink(hash);
+  showPaused();
+  log('a paused run, passed on in a link');
+  showGate(true);
+} else if (saved?.paused) {
+  current = saved;
+  showPaused();
+  log(`your run, waiting since ${new Date(saved.pausedAt).toLocaleString()}`);
+  showGate();
+} else {
+  await start(requests[0]);
+}
+</script>
+</body>
+</html>

@@ -58,6 +58,11 @@ jobs:
         run: npx vitest run tests/cli/built-binary-console.test.ts tests/cli/startup-modules.test.ts
         env:
           FW_REQUIRE_BUILD: '1'
+      # The site's build compiles its workflow with this build and runs it
+      # outside Flow Weaver, paused and resumed. A change that breaks that
+      # fails here, before main deploys the site.
+      - name: Build the site
+        run: npm run site
 
   test:
     needs: build

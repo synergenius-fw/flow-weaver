@@ -6,6 +6,10 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 
 ## Unreleased
 
+### Added
+
+- **A site where a workflow runs in your browser.** [synergenius-fw.github.io/flow-weaver](https://synergenius-fw.github.io/flow-weaver/) says what Flow Weaver is and lets you be the gate: a compiled refund workflow runs in the page, stops for a manager's approval, and resumes when you approve or decline. A paused run is kept in the browser, or passed on in a link, and the workflow's own 24-hour timeout still applies. GitHub Pages builds it from each commit on main (`npm run site`), and the build fails if the compiled workflow no longer pauses and resumes outside Flow Weaver. CI builds it on every pull request too.
+
 ### Changed
 
 - **Flow Weaver has its own mark.** The console's tab icon was the Synergenius mark. It is now Flow Weaver's: a workflow that starts at a hub, forks, weaves its two routes over and under each other, and meets again at the end. It turns cream in a dark theme. The README shows it too. The console's footer still says it is built by Synergenius, with Synergenius's mark.
