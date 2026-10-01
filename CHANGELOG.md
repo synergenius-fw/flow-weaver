@@ -4,6 +4,12 @@ All notable changes to this project are documented in [GitHub Releases](https://
 
 This project follows [Semantic Versioning](https://semver.org/) during beta. Breaking changes may occur between minor versions until v1.0.
 
+## Unreleased
+
+### Changed
+
+- **Flow Weaver has its own mark.** The console's tab icon was the Synergenius mark. It is now Flow Weaver's: a workflow that starts at a hub, forks, weaves its two routes over and under each other, and meets again at the end. It turns cream in a dark theme. The README shows it too. The console's footer still says it is built by Synergenius, with Synergenius's mark.
+
 ## 0.45.0
 
 The console, its diagrams and the brief can be read in either theme, and the docs match the code again.
