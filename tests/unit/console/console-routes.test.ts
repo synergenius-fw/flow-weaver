@@ -39,6 +39,8 @@ beforeAll(async () => {
   fs.writeFileSync(path.join(assets, 'index.html'), '<!doctype html><title>console</title>');
   fs.writeFileSync(path.join(assets, 'app.js'), 'export {};');
   fs.writeFileSync(path.join(assets, 'styles.css'), 'body{}');
+  fs.mkdirSync(path.join(assets, 'assets'));
+  for (const mark of ['flow-weaver.svg', 'synergenius.svg']) fs.writeFileSync(path.join(assets, 'assets', mark), '<svg xmlns="http://www.w3.org/2000/svg"/>');
   server = await createConsoleServer({ projectDir: project, port: 0, watch: false, assetsDir: assets, store: createMemoryRunStore() });
 }, 60000);
 
@@ -48,10 +50,13 @@ afterAll(async () => {
 });
 
 describe('the console client', () => {
-  it('serves the page, the script and the styles with their types', async () => {
+  it('serves the page, the script, the styles and the marks with their types', async () => {
     expect(await api('GET', '/')).toMatchObject({ status: 200, type: 'text/html' });
     expect(await api('GET', '/app.js')).toMatchObject({ status: 200, type: 'text/javascript' });
     expect(await api('GET', '/styles.css')).toMatchObject({ status: 200, type: 'text/css' });
+    // Flow Weaver's mark is the tab icon; Synergenius's signs the rail's footer.
+    expect(await api('GET', '/flow-weaver.svg')).toMatchObject({ status: 200, type: 'image/svg+xml' });
+    expect(await api('GET', '/synergenius.svg')).toMatchObject({ status: 200, type: 'image/svg+xml' });
   });
 
   it('answers 404 with a JSON error for anything it does not know', async () => {

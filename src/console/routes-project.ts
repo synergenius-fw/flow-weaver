@@ -29,6 +29,7 @@ export function projectRoutes(ctx: ConsoleContext): Route[] {
     { path: '/', handle: ({ res }) => sendFile(res, path.join(pageDir, 'index.html'), 'text/html') },
     { path: '/app.js', handle: ({ res }) => sendFile(res, path.join(scriptDir, 'app.js'), 'text/javascript') },
     { path: '/styles.css', handle: ({ res }) => sendFile(res, path.join(pageDir, 'styles.css'), 'text/css') },
+    { path: '/flow-weaver.svg', handle: ({ res }) => sendFile(res, path.join(pageDir, 'assets', 'flow-weaver.svg'), 'image/svg+xml') },
     { path: '/synergenius.svg', handle: ({ res }) => sendFile(res, path.join(pageDir, 'assets', 'synergenius.svg'), 'image/svg+xml') },
 
     { method: 'GET', path: '/api/project', handle: ({ res }) => json(res, 200, here()) },

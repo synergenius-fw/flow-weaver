@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/flow-weaver-cream.svg">
+  <img src="docs/brand/flow-weaver.svg" alt="" height="96">
+</picture>
+
 # Flow Weaver
 
 [![npm version](https://img.shields.io/npm/v/@synergenius/flow-weaver?style=flat)](https://www.npmjs.com/package/@synergenius/flow-weaver)
