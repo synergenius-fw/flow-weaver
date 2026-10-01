@@ -6,6 +6,10 @@ This project follows [Semantic Versioning](https://semver.org/) during beta. Bre
 
 ## Unreleased
 
+### Changed
+
+- **Flow Weaver has its own mark.** The console's tab icon was the Synergenius mark. It is now Flow Weaver's: a workflow that starts at a hub, forks, weaves its two routes over and under each other, and meets again at the end. It turns cream in a dark theme. The README shows it too. The console's footer still says it is built by Synergenius, with Synergenius's mark.
+
 ### Fixed
 
 - **The compact diagram tells a failure route from a parallel branch.** `fw diagram --format ascii-compact`, `fw_diagram` and `fw describe` listed every node off the main row as "Parallel", so a refund's decline step, which runs only when the approval is rejected, read as running beside the payment. A failure arm is now listed under the step it leaves (`On failure of approval: decline`), a failure that ends the run says so (`On failure of check: Exit`), and the main row follows the success path.
