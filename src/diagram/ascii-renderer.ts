@@ -509,6 +509,39 @@ function markTrack(usedTracks: Map<number, Set<number>>, x: number, y1: number, 
 
 // ── renderASCIICompact ───────────────────────────────────────────────────────
 
+/**
+ * Which nodes a run reaches from Start without taking a failure port; for
+ * each node it reaches only through one, the step whose failure leads there;
+ * and the failure ports that lead straight back to the path (to Exit, most
+ * often). A failure arm is not a parallel branch: it runs instead of what
+ * follows its step, not beside it.
+ */
+function failureArms(graph: DiagramGraph): { onPath: Set<string>; armOf: Map<string, string>; direct: Map<string, string[]> } {
+  const steps = graph.connections.filter((c) => c.isStepConnection);
+  const onPath = new Set<string>(['Start']);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const c of steps) {
+      if (c.fromPort !== 'onFailure' && onPath.has(c.fromNode) && !onPath.has(c.toNode)) { onPath.add(c.toNode); grew = true; }
+    }
+  }
+  const armOf = new Map<string, string>();
+  const direct = new Map<string, string[]>();
+  const queue: string[] = [];
+  for (const c of steps) {
+    if (c.fromPort !== 'onFailure') continue;
+    if (onPath.has(c.toNode)) direct.set(c.fromNode, [...(direct.get(c.fromNode) ?? []), c.toNode]);
+    else if (!armOf.has(c.toNode)) { armOf.set(c.toNode, c.fromNode); queue.push(c.toNode); }
+  }
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    for (const c of steps) {
+      if (c.fromNode === id && !onPath.has(c.toNode) && !armOf.has(c.toNode)) { armOf.set(c.toNode, armOf.get(id)!); queue.push(c.toNode); }
+    }
+  }
+  return { onPath, armOf, direct };
+}
+
 export function renderASCIICompact(graph: DiagramGraph): string {
   const layers = groupByLayer(graph.nodes);
   if (layers.length === 0) return `${graph.workflowName}\n(empty workflow)`;
@@ -517,11 +550,22 @@ export function renderASCIICompact(graph: DiagramGraph): string {
   outputLines.push(graph.workflowName);
   outputLines.push('');
 
+  // The chain takes one node a layer from the run's success path; a failure
+  // arm is listed under the step it leaves, and what remains runs beside it.
+  const { onPath, armOf, direct } = failureArms(graph);
   const mainChain: DiagramNode[] = [];
   const parallelNodes: DiagramNode[] = [];
+  const arms = new Map<string, DiagramNode[]>();
   for (const layer of layers) {
-    mainChain.push(layer[0]);
-    for (let i = 1; i < layer.length; i++) parallelNodes.push(layer[i]);
+    const inArm = layer.filter((n) => armOf.has(n.id));
+    const rest = layer.filter((n) => !armOf.has(n.id));
+    const chosen = rest.find((n) => onPath.has(n.id)) ?? rest[0];
+    if (chosen) mainChain.push(chosen);
+    parallelNodes.push(...rest.filter((n) => n !== chosen));
+    for (const n of inArm) {
+      const origin = armOf.get(n.id)!;
+      arms.set(origin, [...(arms.get(origin) ?? []), n]);
+    }
   }
 
   const topParts: string[] = [];
@@ -545,6 +589,16 @@ export function renderASCIICompact(graph: DiagramGraph): string {
   outputLines.push(' ' + midParts.join(''));
   outputLines.push(' ' + botParts.join(''));
 
+  // A failure that goes straight back to the path, to Exit most often, has no
+  // arm of its own; where it goes is still worth saying.
+  const label = (id: string) => graph.nodes.find((n) => n.id === id)?.label ?? id;
+  for (const [origin, targets] of direct) {
+    if (!arms.has(origin)) arms.set(origin, targets.map((t) => graph.nodes.find((n) => n.id === t)!).filter(Boolean));
+  }
+  if (arms.size > 0) outputLines.push('');
+  for (const [origin, nodes] of arms) {
+    outputLines.push(` On failure of ${label(origin)}: ` + nodes.map((n) => n.label).join(' \u2501\u25B6 '));
+  }
   if (parallelNodes.length > 0) {
     outputLines.push('');
     outputLines.push(' Parallel: ' + parallelNodes.map(n => n.label).join(', '));

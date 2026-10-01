@@ -4,6 +4,12 @@ All notable changes to this project are documented in [GitHub Releases](https://
 
 This project follows [Semantic Versioning](https://semver.org/) during beta. Breaking changes may occur between minor versions until v1.0.
 
+## Unreleased
+
+### Fixed
+
+- **The compact diagram tells a failure route from a parallel branch.** `fw diagram --format ascii-compact`, `fw_diagram` and `fw describe` listed every node off the main row as "Parallel", so a refund's decline step, which runs only when the approval is rejected, read as running beside the payment. A failure arm is now listed under the step it leaves (`On failure of approval: decline`), a failure that ends the run says so (`On failure of check: Exit`), and the main row follows the success path.
+
 ## 0.45.0
 
 The console, its diagrams and the brief can be read in either theme, and the docs match the code again.
