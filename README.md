@@ -16,6 +16,8 @@ Flow Weaver turns annotated functions into an execution graph and generates the 
 
 Workflows are plain `.ts` files, so everything you already do with code applies: Git, code review, tests, linting, CI. Build them by hand the way you write JSDoc, or drive the whole compiler through MCP tools from Claude Code, Cursor, VS Code, Windsurf, or any MCP-compatible editor.
 
+**Try one in your browser:** at [synergenius-fw.github.io/flow-weaver](https://synergenius-fw.github.io/flow-weaver/) a compiled refund workflow runs in the page and stops for a manager's approval. You are the manager.
+
 ## Install
 
 Requires Node.js **22+**.

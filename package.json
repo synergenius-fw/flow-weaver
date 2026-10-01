@@ -137,6 +137,7 @@
     "build": "rimraf dist .tsbuildinfo && tsc -p tsconfig.build.json && npm run build:cli && npm run build:console && npm run build:lib",
     "postbuild": "npx tsx scripts/postbuild.ts && npm run generate:docs:check",
     "build:lib": "npx tsx scripts/build-lib.ts",
+    "site": "npx tsx scripts/build-site.ts",
     "generate:docs": "tsx scripts/generate-docs.ts",
     "generate:docs:check": "tsx scripts/generate-docs.ts --check",
     "release": "tsx scripts/release.ts",
@@ -180,7 +181,7 @@
   ],
   "author": "Ricardo José Horta Morais",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/synergenius-fw/flow-weaver#readme",
+  "homepage": "https://synergenius-fw.github.io/flow-weaver/",
   "bugs": "https://github.com/synergenius-fw/flow-weaver/issues",
   "repository": {
     "type": "git",
