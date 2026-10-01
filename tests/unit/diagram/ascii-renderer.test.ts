@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderASCII, renderASCIICompact, renderText } from '../../../src/diagram/ascii-renderer';
 import { buildDiagramGraph } from '../../../src/diagram/geometry';
+import { sourceToASCII } from '../../../src/diagram/index';
 import { createSimpleWorkflow, createParallelWorkflow, createChainWorkflow, createScopedWorkflow } from '../../helpers/test-fixtures';
 
 describe('renderASCII', () => {
@@ -101,6 +102,90 @@ describe('renderASCIICompact', () => {
     const graph = buildDiagramGraph(createParallelWorkflow());
     const result = renderASCIICompact(graph);
     expect(result).toContain('Parallel:');
+  });
+
+  // A refund: approved, it is paid; declined, the gate's failure port leads to `decline`.
+  const REFUND = `
+/** @flowWeaver nodeType @expression */
+function reviewRequest(amount: number): { summary: string } { return { summary: String(amount) }; }
+
+/**
+ * @flowWeaver nodeType
+ * @input summary
+ * @output note
+ */
+function managerApproval(execute: boolean, summary: string): { onSuccess: boolean; onFailure: boolean; note: string } {
+  return { onSuccess: execute, onFailure: false, note: summary };
+}
+
+/** @flowWeaver nodeType @expression */
+function issueRefund(note: string): { outcome: string } { return { outcome: note }; }
+
+/** @flowWeaver nodeType @expression */
+function declineRefund(summary: string): { declined: string } { return { declined: summary }; }
+
+/**
+ * @flowWeaver workflow
+ * @param amount
+ * @returns outcome
+ * @returns declined
+ * @node review reviewRequest
+ * @node approval managerApproval
+ * @node pay issueRefund
+ * @node decline declineRefund
+ * @path Start -> review -> approval -> pay -> Exit
+ * @path Start -> review -> approval:fail -> decline -> Exit
+ * @connect review.summary -> decline.summary
+ */
+export function refundRequest(execute: boolean, params: { amount: number }): { onSuccess: boolean; onFailure: boolean; outcome: string; declined: string } {
+  throw new Error('generated body was not installed');
+}
+`;
+
+  it('describes a failure arm as one, not as a parallel branch', () => {
+    const result = sourceToASCII(REFUND, { format: 'ascii-compact' });
+    expect(result).toContain('On failure of approval: decline');
+    expect(result).not.toContain('Parallel');
+  });
+
+  it('says where a failure goes when it ends the run at once', () => {
+    const CHECKED = `
+/**
+ * @flowWeaver nodeType
+ * @input value
+ * @output value
+ */
+function check(execute: boolean, value: number): { onSuccess: boolean; onFailure: boolean; value: number } {
+  return { onSuccess: value > 0, onFailure: value <= 0, value };
+}
+
+/** @flowWeaver nodeType @expression */
+function double(value: number): { result: number } { return { result: value * 2 }; }
+
+/**
+ * @flowWeaver workflow
+ * @param value
+ * @returns result
+ * @node gate check
+ * @node twice double
+ * @path Start -> gate -> twice -> Exit
+ * @path Start -> gate:fail -> Exit
+ */
+export function checked(execute: boolean, params: { value: number }): { onSuccess: boolean; onFailure: boolean; result: number } {
+  throw new Error('generated body was not installed');
+}
+`;
+    const result = sourceToASCII(CHECKED, { format: 'ascii-compact' });
+    expect(result).toContain('On failure of gate: Exit');
+    // A workflow that routes no failure says nothing about failures.
+    expect(sourceToASCII(REFUND.replace(' * @path Start -> review -> approval:fail -> decline -> Exit\n', '').replace(' * @connect review.summary -> decline.summary\n', ''), { format: 'ascii-compact' })).not.toContain('On failure');
+  });
+
+  it('never runs the main chain through a failure arm', () => {
+    const result = sourceToASCII(REFUND, { format: 'ascii-compact' });
+    const chain = result.split('\n').find((l) => l.includes('\u25B6')) ?? '';
+    expect(chain).toMatch(/review.*approval.*pay.*Exit/);
+    expect(chain).not.toContain('decline');
   });
 
   it('shows scoped children', () => {
